@@ -28,6 +28,14 @@ public partial class BattlePresentationView : Control
     public float SceneAudioGain { get; private set; } = 1;
     private SceneTransitionOverlay _transition = null!;
     private bool _entering;
+    private Vector2 SceneOffset => (GetViewportRect().Size - new Vector2(1024, 768)) / 2;
+    private void ViewportChanged()
+    {
+        Size = GetViewportRect().Size;
+        UpdatePlayback(_day);
+        QueueRedraw();
+        _numberLayer.QueueRedraw();
+    }
     private AudioStreams _streams = null!;
     private AudioStreamPlayer _ambience = null!;
     private AudioStreamPlayer _numberRoll = null!;
@@ -152,24 +160,25 @@ public partial class BattlePresentationView : Control
         }
         else _numberRoll.Stop();
         int slot = 0;
-        void Effect(BattleSprite asset, double elapsed, Vector2 point, float opacity = 1, int? frameIndex = null)
+        void Effect(BattleSprite asset, double elapsed, Vector2 point, float opacity = 1, int? frameIndex = null, bool sceneCoordinates = true)
         {
             if (!_assets!.TryGetReady(asset.Asset, out var texture) && (_flags is null || !_flags.TryGetReady(asset.Asset, out texture))) return;
             Sprite2D sprite;
             if (slot == _effects.Count) { sprite = new(); AddChild(sprite); _effects.Add(sprite); } else sprite = _effects[slot];
             slot++; sprite.Show(); sprite.Texture = texture; sprite.Hframes = asset.Columns;
             sprite.Frame = frameIndex ?? Math.Clamp((int)(elapsed * 1000 / asset.FrameMilliseconds), 0, asset.Columns - 1);
-            sprite.Centered = false; sprite.Position = point + new Vector2(asset.OffsetX - (asset.Centered ? texture.GetWidth() / asset.Columns / 2f : 0), asset.OffsetY);
+            sprite.Centered = false; sprite.Position = (sceneCoordinates ? SceneOffset : Vector2.Zero) + point + new Vector2(asset.OffsetX - (asset.Centered ? texture.GetWidth() / asset.Columns / 2f : 0), asset.OffsetY);
             sprite.Modulate = new Color(1, 1, 1, asset.Opacity * opacity);
             sprite.Material = asset.Additive ? _additive : null;
         }
         foreach (var cue in plan.Visuals.Where(c => c.Effect is not null && time >= c.Start && time < c.End))
             if (cue.FadeOutStart is not null || time - cue.Start < cue.Effect!.Columns * cue.Effect.FrameMilliseconds / 1000.0)
-                Effect(cue.Effect!, time - cue.Start, cue.ScreenEffect ? new(512, 0) : Project(cue.Target),
-                    cue.FadeOutStart is { } fadeStart ? BattleEffectFade.Opacity(time - fadeStart) : 1);
+                Effect(cue.Effect!, time - cue.Start, cue.ScreenEffect ? new(_zoom is null ? GetViewportRect().Size.X / 2 : 512, 0) : Project(cue.Target),
+                    cue.FadeOutStart is { } fadeStart ? BattleEffectFade.Opacity(time - fadeStart) : 1,
+                    sceneCoordinates: cue.ScreenEffect && _zoom is not null);
         if (_zoom is null && !_entering)
             foreach (var cue in plan.MapEffects.Where(c => time >= c.Start && time < c.Start + c.Sprite.Columns * c.Sprite.FrameMilliseconds / 1000.0))
-                Effect(cue.Sprite, time - cue.Start, Project(cue.Target));
+                Effect(cue.Sprite, time - cue.Start, Project(cue.Target), sceneCoordinates: false);
         if (_zoom is { } active)
         {
             double elapsed = time - active.Start;
@@ -205,8 +214,8 @@ public partial class BattlePresentationView : Control
     public override void _GuiInput(InputEvent input)
     {
         if ((_zoom is null && !_entering) || input is not InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } mouse) return;
-        if (new Rect2(820, 700, 88, 44).HasPoint(mouse.Position)) PauseRequested?.Invoke();
-        else if (new Rect2(920, 700, 96, 44).HasPoint(mouse.Position)) _day?.SkipVisual();
+        if (new Rect2(820, 700, 88, 44).HasPoint(mouse.Position - SceneOffset)) PauseRequested?.Invoke();
+        else if (new Rect2(920, 700, 96, 44).HasPoint(mouse.Position - SceneOffset)) _day?.SkipVisual();
         AcceptEvent();
     }
     public override void _Draw()
@@ -224,6 +233,8 @@ public partial class BattlePresentationView : Control
         }
         _numberLayer.QueueRedraw();
         if (_zoom is not { } cue || _assets is null || cue.Zoom is not { } zoom || _day is null) return;
+        DrawRect(new(Vector2.Zero, Size), Colors.Black);
+        DrawSetTransform(SceneOffset);
         DrawRect(new(0, 0, 1024, 768), new Color(0.03f, 0.04f, 0.05f));
         foreach (var layer in cue.Backdrop) DrawTexture(_assets[layer.Asset], new(layer.X, layer.Y));
         DrawTexture(_assets[zoom.SourcePanel], new(0, 632)); DrawTexture(_assets[zoom.TargetPanel], new(680, 0));
@@ -241,6 +252,7 @@ public partial class BattlePresentationView : Control
         PanelText(Name(cue.Target), new(816, 72));
         DrawString(font, new(832, 730), CommandText.Resolve(Texts, IsPaused() ? "battle.resume" : "battle.pause"), fontSize: 20);
         DrawString(font, new(932, 730), CommandText.Resolve(Texts, "battle.skip"), fontSize: 20);
+        DrawSetTransform(Vector2.Zero);
     }
     private void DrawNumbers(BattleNumberLayer layer)
     {
@@ -260,7 +272,7 @@ public partial class BattlePresentationView : Control
             var glyphs = numberPlayback.SampleTotal(elapsed);
             if (!cue.Blocked) glyphs = glyphs.Concat(cue.Playback!.Impacts.SelectMany(p => numberPlayback.SampleSmall(p, elapsed)));
             foreach (var glyph in glyphs)
-                layer.DrawTextureRectRegion(_assets[glyph.Sheet.Asset], new(new((float)glyph.X, (float)glyph.Y), new(glyph.Sheet.Width, glyph.Sheet.Height)),
+                layer.DrawTextureRectRegion(_assets[glyph.Sheet.Asset], new(SceneOffset + new Vector2((float)glyph.X, (float)glyph.Y), new(glyph.Sheet.Width, glyph.Sheet.Height)),
                     new(0, (float)glyph.SourceY, glyph.Sheet.Width, glyph.Sheet.Height), new Color(1, 1, 1, glyph.Opacity));
         }
     }
@@ -269,7 +281,9 @@ public partial class BattlePresentationView : Control
         _streams = new(ContentRoot, Sounds); _ambience = new(); AddChild(_ambience); _numberRoll = new(); AddChild(_numberRoll);
         _numberLayer = new() { DrawNumbers = DrawNumbers, ZIndex = 1 }; AddChild(_numberLayer);
         _transition = new(); AddChild(_transition);
+        GetViewport().SizeChanged += ViewportChanged;
+        Size = GetViewportRect().Size;
     }
     public override void _ExitTree()
-    { _ambience.Stop(); _ambience.Stream = null; _numberRoll.Stop(); _numberRoll.Stream = null; _streams.Dispose(); _assets?.Dispose(); _flags?.Dispose(); foreach (var portrait in _portraits) portrait.Dispose(); Textures.Defer(_additive.Dispose); }
+    { GetViewport().SizeChanged -= ViewportChanged; _ambience.Stop(); _ambience.Stream = null; _numberRoll.Stop(); _numberRoll.Stream = null; _streams.Dispose(); _assets?.Dispose(); _flags?.Dispose(); foreach (var portrait in _portraits) portrait.Dispose(); Textures.Defer(_additive.Dispose); }
 }

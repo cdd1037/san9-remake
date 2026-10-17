@@ -7,8 +7,9 @@ using San9.Core.Domain;
 
 namespace San9.Client.Godot;
 
-public partial class EndingView : Control
+public partial class EndingView : FixedPage
 {
+    protected override Color PageBackground => Colors.Black;
     public EndingDraft Draft { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;
     public TextureService Service { get; init; } = null!;

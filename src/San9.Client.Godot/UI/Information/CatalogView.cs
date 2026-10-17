@@ -4,8 +4,9 @@ using San9.Application.Presentation;
 namespace San9.Client.Godot;
 
 /// <summary>Shared catalog window. Domain queries and navigation belong to its caller.</summary>
-public partial class CatalogView : Control, IInformationPage
+public partial class CatalogView : FixedPage, IInformationPage
 {
+    protected override Color PageBackground => new(0, 0, 0, .45f);
     public string Title { get; init; } = "";
     public string HintText { get; init; } = "";
     public string CloseTitle { get; init; } = "关闭";
@@ -446,7 +447,6 @@ public partial class CatalogView : Control, IInformationPage
     public override void _Draw()
     {
         if (_grid is null) return;
-        DrawRect(new(0,0,1024,768),new Color(0,0,0,.45f));
         DrawTextureRectRegion(Textures["information-background"], _body, new(Vector2.Zero,_body.Size));
         float x=_body.Position.X,y=_body.Position.Y,right=_body.End.X,bottom=_body.End.Y;
         Tile("information-frame-top",new(x+64,y-8,_body.Size.X-304,8));

@@ -31,7 +31,7 @@ public partial class StrategyHud
                 Frames = Enumerable.Range(0, 4).Select(f => (Texture2D)_textures[$"target-{role}-{f}"]).ToArray(),
                 TextRole = role == "list" ? GameButtonTextRole.ConfirmYes : GameButtonTextRole.ConfirmNo };
             button.Pressed += action;
-            AddChild(button); _targetButtons.Add(button);
+            _bottomRight.AddChild(button); _targetButtons.Add(button); _hudButtons.Add(button);
         }
     }
 
@@ -49,18 +49,18 @@ public partial class StrategyHud
         {
             if (frame.Asset == "sidebar-frame")
             {
-                if (SidebarVisible) yield return (frame.Asset, frame.Position + new Vector2(_sidebarOffset, 0));
+                if (SidebarVisible) yield return (frame.Asset, frame.Position + GroupPosition(_sidebarMotion));
                 continue;
             }
             if (SelectingTargets && frame.Asset != "radar-frame") continue;
             if (frame.Asset == "ruler-frame" && !Turn.IsStrategy) continue;
-            yield return frame;
+            yield return (frame.Asset, frame.Position + GroupPosition(frame.Asset == "radar-frame" ? _topRight : _topLeft));
         }
         if (!SelectingTargets) yield break;
         yield return ("target-title-left", Vector2.Zero);
         for (int x = 64; x < 160; x += 24) yield return ("target-title-middle", new(x, 0));
         yield return ("target-title-right", new(160, 0));
-        yield return ("target-footer", new(808, 657));
+        yield return ("target-footer", GroupPosition(_bottomRight) + new Vector2(808, 657));
     }
 
     private void RefreshMilitaryCommand()

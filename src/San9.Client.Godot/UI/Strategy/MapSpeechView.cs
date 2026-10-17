@@ -16,7 +16,6 @@ public partial class MapSpeechView : Control
     private readonly GameTextPresenter _text = new();
     private MapSpeechPlacement _placement;
     public float FrameWidth { get; private set; }
-    private float _layoutWidth;
     public bool ResourcesReady => Textures.IsReady && _portrait.IsResourceReady;
 
     public override void _Ready()
@@ -34,11 +33,11 @@ public partial class MapSpeechView : Control
         body.PresentAtGlyphCell(Message.Message.BbCode,new(12,new(Skin.Colors["map-speech-text"]),GameTextEffect.None,Colors.Transparent),new(92,41));
         body.AddThemeConstantOverride("line_separation",GameTextMetrics.LineSpacing(body.GetThemeFont("normal_font"),12)+2);
         body.Size = new(body.GetContentWidth(),body.GetContentHeight());
-        _layoutWidth = body.Size.X+148;
+        float layoutWidth = body.Size.X+148;
         float left = Textures.Assets[MapSpeechSkin.Role(_placement,"left")].Width;
         float right = Textures.Assets[MapSpeechSkin.Role(_placement,"right")].Width;
         float tile = Textures.Assets[MapSpeechSkin.Role(_placement,"middle")].Width;
-        FrameWidth = left + right + Math.Max(0,MathF.Ceiling((_layoutWidth-left-right)/tile))*tile;
+        FrameWidth = left + right + Math.Max(0,MathF.Ceiling((layoutWidth-left-right)/tile))*tile;
         Size = new(FrameWidth,108);
         if (Message.ForceColorCode is int color)
         {
@@ -47,17 +46,19 @@ public partial class MapSpeechView : Control
         }
     }
 
-    public SpeechBounds Place(Vector2 anchor, IReadOnlyList<SpeechBounds> occupied, bool choose, MapSpeechPlacement? preferred = null)
+    public OverlayBounds Place(Vector2 anchor, OverlayBounds viewport, IReadOnlyList<OverlayBounds> occupied,
+        MapSpeechPlacement? preferred = null)
     {
-        if (choose) _placement = MapSpeechLayout.Choose(anchor.X,anchor.Y,_layoutWidth,preferred ?? _placement,occupied);
-        var bounds = MapSpeechLayout.Bounds(anchor.X,anchor.Y,FrameWidth,_placement);
-        Position = new((float)bounds.X,(float)bounds.Y);
-        QueueRedraw();
-        return MapSpeechLayout.HitBounds(bounds);
+        var layout = MapSpeechLayout.Place(anchor.X, anchor.Y, FrameWidth, preferred ?? _placement, viewport, occupied);
+        bool changed = _placement != layout.Placement;
+        _placement = layout.Placement;
+        Position = new((float)layout.Bounds.X, (float)layout.Bounds.Y);
+        if (changed) QueueRedraw();
+        return layout.Bounds;
     }
 
     public bool Contains(Vector2 point) => new Rect2(Position+new Vector2(38,20),new(FrameWidth-54,48)).HasPoint(point);
-    public SpeechBounds HitBounds => new(Position.X+38,Position.Y+20,FrameWidth-54,48);
+    public OverlayBounds HitBounds => new(Position.X+38,Position.Y+20,FrameWidth-54,48);
 
     public override void _Draw()
     {

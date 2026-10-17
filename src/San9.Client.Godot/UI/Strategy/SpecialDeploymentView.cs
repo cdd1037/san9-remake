@@ -6,8 +6,9 @@ using San9.Content.Interface;
 namespace San9.Client.Godot;
 
 /// <summary>Fixed-formation preparation shares the roster, officer card and numeric editor.</summary>
-public partial class SpecialDeploymentView : Control
+public partial class SpecialDeploymentView : FixedPage
 {
+    protected override Color PageBackground => new(0, 0, 0, .35f);
     public SpecialDeploymentDraft Draft { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public TextureService Service { get; init; } = null!;

@@ -16,9 +16,15 @@ public partial class GameMessageBar : Control
     {
         Textures.RequestPrefixes("message-");
         Position = new(0,736); Size = new(1024,32); MouseFilter = MouseFilterEnum.Ignore;
-        _label = new GameRichTextLabel { Position = new(0,4), Size = new(1024,24), Textures = Textures };
+        _label = new GameRichTextLabel { Position = new(0,4), Size = new(Size.X,24), Textures = Textures };
         AddChild(_label);
+        Resized += ResizeLabel;
         Refresh();
+    }
+    private void ResizeLabel()
+    {
+        _label.Size = new(Size.X, 24);
+        QueueRedraw();
     }
     public void SetMessage(string text, bool enabled = true)
     {
@@ -37,9 +43,9 @@ public partial class GameMessageBar : Control
         var left = Textures["message-left"]; var middle = Textures["message-middle"]; var right = Textures["message-right"];
         int capWidth = left.GetWidth() + right.GetWidth();
         // The text and its padding occupy the middle; the fading caps sit outside it.
-        int middleWidth = Math.Min(_label.GetContentWidth() + 8, Math.Max(0, 1024 - capWidth));
+        int middleWidth = Math.Min(_label.GetContentWidth() + 8, Math.Max(0, (int)Size.X - capWidth));
         int width = capWidth + middleWidth;
-        int leftX = (1024 - width) / 2;
+        int leftX = ((int)Size.X - width) / 2;
         DrawTexture(left,new(leftX,0));
         float start = leftX + left.GetWidth(), end = start + middleWidth;
         for (float x = start; x < end; x += middle.GetWidth())

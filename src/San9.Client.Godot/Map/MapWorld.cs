@@ -54,7 +54,18 @@ public partial class MapWorld : Node2D
     public long CacheBytes => _terrain?.Bytes ?? 0;
     public long CpuSourceBytes => Scene?.Terrain.SourceBytes ?? 0;
     public bool HasCompleteView => _display?.Presented is not null;
-    public bool IsVisibleReady => HasCompleteView && !IsLoading && _display!.IsReady && _display.Presented!.Camera == _requested;
+    public Vector2 ViewportSize => GetViewportRect().Size;
+    public bool HasCompleteViewport => _display?.Presented is { } frame && frame.Size == ViewportSize;
+    public Rect2 PresentedViewportBounds
+    {
+        get
+        {
+            var size = _display?.Presented?.Size ?? Vector2.Zero;
+            var bounds = ClientLayout.PresentedMapBounds(new(ViewportSize.X, ViewportSize.Y), new(size.X, size.Y));
+            return new((float)bounds.X, (float)bounds.Y, (float)bounds.Width, (float)bounds.Height);
+        }
+    }
+    public bool IsVisibleReady => HasCompleteViewport && !IsLoading && _display!.IsReady && _display.Presented!.Camera == _requested;
     public bool IsLoading => _loading is not null || _awaitingSeason;
     public string? LoadError => _error ?? _display?.Error;
     public long ViewRevision => _display?.Revision ?? 0;
@@ -82,6 +93,7 @@ public partial class MapWorld : Node2D
     public event Action<int, Vector2>? UnitContextRequested;
     public event Action<MapObjectTarget, Vector2>? CommandMenuRequested;
     public event Action? MapReady;
+    public event Action? ViewportPresentationChanged;
     public bool ShowBoundaries
     {
         get => _showBoundaries;
@@ -89,12 +101,19 @@ public partial class MapWorld : Node2D
     }
     public override void _Ready()
     {
-        _camera = GetNode<Camera2D>("Camera");
+        _camera = GetNode<Camera2D>("%MapCamera");
         var center = MapGeometry.Center(89, 64);
         _requested = new(center.X, center.Y, 1); _camera.Position = new(center.X, center.Y);
         GetWindow().MouseExited += ResetNavigation;
         GetWindow().FocusExited += ResetNavigation;
-        GetWindow().FocusExited += ReleaseMouseLock;
+        GetViewport().SizeChanged += OnViewportResized;
+    }
+    private void OnViewportResized()
+    {
+        _dragging = false; _edgeScroll.CancelGesture(); HoverObject(null);
+        _camera.ForceUpdateScroll();
+        RequestDisplay();
+        ViewportPresentationChanged?.Invoke();
     }
     public void LoadMap(MapPackage map, string root, string? season = null, double? animationTime = null)
     {
@@ -132,7 +151,7 @@ public partial class MapWorld : Node2D
         {
             _display.PersonnelHoverPlace = null;
             if (_display.PersonnelTargets is { Kind: "search" } search && NavigationAvailable &&
-                _pointer.X >= 0 && _pointer.Y >= 0 && _pointer.X < ClientLayout.LogicalWidth && _pointer.Y < ClientLayout.LogicalHeight &&
+                GetViewportRect().HasPoint(_pointer) &&
                 IsInputBlocked?.Invoke(_pointer) != true)
             {
                 var point = ViewportToWorld(_pointer);
@@ -166,6 +185,7 @@ public partial class MapWorld : Node2D
         var frame = _display!.Presented!;
         _camera.Position = new((float)frame.Camera.X, (float)frame.Camera.Y);
         _camera.Zoom = Vector2.One * (float)frame.Camera.Zoom; _camera.ForceUpdateScroll();
+        ViewportPresentationChanged?.Invoke();
         LastNavigationMilliseconds = _navigation.Elapsed.TotalMilliseconds; _navigation.Stop();
         if (!ReferenceEquals(_announcedTerrain, frame.Region.Scene.Terrain))
         {
@@ -175,7 +195,7 @@ public partial class MapWorld : Node2D
     }
     private void RequestDisplay()
     {
-        if (Scene is not null) _display!.Request(Scene, _requested, new(ClientLayout.LogicalWidth, ClientLayout.LogicalHeight), ShowBoundaries, true);
+        if (Scene is not null) _display!.Request(Scene, _requested, ViewportSize, ShowBoundaries, true);
     }
     public void RefreshRuntimeObjects()
     {
@@ -185,7 +205,7 @@ public partial class MapWorld : Node2D
     public void BindSession(San9.Application.GameSession session)
     {
         Session = session; Presentation = null; Day = null;
-        ResetNavigation(); ReleaseMouseLock(); HoverObject(null);
+        ResetNavigation(); HoverObject(null);
         TargetPicked = null; WaypointPicked = null; SitePicked = null;
         if (_display is not null) { _display.Targets = null; _display.PersonnelTargets = null; _display.CommandTargets = null; }
         if (Scene is null) return;
@@ -200,7 +220,8 @@ public partial class MapWorld : Node2D
         if (_display is not null) _display.Hovered = target;
     }
     public int? BuildingAtViewport(Vector2 point) => ObjectAtViewport(point) is { IsUnit: false } target ? target.Id : null;
-    public MapObjectTarget? ObjectAtViewport(Vector2 point) => HasCompleteView && !IsLoading ? ObjectAt(ViewportToWorld(point)) : null;
+    public MapObjectTarget? ObjectAtViewport(Vector2 point) => CanPickAt(point) ? ObjectAt(ViewportToWorld(point)) : null;
+    private bool CanPickAt(Vector2 point) => HasCompleteView && !IsLoading && PresentedViewportBounds.HasPoint(point);
     private MapObjectTarget? ObjectAt(Vector2 point) => _display?.ObjectAt(point);
     private IEnumerable<string> HoverFlagAssets(int color, int glyph)
     {
@@ -261,14 +282,15 @@ public partial class MapWorld : Node2D
         if (HandleNavigationKey(input)) return;
         if (input is InputEventMouseButton button)
         {
-            if (button.Position.X < 0 || button.Position.Y < 0 || button.Position.X >= ClientLayout.LogicalWidth || button.Position.Y >= ClientLayout.LogicalHeight) return;
+            if (!GetViewportRect().HasPoint(button.Position)) return;
+            if (!CanPickAt(button.Position)) { _dragging = false; return; }
             if (IsInputBlocked?.Invoke(button.Position) == true) { _dragging = false; return; }
             if (button.ButtonIndex is MouseButton.Left or MouseButton.Right && TargetPicked is { } pick)
             {
                 if (button.Pressed)
                 {
                     if (button.ButtonIndex == MouseButton.Right) pick(null);
-                    else if (HasCompleteView && !IsLoading)
+                    else if (CanPickAt(button.Position))
                     {
                         if (SitePicked is { } sitePick)
                         {
@@ -300,7 +322,7 @@ public partial class MapWorld : Node2D
             }
             else if (button.Pressed && button.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
             {
-                var offset = button.Position - new Vector2(ClientLayout.LogicalWidth, ClientLayout.LogicalHeight) / 2;
+                var offset = button.Position - ViewportSize / 2;
                 float zoom = Math.Clamp(RequestedZoom * (button.ButtonIndex == MouseButton.WheelUp ? 1.2f : 1 / 1.2f), .25f, 2);
                 var center = RequestedPosition + offset / RequestedZoom - offset / zoom;
                 RequestView(new(center.X, center.Y, zoom)); GetViewport().SetInputAsHandled();
@@ -322,8 +344,7 @@ public partial class MapWorld : Node2D
     {
         GetWindow().MouseExited -= ResetNavigation;
         GetWindow().FocusExited -= ResetNavigation;
-        GetWindow().FocusExited -= ReleaseMouseLock;
-        ReleaseMouseLock();
+        GetViewport().SizeChanged -= OnViewportResized;
         _edgeCursor.Dispose();
         _cancellation.Cancel(); _cancellation.Dispose();
         if (_loading is { } loading) _ = loading.ContinueWith(t => { _ = t.Exception; }, TaskScheduler.Default);

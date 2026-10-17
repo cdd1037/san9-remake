@@ -7,8 +7,9 @@ using San9.Content.Text;
 namespace San9.Client.Godot;
 
 /// <summary>Shared command chrome and reversible child navigation; no command submission occurs here.</summary>
-public abstract partial class CommandPreparationView : Control
+public abstract partial class CommandPreparationView : FixedPage
 {
+    protected override Color PageBackground => new(0, 0, 0, .35f);
     public TextCatalog Texts { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;

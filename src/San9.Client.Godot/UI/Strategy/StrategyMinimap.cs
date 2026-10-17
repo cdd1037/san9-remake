@@ -26,7 +26,7 @@ public partial class StrategyMinimap : Control
     private MapObjectTarget? _commandSource;
     private double _pulseTime;
     private int _pulseFrame;
-    private (Vector2 Position, float Zoom) _view;
+    private (Vector2 Position, float Zoom, Vector2 Size) _view;
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Stop; MouseDefaultCursorShape = CursorShape.PointingHand;
@@ -47,7 +47,7 @@ public partial class StrategyMinimap : Control
         AddChild(_commandPulse);
         _recordPulse.Draw += DrawRecordPulse;
         AddChild(_recordPulse);
-        _view = (World.CameraPosition, World.ZoomFactor);
+        _view = (World.CameraPosition, World.ZoomFactor, World.ViewportSize);
         Resized += ResizeLayers;
     }
     public override bool _HasPoint(Vector2 point) => MinimapGeometry.TryGrid(point.X / Size.X, point.Y / Size.Y, out _, out _);
@@ -78,7 +78,7 @@ public partial class StrategyMinimap : Control
             int frame = PulseFrames[(int)(_pulseTime / 0.1)];
             if (frame != _pulseFrame) { _pulseFrame = frame; _commandPulse.QueueRedraw(); }
         }
-        var view = (World.CameraPosition, World.ZoomFactor);
+        var view = (World.CameraPosition, World.ZoomFactor, World.ViewportSize);
         if (_view == view) return;
         _view = view;
         _viewport.QueueRedraw();
@@ -153,7 +153,7 @@ public partial class StrategyMinimap : Control
     }
     private void DrawViewport()
     {
-        var half = new Vector2(ClientLayout.LogicalWidth, ClientLayout.LogicalHeight) / (2 * _view.Zoom);
+        var half = _view.Size / (2 * _view.Zoom);
         var a = MinimapGeometry.FromWorld(_view.Position.X - half.X, _view.Position.Y - half.Y);
         var b = MinimapGeometry.FromWorld(_view.Position.X + half.X, _view.Position.Y + half.Y);
         var polygon = MinimapGeometry.ClipViewport(a.U, a.V, b.U, b.V).Select(p => new Vector2((float)p.U * Size.X, (float)p.V * Size.Y)).ToArray();

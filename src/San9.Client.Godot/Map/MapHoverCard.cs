@@ -9,16 +9,28 @@ public partial class MapHoverCard : Node2D
     public MapWorld World { get; init; } = null!;
     public Font UiFont { get; init; } = null!;
     public MapHoverInfo? Info { get; private set; }
+    public Func<IReadOnlyList<San9.Rendering.OverlayBounds>> Obstacles { get; init; } = () => [];
+    private Vector2 _anchor;
+    public override void _Ready() => GetViewport().SizeChanged += Relayout;
+    public override void _Process(double delta) { if (Visible) Relayout(); }
+    public override void _ExitTree() => GetViewport().SizeChanged -= Relayout;
+
+    private void Relayout()
+    {
+        if (Info is null) return;
+        var size = GetViewportRect().Size;
+        var p = San9.Rendering.BuildingHoverGeometry.Place(_anchor.X, _anchor.Y, Info.Height, size.X, size.Y);
+        var placed = San9.Rendering.OverlayLayout.Place(new(p.X, p.Y, San9.Rendering.BuildingHoverGeometry.Width, Info.Height),
+            new(0, 0, size.X, size.Y), Obstacles());
+        Position = new((float)placed.X, (float)placed.Y);
+    }
+
     public void ShowInfo(MapHoverInfo? info, Vector2 point)
     {
-        if (info?.Id != Info?.Id && info is not null)
-        {
-            var p = San9.Rendering.BuildingHoverGeometry.Place(point.X, point.Y, info.Height);
-            Position = new(p.X, p.Y);
-        }
+        if (info?.Id != Info?.Id && info is not null) _anchor = point;
         if (info is not null) World.PrepareHoverFlag(info.Force?.ColorCode ?? 50,
             info.IsRulerCommander ? World.Package!.Units.RulerFlagGlyph : info.FlagGlyph ?? info.Force?.FlagGlyph ?? -1);
-        Info = info; Visible = info is not null; QueueRedraw();
+        Info = info; Visible = info is not null; Relayout(); QueueRedraw();
     }
 
     public override void _Draw()

@@ -1,4 +1,5 @@
 using Godot;
+using San9.Rendering;
 using San9.Application.Presentation;
 
 namespace San9.Client.Godot;
@@ -6,21 +7,45 @@ namespace San9.Client.Godot;
 /// <summary>A logical-viewport modal: outside clicks close it without reaching the map.</summary>
 public partial class MapContextPopup : Control
 {
+    public Func<IReadOnlyList<OverlayBounds>> Obstacles { get; init; } = () => [];
+    private IReadOnlyList<OverlayBounds> _lastObstacles = [];
     public TextureScope Textures { get; init; } = null!;
     public Action<MapContextEntry> Activated { get; init; } = null!;
     private Rect2 _menu;
+    private Vector2 _anchor;
+    private bool _dismissOnRightRelease;
     public string Hint => GetChildren().OfType<InformationMenuButton>().FirstOrDefault(b => b.IsHovered()) is {} button
         ? $"查看{button.Title}。" : "";
     public override void _Ready()
     {
-        Size = new(1024, 768); ZIndex = 19; MouseFilter = MouseFilterEnum.Stop; Hide();
+        Size = GetViewportRect().Size; ZIndex = 19; MouseFilter = MouseFilterEnum.Stop; Hide();
+        GetViewport().SizeChanged += Relayout;
+    }
+    public override void _ExitTree() => GetViewport().SizeChanged -= Relayout;
+    private void Relayout()
+    {
+        Size = GetViewportRect().Size;
+        _lastObstacles = Obstacles();
+        _menu.Position = new(Math.Clamp(_anchor.X - 16, 0, Math.Max(0, Size.X - _menu.Size.X)),
+            Math.Clamp(_anchor.Y - 16, 0, Math.Max(0, Size.Y - _menu.Size.Y)));
+        var fitted = OverlayLayout.Place(new(_menu.Position.X, _menu.Position.Y, _menu.Size.X, _menu.Size.Y),
+            new(0, 0, Size.X, Size.Y), _lastObstacles);
+        _menu.Position = new((float)fitted.X, (float)fitted.Y);
+        int row = 0;
+        foreach (var button in GetChildren().OfType<InformationMenuButton>())
+            button.Position = _menu.Position + new Vector2(16, 16 + row++ * 24);
+        QueueRedraw();
+    }
+    public override void _Process(double delta)
+    {
+        if (Visible && !_lastObstacles.SequenceEqual(Obstacles())) Relayout();
     }
     public void Open(IReadOnlyList<MapContextEntry> entries, Vector2 point)
     {
         Close();
         if (entries.Count == 0) return;
-        Vector2 size = new(104, 32 + entries.Count * 24);
-        _menu = new(new(Math.Clamp(point.X - 16, 0, Size.X - size.X), Math.Clamp(point.Y - 16, 0, Size.Y - size.Y)), size);
+        _anchor = point;
+        _menu = new(Vector2.Zero, new(104, 32 + entries.Count * 24));
         for (int i = 0; i < entries.Count; i++)
         {
             var entry = entries[i];
@@ -29,44 +54,31 @@ public partial class MapContextPopup : Control
             button.Pressed += () => { Close(); Activated(entry); };
             AddChild(button);
         }
-        Show(); QueueRedraw();
+        Relayout(); Show();
     }
     public void Close()
     {
         Hide();
+        _dismissOnRightRelease = false;
         foreach (Node child in GetChildren()) { RemoveChild(child); child.QueueFree(); }
     }
     public override void _Input(InputEvent input)
     {
         if (!Visible) return;
-        if (input is InputEventKey { Pressed: true, Keycode: Key.Escape } ||
-            input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right })
+        if (input is InputEventKey { Pressed: true, Keycode: Key.Escape })
         { Close(); GetViewport().SetInputAsHandled(); }
+        if (input is InputEventMouseButton { ButtonIndex: MouseButton.Right } mouse)
+        {
+            // The release that opened this menu belongs to the map, not to a dismiss gesture.
+            if (mouse.Pressed) _dismissOnRightRelease = true;
+            else if (_dismissOnRightRelease) Close();
+            GetViewport().SetInputAsHandled();
+        }
     }
     public override void _GuiInput(InputEvent input)
     {
         if (input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mouse && !_menu.HasPoint(mouse.Position)) Close();
         AcceptEvent();
     }
-    private void Tile(string part, Rect2 rect)
-    {
-        var texture = Textures["information-menu-" + part];
-        for (float y = 0; y < rect.Size.Y; y += texture.GetHeight())
-        for (float x = 0; x < rect.Size.X; x += texture.GetWidth())
-        {
-            Vector2 size = new(Math.Min(texture.GetWidth(), rect.Size.X - x), Math.Min(texture.GetHeight(), rect.Size.Y - y));
-            DrawTextureRectRegion(texture, new(rect.Position + new Vector2(x, y), size), new(Vector2.Zero, size));
-        }
-    }
-    public override void _Draw()
-    {
-        var p = _menu.Position; var s = _menu.Size;
-        Tile("center", _menu);
-        Tile("top", new(p, new(s.X, 16))); Tile("bottom", new(p + new Vector2(0, s.Y - 16), new(s.X, 16)));
-        Tile("left", new(p, new(16, s.Y))); Tile("right", new(p + new Vector2(s.X - 16, 0), new(16, s.Y)));
-        DrawTexture(Textures["information-menu-top-left"], p);
-        DrawTexture(Textures["information-menu-top-right"], p + new Vector2(s.X - 16, 0));
-        DrawTexture(Textures["information-menu-bottom-left"], p + new Vector2(0, s.Y - 16));
-        DrawTexture(Textures["information-menu-bottom-right"], p + new Vector2(s.X - 32, s.Y - 32));
-    }
+    public override void _Draw() => SkinPainter.InformationMenu(this, Textures, _menu);
 }

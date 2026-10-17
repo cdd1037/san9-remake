@@ -4,8 +4,9 @@ using San9.Content.Text;
 
 namespace San9.Client.Godot;
 
-public partial class TreasureDetailView : Control, IInformationPage
+public partial class TreasureDetailView : FixedPage, IInformationPage
 {
+    protected override Color PageBackground => Colors.Black;
     public DetailSelectionState State { get; init; } = null!;
     public Func<int, TreasureDetailData> Read { get; init; } = null!;
     public Func<int, string> ReadName { get; init; } = null!;

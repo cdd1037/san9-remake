@@ -9,7 +9,7 @@ public partial class EnvironmentSettingsView : SettingsView
     public Action<UserSettings> Apply { get; init; } = null!;
     private UserSettings _draft = null!;
     protected override string Title => "设定环境";
-    protected override string[] Labels => ["进行速度", "讯息速度", "进行记录", "BGM", "音效"];
+    protected override string[] Labels => ["全屏", "锁定鼠标", "进行速度", "讯息速度", "进行记录", "BGM", "音效"];
     protected override int LabelWidth => 128;
     protected override int ColumnCount => 3;
     protected override int LabelFontSize => 14;
@@ -27,15 +27,17 @@ public partial class EnvironmentSettingsView : SettingsView
         {
             var speed = speedValues[i]; var report = reportValues[i];
             var playback = playbackValues[i];
-            Option($"×{(int)playback}", i, 0, () => _draft = _draft with { PlaybackSpeed = playback }, () => _draft.PlaybackSpeed == playback);
-            Option(speeds[i], i, 1, () => _draft = _draft with { MessageSpeed = speed }, () => _draft.MessageSpeed == speed);
-            Option(reports[i], i, 2, () => _draft = _draft with { ProgressReport = report }, () => _draft.ProgressReport == report);
+            Option($"×{(int)playback}", i, 2, () => _draft = _draft with { PlaybackSpeed = playback }, () => _draft.PlaybackSpeed == playback);
+            Option(speeds[i], i, 3, () => _draft = _draft with { MessageSpeed = speed }, () => _draft.MessageSpeed == speed);
+            Option(reports[i], i, 4, () => _draft = _draft with { ProgressReport = report }, () => _draft.ProgressReport == report);
         }
         for (int i = 0; i < 2; i++)
         {
             bool enabled = i == 0;
-            Option(enabled ? "ON" : "OFF", i, 3, () => _draft = _draft with { MusicEnabled = enabled }, () => _draft.MusicEnabled == enabled);
-            Option(enabled ? "ON" : "OFF", i, 4, () => _draft = _draft with { SoundEnabled = enabled }, () => _draft.SoundEnabled == enabled);
+            Option(enabled ? "ON" : "OFF", i, 5, () => _draft = _draft with { MusicEnabled = enabled }, () => _draft.MusicEnabled == enabled);
+            Option(enabled ? "ON" : "OFF", i, 6, () => _draft = _draft with { SoundEnabled = enabled }, () => _draft.SoundEnabled == enabled);
+            Option(enabled ? "ON" : "OFF", i, 0, () => _draft = _draft with { FullscreenEnabled = enabled }, () => _draft.FullscreenEnabled == enabled);
+            Option(enabled ? "ON" : "OFF", i, 1, () => _draft = _draft with { MouseConfined = enabled }, () => _draft.MouseConfined == enabled);
         }
     }
     protected override void Confirm()

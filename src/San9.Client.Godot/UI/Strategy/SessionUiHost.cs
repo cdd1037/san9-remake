@@ -34,6 +34,7 @@ public partial class SessionUiHost : Node
     private Node? _sessionUi;
     private GameSession? _pending;
     private UserSettingsSession _settings = null!;
+    private WindowDisplay _windowDisplay = null!;
     private SceneTransitionOverlay _transition = null!;
     private SceneReplacementTransition? _replacement;
     private bool _bound;
@@ -46,6 +47,8 @@ public partial class SessionUiHost : Node
         try { _settings.Load(); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Text.DecoderFallbackException or InvalidDataException) { }
         Music.SetEnabled(_settings.Current.MusicEnabled);
+        _windowDisplay = new(GetWindow());
+        _windowDisplay.Apply(_settings.Current.FullscreenEnabled, _settings.Current.MouseConfined);
         Activate(InitialSession, SessionReplacementKind.Startup);
     }
 
@@ -116,7 +119,7 @@ public partial class SessionUiHost : Node
         RecordsLog = new();
         _sessionUi = new Node { Name = "SessionUi" }; AddChild(_sessionUi);
         var backdropHost = new Node(); _sessionUi.AddChild(backdropHost);
-        var overlayHost = new StrategyOverlayHost();
+        var overlayHost = StrategyOverlayHost.Create();
         Hud = new StrategyHud
         {
             CommandPresentation = Content.Presentation, ContentRoot = Content.ContentRoot,
@@ -129,6 +132,7 @@ public partial class SessionUiHost : Node
             ApplySettings = draft =>
             {
                 _settings.Apply(draft);
+                _windowDisplay.Apply(draft.FullscreenEnabled, draft.MouseConfined);
                 Music.SetEnabled(draft.MusicEnabled);
             },
             BackdropHost = backdropHost, World = World, Selection = Selection, Session = Session, RecordsLog = RecordsLog,
@@ -141,9 +145,9 @@ public partial class SessionUiHost : Node
             CanIssueOrders = () => Hud.CanIssueOrders };
         _sessionUi.AddChild(debug);
         World.IsInputBlocked = p => IsSwitching || Hud.Overview.IsOpen ||
-            (debug.Visible && debug.GetRect().HasPoint(p)) || Hud.IsBlockedPoint(p);
+            (debug.Visible && debug.GetRect().HasPoint(p)) || Hud.IsBlockedPoint(p) || Hud.IsSpeechPoint(p);
         World.IsNavigationBlocked = p => IsSwitching ||
-            (debug.Visible && debug.GetRect().HasPoint(p)) || Hud.IsNavigationBlocked(p);
+            (debug.Visible && debug.GetRect().HasPoint(p)) || Hud.IsNavigationBlocked(p) || Hud.IsSpeechPoint(p);
         World.CanNavigate = () => !IsSwitching && Hud.CanNavigateMap;
         World.CanIssueOrders = () => !IsSwitching && Hud.CanIssueOrders;
         _pending = null;
@@ -155,8 +159,15 @@ public partial class SessionUiHost : Node
     public void RequestQuickLoad() => Hud.SystemMenu.RequestLoad(() =>
         San9.Application.Persistence.SaveService.Load(ProjectSettings.GlobalizePath(QuickSaveShortcuts.SavePath), Definition));
 
+    public override void _Input(InputEvent input)
+    {
+        // Window input survives session replacement and remains available over modal pages.
+        if (_windowDisplay.HandleInput(input)) GetViewport().SetInputAsHandled();
+    }
+
     public override void _ExitTree()
     {
+        _windowDisplay.Dispose();
         _pending = null;
         World.IsInputBlocked = null;
         World.IsNavigationBlocked = null;

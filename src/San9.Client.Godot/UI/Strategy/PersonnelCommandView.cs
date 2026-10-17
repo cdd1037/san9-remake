@@ -5,8 +5,9 @@ using San9.Content.Text;
 
 namespace San9.Client.Godot;
 
-public partial class PersonnelCommandView : Control
+public partial class PersonnelCommandView : FixedPage
 {
+    protected override Color PageBackground => new(0, 0, 0, .35f);
     public PersonnelDraft Draft { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public TextureService Service { get; init; } = null!;

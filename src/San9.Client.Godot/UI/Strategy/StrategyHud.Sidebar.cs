@@ -5,7 +5,7 @@ namespace San9.Client.Godot;
 public partial class StrategyHud
 {
     private const int SidebarTravel = 198;
-    private readonly List<(TextureButton Button, Vector2 Origin)> _sidebarButtons = [];
+    private readonly List<TextureButton> _sidebarButtons = [];
     private (bool Strategy, int? Corps)? _sidebarContext;
     private bool _sidebarExpanded;
     private int _sidebarOffset;
@@ -16,7 +16,7 @@ public partial class StrategyHud
     private void BuildSidebar()
     {
         foreach (var button in new[] { _large!, _small!, _advanceButton, _facilities!, _officers!, _units! })
-            _sidebarButtons.Add((button, button.Position));
+            _sidebarButtons.Add(button);
         UpdateSidebar(0);
     }
 
@@ -51,9 +51,9 @@ public partial class StrategyHud
 
         bool ready = expanded && !SidebarMoving;
         _rosterList.Visible = ready;
-        foreach (var (button, origin) in _sidebarButtons)
+        _sidebarMotion.Position = new(_sidebarOffset, 0);
+        foreach (var button in _sidebarButtons)
         {
-            button.Position = origin + new Vector2(_sidebarOffset, 0);
             button.Visible = SidebarVisible;
             button.Disabled = !ready || (button == _advanceButton ? !Turn.CanAdvance : !Turn.CanBrowseMap);
         }

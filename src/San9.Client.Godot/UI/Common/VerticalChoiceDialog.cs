@@ -3,7 +3,7 @@ using Godot;
 namespace San9.Client.Godot;
 
 /// <summary>Native vertical choice family: 24px prompt lines, 16px gap and 40px option steps.</summary>
-public partial class VerticalChoiceDialog : Control
+public partial class VerticalChoiceDialog : FixedPage
 {
     public TextureScope Textures { get; init; } = null!;
     public string Message { get; init; } = "";

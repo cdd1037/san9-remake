@@ -4,8 +4,9 @@ using San9.Application.Presentation;
 namespace San9.Client.Godot;
 
 /// <summary>Administrative detail layouts share navigation, not a generic section grid.</summary>
-public partial class AdministrativeDetailView : Control, IInformationPage
+public partial class AdministrativeDetailView : FixedPage, IInformationPage
 {
+    protected override Color PageBackground => Colors.Black;
     public DetailSelectionState State { get; init; } = null!;
     public InformationCategory Category { get; init; }
     public Func<int, AdministrativeDetailData> Read { get; init; } = null!;

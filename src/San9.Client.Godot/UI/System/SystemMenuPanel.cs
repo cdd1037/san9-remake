@@ -9,6 +9,7 @@ namespace San9.Client.Godot;
 /// <summary>Strategy overlay owner; opening and closing releases its page and texture leases together.</summary>
 public partial class SystemMenuPanel : Control
 {
+    public Control MenuAnchor { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public SlotSaveStore Store { get; init; } = null!;
@@ -20,6 +21,7 @@ public partial class SystemMenuPanel : Control
     public SaveLoadBrowser Browser { get; } = new();
     private TextureScope? _textures;
     private Control? _page;
+    private Control? _pageRoot;
     public InformationMenuButton? HoverMenuButton => (_page as FunctionsMenuView)?.HoverButton;
     private Control? _busyOverlay;
     private readonly CancellationTokenSource _lifetime = new();
@@ -27,7 +29,7 @@ public partial class SystemMenuPanel : Control
 
     public override void _Ready()
     {
-        Name = "SystemMenuPanel"; Size = new(1024, 768); ZIndex = 30;
+        Name = "SystemMenuPanel"; SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); ZIndex = 30;
         MouseFilter = MouseFilterEnum.Stop; Hide();
     }
     public void OpenMenu()
@@ -38,7 +40,7 @@ public partial class SystemMenuPanel : Control
         _textures ??= Service.CreateScope(owner: this);
         _textures.RequestPrefixes("information-menu-", "save-load-", "message-");
         Show();
-        ReplacePage(new FunctionsMenuView { Textures = _textures, Texts = Texts, Open = Open,
+        ReplacePage(new FunctionsMenuView { AnchorControl = MenuAnchor, Textures = _textures, Texts = Texts, Open = Open,
             OpenEnvironment = OpenEnvironment, OpenPkSettings = OpenPkSettings, Closed = Close });
     }
     private void OpenEnvironment()
@@ -97,7 +99,7 @@ public partial class SystemMenuPanel : Control
     }
     private GameDialog MapDialog()
     {
-        var dialog = new GameDialog { Textures = _textures!, Size = Size };
+        var dialog = new GameDialog { Textures = _textures! };
         dialog.Closed += Close;
         ReplacePage(dialog);
         return dialog;
@@ -171,12 +173,13 @@ public partial class SystemMenuPanel : Control
     private void ShowBusy(string message)
     {
         _busy = true;
-        _busyOverlay = new ColorRect { Color = new(0, 0, 0, .25f), Size = Size, ZIndex = 5, MouseFilter = MouseFilterEnum.Stop };
         var label = new Label { Text = message, Position = new(212, 350), Size = new(600, 64),
             HorizontalAlignment = HorizontalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
         label.AddThemeFontSizeOverride("font_size", 24);
         label.AddThemeConstantOverride("outline_size", 4);
-        _busyOverlay.AddChild(label); AddChild(_busyOverlay);
+        _busyOverlay = OverlayPage.Create(label, new(0, 0, 0, .25f));
+        _busyOverlay.ZIndex = 5;
+        AddChild(_busyOverlay);
     }
     private void HideBusy()
     {
@@ -185,9 +188,16 @@ public partial class SystemMenuPanel : Control
     }
     private void ReplacePage(Control? page)
     {
-        if (_page is not null) { RemoveChild(_page); _page.QueueFree(); }
+        if (_pageRoot is not null) { RemoveChild(_pageRoot); _pageRoot.QueueFree(); }
         _page = page;
-        if (page is not null) AddChild(page);
+        _pageRoot = page switch
+        {
+            null => null,
+            FunctionsMenuView => page,
+            _ => OverlayPage.Create(page, page is SaveLoadView ? Colors.Black : Colors.Transparent)
+        };
+        if (_pageRoot is not null) AddChild(_pageRoot);
+        if (page is GameDialog) page.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
     }
     public override void _Input(InputEvent input)
     {

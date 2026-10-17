@@ -104,7 +104,6 @@ public partial class CommandWindow : Control
     }
     public override void _Draw()
     {
-        DrawRect(new(-Position, new(1024, 768)), new Color(0, 0, 0, .35f));
         if (_background is not null) DrawTexture(_background, new(-32, -64));
         float titleWidth = 160 + Title.Length * 16;
         Strip("title", new(-24, -72, titleWidth, 56));

@@ -2,18 +2,12 @@ using San9.Content.Interface;
 
 namespace San9.Rendering;
 
-public readonly record struct SpeechBounds(double X, double Y, double Width, double Height)
-{
-    public double Overlap(SpeechBounds other) => Math.Max(0, Math.Min(X + Width, other.X + other.Width) - Math.Max(X, other.X)) *
-        Math.Max(0, Math.Min(Y + Height, other.Y + other.Height) - Math.Max(Y, other.Y));
-}
-
-/// <summary>Four original anchors. Equal overlap retains the preferred direction; edges do not change direction.</summary>
+/// <summary>Four original anchors, fitted to the presented viewport. Ties retain the current direction.</summary>
 public static class MapSpeechLayout
 {
     public static MapSpeechPlacement FromUnitDirection(int direction) => direction is >= 0 and < 8
         ? (MapSpeechPlacement)(direction / 2) : throw new ArgumentOutOfRangeException(nameof(direction));
-    public static SpeechBounds Bounds(double x, double y, double width, MapSpeechPlacement placement) => placement switch
+    public static OverlayBounds Bounds(double x, double y, double width, MapSpeechPlacement placement) => placement switch
     {
         MapSpeechPlacement.LeftBelow => new(x + 30 - width, y, width, 108),
         MapSpeechPlacement.LeftAbove => new(x + 30 - width, y - 100, width, 108),
@@ -22,20 +16,27 @@ public static class MapSpeechLayout
         _ => throw new ArgumentOutOfRangeException(nameof(placement))
     };
 
-    public static SpeechBounds HitBounds(SpeechBounds bounds) => new(bounds.X + 38, bounds.Y + 20, bounds.Width - 54, 48);
+    public static OverlayBounds HitBounds(OverlayBounds bounds) => new(bounds.X + 38, bounds.Y + 20, bounds.Width - 54, 48);
 
-    public static MapSpeechPlacement Choose(double x, double y, double width, MapSpeechPlacement preferred,
-        IReadOnlyList<SpeechBounds> occupied)
+    public static (MapSpeechPlacement Placement, OverlayBounds Bounds) Place(double x, double y, double width,
+        MapSpeechPlacement preferred, OverlayBounds viewport, IReadOnlyList<OverlayBounds> occupied)
     {
-        double Cost(MapSpeechPlacement placement) => occupied.Sum(other => Bounds(x, y, width, placement).Overlap(other));
+        (OverlayBounds Bounds, (double Overlap, double Shift) Cost) Evaluate(MapSpeechPlacement placement)
+        {
+            var natural = Bounds(x, y, width, placement);
+            var fitted = OverlayLayout.Place(natural, viewport, occupied);
+            return (fitted, (occupied.Sum(other => fitted.Overlap(other)),
+                Math.Abs(fitted.X - natural.X) + Math.Abs(fitted.Y - natural.Y)));
+        }
         var best = preferred;
-        double cost = Cost(best);
+        var result = Evaluate(best);
         foreach (var placement in Enum.GetValues<MapSpeechPlacement>())
         {
-            double candidate = Cost(placement);
-            if (candidate >= cost) continue;
-            cost = candidate; best = placement;
+            if (placement == preferred) continue;
+            var candidate = Evaluate(placement);
+            if (candidate.Cost.CompareTo(result.Cost) >= 0) continue;
+            result = candidate; best = placement;
         }
-        return best;
+        return (best, result.Bounds);
     }
 }

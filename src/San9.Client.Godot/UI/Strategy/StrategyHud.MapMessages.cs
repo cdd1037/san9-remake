@@ -71,8 +71,9 @@ public partial class StrategyHud
             var old = _speechViews[id].View;
             _speechHost.RemoveChild(old); old.QueueFree(); _speechViews.Remove(id);
         }
-        var occupied = _speechViews.Where(pair => pair.Value.Placed && pair.Value.View.Visible)
-            .ToDictionary(pair => pair.Key, pair => pair.Value.View.HitBounds);
+        var viewport = World.PresentedViewportBounds;
+        var bounds = new OverlayBounds(viewport.Position.X, viewport.Position.Y, viewport.Size.X, viewport.Size.Y);
+        var occupied = MapObstacles().ToList();
         foreach (var entry in _mapSpeech.Entries)
         {
             var state = _speechViews[entry.Message.Id];
@@ -86,12 +87,17 @@ public partial class StrategyHud
             }
             // All map speech uses the map canvas transform; text/frame sizes remain logical UI pixels.
             var screen = GetGlobalTransformWithCanvas().AffineInverse() * (World.GetGlobalTransformWithCanvas() * state.Anchor);
-            occupied.Remove(entry.Message.Id);
-            occupied[entry.Message.Id] = state.View.Place(screen,occupied.Values.ToArray(),!state.Placed,preferred);
-            state.Placed = true;
+            state.View.Visible = viewport.HasPoint(screen);
+            if (state.View.Visible)
+            {
+                occupied.Add(state.View.Place(screen, bounds, occupied, state.Placed ? null : preferred));
+                state.Placed = true;
+            }
             _speechViews[entry.Message.Id] = state;
         }
     }
+
+    public bool IsSpeechPoint(Vector2 point) => _speechViews.Values.Any(state => state.View.IsVisibleInTree() && state.View.Contains(point));
 
     private void HandleMapSpeechInput(InputEvent input)
     {

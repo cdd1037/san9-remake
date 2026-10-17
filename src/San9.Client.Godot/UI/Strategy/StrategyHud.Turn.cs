@@ -44,7 +44,6 @@ public partial class StrategyHud
         {
             Textures = Textures,
             Texts = Texts,
-            Size = Size,
             ZIndex = 3,
             MouseFilter = MouseFilterEnum.Ignore,
             ContentRoot = ContentRoot,
@@ -72,7 +71,7 @@ public partial class StrategyHud
         RecordsLog.ReportMode = ReadSettings().ProgressReport;
         _executionPanels.LocationRequested += World.FocusCell;
         AddChild(_executionPanels);
-        _turnStatus = LabelAt("", new(270, 320), new(484, 96), 24);
+        _turnStatus = LabelAt("", new(270, 320), new(484, 96), 24, parent: _center);
         for (int phase = 0; phase < 2; phase++)
             _turnTitles[phase] = Enumerable.Range(0, 4).Select(frame => (Texture2D)_textures[$"turn-title-{(phase == 0 ? "execution" : "strategy")}-{frame}"]).ToArray();
         _turnBanner = new TextureRect { ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, MouseFilter = MouseFilterEnum.Ignore, Visible = false };
@@ -88,7 +87,7 @@ public partial class StrategyHud
             MouseFilter = MouseFilterEnum.Ignore,
             Visible = false
         };
-        AddChild(_turnProgress);
+        _topLeft.AddChild(_turnProgress);
         _pauseTurn = (StrategyButton)AddButton("静止", "button-pause", new(602, 10), new(64, 36), true, () => Turn.TogglePause());
         _pauseTurn.ToggleMode = true;
         _turnDialog = new GameDialog { Textures = _textures, ZIndex = 50, Visible = false };

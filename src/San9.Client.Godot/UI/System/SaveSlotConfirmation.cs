@@ -3,7 +3,7 @@ using San9.Client.Godot.Persistence;
 
 namespace San9.Client.Godot;
 
-public partial class SaveSlotConfirmation : Control
+public partial class SaveSlotConfirmation : FixedPage
 {
     public SaveLoadBrowser State { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;

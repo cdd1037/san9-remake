@@ -10,9 +10,20 @@ public partial class SceneTransitionOverlay : ColorRect
         Color = new Color(8 / 255f, 8 / 255f, 8 / 255f, 0);
         MouseFilter = MouseFilterEnum.Ignore;
         ZIndex = 1;
-        Size = new(1024, 768);
         Hide();
     }
+
+    public override void _Ready()
+    {
+        GetViewport().SizeChanged += Layout;
+        Layout();
+    }
+    private void Layout()
+    {
+        GlobalPosition = Vector2.Zero;
+        Size = GetViewportRect().Size;
+    }
+    public override void _ExitTree() => GetViewport().SizeChanged -= Layout;
 
     public void Sample(float opacity)
     {

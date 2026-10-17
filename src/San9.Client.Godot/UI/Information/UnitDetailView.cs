@@ -3,8 +3,9 @@ using San9.Application.Presentation;
 
 namespace San9.Client.Godot;
 
-public partial class UnitDetailView : Control, IInformationPage
+public partial class UnitDetailView : FixedPage, IInformationPage
 {
+    protected override Color PageBackground => Colors.Black;
     public const int VisibleRows = 22;
     public DetailSelectionState State { get; init; } = null!;
     public Func<int, UnitDetailData> Read { get; init; } = null!;

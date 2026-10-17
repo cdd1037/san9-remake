@@ -6,7 +6,7 @@ using San9.Rendering;
 namespace San9.Client.Godot;
 
 /// <summary>A retained sequence: advancing or repainting never re-evaluates messages or gameplay.</summary>
-public partial class CommandNarration : Control
+public partial class CommandNarration : FixedPage
 {
     private const double ContinuationFrameSeconds = .1;
     private static readonly int[] PortraitFrames = [5,5,5,5,5,5,5,0,1,2,3,2,3,4];

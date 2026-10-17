@@ -38,7 +38,7 @@ public partial class MapSceneView : Node2D
             Vector2 half = size / (2 * (float)camera.Zoom);
             var bounds = new Rect2(new Vector2((float)camera.X, (float)camera.Y) - half, half * 2);
             return _candidate = new(camera, size, Region.Select(bounds).Assets.ToArray(),
-                camera.Chunks(Region.Scene.Map.CanvasWidth, Region.Scene.Map.CanvasHeight, (int)size.X, (int)size.Y)
+                camera.Chunks(Region.Scene.Map.CanvasWidth, Region.Scene.Map.CanvasHeight, (int)Math.Ceiling(size.X), (int)Math.Ceiling(size.Y))
                     .Select(k => new TerrainChunkKey(Region.Scene.Terrain, k.X, k.Y)).ToArray());
         }
         public void Move(MapViewport camera, Vector2 size)
@@ -123,15 +123,17 @@ public partial class MapSceneView : Node2D
         _ui.RequestPrefixes("bar-", "icon-");
         _outlineMaterial = new ShaderMaterial { Shader = new Shader { Code = """
             shader_type canvas_item;
-            float solid(sampler2D source, vec2 uv) {
+            float solid(float alpha, vec2 uv) {
                 if (any(lessThan(uv, vec2(0.0))) || any(greaterThanEqual(uv, vec2(1.0)))) return 0.0;
-                return step(0.01, texture(source, uv).a);
+                return step(0.01, alpha);
             }
             void fragment() {
                 vec2 p = TEXTURE_PIXEL_SIZE;
-                float neighbors = max(max(solid(TEXTURE, UV-vec2(p.x,0)), solid(TEXTURE, UV+vec2(p.x,0))),
-                    max(solid(TEXTURE, UV-vec2(0,p.y)), solid(TEXTURE, UV+vec2(0,p.y))));
-                float edge = (1.0-solid(TEXTURE, UV)) * neighbors;
+                vec2 left = UV - vec2(p.x, 0), right = UV + vec2(p.x, 0);
+                vec2 above = UV - vec2(0, p.y), below = UV + vec2(0, p.y);
+                float neighbors = max(max(solid(texture(TEXTURE, left).a, left), solid(texture(TEXTURE, right).a, right)),
+                    max(solid(texture(TEXTURE, above).a, above), solid(texture(TEXTURE, below).a, below)));
+                float edge = (1.0-solid(texture(TEXTURE, UV).a, UV)) * neighbors;
                 // The original's opaque RGB555 outline resolves to pale cyan after channel quantization.
                 COLOR = vec4(vec3(152.0,240.0,240.0)/255.0, edge);
             }
@@ -207,7 +209,7 @@ public partial class MapSceneView : Node2D
         var coverage = prefetch ? rect.Grow(256) : rect;
         var region = scene.Select(coverage, boundaries);
         var assets = Textures.CreateScope(Textures.MapAssets, owner: this);
-        var visible = camera.Chunks(scene.Map.CanvasWidth, scene.Map.CanvasHeight, (int)size.X, (int)size.Y).ToHashSet();
+        var visible = camera.Chunks(scene.Map.CanvasWidth, scene.Map.CanvasHeight, (int)Math.Ceiling(size.X), (int)Math.Ceiling(size.Y)).ToHashSet();
         var terrain = Terrain.Acquire(Keys(0).OrderBy(k => visible.Contains((k.X, k.Y)) ? 0 : 1));
         var next = new Frame(region, camera, size, assets, terrain, boundaries);
         _transition.Request(next);

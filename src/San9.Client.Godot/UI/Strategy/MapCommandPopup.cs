@@ -9,6 +9,8 @@ namespace San9.Client.Godot;
 /// <summary>Command navigation; the caller owns executable workflows.</summary>
 public partial class MapCommandPopup : Control
 {
+    public Func<IReadOnlyList<OverlayBounds>> Obstacles { get; init; } = () => [];
+    private IReadOnlyList<OverlayBounds> _lastObstacles = [];
     public TextureScope Textures { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public Action<string>? Activated { get; init; }
@@ -20,13 +22,48 @@ public partial class MapCommandPopup : Control
     private MapCommandEntry? _hovered, _illustrated;
     private double _hoverTime;
     private bool _conditionVisible;
+    private Vector2 _anchor;
+    private InformationMenuButton? _expandedButton;
     public string Hint => _hovered is {} entry ? Texts.Resolve(entry.UnavailableReasonKey ?? CommandMenuSkin.HintKey(entry.Id)) : "";
 
     public bool HintEnabled => _hovered?.Enabled ?? true;
 
     public override void _Ready()
     {
-        Size = new(1024, 768); ZIndex = 19; MouseFilter = MouseFilterEnum.Stop; Hide();
+        Size = GetViewportRect().Size; ZIndex = 19; MouseFilter = MouseFilterEnum.Stop; Hide();
+        GetViewport().SizeChanged += Relayout;
+    }
+
+    public override void _ExitTree() => GetViewport().SizeChanged -= Relayout;
+
+    private void Relayout()
+    {
+        Size = GetViewportRect().Size;
+        _lastObstacles = Obstacles();
+        if (_primary.Count == 0) return;
+        var (x, y) = CommandMenuGeometry.Primary(_anchor.X, _anchor.Y, _primary.Count, Size.X, Size.Y);
+        _menu = new(new(x, y), new(CommandMenuGeometry.PrimaryWidth, 32 + _primary.Count * 28));
+        var fitted = OverlayLayout.Place(new(x, y, _menu.Size.X, _menu.Size.Y), new(268, 0, Math.Max(0, Size.X - 268), Size.Y), _lastObstacles);
+        x = (float)fitted.X; y = (float)fitted.Y; _menu.Position = new(x, y);
+        var (artX, artY) = CommandMenuGeometry.Illustration(x, y, Size.X); _art = new(artX, artY);
+        for (int i = 0; i < _primary.Count; i++) _primary[i].Button.Position = new(x + 11, y + 16 + 28 * i);
+        if (_expandedButton is not null) LayoutSubmenu();
+        var occupied = _lastObstacles.Concat(new[] { new OverlayBounds(_menu.Position.X, _menu.Position.Y, _menu.Size.X, _menu.Size.Y) }).ToList();
+        if (_submenu is { } sub) occupied.Add(new(sub.Position.X, sub.Position.Y, sub.Size.X, sub.Size.Y));
+        var art = OverlayLayout.Place(new(_art.X, _art.Y, 188, 278), new(268, 0, Math.Max(0, Size.X - 268), Size.Y), occupied);
+        _art = new((float)art.X, (float)art.Y);
+        QueueRedraw();
+    }
+
+    private void LayoutSubmenu()
+    {
+        var (x, y) = CommandMenuGeometry.Secondary(_expandedButton!.Position.X, _expandedButton.Position.Y,
+            _secondary.Count, Size.X, Size.Y);
+        var fitted = OverlayLayout.Place(new(x, y, 68, _secondary.Count * 28), new(0, 0, Size.X, Size.Y),
+            _lastObstacles.Concat(new[] { new OverlayBounds(_menu.Position.X, _menu.Position.Y, _menu.Size.X, _menu.Size.Y) }).ToArray());
+        x = (float)fitted.X; y = (float)fitted.Y;
+        _submenu = new(new(x, y), new(68, _secondary.Count * 28));
+        for (int i = 0; i < _secondary.Count; i++) _secondary[i].Button.Position = new(x, y + 28 * i);
     }
 
     public void Open(IReadOnlyList<MapCommandEntry> entries, MapCommandSummary summary, Vector2 point)
@@ -34,16 +71,14 @@ public partial class MapCommandPopup : Control
         Close();
         if (entries.Count == 0) return;
         _summary = summary;
-        var (x, y) = CommandMenuGeometry.Primary(point.X, point.Y, entries.Count);
-        _menu = new(new(x, y), new(CommandMenuGeometry.PrimaryWidth, 32 + entries.Count * 28));
-        var (artX, artY) = CommandMenuGeometry.Illustration(x, y); _art = new(artX, artY);
+        _anchor = point;
         for (int i = 0; i < entries.Count; i++)
         {
             var entry = entries[i];
-            var button = AddButton(entry, new(x + 11, y + 16 + 28 * i), false);
+            var button = AddButton(entry, Vector2.Zero, false);
             _primary.Add((button, entry));
         }
-        Show(); QueueRedraw();
+        Relayout(); Show();
     }
 
     private InformationMenuButton AddButton(MapCommandEntry entry, Vector2 point, bool secondary)
@@ -66,28 +101,28 @@ public partial class MapCommandPopup : Control
     {
         foreach (var item in _secondary) { RemoveChild(item.Button); item.Button.QueueFree(); }
         _secondary.Clear();
-        var (x, y) = CommandMenuGeometry.Secondary(selected.Position.X, selected.Position.Y, entry.Children.Count);
-        _submenu = new(new(x, y), new(68, entry.Children.Count * 28));
+        _expandedButton = selected;
         for (int i = 0; i < entry.Children.Count; i++)
         {
             var child = entry.Children[i];
-            var button = AddButton(child, new(x, y + 28 * i), true);
+            var button = AddButton(child, Vector2.Zero, true);
             _secondary.Add((button, child));
         }
-        QueueRedraw();
+        Relayout();
     }
 
     public void Close()
     {
         Hide();
         foreach (Node child in GetChildren()) { RemoveChild(child); child.QueueFree(); }
-        _primary.Clear(); _secondary.Clear(); _submenu = null; _summary = null;
+        _primary.Clear(); _secondary.Clear(); _submenu = null; _summary = null; _expandedButton = null;
         _hovered = _illustrated = null; _hoverTime = 0; _conditionVisible = false;
     }
 
     public override void _Process(double delta)
     {
         if (!Visible) return;
+        if (!_lastObstacles.SequenceEqual(Obstacles())) Relayout();
         var point = GetLocalMousePosition();
         var hovered = _secondary.Concat(_primary).FirstOrDefault(item => item.Button.GetRect().HasPoint(point)).Entry;
         if (_hovered != hovered)

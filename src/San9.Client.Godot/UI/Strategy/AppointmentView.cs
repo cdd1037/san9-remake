@@ -6,8 +6,9 @@ using San9.Content.Text;
 namespace San9.Client.Godot;
 
 /// <summary>Appointment preparation and catalog navigation; mutation belongs to the submit callback.</summary>
-public partial class AppointmentView : Control
+public partial class AppointmentView : FixedPage
 {
+    protected override Color PageBackground => new(0, 0, 0, .35f);
     public AppointmentDraft Draft { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public TextureService Service { get; init; } = null!;

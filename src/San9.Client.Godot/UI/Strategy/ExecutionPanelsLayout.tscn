@@ -1,0 +1,62 @@
+[gd_scene format=3]
+
+[node name="ExecutionLayout" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="RecordsAnchor" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+anchor_left = 0.0
+anchor_right = 0.0
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = -768.0
+offset_right = 1024.0
+offset_bottom = 0.0
+mouse_filter = 2
+
+[node name="RecordsMotion" type="Control" parent="RecordsAnchor"]
+unique_name_in_owner = true
+layout_mode = 0
+anchor_left = 0.0
+anchor_right = 0.0
+anchor_top = 0.0
+anchor_bottom = 0.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 1024.0
+offset_bottom = 768.0
+mouse_filter = 2
+
+[node name="CommandsAnchor" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = -1024.0
+offset_top = -768.0
+offset_right = 0.0
+offset_bottom = 0.0
+mouse_filter = 2
+
+[node name="CommandsMotion" type="Control" parent="CommandsAnchor"]
+unique_name_in_owner = true
+layout_mode = 0
+anchor_left = 0.0
+anchor_right = 0.0
+anchor_top = 0.0
+anchor_bottom = 0.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 1024.0
+offset_bottom = 768.0
+mouse_filter = 2

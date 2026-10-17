@@ -13,6 +13,8 @@ public sealed record UserSettings(
     ProgressReportMode ProgressReport)
 {
     public bool TacticScenesEnabled { get; init; } = true;
+    public bool FullscreenEnabled { get; init; }
+    public bool MouseConfined { get; init; }
     public PlaybackSpeed PlaybackSpeed { get; init; } = PlaybackSpeed.Normal;
 
     public static UserSettings Default { get; } = new(true, true, true,

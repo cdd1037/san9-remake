@@ -6,8 +6,9 @@ using San9.Core.Simulation;
 namespace San9.Client.Godot;
 
 /// <summary>The four native diplomatic layouts share semantic quote data and child selectors.</summary>
-public partial class DiplomacyDecisionView : Control
+public partial class DiplomacyDecisionView : FixedPage
 {
+    protected override Color PageBackground => new(0, 0, 0, .35f);
     public DecisionDraft Draft { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;
     public TextureService Service { get; init; } = null!;

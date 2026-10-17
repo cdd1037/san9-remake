@@ -35,11 +35,11 @@ internal static class WindowStartup
             return;
 
         scale = Math.Min(scale, Math.Min(
-            (double)(usable.Size.X - decorations.X) / ClientLayout.LogicalWidth,
-            (double)(usable.Size.Y - decorations.Y) / ClientLayout.LogicalHeight));
+            (double)(usable.Size.X - decorations.X) / ClientLayout.ContentWidth,
+            (double)(usable.Size.Y - decorations.Y) / ClientLayout.ContentHeight));
         window.Size = new Vector2I(
-            Math.Max(1, (int)Math.Floor(ClientLayout.LogicalWidth * scale)),
-            Math.Max(1, (int)Math.Floor(ClientLayout.LogicalHeight * scale)));
+            Math.Max(1, (int)Math.Floor(ClientLayout.ContentWidth * scale)),
+            Math.Max(1, (int)Math.Floor(ClientLayout.ContentHeight * scale)));
 
         if (!arguments.Contains("--position"))
         {

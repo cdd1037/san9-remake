@@ -7,8 +7,9 @@ using San9.Core.Domain;
 namespace San9.Client.Godot;
 
 /// <summary>Preparation only. The draft remains local until a future destination workflow commits it.</summary>
-public partial class DeploymentView : Control
+public partial class DeploymentView : FixedPage
 {
+    protected override Color PageBackground => new(0, 0, 0, .35f);
     public DeploymentDraft Draft { get; init; } = null!;
     public GameSession Session { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;

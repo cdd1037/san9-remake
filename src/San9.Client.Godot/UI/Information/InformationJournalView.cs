@@ -5,8 +5,9 @@ using San9.Content.Text;
 
 namespace San9.Client.Godot;
 
-public partial class InformationJournalView : Control, IInformationPage
+public partial class InformationJournalView : FixedPage, IInformationPage
 {
+    protected override Color PageBackground => new(0, 0, 0, .45f);
     public InformationBrowser State { get; init; } = null!;
     public GameSession Session { get; init; } = null!;
     public InformationQuery Query { get; init; } = null!;
@@ -247,7 +248,6 @@ public partial class InformationJournalView : Control, IInformationPage
     public override void _Draw()
     {
         if (!Visible) return;
-        DrawRect(new(0, 0, 1024, 768), new Color(0, 0, 0, .45f));
         DrawTextureRectRegion(Textures["information-background"], _body, new(0, 0, _body.Size.X, _body.Size.Y));
         Tile("information-frame-top", new(264, 96, 344, 8)); Tile("information-frame-bottom", new(408, 664, 200, 24));
         Tile("information-frame-left", new(184, 320, 24, 144)); Tile("information-frame-right", new(840, 320, 16, 144));

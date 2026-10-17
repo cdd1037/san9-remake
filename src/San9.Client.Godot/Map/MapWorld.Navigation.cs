@@ -8,18 +8,18 @@ public partial class MapWorld
     private readonly EdgeScrollController _edgeScroll = new();
     private readonly EdgeScrollCursor _edgeCursor = new();
     private Vector2 _pointer = new(-1, -1);
-    private bool _mouseLocked;
     public event Action<EdgeScrollMode>? EdgeScrollModeChanged;
     public Func<Vector2, bool>? IsNavigationBlocked { get; set; }
     public Func<bool>? CanNavigate { get; set; }
 
-    private bool NavigationAvailable => _map is not null && HasCompleteView && !IsLoading && LoadError is null &&
+    private bool NavigationAvailable => _map is not null && HasCompleteViewport && !IsLoading && LoadError is null &&
         GetWindow().HasFocus() && CanNavigate?.Invoke() != false;
 
     private bool EdgeInputAvailable => NavigationAvailable && !_dragging &&
         !Input.IsMouseButtonPressed(MouseButton.Middle) && IsNavigationBlocked?.Invoke(_pointer) != true;
 
     private CanvasPoint PointerPoint => new(_pointer.X, _pointer.Y);
+    private CanvasPoint ViewportExtent => new(ViewportSize.X, ViewportSize.Y);
 
     private void ResetNavigation()
     {
@@ -29,30 +29,8 @@ public partial class MapWorld
         _edgeCursor.Show(default, false);
     }
 
-    private void ReleaseMouseLock()
-    {
-        if (!_mouseLocked) return;
-        Input.MouseMode = Input.MouseModeEnum.Visible;
-        _mouseLocked = false;
-    }
-
     public override void _Input(InputEvent input)
     {
-        // Handle before GUI dispatch so a modal cannot prevent unlocking the pointer.
-        if (input is InputEventKey { Keycode: Key.F9 } key && _map is not null && GetWindow().HasFocus())
-        {
-            if (key.Pressed && !key.Echo)
-            {
-                if (_mouseLocked) ReleaseMouseLock();
-                else
-                {
-                    Input.MouseMode = Input.MouseModeEnum.Confined;
-                    _mouseLocked = true;
-                }
-            }
-            GetViewport().SetInputAsHandled();
-            return;
-        }
         if (input is InputEventMouseMotion motion) _pointer = motion.Position;
         if (input is not InputEventMouseButton button) return;
         _pointer = button.Position;
@@ -63,7 +41,7 @@ public partial class MapWorld
         }
         if (button.ButtonIndex != MouseButton.Left) return;
         bool consumed = button.Pressed
-            ? _edgeScroll.PressLeft(PointerPoint, EdgeInputAvailable)
+            ? _edgeScroll.PressLeft(PointerPoint, ViewportExtent, EdgeInputAvailable)
             : _edgeScroll.ReleaseLeft();
         if (consumed) GetViewport().SetInputAsHandled();
     }
@@ -71,7 +49,7 @@ public partial class MapWorld
     private void UpdateEdgeScrolling(double delta)
     {
         bool available = EdgeInputAvailable;
-        var direction = EdgeScrollController.Direction(PointerPoint, available);
+        var direction = EdgeScrollController.Direction(PointerPoint, ViewportExtent, available);
         bool active = _edgeScroll.IsActive(available && !direction.IsNone, Input.IsMouseButtonPressed(MouseButton.Left));
         if (!direction.IsNone && _map is not null)
         {

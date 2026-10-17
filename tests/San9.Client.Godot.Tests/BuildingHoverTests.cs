@@ -20,11 +20,11 @@ public sealed class BuildingHoverTests
 
     [Theory]
     [InlineData(643, 200, 316, 643, 200)]
-    [InlineData(644, 200, 248, 484, 200)]
+    [InlineData(644, 200, 248, 644, 200)]
     [InlineData(1023, 760, 316, 863, 420)]
     [InlineData(-2, -5, 248, 0, 0)]
-    public void CardFitsOriginalLogicalBounds(float x, float y, int height, float expectedX, float expectedY) =>
-        Assert.Equal((expectedX, expectedY), BuildingHoverGeometry.Place(x, y, height));
+    public void CardFitsSuppliedAvailableBounds(float x, float y, int height, float expectedX, float expectedY) =>
+        Assert.Equal((expectedX, expectedY), BuildingHoverGeometry.Place(x, y, height, 1024, 736));
 
     [Fact]
     public void CardUsesCurrentServingPeopleAndIndependentCommanderState()

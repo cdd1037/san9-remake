@@ -17,7 +17,7 @@
 - [DEC-EVENT-0001：神兽事件采用连续的武力成功率参数](DEC-EVENT-0001-shenshou-probability.md)
 - [DEC-DUEL-0001：单挑低武力胜者成长采用攻略书与非 PK 版行为](DEC-DUEL-0001-duel-low-martial-winner-growth.md)
 - [DEC-RENDER-0001：地图渲染采用现代高精度颜色](DEC-RENDER-0001-high-color-map-rendering.md)
-- [DEC-UI-0008：桌面宽屏与固定内容区域布局](DEC-UI-0008-desktop-widescreen-layout.md)（设计已采用，待实施）
+- [DEC-UI-0008：桌面宽屏与固定内容区域布局](DEC-UI-0008-desktop-widescreen-layout.md)（动态地图视口与公共宿主已接入，后续阶段待实施）
 - [DEC-UI-0002：用现代方式对齐原作文字效果](DEC-UI-0002-modern-text-effects.md)
 - [DEC-RENDER-0004：静态纹理图集与 GPU 缓存](DEC-RENDER-0004-texture-atlases-and-gpu-cache.md)
 - [DEC-RENDER-0002：MVP 四季彩色纹理与标准透明混合](DEC-RENDER-0002-seasonal-textures-and-standard-alpha.md)
@@ -34,4 +34,4 @@
 
 ## 已废弃决策
 
-- [DEC-UI-0001：MVP 采用固定 4:3 逻辑画布](DEC-UI-0001-fixed-four-by-three-mvp-canvas.md)（由 DEC-UI-0008 替代；当前客户端尚待迁移）
+- [DEC-UI-0001：MVP 采用固定 4:3 逻辑画布](DEC-UI-0001-fixed-four-by-three-mvp-canvas.md)（由 DEC-UI-0008 替代）

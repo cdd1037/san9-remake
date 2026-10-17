@@ -6,8 +6,9 @@ using San9.Core.Domain;
 
 namespace San9.Client.Godot;
 
-public partial class FacilityCommandView : Control
+public partial class FacilityCommandView : FixedPage
 {
+    protected override Color PageBackground => new(0, 0, 0, .35f);
     public FacilityCommandDraft Draft { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public TextureService Service { get; init; } = null!;

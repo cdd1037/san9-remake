@@ -27,8 +27,8 @@ public partial class Main : Node
     {
         var token = _startup.Token;
         WindowStartup.Apply(GetWindow());
-        var world = GetNode<MapWorld>("MapWorld");
-        var ui = GetNode<Control>("UiLayer/UiRoot");
+        var world = GetNode<MapWorld>("%MapWorld");
+        var ui = GetNode<Control>("%UiRoot");
         try
         {
             var startup = System.Diagnostics.Stopwatch.StartNew();

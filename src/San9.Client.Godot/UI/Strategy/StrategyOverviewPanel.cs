@@ -7,8 +7,9 @@ using San9.Rendering;
 
 namespace San9.Client.Godot;
 
-public partial class StrategyOverviewPanel : Control
+public partial class StrategyOverviewPanel : FixedPage
 {
+    protected override Color PageBackground => Colors.Black;
     public StrategyOverview State { get; init; } = null!;
     public MapWorld World { get; init; } = null!;
     public GameSession Session { get; init; } = null!;
@@ -37,6 +38,7 @@ public partial class StrategyOverviewPanel : Control
     public override void _Ready()
     {
         Name = "StrategyOverview"; Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
+        World.ViewportPresentationChanged += QueueRedraw;
     }
     private void BuildButtons()
     {
@@ -89,7 +91,11 @@ public partial class StrategyOverviewPanel : Control
         if (_drawState != drawState) { _drawState = drawState; QueueRedraw(); }
     }
 
-    public override void _ExitTree() => _scope?.Dispose();
+    public override void _ExitTree()
+    {
+        World.ViewportPresentationChanged -= QueueRedraw;
+        _scope?.Dispose();
+    }
 
     public bool Navigate(Vector2 position)
     {
@@ -174,7 +180,7 @@ public partial class StrategyOverviewPanel : Control
     }
     private void DrawViewport()
     {
-        var half = new Vector2(1024,768) / (2 * World.ZoomFactor);
+        var half = World.ViewportSize / (2 * World.ZoomFactor);
         var a = MinimapGeometry.FromWorld(World.CameraPosition.X-half.X, World.CameraPosition.Y-half.Y);
         var b = MinimapGeometry.FromWorld(World.CameraPosition.X+half.X, World.CameraPosition.Y+half.Y);
         var points = MinimapGeometry.ClipViewport(a.U,a.V,b.U,b.V).Select(p => Origin + new Vector2((float)p.U*800,(float)p.V*400)).ToArray();

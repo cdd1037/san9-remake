@@ -23,7 +23,7 @@ P1 已接通的计略、主动外交与军团管理见[操作与验证说明](mi
 
 | 主题 | 行为规格 | 重要取舍 |
 | --- | --- | --- |
-| 主界面与布局 | [初始战略界面](../../specs/behavior/BEH-UI-0001-initial-strategy-screen.md) | [桌面宽屏与固定内容区域布局](../../specs/decisions/DEC-UI-0008-desktop-widescreen-layout.md)（待实施） |
+| 主界面与布局 | [初始战略界面](../../specs/behavior/BEH-UI-0001-initial-strategy-screen.md) | [桌面宽屏与固定内容区域布局](../../specs/decisions/DEC-UI-0008-desktop-widescreen-layout.md)（动态视口、公共宿主、HUD分组与确认框scene已接入） |
 | 侧栏名单 | [武将名单](../../specs/behavior/BEH-UI-0002-officer-roster.md) | [设施名单交互](../../specs/decisions/DEC-UI-0004-facility-list-interaction.md) |
 | 战略全图 | [全图面板](../../specs/behavior/BEH-UI-0003-strategy-overview.md) | [导航与悬停](../../specs/decisions/DEC-UI-0006-overview-navigation.md)、[相机边界](../../specs/decisions/DEC-UI-0003-continuous-map-camera-boundary.md) |
 | 情报浏览 | [目录与详情](../../specs/behavior/BEH-UI-0004-information-browser.md) | [运行态与交互](../../specs/decisions/DEC-UI-0007-information-browser.md)、[程序四维图](../../specs/decisions/DEC-RENDER-0003-procedural-officer-radar.md) |

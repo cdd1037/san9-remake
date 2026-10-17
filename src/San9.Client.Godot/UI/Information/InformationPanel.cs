@@ -12,6 +12,7 @@ public partial class InformationPanel : Control
     public InformationBrowser State { get; } = new();
     public GameSession Session { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
+    public Control MenuAnchor { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
     public MapWorld World { get; init; } = null!;
     public San9.Content.Interface.InterfaceSkin Skin { get; init; } = null!;
@@ -83,7 +84,7 @@ public partial class InformationPanel : Control
         else if (State.IsMap) _textures.RequestPrefixes("information-", "overview-", "catalog-help", "message-");
         else _textures.RequestPrefixes("information-", "catalog-", "roster-", "scroll-", "button-scroll-", "message-", "text-icon-");
         _page = State.IsMenu
-            ? new InformationMenuView { Query = _query, Texts = Texts, Textures = _textures,
+            ? new InformationMenuView { AnchorControl = MenuAnchor, Query = _query, Texts = Texts, Textures = _textures,
                 Open = category => { State.Open(category); Rebuild(); }, Back = Back }
             : new InformationPageFactory { State = State, Session = Session, Texts = Texts,
                 Service = Service, Textures = _textures, World = World, Skin = Skin, Query = _query,

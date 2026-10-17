@@ -76,6 +76,12 @@ public partial class TextureService : Node
         _frameUploadMilliseconds += elapsed; if (elapsed > 2) _generatedUploadOverruns++;
         return texture;
     }
+    public Rect2 HitBounds(ImageAsset asset)
+    {
+        if (!_masks.TryGetValue(asset, out var mask)) return default;
+        var bounds = mask.Bounds;
+        return new(bounds.X, bounds.Y, bounds.Width, bounds.Height);
+    }
     public bool Hit(ImageAsset asset, int x, int y) => _masks.TryGetValue(asset, out var mask) && mask.Contains(x, y);
     public Bitmap? ClickMask(ImageAsset asset)
     {

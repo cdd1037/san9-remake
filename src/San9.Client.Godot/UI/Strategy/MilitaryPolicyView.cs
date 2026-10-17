@@ -8,8 +8,9 @@ using San9.Core.Simulation;
 namespace San9.Client.Godot;
 
 /// <summary>Edits local military intentions; command submission is a separate use case.</summary>
-public partial class MilitaryPolicyView : Control
+public partial class MilitaryPolicyView : FixedPage
 {
+    protected override Color PageBackground => new(0, 0, 0, .35f);
     public MilitaryTargets Selection { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;

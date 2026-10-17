@@ -6,8 +6,9 @@ using San9.Content.Text;
 
 namespace San9.Client.Godot;
 
-public partial class InformationMapView : Control, IInformationPage
+public partial class InformationMapView : FixedPage, IInformationPage
 {
+    protected override Color PageBackground => new(0, 0, 0, .45f);
     public Func<StrategySnapshot> ReadView { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
@@ -160,7 +161,6 @@ public partial class InformationMapView : Control, IInformationPage
     }
     public override void _Draw()
     {
-        DrawRect(new(0,0,1024,768),new Color(0,0,0,.45f));
         Tile("information-background",new(56,24,896,720));
         Tile("information-frame-top",new(96,24,816,8));Tile("information-frame-bottom",new(96,736,816,8));
         Tile("information-frame-left",new(48,160,24,440));Tile("information-frame-right",new(948,160,16,440));

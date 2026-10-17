@@ -3,8 +3,9 @@ using San9.Application.Presentation;
 
 namespace San9.Client.Godot;
 
-public partial class NumberInputDialog : Control
+public partial class NumberInputDialog : FixedPage
 {
+    protected override Color PageBackground => new(0, 0, 0, .45f);
     public BoundedNumberInput State { get; init; } = null!;
     public string Subject { get; init; } = "士兵";
     public TextureScope Textures { get; init; } = null!;
@@ -91,7 +92,6 @@ public partial class NumberInputDialog : Control
     }
     public override void _Draw()
     {
-        DrawRect(new(0, 0, 1024, 768), new Color(0, 0, 0, .45f));
         DrawTexture(Textures["deployment-number-background"], Origin);
         var titleLeft = Textures["deployment-number-title-left"];
         var titleMiddle = Textures["deployment-number-title-middle"];

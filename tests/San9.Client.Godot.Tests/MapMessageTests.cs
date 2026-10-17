@@ -115,13 +115,43 @@ public sealed class MapMessageTests
     }
 
     [Fact]
-    public void LayoutUsesOverlapAndPreservesPreferredDirectionOnTiesEvenOffscreen()
+    public void LayoutAvoidsOtherSpeechAndPreservesDirectionOnTies()
     {
         const double width = 280;
         var preferred = MapSpeechPlacement.RightBelow;
-        var occupied = MapSpeechLayout.HitBounds(MapSpeechLayout.Bounds(0,0,width,preferred));
-        var placement = MapSpeechLayout.Choose(0,0,width,preferred,[occupied]);
-        Assert.Equal(0,MapSpeechLayout.Bounds(0,0,width,placement).Overlap(occupied));
-        Assert.Equal(preferred,MapSpeechLayout.Choose(-1000,-1000,width,preferred,[]));
+        var viewport = new OverlayBounds(0, 0, 1600, 900);
+        var occupied = MapSpeechLayout.HitBounds(MapSpeechLayout.Bounds(800, 400, width, preferred));
+        var layout = MapSpeechLayout.Place(800, 400, width, preferred, viewport, [occupied]);
+        Assert.Equal(0, layout.Bounds.Overlap(occupied));
+        Assert.Equal(preferred, MapSpeechLayout.Place(800, 400, width, preferred, viewport, []).Placement);
+    }
+
+    [Theory]
+    [InlineData(1024)]
+    [InlineData(1365.333)]
+    [InlineData(1792)]
+    public void SpeechFitsAllViewportCornersAndRetainedFrame(double width)
+    {
+        foreach (var viewport in new[] { new OverlayBounds(0, 0, width, 768), new OverlayBounds(170, 0, 1024, 768) })
+        foreach (double x in new[] { viewport.X, viewport.X + viewport.Width - 1 })
+        foreach (double y in new[] { viewport.Y, viewport.Y + viewport.Height - 1 })
+        foreach (var preferred in Enum.GetValues<MapSpeechPlacement>())
+        {
+            var layout = MapSpeechLayout.Place(x, y, 280, preferred, viewport, []);
+            Assert.InRange(layout.Bounds.X, viewport.X, viewport.X + viewport.Width - 280);
+            Assert.InRange(layout.Bounds.Y, viewport.Y, viewport.Y + viewport.Height - 108);
+        }
+    }
+
+    [Fact]
+    public void SpeechReflowsAfterResizeWithoutLosingItsAnchorPreference()
+    {
+        var wide = new OverlayBounds(0, 0, 1792, 768);
+        var small = new OverlayBounds(0, 0, 1024, 768);
+        var first = MapSpeechLayout.Place(1000, 400, 280, MapSpeechPlacement.RightBelow, wide, []);
+        var resized = MapSpeechLayout.Place(1000, 400, 280, first.Placement, small, []);
+        Assert.True(resized.Bounds.X + resized.Bounds.Width <= small.Width);
+        Assert.NotEqual(first.Placement, resized.Placement);
+        Assert.Equal(resized, MapSpeechLayout.Place(1000, 400, 280, resized.Placement, small, []));
     }
 }

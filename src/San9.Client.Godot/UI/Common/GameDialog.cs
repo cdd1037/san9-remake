@@ -33,9 +33,8 @@ public partial class GameDialog : Control
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Stop;
-        var center = new CenterContainer();
+        var center = GD.Load<PackedScene>("res://UI/Common/GameDialogLayout.tscn").Instantiate<CenterContainer>();
         AddChild(center);
-        center.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _style = new StyleBoxTexture
         {
             Texture = Textures["dialog-frame"],
@@ -46,22 +45,15 @@ public partial class GameDialog : Control
             ContentMarginLeft = 56, ContentMarginRight = 56,
             ContentMarginTop = 40, ContentMarginBottom = 40
         };
-        _panel = new PanelContainer();
+        _panel = center.GetNode<PanelContainer>("%Panel");
         _panel.AddThemeStyleboxOverride("panel", _style);
-        center.AddChild(_panel);
-        var column = new VBoxContainer();
+        var column = center.GetNode<VBoxContainer>("%Column");
         var font = GetThemeFont("font");
         int lineSpacing = GameTextMetrics.LineSpacing(font, 24);
         _lineOverflow = Math.Max(0, -lineSpacing);
         _bodyGap = Math.Max(0, 16 - _lineOverflow);
         column.AddThemeConstantOverride("separation", _bodyGap);
-        _panel.AddChild(column);
-        _body = new ScrollContainer
-        {
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-            VerticalScrollMode = ScrollContainer.ScrollMode.Auto
-        };
-        column.AddChild(_body);
+        _body = center.GetNode<ScrollContainer>("%Body");
         // Keep complete glyph metrics inside the scroll clip. Only baseline spacing is 24px;
         // the last line's descent occupies part of the gap before the buttons.
         _message = new GameRichTextLabel
@@ -73,9 +65,7 @@ public partial class GameDialog : Control
             MouseFilter = MouseFilterEnum.Ignore
         };
         _body.AddChild(_message);
-        var buttons = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
-        buttons.AddThemeConstantOverride("separation", 16);
-        column.AddChild(buttons);
+        var buttons = center.GetNode<HBoxContainer>("%Buttons");
         _confirm = Button("yes", GameButtonTextRole.ConfirmYes, () =>
         {
             if (_content?.Notice == true) Closed?.Invoke();

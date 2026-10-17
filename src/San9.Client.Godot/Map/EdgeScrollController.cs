@@ -22,18 +22,18 @@ public sealed class EdgeScrollController
         CancelGesture();
     }
 
-    public static EdgeScrollDirection Direction(CanvasPoint point, bool available)
+    public static EdgeScrollDirection Direction(CanvasPoint point, CanvasPoint viewportSize, bool available)
     {
         if (!available || !double.IsFinite(point.X) || !double.IsFinite(point.Y) ||
-            point.X < 0 || point.Y < 0 || point.X >= ClientLayout.LogicalWidth || point.Y >= ClientLayout.LogicalHeight)
+            point.X < 0 || point.Y < 0 || point.X >= viewportSize.X || point.Y >= viewportSize.Y)
             return default;
-        return new(point.X < EdgeWidth ? -1 : point.X >= ClientLayout.LogicalWidth - EdgeWidth ? 1 : 0,
-            point.Y < EdgeWidth ? -1 : point.Y >= ClientLayout.LogicalHeight - EdgeWidth ? 1 : 0);
+        return new(point.X < EdgeWidth ? -1 : point.X >= viewportSize.X - EdgeWidth ? 1 : 0,
+            point.Y < EdgeWidth ? -1 : point.Y >= viewportSize.Y - EdgeWidth ? 1 : 0);
     }
 
-    public bool PressLeft(CanvasPoint point, bool available)
+    public bool PressLeft(CanvasPoint point, CanvasPoint viewportSize, bool available)
     {
-        OwnsLeftButton = !Direction(point, available).IsNone;
+        OwnsLeftButton = !Direction(point, viewportSize, available).IsNone;
         _armed = OwnsLeftButton;
         return OwnsLeftButton;
     }

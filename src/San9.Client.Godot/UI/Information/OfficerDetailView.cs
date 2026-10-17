@@ -5,8 +5,9 @@ using San9.Content.Text;
 namespace San9.Client.Godot;
 
 /// <summary>Officer browser presentation; navigation and selected identity are owned by the application state.</summary>
-public partial class OfficerDetailView : Control, IInformationPage
+public partial class OfficerDetailView : FixedPage, IInformationPage
 {
+    protected override Color PageBackground => Colors.Black;
     public OfficerDetailState State { get; init; } = null!;
     public Func<int, OfficerDetailData> Read { get; init; } = null!;
     public Func<int, string> ReadName { get; init; } = null!;

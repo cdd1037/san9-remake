@@ -16,6 +16,7 @@ public partial class ExecutionPanels : Control
     private static readonly Rect2 Records = new(13, 564, 424, 208);
     private static readonly Rect2 Commands = new(738, 610, 272, 140);
     private readonly GameTextPresenter _text = new();
+    private Control _recordsMotion = null!, _commandsMotion = null!;
     private Control _headers = null!;
     private Control _rows = null!;
     public MapMessageLog RecordsLog { get; init; } = null!;
@@ -37,10 +38,15 @@ public partial class ExecutionPanels : Control
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
-        Size = new(1024, 768);
+        SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        var layout = GD.Load<PackedScene>("res://UI/Strategy/ExecutionPanelsLayout.tscn").Instantiate<Control>();
+        AddChild(layout);
+        _recordsMotion = layout.GetNode<Control>("%RecordsMotion");
+        _commandsMotion = layout.GetNode<Control>("%CommandsMotion");
+        layout.Resized += QueueRedraw;
         _headers = new Control { MouseFilter = MouseFilterEnum.Ignore };
-        AddChild(_headers);
-        _rows=new Control { MouseFilter=MouseFilterEnum.Ignore }; AddChild(_rows);
+        _commandsMotion.AddChild(_headers);
+        _rows=new Control { MouseFilter=MouseFilterEnum.Ignore }; _commandsMotion.AddChild(_rows);
         int[] x = [28, 88, 124, 184];
         for (int i = 0; i < ExecutionPanelSkin.Columns.Count; i++)
         {
@@ -71,8 +77,8 @@ public partial class ExecutionPanels : Control
     private void RefreshRecords()
     {
         if (!IsNodeReady()) return;
-        if (_recordRows is not null) { RemoveChild(_recordRows); _recordRows.QueueFree(); }
-        _recordRows=new Control { Position=new(0,_offset),MouseFilter=MouseFilterEnum.Ignore, Visible = ReportsVisible }; AddChild(_recordRows);
+        if (_recordRows is not null) { _recordsMotion.RemoveChild(_recordRows); _recordRows.QueueFree(); }
+        _recordRows=new Control { MouseFilter=MouseFilterEnum.Ignore, Visible = ReportsVisible }; _recordsMotion.AddChild(_recordRows);
         var visible=RecordsLog.Visible.ToArray();
         for (int i=0;i<visible.Length;i++)
         {
@@ -163,20 +169,26 @@ public partial class ExecutionPanels : Control
     private void ApplyOffset()
     {
         Visible = _offset < Travel && !_covered;
-        _headers.Position = new(0, _offset);
-        _rows.Position = new(0,_offset);
-        if (_recordRows is not null) _recordRows.Position=new(0,_offset);
+        _recordsMotion.Position = _commandsMotion.Position = new(0, _offset);
         QueueRedraw();
     }
 
-    public bool Covers(Vector2 point) => Visible &&
-        (ReportsVisible && new Rect2(Records.Position + new Vector2(0, _offset), Records.Size).HasPoint(point) ||
-         new Rect2(Commands.Position + new Vector2(0, _offset), Commands.Size).HasPoint(point));
+    private Vector2 RecordsOffset => GetGlobalTransform().AffineInverse() * _recordsMotion.GlobalPosition;
+    private Vector2 CommandsOffset => GetGlobalTransform().AffineInverse() * _commandsMotion.GlobalPosition;
+
+    public IEnumerable<Rect2> OccupiedAreas()
+    {
+        if (!IsVisibleInTree()) yield break;
+        if (ReportsVisible) yield return new(Records.Position + RecordsOffset, Records.Size);
+        yield return new(Commands.Position + CommandsOffset, Commands.Size);
+    }
+
+    public bool Covers(Vector2 point) => OccupiedAreas().Any(rect => rect.HasPoint(point));
 
     public override void _Draw()
     {
-        if (ReportsVisible) DrawTexture(Textures["turn-record-panel"], Records.Position + new Vector2(0, _offset));
-        DrawTexture(Textures["turn-command-panel"], Commands.Position + new Vector2(0, _offset));
+        if (ReportsVisible) DrawTexture(Textures["turn-record-panel"], Records.Position + RecordsOffset);
+        DrawTexture(Textures["turn-command-panel"], Commands.Position + CommandsOffset);
     }
 
     public override void _ExitTree() => _text.Dispose();

@@ -211,5 +211,6 @@ public sealed class TextureCacheTests
         var region = new ImageAsset("a", File("page", 3), 1, 0, 2, 1);
         var mask = new AlphaMask(image, region, 128); Array.Clear(image.Pixels);
         Assert.False(mask.Contains(0, 0)); Assert.True(mask.Contains(1, 0)); Assert.False(mask.Contains(2, 0));
+        Assert.Equal((1, 0, 1, 1), mask.Bounds);
     }
 }

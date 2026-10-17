@@ -7,8 +7,9 @@ using San9.Core.Domain;
 
 namespace San9.Client.Godot;
 
-public partial class PatrolView : Control
+public partial class PatrolView : FixedPage
 {
+    protected override Color PageBackground => new(0, 0, 0, .35f);
     public PatrolDraft Draft { get; init; } = null!;
     public GameSession Session { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;

@@ -8,7 +8,7 @@ using San9.Core.Simulation;
 namespace San9.Client.Godot;
 
 /// <summary>Owns one prompt's navigation. Closing a child never silently answers the encounter.</summary>
-public partial class DecisionView : Control
+public partial class DecisionView : FixedPage
 {
     public DecisionDraft Draft { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;
@@ -95,7 +95,7 @@ public partial class DecisionView : Control
                 ActionRightInset = 26,
                 CanClose = false
             };
-            var body = new Control { MouseFilter = MouseFilterEnum.Ignore };
+            var body = new DecisionCommandPage();
             Replace(body); body.AddChild(window); body.AddChild(hint);
             var target = window.ActionButton("对象武将", "edit", new(0, 0, 104, 40), () => { });
             target.MouseFilter = MouseFilterEnum.Ignore;
@@ -230,4 +230,9 @@ public partial class DecisionView : Control
     }
     public override void _GuiInput(InputEvent input) => AcceptEvent();
     public override void _ExitTree() { _music?.Dispose(); _music = null; _lifetime.Cancel(); _lifetime.Dispose(); }
+}
+
+internal partial class DecisionCommandPage : FixedPage
+{
+    protected override Color PageBackground => new(0, 0, 0, .35f);
 }

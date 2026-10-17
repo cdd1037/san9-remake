@@ -4,8 +4,9 @@ using Godot;
 namespace San9.Client.Godot;
 
 /// <summary>Delegation policy popup uses the shared native tiled choice-panel art.</summary>
-public partial class CorpsPolicyDialog : Control
+public partial class CorpsPolicyDialog : FixedPage
 {
+    protected override Color PageBackground => new(0, 0, 0, .45f);
     public TextCatalog Texts { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;
     public IReadOnlySet<int> DisabledOptions { get; init; } = new HashSet<int>();
@@ -39,7 +40,6 @@ public partial class CorpsPolicyDialog : Control
 
     public override void _Draw()
     {
-        DrawRect(new(0,0,1024,768),new Color(0,0,0,.45f));
         DrawTextureRectRegion(Textures["deployment-policy-background"],new(Origin,new Vector2(296,312)),new(Vector2.Zero,new Vector2(296,312)));
         Vector2 frame = Origin-new Vector2(1,1);
         void Piece(string role, Vector2 at) => DrawTexture(Textures["deployment-policy-frame-"+role],frame+at);

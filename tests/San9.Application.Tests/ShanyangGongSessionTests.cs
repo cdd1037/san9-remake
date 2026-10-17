@@ -46,7 +46,7 @@ public sealed class ShanyangGongSessionTests
     public void PublicSearchChoicesCommitAtomicallyResumeAndReplay(bool protect)
     {
         var definition = Definition(); var session = GameSession.Start(definition, 17); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 12, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [12], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var arrival = session.AdvanceXun(); EventAssert.Equal(arrival.Events, restored.AdvanceXun().Events);
         var prompt = session.GetShanyangGongPrompt()!;
@@ -102,7 +102,7 @@ public sealed class ShanyangGongSessionTests
         var session = SaveService.Decode(SaveService.Encode(GameSession.Start(d, 17)), d);
         Assert.True(session.Snapshot.Forces.Single(f => f.Id == 1).HasDeposedEmperor);
         Assert.Equal("刘", session.Snapshot.Officers.Single(p => p.Id == 11).Surname);
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 12, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [12], 1)).Submission.Accepted);
         Assert.Empty(session.AdvanceXun().Events.OfType<ShanyangGongEvent>()); Assert.Null(session.GetShanyangGongPrompt());
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys);
     }

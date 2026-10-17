@@ -34,7 +34,7 @@ public static class PersonnelPresentation
         WorldMessageContext context, TextCatalog texts, Func<int, int> random)
     {
         if (draft.Advice is not { AdviserId: int adviser, Opinion: AdviserOpinion.Favorable or AdviserOpinion.Unfavorable } advice) return [];
-        var values = Values(draft.View, draft.Members[0], draft.Kind == "employ" ? TargetPlace(draft.View, draft.TargetId!.Value) : draft.TargetId!.Value);
+        var values = Values(draft.View, draft.RepresentativeId!.Value, draft.Kind == "employ" ? TargetPlace(draft.View, draft.TargetId!.Value) : draft.TargetId!.Value);
         values["adviser"] = MessageBinding.Reference(MessageEntityKind.Person, adviser);
         string role = draft.Kind + (advice.Opinion == AdviserOpinion.Favorable ? "-favorable" : "-unfavorable");
         if (draft.SearchAdvice is ThreeVisitsStep.FirstVisit) role = "search-first-visit";
@@ -50,7 +50,7 @@ public static class PersonnelPresentation
     public static IReadOnlyList<CommandMessage> Departure(PersonnelDraft draft, PersonnelPresentationDefinition content,
         WorldMessageContext context, TextCatalog texts, Func<int, int> random)
     {
-        int actor = draft.Members[0], target = draft.TargetId!.Value;
+        int actor = draft.RepresentativeId!.Value, target = draft.TargetId!.Value;
         if (draft.Kind is "move" or "summon")
         {
             var rules = new GovernanceRulebook(draft.View.Information.Offices.Select(o => new GovernorOfficeRule(o.Id,o.CommandCapacity,o.GovernorPriority)));

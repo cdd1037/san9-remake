@@ -57,7 +57,7 @@ public sealed partial class SimulationEngine
         CommandRejection rejection = kind switch
         {
             PersonnelJourneyKind.Move => PersonnelMissions.ValidateMove(world, new(Guid.Empty, forceId, 0, [officerId], targetId), _rules.Personnel),
-            PersonnelJourneyKind.Search => PersonnelMissions.ValidateSearch(world, new(Guid.Empty, forceId, 0, officerId, targetId), _rules.Personnel),
+            PersonnelJourneyKind.Search => PersonnelMissions.ValidateSearch(world, new(Guid.Empty, forceId, 0, [officerId], targetId), _rules.Personnel),
             PersonnelJourneyKind.Recruit => PersonnelMissions.ValidateRecruit(world, new(Guid.Empty, forceId, 0, officerId, targetId), _rules, out destination, out unit),
             _ => throw new ArgumentOutOfRangeException(nameof(kind))
         };

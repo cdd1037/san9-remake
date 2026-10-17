@@ -103,7 +103,7 @@ public static class CorpsControl
             RequestAttackCommand request => OwnPerson(request.OfficerId),
             DemandSurrenderCommand surrender => OwnPerson(surrender.OfficerId),
             UnitStrategyCommand strategy => OwnPerson(strategy.OfficerId),
-            SearchCommand search => OwnPerson(search.OfficerId),
+            SearchCommand search => !search.OfficerIds.IsDefault && search.OfficerIds.All(OwnPerson),
             MoveOfficersCommand move => !move.OfficerIds.IsDefault && move.OfficerIds.All(OwnPerson) && ControlsPlace(move.DestinationId),
             _ => automatic is null || automatic.IsRoot
         };

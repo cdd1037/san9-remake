@@ -43,7 +43,7 @@ public sealed class MysticBookSessionTests
     public void BothChoicesSaveRestoreAndReplayWithTheCorrectOwnershipAndPayment(bool returning, bool accept)
     {
         var d = Definition(returning); var session = GameSession.Start(d, 1); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         session.AdvanceXun(); restored.AdvanceXun();
         Guid task; int step;
@@ -83,7 +83,7 @@ public sealed class MysticBookSessionTests
     {
         var session = GameSession.Start(Definition(true), 1);
         foreach (int actor in new[] { 2, 3 })
-            Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, actor, 1)).Submission.Accepted);
+            Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [actor], 1)).Submission.Accepted);
         session.AdvanceXun(); var first = Assert.IsType<MysticBookReturnPrompt>(session.GetMysticBookReturnPrompt());
         Assert.True(session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, first.TaskId, first.Step, true)).Submission.Accepted);

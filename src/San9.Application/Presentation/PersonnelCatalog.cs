@@ -28,6 +28,7 @@ public static class PersonnelCatalog
             .ThenBy(id => people[id].OwnerId is null ? -1 : Math.Min(100, people[id].Loyalty));
         return draft.Kind switch
         {
+            "search" => draft.OrderSearchOfficers(ids),
             "summon" => ids.OrderBy(id => officers[id].CorpsId ?? int.MaxValue).ThenBy(LocationKind)
                 .ThenBy(id => people[id].SettlementId ?? int.MaxValue),
             "move" => ids.OrderBy(id => people[id].Status).ThenByDescending(OfficePriority).ThenByDescending(AbilityTotal),
@@ -40,10 +41,13 @@ public static class PersonnelCatalog
             : draft.Kind switch
             {
                 "summon" => ["corps", "location", "status", "leadership", "war", "intelligence", "politics", "estimate"],
+                "search" => ["politics", "status", "leadership", "war", "intelligence", "learned", "estimate"],
                 "move" => ["status", "office", "capacity", "leadership", "war", "intelligence", "politics", "learned"],
                 _ => ["politics", "status", "leadership", "war", "intelligence", "learned"]
             };
-        return [new(CommandText.Resolve(texts, "title." + draft.Kind), [OfficerColumn("name"), .. fields.Select(f => f == "estimate" ? Arrival(texts) : OfficerColumn(f))]), .. OfficerCatalog.Pages];
+        CatalogColumn[] prefix = !targets && draft.Kind == "search"
+            ? [new("advice", "", 8, CatalogAlignment.Center), OfficerColumn("name")] : [OfficerColumn("name")];
+        return [new(CommandText.Resolve(texts, "title." + draft.Kind), [.. prefix, .. fields.Select(f => f == "estimate" ? Arrival(texts) : OfficerColumn(f))]), .. OfficerCatalog.Pages];
     }
     public static CatalogRow[] Officers(PersonnelDraft draft, TextCatalog texts, int page, bool targets = false)
     {
@@ -54,13 +58,14 @@ public static class PersonnelCatalog
             return ids.Select(id => new CatalogRow(id, rows[id].Cells.ToArray())).ToArray();
         }
         var columns = OfficerPages(draft, texts, targets)[0].Columns;
-        var fields = columns.Where(c => c.Id != "estimate").ToDictionary(c => c.Id,
+        var fields = columns.Where(c => c.Id is not ("estimate" or "advice")).ToDictionary(c => c.Id,
             c => OfficerCatalog.Pages.Select((catalog, index) => (Page: index, Column: Array.FindIndex(catalog.Columns, field => field.Id == c.Id)))
                 .First(location => location.Column >= 0));
         var facts = fields.Values.Select(location => location.Page).Distinct().ToDictionary(pageIndex => pageIndex,
             pageIndex => OfficerCatalog.Read(draft.View, texts, pageIndex, null, null).Rows.ToDictionary(r => r.Key.Id));
         CatalogCell Cell(int id, string field)
         {
+            if (field == "advice") return new(draft.AdviceSymbol(id), draft.AdvicePriority(id));
             if (field == "estimate")
             {
                 int? days = targets ? draft.ArrivalDaysTo(id) : draft.ArrivalDays(id);

@@ -177,7 +177,7 @@ public sealed class HeadlessHostTests : IDisposable
         File.WriteAllBytes(scenario, San9.Core.Simulation.CanonicalJson.Encode(content));
         var session = San9.Application.GameSession.Start(content, 190);
         session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new San9.Core.Simulation.SearchCommand(Guid.NewGuid(), 1, 0, 2, 101)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new San9.Core.Simulation.SearchCommand(Guid.NewGuid(), 1, 0, [2], 101)).Submission.Accepted);
         session.AdvanceXun();
         var prompt = session.GetSearchRecruitmentPrompt()!;
         Assert.NotNull(prompt);
@@ -222,7 +222,7 @@ public sealed class HeadlessHostTests : IDisposable
         File.WriteAllBytes(scenario, JsonSerializer.SerializeToUtf8Bytes(d, San9.Content.Packages.ScenarioContentFiles.DataJsonOptions));
         var session = GameSession.Start(d, 190);
         SaveService.Write(initial, session); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 101)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 101)).Submission.Accepted);
         session.AdvanceXun();
         var task = session.Snapshot.Simulation.Tasks.Single(t => t.Id == session.Snapshot.Simulation.PendingDailyTask!.RemainingTaskIds[0]);
         var answer = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, task.Id, task.ResolutionStep, true);

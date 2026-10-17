@@ -46,7 +46,7 @@ public sealed class SearchConflictSessionTests
     public void EveryChoiceSupportsPublicQueryAtomicResponseSaveAndReplay(string kind, SearchConflictChoice choice)
     {
         var d = Definition(kind); var session = GameSession.Start(d, 20); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         session.AdvanceXun(); restored.AdvanceXun();
         var p = Assert.IsType<SearchConflictPrompt>(session.GetSearchConflictPrompt());
@@ -85,7 +85,7 @@ public sealed class SearchConflictSessionTests
         d = d with { Officers = [.. d.Officers, new("second", d.Officers.Single(o => o.State.Id == 2).State with { Id = 5 })] };
         var session = GameSession.Start(d, 20);
         foreach (int actor in new[] { 2, 5 }) Assert.True(session.Execute(new("player"),
-            new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, actor, 1)).Submission.Accepted);
+            new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [actor], 1)).Submission.Accepted);
         session.AdvanceXun();
         var prompt = session.GetSearchConflictPrompt()!;
         Assert.Equal(2, prompt.OfficerId);
@@ -113,7 +113,7 @@ public sealed class SearchConflictSessionTests
                 _ => o
             }).ToArray() };
         var session = GameSession.Start(d, 20);
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         session.AdvanceXun(); var p = session.GetSearchConflictPrompt()!;
         var result = session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
             p.TaskId, p.Step, false) { SearchConflict = SearchConflictChoice.Execute });
@@ -147,7 +147,7 @@ public sealed class SearchConflictSessionTests
             Officers = d.Officers.Select(o => o.State.Id == 2
                 ? o with { State = o.State with { BaseAbilities = o.State.BaseAbilities with { War = 0 } } } : o).ToArray() };
         var session = GameSession.Start(d, 20); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         session.AdvanceXun(); restored.AdvanceXun();
         var prompt = Assert.IsType<SearchConflictPrompt>(session.GetSearchConflictPrompt());

@@ -158,7 +158,7 @@ public sealed class OriginalAiActionsTests
             var engine = GameSession.EngineFactory(content)(WorldState.Restore(w with
                 { Simulation = w.Simulation with { ActiveControl = enemy } }));
             Assert.True(engine.Execute(new(w.Simulation.Controls[enemy].ControllerId),
-                new SearchCommand(Guid.NewGuid(), 2, engine.Snapshot.Simulation.NextSequence, 2, 2)).Submission.Accepted);
+                new SearchCommand(Guid.NewGuid(), 2, engine.Snapshot.Simulation.NextSequence, [2], 2)).Submission.Accepted);
             var after = engine.Snapshot;
             Assert.False(after.Officers.Single(p => p.Id == 2).IsCommander);
             Assert.True(after.Officers.Single(p => p.Id == 4).IsCommander);

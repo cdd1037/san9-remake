@@ -24,8 +24,8 @@ public sealed class SearchDecisionTests
 
     private static IReadOnlyList<DomainEvent> Begin(SimulationEngine engine, bool secondSearch = false)
     {
-        Assert.True(engine.Execute(new("player"), new SearchCommand(SimulationEngineTests.Id(1), 1, 0, 2, 1)).Submission.Accepted);
-        if (secondSearch) Assert.True(engine.Execute(new("player"), new SearchCommand(SimulationEngineTests.Id(2), 1, 1, 4, 1)).Submission.Accepted);
+        Assert.True(engine.Execute(new("player"), new SearchCommand(SimulationEngineTests.Id(1), 1, 0, [2], 1)).Submission.Accepted);
+        if (secondSearch) Assert.True(engine.Execute(new("player"), new SearchCommand(SimulationEngineTests.Id(2), 1, 1, [4], 1)).Submission.Accepted);
         engine.EndControl(new("player"));
         return engine.AdvanceXun().Events;
     }
@@ -83,11 +83,19 @@ public sealed class SearchDecisionTests
         StateAssert.Equal(before, engine.Snapshot);
     }
 
-    [Fact]
-    public void SameDaySearchesSelectAndCommitInQueueOrderWithoutReusingDiscoveredPerson()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SameDaySearchesSelectAndCommitInQueueOrderWithoutReusingDiscoveredPerson(bool batch)
     {
         var engine = Engine(World(secondSearch: true));
-        Begin(engine, true);
+        if (batch)
+        {
+            Assert.True(engine.Execute(new("player"),new SearchCommand(SimulationEngineTests.Id(1),1,0,[4,2],1)).Submission.Accepted);
+            engine.EndControl(new("player"));
+            engine.AdvanceXun();
+        }
+        else Begin(engine, true);
         var first = engine.GetSearchRecruitmentPrompt()!;
         Assert.Equal(2, first.SearchingOfficerId);
         var resolved = engine.Execute(new("player"), Answer(engine, false));

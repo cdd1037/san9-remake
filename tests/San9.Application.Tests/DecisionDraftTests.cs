@@ -62,7 +62,7 @@ public sealed class DecisionDraftTests
     private static GameSession SearchSession(San9.Content.Scenarios.ScenarioInitialState definition, ulong seed)
     {
         var session = GameSession.Start(definition, seed);
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         session.AdvanceXun();
         return session;
     }
@@ -95,7 +95,7 @@ public sealed class DecisionDraftTests
     public void ShanyangProtectionAnnouncesOnlyAfterTheSecondCountryAnswerCommits()
     {
         var session = GameSession.Start(ShanyangGongSessionTests.Definition(), 17);
-        session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 12, 1)); session.AdvanceXun();
+        session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [12], 1)); session.AdvanceXun();
         var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, new() { ["title.a"] = "汉" })
         {
             Messages = new()
@@ -161,7 +161,7 @@ public sealed class DecisionDraftTests
     public void InsultChoiceMapsIgnoringAndExecutionToTheActualDomainMeaning(string choice, bool execution)
     {
         var session = GameSession.Start(ScholarInsultSessionTests.Definition(), 1);
-        session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)); session.AdvanceXun();
+        session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)); session.AdvanceXun();
         var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, []) { Messages = new() { ["prompt"] = new([new MessageLiteral("选择")]) } };
         var presentation = CommandPresentation.Empty with
         {

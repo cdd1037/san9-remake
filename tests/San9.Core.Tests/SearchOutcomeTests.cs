@@ -7,7 +7,7 @@ namespace San9.Core.Tests;
 public sealed class SearchOutcomeTests
 {
     private static SimulationEngine Engine(bool person, bool item, bool automatic = false, int politics = 500, ulong seed = 190,
-        bool probeGrowth = false, ulong fundsSeed = 52)
+        bool probeGrowth = false, ulong fundsSeed = 52, bool secondSearcher = false)
     {
         var world = WorldState.Create(new(190, 1, 1), seed,
             [new(1, 0) { LeaderId = 1 }],
@@ -15,7 +15,8 @@ public sealed class SearchOutcomeTests
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(50, 50, politics, 50), false),
              new(3, null, null, new(50, 50, 50, 50), false) { Status = person ? OfficerStatus.Undiscovered : OfficerStatus.Dead,
-                 RegionId = 30, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 40) }],
+                 RegionId = 30, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 40) },
+             .. secondSearcher ? new OfficerState[] { new(4,1,1,new(50,50,politics,50),false) } : []],
             treasures: item ? [new(10, null, TreasureDiscovery.Buried, 30)] : [],
             controls: [new("player", 1, automatic ? ControllerKind.Automatic : ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }]);
         if (probeGrowth)
@@ -29,9 +30,22 @@ public sealed class SearchOutcomeTests
             item ? new([new(10, new(5, 0, 0, 0), 0)]) : TreasureRulebook.Empty);
     }
 
+    [Fact]
+    public void BatchSearchClaimsOneTreasureOnlyOnce()
+    {
+        var engine = Engine(false,true,secondSearcher:true);
+        Assert.True(engine.Execute(new("player"),new SearchCommand(Guid.NewGuid(),1,0,[4,2],30)).Submission.Accepted);
+        engine.EndControl(new("player"));
+        var events = engine.AdvanceXun().Events;
+        Assert.Equal(2,events.OfType<SearchResolvedEvent>().Count());
+        var treasure = Assert.Single(events.OfType<SearchResolvedEvent>(),e => e.Result == SearchResultKind.Treasure);
+        Assert.Equal(2,treasure.OfficerId);
+        Assert.Equal(1,Assert.Single(engine.Snapshot.Treasures).HolderId);
+    }
+
     private static SearchResolvedEvent Search(SimulationEngine engine)
     {
-        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 30)).Submission.Accepted);
+        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 30)).Submission.Accepted);
         engine.EndControl(new("player"));
         List<DomainEvent> events = [.. engine.AdvanceXun().Events];
         if (engine.GetSearchRecruitmentPrompt() is { } prompt)

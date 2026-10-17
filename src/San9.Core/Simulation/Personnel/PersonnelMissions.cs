@@ -7,7 +7,7 @@ public sealed record RecruitOfficerCommand(Guid CommandId, int IssuerId, long Se
     : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record MoveOfficersCommand(Guid CommandId, int IssuerId, long Sequence, ImmutableArray<int> OfficerIds, int DestinationId)
     : GameCommand(CommandId, IssuerId, Sequence);
-public sealed record SearchCommand(Guid CommandId, int IssuerId, long Sequence, int OfficerId, int DestinationId)
+public sealed record SearchCommand(Guid CommandId, int IssuerId, long Sequence, ImmutableArray<int> OfficerIds, int DestinationId)
     : GameCommand(CommandId, IssuerId, Sequence);
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(PersonSearchEncounter), "person")]
@@ -110,20 +110,28 @@ internal static class PersonnelMissions
     {
         var rejection = ValidateSearch(world, command, rules);
         if (rejection != CommandRejection.None) return rejection;
-        int origin = world.Officers[command.OfficerId].SettlementId!.Value;
-        int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.SearchDiscovery,
-            world.Clock, command.OfficerId, command.DestinationId);
-        Add(world, context, command, command.CommandId, command.OfficerId, origin,
-            new(command.DestinationId, null, roll), SearchKind, rules, events);
+        var ids = command.OfficerIds.Order().ToArray();
+        for (int index = 0; index < ids.Length; index++)
+        {
+            int officer = ids[index];
+            int origin = world.Officers[officer].SettlementId!.Value;
+            int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.SearchDiscovery,
+                world.Clock, officer, command.DestinationId);
+            Guid taskId = index == 0 ? command.CommandId : world.AllocateTaskId();
+            Add(world, context, command, taskId, officer, origin,
+                new(command.DestinationId, null, roll), SearchKind, rules, events);
+        }
         return CommandRejection.None;
     }
 
     internal static CommandRejection ValidateSearch(WorldMutation world, SearchCommand command, PersonnelRulebook rules)
     {
-        if (!CanAct(world, command.IssuerId, command.OfficerId) || world.Forces[command.IssuerId].LeaderId is null)
+        if (command.OfficerIds.IsDefaultOrEmpty || command.OfficerIds.Distinct().Count() != command.OfficerIds.Length)
+            return CommandRejection.InvalidTask;
+        if (world.Forces[command.IssuerId].LeaderId is null || command.OfficerIds.Any(id => !CanAct(world, command.IssuerId, id)))
             return CommandRejection.PersonUnavailable;
-        int origin = world.Officers[command.OfficerId].SettlementId!.Value;
-        if (!rules.Places.ContainsKey(origin) || !CanSearch(world, command.IssuerId, command.DestinationId, rules))
+        if (command.OfficerIds.Any(id => !rules.Places.ContainsKey(world.Officers[id].SettlementId!.Value)) ||
+            !CanSearch(world, command.IssuerId, command.DestinationId, rules))
             return CommandRejection.InvalidTask;
         return CommandRejection.None;
     }

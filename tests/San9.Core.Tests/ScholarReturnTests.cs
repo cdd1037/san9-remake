@@ -33,7 +33,7 @@ public sealed class ScholarReturnTests
     }
     private static ScholarReturnPrompt Begin(SimulationEngine engine)
     {
-        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         engine.EndControl(new("player")); engine.AdvanceXun();
         return Assert.IsType<ScholarReturnPrompt>(engine.GetScholarReturnPrompt());
     }
@@ -202,8 +202,8 @@ public sealed class ScholarReturnTests
     public void SameDaySecondActorCannotRepeatConsumedEvent()
     {
         var (_, engine, _) = Create();
-        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
-        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 1, 4, 1)).Submission.Accepted);
+        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
+        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 1, [4], 1)).Submission.Accepted);
         engine.EndControl(new("player")); engine.AdvanceXun();
         var response = engine.Execute(new("player"), Answer(engine, false));
         Assert.Single(response.Events.OfType<ScholarReturnResolvedEvent>());

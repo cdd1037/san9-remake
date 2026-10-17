@@ -46,7 +46,7 @@ public sealed class ForceEmergenceTests
         Assert.All(answer.Snapshot.Officers.Where(p => p.IsServing), p => Assert.False(p.Acted));
         Assert.Equal(70, Assert.Single(answer.Snapshot.Simulation.Tasks).OfficerId);
         Assert.False(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 7,
-            engine.Snapshot.Simulation.NextSequence, 70, 2)).Submission.Accepted);
+            engine.Snapshot.Simulation.NextSequence, [70], 2)).Submission.Accepted);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
         StateAssert.Equal(engine.Snapshot, restored.Snapshot);
     }

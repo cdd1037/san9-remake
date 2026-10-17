@@ -38,7 +38,7 @@ public sealed class PersonnelScenarioTests
         };
         var session = GameSession.Start(definition, 190);
         session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 11, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [11], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var expected = session.AdvanceXun();
         var actual = restored.AdvanceXun();
@@ -60,7 +60,7 @@ public sealed class PersonnelScenarioTests
     {
         var definition = Fixture();
         var session = GameSession.Start(definition, 190);
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 11, 30)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [11], 30)).Submission.Accepted);
         var task = Assert.Single(session.Snapshot.Simulation.Tasks);
         var loaded = SaveService.Decode(SaveService.Encode(session), definition, GameSession.EngineFactory(definition), playerLoad: true);
         Assert.Equal(task, Assert.Single(loaded.Snapshot.Simulation.Tasks));
@@ -105,7 +105,7 @@ public sealed class PersonnelScenarioTests
             bool Available(int id) => !world.Officers.Single(p => p.Id == id).Acted && !world.Simulation.Tasks.Any(t => t.OfficerId == id);
             Guid id = new((int)session.NextOperationSequence + 1, 0, 0, new byte[8]);
             GameCommand? command = target.Status == OfficerStatus.Undiscovered && Available(actor.Id)
-                ? new SearchCommand(id, 1, world.Simulation.NextSequence, actor.Id, 30)
+                ? new SearchCommand(id, 1, world.Simulation.NextSequence, [actor.Id], 30)
                 : target.Status == OfficerStatus.Free && Available(actor.Id)
                 ? new RecruitOfficerCommand(id, 1, world.Simulation.NextSequence, actor.Id, target.Id)
                 : target.OwnerId == 1 && target.SettlementId == 1 && Available(target.Id)
@@ -177,7 +177,7 @@ public sealed class PersonnelScenarioTests
         }).ToArray() };
         var session = GameSession.Start(definition, 190);
         session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 11, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [11], 1)).Submission.Accepted);
         Assert.False(session.View.Officers.Single(p => p.Id == 11).IsAvailable);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         foreach (var operation in new SessionOperation[] { new EndControlOperation(), new AdvanceOperation() })
@@ -210,7 +210,7 @@ public sealed class PersonnelScenarioTests
         var session = GameSession.Start(definition, 190);
         Guid id = Guid.NewGuid();
         Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new CommandOperation(
-            new SearchCommand(id, 1, 0, 11, 30)), id: id)).Disposition);
+            new SearchCommand(id, 1, 0, [11], 30)), id: id)).Disposition);
         var saved = session.Capture();
         var task = Assert.Single(saved.World.Simulation.Tasks);
         foreach (var journey in new PersonnelJourney?[] { null, task.Journey! with { Route = null! },

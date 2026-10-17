@@ -31,7 +31,7 @@ public sealed class BeastSearchTests
     }
     private static BeastSearchPrompt Begin(SimulationEngine engine)
     {
-        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         engine.EndControl(new("player"));
         var result = engine.AdvanceXun();
         Assert.DoesNotContain(result.Events, e => e is BeastSearchResolvedEvent or SearchResolvedEvent);
@@ -141,7 +141,7 @@ public sealed class BeastSearchTests
         var mutation = world.BeginMutation();
         mutation.SetSimulation(mutation.Simulation with { ConsumedEventKeys = [new("beast.home")] });
         world.Commit(mutation);
-        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         engine.EndControl(new("player"));
         engine.AdvanceXun();
         Assert.Null(engine.GetBeastSearchPrompt());
@@ -163,12 +163,14 @@ public sealed class BeastSearchTests
         Assert.Equal(100, engine.Snapshot.Officers.Single(p => p.Id == 2).BaseAbilities.War);
         Assert.Equal(1000, Assert.Single(engine.Snapshot.Forces).BaseTrust);
     }
-    [Fact]
-    public void SameDaySecondSearchCannotPresentAlreadyConsumedSite()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SameDaySecondSearchCannotPresentAlreadyConsumedSite(bool batch)
     {
         var (_, engine) = Create();
-        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
-        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 1, 4, 1)).Submission.Accepted);
+        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, batch ? [4,2] : [2], 1)).Submission.Accepted);
+        if (!batch) Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 1, [4], 1)).Submission.Accepted);
         engine.EndControl(new("player"));
         engine.AdvanceXun();
         Assert.Equal(2, engine.GetBeastSearchPrompt()!.OfficerId);

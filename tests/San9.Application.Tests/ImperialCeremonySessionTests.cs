@@ -23,7 +23,7 @@ public sealed class ImperialCeremonySessionTests
     public void SearchCompletesWithoutDecisionAndPersistsRewardsInSaveAndRecording()
     {
         var d = Definition(); var session = GameSession.Start(d, 1); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 1, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [1], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         var result = session.AdvanceXun(); var again = restored.AdvanceXun();
         EventAssert.Equal(result.Events, again.Events);
@@ -37,7 +37,7 @@ public sealed class ImperialCeremonySessionTests
         StateAssert.Equal(session.Capture(), saved.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
         StateAssert.Equal(session.Capture(), replay.Session.Capture());
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 1, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [1], 1)).Submission.Accepted);
         Assert.DoesNotContain(session.AdvanceXun().Events, e => e is ImperialCeremonyResolvedEvent);
         Assert.Single(session.Snapshot.Simulation.ConsumedEventKeys);
     }

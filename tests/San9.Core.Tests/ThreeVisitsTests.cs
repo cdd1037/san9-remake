@@ -102,7 +102,7 @@ public sealed class ThreeVisitsTests
                 Assert.Null(engine.GetPersonnelJourney(1,12,1,PersonnelJourneyKind.Search).SearchAdvice);
             }
             Assert.Same(before,engine.Snapshot);
-            Assert.True(engine.Execute(new("player"),new SearchCommand(Guid.NewGuid(),1,engine.Snapshot.Simulation.NextSequence,11,1)).Submission.Accepted);
+            Assert.True(engine.Execute(new("player"),new SearchCommand(Guid.NewGuid(),1,engine.Snapshot.Simulation.NextSequence,[11],1)).Submission.Accepted);
             Advance(engine);
         }
         Assert.Null(engine.GetPersonnelJourney(1,11,1,PersonnelJourneyKind.Search).SearchAdvice);
@@ -116,7 +116,7 @@ public sealed class ThreeVisitsTests
         for (int visit = 0; visit < 2; visit++)
         {
             Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1,
-                engine.Snapshot.Simulation.NextSequence, 11, 1)).Submission.Accepted);
+                engine.Snapshot.Simulation.NextSequence, [11], 1)).Submission.Accepted);
             var result = Advance(engine);
             Assert.Equal(visit == 0 ? ThreeVisitsStep.FirstVisit : ThreeVisitsStep.Recruitment,
                 Assert.Single(result.Events.OfType<ThreeVisitsEvent>()).Step);

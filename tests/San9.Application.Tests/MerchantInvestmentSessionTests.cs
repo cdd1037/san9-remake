@@ -44,7 +44,7 @@ public sealed class MerchantInvestmentSessionTests
     {
         var d = Definition(resource); var session = GameSession.Start(d, Seed(wins)); session.BeginRecording();
         int price = session.Snapshot.Simulation.FoodExchangeRate; Assert.InRange(price, 7, 8);
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         Assert.Equal(price, restored.Snapshot.Simulation.FoodExchangeRate);
         session.AdvanceXun(); restored.AdvanceXun();
@@ -75,7 +75,7 @@ public sealed class MerchantInvestmentSessionTests
     public void InvalidAmountChoiceAndUnrelatedPayloadLeavePendingDecisionUnchanged()
     {
         var session = GameSession.Start(Definition(), Seed(true));
-        session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)); session.AdvanceXun();
+        session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)); session.AdvanceXun();
         var p = session.GetMerchantInvestmentPrompt()!; var hash = session.Snapshot;
         var valid = Answer(session, p, MerchantInvestmentChoice.Invest, 100);
         foreach (var invalid in new[]

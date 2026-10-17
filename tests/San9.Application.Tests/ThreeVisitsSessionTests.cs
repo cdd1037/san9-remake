@@ -26,6 +26,29 @@ public sealed class ThreeVisitsSessionTests
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }], []) };
 
     [Fact]
+    public void SearchAdviceMarksBothSpecialVisitsWithoutChangingTheWorld()
+    {
+        var definition = Definition();
+        definition = definition with {
+            Forces = definition.Forces.Select(f => f with { AdviserId = 14 }).ToArray(),
+            Officers = definition.Officers.Select(p => p.State.Id == 14 ? p with { State = p.State with { Status = OfficerStatus.Strategist } } : p).ToArray()
+        };
+        var session = GameSession.Start(definition,17);
+        for (int visit = 0; visit < 2; visit++)
+        {
+            var before = session.Snapshot;
+            var draft = new San9.Application.Presentation.PersonnelDraft(session,1,"search");
+            Assert.True(draft.SetTarget(1));
+            Assert.Equal("◎",draft.AdviceSymbol(11));
+            Assert.Equal(visit == 0 ? ThreeVisitsStep.FirstVisit : ThreeVisitsStep.Recruitment,draft.SearchAdviceFor(11));
+            Assert.Same(before,session.Snapshot);
+            Assert.True(draft.SetMembers([11]));
+            Assert.True(session.Execute(new("player"),draft.CreateCommand(Guid.NewGuid(),session.Snapshot.Simulation.NextSequence)).Submission.Accepted);
+            session.AdvanceXun();
+        }
+    }
+
+    [Fact]
     public void BothVisitsSaveAndReplayAtEveryStableBoundaryWithoutRepeatedRecruitment()
     {
         var definition = Definition(); var session = GameSession.Start(definition, 17);
@@ -33,7 +56,7 @@ public sealed class ThreeVisitsSessionTests
         session.BeginRecording();
         for (int visit = 0; visit < 2; visit++)
         {
-            var command = new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 11, 1);
+            var command = new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [11], 1);
             Assert.True(session.Execute(new("player"), command).Submission.Accepted);
             var restored = SaveService.Decode(SaveService.Encode(session), definition);
             var result = session.AdvanceXun();

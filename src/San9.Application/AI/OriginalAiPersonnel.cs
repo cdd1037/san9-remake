@@ -214,7 +214,7 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
                     }
                     actors.Remove(chosen.Actor); targets.Remove(chosen.Target);
                     Send(Command((id, f, seq) => work == OriginalAiWork.Search
-                        ? new SearchCommand(id, f, seq, chosen.Actor, chosen.Target)
+                        ? new SearchCommand(id, f, seq, [chosen.Actor], chosen.Target)
                         : new RecruitOfficerCommand(id, f, seq, chosen.Actor, chosen.Target)));
                 }
                 break;

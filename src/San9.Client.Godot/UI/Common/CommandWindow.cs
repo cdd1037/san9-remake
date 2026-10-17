@@ -108,8 +108,10 @@ public partial class CommandWindow : Control
         float titleWidth = 160 + Title.Length * 16;
         Strip("title", new(-24, -72, titleWidth, 56));
         Tile("top-edge", new(-24 + titleWidth, -72, Size.X - (SmallFrame ? 88 : 112) - (-24 + titleWidth), Textures[FrameKey("top-edge")].GetHeight()));
-        Strip("footer", new(Size.X - (SmallFrame ? 266 : 298), Size.Y + 16, SmallFrame ? 280 : 296, 56));
-        Tile("edge", new(SmallFrame ? 28 : 116, Size.Y + 56, Size.X - (SmallFrame ? 302 : 422), Textures[FrameKey("edge")].GetHeight()));
+        float footerLeft = Size.X - (SmallFrame ? 266 : 298);
+        float edgeLeft = SmallFrame ? 28 : 116;
+        Strip("footer", new(footerLeft, Size.Y + 16, SmallFrame ? 280 : 296, 56));
+        Tile("edge", new(edgeLeft, Size.Y + 56, footerLeft - edgeLeft, Textures[FrameKey("edge")].GetHeight()));
         Tile("left-edge", new(-36, SmallFrame ? 8 : 104, Textures["deployment-left-edge"].GetWidth(), Size.Y - (SmallFrame ? 28 : 136)));
         Tile("right-edge", new(Size.X + 25, SmallFrame ? 12 : 88, Textures["deployment-right-edge"].GetWidth(), Size.Y - (SmallFrame ? 28 : 120)));
         foreach (var (role, at) in new (string, Vector2)[] { ("top-left", new(-62, -79)), ("top-right", new(Size.X - 112, -80)),

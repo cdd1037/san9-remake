@@ -62,7 +62,7 @@ public partial class StrategyHud
     private void ShowPersonnelAdvice()
     {
         if (_personnel is not {} view || CommandPresentation.Personnel is null) return;
-        var selection = (view.Draft.Members.Length == 1 ? (int?)view.Draft.Members[0] : null, view.Draft.TargetId);
+        var selection = (view.Draft.RepresentativeId, view.Draft.TargetId);
         if (_personnelAdviceSelection == selection) return;
         _personnelAdviceSelection = selection;
         var sequence = PersonnelPresentation.Advice(view.Draft,CommandPresentation.Personnel,Session.Messages(Texts),Texts,Random.Shared.Next);

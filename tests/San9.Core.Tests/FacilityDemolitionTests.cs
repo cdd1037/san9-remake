@@ -105,7 +105,7 @@ public sealed class FacilityDemolitionTests
     public void TravelingOfficerGetsARealReturnLegWhenServiceFacilityIsDemolished()
     {
         var engine = Engine();
-        Assert.True(engine.Execute(Player, new SearchCommand(Guid.NewGuid(), 1, 0, 11, 2)).Submission.Accepted);
+        Assert.True(engine.Execute(Player, new SearchCommand(Guid.NewGuid(), 1, 0, [11], 2)).Submission.Accepted);
         var result = engine.Execute(Player, new DemolishFacilityCommand(Guid.NewGuid(), 1, 1, 2));
         Assert.True(result.Submission.Accepted);
         Assert.Single(result.Events.OfType<TaskCancelledEvent>());

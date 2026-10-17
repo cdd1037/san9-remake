@@ -19,8 +19,11 @@ public partial class PersonnelCommandView : FixedPage
     public bool HasChild => _child is not null;
     private Control? _body, _child;
     private readonly GameTextPresenter _text = new();
+    private const int SearchRosterRows = 10;
+    // Roster top + table header/rows + pagination allowance, matching the recall footer spacing.
+    private const int SearchWindowHeight = 88 + 44 + SearchRosterRows * 20 + 32;
     private Rect2 Bounds => Draft.Kind switch { "summon" => new(216,222,592,324), "move" => new(304,248,416,272),
-        "search" => new(304,280,416,208), _ => new(288,236,448,296) };
+        "search" => new(196,(768-SearchWindowHeight)/2,632,SearchWindowHeight), _ => new(288,236,448,296) };
     public override void _Ready() { Size = new(1024,768); MouseFilter = MouseFilterEnum.Stop; Rebuild(); }
     public override void _Process(double delta) { if (!Draft.IsCurrent) Closed(); }
     private void Label(string value, Rect2 bounds) => CommandPanelArt.Label(_body!, _text, value, bounds);
@@ -54,7 +57,8 @@ public partial class PersonnelCommandView : FixedPage
         if (Draft.Kind != "summon")
         {
             int? days = Draft.Members.IsEmpty ? null : Draft.ArrivalDays(Draft.Members[0]);
-            _body.AddChild(new CommandArrivalField { Textures = Textures, Position = at + new Vector2(256,0),
+            float arrivalX = Draft.Kind == "search" ? bounds.Size.X - 8 - 152 : 256;
+            _body.AddChild(new CommandArrivalField { Textures = Textures, Position = at + new Vector2(arrivalX,0),
                 Size = new(152,32), Text = CommandArrivalField.FormatDays(Texts, days) });
         }
         if (Draft.Kind is "summon" or "move")
@@ -82,9 +86,14 @@ public partial class PersonnelCommandView : FixedPage
         {
             window.ActionButton(CommandText.Resolve(Texts, "label.target-region"), "edit", new(0,48,104,40), ChooseMap).Disabled = Draft.Targets.Length < 2;
             Label(Draft.TargetId is int target ? Draft.PlaceName(Texts,target) : "", new(at + new Vector2(104,48), new(128,32)));
-            window.ActionButton(CommandText.Resolve(Texts, "label.actor"), "edit", new(0,88,104,40), SelectOfficers).Disabled = Draft.Candidates.Length < 2;
-            Person(Draft.Members.IsEmpty ? null : Draft.Members[0], at + new Vector2(104,88));
-            Properties(at + new Vector2(312,88), new OfficerProperty(CommandText.Resolve(Texts, "label.politics"), Draft.Members.IsEmpty ? "" : Card(Draft.Members[0]).Abilities.Politics.ToString(), 40));
+            window.ActionButton(CommandText.Resolve(Texts, "label.actor"), "edit", new(0,88,104,40), SelectOfficers).Disabled = Draft.Candidates.IsEmpty;
+            var roster = new OfficerRosterPanel { Service = Service, Textures = Textures,
+                Position = at + new Vector2(104,88), ShowPortrait = true, PortraitFollowsPage = false, VisibleRows = SearchRosterRows, ShowPagination = true,
+                Columns = [new("",96), new(CommandText.Resolve(Texts,"label.officer"),128),
+                    new(CommandText.Resolve(Texts,"label.politics"),80)] };
+            roster.SetEntries(Draft.OrderSearchOfficers(Draft.Members).Select(id => new OfficerRosterEntry(Card(id),
+                [Draft.AdviceSymbol(id), Card(id).Name, Card(id).Abilities.Politics.ToString()])));
+            _body.AddChild(roster);
         }
         else
         {
@@ -109,10 +118,10 @@ public partial class PersonnelCommandView : FixedPage
     }
     private void SelectOfficers()
     {
-        bool multiple = Draft.Kind is "summon" or "move";
+        bool multiple = Draft.Kind is "summon" or "move" or "search";
         _child = new CatalogView { Title = CommandText.Resolve(Texts, "select.officer"), HintText = Texts.Resolve(CommandMenuSkin.OfficerSelectionHintKey), Service = Service, Textures = Textures,
             CloseTitle = CommandText.Resolve(Texts, "action.cancel"), Pages = PersonnelCatalog.OfficerPages(Draft,Texts), ReadRows = page => PersonnelCatalog.Officers(Draft,Texts,page), Portrait = id => $"catalog-person-{id}",
-            InitialCurrentId = Draft.Members.IsEmpty ? null : Draft.Members[0],
+            InitialCurrentId = Draft.RepresentativeId,
             Selection = multiple ? new(Draft.Candidates,Draft.Members,Draft.SelectionLimit) : null, CanConfirmSelection = ids => Draft.CanSelect(ids),
             Activated = id => { if (Draft.SetMembers([id])) { CloseChild(); SelectionChanged(); } },
             ConfirmSelection = ids => { if (Draft.SetMembers(ids)) { CloseChild(); SelectionChanged(); } }, Closed = CloseChild };

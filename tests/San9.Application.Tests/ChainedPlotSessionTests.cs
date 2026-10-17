@@ -43,7 +43,7 @@ public sealed class ChainedPlotSessionTests
         session.BeginRecording();
         Assert.Equal(ChainedPlotStep.Prelude, Assert.Single(session.AdvanceXun().Events.OfType<ChainedPlotEvent>()).Step);
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1,
-            session.Snapshot.Simulation.NextSequence, 14, 1)).Submission.Accepted);
+            session.Snapshot.Simulation.NextSequence, [14], 1)).Submission.Accepted);
         session.AdvanceXun();
         var prompt = Assert.IsType<SearchConflictPrompt>(session.GetSearchConflictPrompt());
         var answer = session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,

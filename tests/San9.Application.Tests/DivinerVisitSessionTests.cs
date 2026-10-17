@@ -35,7 +35,7 @@ public sealed class DivinerVisitSessionTests
     {
         var d = Definition(); var session = GameSession.Start(d, Seed()); session.BeginRecording();
         foreach (int actor in new[] { 2, 4 })
-            Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, actor, 1)).Submission.Accepted);
+            Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [actor], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         var result = session.AdvanceXun(); var again = restored.AdvanceXun();
         EventAssert.Equal(result.Events, again.Events);
@@ -49,7 +49,7 @@ public sealed class DivinerVisitSessionTests
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
         StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var random = session.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "event-search-eligibility");
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 2, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [2], 1)).Submission.Accepted);
         Assert.DoesNotContain(session.AdvanceXun().Events, e => e is DivinerVisitResolvedEvent);
         Assert.Equal(random, session.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "event-search-eligibility"));
     }

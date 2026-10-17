@@ -115,7 +115,7 @@ public sealed class RedCliffsTests
     public void TravelingOfficerCannotQualifyThroughHisAdministrativeHome()
     {
         var world = World().BeginMutation();
-        Assert.Equal(CommandRejection.None, PersonnelMissions.StartSearch(world, new("player"), new(Guid.NewGuid(), 1, 0, 12, 1), Rules().Personnel, []));
+        Assert.Equal(CommandRejection.None, PersonnelMissions.StartSearch(world, new("player"), new(Guid.NewGuid(), 1, 0, [12], 1), Rules().Personnel, []));
         Assert.False(RedCliffs.Apply(world, Rules(), []));
         Assert.Empty(world.Simulation.ConsumedEventKeys);
     }

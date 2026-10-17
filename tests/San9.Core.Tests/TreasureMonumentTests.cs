@@ -117,7 +117,7 @@ public sealed class TreasureMonumentTests
     public void ChangedTreasureOrFundsCancelPendingChoiceWithoutPayment(bool transferTreasure)
     {
         var world = CreateWorld(50000); var engine = new SimulationEngine(world, Rules());
-        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        Assert.True(engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         engine.EndControl(new("player")); engine.EndControl(new("ai")); engine.AdvanceXun();
         var prompt = Assert.IsType<TreasureMonumentPrompt>(engine.GetTreasureMonumentPrompt());
         var m = world.BeginMutation();

@@ -41,7 +41,7 @@ public sealed class BeastSearchSessionTests
         var definition = Definition(knows);
         var session = GameSession.Start(definition, Seed());
         session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         session.AdvanceXun(); restored.AdvanceXun();
         var prompt = session.GetBeastSearchPrompt()!;

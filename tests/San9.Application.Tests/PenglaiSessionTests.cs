@@ -50,9 +50,9 @@ public sealed class PenglaiSessionTests
         Assert.DoesNotContain(query.Read(InformationCategory.Corps).Rows, r => r.Key.Id == 2);
         Assert.DoesNotContain(session.View.Settlements, s => s.Id is 3 or 4);
         Assert.False(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1,
-            session.Snapshot.Simulation.NextSequence, 1, 3)).Submission.Accepted);
+            session.Snapshot.Simulation.NextSequence, [1], 3)).Submission.Accepted);
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1,
-            session.Snapshot.Simulation.NextSequence, 1, 5)).Submission.Accepted);
+            session.Snapshot.Simulation.NextSequence, [1], 5)).Submission.Accepted);
         var before = SaveService.Decode(SaveService.Encode(session), d);
         var result = session.AdvanceXun(); var repeated = before.AdvanceXun();
         EventAssert.Equal(result.Events, repeated.Events);
@@ -70,7 +70,7 @@ public sealed class PenglaiSessionTests
         StateAssert.Equal(session.Capture(), replay.Session.Capture());
         Assert.DoesNotContain(session.AdvanceXun().Events, e => e is ForceActivatedBySearchEvent);
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1,
-            session.Snapshot.Simulation.NextSequence, 1, 5)).Submission.Accepted);
+            session.Snapshot.Simulation.NextSequence, [1], 5)).Submission.Accepted);
         Assert.DoesNotContain(session.AdvanceXun().Events, e => e is ForceActivatedBySearchEvent);
     }
 

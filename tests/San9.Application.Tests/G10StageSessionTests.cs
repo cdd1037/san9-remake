@@ -36,12 +36,12 @@ public sealed class G10StageSessionTests
         var d = Scenario() with { UnbuiltPlaces = [new(3, new(500, 0))], RegionNameKeys = new() { [1] = "home", [2] = "away", [3] = "distant" },
             RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 1 } }; var session = GameSession.Start(d, 17); session.BeginRecording();
         Assert.Equal(ChainedPlotStep.Prelude, Assert.Single(session.AdvanceXun().Events.OfType<ChainedPlotEvent>()).Step);
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 11, 3)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [11], 3)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         var coup = session.AdvanceXun(); EventAssert.Equal(coup.Events, restored.AdvanceXun().Events);
         Assert.Single(coup.Events.OfType<OfficerDiedEvent>()); Assert.Equal(12, session.Snapshot.Forces.Single(f => f.Id == 1).LeaderId);
         Assert.DoesNotContain(session.Snapshot.Simulation.Tasks, t => t.OfficerId == 11);
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 12, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [12], 1)).Submission.Accepted);
         session.AdvanceXun(); var prompt = Assert.IsType<CommunitySearchPrompt>(session.GetCommunitySearchPrompt());
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var answer = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, true)
@@ -67,7 +67,7 @@ public sealed class G10StageSessionTests
                 { Id = "scholar", ChanceAbility = ConflictChanceAbility.Politics, ChanceDivisor = 1 }]
         };
         var session = GameSession.Start(d, 17); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 12, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [12], 1)).Submission.Accepted);
         session.AdvanceXun(); var prompt = Assert.IsType<SearchConflictPrompt>(session.GetSearchConflictPrompt());
         var result = session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
             prompt.TaskId, prompt.Step, false) { SearchConflict = SearchConflictChoice.Execute });

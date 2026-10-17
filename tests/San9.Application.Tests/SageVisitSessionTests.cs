@@ -36,7 +36,7 @@ public sealed class SageVisitSessionTests
     public void RecommendationPersistsWithoutDiscoveringOrRecruitingAndNoRewardRepeatEndsSearch()
     {
         var d = Definition(); var session = GameSession.Start(d, Seed()); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         var result = session.AdvanceXun(); var again = restored.AdvanceXun();
         EventAssert.Equal(result.Events, again.Events);
@@ -46,7 +46,7 @@ public sealed class SageVisitSessionTests
         var target = session.Snapshot.Officers.Single(p => p.Id == 4);
         Assert.Equal(83, target.LoyaltyTo(1)); Assert.Equal(OfficerStatus.Undiscovered, target.Status); Assert.Null(target.OwnerId);
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys);
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 2, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [2], 1)).Submission.Accepted);
         var repeat = session.AdvanceXun();
         Assert.Empty(Assert.Single(repeat.Events.OfType<SageVisitResolvedEvent>()).LoyaltyRecipientIds);
         Assert.DoesNotContain(repeat.Events, e => e is SearchResolvedEvent);

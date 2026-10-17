@@ -28,7 +28,7 @@ public sealed class LongevitySessionTests
     public void ChoiceResumesDailyQueueAndStableSaveAndRecordingAgree(bool accept)
     {
         var d = Definition(); var session = GameSession.Start(d, 1); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         session.AdvanceXun(); restored.AdvanceXun();
         var p = Assert.IsType<LongevityPrompt>(session.GetLongevityPrompt());
@@ -53,7 +53,7 @@ public sealed class LongevitySessionTests
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
         StateAssert.Equal(session.Capture(), replay.Session.Capture());
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 2, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [2], 1)).Submission.Accepted);
         session.AdvanceXun(); Assert.NotNull(session.GetLongevityPrompt());
     }
 
@@ -64,7 +64,7 @@ public sealed class LongevitySessionTests
     {
         var session = GameSession.Start(Definition(), 1);
         foreach (int person in new[] { 2, 3 })
-            Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, person, 1)).Submission.Accepted);
+            Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [person], 1)).Submission.Accepted);
         session.AdvanceXun(); var p = session.GetLongevityPrompt()!;
         Assert.True(session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, p.TaskId, p.Step, acceptFirst)).Submission.Accepted);

@@ -43,7 +43,7 @@ public sealed class PhysicianVisitSessionTests
     {
         var d = Definition(); var session = GameSession.Start(d, Seed()); session.BeginRecording();
         foreach (int actor in new[] { 2, 4 })
-            Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, actor, 1)).Submission.Accepted);
+            Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [actor], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         var result = session.AdvanceXun(); var again = restored.AdvanceXun();
         EventAssert.Equal(result.Events, again.Events);

@@ -97,7 +97,7 @@ public sealed class TacticStudySessionTests
         Assert.Equal(2, session.Snapshot.Simulation.Tasks.Count(t => t.Kind == "tactic-study"));
         Assert.Equal("tactic-study", session.View.Officers.Single(o => o.Id == 2).Journey!.Kind);
         Assert.Equal(CommandRejection.PersonUnavailable, session.Execute(new("player"),
-            new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 2, 1)).Submission.Rejection);
+            new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [2], 1)).Submission.Rejection);
         for (int i = 0; i < 8; i++)
         {
             Assert.Empty(session.AdvanceXun().Events.OfType<TacticLearnedEvent>());

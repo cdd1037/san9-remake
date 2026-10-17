@@ -148,7 +148,7 @@ internal static class OriginalAiTurnRunner
                         (person, place) =>
                         {
                             var id = Identity();
-                            return Submit(new SearchCommand(id.Id, seat.ForceId, id.Sequence, person, place));
+                            return Submit(new SearchCommand(id.Id, seat.ForceId, id.Sequence, [person], place));
                         }, domestic.Observe));
                 else if (work == OriginalAiWork.CreateCorps)
                 {

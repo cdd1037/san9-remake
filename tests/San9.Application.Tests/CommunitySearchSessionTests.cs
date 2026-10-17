@@ -46,7 +46,7 @@ public sealed class CommunitySearchSessionTests
     public void EveryChoiceSupportsPublicQueryAtomicResponseSaveAndReplay(string kind, CommunitySearchChoice choice)
     {
         var d = Definition(kind); var session = GameSession.Start(d, 20); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         session.AdvanceXun(); restored.AdvanceXun();
         var p = Assert.IsType<CommunitySearchPrompt>(session.GetCommunitySearchPrompt());
@@ -82,7 +82,7 @@ public sealed class CommunitySearchSessionTests
         d = d with { Officers = [.. d.Officers, new("second", d.Officers[1].State with { Id = 3 })] };
         var session = GameSession.Start(d, 20);
         foreach (int actor in new[] { 2, 3 }) Assert.True(session.Execute(new("player"),
-            new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, actor, 1)).Submission.Accepted);
+            new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [actor], 1)).Submission.Accepted);
         session.AdvanceXun(); var p = session.GetCommunitySearchPrompt()!;
         Assert.True(session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
             p.TaskId, p.Step, accept) { CommunitySearch = accept ? CommunitySearchChoice.Accept : CommunitySearchChoice.Decline }).Submission.Accepted);
@@ -116,7 +116,7 @@ public sealed class CommunitySearchSessionTests
             SearchEvents = [(CivicSearchEventDefinition)Event("volunteers") with { MaximumForceSoldiersExclusive = 20000 }] };
         var session = GameSession.Start(d, 20);
         session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, 2, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         session.AdvanceXun(); restored.AdvanceXun();
         Assert.Equal(eligible, session.GetCommunitySearchPrompt() is not null);

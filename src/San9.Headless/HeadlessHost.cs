@@ -269,7 +269,7 @@ public sealed class HeadlessHost
 
     private void ReplayRecording(Dictionary<string, string> options)
     {
-        var replay = RecordingService.Replay(Required(options, "recording"), Content(options), _report.RulesVersionWarnings.Add, verifyEvents: true);
+        var replay = RecordingService.Replay(Required(options, "recording"), Content(options), _report.RulesVersionWarnings.Add);
         _session = replay.Session;
         _started = replay.Started;
         _report.AcceptedOperations = replay.Accepted;

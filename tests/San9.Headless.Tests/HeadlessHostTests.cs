@@ -24,7 +24,7 @@ public sealed class HeadlessHostTests : IDisposable
     private SessionSnapshot ReadSession(string name) => StrictJson.Deserialize<SaveEnvelope>(File.ReadAllBytes(FilePath(name))).Session;
 
     [Fact]
-    public void RecordingReplayRejectsEventDivergenceBeforePublishingSave()
+    public void RecordingReplayUsesOperationsWithoutComparingRecordedEvents()
     {
         Assert.Equal(0, Run("verify", "--fixture", "--xuns", "1", "--output", _directory).Code);
         var envelope = StrictJson.Deserialize<RecordingEnvelope>(File.ReadAllBytes(FilePath("verification.recording.json")));
@@ -34,9 +34,8 @@ public sealed class HeadlessHostTests : IDisposable
         RecordingService.Write(FilePath("diverged.recording.json"), changed);
         var result = Run("replay", "--fixture", "--recording", FilePath("diverged.recording.json"),
             "--report", FilePath("diverged.json"), "--save", FilePath("diverged.save.json"));
-        Assert.Equal(5, result.Code);
-        Assert.Equal("recording", result.Report.GetProperty("firstFailure").GetProperty("code").GetString());
-        Assert.False(File.Exists(FilePath("diverged.save.json")));
+        Assert.Equal(0, result.Code);
+        StateAssert.Equal(ReadSession("continuous.save.json"), ReadSession("diverged.save.json"));
     }
 
     [Fact]

@@ -5,6 +5,32 @@ namespace San9.Application.Tests;
 public sealed class TreasureDetailTests
 {
     [Fact]
+    public void ShrinkingViewportClearsFocusOutsideVisibleRows()
+    {
+        var state = new DetailSelectionState();
+        state.Open(Enumerable.Range(0, 40), 0);
+        state.PointAt(24);
+        state.SetVisibleRows(5);
+        state.Scroll(35);
+        Assert.Null(state.FocusedId);
+        Assert.Equal(35, state.Offset);
+        Assert.Equal(0, state.CurrentId);
+    }
+
+    [Fact]
+    public void RefreshClearsFocusMovedOutsideViewport()
+    {
+        var state = new DetailSelectionState();
+        state.SetVisibleRows(5);
+        state.Open(Enumerable.Range(0, 40), 20);
+        state.PointAt(20);
+        state.Refresh(Enumerable.Range(10, 30));
+        state.Scroll(0);
+        Assert.Null(state.FocusedId);
+        Assert.Equal(20, state.CurrentId);
+    }
+
+    [Fact]
     public void ScrollingKeepsFocusedRowSeparateFromDisplayedTreasure()
     {
         var state = new DetailSelectionState();

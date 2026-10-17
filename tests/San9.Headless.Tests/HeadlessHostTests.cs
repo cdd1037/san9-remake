@@ -24,6 +24,22 @@ public sealed class HeadlessHostTests : IDisposable
     private SessionSnapshot ReadSession(string name) => StrictJson.Deserialize<SaveEnvelope>(File.ReadAllBytes(FilePath(name))).Session;
 
     [Fact]
+    public void RecordingReplayRejectsEventDivergenceBeforePublishingSave()
+    {
+        Assert.Equal(0, Run("verify", "--fixture", "--xuns", "1", "--output", _directory).Code);
+        var envelope = StrictJson.Deserialize<RecordingEnvelope>(File.ReadAllBytes(FilePath("verification.recording.json")));
+        int index = envelope.Recording.Operations.Select((entry, i) => (entry, i)).First(p => !p.entry.Events.IsEmpty).i;
+        var entry = envelope.Recording.Operations[index];
+        var changed = envelope.Recording with { Operations = envelope.Recording.Operations.SetItem(index, entry with { Events = [] }) };
+        RecordingService.Write(FilePath("diverged.recording.json"), changed);
+        var result = Run("replay", "--fixture", "--recording", FilePath("diverged.recording.json"),
+            "--report", FilePath("diverged.json"), "--save", FilePath("diverged.save.json"));
+        Assert.Equal(5, result.Code);
+        Assert.Equal("recording", result.Report.GetProperty("firstFailure").GetProperty("code").GetString());
+        Assert.False(File.Exists(FilePath("diverged.save.json")));
+    }
+
+    [Fact]
     public void VerificationComparesPendingPlayerDecisionBeforeRespondingAndSaving()
     {
         var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "pending-verification", 190, 1, 1, 1,

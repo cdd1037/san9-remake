@@ -5,6 +5,17 @@ using San9.Core.Simulation;
 
 namespace San9.Application.AI;
 
+/// <summary>One control run shares geography across corps and work; only topology and ownership invalidate it.</summary>
+internal sealed class OriginalAiGeographyContext(ScenarioInitialState content, MilitaryRulebook? military)
+{
+    private OriginalAiGeography? current;
+    internal OriginalAiGeography Get(WorldSnapshot world)
+    {
+        if (current is null || !current.Matches(world)) current = new(content, military, world);
+        return current;
+    }
+}
+
 /// <summary>Public ownership/topology only; never inspects foreign tasks or unit orders.</summary>
 internal sealed class OriginalAiGeography
 {

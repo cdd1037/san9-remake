@@ -56,7 +56,8 @@ public sealed class OriginalAiMilitaryTests
             world = world with { Simulation = world.Simulation with { Boundary = SimulationBoundary.Stable } };
             Engine = GameSession.EngineFactory(content)(WorldState.Restore(change?.Invoke(world) ?? world));
             var context = new CommandContext("player");
-            Military = new(Engine, content, new(content.Military!), 1, context, new OriginalAiRandom(draw ?? (_ => 0)), command =>
+            var rules = new MilitaryRulebook(content.Military!);
+            Military = new(Engine, content, rules, new(content, rules), 1, context, new OriginalAiRandom(draw ?? (_ => 0)), command =>
             {
                 Commands.Add(command);
                 if (reject || rejectCommand?.Invoke(command) == true) return false;

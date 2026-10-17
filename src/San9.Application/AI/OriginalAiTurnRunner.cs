@@ -29,7 +29,8 @@ internal static class OriginalAiTurnRunner
         }
         else if (cursor.Seat != seat) throw new InvalidOperationException("Original AI continuation belongs to another control.");
         var force = engine.Snapshot.Forces.Single(f => f.Id == seat.ForceId);
-        var geography = new OriginalAiGeography(definition.Content, definition.MilitaryRules, engine.Snapshot);
+        var geographyContext = new OriginalAiGeographyContext(definition.Content, definition.MilitaryRules);
+        var geography = geographyContext.Get(engine.Snapshot);
         while (!cursor.Queue.IsEmpty && engine.Snapshot.Simulation.Boundary == SimulationBoundary.Stable)
         {
             int selected = cursor.Queue[0];
@@ -39,7 +40,7 @@ internal static class OriginalAiTurnRunner
                 cursor = cursor with { Queue = cursor.Queue.RemoveAt(0), Seen = cursor.Seen.Add(selected), Prepared = false, WorkIndex = 0 };
                 continue;
             }
-            if (!geography.Matches(engine.Snapshot)) geography = new(definition.Content, definition.MilitaryRules, engine.Snapshot);
+            geography = geographyContext.Get(engine.Snapshot);
             var context = new CommandContext(corps.ControlMode == CorpsControlMode.Automatic ? CorpsControl.ControllerId(corps.Id) : seat.ControllerId);
             var stream = new StableRandom(cursor.Prepared ? cursor.RandomState : StableRandom.DeriveSeed(engine.Snapshot.Simulation.RunSeed,
                 FormattableString.Invariant($"original-ai:{corps.Id}:{engine.Snapshot.Clock.DayNumber}")));
@@ -80,9 +81,9 @@ internal static class OriginalAiTurnRunner
             var personnel = new OriginalAiPersonnel(engine, definition.Content, corps.Id, geography, context, random, Submit);
             for (int workIndex = cursor.WorkIndex; workIndex < works.Length; workIndex++)
             {
-                if (!geography.Matches(engine.Snapshot))
+                if (!ReferenceEquals(geography, geographyContext.Get(engine.Snapshot)))
                 {
-                    geography = new(definition.Content, definition.MilitaryRules, engine.Snapshot);
+                    geography = geographyContext.Get(engine.Snapshot);
                     domestic = new(engine, definition.Content, corps.Id, geography, policy.RecruitmentEnabled);
                     personnel = new(engine, definition.Content, corps.Id, geography, context, random, Submit);
                     cursor = cursor with { Quotas = OriginalAiStaffing.Quotas(engine.Snapshot, corps.Id, geography) };
@@ -169,7 +170,7 @@ internal static class OriginalAiTurnRunner
                         corps.Id, context, random, Submit).Run(work, limit, state, strategy));
                 else if (OriginalAiMilitary.Handles(work))
                     Report(definition.MilitaryRules is { } military
-                        ? new OriginalAiMilitary(engine, definition.Content with { OriginalAi = policy }, military, corps.Id, context, random, Submit).Run(work, limit, state, strategy)
+                        ? new OriginalAiMilitary(engine, definition.Content with { OriginalAi = policy }, military, geographyContext, corps.Id, context, random, Submit).Run(work, limit, state, strategy)
                         : new(corps.Id, work, OriginalAiWorkEnd.PreparationFailed, 0, 0));
                 else if (work == OriginalAiWork.DisposePrisoner)
                 {

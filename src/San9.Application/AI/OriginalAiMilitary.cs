@@ -7,7 +7,7 @@ namespace San9.Application.AI;
 
 /// <summary>One military work owns its candidates and forecasts. Only public commands change the world.</summary>
 internal sealed partial class OriginalAiMilitary(SimulationEngine engine, ScenarioInitialState content,
-    MilitaryRulebook rules, int corpsId, CommandContext context, OriginalAiRandom random, Func<GameCommand, bool> submit)
+    MilitaryRulebook rules, OriginalAiGeographyContext geographyContext, int corpsId, CommandContext context, OriginalAiRandom random, Func<GameCommand, bool> submit)
 {
     private WorldSnapshot World => engine.Snapshot;
     private CorpsState Corps { get { Refresh(); return currentCorps ??= World.Corps.Single(c => c.Id == corpsId); } }
@@ -21,7 +21,6 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
     private TreasureRulebook Treasures => treasureCache ??= new(content.Information.Treasures.Select(t => t.ToRule()));
     private WorldSnapshot? projected;
     private ImmutableDictionary<int, OfficerAbilities>? abilities;
-    private OriginalAiGeography? geography;
     private CorpsState? currentCorps;
     private ForceState? currentForce;
     private SettlementState[]? places;
@@ -30,7 +29,7 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
     private MilitaryRouteQueryContext? navigation;
     private SettlementState[]? obstacles;
     private Dictionary<int, SettlementState>? regionBuildings;
-    private OriginalAiGeography Geography { get { Refresh(); return geography ??= new(content, rules, World); } }
+    private OriginalAiGeography Geography => geographyContext.Get(World);
     private MilitaryRouteQueryContext Navigation { get { Refresh(); return navigation ??= new(World, rules); } }
     private ImmutableDictionary<int, OfficerAbilities> Abilities { get { Refresh(); return abilities ??= engine.GetAbilities(World); } }
     private readonly Dictionary<(UnitState Unit, MilitaryOrder Order, int? MovingUnit), Route?> routes = [];
@@ -52,7 +51,6 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
         if (officersChanged || projected!.Treasures != world.Treasures) abilities = null;
         if (placesChanged)
         {
-            if (geography is not null && !geography.Matches(world)) geography = null;
             regionBuildings = null;
             obstacles = null;
         }

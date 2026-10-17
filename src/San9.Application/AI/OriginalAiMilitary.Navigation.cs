@@ -65,7 +65,40 @@ internal sealed partial class OriginalAiMilitary
         return World.Settlements.FirstOrDefault(s => eligible(s) && rules.SettlementArea(s).Overlaps(new(point, new(1, 1))));
     }
 
-    private sealed record Route(int Days, int CellCount, bool Slow, bool Obstacle, bool HostileBuilding, bool HostileRegion);
+    // Retain the route's immutable world inputs: deferred inspection must not observe a later command.
+    private sealed class Route(int days, ImmutableArray<MapCell> cells, bool slow, bool obstacle,
+        WorldSnapshot world, MilitaryRulebook rules, IReadOnlyDictionary<int, SettlementState> buildings,
+        int owner, int? targetRegion)
+    {
+        public int Days => days;
+        public int CellCount => cells.Length;
+        public bool Slow => slow;
+        public bool Obstacle => obstacle;
+        private bool? hostileBuilding, hostileRegion;
+        public bool HostileBuilding => hostileBuilding ??= InspectHostility(buildingOnly: true);
+        public bool HostileRegion => hostileRegion ??= InspectHostility(buildingOnly: false);
+
+        private bool Hostile(SettlementState s) => !s.IsDestroyed && !s.IsDormant && s.OwnerId is int other &&
+            OriginalAiStrategy.IsOpponent(world, owner, other);
+        private bool InspectHostility(bool buildingOnly)
+        {
+            foreach (var cell in cells)
+            {
+                var point = MapCoordinates.Center(cell);
+                if (rules.RegionAt(point) is int region)
+                {
+                    if (buildings.TryGetValue(region, out var building) && Hostile(building) &&
+                        (!buildingOnly || building.Id != targetRegion &&
+                            rules.SettlementArea(building).Overlaps(new(point, new(1, 1))))) return true;
+                }
+                else if (buildingOnly)
+                    foreach (var building in world.Settlements)
+                        if (building.Id != targetRegion && Hostile(building) &&
+                            rules.SettlementArea(building).Overlaps(new(point, new(1, 1)))) return true;
+            }
+            return false;
+        }
+    }
     private Route? RouteTo(UnitState unit, MilitaryOrder order, int? moving = null)
     {
         Refresh();
@@ -85,18 +118,19 @@ internal sealed partial class OriginalAiMilitary
         bool slow = content.Military is { } map && path.Cells.Any(p => Policy.SlowTerrainIds.Contains(map.TerrainIds[p.Y * map.Width + p.X]));
         obstacles ??= World.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed && rules.TryPlace(s, out var place) &&
             place.FacilityTypeId is int type && Policy.RouteObstacleFacilityIds.Contains(type)).ToArray();
-        bool obstacle = path.Cells.Any(p => obstacles.Any(s =>
-            rules.SettlementArea(s).Overlaps(new(MapCoordinates.Center(p), new(1, 1)))));
+        bool obstacle = false;
+        foreach (var cell in path.Cells)
+        {
+            var area = new MapOccupancy(MapCoordinates.Center(cell), new(1, 1));
+            foreach (var building in obstacles)
+                if (rules.SettlementArea(building).Overlaps(area)) { obstacle = true; break; }
+            if (obstacle) break;
+        }
         int? targetRegion = unit.Order?.UnitId is int targetUnit
             ? World.Units.FirstOrDefault(u => u.Id == targetUnit) is { } target ? rules.RegionAt(target.Position) : null
             : unit.Order?.SettlementId;
-        bool hostileBuilding = path.Cells.Any(p => BuildingAlongRoute(MapCoordinates.Center(p), s =>
-            s.Id != targetRegion && !s.IsDestroyed && !s.IsDormant && s.OwnerId is int owner &&
-            OriginalAiStrategy.IsOpponent(World, unit.OwnerId, owner)) is not null);
-        bool hostileRegion = path.Cells.Any(p => rules.RegionAt(MapCoordinates.Center(p)) is int region &&
-            World.Settlements.Any(s => s.Id == region && !s.IsDestroyed && !s.IsDormant && s.OwnerId is int owner &&
-                OriginalAiStrategy.IsOpponent(World, unit.OwnerId, owner)));
-        return new(days, path.Cells.Length, slow, obstacle, hostileBuilding, hostileRegion);
+        regionBuildings ??= World.Settlements.ToDictionary(s => s.Id);
+        return new(days, path.Cells, slow, obstacle, World, rules, regionBuildings, unit.OwnerId, targetRegion);
     }
     private Route? RouteFrom(SettlementState source, int land, int? naval, MilitaryOrder order, UnitPolicies? policies = null)
     {

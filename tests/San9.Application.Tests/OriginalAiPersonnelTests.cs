@@ -276,7 +276,7 @@ public sealed class OriginalAiPersonnelTests
     }
 
     [Fact]
-    public void SearchUsesPublicAdviceWithoutReadingHiddenOfficerIdentityAndConsumesDifferentActors()
+    public void SearchRequiresUndiscoveredPeopleAndDoesNotRequireAnAdviser()
     {
         var content = Fixture();
         content = content with
@@ -295,7 +295,29 @@ public sealed class OriginalAiPersonnelTests
             Assert.Equal(before.Officers.Single(o => o.Id == p.Id), p));
         var unknown = new Harness(content with { Forces = content.Forces.Select(f => f with { AdviserId = null }).ToArray(),
             Officers = content.Officers.Select(o => o.State.Id == 3 ? o with { State = o.State with { Status = OfficerStatus.Serving } } : o).ToArray() });
-        Assert.Equal(0, unknown.Run(OriginalAiWork.Search).Submitted);
+        Assert.Equal(1, unknown.Run(OriginalAiWork.Search).Submitted);
+        Assert.Equal(3, Assert.IsType<SearchCommand>(Assert.Single(unknown.Commands)).DestinationId);
+        var empty = new Harness(content with { Officers = content.Officers.Where(o => o.State.Status != OfficerStatus.Undiscovered).ToArray() });
+        Assert.Equal(0, empty.Run(OriginalAiWork.Search).Submitted);
+    }
+
+    [Fact]
+    public void SearchDoesNotSelectTreasureOnlyPlacesOrAlreadyDiscoveredPeople()
+    {
+        var content = Fixture();
+        content = content with
+        {
+            Information = content.Information with
+            {
+                Treasures = [new(901, "buried", 0, 0, 10, null)],
+                TreasureStates = [new(901, null, TreasureDiscovery.Buried, 1)]
+            },
+            Officers = content.Officers.Append(new OfficerInitialState("free", new(100, null, 1,
+                new(50, 50, 50, 50), false) { Status = OfficerStatus.Free })).ToArray()
+        };
+        var h = new Harness(content);
+        Assert.Equal(0, h.Run(OriginalAiWork.Search).Submitted);
+        Assert.Empty(h.Commands);
     }
 
     [Theory]

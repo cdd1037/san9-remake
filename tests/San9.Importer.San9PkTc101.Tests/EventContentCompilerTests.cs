@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using San9.Importer.San9PkTc101.Scenarios;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -474,7 +475,9 @@ public sealed class EventContentCompilerTests
         Assert.Equal(100, policy.FamilyRankBonuses[88]);
         Assert.Equal(100, policy.FamilyRankBonuses[99]);
         Assert.Equal(new[] { 0, 1, 2 }, policy.PreferredStrategyRulerIds);
-        policy.Validate(new HashSet<int> { 0, 1, 2, 3 });
+        Assert.Equal(6, policy.DiplomacyFacilityPriorities[2]);
+        Assert.Throws<InvalidDataException>(() => policy.Validate(new HashSet<int> { 0, 1, 2, 3 }, null));
+        (policy with { DiplomacyFacilityPriorities = ImmutableDictionary<int, int>.Empty }).Validate(new HashSet<int> { 0, 1, 2, 3 }, null);
         Assert.Equal(new[] { 0, 2 }, OriginalAiContentCompiler.Compile(people, [0, 2, 3]).PreferredStrategyRulerIds);
     }
 

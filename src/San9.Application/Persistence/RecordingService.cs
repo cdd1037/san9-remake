@@ -16,7 +16,7 @@ public sealed class RecordingException(string message, long? sequence = null, Ex
 /// <summary>Recordings replay operations; recorded events are compared only when explicitly requested.</summary>
 public static class RecordingService
 {
-    public const int FormatVersion = 26;
+    public const int FormatVersion = 27;
 
     public static byte[] Encode(SessionRecording recording) => CanonicalJson.Encode(
         new RecordingEnvelope(FormatVersion, SessionProtocol.RulesVersion, recording));

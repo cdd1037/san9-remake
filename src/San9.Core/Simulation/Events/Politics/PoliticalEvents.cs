@@ -30,6 +30,16 @@ internal static class PoliticalEvents
     private static HashSet<int> Occupied(WorldMutation world) => world.AllForces.Values
         .Where(f => !f.IsEliminated && f.CountryTitleId is not null).Select(f => f.CountryTitleId!.Value).ToHashSet();
 
+    private static ImmutableArray<int> Candidates(WorldMutation world, SimulationRules rules, int force)
+    {
+        var occupied = Occupied(world);
+        if (world.Simulation.Controls.Any(c => c.ForceId == force && c.Kind == ControllerKind.Player))
+            return rules.Politics.ManualCandidates(occupied);
+        var ruler = world.Officers[world.Forces[force].LeaderId!.Value];
+        return rules.Politics.AutomaticCandidates(ruler.Id, ruler.BloodlineId,
+            ControlledProvinces(world, rules.Personnel, force), occupied);
+    }
+
     internal static void Begin(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {
         if (rules.Politics.Events is not { } definition || world.Clock.DayNumber - world.Simulation.Started.DayNumber < 30) return;
@@ -41,7 +51,7 @@ internal static class PoliticalEvents
             int? title = candidate.CountryTitleId;
             if (title is null)
             {
-                var available = rules.Politics.ManualCandidates(Occupied(world));
+                var available = Candidates(world, rules, candidate.Id);
                 if (!available.IsEmpty)
                 {
                     world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.AwaitingDecision,
@@ -67,7 +77,7 @@ internal static class PoliticalEvents
         }
     }
 
-    private static int? AutomaticTitle(WorldMutation world, SimulationRules rules, ForceState force)
+    internal static int? AutomaticTitle(WorldMutation world, SimulationRules rules, ForceState force, Func<ulong>? random = null)
     {
         var ruler = world.Officers[force.LeaderId!.Value];
         int? place = ruler.UnitId is int unit ? world.Units[unit].ServicePlaceId : ruler.SettlementId ?? ruler.RegionId;
@@ -75,7 +85,7 @@ internal static class PoliticalEvents
             rules.Personnel.RegionCities.TryGetValue(home, out int related) ? related : null : null;
         int? province = city is int id && rules.Personnel.CityProvinces.TryGetValue(id, out int value) ? value : null;
         return rules.Politics.SelectAutomatic(ruler.Id, ruler.BloodlineId, province,
-            ControlledProvinces(world, rules.Personnel, force.Id), Occupied(world), () => world.NextRandom("event-country-title"));
+            ControlledProvinces(world, rules.Personnel, force.Id), Occupied(world), random ?? (() => world.NextRandom("event-country-title")));
     }
 
     internal static CommandRejection Respond(WorldMutation world, SimulationRules rules, ChooseCountryTitleCommand command, List<DomainEvent> events)
@@ -84,7 +94,7 @@ internal static class PoliticalEvents
             !pending.CandidateIds.Contains(command.CountryTitleId) || !Eligible(world, rules, world.Forces[pending.ForceId]) ||
             world.Forces[pending.ForceId].CountryTitleId is not null ||
             pending.ChangeKind != (world.Simulation.ImperialCourtEnded ? PeerageChangeKind.Proclamation : PeerageChangeKind.Abdication) ||
-            !rules.Politics.ManualCandidates(Occupied(world)).Contains(command.CountryTitleId)) return CommandRejection.InvalidDecision;
+            !Candidates(world, rules, pending.ForceId).Contains(command.CountryTitleId)) return CommandRejection.InvalidDecision;
         world.SetSimulation(world.Simulation with { PendingEvent = null, Boundary = SimulationBoundary.Stable });
         Commit(world, rules, pending.ForceId, rules.Politics.ImperialRankId!.Value, command.CountryTitleId, pending.ChangeKind, events);
         return CommandRejection.None;
@@ -122,7 +132,7 @@ internal static class PoliticalEvents
         if (world.Simulation.PendingEvent is CountryTitleEventSession pending &&
             (!Eligible(world, rules, world.Forces[pending.ForceId]) ||
              pending.ChangeKind != (world.Simulation.ImperialCourtEnded ? PeerageChangeKind.Proclamation : PeerageChangeKind.Abdication) ||
-             !pending.CandidateIds.SequenceEqual(rules.Politics.ManualCandidates(Occupied(world)))))
+             !pending.CandidateIds.SequenceEqual(Candidates(world, rules, pending.ForceId))))
             throw new ArgumentException("Invalid country title candidates.");
     }
 

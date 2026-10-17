@@ -189,7 +189,11 @@ public sealed class OriginalAiMilitaryTests
     [InlineData(true)]
     [InlineData(true, 1000)]
     [InlineData(false, 1000)]
-    public void FulfillmentContinuesWithSecondDistinctSourceAndPreservesBothMinimums(bool refuseFirst, uint targetSoldiers = 15000)
+    [InlineData(false, 15000, false)]
+    [InlineData(true, 15000, false)]
+    [InlineData(true, 1000, false)]
+    [InlineData(false, 1000, false)]
+    public void FulfillmentContinuesWithSecondDistinctSourceAndPreservesBothMinimums(bool refuseFirst, uint targetSoldiers = 15000, bool visible = true)
     {
         var content = Fixture(20);
         content = content with
@@ -205,7 +209,7 @@ public sealed class OriginalAiMilitaryTests
             Military = content.Military! with { Places = content.Military.Places.Add(new(3, new(17, 7), new(1, 1)))
                 .Add(new(4, new(87, 7), new(1, 1))) }
         };
-        var h = new Harness(content, w => w with { Simulation = w.Simulation with { AttackRequests = [new(1, 3, 2, 2, 19)] } },
+        var h = new Harness(content, w => w with { Simulation = w.Simulation with { AttackRequests = [new(1, 3, 2, 2, 19)], OtherForceOrdersVisible = visible } },
             rejectCommand: c => refuseFirst && c is DeployUnitCommand { SettlementId: 1 });
         Assert.Equal(refuseFirst || targetSoldiers == 1000 ? 1 : 2, h.Run(OriginalAiWork.FulfillRequest).Submitted);
         Assert.Equal(!refuseFirst && targetSoldiers == 1000 ? new[] { 1 } : new[] { 1, 3 },
@@ -260,8 +264,12 @@ public sealed class OriginalAiMilitaryTests
     public void DeploymentRejectsUnrelatedRegionsBeforeSearchingRoutes()
     {
         var content = Fixture() with { CityConnections = [] };
-        var h = new Harness(content, w => EnemyArmy(w) with { Simulation = w.Simulation with
-            { OtherForceOrdersVisible = false, NextUnitId = 901 } });
+        var h = new Harness(content, w =>
+        {
+            var enemy = EnemyArmy(w);
+            return enemy with { Units = enemy.Units.Select(u => u with
+                { Order = new(MilitaryOrderKind.Move, new(67, 7), null) }).ToImmutableArray() };
+        });
         var report = h.Run(OriginalAiWork.Deploy);
         Assert.Equal(0, report.Submitted);
         Assert.Equal(0, report.PathQueries);
@@ -300,15 +308,33 @@ public sealed class OriginalAiMilitaryTests
         Assert.Empty(h.Commands);
     }
 
-    [Fact]
-    public void HiddenEnemyOrdersDoNotEnterOrderDependentDeploymentGroup()
+    [Theory]
+    [InlineData(OriginalAiWork.Attack)]
+    [InlineData(OriginalAiWork.FulfillRequest)]
+    [InlineData(OriginalAiWork.Deploy)]
+    [InlineData(OriginalAiWork.Retreat)]
+    public void MilitaryDecisionsDoNotDependOnPlayerOrderDisplay(OriginalAiWork work)
     {
-        var h = new Harness(Fixture(), w => EnemyArmy(w) with { Simulation = w.Simulation with
-            { OtherForceOrdersVisible = false, NextUnitId = 901 } });
-        // Group 1 can use publicly visible approach, but no group-0 order is read or rewritten.
-        var before = h.Engine.Snapshot.Units.Single();
-        h.Run(OriginalAiWork.Deploy, 1);
-        Assert.Equal(before, h.Engine.Snapshot.Units.Single(u => u.Id == before.Id));
+        var visibleDraws = new List<int>();
+        var hiddenDraws = new List<int>();
+        Harness Create(bool visible, List<int> draws) => new(Fixture(), w => EnemyArmy(w) with
+        {
+            Simulation = w.Simulation with { OtherForceOrdersVisible = visible, NextUnitId = 901 }
+        }, maximum => { draws.Add(maximum); return 0; });
+        var visible = Create(true, visibleDraws);
+        var hidden = Create(false, hiddenDraws);
+        var expected = visible.Run(work);
+        var actual = hidden.Run(work);
+        Assert.Equal(expected.End, actual.End);
+        Assert.Equal(expected.Attempts, actual.Attempts);
+        Assert.Equal(expected.Submitted, actual.Submitted);
+        Assert.Equal(expected.PathQueries, actual.PathQueries);
+        Assert.Equal(visibleDraws, hiddenDraws);
+        string Commands(Harness h) => System.Text.Json.JsonSerializer.Serialize(h.Commands);
+        Assert.Equal(Commands(visible), Commands(hidden));
+        var world = hidden.Engine.Snapshot;
+        StateAssert.Equal(visible.Engine.Snapshot, world with
+            { Simulation = world.Simulation with { OtherForceOrdersVisible = true } });
     }
 
     [Fact]
@@ -361,7 +387,9 @@ public sealed class OriginalAiMilitaryTests
     [Theory]
     [InlineData(0, 1)]
     [InlineData(4000, 0)]
-    public void RetreatCountsAlreadyReturningActiveAndHalfWoundedWithoutCountingUnitsAsSoldiers(uint wounded, int recalled)
+    [InlineData(0, 1, false)]
+    [InlineData(4000, 0, false)]
+    public void RetreatCountsAlreadyReturningActiveAndHalfWoundedWithoutCountingUnitsAsSoldiers(uint wounded, int recalled, bool visible = true)
     {
         var content = Fixture();
         content = content with { Settlements = content.Settlements.Select(s => s.Id == 1 ? s with { Soldiers = 5000 } : s).ToArray() };
@@ -378,7 +406,7 @@ public sealed class OriginalAiMilitaryTests
                     .Add(new(903, 1, new(22, 7), 5000) { FormationId = 400, CommanderId = 3, Morale = 100, CorpsId = 1,
                         Order = new(MilitaryOrderKind.Move, new(47, 7), null),
                         MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(3, BattleRank.Middle) }),
-                Simulation = enemy.Simulation with { NextUnitId = 904 }
+                Simulation = enemy.Simulation with { NextUnitId = 904, OtherForceOrdersVisible = visible }
             };
         });
         Assert.Equal(recalled, h.Run(OriginalAiWork.Retreat).Submitted);
@@ -411,10 +439,14 @@ public sealed class OriginalAiMilitaryTests
         Assert.Equal(20000u, h.Engine.Snapshot.Settlements.Single(s => s.Id == 3).Soldiers);
     }
 
-    [Fact]
-    public void AttackBuildsInAnUnbuiltFriendlyCityRegionThroughThePublicConstructionCommand()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AttackBuildsInAnUnbuiltFriendlyCityRegionThroughThePublicConstructionCommand(bool reverse)
     {
         var content = Fixture();
+        var sites = new[] { new ConstructionSite(3, new(27, 6), [700]), new ConstructionSite(3, new(27, 8), [700]) };
+        if (reverse) Array.Reverse(sites);
         content = content with
         {
             Information = content.Information with { Relations = [new(1, 2, 100)] },
@@ -427,7 +459,7 @@ public sealed class OriginalAiMilitaryTests
                 ConstructionFormations = new(600, null),
                 Facilities = [new(700, 1000, 100, new(1, 1), 0, true, true, true, 30000, null, null, null, [])],
                 Places = content.Military.Places.Select(p => p with { FacilityTypeId = 700 }).ToImmutableArray(),
-                ConstructionSites = [new(3, new(27, 7), [700])]
+                ConstructionSites = sites.ToImmutableArray()
             },
             OriginalAi = content.OriginalAi with { Military = content.OriginalAi.Military with { OrdinaryFacilityIds = [700] } }
         };
@@ -437,8 +469,94 @@ public sealed class OriginalAiMilitaryTests
         var command = Assert.IsType<ConstructFacilityCommand>(Assert.Single(h.Commands));
         Assert.Equal(3, command.RegionId);
         Assert.Equal(700, command.FacilityTypeId);
+        Assert.Equal(sites[0].Position, command.Position);
         Assert.Equal(99000u, h.Engine.Snapshot.Corps.Single(c => c.Id == 1).Treasury.Money);
         Assert.Equal(MilitaryOrderKind.Construct, Assert.Single(h.Engine.Snapshot.Units).Order!.Kind);
+    }
+
+    [Theory]
+    [InlineData(TacticEffect.CounterTrap, TacticEffect.TrapSelection)]
+    [InlineData(TacticEffect.CounterConfusion, TacticEffect.Confusion)]
+    public void DeploymentReadsEquippedEnemyTacticsRegardlessOfDisplay(TacticEffect counter, TacticEffect threat)
+    {
+        var content = Fixture();
+        content = content with
+        {
+            Officers = content.Officers.Select(p => p with { State = p.State with
+                { LearnedTactics = p.State.OwnerId == 1 ? [7000, 7001] : [7002] } }).ToArray(),
+            Military = content.Military! with
+            {
+                Tactics = [new(7000, 6, counter, 1, 1, 0, true, false, [400]),
+                    new(7001, 2, TacticEffect.Martial, 20, 1, 0, true, false, [400]),
+                    new(7002, 6, threat, 1, 1, 0, true, false, [400])],
+                Elevations = Enumerable.Repeat(0, 60).ToImmutableArray(),
+                TrapTerrains = [new(0, null, false)]
+            },
+            OriginalAi = content.OriginalAi with { Military = content.OriginalAi.Military with { SlowTerrainIds = [0] } }
+        };
+        var draws = new List<int>[2] { [], [] };
+        var hosts = new[] { true, false }.Select((visible, index) => new Harness(content, w =>
+        {
+            var enemy = EnemyArmy(w);
+            return enemy with
+            {
+                Officers = enemy.Officers.Select(p => p.Id == 100 ? p with { EquippedTacticId = 7002 } : p).ToImmutableArray(),
+                Simulation = enemy.Simulation with { OtherForceTacticsVisible = visible }
+            };
+        }, maximum => { draws[index].Add(maximum); return 0; })).ToArray();
+        foreach (var h in hosts)
+        {
+            Assert.Equal(1, h.Run(OriginalAiWork.Deploy, 1).Submitted);
+            var command = Assert.IsType<DeployUnitCommand>(Assert.Single(h.Commands));
+            Assert.Contains(7000, command.Tactics.Values);
+        }
+        Assert.Equal(draws[0], draws[1]);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(hosts[0].Commands), System.Text.Json.JsonSerializer.Serialize(hosts[1].Commands));
+        var world = hosts[1].Engine.Snapshot;
+        StateAssert.Equal(hosts[0].Engine.Snapshot, world with
+            { Simulation = world.Simulation with { OtherForceTacticsVisible = true } });
+    }
+
+    [Theory]
+    [InlineData(false, 7001)]
+    [InlineData(true, 7000)]
+    public void SlowAttackUsesSpecialTacticPriorityOnlyAgainstHarbors(bool harbor, int tactic)
+    {
+        var content = Fixture();
+        content = content with
+        {
+            Officers = content.Officers.Select(p => p.State.OwnerId == 1
+                ? p with { State = p.State with { LearnedTactics = [7000, 7001] } } : p).ToArray(),
+            OriginalAi = content.OriginalAi with { Military = content.OriginalAi.Military with { SlowTerrainIds = [0] } },
+            Military = content.Military! with
+            {
+                Tactics = [new(7000, 6, TacticEffect.CounterTrap, 1, 1, 0, true, false, [400]),
+                    new(7001, 2, TacticEffect.Martial, 20, 1, 0, true, false, [400])],
+                Facilities = [new(700, 1000, 100, new(1, 1), 0, true, true, true, 30000, null, null, null, []) { IsHarbor = harbor }],
+                Places = content.Military.Places.Select(p => p with { FacilityTypeId = 700 }).ToImmutableArray()
+            }
+        };
+        var h = new Harness(content);
+        Assert.Equal(1, h.Run(OriginalAiWork.Attack).Submitted);
+        var command = Assert.IsType<DeployUnitCommand>(Assert.Single(h.Commands));
+        Assert.Equal(tactic, command.Tactics[command.OfficerIds[0]]);
+    }
+
+    [Fact]
+    public void RetreatDoesNotSearchRoutesForUnitsOutsideAllRecallGroups()
+    {
+        var h = new Harness(Fixture(), w => w with
+        {
+            Officers = w.Officers.Select(p => p.Id == 2 ? p with { SettlementId = null, UnitId = 901 } : p).ToArray(),
+            Units = [new(901, 1, new(17, 7), 5000) { FormationId = 400, CommanderId = 2, Morale = 100,
+                CorpsId = 1, ServicePlaceId = 1, Order = new(MilitaryOrderKind.Move, new(47, 7), null),
+                MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(2, BattleRank.Middle) }],
+            Simulation = w.Simulation with { NextUnitId = 902 }
+        });
+        var report = h.Run(OriginalAiWork.Retreat);
+        Assert.Equal(0, report.PathQueries);
+        Assert.Equal(0, report.Submitted);
+        Assert.Empty(h.Commands);
     }
 
     [Fact]

@@ -17,13 +17,13 @@ internal sealed partial class OriginalAiMilitary
     {
         var all = source.ToArray(); return all.Length == 0 ? null : all[random.Next(all.Length)];
     }
-    private int? Tactic(OfficerState person, List<int> assigned, UnitState? target, bool slow, bool deployment, bool fallback)
+    private int? Tactic(OfficerState person, List<int> assigned, UnitState? target, bool slow, bool deployment, bool fallback, bool harbor)
     {
         var all = Tactics(person);
         TacticRule? Effect(TacticEffect effect) => all.FirstOrDefault(t => t.Effect == effect);
         bool Assigned(TacticEffect effect) => assigned.Any(id => rules.Tactics[id].Effect == effect);
         bool Equipped(params TacticEffect[] effects) => target is not null &&
-            (target.OwnerId == Owner || World.Simulation.OtherForceTacticsVisible) && World.Officers.Any(p => p.UnitId == target.Id &&
+            World.Officers.Any(p => p.UnitId == target.Id &&
                 p.EquippedTacticId is int id && rules.Tactics.TryGetValue(id, out var tactic) && effects.Contains(tactic.Effect));
         if (fallback)
         {
@@ -50,7 +50,7 @@ internal sealed partial class OriginalAiMilitary
                 .ThenByDescending(t => person.TacticProficiencies[t.Category!.Value]).First().Id;
             return Draw(all.Where(t => t.Effect is TacticEffect.Inspire or TacticEffect.CounterConfusion or TacticEffect.CounterTrap))?.Id;
         }
-        if (slow)
+        if (slow && harbor)
         {
             foreach (var effect in new[] { TacticEffect.CounterTrap, TacticEffect.CounterConfusion, TacticEffect.Defection,
                 TacticEffect.Confusion, TacticEffect.TrapSelection, TacticEffect.Taunt })
@@ -103,8 +103,8 @@ internal sealed partial class OriginalAiMilitary
         {
             bool siege = route.Obstacle;
             if (!siege && building is not null)
-                foreach (var u in World.Units.Where(u => Departed(u) && KnownOrder(u)?.Kind == MilitaryOrderKind.AttackSettlement &&
-                    KnownOrder(u)?.SettlementId == building.Id && (u.FormationId == Role(OriginalAiFormationRole.Elephant)?.Id || u.FormationId == Role(OriginalAiFormationRole.Ram)?.Id)))
+                foreach (var u in World.Units.Where(u => Departed(u) && ProjectedOrder(u)?.Kind == MilitaryOrderKind.AttackSettlement &&
+                    ProjectedOrder(u)?.SettlementId == building.Id && (u.FormationId == Role(OriginalAiFormationRole.Elephant)?.Id || u.FormationId == Role(OriginalAiFormationRole.Ram)?.Id)))
                     siege = random.Percent((500 - building.Durability) / 5);
             if (siege) selected = First(OriginalAiFormationRole.Elephant, OriginalAiFormationRole.Ram, OriginalAiFormationRole.Catapult);
             bool harbor = building is not null && rules.TryPlace(building, out var place) && place.FacilityTypeId is int type && rules.Facilities[type].IsHarbor;
@@ -133,11 +133,13 @@ internal sealed partial class OriginalAiMilitary
         if (basic is null) return null;
         var initial = RouteFrom(source, basic.Value.Land, basic.Value.Naval, order, Policies(fallback));
         if (initial is null) return null;
+        bool harbor = building is not null && rules.TryPlace(building, out var place) &&
+            place.FacilityTypeId is int type && rules.Facilities[type].IsHarbor;
         var tactics = new Dictionary<int, int?>();
         var assigned = new List<int>();
         foreach (var p in people)
         {
-            int? tactic = Tactic(p, assigned, target, initial.Slow, deployment, fallback);
+            int? tactic = Tactic(p, assigned, target, initial.Slow, deployment, fallback, harbor);
             tactics.Add(p.Id, tactic); if (tactic is int id) assigned.Add(id);
         }
         var equipment = Equipment(people, tactics, building, target, initial, deployment, fallback);

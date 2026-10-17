@@ -11,6 +11,24 @@ namespace San9.Application.Tests;
 public sealed class OriginalAiCycleTests
 {
     [Fact]
+    public void GeographyReusePreservesResourceChangesButInvalidatesChangedFrontiers()
+    {
+        var content = G01ScenarioTests.Fixture() with { CityConnections = [new(1, 2), new(2, 1)],
+            RegionCityIds = new() { [1] = 1, [2] = 2 }, RegionNameKeys = new() { [1] = "one", [2] = "two" } };
+        var world = GameSession.Start(content, 190).Snapshot;
+        var geography = new OriginalAiGeography(content, null, world);
+        Assert.True(geography.Frontier(1, 1));
+        var developed = world with { Settlements = world.Settlements.Select(s => s.Id == 1
+            ? s with { Soldiers = s.Soldiers + 1000, Commerce = s.Commerce + 1, CommerceUsed = true } : s).ToArray() };
+        Assert.True(geography.Matches(developed));
+        Assert.True(geography.Frontier(1, 1));
+        var captured = developed with { Settlements = developed.Settlements.Select(s => s.Id == 2
+            ? s with { OwnerId = 1 } : s).ToArray() };
+        Assert.False(geography.Matches(captured));
+        Assert.False(new OriginalAiGeography(content, null, captured).Frontier(1, 1));
+    }
+
+    [Fact]
     public void DomesticProjectionRefreshesAvailabilityAndAccountsAfterDevelopment()
     {
         var content = G01ScenarioTests.Fixture();

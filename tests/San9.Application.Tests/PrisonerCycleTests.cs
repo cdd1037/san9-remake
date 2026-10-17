@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using San9.Tests;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
@@ -14,6 +15,8 @@ public sealed class PrisonerCycleTests
         var baseline = G01ScenarioTests.Fixture();
         var definition = baseline with
         {
+            OriginalAi = baseline.OriginalAi with { WorkRules = baseline.OriginalAi.WorkRules.SetItem(OriginalAiWork.ReturnPrisoner,
+                baseline.OriginalAi.WorkRules[OriginalAiWork.ReturnPrisoner] with { OpeningWaitDays = 10000 }) },
             Officers = [.. baseline.Officers, new OfficerInitialState("captive",
                 new OfficerState(7, 2, 1, new(50, 50, 50, 50), false)
                 { Status = OfficerStatus.Captive, Affinity = 50, Righteousness = 15 }.WithLoyalty(1, 130).WithLoyalty(2, 80))]

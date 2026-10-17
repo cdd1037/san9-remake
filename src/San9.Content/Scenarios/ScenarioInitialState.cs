@@ -44,7 +44,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 132;
+    public const int CurrentSchemaVersion = 133;
     [JsonRequired] public OriginalAiDefinition OriginalAi { get; init; } = OriginalAiDefinition.Default;
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public San9.Core.Domain.FoodMarketDefinition? FoodMarket { get; init; }
@@ -93,7 +93,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     public void Validate()
     {
         if (OriginalAi is null) throw new InvalidDataException("Missing original AI policy.");
-        OriginalAi.Validate(Officers.Select(p => p.State.Id).ToHashSet());
+        OriginalAi.Validate(Officers.Select(p => p.State.Id).ToHashSet(), Military);
         if (OriginalAi.Military is null) throw new InvalidDataException("Missing AI military policy.");
         OriginalAi.Military.Validate(Officers.Select(p => p.State.Id).ToHashSet(), Military);
         if (Forces.Any(f => f.AutomaticSchedulingKey < 0 || f.AutomaticSchedulingKey == long.MaxValue) ||

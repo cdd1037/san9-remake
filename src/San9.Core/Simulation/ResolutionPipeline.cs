@@ -216,7 +216,11 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             world.MaintainDerivedState(events);
             if (world.Simulation.PendingDuel is not null || world.Simulation.PendingSniping is not null || !CheckTerminal(world, events)) return false;
         }
-        if (stage == ResolutionStage.XunUpdate) OfficeRequests.Begin(world, rules, events);
+        if (stage == ResolutionStage.XunUpdate)
+        {
+            MilitaryPolicies.ApproachXun(world, rules.Military, events);
+            OfficeRequests.Begin(world, rules, events);
+        }
         return CompleteStage(stage, world, events);
     }
 

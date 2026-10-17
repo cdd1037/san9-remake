@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+using San9.Application.AI;
 using San9.Tests;
 using San9.Application.Persistence;
 using San9.Application.Diagnostics;
@@ -9,6 +11,26 @@ namespace San9.Application.Tests;
 
 public sealed class OfficeRequestSessionTests
 {
+    [Theory]
+    [InlineData(0, EventChoice.Accept)]
+    [InlineData(50, EventChoice.Reject)]
+    public void AutomaticOfficeRequestUsesAffinityProbability(int distance, EventChoice expected)
+    {
+        var scenario = Scenario();
+        var session = GameSession.Start(scenario, 190);
+        session.AdvanceXun(); session.AdvanceXun(); session.AdvanceXun();
+        var snapshot = session.Snapshot;
+        var engine = GameSession.EngineFactory(scenario)(WorldState.Restore(snapshot with
+        {
+            Officers = snapshot.Officers.Select(p => p.Id == 9000 ? p with { Affinity = distance } :
+                p.Id == 1 ? p with { Affinity = 0 } : p).ToImmutableList(),
+            Simulation = snapshot.Simulation with { Controls = snapshot.Simulation.Controls.Select(c => c.ForceId == 1
+                ? c with { Kind = ControllerKind.Automatic, ControllerId = "ai:1" } : c).ToImmutableArray() }
+        }));
+        var response = AutomaticResponseRunner.Choose(engine, engine.GetPendingResponse()!);
+        Assert.Equal(expected, Assert.IsType<RespondOfficeRequestCommand>(response).Choice);
+    }
+
     [Theory]
     [InlineData("officerId")]
     [InlineData("choice")]

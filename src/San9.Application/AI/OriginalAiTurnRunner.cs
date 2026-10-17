@@ -39,6 +39,7 @@ internal static class OriginalAiTurnRunner
                 cursor = cursor with { Queue = cursor.Queue.RemoveAt(0), Seen = cursor.Seen.Add(selected), Prepared = false, WorkIndex = 0 };
                 continue;
             }
+            if (!geography.Matches(engine.Snapshot)) geography = new(definition.Content, definition.MilitaryRules, engine.Snapshot);
             var context = new CommandContext(corps.ControlMode == CorpsControlMode.Automatic ? CorpsControl.ControllerId(corps.Id) : seat.ControllerId);
             var stream = new StableRandom(cursor.Prepared ? cursor.RandomState : StableRandom.DeriveSeed(engine.Snapshot.Simulation.RunSeed,
                 FormattableString.Invariant($"original-ai:{corps.Id}:{engine.Snapshot.Clock.DayNumber}")));
@@ -79,6 +80,13 @@ internal static class OriginalAiTurnRunner
             var personnel = new OriginalAiPersonnel(engine, definition.Content, corps.Id, geography, context, random, Submit);
             for (int workIndex = cursor.WorkIndex; workIndex < works.Length; workIndex++)
             {
+                if (!geography.Matches(engine.Snapshot))
+                {
+                    geography = new(definition.Content, definition.MilitaryRules, engine.Snapshot);
+                    domestic = new(engine, definition.Content, corps.Id, geography, policy.RecruitmentEnabled);
+                    personnel = new(engine, definition.Content, corps.Id, geography, context, random, Submit);
+                    cursor = cursor with { Quotas = OriginalAiStaffing.Quotas(engine.Snapshot, corps.Id, geography) };
+                }
                 var work = works[workIndex];
                 long revision = engine.Snapshot.Revision;
                 long started = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -88,7 +96,7 @@ internal static class OriginalAiTurnRunner
                     AllocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocated });
                 if (!policy.WorkRules.TryGetValue(work, out var rule))
                 {
-                    Report(new(corps.Id, work, OriginalAiWorkEnd.LaterStage, 0, 0));
+                    Report(new(corps.Id, work, OriginalAiWorkEnd.PreparationFailed, 0, 0));
                     continue;
                 }
                 if (force.IsBarbarian && !rule.AllowsBarbarians || !corps.IsRoot && !rule.AllowsChildCorps)
@@ -156,6 +164,9 @@ internal static class OriginalAiTurnRunner
                 }
                 else if (OriginalAiPersonnel.Handles(work))
                     Report(personnel.Run(work, limit, state, cursor.Quotas));
+                else if (OriginalAiActions.Handles(work))
+                    Report(new OriginalAiActions(engine, definition.Content with { OriginalAi = policy }, definition.MilitaryRules,
+                        corps.Id, context, random, Submit).Run(work, limit, state, strategy));
                 else if (OriginalAiMilitary.Handles(work))
                     Report(definition.MilitaryRules is { } military
                         ? new OriginalAiMilitary(engine, definition.Content with { OriginalAi = policy }, military, corps.Id, context, random, Submit).Run(work, limit, state, strategy)
@@ -169,7 +180,7 @@ internal static class OriginalAiTurnRunner
                         progress.Attempts, progress.Submitted) { Rejected = progress.Rejected, EmptyPlans = progress.EmptyPlans });
                     cursor = cursor with { Prisoners = null };
                 }
-                else Report(new(corps.Id, work, OriginalAiWorkEnd.LaterStage, 0, 0));
+                else throw new InvalidOperationException($"No production executor for original AI work {work}.");
                 if (engine.Snapshot.Simulation.Boundary == SimulationBoundary.Terminal) return state with { Continuation = null };
             }
             cursor = cursor with { Queue = cursor.Queue.RemoveAt(0), Seen = cursor.Seen.Add(corps.Id), Prepared = false, WorkIndex = 0 };

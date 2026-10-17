@@ -159,8 +159,6 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
             case OriginalAiWork.Search:
             case OriginalAiWork.RecruitLocal:
             case OriginalAiWork.RecruitEnemy:
-                if (work == OriginalAiWork.Search && Force.AdviserId is null)
-                    return Report(OriginalAiWorkEnd.PreparationFailed);
                 var ownGroup = state.Forces.Single(f => f.ForceId == Owner).Group;
                 if (work != OriginalAiWork.Search && ownGroup == OriginalAiGroup.ReducedAttempts && random.Percent(50))
                     return Report(OriginalAiWorkEnd.ProbabilityFailed);
@@ -174,11 +172,18 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
                 }
                 // A source with an available actor necessarily has a nonempty physical member list.
                 var actors = Actors(work == OriginalAiWork.RecruitLocal ? 35 : 45).Select(p => p.Id).ToList();
-                var targets = work == OriginalAiWork.Search ? engine.GetSearchPlaces(Owner).ToList() :
+                // Original work 23 filters actual undiscovered people before probing the shared search command.
+                var undiscoveredPlaces = work == OriginalAiWork.Search ? World.Officers
+                    .Where(p => !p.IsDormant && p.Status == OfficerStatus.Undiscovered)
+                    .Select(p => p.SettlementId ?? p.RegionId).OfType<int>().ToHashSet() : null;
+                var targets = work == OriginalAiWork.Search ? engine.GetSearchPlaces(Owner).Where(undiscoveredPlaces!.Contains).ToList() :
                     World.Officers.Where(p => !p.IsDormant && p.IsVisible && (work == OriginalAiWork.RecruitEnemy
                         ? p.OwnerId == opponent && p.Status is OfficerStatus.Governor or OfficerStatus.Strategist or OfficerStatus.Serving && p.Loyalty <= 90
                         : p.Status == OfficerStatus.Free || Detained(p)))
                     .OrderBy(p => work == OriginalAiWork.RecruitEnemy ? p.Loyalty : -Maximum(Ability(p))).Select(p => p.Id).ToList();
+                if (work == OriginalAiWork.Search)
+                    actors = actors.Where(actor => targets.Any(target => engine.GetPersonnelJourney(Owner, actor, target,
+                        PersonnelJourneyKind.Search).DistanceDays is >= 0 and <= MaximumSearchJourneyDays)).ToList();
                 while (used < limit && targets.Count != 0 && actors.Count != 0)
                 {
                     (int Actor, int Target)? pair = null;
@@ -192,11 +197,8 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
                             int score = !preview.Available ? 0 : work == OriginalAiWork.Search
                                 ? preview.Advice.Opinion == AdviserOpinion.Unfavorable ? 0 : 100
                                 : preview.Advice.Opinion switch { AdviserOpinion.Favorable => 100, AdviserOpinion.Unfavorable => 0, _ => threshold };
-                            return (Actor: actor, Score: score, Threshold: threshold, Preview: preview);
+                            return (Actor: actor, Score: score, Threshold: threshold);
                         }).Where(p => p.Score >= 20);
-                        // Search has no granted exact undiscovered roster. A public adviser prediction is its target evidence.
-                        if (work == OriginalAiWork.Search) feasible = feasible.Where(p => p.Preview.Advice.AdviserId is not null &&
-                            p.Preview.DistanceDays is >= 0 and <= MaximumSearchJourneyDays);
                         var selected = feasible.OrderByDescending(p => work == OriginalAiWork.Search
                             ? Ability(World.Officers.Single(o => o.Id == p.Actor)).Politics : p.Threshold).FirstOrDefault();
                         if (selected.Score < 20) continue;

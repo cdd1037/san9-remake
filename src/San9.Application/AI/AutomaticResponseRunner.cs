@@ -11,7 +11,7 @@ internal sealed class AutomaticResponseException(AutomaticResponseFailure failur
     internal AutomaticResponseFailure Failure { get; } = failure;
 }
 
-/// <summary>Mandatory responses have their own bounded evaluation allowance, independent of turn work.</summary>
+/// <summary>Mandatory choices consume pending decisions independently of turn work.</summary>
 internal static class AutomaticResponseRunner
 {
     internal static void Run(SimulationEngine engine, List<DomainEvent> events, List<WorldSnapshot>? frames = null)
@@ -41,21 +41,16 @@ internal static class AutomaticResponseRunner
         }
     }
 
-    internal static GameCommand Choose(SimulationEngine engine, ResponseRequest response, int evaluationBudget = 2)
+    internal static GameCommand Choose(SimulationEngine engine, ResponseRequest response)
     {
         var snapshot = engine.Snapshot;
         var id = SimulationIdentity.Command(snapshot.Simulation.NextSequence, response.Owner.ForceId);
         if (response.Kind == "captured-ruler" && engine.GetCapturedRulerPrompt() is { } captive)
         {
-            // Release is the explicit low-budget default. Optional comparison samples only the analysis stream.
-            var action = CapturedRulerAction.Release;
-            if (evaluationBudget >= 2)
-            {
-                var random = AiPlanningContext.Create(AiObservation.FromSnapshot(response.Owner.ForceId, snapshot),
-                    $"response:{response.Kind}:{captive.RulerId}", new(2, 0)).CreateAnalysisRandom();
-                if (captive.IsAllianceTarget || random.NextUInt64() % 100 < (ulong)ExecutionChance(captive))
-                    action = CapturedRulerAction.Execute;
-            }
+            var random = AiPlanningContext.Create(AiObservation.FromSnapshot(response.Owner.ForceId, snapshot),
+                $"response:{response.Kind}:{captive.RulerId}", new(1, 0)).CreateAnalysisRandom();
+            var action = captive.IsAllianceTarget || random.NextUInt64() % 100 < (ulong)ExecutionChance(captive)
+                ? CapturedRulerAction.Execute : CapturedRulerAction.Release;
             if (!captive.LegalActions.Contains(action)) Fail(response, "response-no-legal-option");
             return new ChooseCapturedRulerDispositionCommand(id, response.Owner.ForceId,
                 snapshot.Simulation.NextSequence, captive.RulerId, action);
@@ -72,23 +67,33 @@ internal static class AutomaticResponseRunner
         if (response.Kind == "duel-succession" && engine.GetDuelSuccessionPrompt() is { } duel)
             return new ChooseDuelSuccessorCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, duel.RulerId, null);
         if (engine.GetOfficeRequestPrompt() is { } office)
-            return new RespondOfficeRequestCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, office.OfficerId, EventChoice.Accept);
+        {
+            var person = snapshot.Officers.Single(p => p.Id == office.OfficerId);
+            var ruler = snapshot.Officers.Single(p => p.Id == snapshot.Forces.Single(f => f.Id == response.Owner.ForceId).LeaderId);
+            int distance = PersonnelRulebook.AffinityDistance(person, ruler);
+            var random = AiPlanningContext.Create(AiObservation.FromSnapshot(response.Owner.ForceId, snapshot),
+                $"response:office-request:{person.Id}", new(1, 0)).CreateAnalysisRandom();
+            bool accept = random.NextUInt64() % 100 < (ulong)Math.Max(0, 100 - distance * distance);
+            return new RespondOfficeRequestCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence,
+                office.OfficerId, accept ? EventChoice.Accept : EventChoice.Reject);
+        }
         if (engine.GetEmperorTransferPrompt() is { } emperor)
             return new RespondEmperorTransferCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence,
                 emperor.EmperorId, emperor.CityId, EmperorTransferChoice.Support);
         if (engine.GetCountryTitlePrompt() is { } title)
-            return new ChooseCountryTitleCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, title.CandidateIds[0]);
+        {
+            var random = AiPlanningContext.Create(AiObservation.FromSnapshot(response.Owner.ForceId, snapshot),
+                "response:country-title", new(1, 0)).CreateAnalysisRandom();
+            int? selected = engine.GetAutomaticCountryTitle(response.Owner.ForceId, () => random.NextUInt64());
+            if (selected is not int choice || !title.CandidateIds.Contains(choice)) Fail(response, "response-no-legal-option");
+            return new ChooseCountryTitleCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, selected!.Value);
+        }
         if (engine.GetAllianceParticipationPrompt() is { } alliance)
         {
             int target = alliance.Proposal.TargetForceId;
-            int relation = snapshot.Relations.SingleOrDefault(r => r.FirstId == Math.Min(target, response.Owner.ForceId) &&
-                r.SecondId == Math.Max(target, response.Owner.ForceId))?.Value ?? 0;
             return new AllianceParticipationCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, target,
-                relation < 60 && alliance.Proposal.EligibleMemberForceIds.Contains(response.Owner.ForceId));
+                alliance.Proposal.EligibleMemberForceIds.Contains(response.Owner.ForceId));
         }
-        if (engine.GetTacticStudyPrompt() is { } study)
-            return new ChooseTacticStudentCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, study.CityId,
-                study.CandidateIds.IsEmpty ? null : study.CandidateIds[0]);
         if (response.Kind == "daily-task" && engine.GetDailyDecisionPrompt() is { } daily)
             return Daily(engine, id, response, snapshot.Simulation.NextSequence, daily);
         Fail(response, "response-unsupported");
@@ -100,71 +105,11 @@ internal static class AutomaticResponseRunner
         int force = request.Owner.ForceId;
         var response = new RespondDailyTaskCommand(id, force, sequence, prompt.TaskId, prompt.Step, false);
         if (prompt.Kind is "diplomacy-attack-request" or "diplomacy-prisoner-return")
-        {
-            if (prompt.Step == 0)
-            {
-                bool cooperative = prompt.Kind == "diplomacy-prisoner-return" || prompt.CanFulfill && prompt.TargetSettlementId is int target &&
-                    engine.Snapshot.Settlements.FirstOrDefault(s => s.Id == target)?.OwnerId is int owner &&
-                    MilitaryDiplomacy.AutomaticEnemy(engine.Snapshot, force, owner);
-                var offer = prompt.LegalOffers.FirstOrDefault(o => o.Kind == CompensationKind.Prisoner) ?? (prompt.Relation >= 80 ? prompt.LegalOffers.FirstOrDefault(o => o.Kind == CompensationKind.Free)
-                    : prompt.LegalOffers.Where(o => o.Kind == CompensationKind.Money).OrderBy(o => o.Money).FirstOrDefault()
-                        ?? prompt.LegalOffers.FirstOrDefault());
-                return response with { Accept = cooperative && offer is not null, Offer = cooperative ? offer : null };
-            }
-            bool accept = prompt.Offer is { Kind: CompensationKind.Free or CompensationKind.Prisoner } ||
-                prompt.Offer is { Kind: CompensationKind.Money } payment && payment.Money <= prompt.SpendingMoney / 4 ||
-                prompt.Offer is { Kind: CompensationKind.Treasure, TreasureId: int treasure } &&
-                    engine.GetTreasureDefinition(treasure) is { LoyaltyBonus: <= 10 };
-            return response with { Accept = accept };
-        }
-        if (engine.GetCommunitySearchPrompt() is { } community)
-        {
-            var choice = community.Options.Where(o => o.Choice is not (CommunitySearchChoice.Execute or CommunitySearchChoice.DemandMoney))
-                .Where(o => o.Cost <= Spending(community.Account, o.Resource))
-                .OrderBy(o => o.Choice == CommunitySearchChoice.Decline).ThenBy(o => o.Cost).First();
-            return response with { CommunitySearch = choice.Choice,
-                Accept = choice.Choice is not (CommunitySearchChoice.Decline or CommunitySearchChoice.Execute) };
-        }
-        if (engine.GetSearchConflictPrompt() is { } conflict)
-        {
-            var choice = conflict.Options.Where(o => o.Choice != SearchConflictChoice.Execute)
-                .Where(o => o.Cost <= Spending(conflict.Account, ResourceKind.Money))
-                .OrderByDescending(o => o.SuccessChance ?? (o.Choice == SearchConflictChoice.Decline ? 0 : 100))
-                .ThenBy(o => o.Cost).First();
-            return response with { SearchConflict = choice.Choice,
-                Accept = choice.Choice is not (SearchConflictChoice.Decline or SearchConflictChoice.Execute) };
-        }
-        if (engine.GetMerchantInvestmentPrompt() is { } merchant)
-        {
-            bool invest = merchant.SuccessChance >= 60 && merchant.MaximumInvestment >= merchant.MinimumInvestment &&
-                Spending(merchant.Account, ResourceKind.Money) >= merchant.MinimumInvestment;
-            return response with { Accept = invest, MerchantInvestment = new(invest ? MerchantInvestmentChoice.Invest : MerchantInvestmentChoice.Decline,
-                invest ? merchant.MinimumInvestment : 0) };
-        }
-        if (engine.GetShanyangGongPrompt() is { } shanyang)
-            return response with { Accept = true, CountryTitleId = shanyang.ChoosingCountryTitle ? shanyang.CountryTitleIds[0] : null };
-        if (engine.GetTigerSearchPrompt() is { } tiger) return response with { Accept = tiger.BattleChance >= 60 };
-        if (engine.GetBeastSearchPrompt() is { } beast) return response with { Accept = beast.BattleChance >= 60 };
-        if (engine.GetScholarInsultPrompt() is not null) return response;
-        if (engine.GetMysticBookReturnPrompt() is { } book) return response with { Accept = book.DeclineRewardTacticId is null };
-        if (engine.GetMysticBookOfferPrompt() is { } mystic)
-            return response with { Accept = Spending(mystic.Account, ResourceKind.Money) >= mystic.AcceptCost };
-        if (engine.GetLongevityPrompt() is { } longevity)
-            return response with { Accept = Spending(longevity.Account, ResourceKind.Money) >= longevity.Cost };
-        if (engine.GetTreasureMonumentPrompt() is { } monument)
-            return response with { Accept = Spending(monument.Account, ResourceKind.Money) >= monument.Cost };
-        if (engine.GetSearchRecruitmentPrompt() is not null || engine.GetScholarReturnPrompt() is not null)
-            return response with { Accept = true };
-        // Gift and surrender retain the public automatic outcome rule; these prompts only arise for a player force.
+            return engine.GetAutomaticDiplomacyResponse(id, force, sequence);
+        if (engine.GetSearchRecruitmentPrompt() is not null) return response with { Accept = true };
+        // The remaining search/study prompts require direct player control in Core.
         Fail(request, "response-unsupported");
         throw new InvalidOperationException("Unreachable response dispatch.");
-
-        long Spending(ResourceAccount account, ResourceKind resource)
-        {
-            var outlook = engine.GetAccountOutlook(force, account.Id);
-            var forecast = resource == ResourceKind.Money ? outlook.Money : outlook.Food;
-            return Math.Max(0, forecast.Balance - forecast.Expenditure);
-        }
     }
 
     internal static int ExecutionChance(CapturedRulerPrompt captive)

@@ -39,7 +39,7 @@ public sealed class AttackRequestNegotiationSessionTests
         EventAssert.Equal(arrived.Events, outbound.AdvanceXun().Events);
         var prompt = session.GetAttackRequestPrompt()!;
         Assert.Equal(CompensationKind.Money, prompt.Offer!.Kind);
-        Assert.Equal(1000u, prompt.Offer.Money);
+        Assert.Equal(10u * (300u - 60u - 100u), prompt.Offer.Money);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var restored = outbound;
         var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, accept);

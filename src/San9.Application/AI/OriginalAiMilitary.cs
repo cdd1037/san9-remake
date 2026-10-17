@@ -53,7 +53,7 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
         if (officersChanged || projected!.Treasures != world.Treasures) abilities = null;
         if (placesChanged)
         {
-            geography = null;
+            if (geography is not null && !geography.Matches(world)) geography = null;
             regionBuildings = null;
             obstacles = null;
             obstacleRegions = null;
@@ -70,9 +70,8 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
             routes.Clear();
             departures.Clear();
             sourceRoutes.Clear();
+            orders.Clear();
         }
-        if (placesChanged || unitsChanged || diplomacyChanged || ownerChanged ||
-            projected!.Simulation.OtherForceOrdersVisible != world.Simulation.OtherForceOrdersVisible) orders.Clear();
         projected = world;
     }
     private int attempts, submitted, rejected, empty, paths;
@@ -134,12 +133,13 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
         return (Math.Min(150000, amount) + 2499) / 2500 * 2500;
     }
     private long Reserve(SettlementState s) => Math.Max(Fortified(s) ? 10000L : 0,
-        World.Units.Where(u => Departed(u) && KnownOrder(u) is { Kind: MilitaryOrderKind.AttackSettlement, SettlementId: int target } && target == s.Id)
+        World.Units.Where(u => Departed(u) && ProjectedOrder(u) is { Kind: MilitaryOrderKind.AttackSettlement, SettlementId: int target } && target == s.Id)
             .Sum(u => (long)u.Soldiers) * 2 / 3);
-    private MilitaryOrder? KnownOrder(UnitState u)
+    // RE-0193: read effective orders independently of player display settings, then project
+    // intervening route obstacles without changing the unit's authoritative order.
+    private MilitaryOrder? ProjectedOrder(UnitState u)
     {
         if (u.OwnerId == Owner) return u.EffectiveOrder;
-        if (!World.Simulation.OtherForceOrdersVisible) return null;
         Refresh();
         if (orders.TryGetValue(u.Id, out var cached)) return cached;
         var order = u.EffectiveOrder;
@@ -174,7 +174,6 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
         }
         return World.Settlements.FirstOrDefault(s => eligible(s) && InRegion(point, s));
     }
-    private MilitaryOrder? KnownMain(UnitState u) => u.OwnerId == Owner || World.Simulation.OtherForceOrdersVisible ? u.Order : null;
     private bool InRegion(WorldPosition point, SettlementState place) => rules.RegionAt(point) is int region
         ? region == place.Id : rules.SettlementArea(place).Overlaps(new(point, new(1, 1)));
     private GameCommand Command(Func<Guid, int, long, GameCommand> create)

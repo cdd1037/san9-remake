@@ -24,6 +24,7 @@ public static class OriginalAiContentCompiler
                 AggressiveRulerIds = people.Select((p, id) => (Person: p, Id: id))
                     .Where(p => supported.Contains(p.Id) && p.Person.BiographyResourceCode == 3).Select(p => p.Id).ToImmutableArray(),
             },
+            DiplomacyFacilityPriorities = new Dictionary<int, int> { [2] = 6, [6] = 5, [10] = 4, [4] = 3, [5] = 2, [3] = 1 }.ToImmutableDictionary(),
             FamilyRankBonuses = families.ToImmutableDictionary(),
             PreferredStrategyRulerIds = people.Select((p, id) => (Person: p, Id: id))
                 .Where(p => supported.Contains(p.Id) && p.Person.BiographyResourceCode is 36 or 59 or 60 or 61 or 62 or 63 or 64)

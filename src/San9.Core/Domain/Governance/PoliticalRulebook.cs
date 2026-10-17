@@ -60,15 +60,25 @@ public sealed class PoliticalRulebook
     public ImmutableArray<int> ManualCandidates(IReadOnlySet<int> occupied) => Titles.Values
         .Where(t => t.ManualSelectionAllowed && !occupied.Contains(t.Id)).Select(t => t.Id).Order().ToImmutableArray();
 
+    public ImmutableArray<int> AutomaticCandidates(int rulerId, int? bloodlineId, IEnumerable<int> controlledProvinces,
+        IReadOnlySet<int> occupied)
+    {
+        var provincialTitles = controlledProvinces.Where(ProvinceTitles.ContainsKey).Select(p => ProvinceTitles[p]).ToHashSet();
+        return Titles.Values.Where(t => t.AutomaticSelectionAllowed && !occupied.Contains(t.Id) &&
+                (t.ManualSelectionAllowed || t.PreferredRulerIds.Contains(rulerId) ||
+                 bloodlineId is int family && t.PreferredBloodlineIds.Contains(family) || provincialTitles.Contains(t.Id)))
+            .Select(t => t.Id).Order().ToImmutableArray();
+    }
+
     public int? SelectAutomatic(int rulerId, int? bloodlineId, int? serviceProvince, IEnumerable<int> controlledProvinces,
         IReadOnlySet<int> occupied, Func<ulong> random)
     {
-        var available = Titles.Values.Where(t => t.AutomaticSelectionAllowed && !occupied.Contains(t.Id)).OrderBy(t => t.Id).ToArray();
+        var provinces = controlledProvinces.Distinct().Order().ToList();
+        var available = AutomaticCandidates(rulerId, bloodlineId, provinces, occupied).Select(id => Titles[id]).ToArray();
         if (available.Length == 0) return null;
         var preferred = available.FirstOrDefault(t => t.PreferredRulerIds.Contains(rulerId)) ??
             available.FirstOrDefault(t => bloodlineId is int family && t.PreferredBloodlineIds.Contains(family));
         if (preferred is not null) return preferred.Id;
-        var provinces = controlledProvinces.Distinct().Order().ToList();
         int? FromProvince(int province) => ProvinceTitles.TryGetValue(province, out int title) && available.Any(t => t.Id == title) ? title : null;
         if (serviceProvince is int home && provinces.Contains(home) && FromProvince(home) is int homeTitle) return homeTitle;
         while (provinces.Count > 0)

@@ -59,12 +59,13 @@ internal static class OriginalDomesticWork
             // spending a command attempt or silently skipping to a more convenient settlement.
             var current = capture();
             var site = current.Sites.FirstOrDefault(s => s.Settlement.Id == targets[index]);
-            var people = site is not null && Eligible(current, site, activity)
-                ? SelectPeople(site.Settlement.OfficerIds, current.Abilities, activity, nextPercent) : [];
+            bool eligible = site is not null && Eligible(current, site, activity);
+            var people = eligible
+                ? SelectPeople(site!.Settlement.OfficerIds, current.Abilities, activity, nextPercent) : [];
             if (people.IsEmpty)
             {
-                bool probabilityFailed = site is not null && Eligible(current, site, activity) &&
-                    site.Settlement.OfficerIds.Any(id => activity == DomesticActivity.Train || Ability(current.Abilities[id], activity) >= 35);
+                bool probabilityFailed = eligible &&
+                    site!.Settlement.OfficerIds.Any(id => activity == DomesticActivity.Train || Ability(current.Abilities[id], activity) >= 35);
                 steps.Add(new(targets[index], OriginalDomesticAttempt.PreparationFailed) { ProbabilityFailed = probabilityFailed });
                 return new(OriginalDomesticEnd.PreparationFailed, steps.ToImmutable());
             }

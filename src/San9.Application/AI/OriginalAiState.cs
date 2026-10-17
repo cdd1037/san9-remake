@@ -11,7 +11,7 @@ public sealed record OriginalAiForceState(int ForceId, long SchedulingKey, Origi
 public sealed record OriginalAiCorpsState(int CorpsId, OriginalAiMode Mode, int? TargetForceId, int? TargetSettlementId);
 public sealed record OriginalAiState
 {
-    public const string CurrentVersion = "original-military-v1";
+    public const string CurrentVersion = "original-complete-v1";
     // Unstable boundaries cannot be saved. The immutable cursor is copied with the session transaction.
     [JsonIgnore] internal OriginalAiContinuation? Continuation { get; init; }
     [JsonRequired] public string Version { get; init; } = CurrentVersion;
@@ -76,7 +76,7 @@ public sealed record OriginalAiState
         try
         {
             var people = content.Officers.Select(o => o.State.Id).ToHashSet();
-            Policy.Validate(people);
+            Policy.Validate(people, content.Military);
             if (Policy.Military is null) throw new InvalidDataException("Missing saved military policy.");
             Policy.Military.Validate(people, content.Military);
         }

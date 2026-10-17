@@ -37,6 +37,42 @@ public sealed class PoliticalEventSessionTests
         }
     };
 
+    [Fact]
+    public void AutomaticTitleUsesAuthoredPreferenceIncludingAutomaticOnlyTitle()
+    {
+        var scenario = Scenario(true);
+        scenario = scenario with { Information = scenario.Information with { CountryTitles = [.. scenario.Information.CountryTitles,
+            new(new(501, false, true, false, [1], []), "preferred", 40)] } };
+        var session = GameSession.Start(scenario, 17, playerForceController: ControllerKind.Automatic);
+        session.BeginRecording();
+        for (int i = 0; i < 3; i++) session.AdvanceXun();
+        Assert.Equal(501, session.Snapshot.Forces.Single(f => f.Id == 1).CountryTitleId);
+        Assert.Null(session.GetPendingResponse());
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario,
+            GameSession.EngineFactory(scenario));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AutomaticProclamationDoesNotWaitForAnUnselectableTitle(bool provincePreference)
+    {
+        var scenario = Scenario(true);
+        scenario = scenario with
+        {
+            ProvinceCountryTitleIds = provincePreference ? scenario.ProvinceCountryTitleIds : ImmutableDictionary<int, int>.Empty,
+            Information = scenario.Information with { CountryTitles = scenario.Information.CountryTitles
+                .Select(t => t.Rule.Id == 500 ? t with { Rule = t.Rule with { ManualSelectionAllowed = false } } : t).ToArray() }
+        };
+        var session = GameSession.Start(scenario, 17, playerForceController: ControllerKind.Automatic);
+        for (int i = 0; i < 3; i++) session.AdvanceXun();
+        var force = session.Snapshot.Forces.Single(f => f.Id == 1);
+        Assert.Equal(99, force.RankId);
+        Assert.Equal(provincePreference ? 500 : (int?)null, force.CountryTitleId);
+        Assert.Null(session.GetPendingResponse());
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

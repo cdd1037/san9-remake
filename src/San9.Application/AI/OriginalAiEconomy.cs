@@ -5,7 +5,7 @@ using San9.Core.Simulation;
 
 namespace San9.Application.AI;
 
-public enum OriginalAiWorkEnd { LaterStage, Permission, Calendar, NoCandidates, PreparationFailed, ReserveReached, AttemptsExhausted, ProbabilityFailed, AnalysisIncomplete }
+public enum OriginalAiWorkEnd { Permission, Calendar, NoCandidates, PreparationFailed, ReserveReached, AttemptsExhausted, ProbabilityFailed, AnalysisIncomplete }
 public sealed record OriginalAiWorkReport(int CorpsId, OriginalAiWork Work, OriginalAiWorkEnd End, int Attempts, int Submitted)
 {
     public long InputRevision { get; init; }

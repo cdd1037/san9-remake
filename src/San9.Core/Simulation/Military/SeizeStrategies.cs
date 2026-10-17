@@ -63,12 +63,14 @@ internal static class SeizeStrategies
             itemThreshold = StrategyMath.SeizeItemThreshold(war, rules.Treasures.Items[item.Id].LoyaltyBonus, maximum);
         }
         var people = PersonCandidates(world, actor.OwnerId!.Value, targetId);
-        var target = world.Settlements[targetId];
-        int commander = LeadershipMaintenance.Commander(world, targetId) is { } leader
-            ? world.Abilities(leader).Leadership : 0;
         return new(itemThreshold, StrategyMath.SeizePersonThreshold(war, people.Length),
-            StrategyMath.SeizeMoneyThreshold(war, commander, target.Soldiers), item, people);
+            DecisionThreshold(world, officerId, targetId), item, people);
     }
+
+    internal static int DecisionThreshold(WorldMutation world, int officerId, int targetId) => StrategyMath.SeizeMoneyThreshold(
+        world.Abilities(world.Officers[officerId]).War,
+        LeadershipMaintenance.Commander(world, targetId) is { } commander ? world.Abilities(commander).Leadership : 0,
+        world.Settlements[targetId].Soldiers);
 
     internal static CommandAdvice Advice(WorldMutation world, int forceId, int officerId, int targetId,
         SimulationRules rules)

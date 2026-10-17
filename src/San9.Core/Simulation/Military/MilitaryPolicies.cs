@@ -35,7 +35,6 @@ internal static class MilitaryPolicies
         if (rules is null) return;
         ResolveOrders(world, rules, events);
         var ids = world.Units.Keys.Order().ToArray();
-        var resumed = new HashSet<int>();
         // Resolve every retreat before pursuit so evaluation does not depend on a target's identity.
         foreach (int id in ids)
         {
@@ -56,18 +55,21 @@ internal static class MilitaryPolicies
             if (!mainTarget)
             {
                 Engage(world, unit, null, events, "pursuit-resume");
-                resumed.Add(id);
             }
-            else if (leader.Personality != 0 || Nearby(world, unit, rules, false).Any(o => o.UnitId != targetId))
+            else if (leader.Personality != 0 || Nearby(world, unit, rules, false).Any(u => u.Id != targetId))
             {
                 Return(world, unit, rules, events, "pursuit-return");
-                resumed.Add(id);
             }
         }
-        foreach (int id in ids)
+    }
+
+    internal static void ApproachXun(WorldMutation world, MilitaryRulebook? rules, List<DomainEvent> events)
+    {
+        if (rules is null) return;
+        foreach (int id in world.Units.Keys.Order().ToArray())
         {
             var unit = world.Units[id];
-            if (!Active(unit) || resumed.Contains(id) || unit.EngagementTargetId is not null || unit.Order is null ||
+            if (!Active(unit) || unit.EngagementTargetId is not null || unit.Order is null ||
                 rules.Purpose(unit.FormationId!.Value) != UnitPurpose.Combat || unit.Order.Kind is MilitaryOrderKind.Construct or MilitaryOrderKind.Transport or MilitaryOrderKind.Return ||
                 Commander(world, unit) is not { } leader) continue;
             if (unit.Order.IsAttack && MilitaryCombat.ValidTarget(world, unit.OwnerId, unit.Order, rules.Formation(unit), rules) &&
@@ -75,7 +77,7 @@ internal static class MilitaryPolicies
             var candidate = Nearby(world, unit, rules, false).FirstOrDefault();
             if (candidate is not null && UnitPolicyDecisions.Attack(unit.Policies.AttackApproachingEnemies, leader.Personality,
                     Ratio(world, unit, candidate)))
-                Engage(world, unit, candidate.UnitId, events, "enemy-approach");
+                Engage(world, unit, candidate.Id, events, "enemy-approach");
         }
     }
 
@@ -85,7 +87,7 @@ internal static class MilitaryPolicies
         foreach (int id in world.Units.Keys.Order().ToArray())
         {
             var unit = world.Units[id];
-            if (unit.FormationId is not int formationId) continue;
+            if (unit.FormationId is null) continue;
             var formation = rules.Formation(unit);
             if (unit.EngagementTargetId is not null && !MilitaryCombat.ValidTarget(world, unit.OwnerId, unit.EffectiveOrder!, formation, rules))
             {
@@ -100,16 +102,15 @@ internal static class MilitaryPolicies
                     ChangeOrder(world, unit, new(MilitaryOrderKind.Return, null, place), events, "target-captured-entry");
                     continue;
                 }
-                unit = unit with { Order = null, AwaitingPostAction = true };
+                unit = unit with { Order = null, AwaitingPostAction = true, Waypoint = null, Lookahead = null, MovementRemainder = 0 };
                 world.Replace(unit);
             }
             if (!unit.AwaitingPostAction || !Active(unit)) continue;
             var candidate = Nearby(world, unit, rules, true).FirstOrDefault();
             if (candidate is not null && Commander(world, unit) is { } leader &&
                 UnitPolicyDecisions.Attack(unit.Policies.AttackAfterAction, leader.Personality, Ratio(world, unit, candidate)))
-                ChangeOrder(world, unit, candidate, events, "post-action-attack");
-            else if (!Return(world, unit, rules, events, "post-action-return"))
-                ChangeOrder(world, unit, null, events, "post-action-no-home");
+                ChangeOrder(world, unit, Attack(candidate), events, "post-action-attack");
+            else Return(world, unit, rules, events, "post-action-return");
         }
     }
 
@@ -119,19 +120,19 @@ internal static class MilitaryPolicies
     private static long Distance(UnitState unit, MilitaryOrder order, WorldMutation world, MilitaryRulebook rules) =>
         MilitaryCombat.Area(unit, rules).DistanceTo(MilitaryCombat.TargetArea(world, order, rules));
 
-    private static IEnumerable<MilitaryOrder> Nearby(WorldMutation world, UnitState unit, MilitaryRulebook rules, bool buildings)
+    private static MilitaryOrder Attack(UnitState unit) => new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = unit.Id };
+
+    private static IEnumerable<UnitState> Nearby(WorldMutation world, UnitState unit, MilitaryRulebook rules, bool requireAutomaticEnemy)
     {
         var formation = rules.Formation(unit);
-        var candidates = world.Units.Values.Where(u => !u.IsEmbedded && !u.IsPersonnel)
-            .Select(u => new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = u.Id });
-        if (buildings) candidates = candidates.Concat(world.Settlements.Values.Select(s => new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, s.Id)));
-        return candidates.Where(o => MilitaryDiplomacy.TargetOwner(world, o) is not int owner ||
-                MilitaryDiplomacy.AutomaticEnemy(world, unit.OwnerId, owner) || !buildings &&
-                (MilitaryDiplomacy.TargetOwner(world, unit.Order) == owner || MilitaryDiplomacy.TargetOwner(world, unit.EffectiveOrder) == owner))
-            .Where(o => MilitaryCombat.ValidTarget(world, unit.OwnerId, o, formation, rules))
-            .Select(o => (Order: o, Distance: Distance(unit, o, world, rules))).Where(c => c.Distance <= rules.PolicyRadius)
-            .OrderBy(c => c.Distance).ThenBy(c => c.Order.UnitId is null).ThenBy(c => c.Order.UnitId ?? c.Order.SettlementId)
-            .Select(c => c.Order);
+        return world.Units.Values.Where(u => !u.IsEmbedded && !u.IsPersonnel && u.DepartureDaysRemaining == 0)
+            .Where(u => MilitaryDiplomacy.AutomaticEnemy(world, unit.OwnerId, u.OwnerId) || !requireAutomaticEnemy &&
+                (MilitaryDiplomacy.TargetOwner(world, unit.Order) == u.OwnerId || MilitaryDiplomacy.TargetOwner(world, unit.EffectiveOrder) == u.OwnerId))
+            .Where(u => MilitaryCombat.ValidTarget(world, unit.OwnerId, Attack(u), formation, rules))
+            .Select(u => (Unit: u, Distance: MilitaryCombat.Area(unit, rules).DistanceTo(MilitaryCombat.Area(u, rules))))
+            .Where(c => c.Distance <= rules.PolicyRadius)
+            .OrderBy(c => c.Distance).ThenBy(c => c.Unit.Id)
+            .Select(c => c.Unit);
     }
 
     private static IEnumerable<UnitState> NearbyEnemies(WorldMutation world, UnitState unit, MilitaryRulebook rules) =>
@@ -139,16 +140,16 @@ internal static class MilitaryPolicies
             MilitaryDiplomacy.AutomaticEnemy(world, unit.OwnerId, u.OwnerId) &&
             MilitaryCombat.Area(unit, rules).DistanceTo(MilitaryCombat.Area(u, rules)) <= rules.PolicyRadius);
 
-    private static long Ratio(WorldMutation world, UnitState unit, MilitaryOrder candidate)
+    private static long Ratio(WorldMutation world, UnitState unit, UnitState candidate)
     {
         long own = CombatMath.PolicyStrength(MilitaryCombat.Strength(world, unit));
-        long enemy = CombatMath.PolicyStrength(candidate.UnitId is int id ? MilitaryCombat.Strength(world, world.Units[id]) :
-            MilitaryCombat.GarrisonStrength(world, world.Settlements[candidate.SettlementId!.Value]));
+        long enemy = CombatMath.PolicyStrength(MilitaryCombat.Strength(world, candidate));
         return (long)System.Numerics.BigInteger.Min(long.MaxValue - 25, (System.Numerics.BigInteger)own * 100 / enemy);
     }
 
     internal static bool Return(WorldMutation world, UnitState unit, MilitaryRulebook rules, List<DomainEvent> events, string reason)
     {
+        if (unit.Order is null && !unit.AwaitingPostAction) return false;
         var order = unit.ServicePlaceId is int home ? new MilitaryOrder(MilitaryOrderKind.Return, null, home) : null;
         if (!MilitaryMovement.ValidOrder(world, unit.OwnerId, order, rules.Formations[unit.FormationId!.Value], rules, unit.NavalFormationId)) return false;
         FacilityConstruction.Cancel(world, unit.Id, events);
@@ -158,7 +159,8 @@ internal static class MilitaryPolicies
 
     private static void ChangeOrder(WorldMutation world, UnitState unit, MilitaryOrder? order, List<DomainEvent> events, string reason)
     {
-        world.Replace(unit with { Order = order, EngagementTargetId = null, AwaitingPostAction = false });
+        world.Replace(unit with { Order = order, EngagementTargetId = null, AwaitingPostAction = false,
+            Waypoint = null, Lookahead = null, MovementRemainder = 0 });
         events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, order, reason));
         if (unit.EngagementTargetId is not null) events.Add(new UnitEngagementChangedEvent(world.Clock, unit.Id, null, reason));
     }

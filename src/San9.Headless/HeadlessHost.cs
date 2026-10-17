@@ -244,7 +244,7 @@ public sealed class HeadlessHost
         string log = Path.GetFullPath(Required(options, "log"));
         _report.CommandLog = log;
         var header = CommandLogService.ReadHeader(log);
-        try { header.OriginalAi.Validate(definition.Officers.Select(o => o.State.Id).ToHashSet()); }
+        try { header.OriginalAi.Validate(definition.Officers.Select(o => o.State.Id).ToHashSet(), definition.Military); }
         catch (InvalidDataException error) { throw new CommandLogException(1, "Invalid original AI policy.", error); }
         definition = definition with { OriginalAi = header.OriginalAi };
         _session = options.TryGetValue("load", out string? load) ? SaveService.Load(load, definition) :

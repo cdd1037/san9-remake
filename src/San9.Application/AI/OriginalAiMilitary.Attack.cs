@@ -17,9 +17,9 @@ internal sealed partial class OriginalAiMilitary
 
     private bool Strength(SettlementState target, SettlementState[] sources, OriginalAiGroup group)
     {
-        if (!sources.Any(s => World.Units.Any(u => Departed(u) && KnownOrder(u)?.Kind == MilitaryOrderKind.AttackSettlement && KnownOrder(u)?.SettlementId == s.Id)) &&
-            World.Units.Any(u => Departed(u) && u.Soldiers >= 10000 && KnownOrder(u)?.Kind == MilitaryOrderKind.AttackSettlement &&
-                KnownOrder(u)?.SettlementId == target.Id && (u.OwnerId == Owner || World.Simulation.Alliance is { } common &&
+        if (!sources.Any(s => World.Units.Any(u => Departed(u) && ProjectedOrder(u)?.Kind == MilitaryOrderKind.AttackSettlement && ProjectedOrder(u)?.SettlementId == s.Id)) &&
+            World.Units.Any(u => Departed(u) && u.Soldiers >= 10000 && ProjectedOrder(u)?.Kind == MilitaryOrderKind.AttackSettlement &&
+                ProjectedOrder(u)?.SettlementId == target.Id && (u.OwnerId == Owner || World.Simulation.Alliance is { } common &&
                     common.MemberForceIds.Contains(Owner) && common.MemberForceIds.Contains(u.OwnerId) ||
                     World.Simulation.AttackRequests.Any(r => r.RequestedForceId == u.OwnerId && r.TargetSettlementId == target.Id && r.RequesterForceId == Owner))))
             return true;
@@ -144,8 +144,8 @@ internal sealed partial class OriginalAiMilitary
             var building = BuildingAlongRoute(step, s => s.Id != source.Id && !s.IsDestroyed && !s.IsDormant &&
                 rules.TryPlace(s, out var place) && !(place.FacilityTypeId is int type && Policy.RouteObstacleFacilityIds.Contains(type)));
             if (building is null) continue;
-            if (World.Units.Any(u => Direct(u) && Active(u) && KnownOrder(u)?.SettlementId == building.Id &&
-                KnownOrder(u)?.Kind is MilitaryOrderKind.Construct or MilitaryOrderKind.Transport)) return null;
+            if (World.Units.Any(u => Direct(u) && Active(u) && ProjectedOrder(u)?.SettlementId == building.Id &&
+                ProjectedOrder(u)?.Kind is MilitaryOrderKind.Construct or MilitaryOrderKind.Transport)) return null;
             if (Target(building)) return building;
         }
         return target;
@@ -158,7 +158,7 @@ internal sealed partial class OriginalAiMilitary
             World.Settlements.Any(s => s.Id == regions[^1] && !s.IsDestroyed)) return null;
         var next = World.Settlements.FirstOrDefault(s => s.Id == regions[1] && !s.IsDestroyed && !s.IsDormant);
         if (next is null || next.Soldiers <= source.Soldiers / 2 ||
-            World.Units.Any(u => Direct(u) && Active(u) && KnownOrder(u)?.SettlementId == next.Id) ||
+            World.Units.Any(u => Direct(u) && Active(u) && ProjectedOrder(u)?.SettlementId == next.Id) ||
             World.Units.Any(u => Active(u) && rules.RegionAt(u.Position) == regions[^1]) ||
             regions.Skip(1).Any(id => World.Settlements.Any(s => s.Id == id && s.OwnerId == Owner && !s.IsDestroyed))) return null;
         return random.Percent(25 * regions.Length) ? regions[^1] : null;
@@ -191,7 +191,8 @@ internal sealed partial class OriginalAiMilitary
             !World.Settlements.Any(s => s.Id == p.Id && !s.IsDestroyed)).ToArray();
         foreach (var region in regions)
         {
-            var sites = rules.ConstructionSites.Values.Where(s => s.RegionId == region.Id)
+            // The lookup uses tuple hashes; only authored order can break equal site scores.
+            var sites = content.Military!.ConstructionSites.Where(s => s.RegionId == region.Id)
                 .Select(s => (Site: s, Route: RouteFrom(source, fixedPair.LandFormationId, fixedPair.NavalFormationId,
                     new(MilitaryOrderKind.Move, s.Position, null))))
                 .Where(p => p.Route is not null).OrderBy(p => p.Route!.CellCount + MapCoordinates.Distance(region.Position, p.Site.Position) / MapCoordinates.UnitsPerCell).ToArray();

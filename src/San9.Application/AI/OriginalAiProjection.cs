@@ -14,9 +14,28 @@ internal sealed class OriginalAiGeography
     private readonly Dictionary<int, int[]> _neighbors;
     private readonly Dictionary<int, int[]> _cityNeighbors;
     private readonly Dictionary<int, HashSet<int>> _priority = [];
+    private IReadOnlyList<SettlementState> _source;
+
+    internal bool Matches(WorldSnapshot world)
+    {
+        if (ReferenceEquals(_source, world.Settlements)) return true;
+        if (_source.Count != world.Settlements.Count) return false;
+        for (int i = 0; i < _source.Count; i++)
+        {
+            var before = _source[i];
+            var after = world.Settlements[i];
+            if (before.Id != after.Id || before.OwnerId != after.OwnerId || before.Kind != after.Kind ||
+                before.IsDormant != after.IsDormant || before.IsDestroyed != after.IsDestroyed || before.Facility != after.Facility)
+                return false;
+        }
+        // Resource, durability and action-flag changes do not change ownership or topology.
+        _source = world.Settlements;
+        return true;
+    }
 
     internal OriginalAiGeography(ScenarioInitialState content, MilitaryRulebook? military, WorldSnapshot world)
     {
+        _source = world.Settlements;
         var places = new List<Place>();
         var settlements = world.Settlements.ToDictionary(s => s.Id);
         foreach (var s in world.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed))

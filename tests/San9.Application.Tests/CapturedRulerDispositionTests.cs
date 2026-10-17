@@ -338,8 +338,8 @@ public sealed class CapturedRulerDispositionTests
         engine.AdvanceXun();
         var response = Assert.IsType<ResponseRequest>(engine.GetPendingResponse());
         Assert.Equal("ai:2", response.Owner.ControllerId);
-        var command = AutomaticResponseRunner.Choose(engine, response, evaluationBudget: 0);
-        Assert.Equal(CapturedRulerAction.Release, Assert.IsType<ChooseCapturedRulerDispositionCommand>(command).Action);
+        var command = AutomaticResponseRunner.Choose(engine, response);
+        Assert.Contains(Assert.IsType<ChooseCapturedRulerDispositionCommand>(command).Action, engine.GetCapturedRulerPrompt()!.LegalActions);
         var before = engine.Snapshot;
         Assert.Equal(CommandRejection.NotActiveController, engine.Execute(new("player"), command).Submission.Rejection);
         Assert.Equal(CommandRejection.InvalidDecision, engine.Execute(new("ai:2"),
@@ -349,6 +349,7 @@ public sealed class CapturedRulerDispositionTests
         Assert.Equal("response-unsupported", failure.Failure.Code);
         StateAssert.Equal(before, engine.Snapshot);
         Assert.True(engine.Execute(new("ai:2"), command).Submission.Accepted);
+        AutomaticResponseRunner.Run(engine, []);
         Assert.Null(engine.GetPendingResponse());
     }
 

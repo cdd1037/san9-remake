@@ -6,6 +6,7 @@ using San9.Core.Simulation;
 namespace San9.Application.Presentation;
 
 public enum DecisionInputKind { Immediate, Person, Country, Investment, Money, Prisoner, Treasure }
+public sealed record DecisionPerson(int Id, string NameKey, OfficerAbilities Abilities);
 public sealed record DecisionOption(string Role, string Title, DecisionInputKind Input,
     int[] Candidates, uint Minimum, uint Maximum, Func<Guid, long, int?, uint, GameCommand> CreateCommand);
 public sealed record DiplomaticDecisionData(Guid TaskId, int RequesterForceId, int TargetForceId, int? TargetSettlementId, int? PrisonerId,
@@ -24,6 +25,7 @@ public sealed class DecisionDraft
     public ProducedMessage Prompt { get; }
     public IReadOnlyList<ProducedMessage> AcceptanceConfirmations { get; }
     public int? PersonId { get; }
+    public DecisionPerson? SubjectPerson { get; }
     public DiplomaticDecisionData? Diplomacy { get; }
     private readonly Dictionary<string, MessageBinding> _values;
     private readonly TextCatalog _texts;
@@ -39,6 +41,7 @@ public sealed class DecisionDraft
         Definition = presentation.Decisions.Events[role]; Options = options;
         foreach (var (name, id) in presentation.Decisions.People) values[name] = Person(id);
         PersonId = person;
+        SubjectPerson = person is int personId ? Before.DecisionPerson(personId) : null;
         Diplomacy = diplomacy;
         Prompt = Produce(Definition.Prompt).Message;
         var introduction = Definition.Introduction.ToList();

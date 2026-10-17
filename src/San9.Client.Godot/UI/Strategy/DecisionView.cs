@@ -77,9 +77,9 @@ public partial class DecisionView : FixedPage
         }
         if (Draft.Definition.Window is DecisionWindowKind.CountrySelection or DecisionWindowKind.PersonSelection)
         { Choose(Draft.Options.First(o => o.Input is DecisionInputKind.Person or DecisionInputKind.Country)); return; }
-        if (Draft.Definition.Window == DecisionWindowKind.PersonDisposition && Draft.PersonId is int person)
+        if (Draft.Definition.Window == DecisionWindowKind.PersonDisposition && Draft.SubjectPerson is { } officer)
         {
-            var officer = Draft.Before.Officers.Single(o => o.Id == person);
+            int person = officer.Id;
             var hint = new GameMessageBar { Textures = Textures, Text = Draft.Prompt.BbCode };
             var window = new CommandWindow { Texts = Texts,
                 Textures = Textures,

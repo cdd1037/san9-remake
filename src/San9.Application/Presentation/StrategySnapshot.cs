@@ -104,6 +104,12 @@ internal sealed class StrategySnapshotSource
 public sealed class StrategySnapshot
 {
     private readonly StrategySnapshotSource _source;
+    // Pending encounters can introduce people before they enter the visible officer catalog.
+    internal DecisionPerson DecisionPerson(int id)
+    {
+        var person = World.Officers.Single(p => p.Id == id);
+        return new(id, _source.Officer(id).NameKey, _source.Abilities.Evaluate(person, World.Treasures));
+    }
     /// <summary>Dialogue speakers include NPCs that are intentionally absent from the officer browser.</summary>
     public (string NameKey, int? OwnerId) MessageSpeaker(int id) =>
         (_source.Officer(id).NameKey, World.Officers.Single(p => p.Id == id).OwnerId);

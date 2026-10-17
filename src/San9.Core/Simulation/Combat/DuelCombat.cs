@@ -7,6 +7,7 @@ namespace San9.Core.Simulation;
 public sealed record ChooseDuelSuccessorCommand(Guid CommandId, int IssuerId, long Sequence, int RulerId, [property: JsonRequired] int? SuccessorId)
     : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record DuelSuccessionPrompt(int RulerId, int RespondingForceId, ImmutableArray<int> CandidateIds);
+// UsedUnits and UsedBuildings contain initiators, never actors that have only retaliated.
 public sealed record CombatDayContinuation(ImmutableArray<int> RemainingUnits, ImmutableArray<int> UsedUnits,
     ImmutableArray<int> UsedBuildings)
 {

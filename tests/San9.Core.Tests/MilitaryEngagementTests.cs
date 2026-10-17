@@ -87,18 +87,20 @@ public sealed class MilitaryEngagementTests
     }
 
     [Theory]
-    [InlineData(35, UnitCondition.Normal, true)]
-    [InlineData(30, UnitCondition.Normal, false)]
-    [InlineData(34, UnitCondition.Normal, false)]
-    [InlineData(35, UnitCondition.Confused, false)]
-    public void PublicSettlementProjectionUsesPassiveReachWithoutChangingTheSnapshot(int x, UnitCondition condition, bool engaged)
+    [InlineData(35, UnitCondition.Normal, true, 0)]
+    [InlineData(30, UnitCondition.Normal, false, 0)]
+    [InlineData(34, UnitCondition.Normal, false, 0)]
+    [InlineData(35, UnitCondition.Confused, false, 0)]
+    [InlineData(35, UnitCondition.Normal, false, 1)]
+    public void PublicSettlementProjectionUsesPassiveReachWithoutChangingTheSnapshot(int x, UnitCondition condition, bool engaged, int delay)
     {
         var (world, military) = Create();
         var snapshot = new SimulationEngine(world, EconomyRulebook.Empty, PersonnelRulebook.Empty,
             TreasureRulebook.Empty, military: military).CaptureStableState();
         Assert.Empty(MilitaryEngagementQuery.Capture(snapshot, military).Settlements);
         snapshot = snapshot with { Units = snapshot.Units.Select(u => u.Id != 1 ? u : u with
-            { Position = new(x, 7), Condition = condition, Order = new(MilitaryOrderKind.AttackSettlement, null, 2) }).ToArray() };
+            { Position = new(x, 7), Condition = condition, DepartureDaysRemaining = delay,
+                Order = new(MilitaryOrderKind.AttackSettlement, null, 2) }).ToArray() };
         var hash = snapshot;
         Assert.Equal(engaged, MilitaryEngagementQuery.Capture(snapshot, military).Settlements.Contains(2));
         StateAssert.Equal(hash, snapshot);
@@ -171,6 +173,51 @@ public sealed class MilitaryEngagementTests
         Assert.Equal(2, MilitaryEngagements.FacilityTarget(m, m.Settlements[2], military)!.Id);
         m.Replace(m.Settlements[2] with { IsDestroyed = true });
         Assert.Null(MilitaryEngagements.FacilityTarget(m, m.Settlements[2], military));
+    }
+
+    [Fact]
+    public void DepartureCountdownChangesAttackRelationsOnlyWhenWaitingEnds()
+    {
+        var (world, military) = Create();
+        var m = world.BeginMutation();
+        m.RemoveUnit(2);
+        m.RemoveUnit(3);
+        m.Replace(m.Settlements[2] with { ConfusionDaysRemaining = 1 });
+        m.Replace(m.Units[1] with { Position = new(35, 7), Order = new(MilitaryOrderKind.AttackSettlement, null, 2) });
+        Assert.Equal(new BattleSource(2, true), m.Engagements(military).Target(new(1, false)));
+        m.Replace(m.Units[1] with { DepartureDaysRemaining = 2 });
+        var waiting = m.Engagements(military);
+        Assert.Null(waiting.Target(new(1, false)));
+        Assert.False(waiting.Engaged(new(2, true)));
+        Assert.Equal(0, waiting.IncomingCount(new(2, true)));
+        List<DomainEvent> events = [];
+        MilitaryCombat.AdvanceDay(m, new() { Military = military }, events);
+        Assert.Empty(events.OfType<BattleDamageEvent>());
+        MilitaryMovement.TickDepartureDelays(m);
+        Assert.Same(waiting, m.Engagements(military));
+        MilitaryMovement.TickDepartureDelays(m);
+        Assert.NotSame(waiting, m.Engagements(military));
+        Assert.Equal(new BattleSource(2, true), m.Engagements(military).Target(new(1, false)));
+        Assert.True(m.Engagements(military).Engaged(new(2, true)));
+        MilitaryCombat.AdvanceDay(m, new() { Military = military }, events);
+        Assert.Contains(events.OfType<BattleDamageEvent>(), e => !e.AttackerIsSettlement && e.AttackerId == 1 && e.SettlementId == 2 && e.SoldierLoss > 0);
+    }
+
+    [Fact]
+    public void WaitingUnitCanStillBeAttackedAndRetaliate()
+    {
+        var (world, military) = Create();
+        var m = world.BeginMutation();
+        m.Replace(m.Units[1] with { Order = new(MilitaryOrderKind.AttackSettlement, null, 2) });
+        m.Replace(m.Units[1] with { DepartureDaysRemaining = 2 });
+        Assert.Null(m.Engagements(military).Target(new(1, false)));
+        Assert.True(m.Engagements(military).Engaged(new(1, false)));
+        List<DomainEvent> events = [];
+        MilitaryCombat.AdvanceDay(m, new() { Military = military }, events);
+        Assert.Contains(events.OfType<BattleDamageEvent>(), e => e.TargetUnitId == 1 && e.SoldierLoss > 0);
+        Assert.Contains(events.OfType<BattleDamageEvent>(), e => !e.AttackerIsSettlement && e.AttackerId == 1 && e.TargetUnitId == 2 && e.SoldierLoss > 0);
+        Assert.Equal(2, m.Units[1].DepartureDaysRemaining);
+        Assert.Equal(2, m.Units[1].Order!.SettlementId);
     }
 
     [Fact]

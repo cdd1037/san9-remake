@@ -44,10 +44,9 @@ internal static class FacilityCombat
             uint outgoing = MilitaryCombat.NormalDamage(world, source, new(target.Id, false), military);
             uint incoming = 0;
             int walls = 0;
-            if (!unitsUsed.Contains(target.Id) && target.Condition is not (UnitCondition.Confused or UnitCondition.Routed) && formation.Attack is { } retaliation &&
+            if (target.Condition is not (UnitCondition.Confused or UnitCondition.Routed) && formation.Attack is { } retaliation &&
                 MilitaryCombat.Area(target, military).IntersectsExpanded(area, MilitaryCombat.UnitRange(world, target, new(MilitaryOrderKind.AttackSettlement, null, id), military)))
             {
-                unitsUsed.Add(target.Id);
                 incoming = MilitaryCombat.NormalDamage(world, new(target.Id, false), source, military);
                 walls = MilitaryCombat.WallDamage(world, target, settlement, military);
             }
@@ -74,7 +73,8 @@ internal static class FacilityCombat
         }
     }
 
-    internal static void TryTactic(WorldMutation world, int settlementId, MilitaryOrder? target, SimulationRules rules, List<DomainEvent> events)
+    internal static void TryTactic(WorldMutation world, int settlementId, MilitaryOrder? target, SimulationRules rules,
+        List<DomainEvent> events, bool counter = false)
     {
         var military = rules.Military!;
         var settlement = world.Settlements[settlementId];
@@ -88,7 +88,7 @@ internal static class FacilityCombat
             var targets = TacticSupport.Targets(world, source, selected, military);
             if (targets.Length == 0) return;
             var supportActor = TacticActor(world, settlementId);
-            if (supportActor is null || !TacticCombat.Roll(world, "military-facility-tactic-opportunity", profile.OpportunityChance)) return;
+            if (supportActor is null || !PassesOpportunity(world, profile, counter)) return;
             TacticSupport.Resolve(world, source, supportActor, selected, targets,
                 IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackSettlement, null, settlementId)), military, events);
             return;
@@ -100,7 +100,7 @@ internal static class FacilityCombat
         var tactic = selected.Effect == TacticEffect.TrapSelection ? military.TrapAt(unit.Position) : selected;
         if (tactic is null) return;
         var actor = TacticActor(world, settlementId);
-        if (actor is null || !TacticCombat.Roll(world, "military-facility-tactic-opportunity", profile.OpportunityChance)) return;
+        if (actor is null || !PassesOpportunity(world, profile, counter)) return;
         int proficiency = actor.TacticProficiencies[tactic.Category!.Value];
         int effect;
         bool doubled = false;
@@ -143,6 +143,11 @@ internal static class FacilityCombat
         }
         if (captured is int capturedId) BattleAftermath.ResolveSettlementDefeat(world, capturedId, source, rules, events);
     }
+
+    // Garrison defensive opportunities use the common 50% entrance before their authored base chance.
+    private static bool PassesOpportunity(WorldMutation world, FacilityTactics profile, bool counter) =>
+        (!counter || TacticCombat.Roll(world, "military-tactic-counter", 50)) &&
+        TacticCombat.Roll(world, "military-facility-tactic-opportunity", profile.OpportunityChance);
 
     private static OfficerState? TacticActor(WorldMutation world, int settlementId)
     {

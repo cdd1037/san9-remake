@@ -400,7 +400,7 @@ public sealed class MilitaryCombatTests
     }
 
     [Fact]
-    public void CounterattackConsumesDailyOpportunityAndUsesPreBattleStrength()
+    public void CounterattackPreservesOwnAttackAndUsesPreBattleStrength()
     {
         var world = World();
         var mutation = world.BeginMutation();
@@ -408,12 +408,51 @@ public sealed class MilitaryCombatTests
         mutation.AddUnit(new(1, 2, new(21, 7), 10000) { FormationId = 7, Morale = 90,
             Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 0 } });
         mutation.SetSimulation(mutation.Simulation with { NextUnitId = 2 });
-        world.Commit(mutation);
-        var engine = Engine(world);
-        var events = engine.AdvanceXun().Events.OfType<BattleDamageEvent>().ToArray();
-        Assert.NotEmpty(events);
-        Assert.All(events.GroupBy(e => (e.Clock, e.TargetUnitId)), day => Assert.Single(day));
-        Assert.All(events, e => Assert.Equal(e.SoldierLoss, e.AddedWounded + e.Dead));
+        var military = Rules();
+        uint outgoing = MilitaryCombat.NormalDamage(mutation, new(0, false), new(1, false), military);
+        uint incoming = MilitaryCombat.NormalDamage(mutation, new(1, false), new(0, false), military);
+        var events = new List<DomainEvent>();
+        MilitaryCombat.AdvanceDay(mutation, new() { Military = military }, events);
+        var damage = events.OfType<BattleDamageEvent>().ToArray();
+        Assert.Equal(outgoing, damage[0].SoldierLoss);
+        Assert.Equal(incoming, damage[1].SoldierLoss);
+        Assert.All(damage.GroupBy(e => e.TargetUnitId), target => Assert.Equal(2, target.Count()));
+        Assert.Equal(4, damage.Length);
+        Assert.All(damage, e => Assert.Equal(e.SoldierLoss, e.AddedWounded + e.Dead));
+    }
+
+    [Theory]
+    [InlineData(0, UnitCondition.Normal)]
+    [InlineData(2, UnitCondition.Normal)]
+    [InlineData(0, UnitCondition.Confused)]
+    [InlineData(2, UnitCondition.Routed)]
+    public void SiegeAndMultipleFieldCounterattacksUseIndependentOpportunities(int siegeId, UnitCondition condition)
+    {
+        var baseline = World(defenders: 10000).CreateSnapshot();
+        var world = WorldState.Create(baseline.Clock, 42, baseline.Forces, baseline.Settlements,
+            baseline.Officers.Select(p => p.UnitId == 0 ? p with { UnitId = siegeId } : p),
+            baseline.Units.Select(u => u with { Id = siegeId, Position = new(36, 7), Condition = condition }),
+            corps: baseline.Corps);
+        var mutation = world.BeginMutation();
+        foreach (int id in new[] { 1, 3 })
+            mutation.AddUnit(new(id, 2, id == 1 ? new(35, 7) : new(36, 6), 10000) { FormationId = 7, Morale = 90,
+                Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = siegeId } });
+        var events = new List<DomainEvent>();
+        MilitaryCombat.AdvanceDay(mutation, new() { Military = Rules() }, events);
+        var outgoing = events.OfType<BattleDamageEvent>()
+            .Where(e => !e.AttackerIsSettlement && e.AttackerId == siegeId && e.SoldierLoss > 0).ToArray();
+        if (condition != UnitCondition.Normal)
+        {
+            Assert.Empty(outgoing);
+            Assert.Contains(events.OfType<BattleDamageEvent>(), e => e.TargetUnitId == siegeId && e.SoldierLoss > 0);
+            return;
+        }
+        Assert.All(new[] { 1, 3 }, id => Assert.Single(outgoing, e => e.TargetUnitId == id));
+        // One assault plus the reply to the city's own daily attack.
+        Assert.Equal(2, outgoing.Count(e => e.SettlementId == 2));
+        Assert.Equal(4, outgoing.Length);
+        Assert.Equal(2, mutation.Units[siegeId].Order!.SettlementId);
+        Assert.Null(mutation.Units[siegeId].EngagementTargetId);
     }
 
     [Theory]
@@ -633,7 +672,7 @@ public sealed class MilitaryCombatTests
     }
 
     [Fact]
-    public void RivalClaimantDoesNotAttackNewOwnerInTheSameDailyBatch()
+    public void RivalClaimantClearsOldAttackButCanReplyToNewOwnersAttack()
     {
         var baseline = World().CreateSnapshot();
         var world = WorldState.Create(baseline.Clock, 42, baseline.Forces.Append(new ForceState(3, 100) { LeaderId = 33 }),
@@ -647,7 +686,13 @@ public sealed class MilitaryCombatTests
         Assert.Single(result.Events.OfType<SettlementCapturedEvent>());
         Assert.Equal(1, engine.Snapshot.Settlements.Single(s => s.Id == 2).OwnerId);
         var captureDay = Assert.Single(result.Events.OfType<SettlementCapturedEvent>()).Clock;
-        Assert.DoesNotContain(result.Events.OfType<BattleDamageEvent>(), e => e.Clock == captureDay && e.AttackerId == 1 && !e.AttackerIsSettlement);
+        var damage = result.Events.OfType<BattleDamageEvent>().Where(e => e.Clock == captureDay).ToArray();
+        var reply = Assert.Single(damage, e => e.AttackerId == 1 && !e.AttackerIsSettlement);
+        Assert.Equal(2, reply.SettlementId);
+        var attack = damage[Array.IndexOf(damage, reply) - 1];
+        Assert.True(attack.AttackerIsSettlement);
+        Assert.Equal(2, attack.AttackerId);
+        Assert.Equal(1, attack.TargetUnitId);
         Assert.Null(engine.Snapshot.Units.Single(u => u.Id == 1).Order);
     }
 }

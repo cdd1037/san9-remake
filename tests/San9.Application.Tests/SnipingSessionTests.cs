@@ -63,12 +63,13 @@ public sealed class SnipingSessionTests
     }
 
     [Theory]
-    [InlineData("field", false)]
-    [InlineData("field", true)]
-    [InlineData("assault", false)]
-    [InlineData("facility", false)]
-    [InlineData("facility-counter", false)]
-    public void SnipingWaitsAndResumesWithoutRepeatingDamageAndReplays(string path, bool automatic)
+    [InlineData("field", false, 49)]
+    [InlineData("field", true, 49)]
+    [InlineData("assault", false, 49)]
+    [InlineData("facility", false, 49)]
+    [InlineData("facility-counter", false, 49)]
+    [InlineData("facility-counter", false, 50)]
+    public void SnipingWaitsAndResumesWithoutRepeatingDamageAndReplays(string path, bool automatic, int counterRoll)
     {
         const ulong seed = 366UL;
         Assert.Equal(0UL, new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-death")).NextUInt64() % 100);
@@ -76,6 +77,13 @@ public sealed class SnipingSessionTests
         Assert.Equal(1UL, new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-target")).NextUInt64() % 2);
         var scenario = Scenario(path);
         var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true);
+        if (path == "facility-counter")
+        {
+            var initial = session.Capture();
+            session = GameSession.Restore(scenario, initial with { World = initial.World with
+            { Simulation = initial.World.Simulation with { RandomStreams =
+                [new("military-tactic-counter", TestSeeds.StateForRoll(counterRoll))] } } });
+        }
         Assert.True(session.Snapshot.Simulation.BattleDeathsEnabled);
         Assert.Equal(70, session.Snapshot.Officers.Single(p => p.Id == 22).BaseAbilities.War);
 
@@ -103,6 +111,7 @@ public sealed class SnipingSessionTests
             new ChooseSnipingSuccessorCommand(Guid.NewGuid(), 2, sequence, 22, 11)).Submission.Rejection);
         StateAssert.Equal(hash, session.Snapshot);
         var pending = session.Snapshot.Simulation.PendingSniping!;
+        if (path == "facility-counter") Assert.Equal(counterRoll >= 50, pending.Exchange!.Source.IsSettlement);
         var snapshot = new SessionSnapshot(session.Snapshot, [], [], session.NextOperationSequence);
         foreach (var invalid in new[] {
             pending with { RulerId = 21 }, pending with { Exchange = null }, pending with { Tactic = null },
@@ -122,8 +131,10 @@ public sealed class SnipingSessionTests
         Assert.Single(all.OfType<TacticSnipingResolvedEvent>(), e => e.OfficerId == 22);
         Assert.Single(all.OfType<OfficerDiedEvent>(), e => e.OfficerId == 22 && e.Cause == OfficerDeathCause.Sniping);
         Assert.Equal(10, all.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.DailyMapUpdate));
-        Assert.DoesNotContain(result.Events.OfType<BattleDamageEvent>(), e => e.Clock.Day == 2 && e.AttackerId == 1 &&
-            e.TargetUnitId == pending.Tactic!.Target.UnitId && e.SettlementId == pending.Tactic.Target.SettlementId);
+        // A later independently initiated exchange can cause one reply on this same day.
+        Assert.Equal(path == "assault" || path == "facility-counter" && counterRoll < 50 ? 1 : 0,
+            result.Events.OfType<BattleDamageEvent>().Count(e => e.Clock.Day == 2 && e.AttackerId == 1 &&
+                e.TargetUnitId == pending.Tactic!.Target.UnitId && e.SettlementId == pending.Tactic.Target.SettlementId));
         Assert.DoesNotContain("pendingSniping", System.Text.Encoding.UTF8.GetString(SaveService.Encode(session)));
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), scenario).Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));

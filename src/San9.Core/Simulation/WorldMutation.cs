@@ -324,6 +324,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         if (previous.OwnerId != value.OwnerId || previous.Position != value.Position || (previous.FormationId != value.FormationId || previous.NavalFormationId != value.NavalFormationId) ||
             previous.IsEmbedded != value.IsEmbedded || previous.IsPersonnel != value.IsPersonnel ||
             previous.Order != value.Order || previous.EngagementTargetId != value.EngagementTargetId || previous.Condition != value.Condition ||
+            (previous.DepartureDaysRemaining == 0) != (value.DepartureDaysRemaining == 0) ||
             (previous.Soldiers > 0) != (value.Soldiers > 0) || (previous.Morale > 0) != (value.Morale > 0)) _engagements = null;
         Units = Replace(Units, value.Id, value);
         _movementOccupancy?.Set(value);

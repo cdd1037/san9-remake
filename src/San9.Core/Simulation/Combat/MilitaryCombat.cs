@@ -14,6 +14,10 @@ public sealed record BattleDamageEvent(GameClock Clock, int AttackerId, int? Tar
 
 internal static class MilitaryCombat
 {
+    internal static bool CanInitiate(UnitState unit) => !unit.IsEmbedded && !unit.IsPersonnel &&
+        unit.FormationId is not null && unit.Soldiers > 0 && unit.Morale > 0 && unit.DepartureDaysRemaining == 0 &&
+        unit.Condition is not (UnitCondition.Confused or UnitCondition.Routed);
+
     internal static uint NormalDamage(WorldMutation world, BattleSource source, BattleSource target, MilitaryRulebook military)
     {
         CombatStrength StrengthOf(BattleSource actor, BattleSource opponent) =>
@@ -95,6 +99,7 @@ internal static class MilitaryCombat
         GameClock? xunStarted = null, CombatDayContinuation? continuation = null)
     {
         if (rules.Military is not { } military) return;
+        // These sets track initiated attacks only; replying never consumes the day's own attack.
         var used = (continuation?.UsedUnits ?? []).ToHashSet();
         var buildingsUsed = (continuation?.UsedBuildings ?? []).ToHashSet();
         var units = continuation?.RemainingUnits ?? world.Units.Keys.Order().ToImmutableArray();
@@ -103,7 +108,7 @@ internal static class MilitaryCombat
             int id = units[index];
             world.MaintainLeadership(events);
             if (world.Simulation.TerminalReason is not null) break;
-            if (!world.Units.TryGetValue(id, out var attacker) || attacker.DepartureDaysRemaining > 0 || attacker.EffectiveOrder is not { IsAttack: true } order || attacker.Condition is UnitCondition.Confused or UnitCondition.Routed) continue;
+            if (!world.Units.TryGetValue(id, out var attacker) || !CanInitiate(attacker) || attacker.EffectiveOrder is not { IsAttack: true } order) continue;
             var formation = military.Formation(attacker);
             if (!ValidTarget(world, attacker.OwnerId, order, formation, military))
             {
@@ -132,10 +137,9 @@ internal static class MilitaryCombat
                 var defense = military.Formation(defender);
                 uint outgoing = NormalDamage(world, new(id, false), new(targetId, false), military);
                 uint incoming = 0;
-                if (!used.Contains(targetId) && defender.Condition is not (UnitCondition.Confused or UnitCondition.Routed) && defense.Attack is not null &&
+                if (defender.Condition is not (UnitCondition.Confused or UnitCondition.Routed) && defense.Attack is not null &&
                     targetArea.IntersectsExpanded(Area(attacker, military), UnitRange(world, defender, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id }, military)))
                 {
-                    used.Add(targetId);
                     incoming = NormalDamage(world, new(targetId, false), new(id, false), military);
                 }
                 DamageUnit(world, defender, outgoing, military.CombatFormation(defender)!, id, events);
@@ -163,9 +167,8 @@ internal static class MilitaryCombat
                 uint incoming = 0;
                 bool retaliated = false;
                 if (settlement.OwnerId is not null && settlement.Morale > 0 && settlement.ConfusionDaysRemaining == 0 && capability.Attack is { } retaliation &&
-                    !buildingsUsed.Contains(settlement.Id) && targetArea.IntersectsExpanded(Area(attacker, military), FacilityRange(world, settlement, attacker, military)))
+                    targetArea.IntersectsExpanded(Area(attacker, military), FacilityRange(world, settlement, attacker, military)))
                 {
-                    buildingsUsed.Add(settlement.Id);
                     retaliated = true;
                     incoming = NormalDamage(world, new(settlement.Id, true), new(id, false), military);
                 }
@@ -185,7 +188,7 @@ internal static class MilitaryCombat
                 TacticCombat.TryUnit(world, id, order, rules, events);
                 if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, CaptureAssault(retaliated))) return;
                 if (retaliated) FacilityCombat.TryTactic(world, settlement.Id,
-                    new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id }, rules, events);
+                    new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id }, rules, events, counter: true);
                 if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, CaptureAssault(false))) return;
                 CityBattleEffects.CompleteAttack(world, id, settlement.Id, settlement.OwnerId, events);
             }
@@ -268,7 +271,7 @@ internal static class MilitaryCombat
                 TacticCombat.TryUnit(world, exchange.Target.Id, new(MilitaryOrderKind.AttackSettlement, null, exchange.Source.Id),
                     rules, events, counter: true);
             else FacilityCombat.TryTactic(world, exchange.Target.Id,
-                new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = exchange.Source.Id }, rules, events);
+                new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = exchange.Source.Id }, rules, events, counter: true);
             if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, exchange with { CounterPending = false })) return;
         }
         if (exchange.Target.IsSettlement)

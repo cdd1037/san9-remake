@@ -22,7 +22,7 @@ internal sealed partial class OriginalAiActions
             case OriginalAiWork.FalseReport:
             case OriginalAiWork.Confuse:
                 return World.Units.Where(u => !u.IsPersonnel && !u.IsEmbedded && u.FormationId is not null && u.OwnerId != Owner &&
-                        (state.Policy.Advanced || !u.CommandedThisXun) && u.Soldiers >= 5000 && u.Condition is not (UnitCondition.Disguised or UnitCondition.NoFormation or UnitCondition.Routed or UnitCondition.HighSpirits) &&
+                        u.HasEnteredDailyCycle && u.Soldiers >= 5000 && u.Condition is not (UnitCondition.Disguised or UnitCondition.NoFormation or UnitCondition.Routed or UnitCondition.HighSpirits) &&
                         Threatens(u, work == OriginalAiWork.FalseReport) &&
                         HasFriendlyUnitTarget(u.Id, work == OriginalAiWork.FalseReport) == (work == OriginalAiWork.Confuse))
                     .OrderBy(u => World.Officers.Where(p => p.UnitId == u.Id && p.IsServing).Select(p =>
@@ -30,12 +30,12 @@ internal sealed partial class OriginalAiActions
                     .Select(u => new Target(u.Id)).ToArray();
             case OriginalAiWork.Encourage:
                 return World.Units.Where(u => Direct(u) && !u.IsPersonnel && !u.IsEmbedded && u.FormationId is not null &&
-                        (state.Policy.Advanced || !u.CommandedThisXun) &&
+                        u.HasEnteredDailyCycle &&
                         u.Condition != UnitCondition.HighSpirits && u.Morale <= 80)
                     .OrderBy(u => u.Morale).Select(u => new Target(u.Id)).ToArray();
             case OriginalAiWork.Reinforce:
                 return military is null ? [] : World.Units.Where(u => Direct(u) && !u.IsPersonnel && !u.IsEmbedded && u.FormationId is not null &&
-                        (state.Policy.Advanced || !u.CommandedThisXun) &&
+                        u.HasEnteredDailyCycle &&
                         u.Morale >= 25 && u.Order?.Kind != MilitaryOrderKind.Transport && military.Capacity(u) >= (long)u.Soldiers + 3000)
                     .OrderBy(u => u.Soldiers).Select(u => new Target(u.Id)).ToArray();
             case OriginalAiWork.Alienate:
@@ -148,7 +148,8 @@ internal sealed partial class OriginalAiActions
         var source = World.Settlements.Single(s => s.Id == actor.SettlementId);
         int count = 0;
         foreach (var unit in World.Units.Where(u => !u.IsPersonnel && !u.IsEmbedded && u.FormationId is not null &&
-                     u.DepartureDaysRemaining == 0 && u.EffectiveOrder is { Kind: MilitaryOrderKind.AttackSettlement } o && o.SettlementId == source.Id))
+                     u.HasEnteredDailyCycle && u.Condition is not (UnitCondition.Routed or UnitCondition.Disguised or UnitCondition.NoFormation) &&
+                     u.EffectiveOrder is { Kind: MilitaryOrderKind.AttackSettlement } o && o.SettlementId == source.Id))
         {
             if (PlacePosition(source.Id) is not { } from) continue;
             var travel = military.Travel(unit);

@@ -197,6 +197,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         var rationAccounts = EconomicCycle.Apply(stage, world, rules.Economy, events);
         if (stage == ResolutionStage.BeforeDailyCommands)
         {
+            MilitaryMovement.BeginDailyCycle(world);
             MilitaryTactics.TickCooldowns(world);
             MilitaryConditions.Tick(world, events);
             MilitaryDailyCycle.Apply(world, rationAccounts, rules, events);

@@ -2,6 +2,8 @@
 
 本页维护内容转换、契约与校验入口，不累计界面实现说明。界面开发统一从[UI 文档](ui/README.md)进入；地图与运行态见[地图文档](map-import.md)和[运行时架构](runtime-state.md)。
 
+剧本135／组合185新增必填部队每日执行历史`HasEnteredDailyCycle`，TC101导入明确映射原运行位，独立内容可声明在途队伍历史。旧包须原位运行`import-client`，共享纹理无需重转。Core公共部署初始化false，首次每日军事执行置true，等待与旬内下令各自独立；规则v134，保存116／日志120／录像28明确拒绝旧格式，不从旧档位置或等待猜测历史。用户旧存档保留原文件；本轮使用新格式场景验证，详见[生命周期核对](../research/ai.md#military-lifecycle-closure)。
+
 组合包179新增交战开始／中继点到达的记录与`progress.mapSpeeches`，以及必填`mapAudio.recordNotificationSound`。红色事件闪光和白色命令光圈复用各自已有资源，无需重建纹理；旧组合包原位运行`import-client`。规则版本v91增加发生时通知事实，保存／日志结构版本保持103／107。
 
 组合包178提供兵法特写名称与操作文本，并沿用177的数字及状态效果声明：必填`ConditionEffects`映射状态到一次性图集／声音，必填可空`MapNumbers`声明地图正负数字图集及步进；特写必填可空`Numbers`提供小数字、滚动汇总图集、布局、帧间隔与滚动／停定音效，必填`FacilityNumberPositions`覆盖设施布局。沿用176的`Officers`／`FacilityOfficers`武将身体及旗布局，以及175的`WaveEmission`移动箭簇。资源复用共享纹理，不重建贴图；190年运行包已原位更新并完整校验，其他旧组合包运行`import-client`。当时录像14、保存101／日志105和规则v87不变。证据见[RE-0192](../research/findings/RE-SAN9PK-0192.md)。

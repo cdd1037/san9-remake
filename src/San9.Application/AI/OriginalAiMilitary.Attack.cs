@@ -7,13 +7,29 @@ namespace San9.Application.AI;
 
 internal sealed partial class OriginalAiMilitary
 {
-    private long Defense(SettlementState target) => target.Soldiers + World.Units.Where(u => Departed(u) &&
-        u.ServicePlaceId == target.Id && u.DepartureDaysRemaining == 0).Sum(u => (long)u.Soldiers);
+    private long Defense(SettlementState target) => target.Soldiers + World.Units.Where(u => FieldUnit(u) &&
+        !u.HasEnteredDailyCycle && u.ServicePlaceId == target.Id).Sum(u => (long)u.Soldiers);
     private long Demand(SettlementState target) => target.OwnerId is not null
         ? (long)target.Soldiers * (1000 - Math.Max(0, 200 - target.Durability)) / 1000
         : Related(target.Id).Where(s => s.OwnerId != Owner).Select(s => (long)s.Soldiers).DefaultIfEmpty(0).Sum() /
             Math.Max(1, Related(target.Id).Count(s => s.OwnerId != Owner)) * 40 / 100;
     private IEnumerable<SettlementState> Related(int place) => World.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed && Near(place, s.Id));
+
+    private SettlementState[] AttackSources(SettlementState target)
+    {
+        var places = Places.ToDictionary(s => s.Id);
+        int city = City(target.Id);
+        var neighbors = content.CityConnections.Where(c => c.FromCityId == city).Select(c => c.ToCityId).ToArray();
+        var candidates = Places.Where(s => City(s.Id) == city)
+            .Concat(neighbors.Select(id => places.GetValueOrDefault(id)).OfType<SettlementState>())
+            .Concat(Geography.Neighbors(target.Id).Where(p => neighbors.Contains(p.CityId))
+                .Select(p => places.GetValueOrDefault(p.Id)).OfType<SettlementState>())
+            .DistinctBy(s => s.Id);
+        return candidates.Where(s => s.Soldiers > 0 && s.Morale >= 90)
+            .Where(s => Commanders(People(s.Id)).FirstOrDefault() is { } commander && Basic([commander]) is { } pair &&
+                RouteFrom(s, pair.Land, pair.Naval, new(MilitaryOrderKind.AttackSettlement, null, target.Id), Policies()) is
+                    { HostileBuilding: false }).ToArray();
+    }
 
     private bool Strength(SettlementState target, SettlementState[] sources, OriginalAiGroup group)
     {
@@ -91,12 +107,16 @@ internal sealed partial class OriginalAiMilitary
                 var target = World.Settlements.FirstOrDefault(s => s.Id == originalTarget.Id && Target(s));
                 if (target is null) continue;
                 var sources = Places.Where(s => (request ? Near(s.Id, target.Id) : City(s.Id) == city) && s.Soldiers >= (request ? 10000 : 1) &&
-                    s.Morale >= (request ? 70 : 90) && People(s.Id).Length >= 2).OrderByDescending(s => s.Soldiers).ToArray();
+                    s.Morale >= (request ? 70 : 90) && People(s.Id).Length >= (request ? 2 : 1)).OrderByDescending(s => s.Soldiers).ToArray();
+                // City requests may reinforce an existing attack; other buildings reject an existing friendly assignment.
+                if (request && sources.Length > 0 && target.Kind != SettlementKind.City && World.Units.Any(u =>
+                    FieldUnit(u) && u.OwnerId == Owner && u.EffectiveOrder?.SettlementId == target.Id)) return;
                 ImmutableArray<int> routeRegions = [];
                 if (!request && sources.Length > 0)
                 {
                     target = AttackTargetAlongRoute(sources[0], target, out routeRegions);
                     if (target is null) continue;
+                    sources = AttackSources(target);
                 }
                 if (sources.Length == 0 || !request && !Strength(target, sources, group)) continue;
                 if (!request && AlternateConstructionRegion(sources[0], routeRegions) is int region)
@@ -132,6 +152,9 @@ internal sealed partial class OriginalAiMilitary
     private SettlementState? AttackTargetAlongRoute(SettlementState source, SettlementState target, out ImmutableArray<int> regions)
     {
         regions = [];
+        bool ConstructionConflict(int region) => World.Units.Any(u => Direct(u) && Active(u) && u.EffectiveOrder is
+            { Kind: MilitaryOrderKind.Construct, Construction: { } construction } && construction.RegionId == region);
+        if (ConstructionConflict(target.Id)) return null;
         var people = Commanders(People(source.Id));
         if (people.Length == 0 || Basic([people[0]]) is not { } pair || !rules.TryPlace(source, out var origin)) return null;
         var travel = rules.Travel(pair.Land, pair.Naval);
@@ -144,8 +167,7 @@ internal sealed partial class OriginalAiMilitary
             var building = BuildingAlongRoute(step, s => s.Id != source.Id && !s.IsDestroyed && !s.IsDormant &&
                 rules.TryPlace(s, out var place) && !(place.FacilityTypeId is int type && Policy.RouteObstacleFacilityIds.Contains(type)));
             if (building is null) continue;
-            if (World.Units.Any(u => Direct(u) && Active(u) && ProjectedOrder(u)?.SettlementId == building.Id &&
-                ProjectedOrder(u)?.Kind is MilitaryOrderKind.Construct or MilitaryOrderKind.Transport)) return null;
+            if (ConstructionConflict(building.Id)) return null;
             if (Target(building)) return building;
         }
         return target;

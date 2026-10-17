@@ -18,6 +18,7 @@ public static class UnitContentCompiler
                     MilitaryContentCompiler.Mode(formation) == TravelMode.Land ? formation switch { 13 => 24, 14 => 25, _ => MilitaryContentCompiler.BasicNavalFormationId } : null,
                 Policies = new(u.AttacksWhenEnemyApproaches, u.AllowsPursuit, u.AttacksAfterAction, u.AllowsAutonomousRetreat),
                 CommandedThisXun = false, // Imported scenarios start a new command phase; source runtime history is not restored.
+                HasEnteredDailyCycle = u.HasRuntimeFlagBit(3),
                 ConditionDaysRemaining = u.StatusDurationDays,
                 HighSpiritsMoralePenaltyPending = u.UnitStatus == San9ScenarioUnitStatus.HighSpirits && u.StatusDurationDays > 0,
                 Wounded = (uint)u.LoadedWoundedSoldierCount, Morale = u.Morale,

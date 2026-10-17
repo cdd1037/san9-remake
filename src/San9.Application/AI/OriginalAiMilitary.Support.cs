@@ -7,9 +7,23 @@ namespace San9.Application.AI;
 internal sealed partial class OriginalAiMilitary
 {
     private Route? UnitTo(UnitState unit, int home) => RouteTo(unit, new(MilitaryOrderKind.Return, null, home), unit.Id);
-    private UnitState[] Pressure(int home) => World.Units.Where(u => Departed(u) && ProjectedOrder(u) is
+    private UnitState[] Pressure(int home, bool includeNew = false) => World.Units.Where(u => Active(u) &&
+        (includeNew || u.HasEnteredDailyCycle) && ProjectedOrder(u) is
         { Kind: MilitaryOrderKind.AttackSettlement, SettlementId: int target } && target == home).ToArray();
     private long PressureNear(int home, int days) => Pressure(home).Where(u => UnitTo(u, home) is { } r && r.Days < days).Sum(u => (long)u.Soldiers);
+
+    private bool ClearRetreatPressureRoute(SettlementState home, UnitState unit)
+    {
+        var travel = rules.Travel(unit);
+        paths++;
+        var route = travel.Map.FindRouteIntoRange(rules.Place(home).Position,
+            new(unit.Position, rules.Formation(unit).Footprint), travel.Shape, travel.Mode, []);
+        if (!route.Reachable) return false;
+        return !route.Steps.Any(point => BuildingAlongRoute(point, building => !building.IsDestroyed && !building.IsDormant &&
+            rules.TryPlace(building, out var place) &&
+            (place.FacilityTypeId is int type && Policy.RouteObstacleFacilityIds.Contains(type) || building.Id != home.Id &&
+                building.OwnerId is int owner && OriginalAiStrategy.IsOpponent(World, unit.OwnerId, owner))) is not null);
+    }
 
     private bool BarbarianRecall(UnitState unit)
     {
@@ -29,7 +43,8 @@ internal sealed partial class OriginalAiMilitary
         foreach (var home in Places.Where(Fortified))
         {
             if (!More) break;
-            var available = World.Units.Where(u => Direct(u) && Active(u) && !u.CommandedThisXun && !processed.Contains(u.Id));
+            var available = World.Units.Where(u => Direct(u) && Departed(u) &&
+                u.Condition is UnitCondition.Normal or UnitCondition.Engaged && !processed.Contains(u.Id));
             if (Force.IsBarbarian)
             {
                 foreach (var unit in available.Where(BarbarianRecall).Where(u => UnitTo(u, home.Id) is not null).ToArray())
@@ -42,12 +57,14 @@ internal sealed partial class OriginalAiMilitary
             var p = Pressure(home.Id);
             var q = World.Units.Where(u => Departed(u) && u.Order is { Kind: MilitaryOrderKind.AttackSettlement, SettlementId: int target } && target == home.Id).ToArray();
             var pressure = p.Concat(q).Select(u => u.Id).ToHashSet();
-            bool ThirdCandidate(UnitState unit) => unit.EngagementTargetId is null && unit.ServicePlaceId == home.Id &&
-                unit.Order?.UnitId is int target && World.Units.Any(u => u.Id == target && !u.IsEmbedded);
+            MilitaryEngagementSnapshot? engagements = null;
+            bool ThirdCandidate(UnitState unit) => unit.ServicePlaceId == home.Id &&
+                unit.Order?.UnitId is int target && World.Units.Any(u => u.Id == target && !u.IsEmbedded) &&
+                !(engagements ??= MilitaryEngagementQuery.Capture(World, rules)).Units.Contains(unit.Id);
             // Route time only matters after at least one group's non-spatial predicates pass.
             var candidates = available.Where(u => pressure.Count > 0 && ProjectedOrder(u)?.SettlementId != home.Id || ThirdCandidate(u))
                 .Select(u => (Unit: u, Route: UnitTo(u, home.Id))).Where(c => c.Route is not null).ToArray();
-            long threshold = 6000 + Math.Min(20000, 4000L * p.Count(u => UnitTo(u, home.Id) is { Days: < 5 }));
+            long threshold = 6000 + Math.Min(20000, 4000L * p.Count(u => UnitTo(u, home.Id) is { Days: < 5 } && ClearRetreatPressureRoute(home, u)));
             long middleBudget = home.Soldiers + (pressure.Count == 0 ? 0 : World.Units.Where(u => Active(u) && u.OwnerId == Owner &&
                 ProjectedOrder(u) is { Kind: MilitaryOrderKind.Return, SettlementId: int target } && target == home.Id &&
                 UnitTo(u, home.Id) is { Days: < 10 }).Sum(u => u.Soldiers + (long)u.Wounded / 2));
@@ -89,8 +106,7 @@ internal sealed partial class OriginalAiMilitary
         while (More)
         {
             bool chosen = false;
-            var group0 = Places.Where(s => World.Units.Any(u => Departed(u) && Opponent(u.OwnerId) &&
-                ProjectedOrder(u)?.SettlementId == s.Id)).Select(s => s.Id).ToHashSet();
+            var group0 = Places.Where(s => Pressure(s.Id, content.OriginalAi.Advanced).Any(u => Opponent(u.OwnerId))).Select(s => s.Id).ToHashSet();
             for (int group = 0; group < 2 && !chosen; group++)
             {
                 foreach (var source in Places.Where(s => s.Soldiers >= 20000 && People(s.Id).Length >= 2 &&
@@ -99,11 +115,17 @@ internal sealed partial class OriginalAiMilitary
                     var people = Commanders(People(source.Id));
                     var basic = Basic([people[0]]);
                     if (basic is null) continue;
-                    var targets = World.Units.Where(u => Departed(u) && Opponent(u.OwnerId) &&
+                    var targets = World.Units.Where(u => DeploymentCandidate(u) && Opponent(u.OwnerId) &&
+                        (group == 0 ? ProjectedOrder(u) is { Kind: MilitaryOrderKind.AttackSettlement, SettlementId: int home } && home == source.Id
+                            : u.EffectiveOrder?.Kind == MilitaryOrderKind.Construct) &&
                         rules.RegionAt(u.Position) is int region && Near(source.Id, region) && !consumed.Contains((source.Id, u.Id)))
-                        .Select(u => (Unit: u, Route: RouteFrom(source, u.FormationId!.Value, u.NavalFormationId,
-                            new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = u.Id })))
-                        .Where(c => c.Route is not null && c.Route.Days + c.Unit.DepartureDaysRemaining < 20).ToArray();
+                        .Select(u => (Unit: u, Route: group == 0 ? UnitTo(u, source.Id) :
+                            RouteFrom(source, u.FormationId!.Value, u.NavalFormationId,
+                                new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = u.Id })))
+                        .Where(c => c.Route is not null && c.Route.Days + c.Unit.DepartureDaysRemaining < 20 &&
+                            (group != 0 || RouteFrom(source, c.Unit.FormationId!.Value, c.Unit.NavalFormationId,
+                                new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = c.Unit.Id }) is
+                                { Obstacle: false, HostileBuilding: false })).ToArray();
                     int Score(UnitState target) => Policy.Formations.FirstOrDefault(p => p.Value == target.FormationId).Key switch
                     {
                         San9.Content.Scenarios.OriginalAiFormationRole.Mobile => 80,
@@ -129,20 +151,21 @@ internal sealed partial class OriginalAiMilitary
                     consumed.Add((source.Id, candidate.Unit.Id)); chosen = true;
                     int count = Math.Min(5, people.Length / 2);
                     var members = new[] { people[0] }.Concat(people.Skip(1).OrderBy(p => PersonnelRulebook.AffinityDistance(p, people[0])).Take(count - 1)).ToArray();
-                    long related = World.Units.Count(u => Departed(u) && ProjectedOrder(u)?.SettlementId == source.Id && UnitTo(u, source.Id) is { Days: < 8 });
+                    long related = Pressure(source.Id).Count(u => UnitTo(u, source.Id) is { Days: < 8 });
                     uint soldiers = (uint)Math.Max(0, Math.Min(source.Soldiers - (8000 + Math.Min(20000, 4000 * related)), Math.Min(25000, Capacity(people[0]))));
                     int wait = group0.Count > 0 ? Math.Max(0, candidate.Route!.Days + candidate.Unit.DepartureDaysRemaining - 10) : candidate.Unit.DepartureDaysRemaining;
-                    Send(count < 2 || soldiers < 8000 ? null : Deployment(source, members, soldiers,
+                    Send(soldiers < 8000 ? null : Deployment(source, members, soldiers,
                         new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = candidate.Unit.Id }, null, candidate.Unit, true, delay: wait));
                     break;
                 }
             }
             if (chosen) continue;
             // Group 2 has a different source order and a single-person plan, with no random selection.
-            foreach (var target in Places.Where(s => Fortified(s) || rules.TryPlace(s, out var p) && p.FacilityTypeId is int type && rules.Facilities[type].IsHarbor &&
+            foreach (var target in World.Settlements.Where(s => s.OwnerId == Owner && !s.IsDormant && !s.IsDestroyed &&
+                s.Durability > 0 && s.CanHostPersons && s.Facility?.BuilderUnitId is null)
+                .Where(s => Fortified(s) || rules.TryPlace(s, out var p) && p.FacilityTypeId is int type && rules.Facilities[type].IsHarbor &&
                 Policy.HarborReliefTacticId is int tactic && Force.ProvidedTactics.Contains(tactic))
-                .Select(s => (Place: s, Pressure: PressureNear(s.Id, 20) - s.Soldiers - World.Units.Where(u => u.OwnerId == Owner &&
-                    ProjectedOrder(u)?.SettlementId == s.Id).Sum(u => (long)u.Soldiers)))
+                .Select(s => (Place: s, Pressure: PressureNear(s.Id, 20) - ReliefDefense(s)))
                 .Where(c => c.Pressure > 0).OrderByDescending(c => c.Pressure + (c.Place.Kind == SettlementKind.City ? 500000 : 0)))
             {
                 var candidates = Places.Where(s => s.Id != target.Place.Id && Near(s.Id, target.Place.Id) && s.Soldiers > 1000 &&
@@ -150,7 +173,7 @@ internal sealed partial class OriginalAiMilitary
                     .Select(s => (Place: s, Basic: Basic([People(s.Id)[0]], true))).Where(c => c.Basic is not null)
                     .Select(c => (c.Place, Route: RouteFrom(c.Place, c.Basic!.Value.Land, c.Basic.Value.Naval,
                         new(MilitaryOrderKind.Return, null, target.Place.Id))))
-                    .Where(c => c.Route is not null && !c.Route.Obstacle).OrderBy(c => c.Route!.CellCount).ToArray();
+                    .Where(c => c.Route is { Obstacle: false, HostileBuilding: false }).OrderBy(c => c.Route!.CellCount).ToArray();
                 foreach (var candidate in candidates)
                 {
                     long usable = candidate.Place.Soldiers - Math.Max(Fortified(candidate.Place) ? 10000 : 0, PressureNear(candidate.Place.Id, 20));
@@ -167,11 +190,19 @@ internal sealed partial class OriginalAiMilitary
         }
     }
 
+    private long ReliefDefense(SettlementState place) => place.Soldiers +
+        World.Units.Where(u => FieldUnit(u) &&
+            u.EffectiveOrder is not null && u.ServicePlaceId == place.Id).Sum(u => (long)u.Soldiers) +
+        World.Units.Where(u => FieldUnit(u) && u.OwnerId == Owner && u.EffectiveOrder is
+            { Kind: MilitaryOrderKind.Return, SettlementId: int target } && target == place.Id).Sum(u => (long)u.Soldiers);
+
     private long TransportBudget(SettlementState place)
     {
         long amount = place.Soldiers + (long)place.Wounded / 2 - BuildingReserve(place);
-        foreach (var u in World.Units.Where(u => u.OwnerId == Owner && Active(u)))
-            if (ProjectedOrder(u) is { Kind: MilitaryOrderKind.Transport, SettlementId: int destination })
+        foreach (var u in World.Units.Where(u => u.OwnerId == Owner && FieldUnit(u) && u.EffectiveOrder is not null))
+            if (u.EffectiveOrder is { Kind: MilitaryOrderKind.Construct, Construction: { } construction } &&
+                Policy.OrdinaryFacilityIds.Contains(construction.FacilityTypeId)) continue;
+            else if (u.EffectiveOrder is { Kind: MilitaryOrderKind.Transport, SettlementId: int destination })
             { if (destination == place.Id) amount += (long)u.Soldiers + u.Wounded; }
             else if (u.ServicePlaceId == place.Id) amount += ((long)u.Soldiers + u.Wounded) / 2;
         return amount;
@@ -199,13 +230,16 @@ internal sealed partial class OriginalAiMilitary
             {
                 uint soldiers = Math.Min(10000, source.Soldiers);
                 bool fallback = source.Kind != SettlementKind.City && soldiers == source.Soldiers;
+                var transit = fallback ? Basic([person], true) : rules.TransportFormations is { } transport
+                    ? (transport.LandFormationId, transport.NavalFormationId) : ((int Land, int? Naval)?)null;
+                if (transit is not { } pair || RouteFrom(source, pair.Land, pair.Naval,
+                    new(fallback ? MilitaryOrderKind.Return : MilitaryOrderKind.Transport, null, destination),
+                    fallback ? Policies(true) : new()) is not { Obstacle: false, HostileRegion: false }) continue;
                 GameCommand? command;
                 if (fallback) command = Deployment(source, [person], Math.Min(soldiers, Capacity(person)),
                     new(MilitaryOrderKind.Return, null, destination), World.Settlements.Single(s => s.Id == destination), null, false, true);
                 else
                 {
-                    if (rules.TransportFormations is not { } pair || RouteFrom(source, pair.LandFormationId, pair.NavalFormationId,
-                        new(MilitaryOrderKind.Transport, null, destination)) is not { Obstacle: false }) continue;
                     command = Command((id, owner, sequence) => new TransportUnitCommand(id, owner, sequence, home, [person.Id], soldiers, destination));
                 }
                 targets.Remove(destination);

@@ -29,7 +29,6 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
     private Dictionary<int, long>? assignedTroops;
     private MilitaryRouteQueryContext? navigation;
     private SettlementState[]? obstacles;
-    private HashSet<int>? obstacleRegions;
     private Dictionary<int, SettlementState>? regionBuildings;
     private OriginalAiGeography Geography { get { Refresh(); return geography ??= new(content, rules, World); } }
     private MilitaryRouteQueryContext Navigation { get { Refresh(); return navigation ??= new(World, rules); } }
@@ -56,7 +55,6 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
             if (geography is not null && !geography.Matches(world)) geography = null;
             regionBuildings = null;
             obstacles = null;
-            obstacleRegions = null;
         }
         if (corpsChanged) currentCorps = null;
         if (diplomacyChanged || corpsChanged) currentForce = null;
@@ -80,9 +78,11 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
     private bool More => attempts < limit && World.Simulation.Boundary == SimulationBoundary.Stable;
     private bool Direct(SettlementState s) => s.OwnerId == Owner && (s.CorpsId == corpsId || s.CorpsId is null && Corps.IsRoot);
     private bool Direct(UnitState u) => u.OwnerId == Owner && (u.CorpsId == corpsId || u.CorpsId is null && Corps.IsRoot);
-    private static bool Active(UnitState u) => !u.IsEmbedded && !u.IsPersonnel && u.FormationId is not null &&
+    private static bool FieldUnit(UnitState u) => !u.IsEmbedded && !u.IsPersonnel && u.FormationId is not null;
+    private static bool Active(UnitState u) => FieldUnit(u) &&
         u.Condition is not (UnitCondition.Routed or UnitCondition.Disguised or UnitCondition.NoFormation);
-    private bool Departed(UnitState u) => Active(u) && (content.OriginalAi.Advanced || !u.CommandedThisXun);
+    private static bool Departed(UnitState u) => Active(u) && u.HasEnteredDailyCycle;
+    private bool DeploymentCandidate(UnitState u) => Active(u) && (content.OriginalAi.Advanced || u.HasEnteredDailyCycle);
     private SettlementState[] Places
     {
         get
@@ -133,49 +133,7 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
         return (Math.Min(150000, amount) + 2499) / 2500 * 2500;
     }
     private long Reserve(SettlementState s) => Math.Max(Fortified(s) ? 10000L : 0,
-        World.Units.Where(u => Departed(u) && ProjectedOrder(u) is { Kind: MilitaryOrderKind.AttackSettlement, SettlementId: int target } && target == s.Id)
-            .Sum(u => (long)u.Soldiers) * 2 / 3);
-    // RE-0193: read effective orders independently of player display settings, then project
-    // intervening route obstacles without changing the unit's authoritative order.
-    private MilitaryOrder? ProjectedOrder(UnitState u)
-    {
-        if (u.OwnerId == Owner) return u.EffectiveOrder;
-        Refresh();
-        if (orders.TryGetValue(u.Id, out var cached)) return cached;
-        var order = u.EffectiveOrder;
-        if (order?.SettlementId is int targetId && World.Settlements.FirstOrDefault(s => s.Id == targetId && !s.IsDestroyed && !s.IsDormant) is { } target &&
-            u.FormationId is not null)
-        {
-            var travel = rules.Travel(u);
-            paths++;
-            var route = travel.Map.FindRouteIntoRange(u.Position, rules.SettlementArea(target), travel.Shape, travel.Mode, []);
-            if (route.Reachable)
-                foreach (var point in route.Steps)
-                {
-                    var obstacle = BuildingAlongRoute(point, s => s.Id != u.ServicePlaceId && !s.IsDestroyed && !s.IsDormant &&
-                        rules.TryPlace(s, out var p) &&
-                        (p.FacilityTypeId is int type && Policy.RouteObstacleFacilityIds.Contains(type) || s.Id != targetId &&
-                            s.OwnerId is int owner && OriginalAiStrategy.IsOpponent(World, u.OwnerId, owner)));
-                    if (obstacle is null) continue;
-                    order = new(MilitaryOrderKind.AttackSettlement, null, obstacle.Id);
-                    break;
-                }
-        }
-        orders[u.Id] = order;
-        return order;
-    }
-    private SettlementState? BuildingAlongRoute(WorldPosition point, Func<SettlementState, bool> eligible)
-    {
-        Refresh();
-        if (rules.RegionAt(point) is int region)
-        {
-            regionBuildings ??= World.Settlements.ToDictionary(s => s.Id);
-            return regionBuildings.TryGetValue(region, out var building) && eligible(building) ? building : null;
-        }
-        return World.Settlements.FirstOrDefault(s => eligible(s) && InRegion(point, s));
-    }
-    private bool InRegion(WorldPosition point, SettlementState place) => rules.RegionAt(point) is int region
-        ? region == place.Id : rules.SettlementArea(place).Overlaps(new(point, new(1, 1)));
+        Pressure(s.Id).Sum(u => (long)u.Soldiers) * 2 / 3);
     private GameCommand Command(Func<Guid, int, long, GameCommand> create)
     {
         long sequence = World.Simulation.NextSequence;
@@ -211,48 +169,6 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
                 PathExpanded = diagnostics.Expanded, PathEndpointExpanded = diagnostics.EndpointExpanded };
     }
 
-    private sealed record Route(int Days, int CellCount, bool Slow, bool Obstacle);
-    private Route? RouteTo(UnitState unit, MilitaryOrder order, int? moving = null)
-    {
-        Refresh();
-        var key = (unit, order, moving);
-        if (routes.TryGetValue(key, out var cached)) return cached;
-        var planned = unit with { Order = order, EngagementTargetId = null, DepartureDaysRemaining = 0, Waypoint = null, Lookahead = null };
-        var result = AnalyzeRoute(planned, moving);
-        routes[key] = result;
-        return result;
-    }
-    private Route? AnalyzeRoute(UnitState unit, int? moving)
-    {
-        paths++;
-        var path = Navigation.Estimate(unit, moving);
-        if (path.Status == RouteReachability.Incomplete) { incomplete = true; return null; }
-        if (path.Status != RouteReachability.Reachable || path.Days is not int days) return null;
-        bool slow = content.Military is { } map && path.Cells.Any(p => Policy.SlowTerrainIds.Contains(map.TerrainIds[p.Y * map.Width + p.X]));
-        obstacles ??= World.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed && rules.TryPlace(s, out var place) &&
-            place.FacilityTypeId is int type && Policy.RouteObstacleFacilityIds.Contains(type)).ToArray();
-        obstacleRegions ??= obstacles.Select(s => s.Id).ToHashSet();
-        bool obstacle = path.Cells.Any(p => rules.RegionAt(MapCoordinates.Center(p)) is int region
-            ? obstacleRegions.Contains(region) : obstacles.Any(s => InRegion(MapCoordinates.Center(p), s)));
-        return new(days, path.Cells.Length, slow, obstacle);
-    }
-    private Route? RouteFrom(SettlementState source, int land, int? naval, MilitaryOrder order, UnitPolicies? policies = null)
-    {
-        Refresh();
-        policies ??= new();
-        var key = (source.Id, land, naval, order, policies);
-        if (sourceRoutes.TryGetValue(key, out var cached)) return cached;
-        var departure = (source.Id, land, naval, policies);
-        if (!departures.TryGetValue(departure, out var start))
-        {
-            start = Navigation.DeploymentPosition(source, land, naval, Owner, policies);
-            departures.Add(departure, start);
-        }
-        var result = start is { } position ? RouteTo(new(0, Owner, position, 1) { FormationId = land,
-            NavalFormationId = naval, Policies = policies }, order) : null;
-        sourceRoutes.Add(key, result);
-        return result;
-    }
     private (int Land, int? Naval)? Basic(OfficerState[] people, bool march = false)
     {
         var land = AvailableFormations(people, false, Corps.Treasury.Money);

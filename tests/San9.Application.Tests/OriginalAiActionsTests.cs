@@ -79,6 +79,44 @@ public sealed class OriginalAiActionsTests
     }
 
     [Theory]
+    [InlineData(false, 0, UnitCondition.Normal, 1)]
+    [InlineData(false, 9, UnitCondition.Normal, 1)]
+    [InlineData(true, 0, UnitCondition.Normal, 0)]
+    [InlineData(true, 9, UnitCondition.Normal, 0)]
+    [InlineData(true, 0, UnitCondition.Routed, 1)]
+    [InlineData(true, 0, UnitCondition.NoFormation, 1)]
+    public void ReliefReserveUsesDailyCycleHistoryInsteadOfDepartureWait(bool entered, int wait, UnitCondition condition, int submitted)
+    {
+        var content = Fixture();
+        content = content with { Settlements = content.Settlements.Select(s => s.Id == 1 ? s with { Soldiers = 14000 } : s).ToArray() };
+        var h = new Harness(content, w => w with { Units = w.Units.Select(u => u.Id == 20 ? u with
+            { HasEnteredDailyCycle = entered, DepartureDaysRemaining = wait, Condition = condition, ConditionDaysRemaining = 2 } : u).ToImmutableArray() });
+        Assert.Equal(submitted, h.Run(OriginalAiWork.Reinforce).Submitted);
+    }
+
+    public static IEnumerable<object[]> DailyCycleCases() =>
+        from work in new[] { OriginalAiWork.FalseReport, OriginalAiWork.Confuse, OriginalAiWork.Encourage, OriginalAiWork.Reinforce }
+        from advanced in new[] { false, true }
+        from entered in new[] { false, true }
+        from commanded in new[] { false, true }
+        select new object[] { work, advanced, entered, commanded };
+
+    [Theory]
+    [MemberData(nameof(DailyCycleCases))]
+    public void UnitActionsUseDailyCycleHistoryWithoutDeploymentDifficultyException(OriginalAiWork work, bool advanced, bool entered, bool commanded)
+    {
+        var content = Fixture();
+        content = content with { OriginalAi = content.OriginalAi with { Advanced = advanced } };
+        var h = new Harness(content, w => w with { Units = w.Units.Select(u => u with
+        {
+            HasEnteredDailyCycle = entered, CommandedThisXun = commanded,
+            Order = work == OriginalAiWork.Confuse && u.Id == 10
+                ? new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 20 } : u.Order
+        }).ToImmutableArray() });
+        Assert.Equal(entered ? 1 : 0, h.Run(work).Submitted);
+    }
+
+    [Theory]
     [InlineData(OriginalAiWork.FalseReport, "unit-strategy")]
     [InlineData(OriginalAiWork.Confuse, "unit-strategy")]
     [InlineData(OriginalAiWork.Encourage, "unit-strategy")]

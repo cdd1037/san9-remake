@@ -125,7 +125,7 @@ internal static class MilitaryMovement
                 .Select((person, index) => (person, rank: command.Ranks.GetValueOrDefault(person, formation.CaptureRanks[index]))).ToImmutableDictionary(p => p.person, p => p.rank),
             CargoMoney = cargoMoney, CargoFood = cargoFood, Order = command.Order,
             DepartureDaysRemaining = command.DepartureDelayDays, Waypoint = command.Waypoint,
-            Policies = command.Policies, CommanderId = commander, CommandedThisXun = true,
+            Policies = command.Policies, CommanderId = commander, CommandedThisXun = true, HasEnteredDailyCycle = false,
             OrderClass = UnitOrderClass.Military
         };
         world.AddUnit(unit);
@@ -249,6 +249,13 @@ internal static class MilitaryMovement
             world.Settlements.TryGetValue(target, out var destination) && destination.OwnerId == owner &&
             destination.CanHostPersons && destination.Durability > 0 && rules.TryPlace(destination, out var place) &&
             travel.Entrances(rules.BuildingArea(place)).Any(p => travel.Map.PassageCost(p, travel.Shape, travel.Mode, []) is not null);
+    }
+
+    internal static void BeginDailyCycle(WorldMutation world)
+    {
+        foreach (var unit in world.Units.Values.Where(u => !u.IsEmbedded && !u.IsPersonnel && u.FormationId is not null &&
+            u.EffectiveOrder is not null && !u.HasEnteredDailyCycle).OrderBy(u => u.Id).ToArray())
+            world.Replace(unit with { HasEnteredDailyCycle = true });
     }
 
     internal static void AdvanceDay(WorldMutation world, MilitaryRulebook? rules, GovernanceRulebook governance, PersonnelRulebook geography, List<DomainEvent> events)

@@ -17,6 +17,8 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
     [JsonRequired] public uint CargoFood { get; init; }
     [JsonRequired] public MilitaryOrder? Order { get; init; }
     [JsonRequired] public bool CommandedThisXun { get; init; }
+    // Authored field units may already be in progress; public deployment explicitly starts this as false.
+    [JsonRequired] public bool HasEnteredDailyCycle { get; init; } = true;
     [JsonRequired] public int MovementRemainder { get; init; }
     [JsonRequired] public int DepartureDaysRemaining { get; init; }
     [JsonRequired] public WorldPosition? Waypoint { get; init; }

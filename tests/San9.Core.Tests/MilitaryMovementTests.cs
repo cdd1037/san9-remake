@@ -110,6 +110,36 @@ public sealed class MilitaryMovementTests
     }
 
     [Fact]
+    public void DailyCycleEntryIsIndependentOfDepartureDelayAndSubsequentOrders()
+    {
+        var rules = Rules();
+        var engine = Engine(World(), rules);
+        Assert.True(engine.Execute(Player, new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 400, 7,
+            new(MilitaryOrderKind.Move, new(32, 7), null)) { DepartureDelayDays = 9 }).Submission.Accepted);
+        var unit = Assert.Single(engine.Snapshot.Units);
+        Assert.False(unit.HasEnteredDailyCycle);
+        engine = Engine(WorldState.Restore(engine.CaptureStableState()), rules);
+        Assert.False(Assert.Single(engine.Snapshot.Units).HasEnteredDailyCycle);
+
+        var world = WorldState.Restore(engine.CaptureStableState());
+        var mutation = world.BeginMutation();
+        MilitaryMovement.BeginDailyCycle(mutation);
+        world.Commit(mutation);
+        engine = Engine(world, rules);
+        var entered = Assert.Single(engine.Snapshot.Units);
+        Assert.True(entered.HasEnteredDailyCycle);
+        Assert.Equal(unit.Position, entered.Position);
+        Assert.Equal(9, entered.DepartureDaysRemaining);
+
+        Assert.True(engine.Execute(Player, new OrderUnitCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence,
+            unit.Id, new(MilitaryOrderKind.Move, new(27, 7), null))).Submission.Accepted);
+        Assert.True(Assert.Single(engine.Snapshot.Units).HasEnteredDailyCycle);
+        Assert.True(Assert.Single(engine.Snapshot.Units).CommandedThisXun);
+        engine = Engine(WorldState.Restore(engine.CaptureStableState()), rules);
+        Assert.True(Assert.Single(engine.Snapshot.Units).HasEnteredDailyCycle);
+    }
+
+    [Fact]
     public void CommandMarkerSurvivesRestoreAndResetsAtNewXun()
     {
         var rules = Rules();

@@ -52,12 +52,30 @@ public sealed class MilitarySessionTests
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var unit = Assert.Single(restored.Snapshot.Units);
         Assert.Equal(9, unit.DepartureDaysRemaining); Assert.Equal(command.Waypoint, unit.Waypoint);
+        Assert.False(unit.HasEnteredDailyCycle);
         StateAssert.Equal(session.Snapshot, restored.Snapshot);
         var result = session.AdvanceXun();
+        Assert.True(Assert.Single(session.Snapshot.Units).HasEnteredDailyCycle);
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         StateAssert.Equal(session.Snapshot, restored.Snapshot);
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
         StateAssert.Equal(session.Snapshot, replay.Session.Snapshot);
+    }
+
+    [Fact]
+    public void FirstInteractiveDayMarksTheUnitBeforeItsDepartureWaitExpires()
+    {
+        var session = GameSession.Start(Fixture(), 42);
+        Assert.True(session.Execute(new("player"), new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [1], 400, 7,
+            new(MilitaryOrderKind.Move, new(32, 7), null)) { DepartureDelayDays = 9 }).Submission.Accepted);
+        var before = Assert.Single(session.Snapshot.Units);
+        Assert.False(before.HasEnteredDailyCycle);
+        Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new PrepareAdvanceOperation())).Disposition);
+        Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new AdvanceDayOperation())).Disposition);
+        var after = Assert.Single(session.Snapshot.Units);
+        Assert.True(after.HasEnteredDailyCycle);
+        Assert.Equal(before.Position, after.Position);
+        Assert.Equal(8, after.DepartureDaysRemaining);
     }
 
     [Fact]

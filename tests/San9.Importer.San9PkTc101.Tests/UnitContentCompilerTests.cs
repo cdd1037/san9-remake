@@ -38,6 +38,16 @@ public sealed class UnitContentCompilerTests
     }
 
     [Fact]
+    public void DailyCycleEntryPreservesTheSourceFlagWithoutInventingCommandHistory()
+    {
+        var units = new[] { 0u, 8u }.Select(flags => Assert.Single(UnitContentCompiler.Compile(
+            [Source with { RuntimeFlags0C = flags }], _ => 1))).ToArray();
+        Assert.False(units[0].HasEnteredDailyCycle);
+        Assert.True(units[1].HasEnteredDailyCycle);
+        Assert.All(units, u => Assert.False(u.CommandedThisXun));
+    }
+
+    [Fact]
     public void TimedConditionPreservesItsSourceDuration()
     {
         var unit = Assert.Single(UnitContentCompiler.Compile([Source with { UnitStatusCode = 6, StatusDurationDays = 13 }], _ => 1));

@@ -102,9 +102,10 @@ internal sealed partial class OriginalAiMilitary
         else
         {
             bool siege = route.Obstacle;
-            if (!siege && building is not null)
+            if (!siege && building is not null && First(OriginalAiFormationRole.Elephant, OriginalAiFormationRole.Ram, OriginalAiFormationRole.Catapult) is not null)
                 foreach (var u in World.Units.Where(u => Departed(u) && ProjectedOrder(u)?.Kind == MilitaryOrderKind.AttackSettlement &&
-                    ProjectedOrder(u)?.SettlementId == building.Id && (u.FormationId == Role(OriginalAiFormationRole.Elephant)?.Id || u.FormationId == Role(OriginalAiFormationRole.Ram)?.Id)))
+                    ProjectedOrder(u)?.SettlementId == building.Id && Policy.Formations.Any(p =>
+                        p.Key is OriginalAiFormationRole.Elephant or OriginalAiFormationRole.Ram && p.Value == u.FormationId)))
                     siege = random.Percent((500 - building.Durability) / 5);
             if (siege) selected = First(OriginalAiFormationRole.Elephant, OriginalAiFormationRole.Ram, OriginalAiFormationRole.Catapult);
             bool harbor = building is not null && rules.TryPlace(building, out var place) && place.FacilityTypeId is int type && rules.Facilities[type].IsHarbor;

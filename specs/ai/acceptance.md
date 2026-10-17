@@ -4,7 +4,7 @@
 
 [AI 文档入口](README.md) · [实施计划](implementation-plan.md) · [当前状态](current-status.md) · [验收标准](acceptance.md)
 
-本文维护必需场景、协议验证、长期运行及独立强度评测方法；以下是验收要求，不是已通过清单。历史结果见[性能与验证记录](../../docs/ai-performance-records.md)。
+本文维护必需场景、协议验证、长期运行及独立强度评测方法；以下是验收要求，不是已通过清单。历史结果见[性能与验证记录](../../docs/ai-prototype-performance-records.md)。
 
 ## 场景与可观察结果
 

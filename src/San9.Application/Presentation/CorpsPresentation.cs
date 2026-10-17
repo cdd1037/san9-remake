@@ -1,6 +1,7 @@
 using San9.Content.Text;
 using San9.Content.Interface;
 using San9.Core.Simulation;
+using San9.Core.Domain;
 
 namespace San9.Application.Presentation;
 
@@ -20,6 +21,12 @@ public static class CorpsPresentation
                 CorpsCreatedEvent e when e.ForceId == before.PlayerForceId => Produce("corps-created",e.CorpsId,committed),
                 CorpsChangedEvent e when e.ForceId == before.PlayerForceId => Produce("corps-changed",e.CorpsId,prior),
                 CorpsDissolvedEvent e when e.ForceId == before.PlayerForceId => new(new("corps-result", e.Clock, CommandText.Resolve(texts, "result.corps-dissolved", Corps(e.CorpsId))),null,null),
+                CorpsControlChangedEvent e when e.ForceId == before.PlayerForceId => new(new("corps-result", e.Clock,
+                    CommandText.Resolve(texts, "result.corps-control", Corps(e.CorpsId), CommandText.Resolve(texts,
+                        e.Mode == CorpsControlMode.Direct ? "corps.direct" : "corps.automatic"))),null,null),
+                CorpsDelegationChangedEvent e when e.ForceId == before.PlayerForceId && e.Reason == "ordered" &&
+                    !events.OfType<CorpsChangedEvent>().Any(change => change.CorpsId == e.CorpsId) => new(new("corps-result", e.Clock,
+                    CommandText.Resolve(texts, "result.corps-policy", Corps(e.CorpsId))),null,null),
                 _ => null
             };
             if (message is not null) messages.Add(message);

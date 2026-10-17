@@ -191,6 +191,8 @@ Godot 将 PCK 和 .NET 发布产物嵌入整体单 EXE；不启用 `.NET Publish
 
 命令界面词条由 `CommandText` 定义 233 个必需语义角色及参数契约：TC101 从 EXE 公共表读取 135 项短标签／格式，从消息文件读取 10 项静态提示，另显式加入 88 项重制说明与事实摘要。对白继续使用消息图。`ui.commands.*` 缺失或模板参数不完整会拒绝加载，没有运行时中文回退。组合包 schema166 需原位重跑 `import-client`，无需重转纹理；独立内容作者应提供完整词条，可调整措辞与参数顺序。
 
+2026-10-18军团独立管理增加10项必需重制词条（`corps.*`及控制／方针结果摘要），由`RemakeCommandText.json`统一提供给转换器与独立内容制作。现有词条校验会拒绝缺项，不增加运行时回退；190年包已原位重跑`import-client`，共享纹理、保存和日志格式不变。
+
 编写控制节点、绑定参数和显示图片的具体用法见[消息约定](ui/messages.md)。
 
 现行契约见[统一消息规格](../specs/behavior/BEH-UI-0006-unified-messages.md)，原作证据与覆盖边界见[RE-0166](../research/findings/RE-SAN9PK-0166.md)。唯一语法实现为`OriginalMessageParser`；`OriginalTextConverter`只调用该解析器读取静态片段。`import-client`仅将`M_MsgPK.s9`和`M_RtdnPK.s9`合入`TextCatalog.Messages`，经`GameplayMessageCompiler`转换为领域引用、属性与事件条件，发布前拒绝未确认语义、无法转换的表达式和无效引用，不保存未就绪记录；`messages/*.json`以消息键直接映射节点数组，普通文本节点直接写成字符串，值节点不保存前后缀字段，默认不生成`message-readiness.json`和`message-adaptations.json`，仅在显式指定`--message-reports true`时输出；关闭报告时不构造就绪报告或汇总参数清单，发布校验独立执行，成功转换后清理输出目录中这两个旧报告。就绪报告列出发布消息的原文确认状态和从节点推导的参数；`import-text`仍对四个档案导出研究诊断和合成上下文报告，基础版不进入运行时包。

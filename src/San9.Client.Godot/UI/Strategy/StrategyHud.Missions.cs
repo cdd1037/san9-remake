@@ -65,6 +65,9 @@ public partial class StrategyHud
         var messages = CorpsPresentation.Results(view.Draft.View, result.Events, Texts, CommandPresentation.Missions,
             Session.Messages(Texts,view.Draft.View.World),Session.Messages(Texts));
         CloseCorpsManagement();
+        _contextTarget = null; _hoverTarget = null;
+        _contextMenu.Hide(); _mapContext.Close(); _commandMenu.Close();
+        Selection.Clear(); World.HoverObject(null); _hoverCard.ShowInfo(null, global::Godot.Vector2.Zero);
         OpenNarration(messages, view.Draft.View);
     }
 }

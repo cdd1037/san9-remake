@@ -96,10 +96,12 @@ public sealed partial class SimulationEngine
             .Order().ToImmutableArray();
     }
 
-    /// <summary>Checks a prospective delegation before a new corps has an identity.</summary>
+    /// <summary>Checks a prospective policy under force-management authority without requiring a corps identity.</summary>
     public bool CanSelectCorpsDelegation(CommandContext context, int owner, CorpsDelegation delegation)
     {
-        var envelope = new CreateCorpsCommand(Guid.NewGuid(), owner, _world.Simulation.NextSequence, [], 0, 0, delegation);
+        // Policy management remains authorized when the player has delegated the root corps.
+        // This envelope checks the controller only; target qualification is evaluated below.
+        var envelope = new SetCorpsDelegationCommand(Guid.NewGuid(), owner, _world.Simulation.NextSequence, -1, delegation);
         return ValidateEnvelope(context, envelope) == CommandRejection.None &&
             CorpsDelegations.Valid(PreparationWorld(), owner, delegation, _rules.Military);
     }

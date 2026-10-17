@@ -15,12 +15,14 @@ public partial class CorpsCommandView : CommandPreparationView
     { CorpsOperation.Create => CommandText.Resolve(Texts, "corps.create"), CorpsOperation.Change => CommandText.Resolve(Texts, "corps.change"), CorpsOperation.Dissolve => CommandText.Resolve(Texts, "corps.dissolve"), _ => throw new InvalidOperationException("Unknown corps operation.") };
     protected override void Build()
     {
+        if (Draft.Operation is CorpsOperation.Control or CorpsOperation.Policy) { BuildAdministration(); return; }
         // Original corps-management content rectangle and selector/card anchors (RE-0182).
         Vector2 at = new(360,148);
         var window = new CommandWindow { Texts = Texts, Textures = Textures, Title = CommandText.Resolve(Texts, "title.delegate"), Position = at, Size = new(304,472), CanAccept = Draft.CanExecute,
             Accepted = Submit, Closed = Closed,
             Help = () => Notice(CommandText.Resolve(Texts, "hint.corps")) };
         Body.AddChild(window);
+        ManagementButton(window);
         bool editing = Draft.Operation is CorpsOperation.Create or CorpsOperation.Change;
         bool populated = Draft.Cities.Length > 0;
         bool ready = editing && populated && Draft.GovernorId is not null;
@@ -61,6 +63,56 @@ public partial class CorpsCommandView : CommandPreparationView
         Body.AddChild(new GameMessageBar { Textures = Textures, Text = CommandText.Resolve(Texts, "hint.corps") });
     }
 
+    private string ControlName(CorpsControlMode mode) => CommandText.Resolve(Texts,
+        mode == CorpsControlMode.Direct ? "corps.direct" : "corps.automatic");
+    private void ManagementButton(CommandWindow window) => window.ActionButton(CommandText.Resolve(Texts, "corps.management"),
+        "edit", new(-144,0,128,40), () => Choices(CommandText.Resolve(Texts, "corps.management"),
+            [CommandText.Resolve(Texts, "corps.organization"), CommandText.Resolve(Texts, "corps.control"), CommandText.Resolve(Texts, "corps.policy")],
+            id => { if (id == 0) { Draft.SetOperation(CorpsOperation.Create); CloseChild(); }
+                else SelectCorps(id == 1 ? CorpsOperation.Control : CorpsOperation.Policy); },
+            Draft.Corps.Any(c => !c.IsRoot) ? new HashSet<int>() : new HashSet<int> { 2 }));
+
+    private void BuildAdministration()
+    {
+        bool control = Draft.Operation == CorpsOperation.Control;
+        Vector2 at = new(304,224);
+        var window = new CommandWindow { Texts = Texts, Textures = Textures,
+            Title = CommandText.Resolve(Texts, control ? "corps.control" : "corps.policy"),
+            Position = at, Size = new(416,312), CanAccept = Draft.CanExecute,
+            Accepted = Submit, Closed = Closed, Help = () => Notice(CommandText.Resolve(Texts, "corps.scope")) };
+        Body.AddChild(window);
+        ManagementButton(window);
+        window.ActionButton(CommandText.Resolve(Texts, "select.corps"), "edit", new(0,0,104,40), () => SelectCorps(Draft.Operation));
+        var corps = Draft.Selected;
+        string PolicyName(CorpsDelegation? policy) => CommandText.Resolve(Texts, policy switch {
+            DomesticDelegation => "policy.domestic", DefeatForceDelegation => "policy.defeat-force",
+            CaptureSettlementDelegation => "policy.capture-facility", _ => "title.delegate" });
+        string name = corps?.LeaderId is int leader ? Texts.Resolve(Draft.View.Officers.Single(p => p.Id == leader).NameKey) : "";
+        Value(name, at + new Vector2(112,0), new(288,32));
+        Caption(CommandText.Resolve(Texts, "corps.current-control"), at + new Vector2(0,40), new(104,32));
+        Value(corps is null ? "" : ControlName(corps.ControlMode), at + new Vector2(112,40), new(288,32));
+        if (control)
+        {
+            window.ActionButton(CommandText.Resolve(Texts, "corps.control"), "edit", new(0,80,104,40), () =>
+                Choices(CommandText.Resolve(Texts, "corps.control"), [ControlName(CorpsControlMode.Direct), ControlName(CorpsControlMode.Automatic)],
+                    id => { Draft.SetControl(id == 0 ? CorpsControlMode.Direct : CorpsControlMode.Automatic); CloseChild(); }));
+            Value(ControlName(Draft.ControlMode), at + new Vector2(112,80), new(288,32));
+            Caption(CommandText.Resolve(Texts, "label.corps-policy"), at + new Vector2(0,120), new(104,32));
+            Value(PolicyName(corps?.Delegation), at + new Vector2(112,120), new(288,32));
+        }
+        else
+        {
+            window.ActionButton(CommandText.Resolve(Texts, "label.corps-policy"), "edit", new(0,80,104,40), SelectPolicy);
+            Value(PolicyName(Draft.Policy), at + new Vector2(112,80), new(288,32));
+            Caption(CommandText.Resolve(Texts, "label.target"), at + new Vector2(0,120), new(104,32));
+            string target = Draft.Policy switch {
+                DefeatForceDelegation force => Texts.Resolve(Draft.View.Forces.Single(f => f.Id == force.ForceId).NameKey),
+                CaptureSettlementDelegation place => Draft.View.Settlements.Single(s => s.Id == place.SettlementId).ResolveName(Texts), _ => "" };
+            Value(target, at + new Vector2(112,120), new(288,32));
+        }
+        Label(CommandText.Resolve(Texts, "corps.scope"), at + new Vector2(0,168), new(416,120));
+    }
+
     private void Choices(string title,string[] names,Action<int> selected, IReadOnlySet<int>? disabled = null)
     {
         ReplaceChild(new VerticalChoiceDialog { Message = title, Textures = Textures,
@@ -71,7 +123,7 @@ public partial class CorpsCommandView : CommandPreparationView
     private void SelectCorps(CorpsOperation operation)
     {
         var query = new InformationQuery(Session,Texts);
-        var ids = Draft.Corps.Where(c => !c.IsRoot).Select(c => c.Id).ToHashSet();
+        var ids = Draft.Corps.Where(c => operation == CorpsOperation.Control || !c.IsRoot).Select(c => c.Id).ToHashSet();
         if (ids.Count == 0) { Notice(CommandText.Resolve(Texts, "failure.no-corps")); return; }
         ReplaceChild(new CatalogView { Title = CommandText.Resolve(Texts, "select.corps"), CloseTitle = CommandText.Resolve(Texts, "action.cancel"), Textures = Textures, Service = Service,
             Pages = AdministrativeCatalog.Pages(InformationCategory.Corps),

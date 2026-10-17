@@ -41,8 +41,9 @@ public sealed class UserSettingsTests : IDisposable
         var store = new UserSettingsStore(FilePath);
         foreach (var speed in Enum.GetValues<MessageSpeed>())
         foreach (var report in Enum.GetValues<ProgressReportMode>())
+        foreach (var playback in Enum.GetValues<PlaybackSpeed>())
         {
-            var expected = new UserSettings(false, true, false, speed, report) { TacticScenesEnabled = false };
+            var expected = new UserSettings(false, true, false, speed, report) { TacticScenesEnabled = false, PlaybackSpeed = playback };
             store.Save(expected);
             Assert.Equal(expected, new UserSettingsStore(FilePath).Load());
         }
@@ -63,6 +64,7 @@ public sealed class UserSettingsTests : IDisposable
 
         Assert.Equal(new UserSettings(false, true, false, MessageSpeed.Fast, ProgressReportMode.Summary), loaded);
         Assert.True(loaded.TacticScenesEnabled);
+        Assert.Equal(PlaybackSpeed.Normal, loaded.PlaybackSpeed);
         Assert.Equal(json, File.ReadAllText(FilePath, Encoding.UTF8));
 
         store.Save(loaded with { TacticScenesEnabled = false });
@@ -105,6 +107,7 @@ public sealed class UserSettingsTests : IDisposable
         store.Save(UserSettings.Default);
         Assert.Throws<JsonException>(() => store.Save(UserSettings.Default with { MessageSpeed = (MessageSpeed)99 }));
         Assert.Throws<JsonException>(() => store.Save(UserSettings.Default with { ProgressReport = (ProgressReportMode)99 }));
+        Assert.Throws<JsonException>(() => store.Save(UserSettings.Default with { PlaybackSpeed = (PlaybackSpeed)3 }));
         Assert.Equal(UserSettings.Default, store.Load());
         Assert.Single(Directory.GetFiles(_directory));
     }
@@ -116,6 +119,21 @@ public sealed class UserSettingsTests : IDisposable
         Assert.NotNull(Record.Exception(() => new UserSettingsStore(FilePath).Save(UserSettings.Default)));
         Assert.True(Directory.Exists(FilePath));
         Assert.Empty(Directory.GetFiles(_directory));
+    }
+
+    [Theory]
+    [InlineData("\"Unknown\"")]
+    [InlineData("4")]
+    public void InvalidPlaybackSpeedDoesNotReplaceActivePreferences(string value)
+    {
+        var store = new UserSettingsStore(FilePath);
+        store.Save(UserSettings.Default with { PlaybackSpeed = PlaybackSpeed.Quadruple });
+        string json = File.ReadAllText(FilePath, Encoding.UTF8).Replace("\"Quadruple\"", value);
+        File.WriteAllText(FilePath, json, Encoding.UTF8);
+        var session = new UserSettingsSession(store);
+        Assert.Throws<JsonException>(() => session.Load());
+        Assert.Equal(UserSettings.Default, session.Current);
+        Assert.Equal(json, File.ReadAllText(FilePath, Encoding.UTF8));
     }
 
     public void Dispose()

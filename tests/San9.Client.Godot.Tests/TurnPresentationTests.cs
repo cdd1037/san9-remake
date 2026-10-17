@@ -2,11 +2,79 @@ using San9.Tests;
 using San9.Application;
 using San9.Content.Scenarios;
 using San9.Core.Simulation;
+using San9.Client.Godot.Settings;
 
 namespace San9.Client.Godot.Tests;
 
 public sealed class TurnPresentationTests
 {
+    [Fact]
+    public void ChangingSpeedKeepsDayContinuousAndRespectsPauseAndResourceWait()
+    {
+        var session = Session();
+        bool ready = true;
+        var turn = new TurnPresentation(session)
+        {
+            CreateDay = (before, after, events) => new(before, after, events, duration: 10),
+            CanPlayDay = () => ready
+        };
+        Enter(turn); Ready(turn);
+        var initial = session.Snapshot;
+        turn.Update(.1);
+        var day = turn.Day!;
+        Assert.Equal(.1, day.Elapsed, 6);
+        turn.PlaybackSpeed = PlaybackSpeed.Quadruple;
+        Assert.Equal(.1, day.Elapsed, 6);
+        turn.Update(.1);
+        Assert.Equal(.5, day.Elapsed, 6);
+        turn.TogglePause(); turn.Update(100);
+        turn.PlaybackSpeed = PlaybackSpeed.Double;
+        turn.Update(.1);
+        Assert.Equal(.5, day.Elapsed, 6);
+        turn.TogglePause(); ready = false; turn.Update(100);
+        Assert.Equal(.5, day.Elapsed, 6);
+        ready = true; turn.Update(.1);
+        Assert.Same(day, turn.Day);
+        Assert.Equal(.7, day.Elapsed, 6);
+        StateAssert.Equal(initial, session.Snapshot);
+        Assert.Throws<ArgumentOutOfRangeException>(() => turn.PlaybackSpeed = (PlaybackSpeed)3);
+    }
+
+    [Theory]
+    [InlineData(PlaybackSpeed.Double)]
+    [InlineData(PlaybackSpeed.Quadruple)]
+    public void FasterPlaybackPublishesTheSameDailyStatesAndEventsInLessPresentationTime(PlaybackSpeed speed)
+    {
+        var normal = Run(PlaybackSpeed.Normal);
+        var faster = Run(speed);
+        Assert.Equal(normal.States.Count, faster.States.Count);
+        for (int i = 0; i < normal.States.Count; i++) StateAssert.Equal(normal.States[i], faster.States[i]);
+        EventAssert.Equal(normal.Events, faster.Events);
+        Assert.True(faster.Updates < normal.Updates);
+
+        static (List<WorldSnapshot> States, List<DomainEvent> Events, int Updates) Run(PlaybackSpeed playback)
+        {
+            var session = Session();
+            var turn = new TurnPresentation(session) { PlaybackSpeed = playback };
+            turn.Request(); turn.Confirm();
+            List<WorldSnapshot> states = [];
+            List<DomainEvent> events = [];
+            int updates = 0;
+            long publication = 0;
+            while (turn.Screen != TurnScreen.Strategy && updates < 1000)
+            {
+                Ready(turn); turn.Update(.05); updates++;
+                if (turn.Publication == publication) continue;
+                publication = turn.Publication;
+                states.Add(turn.LastResult!.Snapshot);
+                events.AddRange(turn.LastResult.Events);
+            }
+            Assert.Equal(TurnScreen.Strategy, turn.Screen);
+            Assert.Equal(11, session.Snapshot.Clock.Day);
+            return (states, events, updates);
+        }
+    }
+
     [Fact]
     public void SkippingZoomKeepsResultResponsesAndCannotPublishOrChangeTheWorld()
     {

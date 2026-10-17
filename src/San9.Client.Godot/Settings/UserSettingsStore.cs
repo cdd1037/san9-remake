@@ -18,7 +18,8 @@ public sealed class UserSettingsStore
         RespectRequiredConstructorParameters = true,
         WriteIndented = true,
         Converters = { new JsonStringEnumConverter<MessageSpeed>(allowIntegerValues: false),
-            new JsonStringEnumConverter<ProgressReportMode>(allowIntegerValues: false) },
+            new JsonStringEnumConverter<ProgressReportMode>(allowIntegerValues: false),
+            new JsonStringEnumConverter<PlaybackSpeed>(allowIntegerValues: false) },
     };
     private static readonly UTF8Encoding Utf8 = new(false, true);
     private readonly string _path;

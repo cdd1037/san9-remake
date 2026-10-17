@@ -1,5 +1,6 @@
 using San9.Application;
 using San9.Application.Presentation;
+using San9.Client.Godot.Settings;
 using San9.Core.Simulation;
 
 namespace San9.Client.Godot;
@@ -28,6 +29,16 @@ public sealed class TurnPresentation(GameSession session)
     public Action? StrategyTitleStarted { get; init; }
     public Action? ExecutionTitleStarted { get; init; }
     public bool Paused { get; private set; }
+    private PlaybackSpeed _playbackSpeed = PlaybackSpeed.Normal;
+    public PlaybackSpeed PlaybackSpeed
+    {
+        get => _playbackSpeed;
+        set
+        {
+            if (!Enum.IsDefined(value)) throw new ArgumentOutOfRangeException(nameof(value));
+            _playbackSpeed = value;
+        }
+    }
     public bool IsComputing => _pending is { IsCompleted: false };
     public double Progress { get; private set; }
     public bool IsStrategy => Screen is TurnScreen.Strategy or TurnScreen.Confirmation;
@@ -102,6 +113,8 @@ public sealed class TurnPresentation(GameSession session)
 
     public void Update(double seconds)
     {
+        // Scale presentation only. Background operations and reading timers use their own clocks.
+        seconds *= (int)PlaybackSpeed;
         if (Screen==TurnScreen.Terminal && _pending is not null) { Publish(); return; }
         if (Screen == TurnScreen.Presenting)
         {

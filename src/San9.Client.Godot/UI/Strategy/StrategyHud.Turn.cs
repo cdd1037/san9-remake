@@ -117,6 +117,7 @@ public partial class StrategyHud
     private void UpdateTurn(double delta)
     {
         var previous = Turn.Screen;
+        Turn.PlaybackSpeed = ReadSettings().PlaybackSpeed;
         Turn.Update(delta);
         if (previous == TurnScreen.Returning && Turn.Screen == TurnScreen.Strategy) _mapRecordsRequested = false;
         UpdateExecutionMessages();

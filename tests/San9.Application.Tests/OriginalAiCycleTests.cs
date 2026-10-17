@@ -312,7 +312,7 @@ public sealed class OriginalAiCycleTests
     public void FamilyRankSnapshotSurvivesOffGatePreparationAndParameterRestore()
     {
         var content = G01ScenarioTests.Fixture();
-        content = content with { OriginalAi = content.OriginalAi with { FamilyRankBonuses = ImmutableDictionary<int, int>.Empty.Add(99, 200), Advanced = true },
+        content = content with { OriginalAi = content.OriginalAi with { FamilyRankBonuses = ImmutableDictionary<int, int>.Empty.Add(99, 200), Advanced = false },
             Officers = content.Officers.Select(o => o.State.Id == 1 ? o with { State = o.State with { BloodlineId = 99 } } : o).ToArray() };
         var session = GameSession.Start(content, 190);
         var ranked = OriginalAiStrategy.PrepareGlobal(session.Snapshot, session.OriginalAi);
@@ -323,7 +323,7 @@ public sealed class OriginalAiCycleTests
         Assert.Equal(ranked.RankedClock, retained.RankedClock);
         var saved = session.Capture() with { OriginalAi = retained, World = changed with { Forces = session.Snapshot.Forces } };
         var restored = GameSession.Restore(content with { OriginalAi = OriginalAiDefinition.Default }, saved);
-        Assert.True(restored.OriginalAi.Policy.Advanced);
+        Assert.False(restored.OriginalAi.Policy.Advanced);
         Assert.Equal(200, restored.OriginalAi.Policy.FamilyRankBonuses[99]);
         StateAssert.Equal(saved, restored.Capture());
     }

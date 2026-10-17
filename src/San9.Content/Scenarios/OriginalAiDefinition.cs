@@ -21,7 +21,7 @@ public sealed record OriginalAiDefinition
 {
     [JsonRequired] public OriginalAiMilitaryDefinition Military { get; init; } = new();
     [JsonRequired] public ImmutableDictionary<int, int> DiplomacyFacilityPriorities { get; init; } = ImmutableDictionary<int, int>.Empty;
-    [JsonRequired] public bool Advanced { get; init; }
+    [JsonRequired] public bool Advanced { get; init; } = true;
     [JsonRequired] public bool RecruitmentEnabled { get; init; } = true;
     [JsonRequired] public ImmutableDictionary<int, int> FamilyRankBonuses { get; init; } = ImmutableDictionary<int, int>.Empty;
     [JsonRequired] public ImmutableArray<int> PreferredStrategyRulerIds { get; init; } = [];

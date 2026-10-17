@@ -37,7 +37,8 @@ public sealed class TerrainChunkCache<T>(Func<PngImage, T> upload, Action<T> rel
     public Lease Acquire(IEnumerable<TerrainChunkKey> keys, bool prefetch = false)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        var requests = keys.Distinct().Select(key =>
+        var requestedKeys = keys.Distinct().ToArray();
+        var requests = requestedKeys.Select(key =>
         {
             if (!_requests.TryGetValue(key, out var r)) _requests.Add(key, r = new(key) { Prefetch = prefetch, Sequence = ++_requestSequence });
             r.Users++;

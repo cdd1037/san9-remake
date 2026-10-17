@@ -6,6 +6,22 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class TerrainChunkCacheTests
 {
+    [Fact]
+    public void FailedAcquireDoesNotKeepAnAbandonedGenerationAlive()
+    {
+        using var cache = new TerrainChunkCache<Gpu>(_ => new(1), _ => { }, render: (_, _) => Pixel());
+        var key = new TerrainChunkKey(Renderer(), 0, 0);
+        using (var ready = cache.Acquire([key])) Until(cache, () => ready.IsReady);
+        IEnumerable<TerrainChunkKey> Broken()
+        {
+            yield return key;
+            throw new InvalidDataException("broken view");
+        }
+        Assert.Throws<InvalidDataException>(() => cache.Acquire(Broken()));
+        cache.Pump(() => true);
+        Assert.Equal(0, cache.Bytes);
+    }
+
     private sealed record Gpu(int Value);
     private static TerrainRenderer Renderer()
     {

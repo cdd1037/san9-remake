@@ -6,6 +6,23 @@ namespace San9.Client.Godot.Tests;
 public sealed class TextureCacheTests
 {
     [Fact]
+    public void FailedAcquireDoesNotRetainRequestsOrPins()
+    {
+        using var cache = new TextureCache<Gpu>((_, _) => Pixel(), (_, _) => new(1), _ => { }, budget: 0);
+        var file = File("ready");
+        using (var ready = cache.Acquire([file])) Until(cache, () => ready.IsReady);
+        IEnumerable<ImageFile> Broken()
+        {
+            yield return file;
+            throw new InvalidDataException("broken catalog");
+        }
+        Assert.Throws<InvalidDataException>(() => cache.Acquire(Broken()));
+        cache.Pump();
+        Assert.Equal(0, cache.PinnedBytes);
+        Assert.Equal(0, cache.Count);
+    }
+
+    [Fact]
     public void FailedDemandCanRetryWithTheSameLeaseWithoutReloadingReadyImages()
     {
         int attempts = 0, readyLoads = 0;

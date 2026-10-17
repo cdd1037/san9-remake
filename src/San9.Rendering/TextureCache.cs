@@ -53,7 +53,8 @@ public sealed class TextureCache<T> : IDisposable where T : class
     public Lease Acquire(IEnumerable<ImageFile> files, bool prefetch = false)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        var requests = files.Distinct().Select(file =>
+        var requestedFiles = files.Distinct().ToArray();
+        var requests = requestedFiles.Select(file =>
         {
             if (!_requests.TryGetValue(file, out var r)) _requests.Add(file, r = new(file) { Prefetch = prefetch, Sequence = ++_requestSequence });
             r.Users++;

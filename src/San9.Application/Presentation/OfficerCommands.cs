@@ -16,10 +16,6 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
     private readonly Dictionary<int, string> treasures = view.Information.Treasures.ToDictionary(t => t.Id, t => t.NameKey);
     private readonly Dictionary<int, PersistentTask> tasks = view.World.Simulation.Tasks
         .Where(t => t.Journey is not null).ToDictionary(t => t.OfficerId);
-    private static readonly IReadOnlyDictionary<int, string> TacticNames = OfficerCatalog.Pages.Skip(4)
-        .SelectMany(p => p.Columns).Where(c => c.Id.StartsWith("tactic.", StringComparison.Ordinal))
-        .ToDictionary(c => int.Parse(c.Id.AsSpan(7)), c => c.Title);
-
     private string Person(int? id) => id is int key && people.TryGetValue(key, out var p) ? texts.Resolve(p.NameKey) : "";
     private string Force(int id) => forces.TryGetValue(id, out var f) ? Person(f.LeaderId) : "";
     private string Region(int id) => view.RegionNameKeys.TryGetValue(id, out string? key) ? texts.Resolve(key)
@@ -64,10 +60,10 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
             ? new(row switch { BattleRank.Front => "前锋", BattleRank.Middle => "中锋", _ => "后卫" }, 3 - (int)row)
             : CatalogCell.Unavailable;
         // Rank stays public; equipped tactics follow their own PK visibility setting.
-        CatalogCell tactic = person.OwnerId != view.PlayerForceId && !view.World.Simulation.OtherForceTacticsVisible
-            ? Hidden(2) : person.EquippedTacticId is not int tacticId ? new("")
-            : rank is null ? CatalogCell.Unavailable
-            : TacticNames.TryGetValue(tacticId, out string? name) ? new(name) : CatalogCell.Unavailable;
+        CatalogCell tactic = unit is not null && rank is not null
+            ? UnitTacticDisplay.Read(view, view.MilitaryRules, texts, unit, person)
+            : person.OwnerId != view.PlayerForceId && !view.World.Simulation.OtherForceTacticsVisible
+                ? Hidden(2) : person.EquippedTacticId is null ? new("") : CatalogCell.Unavailable;
         var arrival = OfficerArrival.Read(view, person, task);
         if (person.OwnerId != view.PlayerForceId)
         {

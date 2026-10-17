@@ -28,8 +28,7 @@ internal static class TacticCombat
     {
         var military = rules.Military!;
         if (!world.Units.TryGetValue(sourceId, out var unit) || unit.Soldiers == 0 || unit.Morale == 0 ||
-            unit.Condition is UnitCondition.Confused or UnitCondition.Routed || unit.IsEmbedded || unit.IsPersonnel ||
-            unit.FormationId is not int formationId || military.Formation(unit) is not { Tactics: { } profile } formation ||
+            military.TacticFormation(unit) is not { Tactics: { } profile } formation ||
             !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military) ||
             !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), MilitaryCombat.UnitRange(world, unit, target, military))) return null;
         if (!world.ServingUnitMembers(sourceId).Any(p => p.OwnerId == unit.OwnerId &&
@@ -46,8 +45,7 @@ internal static class TacticCombat
     {
         var military = rules.Military!;
         if (!world.Units.TryGetValue(sourceId, out var unit) || unit.Soldiers == 0 || unit.Morale == 0 ||
-            unit.Condition is UnitCondition.Confused or UnitCondition.Routed || unit.IsEmbedded || unit.IsPersonnel ||
-            unit.FormationId is not int formationId || military.Formation(unit) is not { Tactics: { } profile } formation ||
+            military.TacticFormation(unit) is not { Tactics: { } profile } formation ||
             !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military) ||
             !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), MilitaryCombat.UnitRange(world, unit, target, military))) return;
         if (world.Simulation.TerminalReason is not null) return;
@@ -102,8 +100,7 @@ internal static class TacticCombat
     {
         var military = rules.Military!;
         if (world.Simulation.TerminalReason is not null || !world.Units.TryGetValue(sourceId, out var unit) ||
-            unit.Soldiers == 0 || unit.Morale == 0 || unit.Condition is UnitCondition.Confused or UnitCondition.Routed ||
-            unit.FormationId is not int formationId || military.Formation(unit) is not { Tactics: { } profile } formation ||
+            unit.Soldiers == 0 || unit.Morale == 0 || military.TacticFormation(unit) is not { Tactics: { } profile } formation ||
             formation.TravelMode != TravelMode.Land || !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military)) return;
         bool triggered = target.UnitId is int id
             ? world.Units[id].Soldiers > 0 && world.Units[id].Morale > 0 && world.Units[id].Condition ==

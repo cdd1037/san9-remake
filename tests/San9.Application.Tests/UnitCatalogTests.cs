@@ -81,11 +81,17 @@ public sealed class UnitCatalogTests
     {
         var definition = G01ScenarioTests.Fixture();
         var world = GameSession.Start(definition, 1).Snapshot;
-        definition = definition with { Information = definition.Information with { Tactics = [new(2, "tactic")] } };
+        definition = definition with
+        {
+            Military = new(4, 4, Enumerable.Repeat(0, 16).ToImmutableArray(), [new(0, 1, null)],
+                [new(100, 5, 0, 100000, 5, new(1, 1), TravelMode.Land) { Tactics = new(15, 0, 2, [], []) }], [])
+                { Tactics = [new(2, 0, TacticEffect.Martial, 10, 9, 0, true, false, [100])] },
+            Information = definition.Information with { Tactics = [new(2, "tactic")] }
+        };
         world = world with
         {
             Simulation = world.Simulation with { OtherForceOrdersVisible = orders, OtherForceTacticsVisible = tactics },
-            Units = [new(77, 2, new(12, 12), 1000) { CommanderId = 4, ServicePlaceId = 2,
+            Units = [new(77, 2, new(12, 12), 1000) { FormationId = 100, CommanderId = 4, ServicePlaceId = 2,
                 Order = new(MilitaryOrderKind.AttackSettlement, null, 1) }],
             Officers = world.Officers.Select(o => o.Id == 4 ? o with
                 { UnitId = 77, SettlementId = null, EquippedTacticId = 2 } : o).ToArray()
@@ -97,7 +103,7 @@ public sealed class UnitCatalogTests
         entries["tactic"] = "奋迅";
         var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, entries);
         var row = Assert.Single(UnitCatalog.Read(view, null, texts, 4).Rows);
-        var detail = UnitDetails.Read(view, null, texts, 77);
+        var detail = UnitDetails.Read(view, view.MilitaryRules, texts, 77);
         var summary = MapCommandSummary.Unit(view, texts, 77);
         Assert.Equal(orders ? "攻击" : "＊＊", row.Cells[1].Text);
         Assert.Equal(orders ? "city.1" : "＊＊＊＊＊", row.Cells[2].Text);

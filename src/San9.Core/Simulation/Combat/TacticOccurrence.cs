@@ -34,11 +34,11 @@ public sealed record TacticOccurrence(BattleObjectContext Source, BattleObjectCo
             defenders.OrderByDescending(p => tactic.Category is int category ? p.TacticProficiencies[category] : 0)
                 .ThenBy(p => p.Id).FirstOrDefault()?.Id,
             defenders.OrderByDescending(p => world.Abilities(p).Intelligence).ThenBy(p => p.Id).FirstOrDefault()?.Id,
-            defenders.Where(p => counter is not null && formation?.Tactics?.BypassesPassiveCounters != true &&
+            defenders.Where(p => counter is not null && formation?.BypassesPassiveCounters != true &&
                 owner is int force && p.EquippedTacticId is int equipped && military.Tactics[equipped].Effect == counter &&
                 MilitaryTactics.HasTactic(world, force, [p.Id], equipped, treasures ?? TreasureRulebook.Empty))
                 .OrderBy(p => p.Id).FirstOrDefault()?.Id,
-            formation?.Tactics?.ConfusionResistanceChance > 0)
+            formation?.ConfusionResistanceChance > 0)
         {
             SourceMemberIds = source.IsSettlement ? sourceContext.CommanderId is int commander ? [commander] : [] :
                 world.ServingUnitMembers(source.Id).OrderBy(p => p.Id).Select(p => p.Id).ToImmutableArray()

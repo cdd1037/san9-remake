@@ -19,14 +19,13 @@ internal static class TacticSupport
         foreach (int id in world.Units.Keys.Order().ToArray())
         {
             if (world.Simulation.TerminalReason is not null) return;
-            if (!world.Units.TryGetValue(id, out var source) || source.IsPersonnel || source.IsEmbedded ||
-                source.Condition is UnitCondition.Confused or UnitCondition.Routed || source.FormationId is not int formationId ||
-                military.Formation(source).Tactics is not { } profile) continue;
+            if (!world.Units.TryGetValue(id, out var source) ||
+                military.TacticFormation(source) is not { Tactics: { } profile } formation) continue;
             var members = world.ServingUnitMembers(id).Where(p => p.OwnerId == source.OwnerId)
                 .OrderBy(p => military.Rank(source, p.Id)).ThenBy(p => p.Id).ToArray();
             var candidates = members.Where(p => p.Injury == 0 && p.TacticCooldown == 0 && p.EquippedTacticId is int tacticId &&
                 military.Tactics[tacticId] is var tactic && tactic.Effect is TacticEffect.Inspire or TacticEffect.Heal &&
-                tactic.CompatibleFormations.Contains(formationId) && MilitaryTactics.HasTactic(world, source.OwnerId, [p.Id], tacticId, rules.Treasures))
+                tactic.CompatibleFormations.Contains(formation.Id) && MilitaryTactics.HasTactic(world, source.OwnerId, [p.Id], tacticId, rules.Treasures))
                 .Select(p => new { Officer = p, Tactic = military.Tactics[p.EquippedTacticId!.Value] })
                 .Select(p => new { p.Officer, p.Tactic, Targets = Targets(world, new(source.Id, false), p.Tactic, military) })
                 .Where(p => p.Targets.Length > 0).ToArray();

@@ -385,3 +385,10 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 皮肤51新增 `environment-label-*` 三片底板和 `environment-choice-*` 四态三片选项按钮；源素材为G_Common131..133、118..120／palette13。标签三片按不透明底色转换，选项保留逐色Alpha；依据并排画面对照修正标签底纹后，190年共享纹理包已原位执行 `import-textures --rebuild skin`。既有背景、窗口、标题、执行、中止及关闭按钮复用已转换资源。消息等级属于已产生消息的表现属性，不改变模拟、存档或录像协议。行为、持久化和实际验收边界见[用户设置](user-settings.md)，原版证据见[RE-0065](../research/findings/RE-SAN9PK-0065.md)。
 
 功能菜单提示由消息表转换为 `ui.hint.functions-*`，共 11 项，与已有主按钮 `ui.hint.functions` 共用文本目录；新增键需重新运行 `import-client`，不需要重建贴图。证据见 [RE-0083](../research/findings/RE-SAN9PK-0083.md#2026-10-11功能菜单提示文本复核)。
+
+
+## 阵形主动兵法与被动反制契约
+
+剧本134／组合184将`ConfusionResistanceChance`和`BypassesPassiveCounters`从`FormationTactics`移至`FormationRule`，两项均为必填。`Tactics=null`仅表示没有主动兵法机会，不再隐含没有被动防御属性。TC101建设、输送及其水上形态不生成主动配置；兵法源适配掩码继续完整保留。公共发动资格另按部队用途和状态约束，因此独立内容中的适配声明也不能绕过建设／输送用途限制。该契约自规则`san9-core-g10-v129`引入。
+
+旧剧本／组合包须用既有`import-client`命令原位重转；共享纹理未变，无需重建纹理包。人物装备与世界字段未变，保存／日志／录像格式号不变。显示语义及验收见[兵法规格](../specs/behavior/BEH-WAR-0005-tactics.md#阵形资格与装备投影)。

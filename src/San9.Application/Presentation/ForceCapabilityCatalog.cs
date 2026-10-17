@@ -115,7 +115,7 @@ public static class ForceCapabilityCatalog
         if (rule.DoublesDuelChance) effects.Add("较易发动单挑");
         if (rule.SnipingChanceBonus > 0) effects.Add("较易发动狙击");
         if (rule.ImmuneToDisorder) effects.Add("不会陷入混乱");
-        else if (rule.HalvesHostileStrategyChance || rule.Tactics is { ConfusionResistanceChance: > 0 })
+        else if (rule.HalvesHostileStrategyChance || rule.ConfusionResistanceChance > 0)
             effects.Add("状态不易异常");
         if (rule.Combat is { WoundedPercent: > 50 }) effects.Add("士兵不易死亡");
         return effects.Count == 0 ? "" : string.Join("。", effects) + "。";

@@ -27,7 +27,7 @@ internal static class IntelligenceTactics
     {
         var military = rules.Military!;
         var defenders = Defenders(world, target);
-        var formation = target.UnitId is int id ? military.Formation(world.Units[id]).Tactics : null;
+        var formation = target.UnitId is int id ? military.Formation(world.Units[id]) : null;
         bool confused = tactic.Effect == TacticEffect.Confusion;
         if (confused && target.UnitId is int enemy && world.Units[enemy].Condition == UnitCondition.HighSpirits) return 0;
         TacticEffect? counter = confused ? TacticEffect.CounterConfusion : tactic.Effect == TacticEffect.Trap ? TacticEffect.CounterTrap : null;
@@ -179,7 +179,7 @@ internal static class IntelligenceTactics
         var defenders = Defenders(world, target);
         if (defenders.Length == 0) return;
         var military = rules.Military!;
-        var profile = military.Formation(unit).Tactics;
+        var profile = military.Formation(unit);
         int intelligence = world.Abilities(actor).Intelligence;
         int proficiency = actor.TacticProficiencies[tactic.Category!.Value];
         int chance = (tactic.Effect == TacticEffect.Illusion ? 150 : 130) -

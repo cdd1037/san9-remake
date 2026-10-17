@@ -10,6 +10,8 @@ public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCos
     public bool IsCandidateFor(ForceState force) => IsCommon || force.AdditionalFormationIds.Contains(Id);
 
     [JsonRequired] public FormationTactics? Tactics { get; init; }
+    [JsonRequired] public int ConfusionResistanceChance { get; init; }
+    [JsonRequired] public bool BypassesPassiveCounters { get; init; }
     [JsonRequired] public ImmutableArray<int> MartialTacticVulnerabilities { get; init; } = [];
     [JsonRequired] public int? RequiredTacticId { get; init; }
     [JsonRequired] public int? AutomaticTacticLearningId { get; init; }
@@ -36,11 +38,7 @@ public sealed record OrdinaryAttack(int Range, bool DamagesWalls)
 }
 
 public sealed record FormationTactics(int OpportunityChance, int CounterChance, int LinkMultiplier,
-    ImmutableArray<int> FavoredCategories, ImmutableArray<int> AutomaticTactics)
-{
-    [JsonRequired] public int ConfusionResistanceChance { get; init; }
-    [JsonRequired] public bool BypassesPassiveCounters { get; init; }
-}
+    ImmutableArray<int> FavoredCategories, ImmutableArray<int> AutomaticTactics);
 
 public sealed record CombatProfile(int AgainstUnits, int AgainstGarrison, int AgainstWalls, int Defense, int WoundedPercent)
 {
@@ -172,7 +170,7 @@ public sealed partial class MilitaryRulebook
         higherGroundTrap = definition.HigherGroundTrap;
         foreach (var formation in Formations.Values)
             if (formation.Tactics is { } tactics && (tactics.OpportunityChance is < 0 or > 100 || tactics.CounterChance is < 0 or > 100 ||
-                tactics.ConfusionResistanceChance is < 0 or > 100 || tactics.LinkMultiplier <= 0 || tactics.FavoredCategories.IsDefault || tactics.AutomaticTactics.IsDefault ||
+                tactics.LinkMultiplier <= 0 || tactics.FavoredCategories.IsDefault || tactics.AutomaticTactics.IsDefault ||
                 tactics.FavoredCategories.Any(c => c is < 0 or > 8) ||
                 tactics.FavoredCategories.Distinct().Count() != tactics.FavoredCategories.Length ||
                 tactics.AutomaticTactics.Distinct().Count() != tactics.AutomaticTactics.Length ||
@@ -182,7 +180,12 @@ public sealed partial class MilitaryRulebook
         if (Formations.Values.Any(f => f.RequiredTacticId is int id &&
             (!Tactics.TryGetValue(id, out var tactic) || tactic.Effect != TacticEffect.FormationTechnology)))
             throw new ArgumentException("Unknown formation technology reference.");
-        foreach (var formation in Formations.Values) formation.Combat?.Validate();
+        foreach (var formation in Formations.Values)
+        {
+            formation.Combat?.Validate();
+            if (formation.ConfusionResistanceChance is < 0 or > 100)
+                throw new ArgumentException("Invalid formation confusion resistance.");
+        }
         if (Formations.Values.Any(f => f.MartialTacticVulnerabilities.IsDefault ||
             f.MartialTacticVulnerabilities.Any(c => c is < 0 or > 8) ||
             f.MartialTacticVulnerabilities.Distinct().Count() != f.MartialTacticVulnerabilities.Length))

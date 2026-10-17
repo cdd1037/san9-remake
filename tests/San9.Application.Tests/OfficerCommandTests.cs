@@ -19,15 +19,23 @@ public sealed class OfficerCommandTests
         initial = GameSession.Start(basis, 1).Snapshot;
         definition = basis with
         {
+            Military = new(4, 4, Enumerable.Repeat(0, 16).ToImmutableArray(), [new(0, 1, null)],
+                [new(900, 5, 0, 100000, 5, new(1, 1), TravelMode.Land) { Tactics = new(15, 0, 2, [], []) }], [])
+            {
+                Tactics = [new(0, 0, TacticEffect.Martial, 10, 9, 0, true, false, [900]),
+                    new(2, 0, TacticEffect.Martial, 10, 9, 0, true, false, [900])]
+            },
             RegionNameKeys = new() { [1] = "city.1", [2] = "city.2" },
             FacilityNameSuffixKeys = new() { [9000] = "fort" },
-            Information = basis.Information with { Treasures = [new(9000, "treasure", 1, 5, 10, null)] }
+            Information = basis.Information with { Treasures = [new(9000, "treasure", 1, 5, 10, null)], Tactics = [new(0, "tactic.0"), new(2, "tactic.2")] }
         };
         texts = new(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new Dictionary<string, string>
         {
+            ["force.1"] = "甲势力", ["force.2"] = "乙势力",
             ["city.1"] = "甲城", ["city.2"] = "乙城",
             ["officer.1"] = "甲", ["officer.2"] = "乙", ["officer.3"] = "丙",
             ["officer.4"] = "丁", ["officer.5"] = "戊", ["officer.6"] = "己",
+            ["naval-tactic"] = "水战", ["tactic.0"] = "奋战", ["tactic.2"] = "奋迅",
             ["treasure"] = "宝刀", ["fort"] = "城塞"
         });
     }
@@ -192,6 +200,34 @@ public sealed class OfficerCommandTests
         Assert.Equal(new[] { expected, "—", "丁队" }, Read(world).Take(3).Select(c => c.Text));
     }
 
+    [Theory]
+    [InlineData("combat", "奋迅")]
+    [InlineData("construction", "—")]
+    [InlineData("transport", "—")]
+    [InlineData("unformed", "—")]
+    [InlineData("naval", "水战")]
+    public void CommandAndFormationBoardShowTheSameUsableTacticsWithoutClearingEquipment(string mode, string expected)
+    {
+        var world = Deployed();
+        var military = definition.Military!;
+        if (mode == "construction") military = military with { ConstructionFormations = new(900, null) };
+        if (mode == "transport") military = military with { TransportFormations = new(900, null) };
+        if (mode == "unformed") world = world with { Units = world.Units.Select(u => u with { Condition = UnitCondition.NoFormation }).ToArray() };
+        if (mode == "naval") military = military with
+        {
+            TerrainIds = Enumerable.Repeat(1, 16).ToImmutableArray(), Terrains = [new(1, 1, 1) { IsWater = true }],
+            Formations = [.. military.Formations, new(901, 5, 0, 100000, 5, new(1, 1), TravelMode.Water) { Tactics = new(10, 0, 2, [], [3]) }],
+            Tactics = [.. military.Tactics, new(3, 4, TacticEffect.Martial, 10, 9, 0, false, true, [901])]
+        };
+        if (mode == "naval") world = world with { Units = world.Units.Select(u => u with { NavalFormationId = 901 }).ToArray() };
+        var content = definition with { Military = military, Information = definition.Information with
+            { Tactics = [.. definition.Information.Tactics, new(3, "naval-tactic")] } };
+        Assert.Equal(expected, Read(world, content: content)[5].Text);
+        var detail = UnitDetails.Read(new(content, world), new(military), texts, 10);
+        Assert.All(detail.Board.Members, member => Assert.Equal(expected, member.Tactic));
+        Assert.All(world.Officers, officer => Assert.Equal(2, officer.EquippedTacticId));
+    }
+
     [Fact]
     public void ConstructionNamesTheFacilityAndGeographicTarget()
     {
@@ -200,7 +236,7 @@ public sealed class OfficerCommandTests
             { Construction = new(2, 9000, new(7, 7), 1) } }, world.Units[1]] };
         Assert.Equal(new[] { "城塞", "—", "乙城周围" }, Read(world).Take(3).Select(c => c.Text));
         var move = world with { Units = [world.Units[0] with { Order = new(MilitaryOrderKind.Move, new(7, 7), null) }, world.Units[1]] };
-        var mapped = definition with { Military = new(2, 2, [0, 0, 0, 0], [new(0, 1, null)], [], []) { RegionIds = [1, 1, 2, 2] } };
+        var mapped = definition with { Military = definition.Military! with { Width = 2, Height = 2, TerrainIds = [0, 0, 0, 0], RegionIds = [1, 1, 2, 2] } };
         Assert.Equal("乙城周围", Read(move, content: mapped)[2].Text);
     }
 

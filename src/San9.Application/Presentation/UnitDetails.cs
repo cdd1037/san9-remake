@@ -32,9 +32,8 @@ public static class UnitDetails
         var boardMembers = members.OrderBy(o => unit.MemberRanks.GetValueOrDefault(o.Id, BattleRank.Middle)).ThenByDescending(o => o.Id == unit.CommanderId).ThenBy(o => o.Id).Select(o =>
         {
             var person = view.World.Officers.Single(p => p.Id == o.Id);
-            var tactic = view.Information.Tactics.FirstOrDefault(t => t.Id == person.EquippedTacticId);
-            return new FormationMemberView(o.Id, texts.Resolve(o.NameKey), unit.OwnerId != view.PlayerForceId &&
-                !view.World.Simulation.OtherForceTacticsVisible ? "＊＊＊" : tactic is null ? "—" : texts.Resolve(tactic.NameKey),
+            var tactic = UnitTacticDisplay.Read(view, rules, texts, unit, person);
+            return new FormationMemberView(o.Id, texts.Resolve(o.NameKey), tactic.Text == "＊＊" ? "＊＊＊" : tactic.Text.Length == 0 ? "—" : tactic.Text,
                 unit.MemberRanks.GetValueOrDefault(o.Id, BattleRank.Middle), o.Id == unit.CommanderId);
         }).ToArray();
         var commander = view.World.Officers.FirstOrDefault(o => o.Id == unit.CommanderId);

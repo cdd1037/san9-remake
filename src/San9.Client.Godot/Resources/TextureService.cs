@@ -28,11 +28,8 @@ public partial class TextureService : Node
     public IReadOnlyDictionary<string, CursorDefinition> Cursors { get; private set; } = null!;
     public IReadOnlyDictionary<string, ImageAsset> CursorAssets { get; private set; } = null!;
     public TextureCache<ImageTexture> Cache => _cache;
-    public void Initialize(ClientContentPackage package, string root) => Initialize(package, (file, token) =>
-    {
-        token.ThrowIfCancellationRequested(); var pixels = ImageAssetFiles.LoadFile(root, file);
-        token.ThrowIfCancellationRequested(); return pixels;
-    });
+    public void Initialize(ClientContentPackage package, string root) => Initialize(package,
+        (file, token) => ClientImageFiles.LoadFile(root, file, token));
     internal void Initialize(ClientContentPackage package, Func<ImageFile, CancellationToken, PngImage> load)
     {
         _portraits = package.Portraits.ToDictionary(p => p.Image.Id);

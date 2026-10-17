@@ -69,7 +69,9 @@ python research/scripts/verify_texture_library.py --package local/generated/cont
 
 ## 像素副本与异步显示
 
-头像从 PNG 读取并解码，上传后释放压缩字节、解码数组和 Godot `Image`；GPU 缓存项不持有图片像素。淘汰后再次需要时重新解码。未就绪头像显示固定尺寸占位，错误显示错误占位。当前选择通过 `ResourceSelection` 独占请求，旧请求完成不回填新选择，关闭页面后不再持有头像。
+客户端的文件纹理与 CPU 地形源图统一由 `ClientImageFiles` 调用 Godot `Image.Load` 解码，不使用 Content 的简化 PNG 解码器。加载时校验清单尺寸，再转换为清单声明的 L8／RGB8／RGBA8 像素布局，保持合成器与缓存预算一致；声明 RGB 的图片不保留替换文件的 Alpha。常规 PNG 的附加信息块与行过滤由 Godot 处理；替换文件须保持清单路径与尺寸，修改扩展名须同步清单。离线转换与校验工具仍使用自身的 PNG 编解码契约。
+
+头像解码后释放 Godot `Image`，上传后释放解码数组；GPU 缓存项不持有图片像素。淘汰后再次需要时重新解码。未就绪头像显示固定尺寸占位，错误显示错误占位。当前选择通过 `ResourceSelection` 独占请求，旧请求完成不回填新选择，关闭页面后不再持有头像。
 
 窗口图片未就绪时仅保留逻辑区域尺寸，区域视图不绑定底图、不绘制像素；就绪后绑定真实底图并通知所属控件树重绘。不得使用引擎的 `PlaceholderTexture2D` 作为加载画面，该类型[不适合实际渲染](https://docs.godotengine.org/en/stable/classes/class_placeholdertexture2d.html)。头像仍由控件显式绘制灰色／错误占位。全图隐藏时销毁其按钮并释放窗口作用域；重开时重新取得租约。HUD 和地图标注共享物理资源。透明拾取只保存必要的位掩码：HUD 与全图按钮用非零 Alpha，建筑用 Alpha≥128；不为拾取保留整张 RGBA。
 

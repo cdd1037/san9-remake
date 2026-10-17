@@ -118,9 +118,9 @@ public partial class MapWorld : Node2D
         _error = null; _awaitingSeason = true; _loadWatch.Restart();
         _loading = Task.Run(() =>
         {
-            var shared = common ?? ImageAssetFiles.Load(root, map.Assets.Where(a => map.Masks.Any(m => m.WeightAsset == a.Id || m.CoverageAsset == a.Id) || a.Id == "cloud-fill"), token);
+            var shared = common ?? ClientImageFiles.Load(root, map.Assets.Where(a => map.Masks.Any(m => m.WeightAsset == a.Id || m.CoverageAsset == a.Id) || a.Id == "cloud-fill"), token);
             var definition = map.Seasons.SingleOrDefault(s => s.Id == season) ?? throw new InvalidDataException("Unknown season.");
-            var land = ImageAssetFiles.Load(root, definition.Textures, token).ToDictionary(p => int.Parse(p.Key), p => p.Value);
+            var land = ClientImageFiles.Load(root, definition.Textures, token).ToDictionary(p => int.Parse(p.Key), p => p.Value);
             return new LoadedTerrain(shared, new(map, shared, land), season);
         }, token);
     }

@@ -18,9 +18,11 @@ public static class PackageFiles
     public static string Resolve(string root, string relative)
     {
         if (string.IsNullOrWhiteSpace(relative) || Path.IsPathRooted(relative)) throw new InvalidDataException("Asset path must be relative.");
-        string directory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar;
-        string result = Path.GetFullPath(Path.Combine(root, relative));
-        if (!result.StartsWith(directory, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Asset path escapes package.");
+        string directory = Path.GetFullPath(root);
+        if (!Path.EndsInDirectorySeparator(directory)) directory += Path.DirectorySeparatorChar;
+        string result = Path.GetFullPath(Path.Combine(directory, relative));
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (!result.StartsWith(directory, comparison)) throw new InvalidDataException("Asset path escapes package.");
         return result;
     }
 

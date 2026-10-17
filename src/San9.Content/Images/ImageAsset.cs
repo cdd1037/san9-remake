@@ -70,14 +70,20 @@ public static class ImageAssetFiles
     public static PngImage LoadFile(string root, ImageFile file)
     {
         var image = PngImage.Decode(File.ReadAllBytes(PackageFiles.Resolve(root, file.Path)));
+        ValidateFile(image, file);
+        return image;
+    }
+
+    private static void ValidateFile(PngImage image, ImageFile file)
+    {
         if (image.Width != file.Width || image.Height != file.Height || image.Channels != file.Channels)
             throw new InvalidDataException($"Image format or size mismatch: {file.Path}");
-        return image;
     }
 
     public static PngImage Region(PngImage image, ImageAsset asset)
     {
         asset.Validate();
+        ValidateFile(image, asset.File);
         if (asset.X == 0 && asset.Y == 0 && asset.Width == image.Width && asset.Height == image.Height) return image;
         byte[] pixels = new byte[checked(asset.Width * asset.Height * image.Channels)];
         for (int y = 0; y < asset.Height; y++)

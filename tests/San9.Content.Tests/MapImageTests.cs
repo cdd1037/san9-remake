@@ -84,4 +84,40 @@ public sealed class MapImageTests
     [InlineData("../../outside.png")]
     [InlineData("C:/outside.png")]
     public void AssetPathsCannotEscapePackage(string path) => Assert.Throws<InvalidDataException>(() => PackageFiles.Resolve(Path.GetTempPath(), path));
+
+    [Fact]
+    public void AssetPathsResolveUnderFilesystemRoot()
+    {
+        string root = Path.GetPathRoot(Path.GetFullPath(Path.GetTempPath()))!;
+        Assert.Equal(Path.Combine(root, "images", "atlas.png"), PackageFiles.Resolve(root, "images/atlas.png"));
+    }
+
+    [Fact]
+    public void AssetPathsRespectPlatformCaseSensitivity()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "package");
+        if (OperatingSystem.IsWindows())
+            Assert.Equal(Path.Combine(Path.GetTempPath(), "PACKAGE", "atlas.png"), PackageFiles.Resolve(root, "../PACKAGE/atlas.png"));
+        else
+            Assert.Throws<InvalidDataException>(() => PackageFiles.Resolve(root, "../PACKAGE/atlas.png"));
+    }
+
+    [Theory]
+    [InlineData(2, 2, 3)]
+    [InlineData(4, 1, 3)]
+    [InlineData(4, 2, 4)]
+    public void RegionRejectsMismatchedPhysicalImage(int width, int height, int channels)
+    {
+        var asset = new ImageAsset("region", new ImageFile("atlas.png", 4, 2, 3), 0, 0, 2, 2);
+        var image = new PngImage(width, height, channels, new byte[width * height * channels]);
+        Assert.Throws<InvalidDataException>(() => ImageAssetFiles.Region(image, asset));
+    }
+
+    [Fact]
+    public void RegionCopiesRowsFromMatchingAtlas()
+    {
+        var image = new PngImage(3, 2, 1, [1, 2, 3, 4, 5, 6]);
+        var asset = new ImageAsset("region", new ImageFile("atlas.png", 3, 2, 1), 1, 0, 2, 2);
+        Assert.Equal(new byte[] { 2, 3, 5, 6 }, ImageAssetFiles.Region(image, asset).Pixels);
+    }
 }

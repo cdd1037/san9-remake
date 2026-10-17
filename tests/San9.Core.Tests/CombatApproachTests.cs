@@ -9,7 +9,7 @@ public sealed class CombatApproachTests
     {
         var map = new BattlefieldMap(2, 1, [0, 1], [new(0, 1, null), new(1, null, 1)]);
         var target = new MapOccupancy(new(5, 2), new(1, 1));
-        Assert.False(map.FindRoute(new(0, 2), target.Position, new(1, 1), TravelMode.Land, []).Reachable);
+        Assert.Null(map.PassageCost(target.Position, new(1, 1), TravelMode.Land, []));
         var result = map.AdvanceIntoRange(new(0, 2), target, new(1, 1), TravelMode.Land, [], 100, 1);
         Assert.True(result.Arrived);
         Assert.Equal(new WorldPosition(4, 2), result.Position);
@@ -41,7 +41,9 @@ public sealed class CombatApproachTests
         var target = new MapOccupancy(new(12, 2), new(1, 1));
         var blocked = map.AdvanceIntoRange(new(2, 2), target, new(1, 1), TravelMode.Land,
             [new(new(7, 2), new(1, 5))], 100, 1);
-        Assert.Equal(new DailyMovement(new(2, 2), false, false, 0), blocked);
+        Assert.False(blocked.Arrived);
+        Assert.True(blocked.Position.X < 7);
+        Assert.True(blocked.Reachable);
         var arrived = map.AdvanceIntoRange(new(11, 2), target, new(1, 1), TravelMode.Land, [], 100, 1);
         Assert.Equal(new DailyMovement(new(11, 2), true, true, 0), arrived);
         Assert.Throws<ArgumentOutOfRangeException>(() => map.AdvanceIntoRange(new(2, 2), target, new(1, 1), TravelMode.Land, [], 100, 0));

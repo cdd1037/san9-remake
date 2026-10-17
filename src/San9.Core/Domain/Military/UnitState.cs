@@ -26,10 +26,34 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
     [JsonRequired] public UnitPolicies Policies { get; init; } = new();
     [JsonRequired] public int? CommanderId { get; init; }
     [JsonRequired] public int? EngagementTargetId { get; init; }
+    [JsonRequired] public MapObjectReference? ContactTarget { get; init; }
+    [JsonRequired] public bool ActiveEngagement { get; init; }
+    [JsonRequired] public bool PassiveEngagement { get; init; }
     [JsonRequired] public bool AwaitingPostAction { get; init; }
-    [System.Text.Json.Serialization.JsonIgnore] public MilitaryOrder? EffectiveOrder => Condition == UnitCondition.Disguised
-        ? ServicePlaceId is int home ? new(MilitaryOrderKind.Return, null, home) : null
-        : EngagementTargetId is int target ? new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = target } : Order;
+    [JsonIgnore] public MilitaryOrder? EffectiveOrder
+    {
+        get
+        {
+            if (Condition == UnitCondition.Disguised) return ServicePlaceId is int home ? new(MilitaryOrderKind.Return, null, home) : null;
+            var command = CommandOrder;
+            if (ContactTarget is not { } contact || command is { IsAttack: true } &&
+                (contact.IsSettlement ? command.SettlementId == contact.Id : command.UnitId == contact.Id)) return command;
+            return contact.IsSettlement ? new(MilitaryOrderKind.AttackSettlement, null, contact.Id)
+                : new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = contact.Id };
+        }
+    }
+    [JsonIgnore] public MilitaryOrder? CommandOrder => EngagementTargetId is int target
+        ? new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = target } : Order;
+
+    [JsonIgnore] public WorldPosition? ActiveWaypoint =>
+        EngagementTargetId is null && ContactTarget is null && Condition != UnitCondition.Disguised ? Waypoint : null;
+
+    /// <summary>Projects a newly assigned command without carrying the previous command's navigation or contacts.</summary>
+    public UnitState WithMilitaryOrder(MilitaryOrder order, UnitPolicies policies, WorldPosition? waypoint) => this with
+    {
+        Order = order, Policies = policies, Waypoint = waypoint, DepartureDaysRemaining = 0,
+        EngagementTargetId = null, ContactTarget = null, AwaitingPostAction = false, Lookahead = null
+    };
     [System.Text.Json.Serialization.JsonIgnore] public MapCell Cell => MapCoordinates.Cell(Position);
     [JsonRequired] public int? CorpsId { get; init; }
     [JsonRequired] public int? ServicePlaceId { get; init; }
@@ -53,8 +77,8 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
         (!HighSpiritsMoralePenaltyPending || Condition == UnitCondition.HighSpirits) &&
         DepartureDaysRemaining is >= 0 and <= 9 &&
         (Waypoint is null || Waypoint.Value.X >= 0 && Waypoint.Value.Y >= 0 && Order is not null) &&
-        (Lookahead is null || EffectiveOrder is not null && Lookahead.Position.X >= 0 && Lookahead.Position.Y >= 0 &&
-            Lookahead.Target.Position.X >= 0 && Lookahead.Target.Position.Y >= 0 && Lookahead.Target.Footprint.IsValid) &&
+        (Lookahead is null || EffectiveOrder is not null && Lookahead.Position.X >= 0 && Lookahead.Position.Y >= 0) &&
+        (ContactTarget is null || ContactTarget.Id >= 0 && (ContactTarget.IsSettlement || ContactTarget.Id != Id) && FormationId is not null) &&
         (DepartureDaysRemaining == 0 || FormationId is not null && Order is not null) &&
         Policies is not null && CommanderId is not < 0 && EngagementTargetId is not < 0 && EngagementTargetId != Id &&
         (!AwaitingPostAction || Order is null) &&

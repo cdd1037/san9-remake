@@ -6,6 +6,7 @@ namespace San9.Core.Simulation;
 /// <summary>Read capabilities shared by live transactions and frozen military queries.</summary>
 internal interface IWorldQuery
 {
+    GameClock Clock { get; }
     SimulationState Simulation { get; }
     IReadOnlyDictionary<int, ForceState> Forces { get; }
     IReadOnlyDictionary<int, SettlementState> Settlements { get; }
@@ -22,6 +23,7 @@ internal sealed class WorldQuery : IWorldQuery
 {
     internal WorldQuery(WorldSnapshot snapshot)
     {
+        Clock = snapshot.Clock;
         Simulation = snapshot.Simulation;
         Forces = snapshot.Forces.Where(f => !f.IsDormant).ToDictionary(f => f.Id);
         Settlements = snapshot.Settlements.Where(s => !s.IsDormant).ToDictionary(s => s.Id);
@@ -33,6 +35,7 @@ internal sealed class WorldQuery : IWorldQuery
         members = Officers.Values.Where(p => p.IsServing && p.UnitId is not null).ToLookup(p => p.UnitId!.Value);
     }
 
+    public GameClock Clock { get; }
     public SimulationState Simulation { get; }
     public IReadOnlyDictionary<int, ForceState> Forces { get; }
     public IReadOnlyDictionary<int, SettlementState> Settlements { get; }
@@ -43,7 +46,16 @@ internal sealed class WorldQuery : IWorldQuery
     private readonly ILookup<int, OfficerState> members;
     private MovementOccupancy? occupancy;
     private MilitaryRulebook? occupancyRules;
-    private readonly Dictionary<(int Owner, UnitPolicies Policies, int? MovingUnit, int? Entry), ImmutableArray<MapOccupancy>> passages = [];
+    private readonly Dictionary<(int Owner, UnitPolicies Policies, int? MovingUnit, int? Entry), IReadOnlyList<MapOccupancy>> passages = [];
+
+    internal void SetForecastUnit(UnitState unit)
+    {
+        ((Dictionary<int, UnitState>)Units)[unit.Id] = unit;
+        occupancy?.Set(unit);
+        // A query excluding the moving subject depends only on the frozen external world.
+        foreach (var key in passages.Keys)
+            if (key.MovingUnit != unit.Id) passages.Remove(key);
+    }
 
     public IEnumerable<OfficerState> ServingUnitMembers(int unitId) => members[unitId];
     public bool HasTreasureTactic(int officerId, int tacticId, TreasureRulebook rules) => treasures[officerId].Any(t =>

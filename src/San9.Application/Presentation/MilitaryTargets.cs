@@ -15,6 +15,7 @@ public abstract class MilitaryTargets
     protected int OwnerId { get; }
     protected int? MovingUnitId { get; }
     protected abstract bool CanProceed { get; }
+    protected abstract uint Soldiers { get; }
     protected abstract int FormationId { get; }
     protected abstract int? NavalFormationId { get; }
     protected abstract WorldPosition? Start(UnitTravel travel, IReadOnlyList<MapOccupancy> occupancy);
@@ -163,21 +164,22 @@ public abstract class MilitaryTargets
         if (!CanProceed) return new([], unreachable);
         var rules = Rules;
         var world = View.World;
-        var travel = rules.Travel(FormationId, NavalFormationId);
+        var travel = rules.Travel(FormationId, NavalFormationId, Soldiers);
+        if (waypoint is { } via && travel.Map.PassageCost(via, travel.Shape, travel.Mode, []) is null)
+            return new([], unreachable);
         var occupied = MilitaryRouteQuery.Occupancy(world, rules, OwnerId, Policies, movingUnit: MovingUnitId);
         WorldPosition? start = Start(travel, occupied);
         if (start is null) return new([], unreachable);
         var order = existingOrder ?? OrderFor(target);
         // Construction deploys outside the future building, just as the domain command requires.
-        if (order.Construction is { } construction && new MapOccupancy(start.Value, travel.Shape)
+        if (order.Construction is { } construction && travel.AreaAt(start.Value)
             .Overlaps(rules.FacilityArea(construction.Position, construction.FacilityTypeId))) return new([], unreachable);
         var source = MovingUnitId is int moving ? world.Units.Single(u => u.Id == moving) :
-            new UnitState(0, OwnerId, start.Value, 1);
-        var plan = MilitaryRouteQuery.Plan(world, rules, source with
+            new UnitState(0, OwnerId, start.Value, Soldiers);
+        var plan = MilitaryRouteQuery.Plan(world, rules, source.WithMilitaryOrder(order, Policies, waypoint) with
         {
             Position = start.Value, FormationId = FormationId, NavalFormationId = NavalFormationId,
-            Order = order, Policies = Policies, Waypoint = waypoint, EngagementTargetId = null,
-            AwaitingPostAction = false, Lookahead = null, Condition = UnitCondition.Normal
+            Condition = UnitCondition.Normal
         }, MovingUnitId);
         if (plan.Status != NavigationStatus.Arrived)
             return new([], plan.Status switch

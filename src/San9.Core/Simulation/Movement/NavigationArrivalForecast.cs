@@ -7,7 +7,7 @@ namespace San9.Core.Simulation;
 public sealed record NavigationArrivalInput(UnitTravel Travel, WorldPosition Start, MapOccupancy Target,
     ImmutableArray<MapOccupancy> Occupancy, bool Adjacent = true, int PreparationDays = 0,
     int MovementRemainder = 0, bool RectangularReach = false, int Range = 1,
-    WorldPosition? Waypoint = null, NavigationLookahead? Lookahead = null, bool AllowTargetOverlap = false);
+    WorldPosition? Waypoint = null, NavigationLookahead? Lookahead = null, bool AllowTargetOverlap = false, MapOccupancy? RelayExcludedArea = null);
 
 public static class NavigationArrivalForecast
 {
@@ -44,7 +44,7 @@ public static class NavigationArrivalForecast
             NavigationStep step;
             if (waypoint is { } via)
             {
-                step = Advance(input.Travel, position, new(via, new(1, 1)), false, input.Occupancy, budget, work, lookahead);
+                step = Advance(input.Travel, position, new(via, new(1, 1)), false, input.Occupancy, budget, work, lookahead, excluded: input.RelayExcludedArea);
                 if (step.Arrived)
                 {
                     waypoint = null;
@@ -57,7 +57,8 @@ public static class NavigationArrivalForecast
             if (work.Exhausted || step.Status == NavigationStatus.Planning) return new(ArrivalEstimateStatus.Incomplete);
             if (step.Arrived && waypoint is null) return new(ArrivalEstimateStatus.Known, day);
             if (step.Status == NavigationStatus.Unreachable) return new(ArrivalEstimateStatus.Unreachable);
-            if (step.Status == NavigationStatus.Waiting && step.Remainder == 0 && step.Spent == 0)
+            // This geometry-only query repeats a fixed seed, unlike the date-dependent military forecast.
+            if (step.Status == NavigationStatus.Waiting && step.Remainder == 0 && step.Spent == 0 && lookahead == step.Lookahead)
                 return new(ArrivalEstimateStatus.Waiting);
             position = step.Position;
             remainder = step.Remainder;
@@ -69,8 +70,10 @@ public static class NavigationArrivalForecast
     // Both the full world forecast and authoritative daily movement use this same navigation operation.
     internal static NavigationStep Advance(UnitTravel travel, WorldPosition position, MapOccupancy target, bool adjacent,
         IReadOnlyList<MapOccupancy> occupancy, int budget, NavigationWorkBudget? work, NavigationLookahead? lookahead,
-        bool rectangularReach = false, int maximumRange = 1, Func<WorldPosition, int>? range = null, int lookaheadCells = 25) =>
+        bool rectangularReach = false, int maximumRange = 1, Func<WorldPosition, int>? range = null, int lookaheadCells = 25,
+        ulong randomSeed = 0, bool continueApproach = false, int mobility = 20, MapOccupancy? excluded = null, bool requireTargetClearance = false) =>
         travel.Map.Navigate(position, target, adjacent, travel.Shape, travel.Mode, occupancy, budget,
             range: range ?? (_ => maximumRange), rectangularReach: rectangularReach, maximumRange: maximumRange,
-            work: work, lookahead: lookahead, lookaheadCells: lookaheadCells);
+            work: work, lookahead: lookahead, lookaheadCells: lookaheadCells, randomSeed: randomSeed, continueApproach: continueApproach, mobility: mobility, excluded: excluded,
+            requireTargetClearance: requireTargetClearance);
 }

@@ -16,6 +16,7 @@ public sealed class UnitCommandTargets : MilitaryTargets
         UnitCommandKind.Transport => "redirect-transport", _ => throw new ArgumentOutOfRangeException(nameof(kind))
     };
     protected override bool CanProceed => true;
+    protected override uint Soldiers => View.World.Units.Single(u => u.Id == MovingUnitId).Soldiers;
     protected override int FormationId => Unit.FormationId!.Value;
     protected override int? NavalFormationId => Unit.NavalFormationId;
     public override bool IsDeployment => false;

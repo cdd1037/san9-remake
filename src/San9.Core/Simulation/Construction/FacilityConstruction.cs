@@ -63,7 +63,7 @@ internal static class FacilityConstruction
         var rejection = MilitaryMovement.PrepareDeployment(world, deployment, military, rules.Treasures,
             UnitPurpose.Construction, 0, 0, out var prepared);
         if (rejection != CommandRejection.None) return rejection;
-        if (new MapOccupancy(prepared!.Start, military.Travel(pair.LandFormationId, pair.NavalFormationId).Shape)
+        if (military.Travel(pair.LandFormationId, pair.NavalFormationId, command.Soldiers).AreaAt(prepared!.Start)
             .Overlaps(military.FacilityArea(command.Position, type.Id)))
             return CommandRejection.NoDestination;
         preparation = new(deployment, account, cost);
@@ -122,8 +122,8 @@ internal static class FacilityConstruction
             var formation = military.Formation(unit);
             var target = military.FacilityArea(plan.Position, type.Id);
             var movement = MilitaryNavigation.Advance(world, unit, unit.Id, military, MilitaryNavigation.Budget(unit, military));
-            unit = MilitaryNavigation.Commit(world, unit, movement, events);
-            if (!movement.Arrived || new MapOccupancy(movement.Position, military.Formation(unit, movement.Position).Footprint).Overlaps(target)) continue;
+            unit = MilitaryNavigation.Commit(world, unit, movement, military, events);
+            if (!movement.Arrived || new MapOccupancy(movement.Position, military.UnitFootprint(unit, movement.Position)).Overlaps(target)) continue;
             if (!building && !ConstructionPlacement.IsAvailable(unit.OwnerId, military.ConstructionSites[(plan.RegionId, plan.Position)],
                 type, military, rules.Personnel.RegionCities, world.Settlements.Values, world.Units.Values.Where(u => u.Id != id))) continue;
             if (!building)

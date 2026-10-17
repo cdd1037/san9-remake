@@ -58,8 +58,10 @@ public sealed class NavigationResourceTests
         Assert.Equal(1, diagnostics.Expanded);
         Assert.Equal(RouteReachability.Reachable, map.ReachabilityIntoRange(new(12, 12), target, new(1, 1),
             TravelMode.Land, [], new(10000), 1));
-        Assert.Equal(RouteReachability.Unreachable, map.ReachabilityIntoRange(new(12, 12), target, new(1, 1),
-            TravelMode.Land, [new(new(75, 75), new(1, 150))], new(30000), 1));
+        var disconnected = new BattlefieldMap(30, 30, new int[900], [new(0, 10, null)],
+            Enumerable.Range(0, 30).Select(y => new MapCell(15, y)));
+        Assert.Equal(RouteReachability.Unreachable, disconnected.ReachabilityIntoRange(new(12, 12), target, new(1, 1),
+            TravelMode.Land, [], new(30000), 1));
     }
 
     [Fact]
@@ -79,22 +81,25 @@ public sealed class NavigationResourceTests
     {
         var map = new BattlefieldMap(20, 20, new int[400], [new(0, 10, null)]);
         MapOccupancy[] wall = [new(new(50, 50), new(1, 100))];
-        var start = new WorldPosition(10, 50);
+        var start = new WorldPosition(49, 50);
         var target = new MapOccupancy(new(70, 50), new(1, 1));
         var blocked = map.Navigate(start, target, true, new(1, 1), TravelMode.Land, wall, 60);
-        Assert.Equal(NavigationStatus.Waiting, blocked.Status);
+        Assert.False(blocked.Arrived);
+        start = blocked.Position;
         using var diagnostics = new PathSearchDiagnostics();
         for (int day = 0; day < 10; day++)
         {
-            var waiting = map.Navigate(start, target, true, new(1, 1), TravelMode.Land, wall, 60);
-            Assert.Equal(NavigationStatus.Waiting, waiting.Status);
-            Assert.Equal(start, waiting.Position);
+            var step = map.Navigate(start, target, true, new(1, 1), TravelMode.Land, wall, 60);
+            Assert.False(step.Arrived);
+            Assert.True(step.Position.X < wall[0].Left);
+            Assert.All(step.Steps, p => Assert.False(new MapOccupancy(p, new(1, 1)).Overlaps(wall[0])));
+            start = step.Position;
         }
         Assert.True(diagnostics.Queries > 0);
         // Same target center with a changed footprint now offers an approach on this side of the wall.
-        var resized = map.Navigate(start, target with { Footprint = new(60, 1) }, true, new(1, 1), TravelMode.Land, wall, 60);
-        Assert.Equal(NavigationStatus.Moving, resized.Status);
-        var released = map.Navigate(start, target, true, new(1, 1), TravelMode.Land, [], 1000);
+        var resized = map.Navigate(start, target with { Footprint = new(60, 100) }, true, new(1, 1), TravelMode.Land, wall, 60);
+        Assert.True(resized.Arrived);
+        var released = map.Navigate(start, target, true, new(1, 1), TravelMode.Land, [], 1000, mobility: 200);
         Assert.True(released.Arrived);
     }
 

@@ -173,7 +173,7 @@ public sealed class MilitaryDiplomacyTests
     public void MovingFacilityOccupancyTracksDiplomacy(int relation, bool alliance, bool blocks)
     {
         var m = World(relation, alliance).BeginMutation(); var rules = Military();
-        Assert.Equal(blocks, new MovementOccupancy(m, rules).Query(m, m.Units[0].OwnerId, m.Units[0].Policies, 0).Any(o => o.Position == new WorldPosition(50, 10)));
+        Assert.Equal(blocks, new MovementOccupancy(m, rules).Query(m, m.Units[0].OwnerId, m.Units[0].Policies, 0).Any(o => o.Hard && o.Position == new WorldPosition(50, 10)));
         var move = rules.Map.Advance(new(46, 10), new(54, 10), new(1, 1), TravelMode.Land,
             new MovementOccupancy(m, rules).Query(m, m.Units[0].OwnerId, m.Units[0].Policies, 0), 100);
         Assert.Equal(!blocks, move.Arrived);

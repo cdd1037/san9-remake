@@ -51,8 +51,11 @@ public static class MilitaryContentCompiler
             squares.Select(s => s.TerrainId ?? throw new InvalidDataException("Missing battlefield terrain.")).ToImmutableArray(),
             terrains.Select(t => Passage(t.Id)).ToImmutableArray(),
             formations.Select(f => new FormationRule(f.Id, checked(f.Mobility * 5), f.DeploymentCost,
-                100000, 5, new(3, 3), Mode(f.Id))
-                { IsCommon = f.Id is >= 0 and <= 11 or >= 20 and <= 23,
+                100000, 5, Shape(f.Id), Mode(f.Id))
+                { SoldierFootprints = Mode(f.Id) == TravelMode.Land
+                    ? new uint[] { 6000, 12000, 20000, 30000, 40000, 50000 }
+                        .Select((minimum, index) => new SoldierFootprint(minimum, new(index + 5, index + 5))).ToImmutableArray() : [],
+                    IsCommon = f.Id is >= 0 and <= 11 or >= 20 and <= 23,
                     Tactics = f.Id is 13 or 14 or 24 or 25 or 27 ? null : new(Mode(f.Id) == TravelMode.Water ? 10 : 15,
                         f.Id is 1 or 8 ? 50 : 0, f.Id == 2 ? 3 : 2,
                         Enumerable.Range(0, 4).Where(category => Favored(f.Id, category)).ToImmutableArray(),
@@ -144,6 +147,12 @@ public static class MilitaryContentCompiler
         1 or 6 or 9 or 11 or 12 or 13 or 14 => (int?)null,
         _ => throw new InvalidDataException("Unknown TC101 trap terrain mapping.")
     }, id is 1 or 13 or 14);
+
+    private static Footprint Shape(int id)
+    {
+        int side = id switch { 21 or 26 => 6, 22 => 8, 23 => 10, _ => 4 };
+        return new(side, side);
+    }
 
     internal const int BasicNavalFormationId = 20;
 

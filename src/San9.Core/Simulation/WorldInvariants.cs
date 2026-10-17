@@ -40,6 +40,8 @@ internal static class WorldInvariants
         }
         foreach (var settlement in state.AllSettlements.Values)
         {
+            if (settlement.CombatTargetUnitId is int contact && (contact < 0 || !state.Units.ContainsKey(contact) || settlement.IsDestroyed || settlement.IsDormant))
+                throw new ArgumentException("Invalid settlement combat contact.");
             if (settlement.Facility is { } facility && (settlement.Kind != San9.Core.Domain.SettlementKind.Facility ||
                 facility.TypeId < 0 || facility.Position.X < 0 || facility.Position.Y < 0 || facility.BuilderUnitId < 0 ||
                 facility.BuilderUnitId is int builder && (settlement.IsDestroyed || settlement.CanHostPersons ||
@@ -85,6 +87,7 @@ internal static class WorldInvariants
                 unit.Order?.SettlementId is int target && !state.AllSettlements.ContainsKey(target) ||
                 unit.Order?.UnitId is int targetUnit && !state.Units.ContainsKey(targetUnit) ||
                 unit.EngagementTargetId is int engagement && !state.Units.ContainsKey(engagement) ||
+                unit.ContactTarget is { } contact && (contact.IsSettlement ? !state.Settlements.ContainsKey(contact.Id) : !state.Units.ContainsKey(contact.Id)) ||
                 unit.CommanderId is int commander && (!state.AllOfficers.TryGetValue(commander, out var leader) ||
                     !leader.IsServing || leader.UnitId != unit.Id || leader.OwnerId != unit.OwnerId) ||
                 unit.CorpsId is int corpsId && (!state.AllCorps.TryGetValue(corpsId, out var corps) || corps.OwnerId != unit.OwnerId)) throw new ArgumentException("Invalid unit.");

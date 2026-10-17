@@ -213,6 +213,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         if (stage == ResolutionStage.DailyMapUpdate)
         {
             if (contactsBefore is not null) BattleContact.PublishEntries(world, rules.Military!, contactsBefore, events);
+            if (rules.Military is { } engagementRules) MilitaryEngagements.ClearExpired(world, engagementRules);
             MilitaryCombat.AdvanceDay(world, rules, events, xunStarted);
             world.MaintainDerivedState(events);
             if (world.Simulation.PendingDuel is not null || world.Simulation.PendingSniping is not null || !CheckTerminal(world, events)) return false;

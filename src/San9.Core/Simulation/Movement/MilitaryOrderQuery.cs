@@ -10,5 +10,5 @@ public sealed class MilitaryOrderQuery(WorldSnapshot snapshot, MilitaryRulebook 
     public bool CanAssign(int unitId, MilitaryOrder order) => world.Units.TryGetValue(unitId, out var unit) &&
         !unit.IsEmbedded && !unit.IsPersonnel && unit.Soldiers > 0 && unit.FormationId is int formation &&
         rules.Formations.TryGetValue(formation, out var definition) && order.Kind != MilitaryOrderKind.Construct &&
-        MilitaryMovement.ValidOrder(world, unit.OwnerId, order, definition, rules, unit.NavalFormationId);
+        MilitaryMovement.ValidOrder(world, unit.OwnerId, order, definition, rules, unit.NavalFormationId, unit.Soldiers);
 }

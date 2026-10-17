@@ -9,6 +9,7 @@ public sealed class DeploymentTargets(DeploymentDraft draft)
 {
     public DeploymentDraft Draft { get; } = draft;
     protected override bool CanProceed => Draft.CanProceed;
+    protected override uint Soldiers => Draft.Soldiers;
     protected override int FormationId => Draft.FormationId!.Value;
     protected override int? NavalFormationId => Draft.NavalFormationId;
     public override bool IsDeployment => true;
@@ -23,7 +24,7 @@ public sealed class DeploymentTargets(DeploymentDraft draft)
     {
         if (Selected is not { } target || !CanProceed) return new(ArrivalEstimateStatus.NotApplicable);
         var request = new DeploymentArrivalRequest(Draft.Home.Id, FormationId, NavalFormationId,
-            OrderFor(target), Policies, DepartureDelayDays, WaypointPosition);
+            OrderFor(target), Policies, DepartureDelayDays, WaypointPosition, Draft.Soldiers);
         if (_request != request)
         {
             _arrival = (_forecast ??= new(View.World, Rules)).EstimateDeployment(request);

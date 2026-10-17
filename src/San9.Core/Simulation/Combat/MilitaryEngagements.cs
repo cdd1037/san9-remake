@@ -34,6 +34,78 @@ internal static class MilitaryEngagements
         return new(targets, incoming, opponents);
     }
 
+    // Movement consumes state retained from the previous combat phase. Only this pre-combat phase expires it.
+    internal static void ClearExpired(WorldMutation world, MilitaryRulebook military)
+    {
+        HashSet<int> activeContacts = [], passiveContacts = [];
+        foreach (var source in world.Units.Values)
+        {
+            if (source.FormationId is null || source.ContactTarget is not { } target) continue;
+            if (!RetainsContact(world, source, target, military)) continue;
+            activeContacts.Add(source.Id);
+            if (!target.IsSettlement) passiveContacts.Add(target.Id);
+        }
+        foreach (var place in world.Settlements.Values.ToArray())
+        {
+            if (place.CombatTargetUnitId is not int target) continue;
+            if (!place.IsDestroyed && military.TryPlace(place, out _) && world.Units.TryGetValue(target, out var unit) &&
+                unit.FormationId is not null && military.SettlementArea(place).IntersectsExpanded(MilitaryCombat.Area(unit, military), MapCoordinates.UnitsPerCell))
+                passiveContacts.Add(target);
+            else world.Replace(place with { CombatTargetUnitId = null });
+        }
+        foreach (var unit in world.Units.Values.ToArray())
+        {
+            bool active = unit.ActiveEngagement && activeContacts.Contains(unit.Id);
+            bool passive = unit.PassiveEngagement && passiveContacts.Contains(unit.Id);
+            if (active != unit.ActiveEngagement || passive != unit.PassiveEngagement)
+                world.Replace(unit with { ActiveEngagement = active, PassiveEngagement = passive });
+        }
+    }
+
+    internal static void Open(WorldMutation world, BattleSource source, BattleSource target, MilitaryRulebook military)
+    {
+        bool close = source.Area(world, military).IntersectsExpanded(target.Area(world, military), MapCoordinates.UnitsPerCell);
+        if (!source.IsSettlement)
+        {
+            var unit = world.Units[source.Id];
+            var contact = new MapObjectReference(target.Id, target.IsSettlement);
+            world.Replace(unit with { ActiveEngagement = unit.ActiveEngagement || close, ContactTarget = contact,
+                Lookahead = unit.ContactTarget == contact ? unit.Lookahead : null });
+        }
+        else world.Replace(world.Settlements[source.Id] with { CombatTargetUnitId = target.Id });
+        if (close && !target.IsSettlement) world.Replace(world.Units[target.Id] with { PassiveEngagement = true });
+    }
+
+    private static bool RetainsContact(IWorldQuery world, UnitState source, MapObjectReference target, MilitaryRulebook military)
+    {
+        MapOccupancy? area = target.IsSettlement
+            ? world.Settlements.TryGetValue(target.Id, out var place) && !place.IsDestroyed && military.TryPlace(place, out _)
+                ? military.SettlementArea(place) : null
+            : world.Units.TryGetValue(target.Id, out var unit) && unit.FormationId is not null ? MilitaryCombat.Area(unit, military) : null;
+        return source.FormationId is not null && area is { } other &&
+            MilitaryCombat.Area(source, military).IntersectsExpanded(other, MapCoordinates.UnitsPerCell);
+    }
+
+    // A frozen-world ETA predicts the next combat phase for its one moving subject only.
+    internal static UnitState ForecastNextCombat(IWorldQuery world, UnitState unit, MilitaryRulebook military)
+    {
+        var subject = new BattleSource(unit.Id, false);
+        var area = MilitaryCombat.Area(unit, military);
+        bool active = unit.ActiveEngagement && unit.ContactTarget is { } contact && RetainsContact(world, unit, contact, military) ||
+            FindTarget(world, unit, military) is { } own && area.IntersectsExpanded(own.Area(world, military), MapCoordinates.UnitsPerCell);
+        bool passive = world.Units.Values.Any(other => other.Id != unit.Id && other.FormationId is not null &&
+            MilitaryCombat.Area(other, military).IntersectsExpanded(area, MapCoordinates.UnitsPerCell) &&
+            (unit.PassiveEngagement && other.ContactTarget is { IsSettlement: false } previous && previous.Id == unit.Id ||
+                other.EffectiveOrder?.UnitId == unit.Id && FindTarget(world, other, military) == subject));
+        if (!passive)
+            foreach (var place in world.Settlements.Values)
+                if (military.TryPlace(place, out _) && military.SettlementArea(place).IntersectsExpanded(area, MapCoordinates.UnitsPerCell) &&
+                    (unit.PassiveEngagement && place.CombatTargetUnitId == unit.Id || FindFacilityTarget(world, place, military)?.Id == unit.Id))
+                    { passive = true; break; }
+        return active == unit.ActiveEngagement && passive == unit.PassiveEngagement ? unit :
+            unit with { ActiveEngagement = active, PassiveEngagement = passive };
+    }
+
     private static BattleSource? FindTarget(IWorldQuery world, UnitState unit, MilitaryRulebook military)
     {
         if (!MilitaryCombat.CanInitiate(unit) || unit.EffectiveOrder is not { IsAttack: true } order ||

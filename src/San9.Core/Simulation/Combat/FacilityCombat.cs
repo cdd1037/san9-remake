@@ -38,6 +38,9 @@ internal static class FacilityCombat
             settlementsUsed.Add(id);
             if (target is null) { TryTactic(world, id, null, rules, events); continue; }
             var source = new BattleSource(id, true);
+            MilitaryEngagements.Open(world, source, new(target.Id, false), military);
+            settlement = world.Settlements[id];
+            target = world.Units[target.Id];
             var area = source.Area(world, military);
             var formation = military.Formation(target);
             MilitaryDiplomacy.CombatOpened(world, settlement.OwnerId!.Value, target.OwnerId, false, events);

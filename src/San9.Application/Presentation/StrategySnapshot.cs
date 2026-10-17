@@ -132,7 +132,7 @@ public sealed class StrategySnapshot
             return s is not null && military.TryPlace(s, out var place) ? military.BuildingArea(place) : null;
         }
         var unit = World.Units.FirstOrDefault(u => u.Id == id);
-        return unit?.FormationId is not null ? new(position ?? unit.Position, military.Formation(unit, position).Footprint) : null;
+        return unit?.FormationId is not null ? new(position ?? unit.Position, military.UnitFootprint(unit, position)) : null;
     }
     public IReadOnlyList<MapCell> FacilityRockfallPath(int id, WorldPosition target) => military is not null &&
         World.Settlements.FirstOrDefault(s => s.Id == id) is {} source ? military.RockfallPath(source, target, World.Settlements) : [];

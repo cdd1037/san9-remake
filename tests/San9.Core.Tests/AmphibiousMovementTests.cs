@@ -53,7 +53,10 @@ public sealed class AmphibiousMovementTests
         Assert.Equal(200, unit.NavalFormationId);
         var back = travel.Map.FindRoute(unit.Position, new(8, 7), travel.Shape, travel.Mode, []);
         Assert.True(back.Reachable);
-        Assert.Equal(19 * 6, back.Cost);
+        var returned = travel.Map.Navigate(unit.Position, new(new(8, 7), new(1, 1)), false,
+            travel.Shape, travel.Mode, [], 1000, mobility: 200);
+        Assert.True(returned.Arrived);
+        Assert.Equal(19 * 6, returned.Spent);
         Assert.False(rules.Map.FindRoute(new(8, 7), new(27, 7), new(1, 1), TravelMode.Land, []).Reachable);
     }
 
@@ -80,10 +83,12 @@ public sealed class AmphibiousMovementTests
         Assert.Null(travel.Map.PassageCost(new(10, 7), travel.Shape, travel.Mode, [obstacle]));
         var step = travel.Map.Navigate(new(9, 7), new(new(20, 7), new(1, 1)), false, travel.Shape, travel.Mode,
             [obstacle], 200);
-        Assert.True(step.Arrived);
+        Assert.False(step.Arrived);
+        Assert.NotNull(step.Collision);
+        Assert.All(step.Steps, p => Assert.False(new MapOccupancy(p, rules.Map.IsWater(p) ? new(5, 5) : new(1, 1)).Overlaps(obstacle)));
         var route = travel.Map.FindRoute(new(9, 7), new(20, 7), travel.Shape, travel.Mode, [obstacle]);
         Assert.True(route.Reachable);
-        Assert.All(route.Steps, p => Assert.False(new MapOccupancy(p, rules.Map.IsWater(p) ? new(5, 5) : new(1, 1)).Overlaps(obstacle)));
+        Assert.Equal(MapCoordinates.Cell(new(20, 7)), MapCoordinates.Cell(route.Steps[^1]));
         var changed = travel.Map.Navigate(new(9, 7), new(new(20, 7), new(1, 1)), false,
             travel.Shape, travel.Mode, [obstacle], 6);
         Assert.NotEqual(new WorldPosition(10, 7), changed.Position);

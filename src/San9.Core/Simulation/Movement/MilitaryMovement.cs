@@ -62,17 +62,16 @@ internal static class MilitaryMovement
             }
             if (unit.FormationId is not int id || !rules.Formations.TryGetValue(id, out var formation) ||
                 !rules.ValidUnitFormations(id, unit.NavalFormationId) || !rules.AllowsOrder(id, unit.Order) ||
-                rules.Purpose(id) != UnitPurpose.Combat && (unit.EngagementTargetId is not null || unit.AwaitingPostAction) ||
+                rules.Purpose(id) != UnitPurpose.Combat && (unit.EngagementTargetId is not null || unit.ContactTarget is not null || unit.AwaitingPostAction) ||
                 unit.NavalFormationId is int naval && (unit.Soldiers > rules.Formations[naval].SoldierCapacity ||
                     world.Officers.Count(p => p.UnitId == unit.Id && p.IsServing) > rules.Formations[naval].OfficerCapacity) ||
                 unit.MovementRemainder >= rules.Travel(unit).Map.MaximumStepCost(rules.Travel(unit).Mode) ||
                 unit.Soldiers > formation.SoldierCapacity || world.Officers.Count(p => p.UnitId == unit.Id && p.IsServing) > formation.OfficerCapacity ||
-                rules.Travel(unit).Map.PassageCost(unit.Position, rules.Travel(unit).Shape, rules.Travel(unit).Mode, []) is null)
+                rules.Travel(unit).Map.EndpointPassageCost(unit.Position, rules.Travel(unit).Mode) is null)
                 throw new ArgumentException("Invalid unit formation, location or capacity.");
             if (unit.Waypoint is { } via && rules.Travel(unit).Map.PassageCost(via, rules.Travel(unit).Shape, rules.Travel(unit).Mode, []) is null)
                 throw new ArgumentException("Invalid unit waypoint.");
-            if (unit.Lookahead is { } stage && (rules.Travel(unit).Map.PassageCost(stage.Position, rules.Travel(unit).Shape, rules.Travel(unit).Mode, []) is null ||
-                stage.Target.Left < 0 || stage.Target.Top < 0 || stage.Target.Right > rules.Travel(unit).Map.FineWidth || stage.Target.Bottom > rules.Travel(unit).Map.FineHeight))
+            if (unit.Lookahead is { } stage && (stage.Position.X >= rules.Map.FineWidth || stage.Position.Y >= rules.Map.FineHeight))
                 throw new ArgumentException("Invalid navigation lookahead.");
             if (formation.Combat is not null && world.Officers.Any(p => p.IsServing && p.UnitId == unit.Id && !unit.MemberRanks.ContainsKey(p.Id)))
                 throw new ArgumentException("Missing battle member rank.");
@@ -164,7 +163,7 @@ internal static class MilitaryMovement
         if (purpose == UnitPurpose.Combat && (!rules.CanSelectFormation(world.Forces[command.IssuerId], formation.Id) ||
             naval is not null && !rules.CanSelectFormation(world.Forces[command.IssuerId], naval.Id)))
             return CommandRejection.FormationUnavailable;
-        var travel = rules.Travel(formation.Id, navalId);
+        var travel = rules.Travel(formation.Id, navalId, command.Soldiers);
         long deploymentCost = purpose == UnitPurpose.Construction ? 0 : (long)formation.DeploymentCost + (naval?.DeploymentCost ?? 0);
         if (command.DepartureDelayDays is < 0 or > 9) return CommandRejection.InvalidTask;
         if (command.Policies is null || command.Order is null || purpose != UnitPurpose.Construction && command.Order.Kind == MilitaryOrderKind.Construct) return CommandRejection.InvalidTask;
@@ -188,7 +187,7 @@ internal static class MilitaryMovement
             naval is not null && !FormationEligibility.CanUse(world, command.IssuerId, command.OfficerIds, naval, treasures))
             return CommandRejection.MissingFormationTactic;
         if (naval is not null && (command.Soldiers > naval.SoldierCapacity || command.OfficerIds.Length > naval.OfficerCapacity)) return CommandRejection.InvalidTask;
-        if (!ValidOrder(world, command.IssuerId, command.Order, formation, rules, navalId)) return CommandRejection.InvalidTask;
+        if (!ValidOrder(world, command.IssuerId, command.Order, formation, rules, navalId, command.Soldiers)) return CommandRejection.InvalidTask;
         if (!command.ConfirmAttack && MilitaryDiplomacy.Warning(world, command.IssuerId, command.Order, rules) != AttackWarning.None)
             return CommandRejection.AttackConfirmationRequired;
         var account = ResourceAccounts.Resolve(world, command.IssuerId, home.CorpsId);
@@ -197,7 +196,8 @@ internal static class MilitaryMovement
         var occupancy = world.MovementOccupancy(rules, command.IssuerId, command.Policies, null, null);
         WorldPosition? start = MilitaryRouteQuery.DeploymentPosition(travel, rules.BuildingArea(place), occupancy);
         if (start is null) return CommandRejection.NoDestination;
-        if (command.Waypoint is { } via && (Occupancy(world, rules, null, null).Any(o => o.Overlaps(new(via, new(1, 1)))) ||
+        if (command.Waypoint is { } via && (travel.Map.PassageCost(via, travel.Shape, travel.Mode, []) is null ||
+            Occupancy(world, rules, null, null).Any(o => o.Overlaps(new(via, new(1, 1)))) ||
             !travel.Map.FindRoute(start.Value, via, travel.Shape, travel.Mode, occupancy).Reachable))
             return CommandRejection.NoDestination;
         if (world.Simulation.NextUnitId > int.MaxValue) return CommandRejection.ResourceOverflow;
@@ -210,11 +210,12 @@ internal static class MilitaryMovement
         if (rules is null) return CommandRejection.UnsupportedCommand;
         if (!world.Units.TryGetValue(command.UnitId, out var unit) || unit.IsEmbedded || unit.IsPersonnel || unit.Soldiers == 0 || unit.OwnerId != command.IssuerId ||
             unit.FormationId is not int id || !rules.Formations.TryGetValue(id, out var formation)) return CommandRejection.InvalidTask;
-        if (!ValidOrder(world, unit.OwnerId, command.Order, formation, rules, unit.NavalFormationId)) return CommandRejection.InvalidTask;
+        if (!ValidOrder(world, unit.OwnerId, command.Order, formation, rules, unit.NavalFormationId, unit.Soldiers)) return CommandRejection.InvalidTask;
         if (command.Order.Kind == MilitaryOrderKind.Construct) return CommandRejection.InvalidTask;
         var policies = command.Policies ?? unit.Policies;
         var travel = rules.Travel(unit);
-        if (command.Waypoint is { } via && (Occupancy(world, rules, unit.Id, null).Any(o => o.Overlaps(new(via, new(1, 1)))) ||
+        if (command.Waypoint is { } via && (travel.Map.PassageCost(via, travel.Shape, travel.Mode, []) is null ||
+            Occupancy(world, rules, unit.Id, null).Any(o => o.Overlaps(new(via, new(1, 1)))) ||
             !travel.Map.FindRoute(unit.Position, via, travel.Shape, travel.Mode,
                 world.MovementOccupancy(rules, unit.OwnerId, policies, unit.Id, null)).Reachable)) return CommandRejection.InvalidTask;
         if (!command.ConfirmAttack && MilitaryDiplomacy.Warning(world, command.IssuerId, command.Order, rules) != AttackWarning.None)
@@ -235,13 +236,13 @@ internal static class MilitaryMovement
         return CommandRejection.None;
     }
 
-    internal static bool ValidOrder(IWorldQuery world, int owner, MilitaryOrder? order, FormationRule formation, MilitaryRulebook rules, int? navalFormationId = null)
+    internal static bool ValidOrder(IWorldQuery world, int owner, MilitaryOrder? order, FormationRule formation, MilitaryRulebook rules, int? navalFormationId = null, uint soldiers = 1)
     {
         if (order is null || !order.IsValid || !rules.AllowsOrder(formation.Id, order)) return false;
         if (order.Kind == MilitaryOrderKind.Construct) return true;
         if (order.IsAttack) return MilitaryCombat.ValidTarget(world, owner, order, formation, rules) ||
             navalFormationId is int naval && MilitaryCombat.ValidTarget(world, owner, order, rules.Formations[naval], rules);
-        var travel = rules.Travel(formation.Id, navalFormationId);
+        var travel = rules.Travel(formation.Id, navalFormationId, soldiers);
         if (order.Kind == MilitaryOrderKind.Move)
             return order.SettlementId is null && order.Position is WorldPosition p &&
                 travel.Map.PassageCost(p, travel.Shape, travel.Mode, []) is not null;
@@ -268,18 +269,18 @@ internal static class MilitaryMovement
             if (unit.EffectiveOrder is not { } order || unit.Condition == UnitCondition.Confused) continue;
             if (order.Kind == MilitaryOrderKind.Construct) continue;
             var formation = rules.Formations[unit.FormationId!.Value];
-            if (!ValidOrder(world, unit.OwnerId, order, formation, rules, unit.NavalFormationId))
+            if (!ValidOrder(world, unit.OwnerId, order, formation, rules, unit.NavalFormationId, unit.Soldiers))
             {
                 MilitaryOrder? fallback = unit.ServicePlaceId is int home && home != order.SettlementId
                     ? new(MilitaryOrderKind.Return, null, home) : null;
-                if (!ValidOrder(world, unit.OwnerId, fallback, formation, rules, unit.NavalFormationId)) fallback = null;
+                if (!ValidOrder(world, unit.OwnerId, fallback, formation, rules, unit.NavalFormationId, unit.Soldiers)) fallback = null;
                 world.Replace(unit with { Order = fallback });
                 events.Add(new UnitOrderChangedEvent(world.Clock, id, fallback, "target-invalid"));
                 continue;
             }
             var result = MilitaryNavigation.Advance(world, unit, unit.Id, rules, MilitaryNavigation.Budget(unit, rules));
-            unit = MilitaryNavigation.Commit(world, unit, result, events);
-            if (order.IsAttack) continue;
+            unit = MilitaryNavigation.Commit(world, unit, result, rules, events);
+            if (unit.EffectiveOrder?.IsAttack == true) continue;
             if (!result.Arrived) continue;
             if (order.SettlementId is int destination) Absorb(world, unit, destination, governance, geography, rules, events);
             else
@@ -369,7 +370,7 @@ internal static class MilitaryMovement
         foreach (var unit in world.Units.Values.Where(u => u.Id != movingUnit))
         {
             if (unit.FormationId is not int formation) continue;
-            yield return new(unit.Position, rules.Formation(unit).Footprint);
+            yield return new(unit.Position, rules.UnitFootprint(unit));
         }
     }
 }

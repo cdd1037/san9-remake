@@ -40,6 +40,7 @@ public sealed record SettlementState(int Id, int? OwnerId, uint Soldiers, int Du
     [JsonRequired] public FacilityInstance? Facility { get; init; }
     [JsonRequired] public bool IsDestroyed { get; init; }
     [JsonRequired] public int ConfusionDaysRemaining { get; init; }
+    [JsonRequired] public int? CombatTargetUnitId { get; init; }
     [JsonRequired] public uint Wounded { get; init; }
     public SettlementKind Kind { get; init; }
     [JsonRequired] public bool CanHostPersons { get; init; } = true;

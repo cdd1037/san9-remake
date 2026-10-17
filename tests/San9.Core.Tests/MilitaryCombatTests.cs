@@ -7,6 +7,26 @@ namespace San9.Core.Tests;
 
 public sealed class MilitaryCombatTests
 {
+    [Fact]
+    public void OpeningCombatPersistsMovementEngagementThroughDamage()
+    {
+        var state = World(defenders: 100000);
+        var rules = Rules();
+        _ = Engine(state, rules);
+        var world = state.BeginMutation();
+        world.Replace(world.Units[0] with { Position = new(36, 7) });
+        Assert.True(MilitaryCombat.CanInitiate(world.Units[0]));
+        Assert.True(MilitaryCombat.ValidTarget(world, 1, world.Units[0].EffectiveOrder!, rules.Formation(world.Units[0]), rules));
+        Assert.True(MilitaryCombat.Area(world.Units[0], rules).IntersectsExpanded(MilitaryCombat.TargetArea(world, world.Units[0].EffectiveOrder!, rules),
+            MilitaryCombat.UnitRange(world, world.Units[0], world.Units[0].EffectiveOrder!, rules)));
+        int before = MilitaryNavigation.Budget(world.Units[0], rules);
+        List<DomainEvent> events = [];
+        MilitaryCombat.AdvanceDay(world, new() { Military = rules }, events);
+        Assert.Contains(events, e => e is BattleDamageEvent);
+        Assert.True(world.Units[0].ActiveEngagement);
+        Assert.Equal(before / 2, MilitaryNavigation.Budget(world.Units[0], rules));
+    }
+
     [Theory]
     [InlineData(99)]
     [InlineData(100)]

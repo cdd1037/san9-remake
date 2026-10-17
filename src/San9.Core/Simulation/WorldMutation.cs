@@ -97,7 +97,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         RebuildActiveRecords();
     }
 
-    internal GameClock Clock { get; private set; }
+    public GameClock Clock { get; private set; }
     // Ephemeral presentation samples; these are not stable save boundaries.
     internal WorldSnapshot CapturePresentation() => new(Clock, Simulation)
     {
@@ -223,6 +223,8 @@ internal sealed partial class WorldMutation : IWorldQuery
     internal void Replace(SettlementState value)
     {
         var previous = AllSettlements[value.Id];
+        if (previous.OwnerId != value.OwnerId || value.IsDestroyed || value.IsDormant)
+            value = value with { CombatTargetUnitId = null };
         bool courtChanged = !_economy.ImperialCourt.SuccessionOrder.IsEmpty &&
             (previous.OwnerId != value.OwnerId || previous.Kind != value.Kind || previous.IsDormant != value.IsDormant || previous.IsDestroyed != value.IsDestroyed);
         int? previousEmperorOwner = courtChanged ? ForceTrust.EmperorOwner(this, _economy) : null;
@@ -288,8 +290,7 @@ internal sealed partial class WorldMutation : IWorldQuery
     }
     internal void AssignMilitaryOrder(int unitId, MilitaryOrder order, UnitPolicies policies, WorldPosition? waypoint)
     {
-        ReplaceUnit(Units[unitId] with { Order = order, Policies = policies, Waypoint = waypoint,
-            DepartureDaysRemaining = 0, CommandedThisXun = true, EngagementTargetId = null, AwaitingPostAction = false },
+        ReplaceUnit(Units[unitId].WithMilitaryOrder(order, policies, waypoint) with { CommandedThisXun = true },
             assignsNavigation: true);
     }
 
@@ -304,18 +305,7 @@ internal sealed partial class WorldMutation : IWorldQuery
 
     private void ReplaceUnit(UnitState value, bool assignsNavigation)
     {
-        var previous = Units[value.Id];
-        if (value.EffectiveOrder is null || previous.EffectiveOrder != value.EffectiveOrder || previous.OwnerId != value.OwnerId ||
-            previous.FormationId != value.FormationId || previous.NavalFormationId != value.NavalFormationId ||
-            previous.Waypoint != value.Waypoint || previous.Policies != value.Policies || previous.Condition != value.Condition)
-            value = value with { Lookahead = null };
-        if ((!assignsNavigation && previous.Order != value.Order) || previous.OwnerId != value.OwnerId)
-            value = value with { Waypoint = null, DepartureDaysRemaining = 0 };
-        if (value.EffectiveOrder is null || value.Condition == UnitCondition.Confused ||
-            value.Condition == UnitCondition.Routed && value.EffectiveOrder.Kind == MilitaryOrderKind.Construct ||
-            (previous.FormationId != value.FormationId || previous.NavalFormationId != value.NavalFormationId) || previous.OwnerId != value.OwnerId)
-            value = value with { MovementRemainder = 0 };
-        StoreUnit(value);
+        StoreUnit(MilitaryUnitTransitions.Apply(Units[value.Id], value, assignsNavigation));
     }
 
     private void StoreUnit(UnitState value)
@@ -323,9 +313,10 @@ internal sealed partial class WorldMutation : IWorldQuery
         var previous = Units[value.Id];
         if (previous.OwnerId != value.OwnerId || previous.Position != value.Position || (previous.FormationId != value.FormationId || previous.NavalFormationId != value.NavalFormationId) ||
             previous.IsEmbedded != value.IsEmbedded || previous.IsPersonnel != value.IsPersonnel ||
-            previous.Order != value.Order || previous.EngagementTargetId != value.EngagementTargetId || previous.Condition != value.Condition ||
+            previous.Order != value.Order || previous.EngagementTargetId != value.EngagementTargetId || previous.ContactTarget != value.ContactTarget || previous.Condition != value.Condition ||
             (previous.DepartureDaysRemaining == 0) != (value.DepartureDaysRemaining == 0) ||
-            (previous.Soldiers > 0) != (value.Soldiers > 0) || (previous.Morale > 0) != (value.Morale > 0)) _engagements = null;
+            ((previous.Soldiers > 0) != (value.Soldiers > 0) || _engagementRules is { } geometry &&
+                previous.FormationId is not null && value.FormationId is not null && geometry.UnitFootprint(previous) != geometry.UnitFootprint(value)) || (previous.Morale > 0) != (value.Morale > 0)) _engagements = null;
         Units = Replace(Units, value.Id, value);
         _movementOccupancy?.Set(value);
     }
@@ -341,6 +332,8 @@ internal sealed partial class WorldMutation : IWorldQuery
         EnsureOpen();
         if (!Units.ContainsKey(id)) throw new InvalidOperationException("Unknown unit.");
         Units = Units.Remove(id);
+        foreach (var place in Settlements.Values.Where(s => s.CombatTargetUnitId == id).ToArray())
+            Replace(place with { CombatTargetUnitId = null });
         _movementOccupancy?.RemoveUnit(id);
         _engagements = null;
     }

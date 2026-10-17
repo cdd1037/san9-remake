@@ -9,7 +9,7 @@ using San9.Content.Scenarios;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
-if (args.Length < 5) throw new ArgumentException("Usage: scenario.json unit-count xun-count march|combat report-path [verify|navigation|quality]");
+if (args.Length < 5) throw new ArgumentException("Usage: scenario.json unit-count xun-count march|combat report-path [verify|navigation|quality|queries|record]");
 var original = JsonSerializer.Deserialize<ScenarioInitialState>(File.ReadAllText(args[0], Encoding.UTF8), ScenarioContentFiles.DataJsonOptions)!;
 int count = int.Parse(args[1]);
 int xuns = int.Parse(args[2]);
@@ -31,6 +31,11 @@ if (args.Contains("navigation"))
 }
 var startup = Stopwatch.StartNew();
 var session = GameSession.Start(definition, 42, playerForceController: ControllerKind.Automatic);
+if (args.Contains("queries"))
+{
+    QueryBenchmark.Run(session.Snapshot, new MilitaryRulebook(definition.Military!), Log);
+    return;
+}
 if (args.Contains("record")) session.BeginRecording();
 Log($"rules={SessionProtocol.RulesVersion} requested={count} actual={session.Snapshot.Units.Count} mode={args[3]} player_controller={session.PlayerForceController} startup_ms={startup.Elapsed.TotalMilliseconds:F2}");
 GameSession? restored = null;
@@ -78,9 +83,9 @@ ScenarioInitialState Populate(ScenarioInitialState source, int number, bool batt
     var rules = new MilitaryRulebook(source.Military ?? throw new ArgumentException("Missing military map."));
     var formation = rules.Formations.Values.Where(f => f.TravelMode == TravelMode.Land && f.RequiredTacticId is null)
         .OrderBy(f => f.Id).First();
-    var cities = source.Settlements.Where(s => s.OwnerId is not null && s.Kind == SettlementKind.City).OrderBy(s => s.Id).ToArray();
+    var cities = source.Settlements.Where(s => !s.IsDormant && s.OwnerId is not null && s.Kind == SettlementKind.City).OrderBy(s => s.Id).ToArray();
     var people = source.Officers.ToArray();
-    var candidates = Enumerable.Range(0, people.Length).Where(i => people[i].State.Status is not (OfficerStatus.Dead or OfficerStatus.Special))
+    var candidates = Enumerable.Range(0, people.Length).Where(i => !people[i].State.IsDormant && people[i].State.Status is not (OfficerStatus.Dead or OfficerStatus.Special))
         .OrderBy(i => people[i].State.IsServing ? 0 : 1).ThenBy(i => people[i].State.Id).Take(number).ToArray();
     if (candidates.Length != number) throw new ArgumentException("Not enough authored officers for one officer per unit.");
     var occupancy = rules.Places.Values.Select(p => new MapOccupancy(p.Position, p.Footprint)).ToList();

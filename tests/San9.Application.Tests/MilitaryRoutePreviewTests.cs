@@ -13,7 +13,7 @@ public sealed class MilitaryRoutePreviewTests
     [InlineData(false, true)]
     [InlineData(true, false)]
     [InlineData(true, true)]
-    public void DeploymentMapRouteMatchesMovementWithHighGroundSiegeAndRelay(bool catapult, bool relay)
+    public void DeploymentCoarseRouteAndCombatApproachRespectTheirSeparateContracts(bool catapult, bool relay)
     {
         var basis = G01ScenarioTests.Fixture();
         var definition = basis with
@@ -51,7 +51,6 @@ public sealed class MilitaryRoutePreviewTests
         var rules = session.View.MilitaryRules!;
         // Hold other objects and combat state fixed; this checks the map UI through the real movement use case.
         var world = WorldState.Restore(session.Snapshot).BeginMutation();
-        var positions = new List<WorldPosition> { unit.Position };
         UnitMovedEvent movement;
         int days = 0;
         do
@@ -59,16 +58,13 @@ public sealed class MilitaryRoutePreviewTests
             var events = new List<DomainEvent>();
             MilitaryMovement.AdvanceDay(world, rules, new([]), PersonnelRulebook.Empty, events);
             movement = Assert.Single(events.OfType<UnitMovedEvent>());
-            positions.AddRange(movement.Steps);
             Assert.True(++days < 100);
         } while (movement.Status != NavigationStatus.Arrived);
-        var cells = new List<MapCell>();
-        foreach (var position in positions)
-        {
-            var cell = MapCoordinates.Cell(position);
-            if (cells.Count == 0 || cells[^1] != cell) cells.Add(cell);
-        }
-        Assert.Equal(cells, preview);
+        Assert.Equal(MapCoordinates.Cell(unit.Position), preview[0]);
+        Assert.Equal(new MapCell(30, 10), preview[^1]);
+        if (relay) Assert.Contains(new MapCell(5, 12), preview);
+        Assert.All(preview.Zip(preview.Skip(1)), pair =>
+            Assert.Equal(1, Math.Abs(pair.First.X - pair.Second.X) + Math.Abs(pair.First.Y - pair.Second.Y)));
         var source = MilitaryCombat.Area(world.Units[unit.Id], rules);
         var target = rules.SettlementArea(world.Settlements[2]);
         Assert.False(source.Overlaps(target));
@@ -77,5 +73,15 @@ public sealed class MilitaryRoutePreviewTests
         var orderView = new StrategySnapshot(definition, session.Snapshot);
         var redirect = new UnitCommandTargets(orderView, unit.Id, UnitCommandKind.Attack);
         Assert.Equal(preview.ToArray(), redirect.Route.ToArray());
+
+        var contacted = session.Snapshot with
+        {
+            Units = [unit with { Position = new(82, 52), ContactTarget = new(2, true), CommandedThisXun = false }]
+        };
+        var march = new UnitCommandTargets(new(definition, contacted), unit.Id, UnitCommandKind.March);
+        Assert.True(march.Select(new(1, false)));
+        Assert.Equal(new MapCell(2, 10), march.Route[^1]);
+        Assert.Equal(ArrivalEstimateStatus.Known, march.EstimateArrival().Status);
+        Assert.Equal(new MapObjectReference(2, true), contacted.Units[0].ContactTarget);
     }
 }

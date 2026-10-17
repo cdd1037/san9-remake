@@ -25,6 +25,7 @@ public sealed class SpecialDeploymentTargets : MilitaryTargets
                 draft.Rules.TryPlace(s, out _)).ToDictionary(s => new MilitaryTarget(s.Id, false), draft.Rules.SettlementArea);
     public MilitaryTarget? At(MapCell cell) => _sites.TryGetValue(cell, out var target) ? target : null;
     protected override bool CanProceed => Draft.CanProceed;
+    protected override uint Soldiers => Draft.Soldiers;
     protected override int FormationId => Draft.FormationId;
     protected override int? NavalFormationId => Draft.NavalFormationId;
     public override bool IsDeployment => true;
@@ -40,7 +41,7 @@ public sealed class SpecialDeploymentTargets : MilitaryTargets
     public override ArrivalEstimate EstimateArrival()
     {
         if (Selected is not { } target || !CanProceed) return new(ArrivalEstimateStatus.NotApplicable);
-        var request = new DeploymentArrivalRequest(Draft.Home.Id, FormationId, NavalFormationId, OrderFor(target), Policies, 0, WaypointPosition);
+        var request = new DeploymentArrivalRequest(Draft.Home.Id, FormationId, NavalFormationId, OrderFor(target), Policies, 0, WaypointPosition, Draft.Soldiers);
         if (_request != request)
         {
             _arrival = (_forecast ??= new(View.World, Rules, View.RegionCityIds)).EstimateDeployment(request);

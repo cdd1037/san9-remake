@@ -7,6 +7,33 @@ namespace San9.Core.Tests;
 
 public sealed class MilitaryMovementTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ImpassableWaypointIsRejectedByDeploymentAndReassignment(bool water)
+    {
+        var rules = new MilitaryRulebook(new(8, 3,
+            Enumerable.Range(0, 24).Select(i => water && i == 2 ? 1 : 0).ToImmutableArray(),
+            [new(0, 1, null), new(1, null, 1) { IsWater = true }],
+            [new(7, 10, 0, 10000, 5, new(1, 1), TravelMode.Land)],
+            [new(1, new(2, 7), new(1, 1)), new(2, new(37, 7), new(1, 1))])
+            { BlockedCells = water ? [] : [new(2, 0)] });
+        var engine = Engine(World(), rules);
+        var command = new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 400, 7,
+            new(MilitaryOrderKind.Move, new(32, 7), null)) { Waypoint = new(12, 2) };
+        var before = engine.Snapshot;
+        Assert.Equal(CommandRejection.NoDestination, engine.Execute(Player, command).Submission.Rejection);
+        StateAssert.Equal(before, engine.Snapshot);
+        Assert.True(engine.Execute(Player, command with { CommandId = Guid.NewGuid(), Waypoint = null }).Submission.Accepted);
+        before = engine.Snapshot;
+        var unit = Assert.Single(before.Units);
+        var redirect = new OrderUnitCommand(Guid.NewGuid(), 1, before.Simulation.NextSequence, unit.Id,
+            new(MilitaryOrderKind.Return, null, 1)) { Waypoint = command.Waypoint };
+        Assert.Equal(CommandRejection.InvalidTask, engine.Execute(Player, redirect).Submission.Rejection);
+        StateAssert.Equal(before, engine.Snapshot);
+        StateAssert.Equal(before, Engine(WorldState.Restore(engine.CaptureStableState()), rules).Snapshot);
+    }
+
     [Fact]
     public void OrderAtomicallyReplacesTargetPoliciesAndWaypointWithoutRedeployment()
     {

@@ -11,6 +11,39 @@ namespace San9.Application.Tests;
 public sealed class MilitarySessionTests
 {
     [Fact]
+    public void SoldierGrowthAtMapEdgeSurvivesTheSaveCodecWithoutMovingTheCenter()
+    {
+        var basis = Fixture();
+        var definition = basis with
+        {
+            Settlements = [basis.Settlements[0] with { Soldiers = 20000 }, basis.Settlements[1]],
+            Military = basis.Military! with
+            {
+                Formations = [basis.Military.Formations[0] with
+                {
+                    SoldierCapacity = 50000, Footprint = new(4, 4),
+                    SoldierFootprints = [new(6000, new(5, 5)), new(12000, new(6, 6))]
+                }, basis.Military.Formations[1]]
+            }
+        };
+        var session = GameSession.Start(definition, 42);
+        Assert.True(session.Execute(new("player"), new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [1], 11999, 7,
+            new(MilitaryOrderKind.Move, new(0, 7), null)) { Waypoint = new(0, 0) }).Submission.Accepted);
+        var before = Assert.Single(session.Snapshot.Units);
+        var world = WorldState.Restore(session.Snapshot).BeginMutation();
+        // The same mutation used when a battle effect adds troops; serialize before restoring an engine.
+        new BattleSource(before.Id, false).AddSoldiers(world, 1);
+        var saved = session.Capture() with { World = world.CapturePresentation() };
+        var restored = SaveService.Decode(SaveService.EncodeSnapshot(saved), definition);
+        var after = Assert.Single(restored.Snapshot.Units);
+        Assert.Equal(12000u, after.Soldiers);
+        Assert.Equal(before.Position, after.Position);
+        Assert.Equal(before.Waypoint, after.Waypoint);
+        Assert.True(new MapOccupancy(after.Position, new MilitaryRulebook(definition.Military).UnitFootprint(after)).Left < 0);
+        StateAssert.Equal(saved, restored.Capture());
+    }
+
+    [Fact]
     public void UnitOrderPoliciesAndWaypointSurviveSaveLogAndRecording()
     {
         var definition = Fixture(); var session = GameSession.Start(definition, 42);

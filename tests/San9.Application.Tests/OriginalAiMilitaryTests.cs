@@ -1327,7 +1327,8 @@ public sealed class OriginalAiMilitaryTests
         var unit = new UnitState(0, 1, new(27, 7), 1000) { FormationId = 400, Order = new(MilitaryOrderKind.Move, new(27, 7), null) };
         var arrived = MilitaryRouteQuery.Plan(h.Engine.Snapshot, new(content.Military!), unit, null);
         Assert.Equal(NavigationStatus.Arrived, arrived.Status);
-        Assert.Equal(0, arrived.Days);
+        Assert.Equal(unit.Position, Assert.Single(arrived.Steps));
+        Assert.Null(arrived.Days);
         content = content with { Military = content.Military! with
             { TerrainIds = Enumerable.Range(0, 60).Select(i => i % 20 == 8 ? 1 : 0).ToImmutableArray(), Terrains = [new(0, 1, null), new(1, null, null)] } };
         var blocked = new Harness(content);

@@ -3,9 +3,23 @@ using System.Text.Json.Serialization;
 
 namespace San9.Core.Domain;
 
+public sealed record SoldierFootprint(uint MinimumSoldiers, Footprint Footprint);
+
 public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCost, uint SoldierCapacity,
     int OfficerCapacity, Footprint Footprint, TravelMode TravelMode)
 {
+    [JsonRequired] public ImmutableArray<SoldierFootprint> SoldierFootprints { get; init; } = [];
+    public Footprint FootprintFor(uint soldiers)
+    {
+        var shape = Footprint;
+        foreach (var band in SoldierFootprints)
+        {
+            if (soldiers < band.MinimumSoldiers) break;
+            shape = band.Footprint;
+        }
+        return shape;
+    }
+
     [JsonRequired] public bool IsCommon { get; init; } = true;
     public bool IsCandidateFor(ForceState force) => IsCommon || force.AdditionalFormationIds.Contains(Id);
 
@@ -103,6 +117,13 @@ public sealed partial class MilitaryRulebook
         LinkRules.Validate();
         if (definition.TerrainIds.IsDefault || definition.Terrains.IsDefault || definition.Formations.IsDefault || definition.Places.IsDefault)
             throw new ArgumentException("Missing military definitions.");
+        foreach (var formation in definition.Formations)
+        {
+            if (formation.SoldierFootprints.IsDefault || formation.SoldierFootprints.Any(b => !b.Footprint.IsValid) ||
+                !formation.SoldierFootprints.Select(b => b.MinimumSoldiers).SequenceEqual(
+                    formation.SoldierFootprints.Select(b => b.MinimumSoldiers).Distinct().Order()))
+                throw new ArgumentException("Invalid soldier footprint bands.");
+        }
         if (definition.BlockedCells.IsDefault) throw new ArgumentException("Missing battlefield blocking cells.");
         Map = new(definition.Width, definition.Height, definition.TerrainIds, definition.Terrains, definition.BlockedCells);
         CityInfluence = definition.CityInfluence;

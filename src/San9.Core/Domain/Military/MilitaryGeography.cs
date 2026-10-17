@@ -5,12 +5,8 @@ public sealed partial class MilitaryRulebook
     public IReadOnlySet<MapCell> GeographicFootprint(SettlementState settlement) =>
         GeographicCells(SettlementArea(settlement)).ToHashSet();
 
-    public IReadOnlySet<MapCell> GeographicFootprint(UnitState unit)
-    {
-        var shape = Formation(unit).Footprint;
-        return GeographicCells(new(unit.Position, new(checked(shape.Width * Geography.FootprintScale),
-            checked(shape.Height * Geography.FootprintScale)))).ToHashSet();
-    }
+    public IReadOnlySet<MapCell> GeographicFootprint(UnitState unit) =>
+        GeographicCells(new(unit.Position, UnitFootprint(unit))).ToHashSet();
 
     /// <summary>The source city's influence, independent of the owner's other cities.</summary>
     public IReadOnlySet<MapCell> CityInfluenceCells(SettlementState source, IEnumerable<SettlementState> settlements)

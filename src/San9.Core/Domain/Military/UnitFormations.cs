@@ -5,12 +5,13 @@ namespace San9.Core.Domain;
 /// <summary>A movement topology and time scale shared by execution and forecasts.</summary>
 public sealed record UnitTravel(BattlefieldMap Map, Footprint Shape, TravelMode Mode, int DailyBudget)
 {
+    public MapOccupancy AreaAt(WorldPosition position) => new(position, Map.ShapeAt(position, Shape));
     public IEnumerable<WorldPosition> Entrances(MapOccupancy place) => Map.Entrances(place, Shape);
 }
 
 public sealed partial class MilitaryRulebook
 {
-    private readonly ConcurrentDictionary<(int, int?), UnitTravel> travelProfiles = new();
+    private readonly ConcurrentDictionary<(int, int?, Footprint, Footprint), UnitTravel> travelProfiles = new();
 
     public int? NavalFormationForDeployment(int formationId) =>
         Formations[formationId].TravelMode == TravelMode.Land ? BasicNavalFormationId : null;
@@ -40,13 +41,17 @@ public sealed partial class MilitaryRulebook
         return slot >= 0 && slot < ranks.Length ? ranks[slot] : BattleRank.Middle;
     }
 
-    public UnitTravel Travel(UnitState unit) => Travel(unit.FormationId!.Value, unit.NavalFormationId);
+    public Footprint UnitFootprint(UnitState unit, WorldPosition? position = null) => Formation(unit, position).FootprintFor(unit.Soldiers);
 
-    public UnitTravel Travel(int formationId, int? navalFormationId) => travelProfiles.GetOrAdd((formationId, navalFormationId), key =>
+    public UnitTravel Travel(UnitState unit) => Travel(unit.FormationId!.Value, unit.NavalFormationId, unit.Soldiers);
+
+    public UnitTravel Travel(int formationId, int? navalFormationId, uint soldiers = 1) => travelProfiles.GetOrAdd(
+        (formationId, navalFormationId, Formations[formationId].FootprintFor(soldiers),
+            navalFormationId is int naval ? Formations[naval].FootprintFor(soldiers) : default), key =>
     {
-        var land = Formations[key.Item1];
+        var land = Formations[key.Item1] with { Footprint = key.Item3 };
         if (key.Item2 is not int navalId) return new(Map, land.Footprint, land.TravelMode, land.MovementBudget);
-        var naval = Formations[navalId];
+        var naval = Formations[navalId] with { Footprint = key.Item4 };
         // Integer time units preserve fractional progress across shorelines with different speeds.
         int budget = checked((int)TravelBudget(land, naval));
         return new(Map.ForTravel(land, naval, budget),

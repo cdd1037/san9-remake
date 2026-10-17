@@ -90,6 +90,12 @@ Headless 的领域场景由`HeadlessHostTests`直接调用生产宿主，并以�
 
 默认存档不累计操作／事件历史由3旬短流程、文件字段检查和恢复后继续一致性验证；记录队列通过`AutomaticRecordsAreBoundedWhilePlayerNotesArePreserved`越过128条上限并验证精确淘汰顺序。删除40年推进及存档长度差阈值，后者随当前AI目标、随机流和日期位数变化，不能证明历史有界。这些用例不承担长期对局或内存泄漏验收；有具体长期故障时按实际状态／资源增长补回归。
 
+## 粗细两级导航覆盖
+
+地图预览是粗路线意图，不能与逐日细步或攻城最终停点直接比较。`BattlefieldPathSearchTests`、`PlanningRouteCostTests`检查粗格连接、预算与工作区复用；`MovementNavigationTests`、`CombatApproachTests`、`AmphibiousMovementTests`检查实际细步、完整对象碰撞、中心地形扣费及跨岸。旧A*最优路径、整队地形净空和精细预览相等断言已迁移，局部受阻不要求升级为全图细搜索。
+
+`NavigationQueryConsistencyTests`覆盖正式移动日期下的ETA首次到达、等待／混乱、预测状态隔离和占用缓存；`MilitaryMovementTests`检查非法途经点的命令拒绝与恢复，`MilitaryRoutePreviewTests`检查界面粗路线、中继和旧接触不污染改令预览。现有保存／录像及Headless覆盖继续承担协议职责。
+
 ## 原型AI退出后的覆盖
 
 2026-10-16删除共同分配、经济目标、战役搜索／配队／选阵、机会冷却、预测缓存与拒绝集合的专属测试，所约束实现已退出，不移为另一套生产回退。公共部署预检、途经点保存及实际行军、显式导航对照保留在`DeploymentPreparationTests`；军事、计略、军团权限及终局测试以显式公共命令继续验证实际效果和回放。经营脚本选人及独立规划随机测试仍保留。OAI-01新增`OriginalDomesticWorkTests`、`OriginalAiCycleTests`覆盖原版经营规则与生产接线，`AiProductionBaselineTests`、`DomesticPlanningBoundaryTests`与Headless同步验证实际自动经营、控制权限、推进、恢复及协议；必要电脑响应沿原有响应专项。后续基线能力按原版AI规格另行验收。

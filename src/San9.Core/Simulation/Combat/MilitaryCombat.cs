@@ -57,7 +57,7 @@ internal static class MilitaryCombat
         order.UnitId is int id ? Area(world.Units[id], rules) :
         rules.SettlementArea(world.Settlements[order.SettlementId!.Value]);
 
-    internal static MapOccupancy Area(UnitState unit, MilitaryRulebook rules) => new(unit.Position, rules.Formation(unit).Footprint);
+    internal static MapOccupancy Area(UnitState unit, MilitaryRulebook rules) => new(unit.Position, rules.UnitFootprint(unit));
 
     internal static int WallDamage(WorldMutation world, UnitState unit, SettlementState target, MilitaryRulebook rules)
     {
@@ -77,7 +77,7 @@ internal static class MilitaryCombat
         var formation = rules.Formation(source, position);
         if (formation.Attack?.RangedSiege != true || rules.Map.IsWater(position)) return 1;
         int reach = UnitRange(world, source, target, rules, position);
-        var area = new MapOccupancy(position, formation.Footprint);
+        var area = new MapOccupancy(position, rules.UnitFootprint(source, position));
         bool targetCanReply;
         if (target.SettlementId is int id)
         {
@@ -112,6 +112,11 @@ internal static class MilitaryCombat
             var formation = military.Formation(attacker);
             if (!ValidTarget(world, attacker.OwnerId, order, formation, military))
             {
+                if (attacker.ContactTarget is not null)
+                {
+                    world.Replace(attacker with { ContactTarget = null });
+                    continue;
+                }
                 world.Replace(attacker with
                 {
                     Order = attacker.EngagementTargetId is null ? null : attacker.Order,
@@ -126,6 +131,8 @@ internal static class MilitaryCombat
             var targetArea = TargetArea(world, order, military);
             if (used.Contains(id) || !Area(attacker, military).IntersectsExpanded(targetArea, UnitRange(world, attacker, order, military))) continue;
             used.Add(id);
+            MilitaryEngagements.Open(world, new(id, false), new(order.UnitId ?? order.SettlementId!.Value, order.UnitId is null), military);
+            attacker = world.Units[id];
             if (order.SettlementId is int requestTarget) AttackRequests.Fulfill(world, attacker.OwnerId, requestTarget, events);
             MilitaryDiplomacy.CombatOpened(world, attacker.OwnerId, MilitaryDiplomacy.TargetOwner(world, order),
                 order.SettlementId is int attackedPlace && MilitaryDiplomacy.Work(world, attackedPlace, military), events);

@@ -154,7 +154,7 @@ internal sealed partial class OriginalAiActions
             if (PlacePosition(source.Id) is not { } from) continue;
             var travel = military.Travel(unit);
             pathQueries++;
-            var route = travel.Map.FindRouteIntoRange(from, new MapOccupancy(unit.Position, military.Formation(unit).Footprint), travel.Shape, travel.Mode, []);
+            var route = travel.Map.FindRouteIntoRange(from, new MapOccupancy(unit.Position, military.UnitFootprint(unit)), travel.Shape, travel.Mode, []);
             if (!route.Reachable) return false;
             bool excluded = false;
             foreach (var point in route.Steps)

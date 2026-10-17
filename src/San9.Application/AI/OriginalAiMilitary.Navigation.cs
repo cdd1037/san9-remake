@@ -20,7 +20,7 @@ internal sealed partial class OriginalAiMilitary
         MilitaryOrder Remember(MilitaryOrder result) { orders[u.Id] = result; return result; }
         MapOccupancy? destination = order.UnitId is int targetUnit
             ? World.Units.FirstOrDefault(t => t.Id == targetUnit) is { } unitTarget
-                ? new(unitTarget.Position, rules.Formation(unitTarget).Footprint) : null
+                ? new(unitTarget.Position, rules.UnitFootprint(unitTarget)) : null
             : order.SettlementId is int targetId
                 ? World.Settlements.FirstOrDefault(s => s.Id == targetId && !s.IsDestroyed && !s.IsDormant) is { } target
                     ? rules.SettlementArea(target) : null
@@ -104,7 +104,7 @@ internal sealed partial class OriginalAiMilitary
         Refresh();
         var key = (unit, order, moving);
         if (routes.TryGetValue(key, out var cached)) return cached;
-        var planned = unit with { Order = order, EngagementTargetId = null, DepartureDaysRemaining = 0, Waypoint = null, Lookahead = null };
+        var planned = unit.WithMilitaryOrder(order, unit.Policies, null);
         var result = AnalyzeRoute(planned, moving);
         routes[key] = result;
         return result;

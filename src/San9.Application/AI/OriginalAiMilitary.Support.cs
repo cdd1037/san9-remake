@@ -17,7 +17,7 @@ internal sealed partial class OriginalAiMilitary
         var travel = rules.Travel(unit);
         paths++;
         var route = travel.Map.FindRouteIntoRange(rules.Place(home).Position,
-            new(unit.Position, rules.Formation(unit).Footprint), travel.Shape, travel.Mode, []);
+            new(unit.Position, rules.UnitFootprint(unit)), travel.Shape, travel.Mode, []);
         if (!route.Reachable) return false;
         return !route.Steps.Any(point => BuildingAlongRoute(point, building => !building.IsDestroyed && !building.IsDormant &&
             rules.TryPlace(building, out var place) &&

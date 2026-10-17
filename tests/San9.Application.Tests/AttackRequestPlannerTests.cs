@@ -19,14 +19,14 @@ public sealed class AttackRequestPlannerTests
         var content = basis with
         {
             Settlements = basis.Settlements.Select(s => s.Id == 3 ? s with { X = 180, Y = 180 } :
-                s.Id == 2 && blocked ? s with { X = 100, Y = 100 } : s).ToArray(),
+                s.Id == 2 && blocked ? s with { X = 140, Y = 100 } : s).ToArray(),
             Military = basis.Military! with
             {
                 Width = 200, Height = 200,
                 TerrainIds = new int[40000].ToImmutableArray(),
                 BlockedCells = blocked ? Enumerable.Range(0, 200).Select(y => new MapCell(100, y)).ToImmutableArray() : [],
                 Places = basis.Military.Places.Select(p => p.Id == 3 ? p with { Position = new(902, 902) } :
-                    p.Id == 2 && blocked ? p with { Position = new(502, 502), Footprint = new(1, 996) } : p).ToImmutableArray()
+                    p.Id == 2 && blocked ? p with { Position = new(702, 502) } : p).ToImmutableArray()
             }
         };
         var session = GameSession.Start(content, 42);

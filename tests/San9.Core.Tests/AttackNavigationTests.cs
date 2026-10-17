@@ -88,6 +88,7 @@ public sealed class AttackNavigationTests
         var (world, rules) = Fixture(settlement);
         world.Replace(world.Units[0] with { Policies = new(AttackApproachingEnemies: true) });
         world.Replace(world.Units[9] with { OwnerId = 2, CorpsId = 2 });
+        for (int day = 0; day < 20 && Advance(world, rules).Status != NavigationStatus.Waiting; day++) { }
         Assert.Equal(NavigationStatus.Waiting, Advance(world, rules).Status);
         using var diagnostics = new PathSearchDiagnostics();
         Assert.Equal(NavigationStatus.Waiting, Advance(world, rules).Status);
@@ -115,7 +116,7 @@ public sealed class AttackNavigationTests
     public void OrdinaryFormationKeepsApproachingFromUnansweredHighGroundAttack(bool settlement)
     {
         var (world, rules) = Fixture(settlement);
-        var unit = world.Units[0] with { FormationId = 3, Position = new(60, 50) };
+        var unit = world.Units[0] with { FormationId = 3, Position = new(60, 50), Policies = new(AttackApproachingEnemies: true) };
         world.Replace(unit);
         var target = MilitaryCombat.TargetArea(world, unit.Order!, rules);
         Assert.True(MilitaryCombat.Area(unit, rules).IntersectsExpanded(target, MilitaryCombat.UnitRange(world, unit, unit.Order!, rules)));
@@ -135,7 +136,7 @@ public sealed class AttackNavigationTests
     [InlineData(true, false, false)]
     [InlineData(true, true, false)]
     [InlineData(true, false, true)]
-    public void FrozenPreviewMatchesEveryDailyStepAndEndpoint(bool catapult, bool weakened, bool relay)
+    public void CoarsePreviewShowsIntentWhileExecutionUsesCombatApproach(bool catapult, bool weakened, bool relay)
     {
         var (world, rules) = Fixture(true);
         world.Replace(world.Units[0] with { FormationId = catapult ? 0 : 3, Waypoint = relay ? new(22, 72) : null });
@@ -145,17 +146,17 @@ public sealed class AttackNavigationTests
         var plan = MilitaryRouteQuery.Plan(snapshot, rules, world.Units[0], 0);
         Assert.Equal(NavigationStatus.Arrived, plan.Status);
         StateAssert.Equal(hash, snapshot);
-        var actual = new List<WorldPosition> { world.Units[0].Position };
         NavigationStep step;
         int days = 0;
         do
         {
             step = Advance(world, rules);
-            actual.AddRange(step.Steps);
             Assert.True(++days < 100);
         } while (!step.Arrived);
-        Assert.Equal(actual, plan.Steps);
-        Assert.Equal(world.Units[0].Position, plan.Steps[^1]);
+        Assert.Equal(MapCoordinates.Cell(snapshot.Units.Single(u => u.Id == 0).Position), MapCoordinates.Cell(plan.Steps[0]));
+        Assert.Equal(MapCoordinates.Cell(rules.SettlementArea(world.Settlements[2]).Position), MapCoordinates.Cell(plan.Steps[^1]));
+        Assert.All(plan.Steps.Zip(plan.Steps.Skip(1)), pair =>
+            Assert.Equal(5, Math.Abs(pair.First.X - pair.Second.X) + Math.Abs(pair.First.Y - pair.Second.Y)));
         if (relay) Assert.Contains(new WorldPosition(22, 72), plan.Steps);
         var area = MilitaryCombat.Area(world.Units[0], rules);
         var target = rules.SettlementArea(world.Settlements[2]);
@@ -164,14 +165,14 @@ public sealed class AttackNavigationTests
     }
 
     [Fact]
-    public void PreviewSeparatesSearchLimitsFromBlockedRoutesAndReplansAfterObstacleRemoval()
+    public void CoarsePreviewSeparatesSearchLimitsFromDynamicCollision()
     {
         var (world, rules) = Fixture(true);
         var unit = world.Units[0] with { Policies = new(AttackApproachingEnemies: true) };
         world.Replace(unit);
         Assert.Equal(NavigationStatus.Planning, MilitaryRouteQuery.Plan(world.CapturePresentation(), rules, unit, 0, maximumExpanded: 1).Status);
         world.Replace(world.Units[9] with { OwnerId = 2, CorpsId = 2 });
-        Assert.Equal(NavigationStatus.Waiting, MilitaryRouteQuery.Plan(world.CapturePresentation(), rules, unit, 0).Status);
+        Assert.Equal(NavigationStatus.Arrived, MilitaryRouteQuery.Plan(world.CapturePresentation(), rules, unit, 0).Status);
         world.RemoveUnit(9);
         Assert.Equal(NavigationStatus.Arrived, MilitaryRouteQuery.Plan(world.CapturePresentation(), rules, unit, 0).Status);
     }

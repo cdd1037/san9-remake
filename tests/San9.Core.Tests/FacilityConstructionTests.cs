@@ -54,6 +54,100 @@ public sealed class FacilityConstructionTests
     }
 
     [Theory]
+    [InlineData(22, true)]
+    [InlineData(27, false)]
+    public void ConstructionDeploymentChecksTheEffectiveShoreFootprint(int startX, bool accepted)
+    {
+        var home = new WorldPosition(startX, 27);
+        var site = new WorldPosition(27, 22);
+        var military = new MilitaryRulebook(new(10, 10,
+            Enumerable.Range(0, 100).Select(i => i % 10 < 5 && i / 10 >= 5 ? 1 : 0).ToImmutableArray(),
+            [new(0, 10, null), new(1, null, 10) { IsWater = true }],
+            [new(0, 100, 0, 100000, 1, new(4, 4), TravelMode.Land) { SoldierFootprints = [new(50000, new(10, 10))] },
+             new(1, 100, 0, 100000, 1, new(4, 4), TravelMode.Water)],
+            [new(1, home, new(1, 1)) { FacilityTypeId = 0 }])
+        {
+            ConstructionFormations = new(0, 1),
+            Facilities = [new(0, 0, 600, new(1, 1), 15, false, true, true, 500000, null, null, null, []),
+                new(9000, 1000, 600, new(4, 4), 15, true, true, true, 250000, null, null, null, [])],
+            ConstructionSites = [new(8000, site, [9000])]
+        });
+        var geography = new PersonnelRulebook([new(1, home), new(8000, site)],
+            new Dictionary<int, int> { [1] = 1, [8000] = 1 });
+        var state = WorldState.Create(new(190, 1, 1), 42, [new(1, 100) { LeaderId = 11 }],
+            [new(1, 1, 100000, 600, 600, 100, 0, 0, 100, 0, 100)],
+            [new(11, 1, 1, new(100, 100, 100, 100), false) { Status = OfficerStatus.Ruler }],
+            controls: [new("player", 1, ControllerKind.Player)],
+            corps: [new(1, 1, 11, new(10000, 1000000)) { IsRoot = true }]);
+        var engine = new SimulationEngine(state, EconomyRulebook.Empty, geography, TreasureRulebook.Empty, military: military);
+        var request = new DeploymentArrivalRequest(1, 0, 1,
+            new(MilitaryOrderKind.Construct, null, null) { Construction = new(8000, 9000, site, 11) }, new(), Soldiers: 50000);
+        var estimate = new MilitaryArrivalForecast(state.CreateSnapshot(), military, geography.RegionCities,
+            TreasureRulebook.Empty).EstimateDeployment(request);
+        var result = engine.Execute(Player, new ConstructFacilityCommand(Guid.NewGuid(), 1, 0, 1, [11], 50000, 8000, 9000, site));
+        Assert.Equal(accepted, result.Submission.Accepted);
+        if (!accepted)
+        {
+            Assert.Equal(CommandRejection.NoDestination, result.Submission.Rejection);
+            Assert.Equal(ArrivalEstimateStatus.NotApplicable, estimate.Status);
+            Assert.Empty(engine.CaptureStableState().Units);
+            return;
+        }
+        Assert.Equal(new(ArrivalEstimateStatus.Known, 1), estimate);
+        var departureDate = engine.CaptureStableState().Clock;
+        var events = Advance(engine).Events;
+        var started = Assert.Single(events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "started");
+        Assert.Equal((long)estimate.Days!.Value, started.Clock.DayNumber - departureDate.DayNumber);
+    }
+
+    [Theory]
+    [InlineData(24)]
+    [InlineData(25)]
+    public void ConstructionFindsClearArrivalAfterShoreFootprintExpansion(int startX)
+    {
+        var rules = new MilitaryRulebook(new(10, 10,
+            Enumerable.Range(0, 100).Select(i => i % 10 < 5 && i / 10 >= 5 ? 1 : 0).ToImmutableArray(),
+            [new(0, 10, null), new(1, null, 10) { IsWater = true }],
+            [new(0, 100, 0, 100000, 1, new(4, 4), TravelMode.Land) { SoldierFootprints = [new(50000, new(10, 10))] },
+             new(1, 100, 0, 100000, 1, new(4, 4), TravelMode.Water)],
+            [new(1, new(2, 2), new(1, 1)) { FacilityTypeId = 0 }])
+        {
+            ConstructionFormations = new(0, 1),
+            Facilities = [new(0, 0, 600, new(1, 1), 15, false, true, true, 500000, null, null, null, []),
+                new(9000, 1000, 600, new(4, 4), 15, true, true, true, 250000, null, null, null, [])],
+            ConstructionSites = [new(8000, new(27, 22), [9000])]
+        });
+        var geography = new PersonnelRulebook([new(1, new(2, 2)), new(8000, new(27, 22))],
+            new Dictionary<int, int> { [1] = 1, [8000] = 1 });
+        var simulation = new SimulationRules { Military = rules, Personnel = geography };
+        var builder = new UnitState(0, 1, new(startX, 27), 50000)
+        {
+            FormationId = 0, NavalFormationId = 1, Morale = 90, CorpsId = 1, ServicePlaceId = 1,
+            Order = new(MilitaryOrderKind.Construct, null, null) { Construction = new(8000, 9000, new(27, 22), 11) }
+        };
+        var state = WorldState.Create(new(190, 1, 1), 0, [new(1, 100) { LeaderId = 11 }],
+            [new(1, 1, 100000, 600, 600, 100, 0, 0, 100, 0, 100)],
+            [new(11, 1, null, new(100, 100, 100, 100), false) { UnitId = 0, Status = OfficerStatus.Ruler }], [builder],
+            corps: [new(1, 1, 11, new(10000, 1000000)) { IsRoot = true }]);
+        var snapshot = state.CreateSnapshot();
+        MilitaryMovement.Validate(snapshot, rules);
+        var site = new MapOccupancy(new(27, 22), new(4, 4));
+        Assert.Equal(startX == 25, MilitaryCombat.Area(builder, rules).Overlaps(site));
+        var estimate = new MilitaryArrivalForecast(snapshot, rules, geography.RegionCities, TreasureRulebook.Empty).Estimate(0);
+        Assert.Equal(new(ArrivalEstimateStatus.Known, 1), estimate);
+        var world = state.BeginMutation();
+        world.SetClock(world.Clock.NextDay());
+        List<DomainEvent> events = [];
+        FacilityConstruction.AdvanceDay(world, simulation, events);
+        Assert.False(MilitaryCombat.Area(world.Units[0], rules).Overlaps(site));
+        Assert.Equal(NavigationStatus.Arrived, Assert.Single(events.OfType<UnitMovedEvent>()).Status);
+        var started = Assert.Single(events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "started");
+        Assert.Equal((long)estimate.Days!.Value, started.Clock.DayNumber - snapshot.Clock.DayNumber);
+        Assert.True(world.Settlements.ContainsKey(8000));
+        Assert.Equal(builder, snapshot.Units.Single());
+    }
+
+    [Theory]
     [InlineData("controller")]
     [InlineData("issuer")]
     [InlineData("sequence")]

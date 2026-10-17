@@ -19,6 +19,8 @@ public static class UnitContentCompiler
                 Policies = new(u.AttacksWhenEnemyApproaches, u.AllowsPursuit, u.AttacksAfterAction, u.AllowsAutonomousRetreat),
                 CommandedThisXun = false, // Imported scenarios start a new command phase; source runtime history is not restored.
                 HasEnteredDailyCycle = u.HasRuntimeFlagBit(3),
+                // Source command/contact history is not restored at scenario start.
+                ContactTarget = null, ActiveEngagement = false, PassiveEngagement = false,
                 ConditionDaysRemaining = u.StatusDurationDays,
                 HighSpiritsMoralePenaltyPending = u.UnitStatus == San9ScenarioUnitStatus.HighSpirits && u.StatusDurationDays > 0,
                 Wounded = (uint)u.LoadedWoundedSoldierCount, Morale = u.Morale,

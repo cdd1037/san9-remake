@@ -89,7 +89,12 @@ internal static class MilitaryPolicies
             var unit = world.Units[id];
             if (unit.FormationId is null) continue;
             var formation = rules.Formation(unit);
-            if (unit.EngagementTargetId is not null && !MilitaryCombat.ValidTarget(world, unit.OwnerId, unit.EffectiveOrder!, formation, rules))
+            if (unit.ContactTarget is { } contact && !MilitaryContacts.Valid(world, unit, contact, rules))
+            {
+                world.Replace(unit with { ContactTarget = null });
+                unit = world.Units[id];
+            }
+            if (unit.EngagementTargetId is not null && !MilitaryCombat.ValidTarget(world, unit.OwnerId, unit.CommandOrder!, formation, rules))
             {
                 Engage(world, unit, null, events, "engagement-target-invalid");
                 unit = world.Units[id];
@@ -167,7 +172,7 @@ internal static class MilitaryPolicies
 
     internal static void Engage(WorldMutation world, UnitState unit, int? target, List<DomainEvent> events, string reason)
     {
-        world.Replace(unit with { EngagementTargetId = target });
+        world.Replace(unit with { EngagementTargetId = target, ContactTarget = null, Lookahead = null });
         events.Add(new UnitEngagementChangedEvent(world.Clock, unit.Id, target, reason));
     }
 
@@ -177,10 +182,12 @@ internal static class MilitaryPolicies
         {
             bool main = settlement ? unit.Order?.SettlementId == targetId : unit.Order?.UnitId == targetId;
             bool temporary = !settlement && unit.EngagementTargetId == targetId;
-            if (!main && !temporary) continue;
+            bool contact = unit.ContactTarget == new MapObjectReference(targetId, settlement);
+            if (!main && !temporary && !contact) continue;
             world.Replace(unit with { Order = main ? null : unit.Order,
                 AwaitingPostAction = unit.AwaitingPostAction || main && unit.Order!.IsAttack,
-                EngagementTargetId = temporary ? null : unit.EngagementTargetId });
+                EngagementTargetId = temporary ? null : unit.EngagementTargetId,
+                ContactTarget = contact ? null : unit.ContactTarget });
             if (main) events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, null, "target-removed"));
             if (temporary) events.Add(new UnitEngagementChangedEvent(world.Clock, unit.Id, null, "target-removed"));
         }

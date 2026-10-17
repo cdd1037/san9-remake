@@ -118,9 +118,10 @@ public sealed class MilitaryContentCompilerTests
         foreach (var (id, distance) in new[] { (0, 5), (1, 5), (2, 6), (3, 6) })
         {
             var formation = rules.Formations[id];
-            var movement = rules.Map.Advance(new(100, 100), new(160, 100), formation.Footprint,
-                formation.TravelMode, [], formation.MovementBudget);
-            Assert.Equal(new WorldPosition(100 + distance, 100), movement.Position);
+            var movement = rules.Map.Navigate(new(100, 100), new(new(160, 100), new(1, 1)), false, formation.Footprint,
+                formation.TravelMode, [], formation.MovementBudget, mobility: formation.MovementBudget / 5);
+            Assert.Equal(distance, movement.Steps.Length);
+            Assert.Equal(distance * 10, movement.Spent);
             Assert.False(movement.Arrived);
         }
         int?[] expectedTraps = [36, null, 35, 35, 35, 35, null, 35, 35, null, 37, null, null, null, null, 37, 37];

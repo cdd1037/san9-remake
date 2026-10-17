@@ -16,6 +16,6 @@ public static class ConstructionPlacement
         if (places.Where(s => !s.IsDormant && !s.IsDestroyed).Any(s => rules.TryPlace(s, out var p) &&
             area.Overlaps(rules.BuildingArea(p)))) return false;
         return !units.Any(u => u.FormationId is int id && rules.Formations.TryGetValue(id, out var f) &&
-            area.Overlaps(new(u.Position, rules.Formation(u).Footprint)));
+            area.Overlaps(new(u.Position, rules.UnitFootprint(u))));
     }
 }

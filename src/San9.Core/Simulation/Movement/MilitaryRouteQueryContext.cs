@@ -26,7 +26,7 @@ public sealed class MilitaryRouteQueryContext(WorldSnapshot snapshot, MilitaryRu
             order.Construction is { } construction ? rules.FacilityArea(construction.Position, construction.FacilityTypeId) :
             order.SettlementId is int home ? rules.SettlementArea(query.Settlements[home]) : new MapOccupancy(order.Position!.Value, new(1, 1));
         if (order.SettlementId is int destination && query.Settlements[destination].OwnerId == unit.OwnerId &&
-            new MapOccupancy(unit.Position, rules.Formation(unit).Footprint).Overlaps(target))
+            new MapOccupancy(unit.Position, rules.UnitFootprint(unit)).Overlaps(target))
             return new(RouteReachability.Reachable, 0, [MapCoordinates.Cell(unit.Position)]);
         var route = travel.Map.EstimateTravelCost(unit.Position, target, travel.Shape, travel.Mode,
             query.MovementOccupancy(rules, unit.OwnerId, unit.Policies, movingUnit, order.Construction?.RegionId),

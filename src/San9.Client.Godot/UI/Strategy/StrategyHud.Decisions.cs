@@ -17,10 +17,10 @@ public partial class StrategyHud
     {
         if (Turn.Publication > _executionPublication && Turn.LastResult is { } result && _executionBefore is { } before)
         {
-            _executionPublication = Turn.Publication;
             var output = ExecutionPublication.Read(before, Session.View, Session.Messages(Texts, before.World), Texts, CommandPresentation, result.Events, _diplomacyNarrated, Turn.LastPresentedFacts);
             foreach (var record in output.Records) PresentMapRecord(record);
             OpenNarration(PresentExecutionMessages(output.Messages),before);
+            _executionPublication = Turn.Publication;
         }
         _executionBefore = Session.View;
     }

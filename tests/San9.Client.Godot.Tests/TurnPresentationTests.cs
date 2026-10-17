@@ -8,6 +8,62 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class TurnPresentationTests
 {
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(1, 10)]
+    [InlineData(3, 10)]
+    public void NewlyPublishedResultsAreConsumedAndDismissedBeforeTheNextDayOrStrategyTitle(int month, int days)
+    {
+        var session = Session(month, days == 10 ? 21 : 1);
+        int titles = 0, seasons = 0;
+        var turn = new TurnPresentation(session)
+        {
+            StrategyTitleStarted = () => titles++,
+            PresentSeasonChange = _ => { seasons++; return true; }
+        };
+        Enter(turn);
+        for (int i = 1; i < days; i++) { Ready(turn); turn.Update(2); }
+        long consumed = turn.Publication;
+        bool dialogueOpen = false;
+        turn.CanContinue = publication => consumed == publication && !dialogueOpen;
+
+        // Match the HUD frame: publish first, then discover and open the result dialogue.
+        Ready(turn); turn.Update(2);
+        Assert.Equal(TurnScreen.Presenting, turn.Screen);
+        Assert.Equal(consumed + 1, turn.Publication);
+        Assert.False(turn.IsComputing);
+        long operation = session.NextOperationSequence;
+        turn.Update(100);
+        Assert.Equal(TurnScreen.Presenting, turn.Screen);
+        Assert.Equal(0, titles);
+        Assert.Equal(0, seasons);
+        Assert.Equal(1, turn.StrategyEntrance);
+
+        consumed = turn.Publication;
+        dialogueOpen = true;
+        turn.Update(100);
+        Assert.Equal(TurnScreen.Presenting, turn.Screen);
+        Assert.Equal(operation, session.NextOperationSequence);
+        Assert.Equal(consumed, turn.Publication);
+        Assert.Equal(0, titles);
+        Assert.Equal(0, seasons);
+
+        dialogueOpen = false;
+        turn.Update(0);
+        Assert.Equal(days == 10 ? TurnScreen.Returning : TurnScreen.Playing, turn.Screen);
+        Assert.Equal(days == 10 ? 1 : 0, titles);
+        Assert.Equal(month == 3 ? 1 : 0, seasons);
+        Assert.Equal(1, turn.StrategyEntrance);
+        if (days == 10)
+        {
+            turn.Update(TurnPresentation.TransitionDuration);
+            Assert.Equal(TurnScreen.Strategy, turn.Screen);
+            Assert.Equal(2, turn.StrategyEntrance);
+            turn.Update(100);
+            Assert.Equal(1, titles);
+        }
+    }
+
     [Fact]
     public void QuarterChangeWaitsForResultDialogueAndDoesNotReplayWhenRebindingSession()
     {
@@ -22,10 +78,10 @@ public sealed class TurnPresentationTests
         Enter(turn);
         for (int i = 0; i < 20 && turn.SeasonChangeOrigin is null; i++) { Ready(turn); turn.Update(10); }
         Assert.Equal(0, seasonMonth);
-        turn.CanContinue = () => false;
+        turn.CanContinue = _ => false;
         turn.Update(100);
         Assert.Equal(0, seasonMonth);
-        turn.CanContinue = () => true;
+        turn.CanContinue = _ => true;
         turn.Update(0);
         Assert.Equal(4, seasonMonth);
         Assert.Equal(new GameClock(190, 3, 30), turn.SeasonChangeOrigin);
@@ -263,7 +319,7 @@ public sealed class TurnPresentationTests
     public void CommittedPublicationWaitsForPresentationWithoutRepeatingTheOperation()
     {
         var session=Session(); var turn=new TurnPresentation(session); Enter(turn);
-        turn.CanContinue=()=>false;
+        turn.CanContinue=_=>false;
         turn.Update(2);
         Assert.Equal(TurnScreen.Presenting,turn.Screen);
         long operation=session.NextOperationSequence,publication=turn.Publication;
@@ -273,7 +329,7 @@ public sealed class TurnPresentationTests
         StateAssert.Equal(hash, session.Snapshot);
         Assert.Equal(operation,session.NextOperationSequence);
         Assert.Equal(publication,turn.Publication);
-        turn.CanContinue=()=>true;turn.Update(0);
+        turn.CanContinue=_=>true;turn.Update(0);
         Assert.Equal(TurnScreen.Playing,turn.Screen);
         Assert.Equal(operation,session.NextOperationSequence);
     }

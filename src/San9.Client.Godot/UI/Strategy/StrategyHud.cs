@@ -99,7 +99,8 @@ public partial class StrategyHud : Control
             {
                 if (CommandPresentation.Progress is { } progress) _sceneSounds.Play(progress.StrategyTitleSound, SoundEnabled);
             },
-            CanContinue = () => _decision is null && _narration is null,
+            CanContinue = publication => _executionPublication == publication &&
+                _decision is null && _narration is null && _pendingNarrations.Count == 0,
             PresentSeasonChange = PresentSeasonChange,
             CanPlayDay = () => _narration is null && _textures.IsReady && _speechTextures.IsReady && _battleView.Prepare(Turn.Day) && ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady && _executionPanels.IsExpanded,
             PresentDay = PresentBattleDay,

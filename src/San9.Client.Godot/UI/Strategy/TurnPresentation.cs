@@ -22,7 +22,8 @@ public sealed class TurnPresentation(GameSession session)
     public Action<TurnDayPresentation>? PresentDay { get; init; }
     public Action? RetryPresentation { get; init; }
     public IReadOnlySet<int> LastPresentedFacts { get; private set; } = new HashSet<int>();
-    public Func<bool>? CanContinue { get; set; }
+    /// <summary>The host must consume this publication and finish its result UI before continuing.</summary>
+    public Func<long, bool>? CanContinue { get; set; }
     public Func<int, bool>? PresentSeasonChange { get; init; }
     public GameClock? SeasonChangeOrigin { get; private set; }
     public SessionResult? LastResult { get; private set; }
@@ -120,7 +121,7 @@ public sealed class TurnPresentation(GameSession session)
         if (Screen==TurnScreen.Terminal && _pending is not null) { Publish(); return; }
         if (Screen == TurnScreen.Presenting)
         {
-            if (CanContinue?.Invoke() != false) Continue();
+            Continue();
             return;
         }
         if (Screen == TurnScreen.Strategy)
@@ -239,7 +240,7 @@ public sealed class TurnPresentation(GameSession session)
 
     private void Continue()
     {
-        if (CanContinue?.Invoke() == false) { Screen = TurnScreen.Presenting; return; }
+        if (CanContinue?.Invoke(Publication) == false) { Screen = TurnScreen.Presenting; return; }
         if (SeasonChangeOrigin is not null)
         {
             // Let the HUD consume this publication before checking its dialogue gate on the next update.

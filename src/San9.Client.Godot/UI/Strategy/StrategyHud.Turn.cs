@@ -68,8 +68,8 @@ public partial class StrategyHud
             }
         };
         AddChild(_battleView);
-        _executionPanels = new ExecutionPanels { Textures = _textures, Texts = Texts, Skin = Skin, RecordsLog = _mapRecords };
-        _mapRecords.ReportMode = ReadSettings().ProgressReport;
+        _executionPanels = new ExecutionPanels { Textures = _textures, Texts = Texts, Skin = Skin, RecordsLog = RecordsLog };
+        RecordsLog.ReportMode = ReadSettings().ProgressReport;
         _executionPanels.LocationRequested += World.FocusCell;
         AddChild(_executionPanels);
         _turnStatus = LabelAt("", new(270, 320), new(484, 96), 24);

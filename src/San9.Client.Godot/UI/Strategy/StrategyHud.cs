@@ -13,6 +13,7 @@ public partial class StrategyHud : Control
     public MapWorld World { get; init; } = null!;
     public StrategySelection Selection { get; init; } = null!;
     public San9.Application.GameSession Session { get; init; } = null!;
+    public MapMessageLog RecordsLog { get; init; } = null!;
     public San9.Application.Presentation.StrategySnapshot Scenario => World.View;
     public TextCatalog Texts { get; init; } = null!;
     public InterfaceSkin Skin { get; init; } = null!;
@@ -181,7 +182,7 @@ public partial class StrategyHud : Control
             Service = Textures,
             World = World,
             Skin = Skin,
-            RecordsLog = _mapRecords,
+            RecordsLog = RecordsLog,
             Locate = id => { Overview.Close(); World.FocusBuilding(id); }
         };
         OverlayHost.AddChild(Information);

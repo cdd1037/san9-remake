@@ -25,6 +25,7 @@ public partial class SessionUiHost : Node
     public Func<GameSession> CreateNewSession { get; init; } = null!;
     public GameSession Session => _session ?? InitialSession;
     public StrategySelection Selection { get; private set; } = null!;
+    public MapMessageLog RecordsLog { get; private set; } = null!;
     public StrategyHud Hud { get; private set; } = null!;
     public bool IsSwitching => _pending is not null || _replacement is not null;
     public bool CanSave => !IsSwitching && Hud.CanQuickSave;
@@ -112,6 +113,7 @@ public partial class SessionUiHost : Node
         _sessionUi?.Free();
         _session = _pending!;
         Selection = new(Session);
+        RecordsLog = new();
         _sessionUi = new Node { Name = "SessionUi" }; AddChild(_sessionUi);
         var backdropHost = new Node(); _sessionUi.AddChild(backdropHost);
         var overlayHost = new StrategyOverlayHost();
@@ -129,7 +131,7 @@ public partial class SessionUiHost : Node
                 _settings.Apply(draft);
                 Music.SetEnabled(draft.MusicEnabled);
             },
-            BackdropHost = backdropHost, World = World, Selection = Selection, Session = Session,
+            BackdropHost = backdropHost, World = World, Selection = Selection, Session = Session, RecordsLog = RecordsLog,
             Texts = Content.Text, Skin = Content.Skin, Textures = Textures
         };
         _sessionUi.AddChild(overlayHost);

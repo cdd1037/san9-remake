@@ -6,7 +6,6 @@ namespace San9.Client.Godot;
 
 public partial class StrategyHud
 {
-    private readonly MapMessageLog _mapRecords = new();
     private readonly MapSpeechPlayback _mapSpeech = new();
     private readonly Dictionary<string,(MapSpeechView View,Vector2 Anchor,bool Placed)> _speechViews = [];
     private Control _speechHost = null!;

@@ -23,6 +23,8 @@ public sealed class TurnPresentation(GameSession session)
     public Action? RetryPresentation { get; init; }
     public IReadOnlySet<int> LastPresentedFacts { get; private set; } = new HashSet<int>();
     public Func<bool>? CanContinue { get; set; }
+    public Func<int, bool>? PresentSeasonChange { get; init; }
+    public GameClock? SeasonChangeOrigin { get; private set; }
     public SessionResult? LastResult { get; private set; }
     public long Publication { get; private set; }
     public long StrategyEntrance { get; private set; } = 1;
@@ -209,10 +211,16 @@ public sealed class TurnPresentation(GameSession session)
         if (_pending is not { IsCompleted: true }) return false;
         try
         {
+            var previousDate = session.Snapshot.Clock;
             var result = _pending.Complete();
             if (result.Disposition != SessionDisposition.Accepted)
                 throw new InvalidOperationException(result.Rejection.ToString());
             Display = session.View;
+            if (Display.World.Clock.DayNumber > previousDate.DayNumber && Display.World.Clock.Boundary.Quarter &&
+                Display.World.Clock.DayNumber - Display.World.Simulation.Started.DayNumber >= 10)
+            {
+                SeasonChangeOrigin = previousDate;
+            }
             LastPresentedFacts = Day?.Battle?.PresentedFacts ?? new HashSet<int>();
             LastResult = result;
             Publication++;
@@ -232,6 +240,13 @@ public sealed class TurnPresentation(GameSession session)
     private void Continue()
     {
         if (CanContinue?.Invoke() == false) { Screen = TurnScreen.Presenting; return; }
+        if (SeasonChangeOrigin is not null)
+        {
+            // Let the HUD consume this publication before checking its dialogue gate on the next update.
+            if (Screen != TurnScreen.Presenting || PresentSeasonChange?.Invoke(Display!.Month) == false)
+            { Screen = TurnScreen.Presenting; return; }
+            SeasonChangeOrigin = null;
+        }
         var state = session.Snapshot.Simulation;
         if (state.Boundary == SimulationBoundary.Terminal) { Screen = TurnScreen.Terminal; return; }
         if (state.Boundary == SimulationBoundary.AwaitingDecision) { Screen = TurnScreen.AwaitingDecision; return; }

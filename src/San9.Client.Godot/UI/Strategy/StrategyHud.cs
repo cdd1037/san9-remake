@@ -100,6 +100,7 @@ public partial class StrategyHud : Control
                 if (CommandPresentation.Progress is { } progress) _sceneSounds.Play(progress.StrategyTitleSound, SoundEnabled);
             },
             CanContinue = () => _decision is null && _narration is null,
+            PresentSeasonChange = PresentSeasonChange,
             CanPlayDay = () => _narration is null && _textures.IsReady && _speechTextures.IsReady && _battleView.Prepare(Turn.Day) && ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady && _executionPanels.IsExpanded,
             PresentDay = PresentBattleDay,
             RetryPresentation = () => _battleView.RetryResources(),
@@ -126,7 +127,7 @@ public partial class StrategyHud : Control
         AddResourceField("资金", (Scenario.PlayerCorps?.Treasury.Money ?? 0).ToString(), 465, 505, 56);
         AddResourceField("兵粮", (Scenario.PlayerCorps?.Treasury.Food ?? 0).ToString(), 569, 609, 56);
         UpdateResources(p);
-        _season = LabelAt("春", new(26, 40), new(16, 16), 16);
+        _season = LabelAt("春", new(32, 38), new(16, 16), 16);
         _text.Apply(_season, GameTextStyles.For(GameTextRole.Spring));
         _territory = AddButton("疆界", "button-territory", new(694, 10), new(64, 36), true, () => World.ShowBoundaries = !World.ShowBoundaries, parent: _topRight);
         _territory.ToggleMode = true; _territory.SetPressedNoSignal(World.ShowBoundaries);
@@ -570,7 +571,8 @@ public partial class StrategyHud : Control
         {
             DrawTexture(_textures[asset], point);
         }
-        if (!SelectingTargets) DrawTexture(_textures["season-spring"], new(26, 31));
+        if (!SelectingTargets) DrawTexture(_textures["season-" + _badgeSeason], new(26, 31),
+            new Color(_badgeBrightness, _badgeBrightness, _badgeBrightness, 1));
         if (Turn.IsStrategy && !SelectingTargets) { Strip("field", new(377, 15), 88); Strip("field", new(457, 15), 112); Strip("field", new(561, 15), 112); }
         if (_regionVisible) DrawTexture(_textures["region-frame"], GroupPosition(_bottomRight) + new Vector2(824, 738));
     }

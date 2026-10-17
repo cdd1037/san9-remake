@@ -20,6 +20,9 @@ public partial class MapWorld : Node2D
     private Task<LoadedTerrain>? _loading;
     private string _packageRoot = "";
     private string? _error;
+    private string? _requestedSeason;
+    public string? PreviewSeasonOverride { get; private set; }
+    internal string? PresentationSeason { get; set; }
     private bool _dragging, _showBoundaries = true, _awaitingSeason;
     private readonly Stopwatch _navigation = new(), _loadWatch = new();
     private double? _fixedAnimationTime;
@@ -127,10 +130,17 @@ public partial class MapWorld : Node2D
         }
         _flags ??= Textures.CreateScope(Textures.MapAssets, owner: this);
         _edgeCursor.Initialize(Textures);
-        BeginLoad(season ?? map.InitialSeason);
+        PreviewSeasonOverride = season;
+        BeginLoad(DesiredSeason);
+    }
+    private string DesiredSeason => PresentationSeason ?? PreviewSeasonOverride ?? CalendarSeason.ForMonth(View.Month);
+    private void SynchronizeSeason()
+    {
+        if (_map is not null && DesiredSeason != _requestedSeason) BeginLoad(DesiredSeason);
     }
     private void BeginLoad(string season)
     {
+        _requestedSeason = season;
         _cancellation.Cancel(); _cancellation.Dispose(); _cancellation = new();
         if (_loading is { } abandoned) _ = abandoned.ContinueWith(t => { _ = t.Exception; }, TaskScheduler.Default);
         var token = _cancellation.Token; var map = _map!; var common = _common; string root = _packageRoot;
@@ -163,6 +173,7 @@ public partial class MapWorld : Node2D
         _unitPositionClock.Advance(delta, Day);
         long start = Stopwatch.GetTimestamp();
         if (!Input.IsMouseButtonPressed(MouseButton.Middle)) _dragging = false;
+        SynchronizeSeason();
         if (_loading is { IsCompleted: true } completed)
         {
             _loading = null;
@@ -189,7 +200,8 @@ public partial class MapWorld : Node2D
         LastNavigationMilliseconds = _navigation.Elapsed.TotalMilliseconds; _navigation.Stop();
         if (!ReferenceEquals(_announcedTerrain, frame.Region.Scene.Terrain))
         {
-            _announcedTerrain = frame.Region.Scene.Terrain; _awaitingSeason = false;
+            _announcedTerrain = frame.Region.Scene.Terrain;
+            if (frame.Region.Scene.Season == _requestedSeason) _awaitingSeason = false;
             GD.Print($"MAP_READY season={Season} seconds={_loadWatch.Elapsed.TotalSeconds:F3}"); MapReady?.Invoke();
         }
     }
@@ -204,7 +216,10 @@ public partial class MapWorld : Node2D
     }
     public void BindSession(San9.Application.GameSession session)
     {
+        if (!ReferenceEquals(Session, session)) PreviewSeasonOverride = null;
+        PresentationSeason = null;
         Session = session; Presentation = null; Day = null;
+        SynchronizeSeason();
         ResetNavigation(); HoverObject(null);
         TargetPicked = null; WaypointPicked = null; SitePicked = null;
         if (_display is not null) { _display.Targets = null; _display.PersonnelTargets = null; _display.CommandTargets = null; }
@@ -213,7 +228,18 @@ public partial class MapWorld : Node2D
         Scene = new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures.MapAssets, () => UnitPositionTime);
         RequestDisplay();
     }
-    public void PreviewSeason(string season) => BeginLoad(season);
+    public void PreviewSeason(string? season)
+    {
+        if (season is not (null or "spring" or "summer" or "autumn" or "winter"))
+            throw new ArgumentException("Unknown season.", nameof(season));
+        PreviewSeasonOverride = season;
+        SynchronizeSeason();
+    }
+    internal void RetrySeasonResources()
+    {
+        _display?.RetryFailedRequest();
+        BeginLoad(DesiredSeason);
+    }
     public void HoverBuilding(int? id) => HoverObject(id is int value ? new(value, false) : null);
     public void HoverObject(MapObjectTarget? target)
     {

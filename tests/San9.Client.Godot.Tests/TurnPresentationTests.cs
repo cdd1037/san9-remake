@@ -9,6 +9,45 @@ namespace San9.Client.Godot.Tests;
 public sealed class TurnPresentationTests
 {
     [Fact]
+    public void QuarterChangeWaitsForResultDialogueAndDoesNotReplayWhenRebindingSession()
+    {
+        var session = Session(3, 21);
+        bool completed = false;
+        int titleCount = 0, seasonMonth = 0;
+        var turn = new TurnPresentation(session)
+        {
+            PresentSeasonChange = month => { seasonMonth = month; return completed; },
+            StrategyTitleStarted = () => titleCount++
+        };
+        Enter(turn);
+        for (int i = 0; i < 20 && turn.SeasonChangeOrigin is null; i++) { Ready(turn); turn.Update(10); }
+        Assert.Equal(0, seasonMonth);
+        turn.CanContinue = () => false;
+        turn.Update(100);
+        Assert.Equal(0, seasonMonth);
+        turn.CanContinue = () => true;
+        turn.Update(0);
+        Assert.Equal(4, seasonMonth);
+        Assert.Equal(new GameClock(190, 3, 30), turn.SeasonChangeOrigin);
+        Assert.Equal(TurnScreen.Presenting, turn.Screen);
+        Assert.Equal(new GameClock(190, 4, 1), session.Snapshot.Clock);
+        Assert.Equal(0, titleCount);
+        var snapshot = session.Snapshot;
+        long publication = turn.Publication, sequence = session.NextOperationSequence;
+        turn.Update(100);
+        StateAssert.Equal(snapshot, session.Snapshot);
+        Assert.Equal(publication, turn.Publication);
+        Assert.Equal(sequence, session.NextOperationSequence);
+        completed = true; turn.Update(0);
+        Assert.Null(turn.SeasonChangeOrigin);
+        Assert.Equal(TurnScreen.Returning, turn.Screen);
+        Assert.Equal(1, titleCount);
+        var restored = new TurnPresentation(session) { PresentSeasonChange = _ => throw new Exception("Must not replay") };
+        restored.Update(100);
+        Assert.Equal(TurnScreen.Strategy, restored.Screen);
+    }
+
+    [Fact]
     public void ChangingSpeedKeepsDayContinuousAndRespectsPauseAndResourceWait()
     {
         var session = Session();

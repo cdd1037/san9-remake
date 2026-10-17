@@ -22,7 +22,7 @@ public partial class DebugPanel : PanelContainer
     {
         _debugStatus.Text = World.StatusText + "\n" + World.Textures.Statistics + $"\n地形GPU估算 {World.CacheBytes / 1048576.0:F1} MiB CPU合成源 {World.CpuSourceBytes / 1048576.0:F1} MiB";
         _season.Disabled = World.IsLoading || World.Package is null;
-        if (!World.IsLoading) _season.Select(Array.IndexOf(new[] { "spring", "summer", "autumn", "winter" }, World.Season));
+        if (!World.IsLoading) _season.Select(Array.IndexOf(new string?[] { null, "spring", "summer", "autumn", "winter" }, World.PreviewSeasonOverride));
         if (World.LoadError is not null) Visible = true;
     }
     public override void _Ready()
@@ -34,8 +34,8 @@ public partial class DebugPanel : PanelContainer
         var box = new VBoxContainer(); AddChild(box);
         box.AddChild(new Label { Text = "调试 · F3 关闭（内政操作改变当前运行状态）" });
         _debugStatus = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new(400, 40) }; box.AddChild(_debugStatus);
-        _season = new OptionButton(); foreach (string s in new[] { "春季预览", "夏季预览", "秋季预览", "冬季预览" }) _season.AddItem(s);
-        _season.ItemSelected += i => World.PreviewSeason(new[] { "spring", "summer", "autumn", "winter" }[i]); box.AddChild(_season);
+        _season = new OptionButton(); foreach (string s in new[] { "跟随日期", "春季预览", "夏季预览", "秋季预览", "冬季预览" }) _season.AddItem(s);
+        _season.ItemSelected += i => World.PreviewSeason(new string?[] { null, "spring", "summer", "autumn", "winter" }[i]); box.AddChild(_season);
         _debugClock = new Label { Text = "选择己方城市后可执行单人内政" }; box.AddChild(_debugClock);
         foreach (var activity in new[] { DomesticActivity.Commerce, DomesticActivity.Cultivation })
         {

@@ -5,7 +5,7 @@ namespace San9.Content.Interface;
 public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dictionary<string,string> Roles, Dictionary<string,string> Colors,
     Dictionary<string, CursorDefinition> Cursors)
 {
-    public const int CurrentSchemaVersion = 51;
+    public const int CurrentSchemaVersion = 52;
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<int, TargetMarkerOffset> BuildingTargetOffsets { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired]
@@ -24,6 +24,7 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         "bar-durability-frame", "bar-durability-normal", "bar-durability-warning", "bar-durability-critical",
         "icon-merchant", "icon-training", "icon-construction", "icon-transport", "icon-emperor",
         "season-spring", "season-summer", "season-autumn", "season-winter",
+        "season-cover-0", "season-cover-1", "season-cover-2", "season-cover-3",
         "button-territory", "button-facilities", "button-officers", "button-units",
         "button-information", "button-functions", "button-help", "button-map-mode", "button-advance",
         "overview-background", "overview-terrain", "overview-borders", "overview-ranking",

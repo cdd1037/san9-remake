@@ -95,6 +95,8 @@ public partial class StrategyHud
         _turnDialog.Dismissed += () => Turn.Cancel();
         AddChild(_turnDialog);
         _turnDialog.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _seasonChangeView = new() { Textures = _textures, RetryRequested = World.RetrySeasonResources };
+        AddChild(_seasonChangeView);
     }
 
     private void RequestAdvance()
@@ -116,6 +118,7 @@ public partial class StrategyHud
     private void UpdateTurn(double delta)
     {
         var previous = Turn.Screen;
+        AdvanceSeasonChange(delta);
         Turn.PlaybackSpeed = ReadSettings().PlaybackSpeed;
         Turn.Update(delta);
         if (previous == TurnScreen.Returning && Turn.Screen == TurnScreen.Strategy) _mapRecordsRequested = false;
@@ -137,6 +140,7 @@ public partial class StrategyHud
         }
         World.Presentation = Turn.Display;
         World.Day = Turn.Day;
+        UpdateSeasonPresentation();
         if (_narration is null) _battleView.UpdatePlayback(Turn.Day);
         _mapSounds.TransitionGain = _battleView.MapAudioGain;
         _sceneSounds.SetTransitionGain(_battleView.SceneAudioGain);
@@ -242,7 +246,8 @@ public partial class StrategyHud
         _turnProgress.Value = Math.Floor(304 * Turn.Progress);
         _pauseTurn.SetPressedNoSignal(Turn.Paused);
         // The calendar remains at the starting xun until the committed return boundary.
-        var clock = Turn.Display?.World.Clock ?? Session.Snapshot.Clock;
+        var clock = Turn.SeasonChangeOrigin is { } previousDate && _seasonChange?.ShowsNewBadge != true
+            ? previousDate : Turn.Display?.World.Clock ?? Session.Snapshot.Clock;
         if (Turn.Screen is not (TurnScreen.Entering or TurnScreen.Playing))
         { _year.Text = $"{clock.Year}年"; _date.Text = $"{clock.Month}月{(clock.Day <= 10 ? "上旬" : clock.Day <= 20 ? "中旬" : "下旬")}"; }
     }

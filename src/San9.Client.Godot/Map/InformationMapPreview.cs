@@ -37,7 +37,7 @@ public partial class InformationMapPreview : Control
     }
     public override void _Process(double delta)
     {
-        if (World.Scene is not { } scene || Size.X <= 0 || Size.Y <= 0) return;
+        if (World.Display?.Presented?.Region.Scene is not { } scene || Size.X <= 0 || Size.Y <= 0) return;
         if (_error != _view.Error) { _error = _view.Error; QueueRedraw(); }
         if (ReferenceEquals(_requestedScene, scene) && _requestedSize == Size) return;
         _requestedScene = scene; _requestedSize = Size;

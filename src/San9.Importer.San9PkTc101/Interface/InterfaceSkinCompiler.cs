@@ -83,6 +83,17 @@ public static class InterfaceSkinCompiler
             Export("scroll-thumb-" + part, index, 6, paletteAlpha: true);
         string[] seasons = ["spring", "summer", "autumn", "winter"];
         for (int i = 0; i < seasons.Length; i++) Export("season-" + seasons[i], 64 + i, 1);
+        var seasonCovers = IndexedImageArchive.ReadImages(read(Path.Combine(dataDirectory, "G_MapCov.s9")));
+        var coverPalettes = IndexedImageArchive.ReadPalettes(read(Path.Combine(dataDirectory, "P_MapEtc.s9")), 2);
+        for (int i = 0; i < 4; i++)
+        {
+            int palette = bindings[10968 + i] - 112;
+            if (palette != 1) throw new InvalidDataException("Unconfirmed season cover palette.");
+            string role = $"season-cover-{i}";
+            assets.Add(save("ui-" + role, TextureSourcePath.Image("G_MapCov", i, palette, false, false, "P_MapEtc.s9"),
+                IndexedImageArchive.Decode(seasonCovers[i], coverPalettes[palette], false, false)));
+            ui.Add(role, "ui-" + role);
+        }
         Export("button-territory", 68, 2, 6); Export("button-facilities", 69, 2, 4);
         Export("button-officers", 70, 2, 4); Export("button-units", 71, 2, 4);
         Export("button-information", 74, 3, 4); Export("button-functions", 73, 3, 4); Export("button-help", 75, 3, 4);

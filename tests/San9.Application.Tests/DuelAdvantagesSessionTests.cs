@@ -9,13 +9,19 @@ namespace San9.Application.Tests;
 public sealed class DuelAdvantagesSessionTests
 {
     [Fact]
-    public void BattleDeathOptionDefaultsOffAndSurvivesSaveRecordingAndCommandLog()
+    public void DuelOptionsAndAuthoredAdvantagesSurviveSaveRecordingAndCommandLog()
     {
-        var scenario = G01ScenarioTests.Fixture();
+        var fixture = G01ScenarioTests.Fixture();
+        var officer = fixture.Officers[0];
+        var scenario = fixture with { Officers = fixture.Officers.Select(p => p.State.Id == officer.State.Id
+            ? p with { State = p.State with { DuelAdvantages = DuelAdvantages.DominantParry | DuelAdvantages.DominantDoubleStrike } }
+            : p).ToArray() };
         Assert.False(GameSession.Start(scenario, 190).Snapshot.Simulation.BattleDeathsEnabled);
         var session = GameSession.Start(scenario, 190, battleDeathsEnabled: true);
         var restored = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
         Assert.True(restored.Snapshot.Simulation.BattleDeathsEnabled);
+        Assert.Equal(DuelAdvantages.DominantParry | DuelAdvantages.DominantDoubleStrike,
+            restored.Snapshot.Officers.Single(p => p.Id == officer.State.Id).DuelAdvantages);
         session.BeginRecording();
         session.AdvanceXun();
         var log = Path.Combine(Path.GetTempPath(), $"san9-duel-{Guid.NewGuid():N}.jsonl");
@@ -53,26 +59,5 @@ public sealed class DuelAdvantagesSessionTests
     {
         Assert.Throws<JsonException>(() => StrictJson.Deserialize<DuelAdvantages>(Encoding.UTF8.GetBytes(flags.ToString(System.Globalization.CultureInfo.InvariantCulture))));
         Assert.Throws<JsonException>(() => JsonSerializer.SerializeToUtf8Bytes((DuelAdvantages)flags, StrictJson.Options));
-    }
-
-    [Fact]
-    public void AuthoredDuelAdvantagesSurviveWorldSaveAndRecording()
-    {
-        var fixture = G01ScenarioTests.Fixture();
-        var officer = fixture.Officers[0];
-        var scenario = fixture with { Officers = fixture.Officers.Select(p => p.State.Id == officer.State.Id
-            ? p with { State = p.State with { DuelAdvantages = DuelAdvantages.DominantParry | DuelAdvantages.DominantDoubleStrike } }
-            : p).ToArray() };
-        var session = GameSession.Start(scenario, 190);
-
-        var restored = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
-        Assert.Equal(DuelAdvantages.DominantParry | DuelAdvantages.DominantDoubleStrike,
-            restored.Snapshot.Officers.Single(p => p.Id == officer.State.Id).DuelAdvantages);
-        session.BeginRecording();
-        session.AdvanceXun();
-        restored.AdvanceXun();
-        StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

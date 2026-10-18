@@ -13,16 +13,45 @@ namespace San9.Client.Godot.Tests;
 public sealed class DuelPresentationTests
 {
     [Fact]
-    public void ParticleTriggersAndFlagChoicesAreStableAndDoNotFollowEveryAudienceReaction()
+    public void LaterContestsUseTheirOwnParticipantStateForEntryAndSpeech()
+    {
+        var (session, texts, content, facts) = Fixture(withTreasures: true);
+        var initial = (DuelStartedEvent)facts[0];
+        var later = initial with
+        {
+            Participants = initial.Participants.Select(p => p.Id == 11
+                ? p with { Injury = 5, BaseAbilities = new(80, 50, 50, 50) } : p).ToImmutableArray(),
+            Treasures = [new(8, 11, TreasureDiscovery.Discovered, null)]
+        };
+        texts.Messages["entry"] = new([new MessageValue(new("property", "person.war",
+            Arguments: [new("binding", "person.0")])), new MessageLiteral(":"),
+            new MessageValue(new("query", "has-treasure", Arguments: [new("binding", "person.0"), new("entity", "Treasure", 7)])),
+            new MessageLiteral(":"),
+            new MessageValue(new("query", "has-treasure", Arguments: [new("binding", "person.0"), new("entity", "Treasure", 8)]))]);
+        content.Battle!.Duel!.Messages["entry"] = new("entry", new() { ["person.0"] = "actor" }, "actor");
+        DomainEvent[] occurrences = [.. facts.Where(e => e is not OfficerDiedEvent), later,
+            new DuelStrikeEvent(initial.Clock, 11, 22, DuelStrikeKind.Normal, 100, 0, 0),
+            new DuelPairWonEvent(initial.Clock, 11, 22, 100)];
+        var plan = BattlePresentationPlan.Create(session.View, session.View, occurrences,
+            session.Messages(texts), texts, content);
+        Assert.Equal(2, plan.Duels.Count);
+        var entry = plan.Duels[1].Stages.First(s => s.Kind == DuelStageKind.Entry);
+        Assert.Equal(5, entry.Left.Injury);
+        Assert.Equal(55, entry.Left.War);
+        Assert.Equal("55:0:1", plan.Duels[1].Stages.First(s => s.Dialogue is not null).Dialogue!.Message.BbCode);
+        Assert.Equal(0, session.View.World.Officers.Single(p => p.Id == 11).Injury);
+        Assert.Equal(60, plan.Duels[0].Stages[0].Left.War);
+        Assert.Equal("60:1:0", plan.Duels[0].Stages.First(s => s.Dialogue is not null).Dialogue!.Message.BbCode);
+        Assert.Equal(11, session.View.World.Treasures.Single(t => t.Id == 7).HolderId);
+    }
+
+    [Fact]
+    public void ParticlesAndAudienceAnimationsFollowTheirOwnTriggers()
     {
         var (session, texts, content, facts) = Fixture();
-        DuelSceneCue Scene() => Assert.Single(BattlePresentationPlan.Create(session.View, session.View, facts,
+        var scene = Assert.Single(BattlePresentationPlan.Create(session.View, session.View, facts,
             session.Messages(texts), texts, content).Duels);
-        var scene = Scene();
-        var repeated = Scene();
-        Assert.Equal(scene.Flags.ToArray(), repeated.Flags.ToArray());
         Assert.Single(scene.Flags.Select(f => f.Direction).Distinct());
-        Assert.Equal(scene.Particles.ToArray(), repeated.Particles.ToArray());
         var hits = scene.Particles.Where(p => p.Definition.Kind == DuelParticleKind.StrongHit).ToArray();
         Assert.Equal(2, hits.Length);
         Assert.All(hits, p => Assert.Contains(scene.Stages, s => s.Kind == DuelStageKind.Impact && s.Start == p.Start));
@@ -31,46 +60,11 @@ public sealed class DuelPresentationTests
         var crowd = scene.Stages.First(s => s.Start >= normalHit.End && s.Kind == DuelStageKind.Audience);
         Assert.DoesNotContain(scene.Particles, p => p.Start == crowd.Start);
         Assert.All(scene.Particles, p => Assert.True(p.End > p.Start));
-    }
-
-    [Fact]
-    public void OrdinaryHitsAdvanceBeforeBodyCompletionButWaitForHealthBeforeTheNextStrike()
-    {
-        var (session, texts, content, facts) = Fixture();
-        var scene = Assert.Single(BattlePresentationPlan.Create(session.View, session.View, facts,
-            session.Messages(texts), texts, content).Duels);
-        var impacts = scene.Stages.Where(s => s.Kind == DuelStageKind.Impact).ToArray();
-        Assert.Equal(.3, impacts[1].End - impacts[1].Start, 6);
-        Assert.True(impacts[1].End - impacts[1].Start < content.Battle!.Duel!.Bodies[0].Actions[DuelAction.Hit].Duration);
-        foreach (var impact in impacts)
-        {
-            bool right = impact.RightHitPoints != impact.Right.HitPoints;
-            var fighter = right ? impact.Right : impact.Left;
-            int hp = right ? impact.RightHitPoints : impact.LeftHitPoints;
-            var next = scene.Stages.FirstOrDefault(s => s.Kind == DuelStageKind.Strike && s.Start >= impact.End);
-            if (next is not null) Assert.True(next.Start >= impact.Start + DuelSceneCue.HitPointsDuration(fighter.HitPoints, hp));
-        }
-        var fatal = impacts[^1];
-        Assert.Equal(0, DuelSceneCue.HitPoints(fatal, fatal.End, false));
-    }
-
-    [Fact]
-    public void DialogueAllowsLocalAnimationWithoutAdvancingFactsAndPauseFreezesIt()
-    {
-        var (session, texts, content, facts) = Fixture();
-        var plan = BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content);
-        var day = new TurnDayPresentation(session.View, session.View, facts, battle: plan);
-        day.Advance(10000);
-        day.CompleteDialogue(Assert.Single(day.PendingDialogues).Id);
-        day.Advance(10000);
-        double progress = day.Elapsed, visual = day.DuelDialogueElapsed;
-        day.Advance(.1);
-        Assert.Equal(progress, day.Elapsed);
-        Assert.Equal(visual + .1, day.DuelDialogueElapsed, 6);
-        day.Advance(1, paused: true);
-        Assert.Equal(visual + .1, day.DuelDialogueElapsed, 6);
-        day.CompleteDialogue(Assert.Single(day.PendingDuelDialogues).Id);
-        Assert.Equal(0, day.DuelDialogueElapsed);
+        var victory = scene.Stages.First(s => s.Kind == DuelStageKind.Victory);
+        var dismay = scene.Stages.Last(s => s.Kind == DuelStageKind.Audience && s.Start < victory.Start);
+        Assert.Equal(DuelAudienceMood.Dismay, dismay.RightAudience);
+        Assert.Equal(0, dismay.RightAudienceAge);
+        Assert.Equal(victory.Start - dismay.Start, victory.RightAudienceAge, 6);
     }
 
     [Fact]
@@ -143,6 +137,16 @@ public sealed class DuelPresentationTests
         var scene = Assert.Single(plan.Duels);
         var impacts = scene.Stages.Where(s => s.Kind == DuelStageKind.Impact).ToArray();
         Assert.Equal(5, impacts.Length);
+        Assert.True(impacts[1].End - impacts[1].Start < content.Battle!.Duel!.Bodies[0].Actions[DuelAction.Hit].Duration);
+        foreach (var impact in impacts)
+        {
+            bool right = impact.RightHitPoints != impact.Right.HitPoints;
+            var fighter = right ? impact.Right : impact.Left;
+            int hp = right ? impact.RightHitPoints : impact.LeftHitPoints;
+            var next = scene.Stages.FirstOrDefault(s => s.Kind == DuelStageKind.Strike && s.Start >= impact.End);
+            if (next is not null) Assert.True(next.Start >= impact.Start + DuelSceneCue.HitPointsDuration(fighter.HitPoints, hp));
+        }
+        Assert.Equal(0, DuelSceneCue.HitPoints(impacts[^1], impacts[^1].End, false));
         Assert.Equal(100, impacts[0].RightHitPoints); // Parry does not invent damage.
         Assert.Equal(30, impacts[1].RightHitPoints);
         Assert.Equal(82.5, DuelSceneCue.HitPoints(impacts[1], impacts[1].Start + .25, true), 6);
@@ -180,6 +184,8 @@ public sealed class DuelPresentationTests
         Assert.True(hidden.Duration < shown.Duration);
         var repeated = Plan(true);
         Assert.Equal(shown.Messages, repeated.Messages);
+        Assert.Equal(shown.Duels[0].Flags.ToArray(), repeated.Duels[0].Flags.ToArray());
+        Assert.Equal(shown.Duels[0].Particles.ToArray(), repeated.Duels[0].Particles.ToArray());
         Assert.Equal(shown.Duels[0].Stages.Select(s => (s.Start, s.End, s.Left, s.Right, s.LeftAction, s.RightAction)),
             repeated.Duels[0].Stages.Select(s => (s.Start, s.End, s.Left, s.Right, s.LeftAction, s.RightAction)));
     }
@@ -198,14 +204,19 @@ public sealed class DuelPresentationTests
         day.CompleteDialogue(day.PendingDialogues[0].Id);
         day.Advance(10000);
         Assert.NotEmpty(day.PendingDuelDialogues);
-        double gate = day.Elapsed;
-        day.Advance(10000); Assert.Equal(gate, day.Elapsed);
-        day.Advance(10, paused: true); Assert.Equal(gate, day.Elapsed);
+        double gate = day.Elapsed, visual = day.DuelDialogueElapsed;
+        day.Advance(.1);
+        Assert.Equal(gate, day.Elapsed);
+        Assert.Equal(visual + .1, day.DuelDialogueElapsed, 6);
+        day.Advance(10, paused: true);
+        Assert.Equal(gate, day.Elapsed);
+        Assert.Equal(visual + .1, day.DuelDialogueElapsed, 6);
         if (skip) day.SkipVisual();
         else
             for (int guard = 0; guard < 100 && day.PendingDialogues.Count == 0; guard++)
             {
                 foreach (var message in day.PendingDuelDialogues) day.CompleteDialogue(message.Id);
+                Assert.Equal(0, day.DuelDialogueElapsed);
                 day.Advance(10000);
             }
         Assert.Empty(day.PendingDuelDialogues);
@@ -222,7 +233,7 @@ public sealed class DuelPresentationTests
         StateAssert.Equal(before, session.Snapshot);
     }
 
-    private static (GameSession Session, TextCatalog Texts, CommandPresentation Content, DomainEvent[] Facts) Fixture()
+    private static (GameSession Session, TextCatalog Texts, CommandPresentation Content, DomainEvent[] Facts) Fixture(bool withTreasures = false)
     {
         var combat = new CombatProfile(0, 0, 0, 1000, 50);
         OfficerInitialState Person(int id, int force) => new($"person.{id}",
@@ -240,6 +251,13 @@ public sealed class DuelPresentationTests
                 [new(1, new(2, 2), new(1, 1)) { Combat = combat }, new(2, new(17, 2), new(1, 1)) { Combat = combat }]),
             Information = new([], [], [], [new CorpsState(1, 1, 11, new(0, 10000)) { IsRoot = true }, new CorpsState(2, 2, 22, new(0, 10000)) { IsRoot = true }], [])
         };
+        if (withTreasures)
+            scenario = scenario with { Information = scenario.Information with
+            {
+                Treasures = [new(7, "treasure.7", 1, 10, 0, null) { AbilityBonuses = new(10, 0, 0, 0) },
+                    new(8, "treasure.8", 1, 15, 0, null) { AbilityBonuses = new(15, 0, 0, 0) }],
+                TreasureStates = [new(7, 11, TreasureDiscovery.Discovered, null), new(8, null, TreasureDiscovery.Discovered, null)]
+            } };
         var session = GameSession.Start(scenario, 42);
         string[] roles = ["entry", "answer", "victory", "introduction", "strong", "finisher", "strong-hit", "finisher-hit", "parry", "won", "lost", "death"];
         var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, new() { ["home"] = "home", ["away"] = "away", ["person.11"] = "First", ["person.22"] = "Second", ["person.23"] = "Replacement" })
@@ -251,14 +269,15 @@ public sealed class DuelPresentationTests
         var definition = new DuelPresentationDefinition(messages, bodies, [], "backdrop", sounds.ToDictionary(s => s, s => s),
             Enumerable.Range(0, 8).Select(i => new[] { new BattleSprite("finisher", 1, 100) }).ToArray(), [new("resolution", 1, 100)])
         {
-            Interface = new(new(24, 104), "462707", .7f, [], []),
+            Interface = new(new(24, 104), "072746", .7f, [], []),
             Positions = new(new(236, 352), new(576, 184), new(368, 288), new(444, 252), 60),
             Flags = new([new(72, 268)], [new(441, 94)]),
             Particles = Enum.GetValues<DuelParticleKind>().Select(kind => new DuelParticleDefinition(kind, new("particle", 8, 100), [new(0, 0)], [new(1, 1)])).ToArray()
         };
         var content = new CommandPresentation([], null) { Battle = new([], [], "hit", "block") { Duel = definition } };
         var clock = session.Snapshot.Clock;
-        DomainEvent[] facts = [new DuelStartedEvent(clock, new(1, 2, [11], [22, 23])),
+        DomainEvent[] facts = [new DuelStartedEvent(clock, new(1, 2, [11], [22, 23]),
+                session.View.World.Officers.ToImmutableArray(), session.View.World.Treasures.Where(t => t.HolderId is not null).ToImmutableArray()),
             new DuelStrikeEvent(clock, 11, 22, DuelStrikeKind.Parry, 0, 100, 0),
             new DuelStrikeEvent(clock, 11, 22, DuelStrikeKind.DoubleStrike, 70, 30, 2),
             new DuelStrikeEvent(clock, 22, 11, DuelStrikeKind.Normal, 60, 40, 3),

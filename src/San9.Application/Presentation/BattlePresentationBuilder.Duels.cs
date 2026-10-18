@@ -30,12 +30,21 @@ internal sealed partial class BattlePresentationBuilder
         if (content.Battle?.Duel is not { } definition || source is null || target is null ||
             !(Player(source.ForceId) || Player(target.ForceId))) return;
         Capture(source, target);
-        var occurrence = context.ForWorld(before.World).AtOccurrence(started.Clock, source, target);
         var people = before.World.Officers.ToDictionary(p => p.Id);
+        foreach (var person in started.Participants) people[person.Id] = person;
+        var participantIds = started.Participants.Select(p => p.Id).ToHashSet();
+        // Keep valid treasure references, but discard these participants' obsolete holdings.
+        var treasures = before.World.Treasures.ToDictionary(t => t.Id,
+            t => t.HolderId is int holder && participantIds.Contains(holder) ? t with { HolderId = null } : t);
+        foreach (var treasure in started.Treasures) treasures[treasure.Id] = treasure;
+        var occurrenceWorld = before.World with { Treasures = treasures.Values.ToImmutableArray() };
+        WorldMessageContext OccurrenceContext() => context.ForWorld(occurrenceWorld with { Officers = people.Values.ToImmutableArray() })
+            .AtOccurrence(started.Clock, source, target);
+        var occurrenceContext = OccurrenceContext();
         var abilities = new OfficerAbilityRules(new(before.Information.Treasures.Select(t => t.ToRule())),
             new(before.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority) { AbilityBonuses = o.AbilityBonuses })));
         DuelFighterView Fighter(int id, int hp = 100) => new(id, people[id].IsFemale,
-            abilities.Evaluate(people[id], before.World.Treasures).War, people[id].Injury, hp);
+            abilities.Evaluate(people[id], occurrenceWorld.Treasures).War, people[id].Injury, hp);
         var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision, Identity("duel")));
         int Next(int n) => (int)(random.NextUInt64() % (ulong)n);
         string id = Identity("duel");
@@ -66,7 +75,8 @@ internal sealed partial class BattlePresentationBuilder
         DuelAction leftAction = DuelAction.Idle, rightAction = DuelAction.Idle;
         double leftAnimationStart = time, rightAnimationStart = time;
         DuelAudienceMood leftAudience = DuelAudienceMood.Idle, rightAudience = DuelAudienceMood.Idle;
-        List<(DuelPairWonEvent Fact, CommandMessage Message, int Index)> victories = [];
+        double leftAudienceStart = time, rightAudienceStart = time;
+        List<(CommandMessage Message, BattleObjectContext Owner, string Role, int Index)> victories = [];
         CommandMessage Message(string role, int actor, int opponent)
         {
             var values = new Dictionary<string, MessageBinding>
@@ -77,14 +87,18 @@ internal sealed partial class BattlePresentationBuilder
                 ["force"] = ProgressMessageProducer.Force((roster.Attackers.Contains(actor) ? source : target).ForceId!.Value)
             };
             var speechRandom = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision, $"{id}:{_index}:{role}:{actor}:{opponent}"));
-            var currentContext = occurrence.ForWorld(before.World with { Officers = people.Values.ToImmutableArray() }).AtOccurrence(started.Clock, source, target);
-            return ProgressMessageProducer.Produce(definition.Messages[role], currentContext, texts, values, n => (int)(speechRandom.NextUInt64() % (ulong)n));
+            return ProgressMessageProducer.Produce(definition.Messages[role], occurrenceContext, texts, values, n => (int)(speechRandom.NextUInt64() % (ulong)n));
         }
         void Add(DuelStageKind kind, double duration, DuelAction? la = null, DuelAction? ra = null,
             string? sound = null, CommandMessage? dialogue = null, BattleSprite[]? effects = null, int? leftHp = null, int? rightHp = null,
             BattlePoint? leftTo = null, BattlePoint? rightTo = null, float? leftAlpha = null, float? rightAlpha = null)
         {
             if (!duelScenesEnabled) return;
+            if (stages.Count > 0)
+            {
+                if (stages[^1].LeftAudience != leftAudience) leftAudienceStart = time;
+                if (stages[^1].RightAudience != rightAudience) rightAudienceStart = time;
+            }
             if (la is { } nextLeft) { leftAction = nextLeft; leftAnimationStart = time; }
             if (ra is { } nextRight) { rightAction = nextRight; rightAnimationStart = time; }
             if (leftHp is { } lh && lh != left.HitPoints) { leftHpFrom = left.HitPoints; leftHpStart = time; }
@@ -96,6 +110,7 @@ internal sealed partial class BattlePresentationBuilder
                 LeftOpacityFrom = leftOpacity, LeftOpacityTo = leftAlpha ?? leftOpacity, RightOpacityFrom = rightOpacity, RightOpacityTo = rightAlpha ?? rightOpacity,
                 LeftAnimationAge = time - leftAnimationStart, RightAnimationAge = time - rightAnimationStart,
                 LeftAudience = leftAudience, RightAudience = rightAudience,
+                LeftAudienceAge = time - leftAudienceStart, RightAudienceAge = time - rightAudienceStart,
                 LeftHitPointsStart = leftHpStart, RightHitPointsStart = rightHpStart,
                 LeftHitPointsFrom = leftHpFrom, RightHitPointsFrom = rightHpFrom
             });
@@ -194,7 +209,11 @@ internal sealed partial class BattlePresentationBuilder
                 if (strike.Kind == DuelStrikeKind.Parry) hitDelay -= .1;
                 Add(DuelStageKind.Strike, hitDelay, attackLeft ? attack : DuelAction.Idle, attackLeft ? DuelAction.Idle : attack);
                 var reaction = strike.Kind == DuelStrikeKind.Parry ? DuelAction.Parry : strike.DefenderHitPoints == 0 ? DuelAction.Defeated : DuelAction.Hit;
-                people[strike.DefenderId] = people[strike.DefenderId] with { Injury = strike.DefenderInjury };
+                if (people[strike.DefenderId].Injury != strike.DefenderInjury)
+                {
+                    people[strike.DefenderId] = people[strike.DefenderId] with { Injury = strike.DefenderInjury };
+                    occurrenceContext = OccurrenceContext();
+                }
                 if (attackLeft) right = Fighter(right.Id, right.HitPoints); else left = Fighter(left.Id, left.HitPoints);
                 if (strong) Particle(DuelParticleKind.StrongHit, !attackLeft);
                 // Only a fatal hit waits for the HP gauge; ordinary body animations continue across stages.
@@ -245,8 +264,12 @@ internal sealed partial class BattlePresentationBuilder
                 Particle(DuelParticleKind.Dismay, leftWon);
                 Speech("victory", won.WinnerId, won.LoserId, sound: Player((leftWon ? source : target).ForceId) ? "win" : "lose");
                 // Results use their own stable choice stream, unaffected by the scene preference.
-                string role = Player((leftWon ? source : target).ForceId) ? "won" : "lost";
-                victories.Add((won, Message(role, role == "won" ? won.WinnerId : won.LoserId, role == "won" ? won.LoserId : won.WinnerId), _index));
+                var winner = leftWon ? source : target;
+                var loser = leftWon ? target : source;
+                if (Player(winner.ForceId))
+                    victories.Add((Message("won", won.WinnerId, won.LoserId), winner, "won", _index));
+                if (Player(loser.ForceId))
+                    victories.Add((Message("lost", won.LoserId, won.WinnerId), loser, "lost", _index));
                 if (leftWon) ri++; else li++;
                 if (li < roster.Attackers.Length && ri < roster.Defenders.Length)
                 {
@@ -271,10 +294,9 @@ internal sealed partial class BattlePresentationBuilder
             _duels.Add(new(id, start, time, definition, backdrop, roster.Attackers, roster.Defenders, stages.ToImmutableArray())
             { Flags = flags.ToImmutableArray(), Particles = particles.ToImmutableArray() });
         }
-        foreach (var (fact, message, index) in victories)
+        foreach (var (message, owner, role, index) in victories)
         {
-            var location = Player(source.ForceId) ? source : target;
-            _records.Add(new(time, new($"{id}:result:{index}", message.Message, Location(location), MapRecordColors.Resolve(before, after, location.ForceId))));
+            _records.Add(new(time, new($"{id}:result:{index}:{role}", message.Message, Location(owner), MapRecordColors.Resolve(before, after, owner.ForceId))));
         }
         if (victories.Count > 0)
             _messages.Add(new($"{id}:result", time, victories[^1].Message, BattleMessageChannel.Dialogue));

@@ -26,6 +26,8 @@ public sealed record DuelStage(double Start, double End, DuelStageKind Kind,
     public float RightOpacityTo { get; init; } = 1;
     public DuelAudienceMood LeftAudience { get; init; }
     public DuelAudienceMood RightAudience { get; init; }
+    public double LeftAudienceAge { get; init; }
+    public double RightAudienceAge { get; init; }
     public double LeftHitPointsStart { get; init; }
     public double RightHitPointsStart { get; init; }
     public double LeftHitPointsFrom { get; init; }

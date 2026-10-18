@@ -3,7 +3,9 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public sealed record DuelStartedEvent(GameClock Clock, DuelRoster Roster) : DomainEvent;
+/// <summary>Participant state and holdings at this contest, before strikes or aftermath mutate them.</summary>
+public sealed record DuelStartedEvent(GameClock Clock, DuelRoster Roster,
+    ImmutableArray<OfficerState> Participants, ImmutableArray<TreasureState> Treasures) : DomainEvent;
 public sealed record DuelStrikeEvent(GameClock Clock, int AttackerId, int DefenderId, DuelStrikeKind Kind,
     int Damage, int DefenderHitPoints, int DefenderInjury) : DomainEvent;
 public sealed record DuelPairWonEvent(GameClock Clock, int WinnerId, int LoserId, int RemainingHitPoints) : DomainEvent;
@@ -17,10 +19,14 @@ internal static class DuelContest
         if (roster.Attackers.IsDefaultOrEmpty || roster.Defenders.IsDefaultOrEmpty ||
             roster.Attackers.Concat(roster.Defenders).Distinct().Count() != roster.Attackers.Length + roster.Defenders.Length)
             throw new ArgumentException("Invalid duel roster.", nameof(roster));
-        var initialMartial = roster.Attackers.Concat(roster.Defenders).ToDictionary(id => id, id => world.Abilities(world.Officers[id]).War);
+        var participants = roster.Attackers.Concat(roster.Defenders).Select(id => world.Officers[id]).ToImmutableArray();
+        var initialMartial = participants.ToDictionary(p => p.Id, p => world.Abilities(p).War);
         int attackingIndex = 0, defendingIndex = 0, attackHp = 100, defenseHp = 100;
         var pairs = ImmutableArray.CreateBuilder<DuelPairResult>();
-        events.Add(new DuelStartedEvent(world.Clock, roster));
+        var participantIds = participants.Select(p => p.Id).ToHashSet();
+        events.Add(new DuelStartedEvent(world.Clock, roster, participants,
+            world.Treasures.Values.Where(t => t.HolderId is int holder && participantIds.Contains(holder))
+                .OrderBy(t => t.Id).ToImmutableArray()));
         int Strike(int source, int target, int sourceHp, int targetHp)
         {
             DuelFighter Fighter(int id, int hp)

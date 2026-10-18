@@ -111,10 +111,13 @@ public partial class BattlePresentationView
             var animation = mood == DuelAudienceMood.Cheer ? audience.Cheer : mood == DuelAudienceMood.Dismay ? audience.Defeat : audience.Idle;
             var texture = _assets[animation.Asset];
             var size = new Vector2(texture.GetWidth() / (float)animation.Columns, texture.GetHeight());
+            double audienceAge = age + (audience.Right ? stage.RightAudienceAge : stage.LeftAudienceAge);
             for (int i = 0; i < audience.Positions.Length; i++)
             {
                 var point = audience.Positions[i];
-                int frame = ((int)(time * 1000 / animation.FrameMilliseconds) + i) % animation.Columns;
+                int frame = DuelSceneCue.AnimationFrame(animation,
+                    audienceAge + (mood == DuelAudienceMood.Idle ? i * animation.FrameMilliseconds / 1000.0 : 0),
+                    mood != DuelAudienceMood.Dismay);
                 actors.Add((point.Y, () => DrawTextureRectRegion(texture, new(new Vector2(point.X, point.Y), size), new(frame * size.X, 0, size.X, size.Y))));
             }
         }

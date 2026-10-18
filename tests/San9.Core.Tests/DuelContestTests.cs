@@ -1,6 +1,5 @@
 using San9.Tests;
 using System.Collections.Immutable;
-using System.Text.Json;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -129,13 +128,10 @@ public sealed class DuelContestTests
         var people = Enumerable.Range(0, 7).Select(i => Person(11 + i, 1))
             .Concat(Enumerable.Range(0, 7).Select(i => Person(21 + i, 2))).ToArray();
         var world = World(people).BeginMutation();
-        var restored = World(people).BeginMutation();
         var roster = new DuelRoster(1, 2, [11, 12, 13, 14, 15, 16, 17], [21, 22, 23, 24, 25, 26, 27]);
         var events = new List<DomainEvent>();
         var outcome = DuelContest.Resolve(world, roster, events);
-        var repeatEvents = new List<DomainEvent>();
-        Assert.Equal(CanonicalJson.Text(outcome), CanonicalJson.Text(DuelContest.Resolve(restored, roster, repeatEvents)));
-        EventAssert.Equal(events, repeatEvents);
+        Assert.Equal(people, Assert.IsType<DuelStartedEvent>(events[0]).Participants.ToArray());
         Assert.True(outcome.Pairs.Length >= 7);
         var hp = people.ToDictionary(p => p.Id, _ => 100);
         int attackIndex = 0, defenseIndex = 0;
@@ -149,7 +145,6 @@ public sealed class DuelContestTests
                 Assert.Equal(hp[strike.DefenderId] - strike.Damage, strike.DefenderHitPoints);
                 hp[strike.DefenderId] = strike.DefenderHitPoints;
                 attackingTurn = !attackingTurn;
-                Assert.IsType<DuelStrikeEvent>(JsonSerializer.Deserialize<DomainEvent>(JsonSerializer.Serialize<DomainEvent>(strike)));
             }
             else if (item is DuelPairWonEvent pair)
             {

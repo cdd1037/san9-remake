@@ -53,6 +53,7 @@ public partial class StrategyHud : Control
     private bool _built;
     private MapHoverCard _hoverCard = null!;
     private long _hoverRevision = -1;
+    private MapInformationContext _hoverContext;
     private long _stateRevision = -1;
     private readonly Dictionary<string,Label> _resourceValues = [];
     public string DisplayedMoney => _resourceValues.TryGetValue("资金", out var label) ? label.Text : "";
@@ -503,6 +504,7 @@ public partial class StrategyHud : Control
     private void ClearHover() => _hoverPosition = new Vector2(-1, -1);
     private void UpdateHover(Vector2 mouse)
     {
+        var context = Interaction.InformationContext;
         bool visible = false;
         MapObjectTarget? hovered = null;
         if (_built && Interaction.CanInspectMap && World.IsInspectionBlocked?.Invoke(mouse) != true && !World.IsLoading && World.PresentedViewportBounds.HasPoint(mouse) && !IsCoveredPoint(mouse) && !IsSpeechPoint(mouse))
@@ -521,12 +523,13 @@ public partial class StrategyHud : Control
             }
         }
         World.HoverObject(hovered);
-        if (_built && (_hoverTarget != hovered || _hoverRevision != Session.Snapshot.Revision))
+        if (_built && (_hoverTarget != hovered || _hoverRevision != Session.Snapshot.Revision || _hoverContext != context))
         {
             _hoverRevision = Session.Snapshot.Revision;
+            _hoverContext = context;
             if (_hoverTarget != hovered) _hoverCard.ShowInfo(null, mouse);
             _hoverTarget = hovered;
-            _hoverCard.ShowInfo(hovered is {} target ? target.IsUnit ? UnitMapInteraction.Hover(Scenario, Texts, target.Id) : MapHoverInfo.Resolve(Scenario, Texts, target.Id) : null, mouse);
+            _hoverCard.ShowInfo(hovered is {} target ? target.IsUnit ? UnitMapInteraction.Hover(Scenario, Texts, target.Id) : MapHoverInfo.Resolve(Scenario, Texts, target.Id, context) : null, mouse);
         }
         _regionVisible = visible;
         foreach (var label in _regionLabels) label.Visible = visible;

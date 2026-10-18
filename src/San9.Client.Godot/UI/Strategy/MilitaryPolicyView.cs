@@ -50,7 +50,7 @@ public partial class MilitaryPolicyView : FixedPage
         AddArrival();
         RefreshArrival();
         var target = Selection.Selected!.Value;
-        var info = target.IsUnit ? UnitMapInteraction.Hover(Selection.View, Texts, target.Id) : MapHoverInfo.Resolve(Selection.View, Texts, target.Id);
+        var info = target.IsUnit ? UnitMapInteraction.Hover(Selection.View, Texts, target.Id) : MapHoverInfo.Resolve(Selection.View, Texts, target.Id, MapInformationContext.Strategy);
         Label("命令", new(0, 48, 96, 32));
         Label(Selection.Candidates[target] == MilitaryMarker.Enter ? "进军" : "攻击", new(104, 48, 48, 32));
         Label("目标", new(0, 88, 96, 32)); Label(info?.Name ?? "—", new(104, 88, 160, 32));

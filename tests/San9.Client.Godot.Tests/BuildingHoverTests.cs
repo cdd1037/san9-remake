@@ -42,19 +42,25 @@ public sealed class BuildingHoverTests
         };
         var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new[] { "city", "gate", "force", "leader", "other", "free" }.ToDictionary(k => k, k => k));
         var session = GameSession.Start(initial, 190);
-        var before = MapHoverInfo.Resolve(session.View, texts, 15)!;
+        var before = MapHoverInfo.Resolve(session.View, texts, 15, MapInformationContext.Strategy)!;
         Assert.Equal(10, before.Rows.Count);
         Assert.Equal("leader", before.Rows.Single(r => r.Label == "大将").Value);
         Assert.Equal("  2/  2", before.Rows.Single(r => r.Label == "在任").Value);
         Assert.True(session.Develop(new(5, 15, [1], DomesticActivity.Commerce)).Accepted);
-        var after = MapHoverInfo.Resolve(session.View, texts, 15)!;
+        var after = MapHoverInfo.Resolve(session.View, texts, 15, MapInformationContext.Strategy)!;
         Assert.Equal("  1/  2", after.Rows.Single(r => r.Label == "在任").Value);
+        foreach (var screen in new[] { TurnScreen.Playing, TurnScreen.Presenting, TurnScreen.Strategy })
+        {
+            var interaction = StrategyInteraction.Resolve(true, screen, screen == TurnScreen.Strategy, MilitaryCommandStage.None, false, false);
+            var card = MapHoverInfo.Resolve(session.View, texts, 15, interaction.InformationContext)!;
+            Assert.Equal(screen == TurnScreen.Strategy ? "  1/  2" : "  2/  2", card.Rows.Single(r => r.Label == "在任").Value);
+        }
         Assert.NotEqual(before.Rows.Single(r => r.Label == "收益").Value, after.Rows.Single(r => r.Label == "收益").Value);
         Assert.Equal("  2/  2", before.Rows.Single(r => r.Label == "在任").Value);
-        var gate = MapHoverInfo.Resolve(session.View, texts, 99)!;
+        var gate = MapHoverInfo.Resolve(session.View, texts, 99, MapInformationContext.Strategy)!;
         Assert.Equal(7, gate.Rows.Count); Assert.Empty(gate.Icons);
         Assert.Equal("----", gate.Rows.Single(r => r.Label == "士气").Value);
         Assert.Equal("  0/  0", gate.Rows.Single(r => r.Label == "在任").Value);
-        Assert.Null(MapHoverInfo.Resolve(session.View, texts, 999));
+        Assert.Null(MapHoverInfo.Resolve(session.View, texts, 999, MapInformationContext.Strategy));
     }
 }

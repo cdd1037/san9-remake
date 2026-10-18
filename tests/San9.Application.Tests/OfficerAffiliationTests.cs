@@ -50,7 +50,7 @@ public sealed class OfficerAffiliationTests
         Assert.Equal("3", catalog.Cell(category, 1, "serving").Text);
         Assert.Equal("1", catalog.Cell(category, 1, "captives").Text);
         Assert.Equal("—", catalog.Cell(category, 1, "commander").Text);
-        Assert.Equal("0/3", MapHoverInfo.Resolve(view, texts, 1)!.Rows.Single(r => r.Label == "在任").Value.Replace(" ", ""));
+        Assert.Equal("0/3", MapHoverInfo.Resolve(view, texts, 1, MapInformationContext.Strategy)!.Rows.Single(r => r.Label == "在任").Value.Replace(" ", ""));
         Assert.Equal("1", MapCommandSummary.Settlement(view, texts, 1).Rows.Single(r => r.Label == "俘虏").Value);
         Assert.All(view.Officers.Where(o => o.OwnerId == 1), o => Assert.False(o.IsAvailable));
         var link = AdministrativeDetails.Read(view, texts, new(category, 1)).Links.Single(l => l.Category == InformationCategory.Officers);

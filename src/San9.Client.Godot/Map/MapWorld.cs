@@ -88,6 +88,7 @@ public partial class MapWorld : Node2D
     public MapObjectTarget? HoveredObject => _display?.Hovered;
     public int? HoveredBuildingId => HoveredObject is { IsUnit: false } target ? target.Id : null;
     public Func<Vector2, bool>? IsInputBlocked { get; set; }
+    public Func<Vector2, bool>? IsInspectionBlocked { get; set; }
     public Func<bool>? CanIssueOrders { get; set; }
     public Action<MapObjectTarget?>? TargetPicked { get; set; }
     public Action<San9.Core.Domain.MapCell>? WaypointPicked { get; set; }

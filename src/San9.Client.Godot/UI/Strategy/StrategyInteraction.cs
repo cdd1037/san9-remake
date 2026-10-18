@@ -4,8 +4,10 @@ public enum MilitaryCommandStage { None, Preparation, Targets, TargetModal }
 
 /// <summary>Independent turn, command and modal state determine available input.</summary>
 public readonly record struct StrategyInteraction(bool CanUseMap, bool CanNavigate,
-    bool CanIssueOrders, bool CanToggleBoundaries, bool ShowSidebar)
+    bool CanIssueOrders, bool ShowSidebar)
 {
+    public bool CanInspectMap { get; init; }
+
     public static StrategyInteraction Resolve(bool ready, TurnScreen? turn, bool canAdvance,
         MilitaryCommandStage command, bool overview, bool modal)
     {
@@ -14,7 +16,10 @@ public readonly record struct StrategyInteraction(bool CanUseMap, bool CanNaviga
         bool map = browsing && !modal && !commandModal;
         bool orders = ready && canAdvance && command == MilitaryCommandStage.None;
         return new(map, map && !overview, orders,
-            browsing && !overview && !modal && !commandModal,
-            ready && turn is TurnScreen.Strategy or TurnScreen.Confirmation && command != MilitaryCommandStage.Targets && command != MilitaryCommandStage.TargetModal);
+            ready && turn is TurnScreen.Strategy or TurnScreen.Confirmation && command != MilitaryCommandStage.Targets && command != MilitaryCommandStage.TargetModal)
+        {
+            // Daily publication blocks input while retaining the visible map and its information.
+            CanInspectMap = ready && turn is TurnScreen.Strategy or TurnScreen.Playing or TurnScreen.Presenting && !modal && !commandModal
+        };
     }
 }

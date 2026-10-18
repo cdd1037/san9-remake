@@ -144,6 +144,7 @@ public partial class SessionUiHost : Node
         var debug = new DebugPanel { World = World, Session = Session, Selection = Selection,
             CanIssueOrders = () => Hud.CanIssueOrders };
         _sessionUi.AddChild(debug);
+        World.IsInspectionBlocked = p => IsSwitching || (debug.Visible && debug.GetRect().HasPoint(p));
         World.IsInputBlocked = p => IsSwitching || Hud.Overview.IsOpen ||
             (debug.Visible && debug.GetRect().HasPoint(p)) || Hud.IsBlockedPoint(p) || Hud.IsSpeechPoint(p);
         World.IsNavigationBlocked = p => IsSwitching ||

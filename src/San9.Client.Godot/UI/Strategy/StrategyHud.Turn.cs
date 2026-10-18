@@ -192,15 +192,16 @@ public partial class StrategyHud
         var audio = CommandPresentation.MapAudio!;
         Music.SetMapTrack(Turn.Screen == TurnScreen.Terminal ? null : MapMusic.Select(Turn.Display ?? Session.View, audio));
         var frame = World.Display?.Presented;
-        if (!SoundEnabled || Turn.Screen != TurnScreen.Playing || _narration is not null || World.LoadError is not null || _battleView.IsZoomActive)
+        if (!SoundEnabled || !Turn.IsExecutionPresentation || _narration is not null || World.LoadError is not null || _battleView.IsZoomActive)
         {
-            if (!SoundEnabled || Turn.Screen != TurnScreen.Playing || World.LoadError is not null) _mapSounds.StopOneShots();
+            if (!SoundEnabled || !Turn.IsExecutionPresentation || World.LoadError is not null) _mapSounds.StopOneShots();
             _mapSounds.UpdateVoices([], Turn.Day);
             _mapAudioPlayback.Clear();
             return;
         }
         // A pending frame does not end the audible scene. Keep loop positions across daily publication.
         if (Turn.Day is null || frame is null || !World.IsDayReady || !ReferenceEquals(frame.Region.Scene.Day, Turn.Day)) return;
+        _mapAudioPlayback.BeginDay(Turn.Day);
         var transform = GetGlobalTransformWithCanvas().AffineInverse() * World.GetGlobalTransformWithCanvas();
         var sources = frame.Region.Scene.SoundSources(audio, frame.Region.Units).Select(source =>
         {
@@ -242,7 +243,7 @@ public partial class StrategyHud
             _turnBanner.Material = frame < 3 ? _titleFlashMaterial : null;
             _turnBanner.SelfModulate = new Color(1, 1, 1, frame < 3 ? 128f / 256 : 1);
         }
-        _turnProgress.Visible = _pauseTurn.Visible = Turn.Screen == TurnScreen.Playing;
+        _turnProgress.Visible = _pauseTurn.Visible = Turn.IsExecutionPresentation;
         _turnProgress.Value = Math.Floor(304 * Turn.Progress);
         _pauseTurn.SetPressedNoSignal(Turn.Paused);
         // The calendar remains at the starting xun until the committed return boundary.

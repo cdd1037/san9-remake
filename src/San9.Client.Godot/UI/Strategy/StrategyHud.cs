@@ -322,10 +322,12 @@ public partial class StrategyHud : Control
         _hudButtons.Any(button => button.IsVisibleInTree() && HudRect(button).HasPoint(point)));
 
     public bool IsBlockedPoint(Vector2 point)
+        => IsMapInteractionBlocked || IsCoveredPoint(point);
+
+    private bool IsCoveredPoint(Vector2 point)
     {
         if (_battleView?.IsSceneActive == true) return true;
         if (HasMapPopup) return true;
-        if (IsMapInteractionBlocked) return true;
         if (_built && _executionPanels.Covers(point)) return true;
         if (point.Y >= Size.Y - 28 && point.Y < Size.Y && point.X >= 0 && point.X < Size.X) return true;
         foreach (var (asset, position) in VisibleFrames())
@@ -503,7 +505,7 @@ public partial class StrategyHud : Control
     {
         bool visible = false;
         MapObjectTarget? hovered = null;
-        if (_built && !World.IsLoading && World.PresentedViewportBounds.HasPoint(mouse) && !IsBlockedPoint(mouse) && !IsSpeechPoint(mouse))
+        if (_built && Interaction.CanInspectMap && World.IsInspectionBlocked?.Invoke(mouse) != true && !World.IsLoading && World.PresentedViewportBounds.HasPoint(mouse) && !IsCoveredPoint(mouse) && !IsSpeechPoint(mouse))
         {
             if (Overview.IsOpen)
             {
@@ -512,8 +514,7 @@ public partial class StrategyHud : Control
             }
             else
             {
-                if (World.IsInputBlocked?.Invoke(mouse) != true && !_contextMenu.Visible)
-                    hovered = World.ObjectAtViewport(mouse);
+                hovered = World.ObjectAtViewport(mouse);
                 var world = World.ViewportToWorld(mouse);
                 if (MapGeometry.TrySquare(world.X, world.Y, out int x, out int y))
                 { UpdateRegion(x, y); visible = true; }
@@ -554,7 +555,7 @@ public partial class StrategyHud : Control
         UpdateHover(_hoverPosition ?? GetGlobalMousePosition());
         UpdateMessage();
         _large?.SetPressedNoSignal(!Overview.IsOpen); _small?.SetPressedNoSignal(Overview.IsOpen);
-        if (_territory is not null) _territory.Disabled = !Interaction.CanToggleBoundaries;
+        if (_territory is not null) _territory.Disabled = Overview.IsOpen;
         _territory?.SetPressedNoSignal(World.ShowBoundaries);
         var drawState = (Turn?.IsStrategy == true, SelectingTargets, _commandMenu?.Visible == true, _regionVisible);
         if (_drawState != drawState) { _drawState = drawState; QueueRedraw(); }

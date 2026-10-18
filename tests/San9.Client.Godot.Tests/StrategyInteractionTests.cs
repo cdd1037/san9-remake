@@ -2,6 +2,19 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class StrategyInteractionTests
 {
+    [Fact]
+    public void DailyPublicationKeepsMapInformationWithoutEnablingInput()
+    {
+        var playing = StrategyInteraction.Resolve(true, TurnScreen.Playing, false, MilitaryCommandStage.None, false, false);
+        var publishing = StrategyInteraction.Resolve(true, TurnScreen.Presenting, false, MilitaryCommandStage.None, false, false);
+        Assert.True(playing.CanInspectMap);
+        Assert.True(publishing.CanInspectMap);
+        Assert.False(publishing.CanUseMap);
+        Assert.False(publishing.CanNavigate);
+        Assert.False(publishing.CanIssueOrders);
+        Assert.False(StrategyInteraction.Resolve(true, TurnScreen.Presenting, false, MilitaryCommandStage.None, false, true).CanInspectMap);
+    }
+
     [Theory]
     [InlineData(TurnScreen.Strategy, true, true)]
     [InlineData(TurnScreen.Playing, true, false)]
@@ -13,7 +26,6 @@ public sealed class StrategyInteractionTests
         var result = StrategyInteraction.Resolve(true, screen, screen == TurnScreen.Strategy, MilitaryCommandStage.None, false, false);
         Assert.Equal(navigate, result.CanNavigate);
         Assert.Equal(orders, result.CanIssueOrders);
-        Assert.Equal(navigate, result.CanToggleBoundaries);
     }
     [Theory]
     [InlineData(MilitaryCommandStage.Preparation, false)]

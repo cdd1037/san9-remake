@@ -6,6 +6,31 @@ namespace San9.Client.Godot.Tests;
 public sealed class MapAudioMixTests
 {
     [Fact]
+    public void DailyClockRestartPreservesBattleBedAndResumesMovementGainImmediately()
+    {
+        int selections = 0;
+        var playback = new MapAudioPlayback(_ => { selections++; return 0; });
+        MapSoundSource[] sources =
+        [
+            new("march", "foot", 50, 50) { Kind = MapSoundKind.Movement },
+            new("army", "battle", 50, 50) { Kind = MapSoundKind.BattleAmbience }
+        ];
+        object day = new();
+        playback.BeginDay(day);
+        playback.Update(sources, 100, 100, ["battle"], 0);
+        var last = playback.Update(sources, 100, 100, ["battle"], 320, moving: false);
+        Assert.Equal(.84, last.Single(v => v.Key == "march").Gain, 6);
+        playback.BeginDay(day);
+        Assert.Equal(.84, playback.Update(sources, 100, 100, ["battle"], 320, moving: false).Single(v => v.Key == "march").Gain, 6);
+
+        playback.BeginDay(new object());
+        var next = playback.Update(sources, 100, 100, ["battle"], 0);
+        Assert.Equal(.92, next.Single(v => v.Key == "march").Gain, 6);
+        Assert.Equal(last.Single(v => v.Key == "battle"), next.Single(v => v.Key == "battle"));
+        Assert.Equal(1, selections);
+    }
+
+    [Fact]
     public void ResourceChangeCannotClaimTheOldLoopsAdmissionPriority()
     {
         var playback = new MapAudioPlayback(_ => 0);

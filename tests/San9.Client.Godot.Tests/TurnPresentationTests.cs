@@ -23,6 +23,7 @@ public sealed class TurnPresentationTests
         };
         Enter(turn);
         for (int i = 1; i < days; i++) { Ready(turn); turn.Update(2); }
+        Assert.True(turn.IsExecutionPresentation);
         long consumed = turn.Publication;
         bool dialogueOpen = false;
         turn.CanContinue = publication => consumed == publication && !dialogueOpen;
@@ -30,6 +31,7 @@ public sealed class TurnPresentationTests
         // Match the HUD frame: publish first, then discover and open the result dialogue.
         Ready(turn); turn.Update(2);
         Assert.Equal(TurnScreen.Presenting, turn.Screen);
+        Assert.True(turn.IsExecutionPresentation);
         Assert.Equal(consumed + 1, turn.Publication);
         Assert.False(turn.IsComputing);
         long operation = session.NextOperationSequence;
@@ -51,6 +53,7 @@ public sealed class TurnPresentationTests
         dialogueOpen = false;
         turn.Update(0);
         Assert.Equal(days == 10 ? TurnScreen.Returning : TurnScreen.Playing, turn.Screen);
+        Assert.Equal(days != 10, turn.IsExecutionPresentation);
         Assert.Equal(days == 10 ? 1 : 0, titles);
         Assert.Equal(month == 3 ? 1 : 0, seasons);
         Assert.Equal(1, turn.StrategyEntrance);

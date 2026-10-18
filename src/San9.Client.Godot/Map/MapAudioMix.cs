@@ -84,7 +84,15 @@ public sealed class MapAudioPlayback(Func<int, int> choose)
     private string? _battleRole;
     private Dictionary<string, string> _playing = [];
     private double? _gainTime;
+    private object? _day;
     private int _movementGain = 100;
+    public void BeginDay(object day)
+    {
+        if (ReferenceEquals(_day, day)) return;
+        _day = day;
+        // Each day has its own visual clock; admitted voices and their gains belong to the audible scene.
+        _gainTime = null;
+    }
     public MapSoundVoice[] Update(IEnumerable<MapSoundSource> sources, double width, double height, string[] battleRoles,
         double milliseconds = 0, bool moving = true)
     {
@@ -105,5 +113,5 @@ public sealed class MapAudioPlayback(Func<int, int> choose)
         _battleRole ??= battleRoles[choose(battleRoles.Length)];
         return [.. voices, new("battle", _battleRole, width / 2, height / 2, 1)];
     }
-    public void Clear() { _battleRole = null; _playing.Clear(); _gainTime = null; }
+    public void Clear() { _battleRole = null; _playing.Clear(); _gainTime = null; _day = null; }
 }

@@ -7,10 +7,10 @@ namespace San9.Client.Godot;
 /// <summary>Edits local presentation and recorded world rules in one dialog.</summary>
 public partial class PkSettingsView : SettingsView
 {
-    private enum Setting { TacticScenes, OtherOrders, OtherTactics, BattleDeaths }
+    private enum Setting { TacticScenes, DuelScenes, OtherOrders, OtherTactics, BattleDeaths }
     private static readonly (string Label, Setting? Value)[] Rows =
     [
-        ("兵法演出", Setting.TacticScenes), ("单挑演出", null),
+        ("兵法演出", Setting.TacticScenes), ("单挑演出", Setting.DuelScenes),
         ("他势力部队的命令", Setting.OtherOrders), ("他势力部队的兵法", Setting.OtherTactics),
         ("武将的阵亡", Setting.BattleDeaths)
     ];
@@ -43,6 +43,7 @@ public partial class PkSettingsView : SettingsView
 
     private bool Selected(Setting setting) => setting switch
     {
+        Setting.DuelScenes => _settingsDraft.DuelScenesEnabled,
         Setting.TacticScenes => _settingsDraft.TacticScenesEnabled,
         Setting.OtherOrders => _worldDraft.OtherForceOrdersVisible,
         Setting.OtherTactics => _worldDraft.OtherForceTacticsVisible,
@@ -52,6 +53,7 @@ public partial class PkSettingsView : SettingsView
     private void Select(Setting setting, bool value)
     {
         if (setting == Setting.TacticScenes) _settingsDraft = _settingsDraft with { TacticScenesEnabled = value };
+        else if (setting == Setting.DuelScenes) _settingsDraft = _settingsDraft with { DuelScenesEnabled = value };
         else _worldDraft = setting switch
         {
             Setting.OtherOrders => _worldDraft with { OtherForceOrdersVisible = value },
@@ -76,6 +78,6 @@ public partial class PkSettingsView : SettingsView
         var result = ApplyWorld(_worldDraft);
         if (result.Disposition == SessionDisposition.Accepted) { Closed(); return; }
         ShowFailure($"战局设定未能执行：{result.Rejection}" +
-            (_savedSettings != InitialSettings ? "\n兵法演出偏好已保存。" : ""));
+            (_savedSettings != InitialSettings ? "\n演出偏好已保存。" : ""));
     }
 }

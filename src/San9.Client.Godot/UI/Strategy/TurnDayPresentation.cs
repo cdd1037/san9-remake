@@ -29,11 +29,15 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
     public bool IsCombatBlocking => _combatStarted && CombatMilliseconds < _combatDuration * 1000 - 1e-6;
     public BattlePresentationPlan? Battle { get; } = battle;
     private readonly HashSet<string> _completedDialogues = [];
+    public double DuelDialogueElapsed { get; private set; }
     public IReadOnlyList<BattleMessageCue> PendingDialogues => Battle?.Messages
         .Where(c => c.Channel == BattleMessageChannel.Dialogue && !_completedDialogues.Contains(c.Id) && c.Time <= Elapsed + 1e-9)
         .OrderBy(c => c.Time).ToArray() ?? [];
+    public IReadOnlyList<BattleMessageCue> PendingDuelDialogues => Battle?.Messages
+        .Where(c => c.Channel == BattleMessageChannel.DuelDialogue && !_completedDialogues.Contains(c.Id) && c.Time <= Elapsed + 1e-9)
+        .OrderBy(c => c.Time).ToArray() ?? [];
     private double? NextDialogueTime => Battle?.Messages
-        .Where(c => c.Channel == BattleMessageChannel.Dialogue && !_completedDialogues.Contains(c.Id))
+        .Where(c => c.Channel != BattleMessageChannel.MapSpeech && !_completedDialogues.Contains(c.Id))
         .Select(c => (double?)c.Time).Min();
     public IReadOnlyList<BattleMessageCue> ReadyMapSpeeches
     {
@@ -47,12 +51,20 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
     public bool IsComplete => Elapsed >= Duration && !IsCombatBlocking && NextDialogueTime is null;
     public void CompleteDialogue(string id)
     {
-        if (!PendingDialogues.Any(c => c.Id == id)) throw new InvalidOperationException("Battle dialogue is not pending.");
+        if (!PendingDialogues.Concat(PendingDuelDialogues).Any(c => c.Id == id)) throw new InvalidOperationException("Battle dialogue is not pending.");
         _completedDialogues.Add(id);
+        DuelDialogueElapsed = 0;
     }
     public double Duration { get; } = Math.Max(battle?.Duration ?? 0, Math.Max(MapMovementCadence.DayMilliseconds / 1000.0, duration ?? 0));
     public void SkipVisual()
     {
+        var duel = Battle?.Duels.FirstOrDefault(c => Elapsed >= c.Start && Elapsed < c.End);
+        if (duel is not null)
+        {
+            DuelDialogueElapsed = 0;
+            foreach (var message in Battle!.Messages.Where(c => c.SceneId == duel.Id)) _completedDialogues.Add(message.Id);
+            Advance(duel.End - Elapsed); return;
+        }
         var current = Battle?.Visuals.FirstOrDefault(c => c.Zoom is not null && Elapsed >= (c.EntranceStart ?? c.Start) && Elapsed < c.End);
         if (current is not null) Advance(current.End - Elapsed);
     }
@@ -103,6 +115,7 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
         double consumed = next - Elapsed;
         VisualElapsed += consumed;
         Elapsed = next;
+        if (PendingDuelDialogues.Count > 0) DuelDialogueElapsed += seconds - consumed;
         return consumed;
     }
 }

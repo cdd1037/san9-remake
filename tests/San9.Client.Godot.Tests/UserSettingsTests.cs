@@ -15,7 +15,7 @@ public sealed class UserSettingsTests : IDisposable
         var store = new UserSettingsStore(FilePath);
         var session = new UserSettingsSession(store);
         session.Load();
-        var draft = session.Current with { MusicEnabled = false, TacticScenesEnabled = false, FullscreenEnabled = true, MouseConfined = true, MessageSpeed = MessageSpeed.Fast };
+        var draft = session.Current with { MusicEnabled = false, TacticScenesEnabled = false, DuelScenesEnabled = false, FullscreenEnabled = true, MouseConfined = true, MessageSpeed = MessageSpeed.Fast };
         Assert.True(session.Current.MusicEnabled);
         session.Apply(draft);
         Assert.Equal(draft, session.Current);
@@ -45,7 +45,7 @@ public sealed class UserSettingsTests : IDisposable
         foreach (bool fullscreen in new[] { false, true })
         foreach (bool confined in new[] { false, true })
         {
-            var expected = new UserSettings(false, true, false, speed, report) { TacticScenesEnabled = false, PlaybackSpeed = playback, FullscreenEnabled = fullscreen, MouseConfined = confined };
+            var expected = new UserSettings(false, true, false, speed, report) { TacticScenesEnabled = false, DuelScenesEnabled = false, PlaybackSpeed = playback, FullscreenEnabled = fullscreen, MouseConfined = confined };
             store.Save(expected);
             Assert.Equal(expected, new UserSettingsStore(FilePath).Load());
         }

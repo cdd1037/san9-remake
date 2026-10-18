@@ -149,10 +149,14 @@ public sealed record BattlePresentationDefinition(Dictionary<string, DecisionMes
     public Dictionary<string, Dictionary<int, BattleSprite[]>> BuildingEffects { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired]
     public BattleSceneDefinition Scene { get; init; } = new([], [], []);
+    [System.Text.Json.Serialization.JsonRequired]
+    public DuelPresentationDefinition? Duel { get; init; }
     public void Validate(TextCatalog texts, IReadOnlyDictionary<string, string> sounds,
         IEnumerable<int> people, IEnumerable<int> tactics, IEnumerable<ImageAsset> images)
     {
         var catalog = images.ToDictionary(a => a.Id);
+        if (Duel is null) throw new InvalidDataException("Missing duel presentation.");
+        Duel.Validate(texts, sounds, people, catalog);
         string[] required = ["activation-own","activation-enemy","chain-own","chain-enemy","support","link","blocked","damage",
             "defection","healed","hit-reaction","block-reaction","block-reply","chain-confused","chain-unformed","link-0","link-1","link-2","link-3",
             "sniping-action","sniping-fatal","sniping-heavy","sniping-light","sniping-own","sniping-enemy"];

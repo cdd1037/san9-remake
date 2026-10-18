@@ -90,7 +90,7 @@ public static class TextureLibraryCompiler
             List<TextureVariant> variants = [];
             // Portraits, illustrations and CPU land are intentionally opaque. Other indexed display
             // sources use the complete palette-entry key. Palette-alpha consumers remain explicit
-            // in the map/interface compilers; source alpha is not guessed from its numeric range.
+            // below and in map/interface compilers; source alpha is not guessed from its numeric range.
             bool opaque = recipe.Category.StartsWith("portraits/", StringComparison.Ordinal) ||
                 recipe.Category == "illustrations" || name == "G_LLand";
             // Emit source colors; the package builder packs every consumer through one catalog.
@@ -98,10 +98,18 @@ public static class TextureLibraryCompiler
             foreach (var group in bindings.Where(b => name != "G_Still" || b.Image < 72 || b.Image >= 172)
                 .GroupBy(b => b.Palette).OrderBy(g => g.Key))
             {
-                var converted = group.OrderBy(b => b.Image).Select(b => new TextureVariant(b.Image, b.Palette,
-                    save($"library/{id}/variant-{b.Palette:D3}/{b.Image:D4}",
-                        TextureSourcePath.Image(name, b.Image, b.Palette, !opaque, false, recipe.Palette),
-                        IndexedImageArchive.Decode(images[b.Image], palettes[b.Palette], !opaque, false)))).ToArray();
+                var converted = group.OrderBy(b => b.Image).Select(b =>
+                {
+                    // RE-SAN9PK-0194: arena, speech and panels use palette-alpha mode.
+                    // Health bars, bodies and additive particles have separate native modes.
+                    // Zoom terrain, transitions, edges, facilities and both panels also use palette alpha.
+                    bool paletteAlpha = name == "G_Ikki" && (b.Image < 9 || b.Image is >= 11 and <= 18) ||
+                        name == "G_ZoomIn" && (b.Image < 58 || b.Image is 141 or 142);
+                    return new TextureVariant(b.Image, b.Palette,
+                        save($"library/{id}/variant-{b.Palette:D3}/{b.Image:D4}",
+                            TextureSourcePath.Image(name, b.Image, b.Palette, !opaque, paletteAlpha, recipe.Palette),
+                            IndexedImageArchive.Decode(images[b.Image], palettes[b.Palette], !opaque, paletteAlpha)));
+                }).ToArray();
                 variants.AddRange(converted);
             }
             if (variants.Count != 0) archives.Add(new(id, recipe.Category, variants.ToArray()));

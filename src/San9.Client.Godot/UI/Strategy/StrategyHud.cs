@@ -108,7 +108,7 @@ public partial class StrategyHud : Control
             CreateDay = (before, after, events) => new(before, after, events, new MapDayPlan(World.Package!, before, events),
                 battle: BattlePresentationPlan.Create(before, after, events, Session.Messages(Texts, before.World), Texts, CommandPresentation,
                     World.Package!.Buildings.ToDictionary(b => b.Id, b => b.FixedType), World.Package,
-                    ReadSettings().TacticScenesEnabled))
+                    ReadSettings().TacticScenesEnabled, ReadSettings().DuelScenesEnabled))
             {
                 CanPresentAttack = attack => World.Display?.Presented is { } frame &&
                     MapDayPlan.IsAttackVisible(attack, frame.ViewportBounds.Position.X, frame.ViewportBounds.Position.Y,

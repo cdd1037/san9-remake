@@ -8,9 +8,9 @@ using San9.Rendering;
 namespace San9.Application.Presentation;
 
 /// <summary>Projects occurrence-ordered facts into one prepared day; owns the presentation clock and feedback context.</summary>
-internal sealed class BattlePresentationBuilder(StrategySnapshot before, StrategySnapshot after,
+internal sealed partial class BattlePresentationBuilder(StrategySnapshot before, StrategySnapshot after,
     IReadOnlyList<DomainEvent> events, WorldMessageContext context, TextCatalog texts, CommandPresentation content,
-    IReadOnlyDictionary<int, int>? buildingTypes, MapPackage? map, bool tacticScenesEnabled)
+    IReadOnlyDictionary<int, int>? buildingTypes, MapPackage? map, bool tacticScenesEnabled, bool duelScenesEnabled)
 {
     private readonly List<BattleMessageCue> _messages = [];
     private readonly List<BattleVisualCue> _visuals = [];
@@ -44,6 +44,8 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
         {
             switch (events[_index])
             {
+                case DuelStartedEvent duel: PresentDuel(duel); break;
+                case OfficerDiedEvent { Cause: OfficerDeathCause.Duel } death: PresentDuelDeath(death); break;
                 case BattleDamageEvent damage: PresentDamage(damage); break;
                 case BattleContactStartedEvent or UnitWaypointReachedEvent: PresentMapNotification(); break;
                 case BattleConditionChangedEvent condition: PresentCondition(condition); break;
@@ -61,7 +63,7 @@ internal sealed class BattlePresentationBuilder(StrategySnapshot before, Strateg
             .Concat(_mapEffects.Select(c => c.Start + c.Sprite.Columns * c.Sprite.FrameMilliseconds / 1000.0))
             .Concat(_mapNumbers.Select(c => c.Start + BattleMapNumberPlayback.Duration(content.Battle!.MapNumbers!))).DefaultIfEmpty(0).Max();
         return new BattlePresentationPlan(_messages, _records, _visuals, _stateValues, _mapEffects, _mapNumbers, content.Battle?.MapNumbers, _presented,
-            _messages.Count == 0 && _records.Count == 0 && _visuals.Count == 0 && _mapEffects.Count == 0 && _mapNumbers.Count == 0 ? 0 : Math.Max(_cursor, finalCue));
+            _duels.Count == 0 && _messages.Count == 0 && _records.Count == 0 && _visuals.Count == 0 && _mapEffects.Count == 0 && _mapNumbers.Count == 0 ? 0 : Math.Max(_cursor, finalCue), _duels);
     }
 
     private bool Player(int? force) => before.World.Simulation.Controls.Any(c => c.ForceId == force && c.Kind == ControllerKind.Player);

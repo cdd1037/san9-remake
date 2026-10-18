@@ -43,6 +43,7 @@ internal static partial class CommandTextSources
         ("label.durability", 0x21daa0),
         ("label.facility", 0x21c0d0),
         ("label.food", 0x21daf8),
+        ("label.health", 0x21b660),
         ("label.force", 0x21b76c),
         ("label.governor", 0x21c99c),
         ("label.harvest", 0x21bca4),

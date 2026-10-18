@@ -9,9 +9,12 @@ using San9.Rendering;
 
 namespace San9.Application.Presentation;
 
-public enum BattleMessageChannel { MapSpeech, Dialogue }
+public enum BattleMessageChannel { MapSpeech, Dialogue, DuelDialogue }
 public sealed record BattleMessageCue(string Id, double Time, CommandMessage Message,
-    BattleMessageChannel Channel = BattleMessageChannel.MapSpeech);
+    BattleMessageChannel Channel = BattleMessageChannel.MapSpeech)
+{
+    public string? SceneId { get; init; }
+}
 public sealed record BattleRecordCue(double Time, MapMessageRecord Record, string? SoundRole = null);
 public sealed record BattleVisualCue(string Id, double Start, double End, BattleObjectContext Source,
     BattleObjectContext Target, int TacticId, int ActorId, bool Blocked, bool Doubled,
@@ -33,6 +36,7 @@ public sealed record BattleMapNumberCue(string Id, double Start, BattleObjectCon
 /// <summary>Occurrence ordered, immutable presentation. Text choices and identities are fixed before playback.</summary>
 public sealed class BattlePresentationPlan
 {
+    public IReadOnlyList<DuelSceneCue> Duels { get; }
     public IReadOnlyList<BattleMessageCue> Messages { get; }
     public IReadOnlyList<BattleRecordCue> Records { get; }
     public IReadOnlyList<BattleVisualCue> Visuals { get; }
@@ -43,8 +47,9 @@ public sealed class BattlePresentationPlan
     public IReadOnlyList<BattleMapNumberCue> MapNumbers { get; }
     public BattleMapNumberDefinition? NumberDefinition { get; }
     internal BattlePresentationPlan(List<BattleMessageCue> messages, List<BattleRecordCue> records, List<BattleVisualCue> visuals, List<BattleValueCue> values,
-        List<BattleMapEffectCue> effects, List<BattleMapNumberCue> numbers, BattleMapNumberDefinition? numberDefinition, HashSet<int> facts, double duration)
+        List<BattleMapEffectCue> effects, List<BattleMapNumberCue> numbers, BattleMapNumberDefinition? numberDefinition, HashSet<int> facts, double duration, List<DuelSceneCue> duels)
     {
+        Duels = duels.AsReadOnly();
         Messages = messages.AsReadOnly(); Records = records.AsReadOnly(); Visuals = visuals.AsReadOnly(); Values = values.AsReadOnly();
         MapEffects = effects.AsReadOnly(); MapNumbers = numbers.AsReadOnly(); NumberDefinition = numberDefinition;
         PresentedFacts = facts.ToFrozenSet(); Duration = duration;
@@ -52,6 +57,6 @@ public sealed class BattlePresentationPlan
 
     public static BattlePresentationPlan Create(StrategySnapshot before, StrategySnapshot after,
         IReadOnlyList<DomainEvent> events, WorldMessageContext context, TextCatalog texts, CommandPresentation content,
-        IReadOnlyDictionary<int, int>? buildingTypes = null, MapPackage? map = null, bool tacticScenesEnabled = true) =>
-        new BattlePresentationBuilder(before, after, events, context, texts, content, buildingTypes, map, tacticScenesEnabled).Build();
+        IReadOnlyDictionary<int, int>? buildingTypes = null, MapPackage? map = null, bool tacticScenesEnabled = true, bool duelScenesEnabled = true) =>
+        new BattlePresentationBuilder(before, after, events, context, texts, content, buildingTypes, map, tacticScenesEnabled, duelScenesEnabled).Build();
 }

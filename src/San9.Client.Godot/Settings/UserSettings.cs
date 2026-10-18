@@ -12,6 +12,7 @@ public sealed record UserSettings(
     MessageSpeed MessageSpeed,
     ProgressReportMode ProgressReport)
 {
+    public bool DuelScenesEnabled { get; init; } = true;
     public bool TacticScenesEnabled { get; init; } = true;
     public bool FullscreenEnabled { get; init; }
     public bool MouseConfined { get; init; }

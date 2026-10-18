@@ -79,7 +79,7 @@ min(10, trunc0((100 - T(current_unit_morale)) / 10) + 5)
 
 ## IDA MCP 同步与回读
 
-本批在项目主数据库上先只读核对样本身份、反序列化、人物递减、日循环、激励、联动和单挑交叉链。随后按 [`tactic-activation-state-machine-batch-1.json`](../analysis/ida-write-records/tactic-activation-state-machine-batch-1.json) 恢复 `0x44BF70..0x44BF92` 函数边界，7 个名称 dry-run 为 7/7 后写入，更新 `San9KillerRecord` 与 `San9PersonRecord` 两个字段布局，应用 4 个函数签名和 10 条事实/边界注释。
+本批在项目主数据库上先只读核对样本身份、反序列化、人物递减、日循环、激励、联动和单挑交叉链。随后按 [`tactic-activation-state-machine-batch-1.json`](../archive/ida-write-records/tactic-activation-state-machine-batch-1.json) 恢复 `0x44BF70..0x44BF92` 函数边界，7 个名称 dry-run 为 7/7 后写入，更新 `San9KillerRecord` 与 `San9PersonRecord` 两个字段布局，应用 4 个函数签名和 10 条事实/边界注释。
 
 原位保存后，函数边界、7 个名称、两个结构尺寸及字段偏移、4 个签名和 10 条注释均回读一致；7 个关键函数强制重编译成功。程序字节修改为 0。恢复函数边界时曾因尾部 `ret 4` 被误定义为数据导致首次 `define_func` 失败；按原始字节逐指令恢复并清除该错误数据项后再次定义成功，没有修改原始字节。
 

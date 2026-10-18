@@ -20,7 +20,7 @@
 | A09 | 内容绑定完全未开始 | **过期状态**：剧本标题、城市/地区、人物、国号、兵法和主界面已有绑定证据；剩余是完整可替换内容契约和覆盖，`CONTENT-01` 改为调查中 | [字段清单](scenario-field-research-checklist.md)、[RE-0151](findings/RE-SAN9PK-0151.md)、[RE-0157](findings/RE-SAN9PK-0157.md) |
 | A10 | 旧核心总验收仍能证明当前全量一致 | **证据维护纠错**：路线图在`4b540ac`被删除而7处链接继续引用；从其父提交恢复至归档并修链。旧验证器固定147份研究/419个符号，只能重放`6cbbfba`历史工作树，不能拿旧在线快照认证当前库 | [历史路线](archive/program-analysis/program-analysis-roadmap.md)、[历史验收说明](archive/program-analysis/program-analysis-r0-r12-acceptance.md) |
 
-另删除 RE-0151 重复的资源8436待办。上述机器语义按各自原记录承接，没有为单字段补证重复建研究编号。IDA实际写入、保存与回读见[本轮清单](analysis/ida-write-records/research-questions-audit-2026-09-06.json)。
+另删除 RE-0151 重复的资源8436待办。上述机器语义按各自原记录承接，没有为单字段补证重复建研究编号。IDA实际写入、保存与回读见[本轮清单](archive/ida-write-records/research-questions-audit-2026-09-06.json)。
 
 补充关闭 **A11（规格契约遗漏）**：3份已确认的显示/UI规格遗漏领域分类，章节和决策元数据不统一，导致当前契约校验失败；已补齐分类、章节及5项已批准决策门，并删除依赖图中易过期的验收计数。另将地图规格过期的schema6声明改为引用当前UI内容契约；当前验证器实际要求地图schema7。没有借此批准新玩法。[领域契约](../specs/behavior/core-domain-contracts.json)、[依赖图](../specs/behavior/core-domain-dependency-map.md)、[地图规格](../specs/behavior/BEH-RENDER-0002-interactive-static-map.md)。
 

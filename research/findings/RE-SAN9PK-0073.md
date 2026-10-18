@@ -71,7 +71,7 @@
 
 ## IDA 标注变更与回读
 
-- dry-run：`research/analysis/ida-write-records/simulation-action-ui-batch-2.json`；29 项函数名称检查全部通过。
+- dry-run：`research/archive/ida-write-records/simulation-action-ui-batch-2.json`；29 项函数名称检查全部通过。
 - 实际写入 29 个高置信度函数名称和 29 条 `[RE-SAN9PK-0073][FACT]` 函数注释；全部写入成功，主 IDB 已保存。
 - `0x5143A0` 与 `0x513D60` 的修改前后反编译比较仅出现预期名称替换，没有函数边界、控制流或类型变化。
 - 保存后按地址回读 29 个名称全部一致；并从 IDB 分别回读既有可重复注释、此次不可重复函数注释，确认新证据注释存在。

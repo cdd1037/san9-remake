@@ -113,7 +113,7 @@ SanIX 章节与电子书重复章节的流程骨架、T 函数、P2、动画伤�
 
 程序分析队列没有为 `DUEL-02` 生成显式 San9PKHard 候选，本批候选数为 0、未决为 0；调查入口来自路线图指定的当前样本函数，而不是第三方补丁语义。
 
-只读阶段完整核对 198 条逐刀指令、两处调用及外层 HP 循环。随后按 [`duel-strike-state-machine-batch-1.json`](../analysis/ida-write-records/duel-strike-state-machine-batch-1.json) 将 `0x500650` 命名为 `resolve_duel_strike`、`0x44F040` 命名为 `set_person_injury_state`，dry-run `2/2` 和应用 `2/2` 均成功；写入两条函数签名及 22 条事实注释。原位保存后回读确认名称、签名、逐刀伪代码及调用方关键注释，3 个函数强制重编译成功。程序字节修改为 0。
+只读阶段完整核对 198 条逐刀指令、两处调用及外层 HP 循环。随后按 [`duel-strike-state-machine-batch-1.json`](../archive/ida-write-records/duel-strike-state-machine-batch-1.json) 将 `0x500650` 命名为 `resolve_duel_strike`、`0x44F040` 命名为 `set_person_injury_state`，dry-run `2/2` 和应用 `2/2` 均成功；写入两条函数签名及 22 条事实注释。原位保存后回读确认名称、签名、逐刀伪代码及调用方关键注释，3 个函数强制重编译成功。程序字节修改为 0。
 
 ## 结论与后续
 

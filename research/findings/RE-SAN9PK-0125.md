@@ -8,7 +8,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0068](RE-SAN9PK-0068.md)、[RE-SAN9PK-0100](RE-SAN9PK-0100.md)、[RE-SAN9PK-0101](RE-SAN9PK-0101.md)、[RE-SAN9PK-0102](RE-SAN9PK-0102.md)
-- IDA 写入计划：[`intelligence-to-martial-tactic-chain-batch-1.json`](../analysis/ida-write-records/intelligence-to-martial-tactic-chain-batch-1.json)
+- IDA 写入计划：[`intelligence-to-martial-tactic-chain-batch-1.json`](../archive/ida-write-records/intelligence-to-martial-tactic-chain-batch-1.json)
 
 ## 研究对象与旧结论修正
 

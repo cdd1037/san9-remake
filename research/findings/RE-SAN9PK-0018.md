@@ -80,4 +80,4 @@ related_tactic_id = strategy_id + 35
 
 ## 6. IDA MCP 同步与回读（2026-08-31）
 
-本轮先只读核对 RTTI、虚表、字节和调用关系，再恢复 7 个被误判为数据的函数边界；命名 10 个 `CSakuryakuData`/策略函数和全局表，写入 8 条事实注释。保存并强制重编译后，加载器显示 182 条库存统计，名称函数显示 `ID+35` 兵法关系，属性格式化函数显示属性 0/1/2 的边界。程序字节和类型均未修改，账本见 [`sakuryaku-fields-batch-1.json`](../analysis/ida-write-records/sakuryaku-fields-batch-1.json)。
+本轮先只读核对 RTTI、虚表、字节和调用关系，再恢复 7 个被误判为数据的函数边界；命名 10 个 `CSakuryakuData`/策略函数和全局表，写入 8 条事实注释。保存并强制重编译后，加载器显示 182 条库存统计，名称函数显示 `ID+35` 兵法关系，属性格式化函数显示属性 0/1/2 的边界。程序字节和类型均未修改，账本见 [`sakuryaku-fields-batch-1.json`](../archive/ida-write-records/sakuryaku-fields-batch-1.json)。

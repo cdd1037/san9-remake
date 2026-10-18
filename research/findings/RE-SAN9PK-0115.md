@@ -8,7 +8,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0067](RE-SAN9PK-0067.md)、[RE-SAN9PK-0070](RE-SAN9PK-0070.md)、[RE-SAN9PK-0089](RE-SAN9PK-0089.md)、[RE-SAN9PK-0102](RE-SAN9PK-0102.md)、[RE-SAN9PK-0113](RE-SAN9PK-0113.md)、[RE-SAN9PK-0114](RE-SAN9PK-0114.md)
-- IDA 写入计划：[`alienate-burn-seize-gossip-lifecycle-batch-1.json`](../analysis/ida-write-records/alienate-burn-seize-gossip-lifecycle-batch-1.json)
+- IDA 写入计划：[`alienate-burn-seize-gossip-lifecycle-batch-1.json`](../archive/ida-write-records/alienate-burn-seize-gossip-lifecycle-batch-1.json)
 
 ## 对象、状态、输入、输出与不变量
 

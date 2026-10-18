@@ -9,7 +9,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0009](RE-SAN9PK-0009.md)、[RE-SAN9PK-0067](RE-SAN9PK-0067.md)、[RE-SAN9PK-0106](RE-SAN9PK-0106.md)、[RE-SAN9PK-0109](RE-SAN9PK-0109.md)、[RE-SAN9PK-0110](RE-SAN9PK-0110.md)
-- IDA 写入计划：[`recruit-command-lifecycle-batch-1.json`](../analysis/ida-write-records/recruit-command-lifecycle-batch-1.json)
+- IDA 写入计划：[`recruit-command-lifecycle-batch-1.json`](../archive/ida-write-records/recruit-command-lifecycle-batch-1.json)
 
 ## 2026-10-08：登庸准备与结果表现
 

@@ -8,7 +8,7 @@
 - 关联来源：`SRC-SAN9PK-TC-101`、`SRC-SANIX`、`SRC-SAN9-EBK`、`SRC-SAN9PKHARD`
 - 前置记录：[RE-SAN9PK-0029](RE-SAN9PK-0029.md)、[RE-SAN9PK-0044](RE-SAN9PK-0044.md)、[RE-SAN9PK-0068](RE-SAN9PK-0068.md)、[RE-SAN9PK-0090](RE-SAN9PK-0090.md)、[RE-SAN9PK-0094](RE-SAN9PK-0094.md)
 - 状态清单：[`program-analysis-tac-01-status.json`](../archive/program-analysis/status/program-analysis-tac-01-status.json)
-- IDA 写入计划：[`tactic-opportunity-generation-batch-1.json`](../analysis/ida-write-records/tactic-opportunity-generation-batch-1.json)
+- IDA 写入计划：[`tactic-opportunity-generation-batch-1.json`](../archive/ida-write-records/tactic-opportunity-generation-batch-1.json)
 
 ## 对象、状态与不变量
 

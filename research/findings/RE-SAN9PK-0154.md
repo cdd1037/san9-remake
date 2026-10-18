@@ -12,12 +12,12 @@
 
 ## 恢复范围与结果入口
 
-三处既有研究所需的定义回退（`0x4C9220`、`0x4C9740`、`0x5236A0`）已补回。随后完成 UI/命令、`.rdata`/`.data` 表入口、直接调用、尾跳、虚分派和 switch 闭包恢复。当前规范集合为 835 个函数，合计 113,870 字节；每个函数均可反编译。逐函数区间见 [`San9PK-TC-101-recovered-code-intervals.csv`](../analysis/San9PK-TC-101-recovered-code-intervals.csv)，最终写入回读见 [`San9PK-TC-101-final-code-recovery-readback.json`](../analysis/San9PK-TC-101-final-code-recovery-readback.json)。
+三处既有研究所需的定义回退（`0x4C9220`、`0x4C9740`、`0x5236A0`）已补回。随后完成 UI/命令、`.rdata`/`.data` 表入口、直接调用、尾跳、虚分派和 switch 闭包恢复。当前规范集合为 835 个函数，合计 113,870 字节；每个函数均可反编译。逐函数区间见 [`San9PK-TC-101-recovered-code-intervals.csv`](../archive/code-recovery/San9PK-TC-101-recovered-code-intervals.csv)，最终写入回读见 [`San9PK-TC-101-final-code-recovery-readback.json`](../archive/code-recovery/San9PK-TC-101-final-code-recovery-readback.json)。
 
 最终 `.text` 基线为代码 1,889,244、数据 156,564、未定义 43,152、非代码 199,716 字节。原始启发式剩 22 项，均已裁决为指令中部或嵌入数据；未裁决恢复种子为 0。程序字节未改。
 
 ## 影响审计入口
 
-恢复后对既有研究的重新核对集中记录于 [`San9PK-TC-101-misclassified-text-research-impact.csv`](../analysis/San9PK-TC-101-misclassified-text-research-impact.csv)。其中 RE-SAN9PK-0148 的第二调用者已归属 `sub_51E7C0`；RE-SAN9PK-0071/0069 的电脑强度 UI 读写链已确认；其余列出的负面结论均在 835 个函数上重跑后保持，残余风险仅是未类型化的算术式字段访问。
+恢复后对既有研究的重新核对集中记录于 [`San9PK-TC-101-misclassified-text-research-impact.csv`](../archive/code-recovery/San9PK-TC-101-misclassified-text-research-impact.csv)。其中 RE-SAN9PK-0148 的第二调用者已归属 `sub_51E7C0`；RE-SAN9PK-0071/0069 的电脑强度 UI 读写链已确认；其余列出的负面结论均在 835 个函数上重跑后保持，残余风险仅是未类型化的算术式字段访问。
 
 本记录不再保存候选快照、分批计划或逐批叙述；这些中间产物已由规范区间表、最终回读和影响审计替代。

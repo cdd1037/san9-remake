@@ -8,7 +8,7 @@
 - 关联来源：`SRC-SAN9PK-TC-101`、`SRC-SANIX`、`SRC-SAN9-EBK`、`SRC-SAN9PKHARD`
 - 前置记录：[RE-SAN9PK-0009](RE-SAN9PK-0009.md)、[RE-SAN9PK-0015](RE-SAN9PK-0015.md)、[RE-SAN9PK-0068](RE-SAN9PK-0068.md)、[RE-SAN9PK-0099](RE-SAN9PK-0099.md)
 - 状态清单：[`program-analysis-tac-02-status.json`](../archive/program-analysis/status/program-analysis-tac-02-status.json)
-- IDA 写入计划：[`tactic-candidate-allocation-batch-1.json`](../analysis/ida-write-records/tactic-candidate-allocation-batch-1.json)
+- IDA 写入计划：[`tactic-candidate-allocation-batch-1.json`](../archive/ida-write-records/tactic-candidate-allocation-batch-1.json)
 
 > **后续修正（2026-08-25）**：本记录闭合的是普通陆战机会和人物任务工厂；它当时没有解释谋略结果完成码 `1001` 进入父任务状态 `1005` 的业务含义。[RE-SAN9PK-0125](RE-SAN9PK-0125.md) 已确认混乱、陷阱、攻心可在结果条件成立后另选一人创建全新武力兵法任务。该跨类别链与本记录的普通同兵法分配不是同一机制。
 

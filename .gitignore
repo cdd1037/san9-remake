@@ -3,6 +3,7 @@
 !/private/README.md
 
 # IDA databases and local analysis state
+/research/analysis/
 *.idb
 *.i64
 *.id0

@@ -12,7 +12,7 @@
 
 `dispatch_simulation_action_code(0x5179B0)` 对 `10000..10070` 执行 `opcode - 10000`，再调用交互任务虚表槽 `+0x28`。当前主 IDB 曾把该槽目标 `0x5125A0` 起始的 408 字节误判为数据，并把内部 switch 目标 `0x5128B8` 建成函数，导致真实工厂无法反编译。
 
-修复前只读证据为：`vftable_interactive_force_action_task +0x28 (0x610BF0)` 唯一指向 `0x5125A0`；目标字节以标准异常处理序言开始，后续内部路径在 `0x513127` 前闭合；`0x5128B8` 只有 switch 表数据引用，不是外部调用入口。具体修复计划和原始字节哈希见 `research/analysis/ida-write-records/interactive-subtask-factory-boundary-repair.json`。
+修复前只读证据为：`vftable_interactive_force_action_task +0x28 (0x610BF0)` 唯一指向 `0x5125A0`；目标字节以标准异常处理序言开始，后续内部路径在 `0x513127` 前闭合；`0x5128B8` 只有 switch 表数据引用，不是外部调用入口。具体修复计划和原始字节哈希见 `research/archive/ida-write-records/interactive-subtask-factory-boundary-repair.json`。
 
 ## 事实：IDB 边界修复
 

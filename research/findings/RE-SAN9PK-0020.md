@@ -98,7 +98,7 @@ bit `41..47` 虽被六字节载入器保留，但公共位定位器对大于 40 
 
 2026-08-30 的 `ZONE-01/02/03` 收口批次在只读证据闭合后执行三组不覆盖 dry-run，合计 `11/11` 通过，随后写入 11 个高置信函数名：通用兵法位集载入、地域建筑兵法查询/写入/枚举、固定建筑类型与士兵容量/写入、Zone 名称/读音刷新及两条消息资源包装器。另定义 `San9TacticFlagSet`，把 `San9ZoneRecord +0x4C` 恢复为该内嵌对象并保持总尺寸 `0x1BC`，为三个通用兵法位函数应用类型，共写入 14 条事实注释。
 
-强制重新反编译后回读确认：Zone 载入器显示 `tactic_flags_04C`；公共查询显示 `bits[byte_index]` 和 `tactic_id`；兵法枚举同步遍历 41 条记录；容量函数显示类型 0 的 `500000` 与其他类型的 `250000`；征兵门和名称/读音公式均显示新名称。项目主数据库已原位保存；未修改程序字节或函数边界。详见 [`zone-tactic-flags-batch-1.json`](../analysis/ida-write-records/zone-tactic-flags-batch-1.json)。
+强制重新反编译后回读确认：Zone 载入器显示 `tactic_flags_04C`；公共查询显示 `bits[byte_index]` 和 `tactic_id`；兵法枚举同步遍历 41 条记录；容量函数显示类型 0 的 `500000` 与其他类型的 `250000`；征兵门和名称/读音公式均显示新名称。项目主数据库已原位保存；未修改程序字节或函数边界。详见 [`zone-tactic-flags-batch-1.json`](../archive/ida-write-records/zone-tactic-flags-batch-1.json)。
 
 ## 独立实现
 

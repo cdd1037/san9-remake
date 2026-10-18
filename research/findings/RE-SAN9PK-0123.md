@@ -9,7 +9,7 @@
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0072](RE-SAN9PK-0072.md)、[RE-SAN9PK-0077](RE-SAN9PK-0077.md)、[RE-SAN9PK-0121](RE-SAN9PK-0121.md)、[RE-SAN9PK-0122](RE-SAN9PK-0122.md)
 - 关联规格：[BEH-GOVERNANCE-0002](../../specs/behavior/BEH-GOVERNANCE-0002-delegation-control-and-automatic-scheduling.md)
-- IDA 写入计划：[`delegation-control-scheduling-batch-1.json`](../analysis/ida-write-records/delegation-control-scheduling-batch-1.json)
+- IDA 写入计划：[`delegation-control-scheduling-batch-1.json`](../archive/ida-write-records/delegation-control-scheduling-batch-1.json)
 
 ## 对象、状态与不变量
 

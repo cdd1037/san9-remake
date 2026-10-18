@@ -83,7 +83,7 @@ y = 121 + 88 * row
 
 2026-08-30 的 `JNKI-01/02` 收口批次写入 9 个高置信名称：`get_formation_description_text`、`get_formation_description_by_code`、`is_formation_slot_index`、`get_formation_slot_code`、`assign_formation_slots_to_unit_people`、`get_formation_property_value`、`get_unit_vision_arc_visual_key`、`refresh_unit_vision_arc_visual` 和 `populate_unit_formation_dialog`。同时修正阵位读取/分配函数的 `__thiscall` 签名，并在加载、说明、人物写入、视野视觉和部署坐标点写入 9 条证据注释。
 
-名称 dry-run 与写入均为 `9/9`；类型写入 `2/2`。原位保存、强制重新反编译并回读确认名称和注释可见；程序字节与函数边界未修改。详见 [`formation-fields-batch-1.json`](../analysis/ida-write-records/formation-fields-batch-1.json)。
+名称 dry-run 与写入均为 `9/9`；类型写入 `2/2`。原位保存、强制重新反编译并回读确认名称和注释可见；程序字节与函数边界未修改。详见 [`formation-fields-batch-1.json`](../archive/ida-write-records/formation-fields-batch-1.json)。
 
 ## 2026-09-26 部队详情视野贴图
 

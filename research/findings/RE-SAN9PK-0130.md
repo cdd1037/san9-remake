@@ -10,7 +10,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0027](RE-SAN9PK-0027.md)、[RE-SAN9PK-0028](RE-SAN9PK-0028.md)、[RE-SAN9PK-0128](RE-SAN9PK-0128.md)、[RE-SAN9PK-0129](RE-SAN9PK-0129.md)、[RE-SANCALC-0001](RE-SANCALC-0001.md)
-- IDA 写入计划：[`event-source-audit-batch-1.json`](../analysis/ida-write-records/event-source-audit-batch-1.json)
+- IDA 写入计划：[`event-source-audit-batch-1.json`](../archive/ida-write-records/event-source-audit-batch-1.json)
 - 行为规格：[BEH-EVENT-0001](../../specs/behavior/BEH-EVENT-0001-shenshou-event.md)、[BEH-EVENT-0002](../../specs/behavior/BEH-EVENT-0002-event-selection-and-commit.md)
 
 ## 对象、状态、输入、输出与不变量
@@ -582,7 +582,7 @@
 
 RE-0106的“完整前置待研究”已过期，本次改为指向本节；新AI人物规格C09复用现有公共官渡规格与实现，不另造必成规则。现有生产接线为`RecruitmentRules`只读资格返回100、`PersonnelMissions`到达调用`Guandu.Apply`后进行普通成功转属，已有`GuanduTests`；本次未改产品代码，也未把这些重制测试当作原作触发实验。
 
-**实际主库变更与验证。**向官渡谓词`57A8D0`、登用预测`495270`、日期初始化`456D10`追加3处函数注释；同一批另有5处AI入口注释，详见[Q账本](../analysis/ida-write-records/original-ai-entry-guandu-20261016.json)。8处保存后回读，相关37段函数字节12066字节与登记EXE一致。刷新反编译时出现显式零／空指针比较、自动局部名称及等价指针表达变化，已逐项比较，并非逐字不变；未改名称、类型、边界或程序字节。完整前置沿既有专项，不重复登记研究编号；未进行原游戏动态事件实验。
+**实际主库变更与验证。**向官渡谓词`57A8D0`、登用预测`495270`、日期初始化`456D10`追加3处函数注释；同一批另有5处AI入口注释，详见[Q账本](../archive/ida-write-records/original-ai-entry-guandu-20261016.json)。8处保存后回读，相关37段函数字节12066字节与登记EXE一致。刷新反编译时出现显式零／空指针比较、自动局部名称及等价指针表达变化，已逐项比较，并非逐字不变；未改名称、类型、边界或程序字节。完整前置沿既有专项，不重复登记研究编号；未进行原游戏动态事件实验。
 
 ## 2026-09-20皇帝城市转属专项：旬末合并与拥立／废帝
 

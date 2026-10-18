@@ -8,7 +8,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0015](RE-SAN9PK-0015.md)、[RE-SAN9PK-0067](RE-SAN9PK-0067.md)、[RE-SAN9PK-0068](RE-SAN9PK-0068.md)、[RE-SAN9PK-0095](RE-SAN9PK-0095.md)、[RE-SAN9PK-0096](RE-SAN9PK-0096.md)、[RE-SAN9PK-0099](RE-SAN9PK-0099.md)、[RE-SAN9PK-0105](RE-SAN9PK-0105.md)、[RE-SAN9PK-0108](RE-SAN9PK-0108.md)、[RE-SAN9PK-0110](RE-SAN9PK-0110.md)、[RE-SAN9PK-0113](RE-SAN9PK-0113.md)、[RE-SAN9PK-0116](RE-SAN9PK-0116.md)
-- IDA 写入计划：[`person-growth-and-learning-batch-1.json`](../analysis/ida-write-records/person-growth-and-learning-batch-1.json)
+- IDA 写入计划：[`person-growth-and-learning-batch-1.json`](../archive/ida-write-records/person-growth-and-learning-batch-1.json)
 
 ## 对象、状态、输入、输出与不变量
 

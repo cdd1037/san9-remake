@@ -8,7 +8,7 @@
 - 关联来源：`SRC-SAN9PK-TC-101`、`SRC-SANIX`、`SRC-SAN9-EBK`、`SRC-SAN9PKHARD`
 - 前置记录：[RE-SAN9PK-0067](RE-SAN9PK-0067.md)、[RE-SAN9PK-0072](RE-SAN9PK-0072.md)、[RE-SAN9PK-0074](RE-SAN9PK-0074.md)、[RE-SAN9PK-0094](RE-SAN9PK-0094.md)、[RE-SAN9PK-0095](RE-SAN9PK-0095.md)
 - 状态清单：[`program-analysis-dom-02-status.json`](../archive/program-analysis/status/program-analysis-dom-02-status.json)
-- IDA 写入计划：[`domestic-draft-training-batch-1.json`](../analysis/ida-write-records/domestic-draft-training-batch-1.json)
+- IDA 写入计划：[`domestic-draft-training-batch-1.json`](../archive/ida-write-records/domestic-draft-training-batch-1.json)
 
 ## 对象、状态与不变量
 

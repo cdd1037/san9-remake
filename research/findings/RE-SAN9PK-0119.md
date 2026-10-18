@@ -8,7 +8,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0021](RE-SAN9PK-0021.md)、[RE-SAN9PK-0023](RE-SAN9PK-0023.md)、[RE-SAN9PK-0045](RE-SAN9PK-0045.md)、[RE-SAN9PK-0118](RE-SAN9PK-0118.md)
-- IDA 写入计划：[`diplomacy-alliance-state-batch-1.json`](../analysis/ida-write-records/diplomacy-alliance-state-batch-1.json)
+- IDA 写入计划：[`diplomacy-alliance-state-batch-1.json`](../archive/ida-write-records/diplomacy-alliance-state-batch-1.json)
 
 ## 2026-09-21：季度关系自然变化的机制遗漏
 

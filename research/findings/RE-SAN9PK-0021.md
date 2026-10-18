@@ -135,4 +135,4 @@ IDA同步：向 `0x456F00`、`0x45C120` 添加引用本记录的函数注释，�
 
 只读调查覆盖场景载入、存档读写、势力重置、控制顺序、联盟、皇帝都市易主、事件标记、势力兵法查询和 `+0xC4` 全程序数据访问。`0x440BA0` 的前两条指令此前被相邻无意义字节误解码吞并；本批只取消 `0x440B9A..0x440BA1` 的错误项，按入口 `56 57`、调用者和 `0x440D34 retn 4` 恢复 `serialize_save_force_record(0x440BA0..0x440D37)`，没有修改程序字节。
 
-16 个函数名 dry-run 16/16 通过并实际写入；`San9ForceRecord` 从 16 个粗字段细化为 25 个成员，保持大小 `0xD4`，明确 `force_flags_034`、两项信望、外交数组、`tactic_flags_06C`、根势力/军团长和 `scenario_rival_force_0C4`。另写入 5 个函数签名和 17 条事实注释。原位保存后强制重编译并回读确认：场景载入/存档写出均显示完整旗标、宿敌引用和六字节兵法位集；公共势力兵法查询显示 `0..40`；两个标记查询分别显示 bit13..17 与 bit16..30。程序字节变化为 0。完整账本见 [`force-fields-batch-1.json`](../analysis/ida-write-records/force-fields-batch-1.json)。
+16 个函数名 dry-run 16/16 通过并实际写入；`San9ForceRecord` 从 16 个粗字段细化为 25 个成员，保持大小 `0xD4`，明确 `force_flags_034`、两项信望、外交数组、`tactic_flags_06C`、根势力/军团长和 `scenario_rival_force_0C4`。另写入 5 个函数签名和 17 条事实注释。原位保存后强制重编译并回读确认：场景载入/存档写出均显示完整旗标、宿敌引用和六字节兵法位集；公共势力兵法查询显示 `0..40`；两个标记查询分别显示 bit13..17 与 bit16..30。程序字节变化为 0。完整账本见 [`force-fields-batch-1.json`](../archive/ida-write-records/force-fields-batch-1.json)。

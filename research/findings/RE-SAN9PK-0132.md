@@ -8,7 +8,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0009](RE-SAN9PK-0009.md)、[RE-SAN9PK-0068](RE-SAN9PK-0068.md)、[RE-SAN9PK-0069](RE-SAN9PK-0069.md)、[RE-SAN9PK-0071](RE-SAN9PK-0071.md)、[RE-SAN9PK-0098](RE-SAN9PK-0098.md)、[RE-SAN9PK-0105](RE-SAN9PK-0105.md)
-- IDA 写入计划：[`person-injury-death-and-execution-batch-1.json`](../analysis/ida-write-records/person-injury-death-and-execution-batch-1.json)
+- IDA 写入计划：[`person-injury-death-and-execution-batch-1.json`](../archive/ida-write-records/person-injury-death-and-execution-batch-1.json)
 
 ## 对象、状态与不变量
 

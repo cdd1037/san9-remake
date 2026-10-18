@@ -8,7 +8,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0067](RE-SAN9PK-0067.md)、[RE-SAN9PK-0070](RE-SAN9PK-0070.md)、[RE-SAN9PK-0089](RE-SAN9PK-0089.md)、[RE-SANCALC-0001](RE-SANCALC-0001.md)
-- IDA 写入计划：[`false-report-disorder-lifecycle-batch-1.json`](../analysis/ida-write-records/false-report-disorder-lifecycle-batch-1.json)
+- IDA 写入计划：[`false-report-disorder-lifecycle-batch-1.json`](../archive/ida-write-records/false-report-disorder-lifecycle-batch-1.json)
 
 ## 对象、状态、输入、输出与不变量
 
@@ -116,6 +116,6 @@ SanIX `SIX-STR-01` 声称“计略和外交为确定公式、无概率”。当�
 - 构造器绑定虚表`0x609084`／`0x6093E8`，共同`+0x20`为`0x4AF380`，经`0x50E990`与`0x4AF39C`执行工作有效性、类别、时间和元数据权限检查；准备入口另有策略bit8的50%门。源码型反编译在`0x4AF39C`有栈警告，结论同时对照其指令与既有元数据研究，不把元数据权限位误认为世界显示位。来源与人物收集仍是距离、可行动资格及智力45～115。
 - `0x45EED0`按状态4／7合成返回事件，其余经`0x46B940`复制已存事件；本轮复读与RE-0193一致。目标筛选已先排除状态4／5／7／8。
 
-验证：登记EXE大小2636800、SHA-256 `d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028`；17段函数3595字节逐段一致。向两个目标收集器各追加一条注释，回读一致、反编译主体不变，主库原位保存；无类型、函数边界或程序字节修改。逐段摘要和实际注释见[账本](../analysis/ida-write-records/original-ai-strategy-order-visibility-20261017.json)。
+验证：登记EXE大小2636800、SHA-256 `d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028`；17段函数3595字节逐段一致。向两个目标收集器各追加一条注释，回读一致、反编译主体不变，主库原位保存；无类型、函数边界或程序字节修改。逐段摘要和实际注释见[账本](../archive/ida-write-records/original-ai-strategy-order-visibility-20261017.json)。
 
 未做原游戏开关动态对照，结论限本样本已追踪候选路径，不外推所有计略或全部显示消费者。调查时重制`OriginalAiActions.Threatens`的显示开关门与此事实不符；后续v127已移除并通过两项工作的开关对照回归。产品回归不替代原游戏动态实验。

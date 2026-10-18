@@ -10,8 +10,8 @@
 
 - [`research-open-questions.md`](research-open-questions.md)：当前疑点复核、已纠错结论、保留边界，以及集中决策和实验清单；历史“待验证”不直接作为当前待办。
 
-- `analysis/`：项目主 IDA 数据库、说明和已回读的 IDA 写入账本。新研究按对应样本版本同步有证据的标注；旧库原件归档到被忽略的 `private/ida/legacy/`，只作历史线索，可再生工作副本放入 `local/generated/research/ida/legacy/`。
-- `archive/`：已完成且仅供历史追溯的研究路线、验收与机器状态，不作为当前排期入口。
+- `analysis/`：被 Git 忽略的本地 IDA 数据库与工作集；使用规则见[逆向规范](../specs/reverse-engineering.md)。
+- `archive/`：已完成的研究路线、验收与证据；`ida-write-records/` 保存实际写入及回读账本，`code-recovery/` 保存函数恢复证据。
 - `experiments/`：新增黑盒实验记录；每个实验使用 `EXP-*`。
 - `findings/`：可追溯的逆向结论；每项结论使用 `RE-*`，原始地址保留在研究区；AI正文按`ai.md`集中维护；按主题浏览见[结论索引](findings/README.md)。
 - `guides/`：面向阅读的机制说明和攻略资料；涉及原作事实时仍以对应 `RE-*` 与来源记录为准。

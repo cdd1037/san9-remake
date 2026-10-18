@@ -3,9 +3,9 @@
 - 状态：已完成并写回当前项目主数据库
 - 日期：2026-09-01；样本：`SRC-SAN9PK-TC-101`
 - 主数据库：`research/analysis/San9PK-TC-101.i64`
-- 规范区间表：[`San9PK-TC-101-recovered-code-intervals.csv`](../analysis/San9PK-TC-101-recovered-code-intervals.csv)
-- 最终机器回读：[`San9PK-TC-101-final-code-recovery-readback.json`](../analysis/San9PK-TC-101-final-code-recovery-readback.json)
-- 影响审计：[`San9PK-TC-101-misclassified-text-research-impact.csv`](../analysis/San9PK-TC-101-misclassified-text-research-impact.csv)
+- 规范区间表：[`San9PK-TC-101-recovered-code-intervals.csv`](../archive/code-recovery/San9PK-TC-101-recovered-code-intervals.csv)
+- 最终机器回读：[`San9PK-TC-101-final-code-recovery-readback.json`](../archive/code-recovery/San9PK-TC-101-final-code-recovery-readback.json)
+- 影响审计：[`San9PK-TC-101-misclassified-text-research-impact.csv`](../archive/code-recovery/San9PK-TC-101-misclassified-text-research-impact.csv)
 - 最新符号索引：[`san9pk-tc-101.csv`](../symbols/san9pk-tc-101.csv)
 
 
@@ -17,7 +17,7 @@
 
 2026-10-10范围纠正：音频精细条件调查恢复了未列入早期集合的`548A60`和`549260`。已确认其上游单挑虚表晚段及原始调用链没有进入此前候选闭包；现存虚表导出器的命名筛选和前32槽限制会漏掉该表。详见[RE-0187遗漏原因复核](RE-SAN9PK-0187.md#与早期集中代码恢复的关系)。下文“主集合收口”“无未分类项”只能说明当时的已生成候选集合，不能作为全EXE静态可恢复入口均已覆盖的保证；本例不是必须动态裁决的孤立块。历史900／901项统计保持其原日期口径。
 
-恢复清单现为901个函数、116,164字节。新增按钮状态函数`0x428260..0x428288`（40字节），10个静态入口指针和完整控制流共同确认，详见RE-SAN9PK-0158。原900个函数聚合哈希未变；本轮仅重新反编译新增函数及3个相关消费者，不重复全量验证。最新增量回读见[入口修复清单](../analysis/ida-write-records/button-state-entry-repair-2026-09-06.json)；下面900项统计及旧机器回读保留为2026-09-03历史基线，不代表新的全集数量。
+恢复清单现为901个函数、116,164字节。新增按钮状态函数`0x428260..0x428288`（40字节），10个静态入口指针和完整控制流共同确认，详见RE-SAN9PK-0158。原900个函数聚合哈希未变；本轮仅重新反编译新增函数及3个相关消费者，不重复全量验证。最新增量回读见[入口修复清单](../archive/ida-write-records/button-state-entry-repair-2026-09-06.json)；下面900项统计及旧机器回读保留为2026-09-03历史基线，不代表新的全集数量。
 
 ## 总判断历史基线（2026-09-03）
 
@@ -117,4 +117,4 @@
 
 ## 地图同步中的旧引用校正（2026-09-06）
 
-只读核对恢复区间正文后，将`0x406140`、`0x4062B0`、`0x51E7C0`、`0x5340F0`四处非重复函数注释中的旧0159/0164/0166引用归入本记录；保留独立的RE-0156动画证据。保存、逐项回读及强制重新反编译通过。此为地图范围定点校正，不宣称全库其他历史编号均已清理。详见[同步清单](../analysis/ida-write-records/map-ui-sync-2026-09-06.json)。
+只读核对恢复区间正文后，将`0x406140`、`0x4062B0`、`0x51E7C0`、`0x5340F0`四处非重复函数注释中的旧0159/0164/0166引用归入本记录；保留独立的RE-0156动画证据。保存、逐项回读及强制重新反编译通过。此为地图范围定点校正，不宣称全库其他历史编号均已清理。详见[同步清单](../archive/ida-write-records/map-ui-sync-2026-09-06.json)。

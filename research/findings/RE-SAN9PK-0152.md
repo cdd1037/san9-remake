@@ -6,7 +6,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0151](RE-SAN9PK-0151.md)
-- IDA 写入计划：[`person-catalog-page-matrix-batch-5.json`](../analysis/ida-write-records/person-catalog-page-matrix-batch-5.json)
+- IDA 写入计划：[`person-catalog-page-matrix-batch-5.json`](../archive/ida-write-records/person-catalog-page-matrix-batch-5.json)
 
 ## 调查问题与方法
 
@@ -102,7 +102,7 @@
 
 事实：主库 `get_person_catalog_property_value(0x450C20)` 对属性 `121..161` 先调用 `person_knows_tactic(0x44C160)`，已习得直接返回 2；否则通过 `0x44F770 → 0x44E170` 返回布尔值。后者先经 `0x44E0F0` 遍历人物持有宝物（人物 `+0x10C` 列表），由 `get_killer_record_w(0x447A10)` 读取宝物附带兵法；没有个人来源时，再由人物根势力及 `0x441560 → force_has_tactic_record(0x43FC10)` 查询势力兵法位集。结合本记录格式化器与 RE-0131 的习得位写入链，三态精确为：`○` 本人已习得；`△` 本人未习得、但宝物或所属根势力提供；空白为三种来源均无。本人已习得优先，宝物和势力不再细分符号。这不是学习资格/熟练度提示，也不是战场发动资格的完整判定。
 
-本轮在取值器及 `0x44F770/0x44E170/0x44E0F0` 同步来源注释，保存与回读见[疑点复核写入清单](../analysis/ida-write-records/research-questions-audit-2026-09-06.json)。
+本轮在取值器及 `0x44F770/0x44E170/0x44E0F0` 同步来源注释，保存与回读见[疑点复核写入清单](../archive/ida-write-records/research-questions-audit-2026-09-06.json)。
 
 本批恢复 3 个函数边界，其中武将格式化器由 19 个错误碎片纠正为单一 `0x6C0` 字节函数；声明大小为 12 的 `CatalogPageDescriptor` 和大小为 32 的 `CatalogDialogConfig`；为移动首页、13 个属性键数组、两组页面数组和两个配置对象建立 19 个结构化数据项；写入 4 个高置信度函数名和 14 条事实注释。函数名称 dry-run 与写入均为 `4/4`。保存后回读确认四个函数名、两个结构类型、19 个数据名称以及格式化器 `0x451970..0x452030` 的统一边界均可见。项目主数据库原位保存成功，程序字节修改为 `0`。
 

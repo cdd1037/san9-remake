@@ -28,4 +28,4 @@ Headless的`--strategy autonomous`运行同一生产入口，报告策略版本�
 
 后续按[原版AI实施计划](../../../specs/original-ai/implementation-plan.md)完成OAI-06原作动态对照及十年全图验收；不恢复旧共同评分器，不为挑战场景和区域模式增加空执行器。
 
-本次扩大排查的逐模块范围、v137收口与实际组合验证维护于[实现排查记录](../../../research/analysis/ai-implementation-audit-20261017.md)。本次实现排查已完成；现有测试及36旬对局不代表OAI-06原作全分支动态或十年基线完成。
+本次扩大排查的逐模块范围、v137收口与实际组合验证维护于[实现排查记录](../../../docs/ai-implementation-audit-20261017.md)。本次实现排查已完成；现有测试及36旬对局不代表OAI-06原作全分支动态或十年基线完成。

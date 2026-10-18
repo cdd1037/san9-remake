@@ -172,7 +172,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0009](RE-SAN9PK-0009.md)、[RE-SAN9PK-0011](RE-SAN9PK-0011.md)、[RE-SAN9PK-0067](RE-SAN9PK-0067.md)、[RE-SAN9PK-0109](RE-SAN9PK-0109.md)、[RE-SAN9PK-0111](RE-SAN9PK-0111.md)
-- IDA 写入计划：[`personnel-command-lifecycle-batch-1.json`](../analysis/ida-write-records/personnel-command-lifecycle-batch-1.json)
+- IDA 写入计划：[`personnel-command-lifecycle-batch-1.json`](../archive/ida-write-records/personnel-command-lifecycle-batch-1.json)
 
 ## 对象、状态、输入、输出与不变量
 
@@ -182,7 +182,7 @@
 
 普通 `prsn` 加载由 `0x44F830` 直接复制50字节；RE-0009 的20剧本剖面既包含大量50，也包含0、110、120、150和255。因此撤销“没有找到50写入”的旧结论，同时否定“所有人物对所有势力都必须初始化为50”的泛化。既有原作默认内容值、随机化初始化和登用成功忠诚重置是三条不同来源。
 
-本轮对 `0x44E740/0x453220` 写入带本记录编号的事实注释，保存后回读并强制反编译成功，详见[疑点复核写入清单](../analysis/ida-write-records/research-questions-audit-2026-09-06.json)。
+本轮对 `0x44E740/0x453220` 写入带本记录编号的事实注释，保存后回读并强制反编译成功，详见[疑点复核写入清单](../archive/ida-write-records/research-questions-audit-2026-09-06.json)。
 
 对象是交互 code 13/15/16/19/21/22、对应即时命令、势力、人物、宝物、军师引用、人物所属对象和按势力忠诚表。输入包括候选人物、目标对象、势力资金、人物义理、当前忠诚、宝物忠诚增量、身份和人物临时标志；输出包括身份、军师引用、资金、宝物持有者、忠诚、位置/所属对象及行动占用。
 
@@ -324,7 +324,7 @@ kakuritsu(15*floor(sqrt(d)) + 10, RANDOM_KIND_GLOBAL_STREAM, 1)
 
 宝物ID79在转移完成后调用`recompute_force_prestige(0x4432D0, store=true)`。`0x4406F0`检查根君主持有79时贡献100，再与基础信望及其他组成项相加，限幅0–1000并保存。因此不是固定加100，也不是改变基础信望。宝物名称映射不由编号臆定。
 
-以上闭合的是原作静态契约，独立菜单生产者、执行复验、最终写回与既有RE-0006/0121/0132/0141相互佐证；本轮未执行黑盒没收、俘虏对照或竞态实验。普通执行器没有“放逐自动没收”的调用关系，不再为它创建用户实验任务。正式关系保留与验收见BEH-PERSON-0002。本轮IDA注释写入及回读见[没收契约清单](../analysis/ida-write-records/confiscation-contract-2026-09-06.json)。
+以上闭合的是原作静态契约，独立菜单生产者、执行复验、最终写回与既有RE-0006/0121/0132/0141相互佐证；本轮未执行黑盒没收、俘虏对照或竞态实验。普通执行器没有“放逐自动没收”的调用关系，不再为它创建用户实验任务。正式关系保留与验收见BEH-PERSON-0002。本轮IDA注释写入及回读见[没收契约清单](../archive/ida-write-records/confiscation-contract-2026-09-06.json)。
 
 ## 2026-09-12 宝物授予忠诚上限补证
 

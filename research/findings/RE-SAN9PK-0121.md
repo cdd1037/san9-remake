@@ -8,7 +8,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0076](RE-SAN9PK-0076.md)、[RE-SAN9PK-0078](RE-SAN9PK-0078.md)、[RE-SAN9PK-0084](RE-SAN9PK-0084.md)、[RE-SAN9PK-0086](RE-SAN9PK-0086.md)、[RE-SAN9PK-0120](RE-SAN9PK-0120.md)
-- IDA 写入计划：[`governance-neutral-interactive-codes-batch-1.json`](../analysis/ida-write-records/governance-neutral-interactive-codes-batch-1.json)
+- IDA 写入计划：[`governance-neutral-interactive-codes-batch-1.json`](../archive/ida-write-records/governance-neutral-interactive-codes-batch-1.json)
 
 ## 对象、状态、输入、输出与不变量
 

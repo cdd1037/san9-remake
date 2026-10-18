@@ -112,7 +112,7 @@ reading_message_id = 5316 + 2 × country_title_id
 
 ## 8. IDA MCP 同步与回读（2026-08-31）
 
-只读调查先覆盖 `kkgu` 加载、资源解析、按 ID 访问、势力根转发、手动/自动授予、事件提交、结局特殊清除和势力记录重置。14 个函数名 dry-run 14/14 通过并写入，其中最重要的纠正是把 `get_effective_force_id(0x43ED00)` 改为 `get_root_force_country_title_id`；另写入 13 条事实注释。原位保存后回读确认：授予函数显示根势力国号 getter/setter、占用移除和预览回滚；加载函数显示两个消息资源包装器及冗余序号副本注释。程序字节、函数边界和类型均未改变。完整账本见 [`country-title-fields-cntry-01-02.json`](../analysis/ida-write-records/country-title-fields-cntry-01-02.json)。
+只读调查先覆盖 `kkgu` 加载、资源解析、按 ID 访问、势力根转发、手动/自动授予、事件提交、结局特殊清除和势力记录重置。14 个函数名 dry-run 14/14 通过并写入，其中最重要的纠正是把 `get_effective_force_id(0x43ED00)` 改为 `get_root_force_country_title_id`；另写入 13 条事实注释。原位保存后回读确认：授予函数显示根势力国号 getter/setter、占用移除和预览回滚；加载函数显示两个消息资源包装器及冗余序号副本注释。程序字节、函数边界和类型均未改变。完整账本见 [`country-title-fields-cntry-01-02.json`](../archive/ida-write-records/country-title-fields-cntry-01-02.json)。
 
 > **SCN-02 收口（2026-08-31 更新）**：`kkgu +0x06` 是场景定义的君主人物引用，但不承担运行时势力继任，也不决定当前皇帝；根势力君主、势力官爵与皇帝解析的独立状态见 [RE-SAN9PK-0141](RE-SAN9PK-0141.md)。国号名称和势力关联现已补齐，仍不改变上述身份边界。
 

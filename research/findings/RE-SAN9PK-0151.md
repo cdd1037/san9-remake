@@ -7,7 +7,7 @@
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 实例证据：[RE-SAN9PK-0015](RE-SAN9PK-0015.md)（兵法记录字段及三列取值语义）
 - 关联规格：[BEH-IMPORT-0010](../../specs/behavior/BEH-IMPORT-0010-scenario-tactic-records.md)
-- IDA 写入计划：[`tactic-catalog-ui-system-batch-1.json`](../analysis/ida-write-records/tactic-catalog-ui-system-batch-1.json)、[`tactic-catalog-ui-state-batch-2.json`](../analysis/ida-write-records/tactic-catalog-ui-state-batch-2.json)、[`catalog-column-and-selection-contract-batch-3.json`](../analysis/ida-write-records/catalog-column-and-selection-contract-batch-3.json)、[`catalog-sort-contract-batch-4.json`](../analysis/ida-write-records/catalog-sort-contract-batch-4.json)
+- IDA 写入计划：[`tactic-catalog-ui-system-batch-1.json`](../archive/ida-write-records/tactic-catalog-ui-system-batch-1.json)、[`tactic-catalog-ui-state-batch-2.json`](../archive/ida-write-records/tactic-catalog-ui-state-batch-2.json)、[`catalog-column-and-selection-contract-batch-3.json`](../archive/ida-write-records/catalog-column-and-selection-contract-batch-3.json)、[`catalog-sort-contract-batch-4.json`](../archive/ida-write-records/catalog-sort-contract-batch-4.json)
 
 ## 调查问题与方法
 

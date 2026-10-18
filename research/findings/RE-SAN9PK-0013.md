@@ -71,4 +71,4 @@
 
 ## 5. IDA MCP 同步与回读（2026-08-31）
 
-将 `deserialize_ciki_record` 修正为 `deserialize_terrain_record`，命名地形名称资源包装器并写入 3 条事实注释。保存后回读确认消息公式和两个槽位边界；程序字节、边界和类型未修改，账本见 [`area-terrain-fields-batch-1.json`](../analysis/ida-write-records/area-terrain-fields-batch-1.json)。
+将 `deserialize_ciki_record` 修正为 `deserialize_terrain_record`，命名地形名称资源包装器并写入 3 条事实注释。保存后回读确认消息公式和两个槽位边界；程序字节、边界和类型未修改，账本见 [`area-terrain-fields-batch-1.json`](../archive/ida-write-records/area-terrain-fields-batch-1.json)。

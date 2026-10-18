@@ -8,7 +8,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 前置记录：[RE-SAN9PK-0044](RE-SAN9PK-0044.md)、[RE-SAN9PK-0068](RE-SAN9PK-0068.md)、[RE-SAN9PK-0081](RE-SAN9PK-0081.md)、[RE-SAN9PK-0085](RE-SAN9PK-0085.md)、[RE-SAN9PK-0090](RE-SAN9PK-0090.md)、[RE-SAN9PK-0105](RE-SAN9PK-0105.md)、[RE-SAN9PK-0133](RE-SAN9PK-0133.md)、[RE-SAN9PK-0136](RE-SAN9PK-0136.md)、[RE-SAN9PK-0137](RE-SAN9PK-0137.md)、[RE-SAN9PK-0138](RE-SAN9PK-0138.md)
 - 状态清单：[`program-analysis-war-04-status.json`](../archive/program-analysis/status/program-analysis-war-04-status.json)
-- IDA 写入计划：[`unit-defeat-force-cleanup-batch-1.json`](../analysis/ida-write-records/unit-defeat-force-cleanup-batch-1.json)
+- IDA 写入计划：[`unit-defeat-force-cleanup-batch-1.json`](../archive/ida-write-records/unit-defeat-force-cleanup-batch-1.json)
 
 ## 研究对象与不变量
 

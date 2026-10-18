@@ -93,4 +93,4 @@ soldiers += soldier_increase
 
 调用点机器指令、完整反编译和前序人物槽范围交叉核验后，`INIT-01` 的原作调度疑问关闭；重制范围已决定暂不继承此自创武将君主开局机制，见[范围决策](../../specs/decisions/DEC-SCOPE-0001-scenario-scope.md)。原公式保持，但增长还受城市士兵上限约束。
 
-本轮向 `0x456C30/0x45C120/0x561430/0x44C230` 同步上述事实及旧结论撤销，保存后回读并重新反编译。见[疑点复核写入清单](../analysis/ida-write-records/research-questions-audit-2026-09-06.json)。没有恢复新的函数边界。
+本轮向 `0x456C30/0x45C120/0x561430/0x44C230` 同步上述事实及旧结论撤销，保存后回读并重新反编译。见[疑点复核写入清单](../archive/ida-write-records/research-questions-audit-2026-09-06.json)。没有恢复新的函数边界。

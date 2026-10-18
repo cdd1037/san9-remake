@@ -8,7 +8,7 @@
 - 样本：`SRC-SAN9PK-TC-101`
 - 项目主数据库：`research/analysis/San9PK-TC-101.i64`
 - 前置记录：[RE-SAN9PK-0113](RE-SAN9PK-0113.md)、[RE-SAN9PK-0114](RE-SAN9PK-0114.md)、[RE-SAN9PK-0115](RE-SAN9PK-0115.md)
-- IDA 写入计划：[`strategy-common-scheduling-batch-1.json`](../analysis/ida-write-records/strategy-common-scheduling-batch-1.json)
+- IDA 写入计划：[`strategy-common-scheduling-batch-1.json`](../archive/ida-write-records/strategy-common-scheduling-batch-1.json)
 
 ## 对象、状态与不变量
 

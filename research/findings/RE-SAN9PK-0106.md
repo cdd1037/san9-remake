@@ -37,7 +37,7 @@
 
 ## IDA 同步与回读
 
-只读阶段先沿 `prsn +0x10 → Person +0x3C`、列传文本消费者、四条控制流和查找函数交叉引用复核身份域。随后按 [`person-identity-discriminator-audit-batch-1.json`](../analysis/ida-write-records/person-identity-discriminator-audit-batch-1.json) 执行：
+只读阶段先沿 `prsn +0x10 → Person +0x3C`、列传文本消费者、四条控制流和查找函数交叉引用复核身份域。随后按 [`person-identity-discriminator-audit-batch-1.json`](../archive/ida-write-records/person-identity-discriminator-audit-batch-1.json) 执行：
 
 - 将 `San9PersonRecord +0x3C` 定义为 `int biography_resource_code`，结构大小保持 `0x128`；
 - 为登用阈值和兵法联动关系函数写入人物指针签名；

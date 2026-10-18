@@ -84,18 +84,23 @@ public sealed class MapMessageTests
         var playback = new MapSpeechPlayback();
         var first = new MapSpeechMessage(Guid.NewGuid().ToString("N"),Message("first"),1,"actor",new(8,9));
         var second = first with { Id = Guid.NewGuid().ToString("N"), Message = Message("second"), DelaySeconds = 1 };
+        Assert.False(playback.IsComplete(first.Id));
         playback.Publish(first); playback.Publish(second);
+        Assert.False(playback.IsComplete(first.Id));
         Assert.True(playback.Entries[0].Visible);
         Assert.False(playback.Entries[1].Visible);
         playback.Advance(1,_ => true);
         Assert.All(playback.Entries,entry => Assert.True(entry.Visible));
         playback.Dismiss(first.Id);
+        Assert.True(playback.IsComplete(first.Id));
+        Assert.False(playback.IsComplete(second.Id));
         Assert.False(playback.Publish(first));
         Assert.Equal("second",Assert.Single(playback.Entries).Message.Message.BbCode);
         playback.Advance(4.9,_ => true);
         Assert.Single(playback.Entries);
         playback.Advance(.1,_ => true);
         Assert.Empty(playback.Entries);
+        Assert.True(playback.IsComplete(second.Id));
     }
 
     [Fact]
@@ -106,6 +111,8 @@ public sealed class MapMessageTests
         var second = first with { Id = Guid.NewGuid().ToString("N") };
         playback.Publish(first); playback.Publish(second);
         playback.Advance(5,message => message.Id == second.Id);
+        Assert.False(playback.IsComplete(first.Id));
+        Assert.True(playback.IsComplete(second.Id));
         Assert.Equal(first.Id,Assert.Single(playback.Entries).Message.Id);
         playback.Advance(4.99,_ => true);
         Assert.Single(playback.Entries);

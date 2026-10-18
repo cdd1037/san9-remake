@@ -19,6 +19,11 @@ public static class InformationArtCompiler
         roles.Add("personnel-city-transfer",Image("g_still",71));
         // RE-0182: surrender result mode2 code19 resolves to G_Still64.
         roles.Add("diplomacy-eliminated",Image("g_still",64));
+        roles.Add("event-founded",Image("g_still",65));
+        roles.Add("event-consolidation",Image("g_stilpk",0));
+        roles.Add("event-court",Image("g_still",68));
+        roles.Add("event-visit",Image("g_still",57));
+        roles.Add("event-alliance-victory",Image("g_still",67));
         foreach (var person in scenario.Officers)
         {
             int portrait = people[person.State.Id].PortraitResourceCode;

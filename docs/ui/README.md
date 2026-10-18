@@ -30,6 +30,7 @@ P1 已接通的计略、主动外交与军团管理见[操作与验证说明](mi
 | 建筑悬停 | [悬停卡](../../specs/behavior/BEH-UI-0005-map-building-hover.md) | — |
 | 存读档界面 | [功能菜单、栏位与确认](../../specs/behavior/BEH-UI-0007-save-load-browser.md) | [原作证据](../../research/findings/RE-SAN9PK-0180.md) |
 | 文字与消息 | [统一消息](../../specs/behavior/BEH-UI-0006-unified-messages.md) | [现代文字效果](../../specs/decisions/DEC-UI-0002-modern-text-effects.md)、[姓名规范化](../../specs/decisions/DEC-UI-0005-officer-name-normalization.md) |
+| 世界事件演出 | [事件行为与播放](../../specs/behavior/BEH-UI-0010-world-event-presentation.md) | [IDA证据及资源](../../research/findings/RE-SAN9PK-0196.md) |
 
 原作调查入口：[主界面 RE-0158](../../research/findings/RE-SAN9PK-0158.md)、[目录 RE-0151](../../research/findings/RE-SAN9PK-0151.md)、[情报 RE-0161](../../research/findings/RE-SAN9PK-0161.md)、[消息 RE-0166](../../research/findings/RE-SAN9PK-0166.md)、[文字样式 RE-0167](../../research/findings/RE-SAN9PK-0167.md)。各专题中的精确证据链接继续保留。
 

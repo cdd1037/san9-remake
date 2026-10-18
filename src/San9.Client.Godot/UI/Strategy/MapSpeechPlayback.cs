@@ -38,4 +38,5 @@ public sealed class MapSpeechPlayback
     }
 
     public void Dismiss(string id) => _entries.RemoveAll(entry => entry.Message.Id == id);
+    public bool IsComplete(string id) => _published.Contains(id) && _entries.All(entry => entry.Message.Id != id);
 }

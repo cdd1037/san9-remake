@@ -18,7 +18,7 @@ public partial class StrategyHud
         List<CommandMessage> narration = [];
         foreach (var message in messages)
         {
-            if (message.MapSpeech is { } speech) PresentMapSpeech(speech);
+            if (message.MapSpeech is { } speech && !message.WaitForMapSpeech) PresentMapSpeech(speech);
             else narration.Add(message);
         }
         return narration;

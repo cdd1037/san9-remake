@@ -52,21 +52,21 @@ public partial class StrategyHud
         var execution = result.Events.OfType<PrisonerExecutedEvent>().SingleOrDefault();
         if (result.CompletedCommands > 0 && (draft.Kind is "rank" or "reward" or "exile" or "bestow" or "confiscate" || execution is not null))
         {
-            var sequence = execution is not null ? ExecutionPresentation.Create(draft.View,beforeMessages,CommandPresentation.Execution!,execution,Random.Shared.Next)
+            var publication=ExecutionPublication.Read(draft.View,Session.View,beforeMessages,Texts,CommandPresentation,result.Events);
+            foreach(var record in publication.Records) PresentMapRecord(record);
+            var sequence = execution is not null ? publication.Messages
                 : draft.Kind == "rank" ? OfficePresentation.Create(draft.View,beforeMessages,CommandPresentation.Offices!,result.Events.OfType<OfficeAssignedEvent>(),Random.Shared.Next)
                 : draft.Kind == "reward" ? RewardPresentation.Create(draft.View, beforeMessages, CommandPresentation.Reward!,
                 result.Events.OfType<OfficerRewardedEvent>().ToArray(), Random.Shared.Next)
                 : draft.Kind == "exile" ? ExilePresentation.Create(draft.View, beforeMessages, CommandPresentation.Exile!, result.Events, Random.Shared.Next)
                 : TreasureTransferPresentation.Create(draft.View,beforeMessages,CommandPresentation.TreasureTransfer!,
                     result.Events.OfType<TreasureTransferredEvent>().Single(),result.Events.OfType<OfficerLoyaltyChangedEvent>(),Random.Shared.Next);
-            _narration = new() { Messages = sequence, View = draft.View, Texts = Texts, Service = Textures, Textures = _textures,
-                ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, ReadMessageSpeed = () => ReadSettings().MessageSpeed,
-                Closed = () => {
-                    CloseNarration();
+            OpenNarration(execution is not null ? sequence : sequence.Concat(publication.Messages).ToArray(),draft.View,
+                () => {
                     if (result.Rejection != CommandRejection.None)
                     { _notice.SetNotice(AppointmentPresentation.Result(draft, Texts, result)); _notice.Show(); }
-                } };
-            OverlayHost.AddChild(_narration); return;
+                });
+            return;
         }
         _notice.SetNotice(AppointmentPresentation.Result(draft, Texts, result)); _notice.Show();
     }

@@ -51,6 +51,8 @@ public sealed class WorldMessageContext
     public WorldMessageContext AtOccurrence(GameClock clock, params BattleObjectContext[] objects) =>
         new(this, clock, objects);
     public WorldMessageContext ForWorld(WorldSnapshot world) => new(_definition, world, _texts);
+    public CommandSpeaker Speaker(int id) => new(PersonName(id),_people[id].OwnerId is int owner
+        ? _texts.Resolve(_view.Value.Forces.Single(f=>f.Id==owner).NameKey) : null);
 
     public ProducedMessage Produce(string key, IReadOnlyDictionary<string, MessageBinding> values,
         Func<int, int> randomIndex)

@@ -17,9 +17,17 @@ internal sealed partial class BattlePresentationBuilder
         if (content.Battle?.Duel is not { } definition || !(Player(death.PreviousForceId) || unit is not null && MapVisible(unit))) return;
         var message = ProgressMessageProducer.Produce(definition.Messages["death"], context.ForWorld(before.World).AtOccurrence(death.Clock),
             texts, new Dictionary<string, MessageBinding> { ["actor"] = ProgressMessageProducer.Person(death.OfficerId) }, _ => 0);
+        _presented.Add(_index);
         _messages.Add(new(Identity("duel-death"), _cursor, message, BattleMessageChannel.Dialogue));
         PresentAftermath();
         _cursor += .5;
+        if(content.Events is { } eventContent)
+        {
+            var scene=WorldEventPresentation.Read(before,after,context,texts,eventContent,events,_index);
+            foreach(var card in scene.Messages)
+                _messages.Add(new(Identity("duel-death-card"),_cursor,card,BattleMessageChannel.Dialogue));
+            _cursor += .5;
+        }
     }
 
     private void PresentDuel(DuelStartedEvent started)

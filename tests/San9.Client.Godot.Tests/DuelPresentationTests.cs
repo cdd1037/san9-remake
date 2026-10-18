@@ -233,6 +233,28 @@ public sealed class DuelPresentationTests
         StateAssert.Equal(before, session.Snapshot);
     }
 
+    [Fact]
+    public void DeathSceneIsConsumedEvenWithoutProgressRecords()
+    {
+        var (session, texts, content, facts) = Fixture();
+        foreach (string role in new[] { "duel-announcement", "ruler-death" })
+            texts.Messages[role] = new([new MessageLiteral(role)]);
+        content = content with { Events = new(new()
+        {
+            ["duel-announcement"] = new("duel-announcement", []),
+            ["ruler-death"] = new("ruler-death", [], Illustration: "actor")
+        }) };
+        var view = session.View;
+        DomainEvent[] deaths = [facts[^1]];
+
+        var plan = BattlePresentationPlan.Create(view, view, deaths, session.Messages(texts), texts, content);
+        var publication = ExecutionPublication.Read(view, view, session.Messages(texts), texts, content,
+            deaths, presentedFacts: plan.PresentedFacts);
+
+        Assert.Equal(new[] { "death", "ruler-death" }, plan.Messages.Select(m => m.Message.Message.Key));
+        Assert.Empty(publication.Messages);
+    }
+
     private static (GameSession Session, TextCatalog Texts, CommandPresentation Content, DomainEvent[] Facts) Fixture(bool withTreasures = false)
     {
         var combat = new CombatProfile(0, 0, 0, 1000, 50);

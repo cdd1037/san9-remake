@@ -16,6 +16,18 @@ public partial class StrategyHud
         _narration = new() { Messages = messages, View = view, Texts = Texts, Service = Textures, Textures = _textures, ZIndex = 4,
             ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, ReadMessageSpeed = () => ReadSettings().MessageSpeed,
             BeginMusic = Music.Begin,
+            Media = SceneMedia, MoviesEnabled = () => ReadSettings().MoviesEnabled,
+            MessagePresented = message =>
+            {
+                if (message.FocusLocation is { } location)
+                {
+                    World.FocusCell(location); _minimap!.PresentRecordLocation(location);
+                    _recordSounds.Play(CommandPresentation.MapAudio!.RecordNotificationSound,SoundEnabled);
+                }
+                if (message.WaitForMapSpeech && message.MapSpeech is { } speech) PresentMapSpeech(speech);
+            },
+            IsMapSpeechComplete = speech => _mapSpeech.IsComplete(speech.Id),
+            DismissMapSpeech = speech => _mapSpeech.Dismiss(speech.Id),
             Closed = () => CloseNarration(completed) };
         OverlayHost.AddChild(_narration);
     }

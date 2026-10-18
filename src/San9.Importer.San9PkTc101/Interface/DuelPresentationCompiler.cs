@@ -16,7 +16,7 @@ internal static class DuelPresentationCompiler
         { ["person.0"]="actor", ["person.1"]="source-commander", ["person.2"]="opponent", ["person.3"]="target-commander" }));
         messages.Add("won", new("messages.10098", new() { ["person.0"]="actor", ["person.1"]="opponent" }));
         messages.Add("lost", new("messages.10099", new() { ["person.0"]="actor", ["person.1"]="opponent" }));
-        messages.Add("death", new("messages.7167", new() { ["person.0"]="actor" }));
+        messages.Add("death", new("messages.7167", new() { ["person.0"]="actor" },Sound:"event-casualty"));
         string Image(int i) => asset("g_ikki", i, i < 9 ? i : i >= 70 ? 18 : i >= 60 ? 17 : read(0x665590 + (i - 3) * 8 + 4) - 107);
         DuelBody Body(bool female, bool right) => new(female, right, Enum.GetValues<DuelAction>().ToDictionary(a => a, a =>
         {

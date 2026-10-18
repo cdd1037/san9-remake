@@ -55,6 +55,8 @@ internal sealed class StrategySnapshotSource
             new GovernanceRulebook(definition.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
                 { AbilityBonuses = o.AbilityBonuses })));
         TacticCourses = Array.AsReadOnly(definition.TacticCourses.ToArray());
+        PlacePositions = definition.Settlements.Select(s => new PersonPlace(s.Id,s.Position)).Concat(definition.UnbuiltPlaces)
+            .ToDictionary(p=>p.Id,p=>p.Position);
         ProvinceNameKeys = new System.Collections.ObjectModel.ReadOnlyDictionary<int, string>(new Dictionary<int, string>(definition.ProvinceNameKeys));
         CityConnections = Array.AsReadOnly(definition.CityConnections.ToArray());
         CityProvinceIds = new System.Collections.ObjectModel.ReadOnlyDictionary<int, int>(new Dictionary<int, int>(definition.CityProvinceIds));
@@ -78,6 +80,7 @@ internal sealed class StrategySnapshotSource
     internal ImperialCourtDefinition ImperialCourt { get; }
     internal IReadOnlyDictionary<int, string> FacilityNameSuffixKeys { get; }
     public IReadOnlyList<CityTacticCourse> TacticCourses { get; }
+    internal IReadOnlyDictionary<int,WorldPosition> PlacePositions { get; }
     public IReadOnlyDictionary<int, string> ProvinceNameKeys { get; }
     public IReadOnlyList<CityConnection> CityConnections { get; }
     public IReadOnlyDictionary<int, int> CityProvinceIds { get; }
@@ -266,6 +269,9 @@ public sealed class StrategySnapshot
     }
     public InformationCatalog Information { get; }
     public WorldSnapshot World { get; }
+    public MapCell? PlaceCell(int id) => Settlements.FirstOrDefault(p=>p.Id==id) is { } place ? new(place.X,place.Y) :
+        _source.PlacePositions.TryGetValue(id,out var position) ? MapCoordinates.Cell(position) : null;
+    internal StrategySnapshot ForWorld(WorldSnapshot world) => _source.Project(world);
     public int? EmperorId { get; }
     public int? EmperorCityId { get; }
     public bool ImperialCourtEnded => World.Simulation.ImperialCourtEnded;

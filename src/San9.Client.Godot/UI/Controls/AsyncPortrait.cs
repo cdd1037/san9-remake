@@ -37,7 +37,7 @@ public partial class AsyncPortrait : TextureRect
         {
             _deceased = deceased;
             if (deceased && _deceasedMaterial is null)
-                _deceasedMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; void fragment() { vec4 c = COLOR; float gray = dot(c.rgb, vec3(0.299, 0.587, 0.114)); COLOR = vec4(vec3(gray), c.a); }" } };
+                _deceasedMaterial = PortraitMaterials.Deceased();
             Material = deceased ? _deceasedMaterial : null;
         }
         bool ready = _scope?.IsReady ?? true; var error = _scope?.Error;

@@ -62,6 +62,8 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
 
     [System.Text.Json.Serialization.JsonRequired]
     public ProgressPresentationDefinition? Progress { get; init; }
+    [System.Text.Json.Serialization.JsonRequired]
+    public EventPresentationDefinition? Events { get; init; }
 
     [System.Text.Json.Serialization.JsonRequired]
     public DemolitionPresentationDefinition? Demolition { get; init; }
@@ -71,6 +73,7 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
     {
         var personIds = people.ToHashSet();
         Decisions.Validate(texts, Sounds, personIds);
+        Events?.Validate(texts, Sounds, personIds);
         MapAudio?.Validate(Sounds);
         if (Progress is { } progress)
         {

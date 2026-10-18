@@ -2,6 +2,8 @@
 
 本页维护内容转换、契约与校验入口，不累计界面实现说明。界面开发统一从[UI 文档](ui/README.md)进入；地图与运行态见[地图文档](map-import.md)和[运行时架构](runtime-state.md)。
 
+组合包191新增必填可空`presentation.events`，正式TC101包提供世界事件的消息角色和人物引用；校验消息绑定、声音及插图闭合。封禅四能力消息在Importer中从源判别分支特化为独立语义消息；合并插图的源档案分段只留在Importer。190年运行包已原位执行`import-client`并通过`verify-client`，共享纹理复用，25势力／94据点／700人物保持完整。旧组合包须重新运行`import-client`，无需重建贴图；剧本、存档／日志／录像格式和玩法规则不变。行为及电影占位边界见[世界事件演出](../specs/behavior/BEH-UI-0010-world-event-presentation.md)。
+
 剧本135／组合185新增必填部队每日执行历史`HasEnteredDailyCycle`，TC101导入明确映射原运行位，独立内容可声明在途队伍历史。旧包须原位运行`import-client`，共享纹理无需重转。Core公共部署初始化false，首次每日军事执行置true，等待与旬内下令各自独立；规则v134，保存116／日志120／录像28明确拒绝旧格式，不从旧档位置或等待猜测历史。用户旧存档保留原文件；本轮使用新格式场景验证，详见[生命周期核对](../research/ai.md#military-lifecycle-closure)。
 
 组合包179新增交战开始／中继点到达的记录与`progress.mapSpeeches`，以及必填`mapAudio.recordNotificationSound`。红色事件闪光和白色命令光圈复用各自已有资源，无需重建纹理；旧组合包原位运行`import-client`。规则版本v91增加发生时通知事实，保存／日志结构版本保持103／107。

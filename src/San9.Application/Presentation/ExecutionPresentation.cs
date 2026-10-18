@@ -20,8 +20,8 @@ public static class ExecutionPresentation
             ["person.0"] = MessageBinding.Reference(MessageEntityKind.Person,result.OfficerId),
             ["force.0"] = MessageBinding.Reference(MessageEntityKind.Force,result.ExecutingForceId) };
         // Preserve identity, allegiance and family conditions before death cleanup.
-        return [new(context.Produce(definition.Announcement,announcement,random),definition.MessengerId,null),
-            new(context.Produce(definition.LastWords,lastWords,random),result.OfficerId,null),
+        return [new(context.Produce(definition.Announcement,announcement,random),definition.MessengerId,null) { Speaker=context.Speaker(definition.MessengerId) },
+            new(context.Produce(definition.LastWords,lastWords,random),result.OfficerId,null) { Speaker=context.Speaker(result.OfficerId) },
             new(context.Produce(definition.Result,outcome,random),null,definition.ResultSound)];
     }
 }

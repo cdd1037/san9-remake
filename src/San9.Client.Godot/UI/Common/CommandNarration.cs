@@ -25,6 +25,7 @@ public partial class CommandNarration : FixedPage
     public Func<Settings.MessageSpeed> ReadMessageSpeed { get; init; } = () => Settings.MessageSpeed.Normal;
     public double IllustrationFadeSeconds { get; init; }
     private TextureRect? _image;
+    private ShaderMaterial? _deceasedMaterial;
     private double _imageElapsed;
     private readonly Settings.MessagePageTimer _pageTimer = new();
     public string? InitialSoundRole { get; init; }
@@ -33,6 +34,13 @@ public partial class CommandNarration : FixedPage
     private string? _musicRole;
     public Action Closed { get; init; } = null!;
     public Action<CommandMessage>? MessagePresented { get; init; }
+    public Func<MapSpeechMessage, bool>? IsMapSpeechComplete { get; init; }
+    public Action<MapSpeechMessage>? DismissMapSpeech { get; init; }
+    public ISceneMedia Media { get; init; } = new SilentSceneMedia();
+    public Func<bool> MoviesEnabled { get; init; } = () => true;
+    private readonly CancellationTokenSource _lifetime = new();
+    private bool _moviePending;
+    private bool IsMapSpeech => Messages[_index] is { WaitForMapSpeech: true, MapSpeech: not null };
     private int _index, _frame;
     private double _elapsed;
     private Control? _body;
@@ -69,6 +77,13 @@ public partial class CommandNarration : FixedPage
             if (_musicRole is string music) _music = BeginMusic?.Invoke(music);
         }
         MessagePresented?.Invoke(entry);
+        if (IsMapSpeech)
+        {
+            _continuation = null;
+            if (entry.SoundRole is string speechSound) PlaySound(speechSound);
+            QueueRedraw();
+            return;
+        }
         if (!HasIllustration && entry.SpeakerId is int id)
         {
             var person = View.MessageSpeaker(id);
@@ -77,12 +92,14 @@ public partial class CommandNarration : FixedPage
             Art("portrait-frame",new(168,260));
             for (int i=0;i<7;i++) Art("middle",new(544+i*24,332));
             Art("right",new(712,332));
-            if (person.OwnerId is int forceId)
+            string? forceName = entry.Speaker is { } captured ? captured.ForceName : person.OwnerId is int forceId
+                ? Texts.Resolve(View.Forces.Single(f=>f.Id==forceId).NameKey) : null;
+            if (forceName is not null)
             {
                 Art("affiliation",new(496,292));
-                NameLabel(Texts.Resolve(View.Forces.Single(f=>f.Id==forceId).NameKey) + "军",new(508,324,88,24),16);
+                NameLabel(forceName + "军",new(508,324,88,24),16);
             }
-            NameLabel(Texts.Resolve(person.NameKey),new(404,316,104,32),24);
+            NameLabel(entry.Speaker?.Name ?? Texts.Resolve(person.NameKey),new(404,316,104,32),24);
         }
         _message = new GamePagedText { Textures = Textures };
         _body.AddChild(_message);
@@ -108,6 +125,7 @@ public partial class CommandNarration : FixedPage
             _image = new TextureRect { Texture=_illustration[imageRole],Position=_imageFrameBounds.Value.Position+new Vector2(32,32),Size=imageSize,
                 ExpandMode=TextureRect.ExpandModeEnum.IgnoreSize,StretchMode=TextureRect.StretchModeEnum.Scale,MouseFilter=MouseFilterEnum.Ignore,
                 Modulate = new Color(1, 1, 1, SceneOpacity.Darken(0, IllustrationFadeSeconds)) };
+            if(entry.IllustrationDeceased) _image.Material=_deceasedMaterial ??= PortraitMaterials.Deceased();
             _body.AddChild(_image);
             float dy=(imageSize.Y+96)/2;
             _resultFrameBounds=new(_resultFrameBounds.Position+new Vector2(0,dy),_resultFrameBounds.Size);
@@ -145,14 +163,24 @@ public partial class CommandNarration : FixedPage
         var label = new Label { Text = value, Position = rect.Position, Size = rect.Size, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
         _body!.AddChild(label); _text.Apply(label, GameTextStyles.NarrationName with { FontSize = size });
     }
-    private void Next()
+    private async void Next()
     {
+        if (_moviePending) return;
         if(_illustration is { IsReady:false }) return;
         _pageTimer.Reset();
-        if (_message.Advance())
+        if (IsMapSpeech) DismissMapSpeech?.Invoke(Messages[_index].MapSpeech!);
+        else if (_message.Advance())
         {
             _frame = 0; _elapsed = 0; UpdateContinuation();
             return;
+        }
+        if (MoviesEnabled() && Messages[_index].MovieRole is string movie)
+        {
+            _moviePending = true;
+            try { await Media.PlayMovieAsync(new(movie), _lifetime.Token); }
+            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { return; }
+            finally { _moviePending = false; }
+            if (_lifetime.IsCancellationRequested) return;
         }
         if (++_index == Messages.Count) { _index--; Closed(); return; }
         Present();
@@ -178,6 +206,11 @@ public partial class CommandNarration : FixedPage
     }
     public override void _Process(double delta)
     {
+        if (IsMapSpeech)
+        {
+            if (IsMapSpeechComplete?.Invoke(Messages[_index].MapSpeech!) == true) Next();
+            return;
+        }
         if (_image is not null && _illustration?.IsReady == true)
         {
             _imageElapsed += delta;
@@ -191,6 +224,7 @@ public partial class CommandNarration : FixedPage
     }
     public override void _Draw()
     {
+        if (IsMapSpeech) return;
         if (!HasPerson) DrawStyleBox(_resultFrame,_resultFrameBounds);
         if (_imageFrameBounds is { } image) DrawImageFrame(image);
     }
@@ -228,10 +262,12 @@ public partial class CommandNarration : FixedPage
     }
     public override void _ExitTree()
     {
+        _lifetime.Cancel(); _lifetime.Dispose();
         _music?.Dispose(); _music = null;
         _audio.Stop(); _audio.Stream = null;
         _streams.Dispose();
         _resultFrame.Dispose(); _text.Dispose();
         _illustration?.Dispose();
+        if(_deceasedMaterial is not null) { _deceasedMaterial.Shader.Dispose(); _deceasedMaterial.Dispose(); }
     }
 }

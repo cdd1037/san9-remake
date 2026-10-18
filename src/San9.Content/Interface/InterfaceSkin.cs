@@ -27,12 +27,12 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         "season-cover-0", "season-cover-1", "season-cover-2", "season-cover-3",
         "button-territory", "button-facilities", "button-officers", "button-units",
         "button-information", "button-functions", "button-help", "button-map-mode", "button-advance",
-        "overview-background", "overview-terrain", "overview-borders", "overview-ranking",
+        "overview-background", "overview-terrain", "overview-ranking",
         "button-overview-forces", "button-overview-facilities", "button-overview-units"];
     public static IReadOnlyList<string> RequiredUiAssets { get; } = Array.AsReadOnly(BaseUiAssets.SelectMany(id =>
         (id.StartsWith("button-", StringComparison.Ordinal) || id.StartsWith("roster-row-", StringComparison.Ordinal) || id.StartsWith("information-menu-button-", StringComparison.Ordinal))
             ? Enumerable.Range(0, id == "button-territory" ? 6 : 4).Select(frame => frame == 0 ? id : $"{id}-{frame}")
-            : [id]).Concat(Enumerable.Range(0, 50).Select(i => $"overview-city-{i}"))
+            : [id])
         .Concat(Enumerable.Range(0, 51).SelectMany(i => new[] {$"overview-marker-{i}", $"overview-facility-{i}"}))
         .Concat(Enumerable.Range(0, 50).Select(i => $"overview-unit-{i}"))
         .Concat(new[] { "top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right" }.Select(p => "information-menu-" + p))

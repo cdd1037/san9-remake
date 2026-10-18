@@ -32,6 +32,7 @@ public partial class InformationMapView : FixedPage, IInformationPage
     private static readonly Vector2 SummaryOrigin = new(92,496);
     private static readonly int[] SummaryColumns = [16,196,376,572];
     private static readonly int[] SummaryWidths = [176,176,192,192];
+    private OverviewMapLayer _map = null!;
     private InformationMapMarker[] _markers = [];
     private InformationField[] _fields = [];
     private int? _hovered;
@@ -41,6 +42,8 @@ public partial class InformationMapView : FixedPage, IInformationPage
     public override void _Ready()
     {
         Size=new(1024,768); MouseFilter=MouseFilterEnum.Stop;
+        _map = new(Service, Skin);
+        _map.Update(ReadView());
         _markers=AdministrativeMap.Markers(ReadView(),Category,Candidates);
         Label(Title.Length > 0 ? Title : InformationQuery.MenuTitle(Category)[1..]+"一览",new(88,22),new(192,36),24);
         if(Candidates.Length>0) _fields=AdministrativeMap.Summary(ReadView(),Texts,new(Category,Candidates[0]));
@@ -81,17 +84,15 @@ public partial class InformationMapView : FixedPage, IInformationPage
     { var button=new InformationActionButton {Title=text,MapToggle=mapToggle,
         TextRole=mapToggle?GameButtonTextRole.MapMode:GameButtonTextRole.ConfirmNo,
         Textures=Textures,Position=p,Size=mapToggle?new(108,32):new(80,48)};button.Pressed+=action;AddChild(button); }
-    private static Vector2 Center(InformationMapMarker m)=>Origin+new Vector2(2*(m.X-m.Y)+401,m.X+m.Y);
+    private Vector2 Center(InformationMapMarker m)=>Origin+_map.Point(m.X,m.Y);
     private int? Target(Vector2 p)
     {
         // The marker may extend past its territory, but never broadens the candidate filter.
         var marker = _markers.LastOrDefault(m => new Rect2(Center(m)-new Vector2(12,12),new(24,24)).HasPoint(p));
         if (marker is not null) return marker.TargetId;
         var local = p - Origin;
-        foreach (var area in _markers)
-            if (Service.Roles.TryGetValue($"overview-city-{area.CityId}",out var asset) &&
-                Service.Hit(asset,(int)Math.Floor(local.X),(int)Math.Floor(local.Y))) return area.TargetId;
-        return null;
+        int? city = Service.OverviewMap.CityAt(local.X / 800, local.Y / 400);
+        return city is int id ? _markers.FirstOrDefault(m => m.CityId == id)?.TargetId : null;
     }
     public void RefreshData()
     {
@@ -106,6 +107,7 @@ public partial class InformationMapView : FixedPage, IInformationPage
     private void UpdateSummary(int? id)
     {
         _hovered = id;
+        _map.Update(ReadView(), _markers.Where(m => id is not null && m.TargetId == id).Select(m => m.CityId).ToHashSet());
         if(id is int selected)_fields=AdministrativeMap.Summary(ReadView(),Texts,new(Category,selected));
         for(int i=0;i<_values.Count;i++)_values[i].Text=id is null?"":_fields[i].Value;
         QueueRedraw();
@@ -169,20 +171,8 @@ public partial class InformationMapView : FixedPage, IInformationPage
         Strip("information-title",new(16,8),264);
         DrawTexture(Textures["information-frame-ornament"],new(0,8));
         Strip("information-footer",new(Selection is null ? 732 : 644,680),Selection is null ? 260 : 348);
-        DrawTexture(Textures["overview-terrain"],Origin);
+        _map.Draw(this, Textures, Origin);
         var forces=ReadView().Forces.ToDictionary(f=>f.Id);
-        foreach(var marker in _markers)
-        {
-            int color=marker.OwnerId is int owner?forces[owner].ColorCode:50;
-            string role=$"overview-city-{marker.CityId}";
-            if(Textures.Assets.ContainsKey(role))
-            {
-                var tint = new Color(Skin.Colors[$"overview-force-{color}"]);
-                if (marker.TargetId is int target && _hovered == target) tint = tint.Lerp(Colors.White,.45f);
-                DrawTexture(Textures[role],Origin,tint);
-            }
-        }
-        DrawTexture(Textures["overview-borders"],Origin);
         if (Selection is not null)
         {
             var selected = Textures["information-map-selected"];
@@ -201,5 +191,5 @@ public partial class InformationMapView : FixedPage, IInformationPage
         }
         DrawTexture(Textures["information-summary"],SummaryOrigin);
     }
-    public override void _ExitTree()=>_text.Dispose();
+    public override void _ExitTree() { _map.Dispose(); _text.Dispose(); }
 }

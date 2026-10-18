@@ -1,6 +1,7 @@
 using Godot;
 using San9.Client.Godot.Diagnostics;
 using San9.Content.Images;
+using San9.Content.Interface;
 using San9.Content.Packages;
 using San9.Rendering;
 
@@ -47,7 +48,7 @@ public partial class Main : Node
             world.Textures = textures;
             _startupTextures = textures.CreateScope();
             // Keep shared UI skins resident; portraits and map resources remain demand-loaded.
-            _startupTextures.Request(textures.Roles.Keys.Where(k => !TextureGroups.IsPortrait(k)));
+            _startupTextures.Request(InterfaceSkin.RequiredUiAssets.Where(k => !TextureGroups.IsPortrait(k)));
             while (!_startupTextures.IsReady)
             {
                 if (_startupTextures.Error is { } error) throw error;

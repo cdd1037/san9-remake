@@ -28,8 +28,15 @@ public partial class TextureService : Node
     public IReadOnlyDictionary<string, CursorDefinition> Cursors { get; private set; } = null!;
     public IReadOnlyDictionary<string, ImageAsset> CursorAssets { get; private set; } = null!;
     public TextureCache<ImageTexture> Cache => _cache;
-    public void Initialize(ClientContentPackage package, string root) => Initialize(package,
-        (file, token) => ClientImageFiles.LoadFile(root, file, token));
+    public OverviewMapRenderer OverviewMap { get; private set; } = null!;
+    public ImageTexture MinimapTerrain { get; private set; } = null!;
+    public void Initialize(ClientContentPackage package, string root)
+    {
+        Initialize(package, (file, token) => ClientImageFiles.LoadFile(root, file, token));
+        var map = package.Map;
+        OverviewMap = new(map.Width, map.Height, map.Squares, package.Scenario.RegionCityIds);
+        MinimapTerrain = CreateTexture(MinimapRenderer.Compile(map.Width, map.Height, map.Squares, map.MinimapColors));
+    }
     internal void Initialize(ClientContentPackage package, Func<ImageFile, CancellationToken, PngImage> load)
     {
         _portraits = package.Portraits.ToDictionary(p => p.Image.Id);
@@ -49,7 +56,7 @@ public partial class TextureService : Node
             .SelectMany(clip => clip.Frames.Concat(clip.SeasonFrames.Values.SelectMany(frames => frames)))
             .ToHashSet();
         var hitImages = MapAssets.Values.Where(a => a.Id.StartsWith("building-", StringComparison.Ordinal) || unitFrames.Contains(a.Id))
-            .Concat(Roles.Where(p => p.Key is "top-frame" or "radar-frame" or "sidebar-frame" or "ruler-frame" or "target-footer" || p.Key.StartsWith("target-title-", StringComparison.Ordinal) || p.Key.StartsWith("button-overview-", StringComparison.Ordinal) || p.Key.StartsWith("overview-city-", StringComparison.Ordinal)).Select(p => p.Value));
+            .Concat(Roles.Where(p => p.Key is "top-frame" or "radar-frame" or "sidebar-frame" or "ruler-frame" or "target-footer" || p.Key.StartsWith("target-title-", StringComparison.Ordinal) || p.Key.StartsWith("button-overview-", StringComparison.Ordinal)).Select(p => p.Value));
         foreach (var group in hitImages.Distinct().GroupBy(a => a.File)) _maskSources[group.Key] = group.ToArray();
         _cache = new(load, Upload, t => t.Dispose());
         ProcessPriority = -100;
@@ -133,6 +140,7 @@ public partial class TextureService : Node
         _closed = true;
         foreach (var scope in _scopes.ToArray()) scope.Dispose();
         foreach (var item in _retired) item.Release(); _retired.Clear();
+        MinimapTerrain?.Dispose();
         _cache.Dispose(); _masks.Clear();
     }
 }

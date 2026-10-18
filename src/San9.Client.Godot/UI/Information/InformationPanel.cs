@@ -81,7 +81,7 @@ public partial class InformationPanel : Control
         _textures = Service.CreateScope(owner: this);
         if (State.IsMenu) _textures.RequestPrefixes("information-menu-");
         else if (State.IsDetail) _textures.RequestPrefixes("detail-", "formation-", "roster-", "catalog-scroll-", "message-");
-        else if (State.IsMap) _textures.RequestPrefixes("information-", "overview-", "catalog-help", "message-");
+        else if (State.IsMap) _textures.RequestPrefixes("overview-terrain", "information-", "catalog-help", "message-");
         else _textures.RequestPrefixes("information-", "catalog-", "roster-", "scroll-", "button-scroll-", "message-", "text-icon-");
         _page = State.IsMenu
             ? new InformationMenuView { AnchorControl = MenuAnchor, Query = _query, Texts = Texts, Textures = _textures,

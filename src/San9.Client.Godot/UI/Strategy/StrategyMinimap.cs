@@ -14,7 +14,7 @@ public partial class StrategyMinimap : Control
     public San9.Application.Presentation.StrategySnapshot Scenario => World.View;
     public InterfaceSkin Skin { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;
-    private ImageTexture? _terrain;
+    private MinimapGeometry Geometry => Textures.Service.OverviewMap.Geometry;
     private TextureRect? _background;
     private San9.Application.Presentation.StrategySnapshot? _state;
     private readonly Node2D _markers = new();
@@ -31,11 +31,7 @@ public partial class StrategyMinimap : Control
     {
         MouseFilter = MouseFilterEnum.Stop; MouseDefaultCursorShape = CursorShape.PointingHand;
         TooltipText = "点击小地图定位";
-        var map = World.Package!;
-        var pixels = MinimapRenderer.Compile(map.Squares, map.MinimapColors);
-        using var image = Image.CreateFromData(pixels.Width, pixels.Height, false, Image.Format.Rgba8, pixels.Pixels);
-        _terrain = ImageTexture.CreateFromImage(image);
-        var background = _background = new TextureRect { Texture = _terrain, MouseFilter = MouseFilterEnum.Ignore,
+        var background = _background = new TextureRect { Texture = Textures.Service.MinimapTerrain, MouseFilter = MouseFilterEnum.Ignore,
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize };
         AddChild(background);
         background.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
@@ -50,12 +46,12 @@ public partial class StrategyMinimap : Control
         _view = (World.CameraPosition, World.ZoomFactor, World.ViewportSize);
         Resized += ResizeLayers;
     }
-    public override bool _HasPoint(Vector2 point) => MinimapGeometry.TryGrid(point.X / Size.X, point.Y / Size.Y, out _, out _);
+    public override bool _HasPoint(Vector2 point) => Geometry.TryGrid(point.X / Size.X, point.Y / Size.Y, out _, out _);
     public bool Navigate(Vector2 point)
     {
-        if (!MinimapGeometry.TryGrid(point.X / Size.X, point.Y / Size.Y, out double x, out double y)) return false;
-        var world = new Vector2((float)(32 * (x + 200 - y) + 96), (float)(16 * (x + y + 1) + 112));
-        World.FocusWorld(world); return true;
+        if (!Geometry.TryGrid(point.X / Size.X, point.Y / Size.Y, out double x, out double y)) return false;
+        var world = Geometry.ToWorld(x, y);
+        World.FocusWorld(new((float)world.X, (float)world.Y)); return true;
     }
     public override void _GuiInput(InputEvent @event)
     {
@@ -114,7 +110,7 @@ public partial class StrategyMinimap : Control
             if (settlement is null) return;
             x = settlement.X; y = settlement.Y;
         }
-        var point = MinimapGeometry.FromGrid(x, y);
+        var point = Geometry.FromGrid(x, y);
         var scale = Size / new Vector2(320, 160);
         var center = new Vector2((float)point.X * Size.X, (float)point.Y * Size.Y) - new Vector2(0, scale.Y);
         var texture = Textures[$"minimap-command-pulse-{_pulseFrame}"];
@@ -132,7 +128,7 @@ public partial class StrategyMinimap : Control
         var scale = Size / new Vector2(320,160);
         foreach (var entry in _recordLocations)
         {
-            var point = MinimapGeometry.FromGrid(entry.Cell.X,entry.Cell.Y);
+            var point = Geometry.FromGrid(entry.Cell.X,entry.Cell.Y);
             var center = new Vector2((float)point.X*Size.X,(float)point.Y*Size.Y)-new Vector2(0,scale.Y);
             int frame = Math.Clamp((int)(entry.Time/.1),0,4);
             var texture = Textures["minimap-record-pulse"+(frame == 0 ? "" : $"-{frame}")];
@@ -144,7 +140,7 @@ public partial class StrategyMinimap : Control
     {
         foreach (var s in Scenario.Settlements.Where(s => s.CityMarkerColor is not null))
         {
-            var p = MinimapGeometry.FromGrid(s.X, s.Y); var position = new Vector2((float)p.X * Size.X, (float)p.Y * Size.Y);
+            var p = Geometry.FromGrid(s.X, s.Y); var position = new Vector2((float)p.X * Size.X, (float)p.Y * Size.Y);
             var color = new Color(Skin.Colors[$"city-marker-{s.CityMarkerColor}"]);
             position = position.Floor();
             _markers.DrawRect(new(position - Vector2.One * 4, new Vector2(8, 8)), new Color("080808"));
@@ -154,9 +150,9 @@ public partial class StrategyMinimap : Control
     private void DrawViewport()
     {
         var half = _view.Size / (2 * _view.Zoom);
-        var a = MinimapGeometry.FromWorld(_view.Position.X - half.X, _view.Position.Y - half.Y);
-        var b = MinimapGeometry.FromWorld(_view.Position.X + half.X, _view.Position.Y + half.Y);
-        var polygon = MinimapGeometry.ClipViewport(a.U, a.V, b.U, b.V).Select(p => new Vector2((float)p.U * Size.X, (float)p.V * Size.Y)).ToArray();
+        var a = Geometry.FromWorld(_view.Position.X - half.X, _view.Position.Y - half.Y);
+        var b = Geometry.FromWorld(_view.Position.X + half.X, _view.Position.Y + half.Y);
+        var polygon = Geometry.ClipViewport(a.U, a.V, b.U, b.V).Select(p => new Vector2((float)p.U * Size.X, (float)p.V * Size.Y)).ToArray();
         if (polygon.Length >= 3)
         {
             _viewport.DrawPolyline([.. polygon, polygon[0]], Colors.White, 1);
@@ -165,6 +161,5 @@ public partial class StrategyMinimap : Control
     public override void _ExitTree()
     {
         if (_background is not null) _background.Texture = null;
-        _terrain?.Dispose(); _terrain = null;
     }
 }

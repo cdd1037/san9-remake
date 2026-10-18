@@ -22,28 +22,33 @@ public sealed class MapNavigationTests
         Assert.Throws<ArgumentOutOfRangeException>(() => selection.SelectSquare(-1, 0));
         Assert.Equal(4, changes);
     }
-    [Fact]
-    public void EveryMinimapSquareRoundTripsAndDecorationDoesNotNavigate()
+    [Theory]
+    [InlineData(200, 200)]
+    [InlineData(300, 300)]
+    [InlineData(347, 183)]
+    public void EveryMinimapSquareRoundTripsAndDecorationDoesNotNavigate(int width, int height)
     {
-        for (int x = 0; x < 200; x++) for (int y = 0; y < 200; y++)
+        var geometry = new MinimapGeometry(width, height);
+        for (int x = 0; x < width; x++) for (int y = 0; y < height; y++)
         {
-            var p = MinimapGeometry.FromGrid(x, y);
-            Assert.True(MinimapGeometry.TryGrid(p.X, p.Y, out double rx, out double ry));
+            var p = geometry.FromGrid(x, y);
+            Assert.True(geometry.TryGrid(p.X, p.Y, out double rx, out double ry));
             Assert.Equal(x, rx, 8); Assert.Equal(y, ry, 8);
-            var world = MapGeometry.Center(x, y); var mini = MinimapGeometry.FromWorld(world.X, world.Y);
+            var world = geometry.ToWorld(x, y); var mini = geometry.FromWorld(world.X, world.Y);
             Assert.Equal(p.X, mini.U, 8); Assert.Equal(p.Y, mini.V, 8);
         }
-        Assert.False(MinimapGeometry.TryGrid(0, 0, out _, out _));
-        Assert.False(MinimapGeometry.TryGrid(1, 1, out _, out _));
-        Assert.False(MinimapGeometry.TryGrid(double.NaN, .5, out _, out _));
+        Assert.False(geometry.TryGrid(0, 0, out _, out _));
+        Assert.False(geometry.TryGrid(1, 1, out _, out _));
+        Assert.False(geometry.TryGrid(double.NaN, .5, out _, out _));
     }
     [Fact]
     public void ViewportOutlineClipsToDiamondAtWorldEdges()
     {
-        var inside = MinimapGeometry.ClipViewport(.45, .4, .55, .6);
+        var geometry = new MinimapGeometry(200, 200);
+        var inside = geometry.ClipViewport(.45, .4, .55, .6);
         Assert.Equal(4, inside.Length);
-        Assert.Empty(MinimapGeometry.ClipViewport(-2, -2, -1, -1));
-        foreach (var p in MinimapGeometry.ClipViewport(-1, -1, 2, 2))
+        Assert.Empty(geometry.ClipViewport(-2, -2, -1, -1));
+        foreach (var p in geometry.ClipViewport(-1, -1, 2, 2))
         {
             Assert.InRange(p.U + p.V, .5 - 1e-9, 1.5 + 1e-9);
             Assert.InRange(p.U - p.V, -.5 - 1e-9, .5 + 1e-9);

@@ -12,17 +12,19 @@ public static class MinimapRenderer
         _ => throw new ArgumentOutOfRangeException(nameof(terrain))
     };
 
-    public static PngImage Compile(IReadOnlyList<San9.Content.Maps.MapSquare> squares, byte[] colors)
+    public static PngImage Compile(int width, int height, IReadOnlyList<San9.Content.Maps.MapSquare> squares, byte[] colors)
     {
-        if (squares.Count != 40000 || colors.Length != 32) throw new InvalidDataException("Invalid minimap inputs.");
+        if (width <= 0 || height <= 0 || (long)width * height != squares.Count || colors.Length != 32)
+            throw new InvalidDataException("Invalid minimap inputs.");
+        var geometry = new MinimapGeometry(width, height);
         byte[] pixels = new byte[320 * 160 * 4];
-        for (int y = 1; y < 160; y++)
+        for (int y = 0; y < 160; y++)
         {
-            int span = 4 * (Math.Min(y, 160 - y) - 1), left = (320 - span) / 2;
-            for (int x = left; x < left + span; x++)
+            for (int x = 0; x < 320; x++)
             {
-                var (sx, sy) = SampleSquare(x, y);
-                int color = TerrainFamily(squares[sy * 200 + sx].Terrain) * 4;
+                if (!geometry.TryGrid((x + .5) / 320, (y + .5) / 160, out double gx, out double gy)) continue;
+                int sx = (int)Math.Floor(gx + .5), sy = (int)Math.Floor(gy + .5);
+                int color = TerrainFamily(squares[sy * width + sx].Terrain) * 4;
                 int target = (y * 320 + x) * 4;
                 for (int channel = 0; channel < 3; channel++)
                     pixels[target + channel] = (byte)(colors[color + channel] & (channel == 1 ? 252 : 248));
@@ -30,18 +32,6 @@ public static class MinimapRenderer
             }
         }
         return new(320, 160, 4, pixels);
-    }
-
-    public static (int X, int Y) SampleSquare(int pixelX, int pixelY)
-    {
-        int worldX = pixelX * 40, worldY = pixelY * 40;
-        int projectedX = worldX + 2 * worldY - 6432;
-        int x = (int)Math.Floor(projectedX / 64d);
-        int y = (int)Math.Floor((2 * worldY - worldX + 6368) / 64d);
-        // The source picker owns this shared sloping edge on the preceding X tile.
-        // Vertices and the other diagonal retain ordinary floor ownership.
-        if (projectedX % 64 == 0 && worldX % 32 + 2 * (worldY % 16) == 32) x--;
-        return (Math.Clamp(x, 0, 199), Math.Clamp(y, 0, 199));
     }
 
 }

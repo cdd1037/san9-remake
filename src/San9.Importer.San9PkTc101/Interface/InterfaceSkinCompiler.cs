@@ -200,18 +200,12 @@ public static class InterfaceSkinCompiler
                 var pixels = frames == 1 ? source : IndexedImageArchive.Frame(source, frames, 1, frame, 0);
                 string id = "ui-" + key;
                 byte[] colors = overview.Palettes[palette];
-                if (role == "overview-borders")
-                {
-                    colors = colors.ToArray();
-                    colors[52 * 4 + 3] = 72;
-                }
-                assets.Add(save(id, TextureSourcePath.Image("G_MMap", resource - 999, palette, true, alpha, columns: frames, frame: frame, transform: role == "overview-borders" ? "border-alpha" : null), IndexedImageArchive.Decode(pixels, colors, true, alpha)));
+                assets.Add(save(id, TextureSourcePath.Image("G_MMap", resource - 999, palette, true, alpha, columns: frames, frame: frame), IndexedImageArchive.Decode(pixels, colors, true, alpha)));
                 ui.Add(key, id);
             }
         }
         Overview("overview-background", 1156, 5);
         Overview("overview-terrain", 1163, 9);
-        Overview("overview-borders", 1162, 8, alpha: true);
         Overview("overview-ranking", 1160, 7, alpha: true);
         for (int color = 0; color < 51; color++) Overview($"information-map-force-{color}", 1103 + color, 4, 4, alpha: true);
         Overview("information-map-city", 1154, 4, 4, alpha: true);
@@ -219,19 +213,6 @@ public static class InterfaceSkinCompiler
         Overview("button-overview-forces", 1158, 6, 4, true);
         Overview("button-overview-facilities", 1159, 6, 4, true);
         Overview("button-overview-units", 1157, 6, 4, true);
-        for (int city = 0; city < 50; city++)
-        {
-            var source = overview.Images[162];
-            byte[] rgba = new byte[source.Width * source.Height * 4];
-            for (int pixel = 0; pixel < source.Pixels.Length; pixel++)
-            {
-                rgba[pixel * 4] = rgba[pixel * 4 + 1] = rgba[pixel * 4 + 2] = 255;
-                rgba[pixel * 4 + 3] = source.Pixels[pixel] == city + 1 ? (byte)143 : (byte)0;
-            }
-            string key = $"overview-city-{city}";
-            assets.Add(save("ui-" + key, $"ui/{key}.png", new(source.Width, source.Height, 4, rgba)));
-            ui.Add(key, "ui-" + key);
-        }
         for (int color = 0; color < 51; color++) Overview($"overview-marker-{color}", 1050 + color, 1);
         for (int color = 0; color < 51; color++) Overview($"overview-facility-{color}", 999 + color, 0);
         for (int color = 0; color < 50; color++) Overview($"overview-unit-{color}", 1170 + color, 15);

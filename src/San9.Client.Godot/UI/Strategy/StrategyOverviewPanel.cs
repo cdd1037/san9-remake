@@ -17,6 +17,8 @@ public partial class StrategyOverviewPanel : FixedPage
     public TextCatalog Texts { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
     private TextureScope? _scope;
+    private OverviewMapLayer? _map;
+    private MinimapGeometry Geometry => Service.OverviewMap.Geometry;
     private TextureScope Textures => _scope!;
     private static readonly Vector2 Origin = new(40, 71);
     private readonly Dictionary<OverviewLayer, StrategyButton> _buttons = [];
@@ -30,7 +32,7 @@ public partial class StrategyOverviewPanel : FixedPage
         x = y = 0;
         if (_buttons.Values.Any(b => b.GetRect().HasPoint(position) && (b.TextureClickMask?.GetBitv((Vector2I)(position - b.Position)) ?? true))) return false;
         var local = position - Origin;
-        if (!MinimapGeometry.TryGrid(local.X / 800, local.Y / 400, out double gx, out double gy)) return false;
+        if (!Geometry.TryGrid(local.X / 800, local.Y / 400, out double gx, out double gy)) return false;
         x = (int)Math.Floor(gx + .5); y = (int)Math.Floor(gy + .5);
         return true;
     }
@@ -73,7 +75,13 @@ public partial class StrategyOverviewPanel : FixedPage
             }
             return;
         }
-        if (_scope is null) { _scope = Service.CreateScope(owner: this); _scope.RequestPrefixes("overview-", "button-overview-"); BuildButtons(); }
+        if (_scope is null)
+        {
+            _scope = Service.CreateScope(owner: this);
+            _scope.RequestPrefixes("overview-background", "overview-terrain", "overview-ranking", "overview-marker-", "overview-facility-", "overview-unit-", "button-overview-");
+            _map ??= new(Service, Skin);
+            BuildButtons();
+        }
         foreach (var pair in _buttons)
         {
             string role = "button-overview-" + pair.Key.ToString().ToLowerInvariant();
@@ -83,6 +91,7 @@ public partial class StrategyOverviewPanel : FixedPage
         {
             _revision = Session.Snapshot.Revision;
             _rankings = StrategyOverview.Rankings(Session.View);
+            _map!.Update(Session.View);
         }
         _buttons[OverviewLayer.Forces].SetPressedNoSignal(State.ShowForces);
         _buttons[OverviewLayer.Facilities].SetPressedNoSignal(State.ShowFacilities);
@@ -94,14 +103,15 @@ public partial class StrategyOverviewPanel : FixedPage
     public override void _ExitTree()
     {
         World.ViewportPresentationChanged -= QueueRedraw;
-        _scope?.Dispose();
+        _scope?.Dispose(); _map?.Dispose();
     }
 
     public bool Navigate(Vector2 position)
     {
         var local = position - Origin;
-        if (!MinimapGeometry.TryGrid(local.X / 800, local.Y / 400, out double x, out double y)) return false;
-        World.FocusWorld(new((float)(32 * (x + 200 - y) + 96), (float)(16 * (x + y + 1) + 112)));
+        if (!Geometry.TryGrid(local.X / 800, local.Y / 400, out double x, out double y)) return false;
+        var world = Geometry.ToWorld(x, y);
+        World.FocusWorld(new((float)world.X, (float)world.Y));
         return true;
     }
 
@@ -118,18 +128,12 @@ public partial class StrategyOverviewPanel : FixedPage
     {
         if (!State.IsOpen || _scope is null) return;
         DrawTexture(Textures["overview-background"], Vector2.Zero);
-        DrawTexture(Textures["overview-terrain"], Origin);
+        _map!.Draw(this, Textures, Origin, State.ShowForces);
         var view = Session.View;
-        if (State.ShowForces)
-        {
-            foreach (var city in view.Settlements.Where(s => s.CityMarkerColor is not null))
-                DrawTexture(Textures[$"overview-city-{city.Id}"], Origin, ForceColor(city.OwnerId));
-            DrawTexture(Textures["overview-borders"], Origin);
-        }
         if (State.ShowFacilities)
             foreach (var facility in view.Settlements.Where(s => s.IsFacilityListEntry))
             {
-                var center = Origin + new Vector2(2 * (facility.X - facility.Y) + 401, facility.X + facility.Y);
+                var center = Origin + _map!.Point(facility.X, facility.Y);
                 int color = facility.OwnerId is int owner ? view.Forces.Single(f => f.Id == owner).ColorCode : 50;
                 var texture = Textures[$"overview-{(facility.CityMarkerColor is not null ? "marker" : "facility")}-{color}"];
                 DrawTexture(texture, center - texture.GetSize()/2);
@@ -137,7 +141,7 @@ public partial class StrategyOverviewPanel : FixedPage
         if (State.ShowUnits)
             foreach (var unit in view.World.Units)
             {
-                var p = Origin + new Vector2(2 * (unit.Cell.X - unit.Cell.Y) + 401, unit.Cell.X + unit.Cell.Y);
+                var p = Origin + _map!.Point(unit.Cell.X, unit.Cell.Y);
                 int color = view.Forces.Single(f => f.Id == unit.OwnerId).ColorCode;
                 if (color < 50) DrawTexture(Textures[$"overview-unit-{color}"],p-new Vector2(4,4));
             }
@@ -160,11 +164,6 @@ public partial class StrategyOverviewPanel : FixedPage
         }
     }
 
-    private Color ForceColor(int? owner)
-    {
-        int code = owner is int id ? Session.View.Forces.Single(f => f.Id == id).ColorCode : 50;
-        return new(Skin.Colors[$"overview-force-{code}"]);
-    }
     private void DrawEntry(ForceRankingEntry entry, int x, int y, int valueRight)
     {
         DrawText(entry.Rank.ToString(),new(x,y),16,16,Colors.White,HorizontalAlignment.Right);
@@ -181,9 +180,9 @@ public partial class StrategyOverviewPanel : FixedPage
     private void DrawViewport()
     {
         var half = World.ViewportSize / (2 * World.ZoomFactor);
-        var a = MinimapGeometry.FromWorld(World.CameraPosition.X-half.X, World.CameraPosition.Y-half.Y);
-        var b = MinimapGeometry.FromWorld(World.CameraPosition.X+half.X, World.CameraPosition.Y+half.Y);
-        var points = MinimapGeometry.ClipViewport(a.U,a.V,b.U,b.V).Select(p => Origin + new Vector2((float)p.U*800,(float)p.V*400)).ToArray();
+        var a = Geometry.FromWorld(World.CameraPosition.X-half.X, World.CameraPosition.Y-half.Y);
+        var b = Geometry.FromWorld(World.CameraPosition.X+half.X, World.CameraPosition.Y+half.Y);
+        var points = Geometry.ClipViewport(a.U,a.V,b.U,b.V).Select(p => Origin + new Vector2((float)p.U*800,(float)p.V*400)).ToArray();
         if (points.Length > 2) DrawPolyline([..points,points[0]],Colors.White,1);
     }
 }

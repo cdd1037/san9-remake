@@ -210,7 +210,7 @@ public partial class StrategyHud
         Check(World.ShowBoundaries != boundaries && _territory!.ButtonPressed == World.ShowBoundaries, "Boundary toggle failed.");
         await Click(new(726, 28));
         Check(World.ShowBoundaries == boundaries, "Boundary toggle did not restore.");
-        var mini = San9.Rendering.MinimapGeometry.FromGrid(120, 95);
+        var mini = new San9.Rendering.MinimapGeometry(World.Package!.Width, World.Package.Height).FromGrid(120, 95);
         await Click(_minimap!.Position + new Vector2((float)mini.X * _minimap.Size.X, (float)mini.Y * _minimap.Size.Y));
         var expected = San9.Rendering.MapGeometry.Center(120, 95);
         Check(World.CameraPosition.DistanceTo(new(expected.X, expected.Y)) < .1f, "GUI minimap navigation failed.");

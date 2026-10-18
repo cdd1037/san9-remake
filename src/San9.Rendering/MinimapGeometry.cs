@@ -1,21 +1,26 @@
 namespace San9.Rendering;
 
-public static class MinimapGeometry
+public sealed class MinimapGeometry(int width, int height)
 {
-    // Unit diamond: top=(.5,0), right=(1,.5), bottom=(.5,1), left=(0,.5).
-    public static (double X, double Y) FromGrid(double x, double y) => ((x - y + 200) / 400, (x + y + 1) / 400);
-    public static bool TryGrid(double u, double v, out double x, out double y)
+    public int Width { get; } = width > 0 ? width : throw new ArgumentOutOfRangeException(nameof(width));
+    public int Height { get; } = height > 0 ? height : throw new ArgumentOutOfRangeException(nameof(height));
+    private double Span => (double)Width + Height;
+
+    public (double X, double Y) FromGrid(double x, double y) => ((x - y + Height) / Span, (x + y + 1) / Span);
+    public bool TryGrid(double u, double v, out double x, out double y)
     {
-        x = 200 * (u + v) - 100.5; y = 200 * (v - u) + 99.5;
-        return double.IsFinite(x) && double.IsFinite(y) && x >= -0.5 && x < 199.5 && y >= -0.5 && y < 199.5;
+        x = (Span * (u + v) - Height - 1) / 2; y = (Span * (v - u) + Height - 1) / 2;
+        return double.IsFinite(x) && double.IsFinite(y) && x >= -0.5 && x < Width - 0.5 && y >= -0.5 && y < Height - 0.5;
     }
 
-    public static (double U, double V) FromWorld(double x, double y) => ((x - 96) / 12800, (y - 112) / 6400);
+    public (double X, double Y) ToWorld(double x, double y) => (32 * (x + Height - y) + 96, 16 * (x + y + 1) + 112);
+    public (double U, double V) FromWorld(double x, double y) => ((x - 96) / (32 * Span), (y - 112) / (16 * Span));
 
-    public static (double U, double V)[] ClipViewport(double left, double top, double right, double bottom)
+    public (double U, double V)[] ClipViewport(double left, double top, double right, double bottom)
     {
         List<(double U, double V)> polygon = [(left, top), (right, top), (right, bottom), (left, bottom)];
-        foreach (var (a, b, c) in new[] { (1d, 1d, -.5), (-1d, -1d, 1.5), (1d, -1d, .5), (-1d, 1d, .5) })
+        foreach (var (a, b, c) in new[] { (1d, 1d, -Height / Span), (-1d, -1d, (2d * Width + Height) / Span),
+            (1d, -1d, Height / Span), (-1d, 1d, Height / Span) })
         {
             if (polygon.Count == 0) break;
             List<(double U, double V)> clipped = [];

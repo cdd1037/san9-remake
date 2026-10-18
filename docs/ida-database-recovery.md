@@ -2,6 +2,17 @@
 
 适用于 MCP 能响应，但 IDA 打开项目主库时报告 `Database is empty`、`Database initialization failed with error 4` 的情况。退出码不能单独证明 Root Node 丢失；先只读检查名称索引 `NRoot Node`、对应数值节点及其记录。若段、函数和已有标注仍可读取，而根节点索引及记录缺失，再按此方法恢复。
 
+## 原因调查（2026-10-18）
+
+目前能确认损坏表现和残留目录的生成机制，尚不能确认第一次丢失 Root Node 的具体调用或退出事件。
+
+- **主库打开失败**：本地恢复记录确认过根节点名称索引及记录缺失，而段、函数和标注仍在，因此 `Database is empty` 不代表整个分析库为空。[Hex-Rays 官方社区同类报告](https://community.hex-rays.com/t/inaccurate-database-is-empty-error-9-4/763)涉及 IDA 9.4：2026-07-21 官方建立内部调查工单，2026-10-02 另一用户报告 Root Node 消失、恢复备份后复发。与本地症状高度相似，但后者是用户观察；截至本次核查，该帖未公布官方根因或修复版本，不能认定为同一缺陷。本机使用 IDA 9.4。
+- **大量 `.crash-*` 目录**：本机 IDA Nexus 0.13.4 的 `database_state.py` 以 `.id0` 的操作系统锁和 B-tree `isTreeOpen` 判断状态；无锁但带未关闭标志时视为 `crashed`。`_resolver.py` 在已有打包主库时先复制解包工作集，再恢复打包库。与[官方恢复机制说明](https://github.com/HexRaysSA/ida-nexus)一致。这证明存在未正常关闭的工作集，不证明发生了同等次数的原生崩溃；重复启动和失败恢复也可能留下多份备份。目录名中的 PID 属于执行备份的进程，不应直接当作崩溃 worker 的 PID。
+- **退出触发条件仍未知**：本机 Nexus worker 的正常退出路径会保存并关闭数据库，没有证据支持“客户端一断开就故意不保存”。检查 2026-10-07 起的 Windows Application 1000／1001／1002 事件，未发现可归因于 IDA worker 的崩溃记录；只有一条无法归属该 worker 的 Python 内存预警。Nexus 日志记录了主库打开失败，但未给出最初根节点丢失的调用栈。`local/generated/research/ida-load-check/` 中的 B-tree 错误来自恢复试验副本，不能作为主库自然损坏的独立证据。没有系统事件也不能排除强制结束进程。
+- **保存 API 问题未匹配本地调用**：[官方社区保存 API 讨论](https://community.hex-rays.com/t/ida-loader-save-database-is-broken-as-it-is-right-now/558)记录过默认 flags 参数类型错误，以及空字符串保存路径产生 `.$$$` 的问题。本机 Nexus 显式保存使用实际路径和 `0`，不匹配这两种调用，暂不据此归因。
+
+后续降低风险的措施是：关键标注后显式保存打包库，定期在独立副本上关闭自动分析重新打开，并核对根节点、样本哈希和标注；正常关闭数据库后再结束工具进程。仅“保存返回成功”不足以验证下次可打开。若复发，应保留首次失败前后的主库与工作集、IDA 完整版本和 worker 日志，再向 Hex-Rays 提交可复现证据；不要只重复恢复并清空残留。
+
 ## 恢复步骤
 
 1. 释放目标库的 IDA/MCP 占用，备份损坏库并记录 SHA-256。全部操作先在 `local/generated/research/` 的副本中进行，不直接重建主库。

@@ -72,6 +72,7 @@ public sealed partial class GameSession
     public IReadOnlyList<DomainEvent> InitialEvents => _initialEvents;
     public IReadOnlyList<SessionRecord> Records => _readOnlyRecords;
     public IReadOnlyList<ChronicleEntry> Chronicle => _readOnlyChronicle;
+    public ImmutableArray<ChronicleFact> History { get; private set; } = [];
     public void BeginRecording()
     {
         if (IsRecording) throw new InvalidOperationException("Recording is already active.");
@@ -192,8 +193,10 @@ public sealed partial class GameSession
     internal static GameSession Start(ScenarioInitialState definition, ulong seed, Func<WorldState, SimulationEngine> factory, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false, ControllerKind playerForceController = ControllerKind.Player)
     {
         var owned = new ScenarioSessionDefinition(definition);
-        return new(owned, factory(owned.CreateWorld(seed, computerDamageBonusPercent, battleDeathsEnabled, playerForceController)))
+        var session = new GameSession(owned, factory(owned.CreateWorld(seed, computerDamageBonusPercent, battleDeathsEnabled, playerForceController)))
             { PlayerForceController = playerForceController };
+        session.History = ChronicleHistory.Initialize(session.View);
+        return session;
     }
 
     public static GameSession Restore(ScenarioInitialState definition, SessionSnapshot snapshot) =>
@@ -237,6 +240,7 @@ public sealed partial class GameSession
         var session = new GameSession(owned, simulation);
         session._records.AddRange(snapshot.Records);
         session._chronicle.AddRange(snapshot.Chronicle);
+        session.History = snapshot.History;
         session.NextOperationSequence = snapshot.NextOperationSequence;
         session._ending = snapshot.Ending;
         session._strategicContext = snapshot.StrategicContext;
@@ -266,7 +270,7 @@ public sealed partial class GameSession
         var records = _records.ToImmutableArray();
         var chronicle = _chronicle.ToImmutableArray();
         return _capture = new(world, records, chronicle, NextOperationSequence)
-            { Ending = _ending, StrategicContext = _strategicContext, PlayerForceController = PlayerForceController, OriginalAi = _originalAi };
+            { Ending = _ending, StrategicContext = _strategicContext, PlayerForceController = PlayerForceController, OriginalAi = _originalAi, History = History };
     }
 
     public SessionRequest Request(SessionOperation operation, string controllerId = "player", Guid? id = null)
@@ -374,9 +378,11 @@ public sealed partial class GameSession
                 new SessionRecord(e.Clock, e.Command.ForceId, e.Command.SettlementId, e.Command.OfficerIds[0],
                     e.Command.Activity, e.Increment, e.Cost)).ToArray();
             var snapshot = candidate.Snapshot;
+            var history = ChronicleHistory.Append(History, ChronicleHistory.Read(View, _snapshotSource.Project(snapshot), events, _definition.Content.Terminal));
             var strategicContext = Presentation.StrategicContext.Prepare(_snapshotSource.Project(snapshot), _strategicContext);
             var publishedEvents = events.ToImmutableArray();
             var recorded = IsRecording ? new RecordedOperation(request, publishedEvents) : null;
+            History = history;
             _simulation = candidate;
             _originalAi = originalAi.Reconcile(snapshot);
             LastOriginalAiWork = aiReports.ToImmutableArray();

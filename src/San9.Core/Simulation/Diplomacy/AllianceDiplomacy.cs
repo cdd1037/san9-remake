@@ -6,8 +6,15 @@ public enum AllianceEndReason { Expired, TargetEliminated, LeaderEliminated, Ins
 public enum AllianceVictoryCause { ForceDefeated, CapturedRulerExecuted }
 public sealed record AllianceVictoryEvent(GameClock Clock, int TargetForceId, int VictorForceId,
     AllianceVictoryCause Cause, int BaseTrustGained) : DomainEvent;
-public sealed record AllianceEndedEvent(GameClock Clock, int TargetForceId, AllianceEndReason Reason) : DomainEvent;
-public sealed record AllianceMemberRemovedEvent(GameClock Clock, int ForceId) : DomainEvent;
+public enum AllianceRemovalReason { ForceEliminated, Betrayal }
+public sealed record AllianceEndedEvent(GameClock Clock, AllianceState Alliance, AllianceEndReason Reason,
+    [property: System.Text.Json.Serialization.JsonRequired] int? BetrayingForceId) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int TargetForceId => Alliance.TargetForceId;
+}
+public sealed record AllianceMemberRemovedEvent(GameClock Clock, int ForceId, AllianceState Alliance,
+    AllianceRemovalReason Reason) : DomainEvent;
 
 internal static class AllianceDiplomacy
 {
@@ -48,7 +55,7 @@ internal static class AllianceDiplomacy
             else
             {
                 world.SetSimulation(world.Simulation with { Alliance = alliance with { MemberForceIds = alliance.MemberForceIds.Remove(forceId) } });
-                events.Add(new AllianceMemberRemovedEvent(world.Clock, forceId));
+                events.Add(new AllianceMemberRemovedEvent(world.Clock, forceId, alliance, AllianceRemovalReason.ForceEliminated));
             }
         }
     }
@@ -56,18 +63,18 @@ internal static class AllianceDiplomacy
     internal static void Betray(WorldMutation world, int forceId, List<DomainEvent> events)
     {
         var alliance = world.Simulation.Alliance!;
-        if (alliance.LeaderForceId == forceId || alliance.MemberForceIds.Length < 3) End(world, AllianceEndReason.Betrayal, events);
+        if (alliance.LeaderForceId == forceId || alliance.MemberForceIds.Length < 3) End(world, AllianceEndReason.Betrayal, events, forceId);
         else
         {
             world.SetSimulation(world.Simulation with { Alliance = alliance with { MemberForceIds = alliance.MemberForceIds.Remove(forceId) } });
-            events.Add(new AllianceMemberRemovedEvent(world.Clock, forceId));
+            events.Add(new AllianceMemberRemovedEvent(world.Clock, forceId, alliance, AllianceRemovalReason.Betrayal));
         }
     }
 
-    private static void End(WorldMutation world, AllianceEndReason reason, List<DomainEvent> events)
+    private static void End(WorldMutation world, AllianceEndReason reason, List<DomainEvent> events, int? betrayingForceId = null)
     {
-        int target = world.Simulation.Alliance!.TargetForceId;
+        var alliance = world.Simulation.Alliance!;
         world.SetSimulation(world.Simulation with { Alliance = null });
-        events.Add(new AllianceEndedEvent(world.Clock, target, reason));
+        events.Add(new AllianceEndedEvent(world.Clock, alliance, reason, betrayingForceId));
     }
 }

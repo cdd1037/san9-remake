@@ -17,7 +17,11 @@ public sealed record ExecutionSuccessionDecision([property: JsonRequired] int Ex
 public sealed record ExecutionSuccessionPrompt(int ExecutingForceId, int RulerId, int RespondingForceId,
     ImmutableArray<int> CandidateIds);
 public sealed record ExecutionSuccessionRequestedEvent(GameClock Clock, int ExecutingForceId, int RulerId, int RespondingForceId) : DomainEvent;
-public sealed record PrisonerExecutedEvent(GameClock Clock, int ExecutingForceId, int OfficerId) : DomainEvent;
+public enum PrisonerExecutionPath { StrategicCommand, CapturedRulerDisposition }
+public sealed record PrisonerExecutionOccurrence([property: JsonRequired] int? PreviousForceId,
+    bool WasRuler, int ExecutingRulerId, PrisonerExecutionPath Path);
+public sealed record PrisonerExecutedEvent(GameClock Clock, int ExecutingForceId, int OfficerId,
+    [property: JsonRequired] PrisonerExecutionOccurrence Occurrence) : DomainEvent;
 
 internal static class PrisonerExecution
 {
@@ -65,6 +69,10 @@ internal static class PrisonerExecution
         SimulationRules rules, List<DomainEvent> events, bool dailyDisposition)
     {
         var prisoner = world.Officers[prisonerId];
+        var occurrence = new PrisonerExecutionOccurrence(prisoner.OwnerId,
+            prisoner.OwnerId is int victimForce && world.Forces[victimForce].LeaderId == prisonerId,
+            world.Forces[executingForceId].LeaderId!.Value,
+            dailyDisposition ? PrisonerExecutionPath.CapturedRulerDisposition : PrisonerExecutionPath.StrategicCommand);
         if (!dailyDisposition && prisoner.OwnerId is int owner && !world.Forces[owner].IsEliminated)
         {
             ForceRelations.Change(world, executingForceId, owner, -5 - (int)(world.NextRandom("personnel-execution-relations") % 3), events);
@@ -76,6 +84,8 @@ internal static class PrisonerExecution
                     Math.Max(0, person.LoyaltyTo(executingForceId) - loss), "prisoner-executed", events);
             }
         }
+        // Publish the execution before death cleanup can change leaders or retire the victim's force.
+        events.Add(new PrisonerExecutedEvent(world.Clock, executingForceId, prisonerId, occurrence));
         if (dailyDisposition && prisoner.OwnerId is int target && world.Forces[target].LeaderId == prisonerId)
             AllianceDiplomacy.CompleteSubjugation(world, target, executingForceId, AllianceVictoryCause.CapturedRulerExecuted, events);
         OfficerDeath.Resolve(world, prisonerId, OfficerDeathCause.Execution, rules, events, afterDailyCommands: false, successorId: successorId);
@@ -87,7 +97,6 @@ internal static class PrisonerExecution
                 RecruitmentRules.SetLoyalty(world, person.Id, executingForceId,
                     Math.Max(0, Math.Min(person.LoyaltyTo(executingForceId), 50) - loss), "captured-ruler-executed", events);
             }
-        events.Add(new PrisonerExecutedEvent(world.Clock, executingForceId, prisonerId));
         ResolutionPipeline.CheckTerminal(world, events);
     }
 

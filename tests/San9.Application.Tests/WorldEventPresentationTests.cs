@@ -91,8 +91,9 @@ public sealed class WorldEventPresentationTests
         var (session, texts, content) = Fixture(); var before = session.View;
         foreach (string role in new[] { "execution-start", "execution-last-words", "execution-result" }) texts.Messages[role] = new([new MessageLiteral(role)]);
         content = content with { Execution = new(3, "execution-start", "execution-last-words", "execution-result", "execute") };
-        DomainEvent[] facts = [new OfficerDiedEvent(before.World.Clock,21,OfficerDeathCause.Execution,OfficerStatus.Ruler,2,2,null,null),
-            new ForceLeaderChangedEvent(before.World.Clock,2,21,22),new PrisonerExecutedEvent(before.World.Clock,1,21),
+        DomainEvent[] facts = [new PrisonerExecutedEvent(before.World.Clock,1,21,new(2,true,1,PrisonerExecutionPath.CapturedRulerDisposition)),
+            new OfficerDiedEvent(before.World.Clock,21,OfficerDeathCause.Execution,OfficerStatus.Ruler,2,2,null,null),
+            new ForceLeaderChangedEvent(before.World.Clock,2,21,22),
             new ForceEliminatedEvent(before.World.Clock,3,false)];
         var output = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts);
         Assert.Equal(new[] { "execution-start", "execution-last-words", "execution-result", "ruler-death", "successor-declaration", "force-eliminated" },
@@ -172,7 +173,7 @@ public sealed class WorldEventPresentationTests
             Arguments: [new("binding", "force.0")]))]);
         content.Events!.Messages["alliance-leader-died"] = new("alliance-leader-died", new() { ["force.0"] = "leader-force" });
         DomainEvent[] facts = [new AllianceFormedEvent(before.World.Clock, new(3, 2, [1, 2], 12)),
-            new AllianceEndedEvent(before.World.Clock, 3, AllianceEndReason.LeaderDied)];
+            new AllianceEndedEvent(before.World.Clock, new(3, 2, [1, 2], 12), AllianceEndReason.LeaderDied, null)];
 
         var output = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts);
 
@@ -187,9 +188,9 @@ public sealed class WorldEventPresentationTests
         {
             Simulation = session.Snapshot.Simulation with { Alliance = new(4, 1, [1, 2, 3], 12) }
         });
-        DomainEvent[] facts = [new AllianceMemberRemovedEvent(before.World.Clock, 2),
+        DomainEvent[] facts = [new AllianceMemberRemovedEvent(before.World.Clock, 2, new(4, 1, [1, 2, 3], 12), AllianceRemovalReason.Betrayal),
             new WarDeclaredEvent(before.World.Clock, 2, 1, true),
-            new AllianceEndedEvent(before.World.Clock, 4, AllianceEndReason.Betrayal),
+            new AllianceEndedEvent(before.World.Clock, new(4, 1, [1, 3], 12), AllianceEndReason.Betrayal, 3),
             new WarDeclaredEvent(before.World.Clock, 3, 1, true)];
 
         var output = ExecutionPublication.Read(before, before, session.Messages(texts, before.World), texts, content, facts);
@@ -228,7 +229,7 @@ public sealed class WorldEventPresentationTests
             .. Enum.GetValues<PeerageChangeKind>().Where(k=>k!=PeerageChangeKind.ShanyangGong).Select(kind=>(DomainEvent)new PeerageChangedEvent(clock,force,null,rank,kind,null)),
             new AllianceFormedEvent(clock,new(otherForce,force,[force],12)),new AllianceFormationFailedEvent(clock,otherForce,AllianceFormationFailure.InsufficientMembers),
             new AllianceVictoryEvent(clock,otherForce,force,AllianceVictoryCause.ForceDefeated,15),
-            .. Enum.GetValues<AllianceEndReason>().Select(reason=>(DomainEvent)new AllianceEndedEvent(clock,otherForce,reason)),
+            .. Enum.GetValues<AllianceEndReason>().Select(reason=>(DomainEvent)new AllianceEndedEvent(clock,new(otherForce,force,[force],12),reason,reason == AllianceEndReason.Betrayal ? force : null)),
             new EmperorTransferResolvedEvent(clock,force,before.EmperorId!.Value,place,EmperorTransferChoice.Support,true,false),
             new EmperorTransferResolvedEvent(clock,force,before.EmperorId!.Value,place,EmperorTransferChoice.Depose,true,false)];
         var occurrence = new StrategySnapshot(package.Scenario, before.World with
@@ -242,7 +243,61 @@ public sealed class WorldEventPresentationTests
             var output = WorldEventPresentation.Read(occurrence, occurrence, session.Messages(package.Text, occurrence.World),
                 package.Text, content, [fact, .. rewards], 0);
             Assert.All(output.Messages, m => Assert.False(string.IsNullOrWhiteSpace(m.Message.BbCode)));
+            foreach (var item in ChronicleHistory.Read(occurrence, occurrence, [fact]))
+                Assert.False(string.IsNullOrWhiteSpace(ChroniclePresentation.Render(item,
+                    session.Messages(package.Text, occurrence.World), occurrence, package.Text, package.Presentation.Chronicle!).BbCode));
         }
+        int enemyPlace = before.World.Settlements.First(p => p.OwnerId == otherForce && p.Kind == SettlementKind.City).Id;
+        int thirdForce = before.World.Forces.First(f => f.Id != force && f.Id != otherForce && !f.IsDormant && !f.IsEliminated && f.LeaderId is not null).Id;
+        var source = new BattleObjectContext(0, false, force, actor, null, place, false);
+        var request = new AttackRequestState(otherForce, force, enemyPlace, thirdForce, 3);
+        DomainEvent[] journalSamples = [new AdviserAppointedEvent(clock, force, null, actor),
+            new SettlementCapturedEvent(clock, enemyPlace, otherForce, new(0, false), false) { Source = source },
+            new SettlementTransferredEvent(clock, enemyPlace, otherForce, force), new ForceSurrenderedEvent(clock, otherForce, force, 0, 0, 0, 0, [], []),
+            new SettlementDefectedEvent(clock, enemyPlace, otherForce, force, SettlementDefectionKind.Abandoned, other, []),
+            new PersonnelTerritoryTransferredEvent(clock, enemyPlace, otherForce, force, other),
+            new PrisonerExecutedEvent(clock, force, other, new(otherForce, false, ruler, PrisonerExecutionPath.StrategicCommand)),
+            new PrisonerExecutedEvent(clock, force, other, new(otherForce, true, ruler, PrisonerExecutionPath.CapturedRulerDisposition)),
+            new ForceFoundedEvent(clock, force, place, ruler, []), new CityIndependenceEvent(clock, place, otherForce, force, ruler, []),
+            new AttackRequestEstablishedEvent(clock, request),
+            .. Enum.GetValues<AttackRequestEndReason>().Select(reason => (DomainEvent)new AttackRequestEndedEvent(clock, request, reason, null)),
+            new ImperialCeremonyResolvedEvent(clock, "test", force, ruler, place, []),
+            new ChainedPlotEvent(clock, ChainedPlotStep.Prelude, force, ruler, actor, []),
+            new ChainedPlotEvent(clock, ChainedPlotStep.Coup, force, ruler, actor, []),
+            .. new[] { ThreeVisitsStep.Recommendation, ThreeVisitsStep.FirstVisit, ThreeVisitsStep.Recruitment }.Select(step => (DomainEvent)new ThreeVisitsEvent(clock, step, ruler, actor, place))];
+        foreach (var fact in journalSamples)
+        {
+            foreach (var item in ChronicleHistory.Read(before, before, [fact]))
+                Assert.NotEmpty(ChroniclePresentation.Render(item, session.Messages(package.Text), before, package.Text, package.Presentation.Chronicle!).BbCode);
+        }
+        if (before.Settlements.FirstOrDefault(p => p.OwnerId == force && p.FacilityTypeId is not null && p.Kind == SettlementKind.Facility) is { } facility)
+        {
+            foreach (DomainEvent fact in new DomainEvent[] { new FacilityDemolishedEvent(clock, facility.Id, place, force, facility.FacilityTypeId!.Value), new FacilityConstructionChangedEvent(clock, facility.Id, 0, "completed", 1, new(force, facility.FacilityTypeId!.Value, place, new(facility.X, facility.Y))) })
+            foreach (var item in ChronicleHistory.Read(before, before, [fact]))
+                Assert.NotEmpty(ChroniclePresentation.Render(item, session.Messages(package.Text), before, package.Text, package.Presentation.Chronicle!).BbCode);
+        }
+        // Detailed reports are real producer output, independent of player-only battle scenes.
+        var npcSource = new BattleObjectContext(100003, false, otherForce, other, new(12, 7), enemyPlace, false);
+        var npcTarget = new BattleObjectContext(100004, false, thirdForce,
+            before.World.Forces.Single(f => f.Id == thirdForce).LeaderId, new(17, 7), enemyPlace, false);
+        DomainEvent[] detailedFacts = [
+            new SettlementCapturedEvent(clock, enemyPlace, otherForce, new(npcTarget.Id, false), false) { Source = npcTarget },
+            new FacilityDestroyedEvent(clock, enemyPlace, new(npcTarget.Id, false)) { Source = npcTarget },
+            new UnitTerminatedEvent(clock, npcSource.Id, new(npcTarget.Id, false), 0) { Target = npcSource, Source = npcTarget }];
+        var reports = ProgressMessages.Read(before, before, session.Messages(package.Text), package.Text, package.Presentation.Progress!, detailedFacts);
+        Assert.Equal(new[] { "messages.10120", "messages.9916", "messages.9994" }, reports.Select(r => r.Message.Key));
+        Assert.All(reports, r => { Assert.Equal(MapReportImportance.Detailed, r.Importance); Assert.Null(r.ForceColorCode); });
+        int tacticId = package.Presentation.Battle!.Tactics.First(p => !p.Value.Support).Key;
+        var activation = new TacticActivatedEvent(clock, npcSource.Id, false, npcTarget.Id, false, tacticId, [other], false, 10)
+            { Occurrence = new(npcSource, npcTarget, 0, 0, UnitCondition.Normal, null, null, null, false) };
+        var battle = BattlePresentationPlan.Create(before, before, [activation], session.Messages(package.Text), package.Text, package.Presentation);
+        Assert.Equal("messages.9972", Assert.Single(battle.Records).Record.Message.Key);
+        Assert.Equal(MapReportImportance.Detailed, battle.Records[0].Record.Importance);
+        Assert.Empty(battle.Messages); Assert.Empty(battle.Visuals);
+        var chronicle = ChroniclePresentation.Read(session, package.Text, package.Presentation.Chronicle!);
+        Assert.NotEmpty(chronicle.Lines);
+        foreach (string role in ChroniclePresentationDefinition.HintRoles)
+            Assert.NotEmpty(ChroniclePresentation.Hint(session, package.Text, package.Presentation.Chronicle!, role));
         StateAssert.Equal(before.World, session.Snapshot);
     }
 

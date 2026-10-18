@@ -359,7 +359,12 @@ public sealed class ProgressPresentationTests
         Assert.Equal(MapCoordinates.Cell(new(67,12)),record.Location);
         Assert.Equal(record,Assert.Single(ProgressMessages.Read(before,after,session.Messages(texts,before.World),texts,content,events)));
         var foreign = ((UnitTerminatedEvent)events[0]) with { Source = new(30,false,3,31,new(62,12),3,false) };
-        Assert.Empty(ProgressMessages.Read(before,after,session.Messages(texts,before.World),texts,content,[foreign]));
+        texts.Messages["foreign-loss"] = new([new MessageLiteral("foreign-loss")]);
+        content.Records.Add("unit-lost-other", new("foreign-loss", []));
+        var detailed = Assert.Single(ProgressMessages.Read(before,after,session.Messages(texts,before.World),texts,content,[foreign]));
+        Assert.Equal(MapReportImportance.Detailed, detailed.Importance);
+        Assert.Null(detailed.ForceColorCode);
+        Assert.Equal(record.Location, detailed.Location);
     }
 
     [Fact]

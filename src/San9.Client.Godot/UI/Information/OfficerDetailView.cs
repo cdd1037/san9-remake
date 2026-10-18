@@ -275,8 +275,8 @@ public partial class DetailActionButton : BaseButton
     public override void _Draw()
     {
         int frame=Disabled?3:Selected||ButtonPressed?2:IsHovered()||HasFocus()?1:0;
-        if(Role is "tab" or "treasure")DrawTexture(Textures["detail-button-shadow"],Vector2.Zero);
-        DrawTexture(Textures["detail-"+Role+(frame==0?"":$"-{frame}")],Role is "tab" or "treasure" ? new(4,4) : Vector2.Zero);
+        if(Role is "tab" or "treasure" or "chronicle-input")DrawTexture(Textures["detail-button-shadow"],Vector2.Zero);
+        DrawTexture(Textures["detail-"+Role+(frame==0?"":$"-{frame}")],Role is "tab" or "treasure" or "chronicle-input" ? new(4,4) : Vector2.Zero);
     }
     public override void _ExitTree()=>_text.Dispose();
 }

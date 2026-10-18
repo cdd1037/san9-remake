@@ -189,6 +189,8 @@ public partial class StrategyHud : Control
             World = World,
             Skin = Skin,
             RecordsLog = RecordsLog,
+            Chronicle = CommandPresentation.Chronicle ?? throw new InvalidDataException("Missing chronicle presentation."),
+            ChangeReportMode = mode => ApplyUserSettings(ReadSettings() with { ProgressReport = mode }),
             Locate = id => { Overview.Close(); World.FocusBuilding(id); }
         };
         OverlayHost.AddChild(Information);

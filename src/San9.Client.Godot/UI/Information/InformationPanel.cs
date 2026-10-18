@@ -17,7 +17,9 @@ public partial class InformationPanel : Control
     public MapWorld World { get; init; } = null!;
     public San9.Content.Interface.InterfaceSkin Skin { get; init; } = null!;
     public Action<int> Locate { get; init; } = null!;
+    public San9.Content.Interface.ChroniclePresentationDefinition Chronicle { get; init; } = null!;
     public MapMessageLog RecordsLog { get; init; } = null!;
+    public Action<Settings.ProgressReportMode> ChangeReportMode { get; init; } = null!;
     private InformationQuery _query = null!;
     private TextureScope? _textures;
     private Control? _page;
@@ -27,7 +29,7 @@ public partial class InformationPanel : Control
     {
         Name = "InformationPanel"; Size = new(1024, 768); ZIndex = 20;
         MouseFilter = MouseFilterEnum.Stop; Visible = false;
-        _query = new(Session, Texts); Session.Changed += OnChanged; RecordsLog.Changed += OnChanged;
+        _query = new(Session, Texts, Chronicle); Session.Changed += OnChanged; RecordsLog.Changed += OnChanged;
     }
     private void OnChanged() => _dirty = true;
     public void OpenMenu() { State.OpenMenu(); Rebuild(); }
@@ -80,6 +82,7 @@ public partial class InformationPanel : Control
         if (!Visible) return;
         _textures = Service.CreateScope(owner: this);
         if (State.IsMenu) _textures.RequestPrefixes("information-menu-");
+        else if (State.Category is InformationCategory.Records or InformationCategory.Chronicle) _textures.RequestPrefixes("progress-record-", "detail-", "catalog-scroll-", "message-", "text-icon-");
         else if (State.IsDetail) _textures.RequestPrefixes("detail-", "formation-", "roster-", "catalog-scroll-", "message-");
         else if (State.IsMap) _textures.RequestPrefixes("overview-terrain", "information-", "catalog-help", "message-");
         else _textures.RequestPrefixes("information-", "catalog-", "roster-", "scroll-", "button-scroll-", "message-", "text-icon-");
@@ -88,7 +91,7 @@ public partial class InformationPanel : Control
                 Open = category => { State.Open(category); Rebuild(); }, Back = Back }
             : new InformationPageFactory { State = State, Session = Session, Texts = Texts,
                 Service = Service, Textures = _textures, World = World, Skin = Skin, Query = _query,
-                RecordsLog = RecordsLog, Rebuild = Rebuild, Back = Back }.Create();
+                RecordsLog = RecordsLog, ChangeReportMode = ChangeReportMode, Rebuild = Rebuild, Back = Back }.Create();
         AddChild(_page);
     }
     public override void _ExitTree() { Session.Changed -= OnChanged; RecordsLog.Changed -= OnChanged; _textures?.Dispose(); }

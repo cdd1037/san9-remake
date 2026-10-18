@@ -70,7 +70,9 @@ public sealed class ConstructionSessionTests
         Assert.True(session.Execute(new("player"), new ConstructFacilityCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, 1, [11], 5000, 8000, 9001, new(22, 2))).Submission.Accepted);
         var reconstruction = session.AdvanceXun();
-        Assert.Single(reconstruction.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "completed");
+        var completion = Assert.Single(reconstruction.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "completed");
+        Assert.Equal(new FacilityOccurrence(1, 9001, 1, new(22, 2)), completion.Occurrence);
+        Assert.Contains(session.History, f => f.Role == "construction" && f.ForceId == 1 && f.Values["facility-name"].Number == 9001);
         var rebuilt = session.View.Settlements.Single(s => s.Id == 8000);
         Assert.Equal(9001, rebuilt.FacilityTypeId);
         Assert.Equal(4, rebuilt.X);

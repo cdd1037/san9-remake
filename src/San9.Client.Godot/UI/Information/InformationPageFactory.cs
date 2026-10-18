@@ -18,6 +18,7 @@ internal sealed class InformationPageFactory
     public required Action Rebuild { get; init; }
     public required Action Back { get; init; }
     public required MapMessageLog RecordsLog { get; init; }
+    public required Action<Settings.ProgressReportMode> ChangeReportMode { get; init; }
     public Control Create()
     {
         if (State.Category == InformationCategory.Units && State.IsDetail)
@@ -169,8 +170,10 @@ internal sealed class InformationPageFactory
             };
             return catalog;
         }
-        return new InformationJournalView { State = State, Session = Session, Query = Query, Textures = Textures,
-            RecordsLog = RecordsLog, Skin = Skin, Back = Back, LocateRecord = cell => { State.Close(); Rebuild(); World.FocusCell(cell); } };
+        if (State.Category == InformationCategory.Records)
+            return new ProgressRecordView { Textures = Textures, Skin = Skin, RecordsLog = RecordsLog, ChangeReportMode = ChangeReportMode, Hint = Query.JournalHint, Closed = Back };
+        return new InformationJournalView { Read = Query.ReadChronicle, Skin = Skin, Textures = Textures, Hint = Query.JournalHint,
+            Closed = Back };
     }
     private void OpenAdministrativeDetail(InformationCategory category, int id)
     {

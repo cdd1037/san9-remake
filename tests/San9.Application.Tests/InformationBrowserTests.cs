@@ -66,7 +66,7 @@ public sealed class InformationBrowserTests
         }
         var text = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new[] { "force", "city", "region", "ruler", "free", "rank", "treasure", "office" }.ToDictionary(s => s, s => s));
         var session = GameSession.Start(scenario, 1);
-        return (session, new(session, text));
+        return (session, new(session, ChronicleTestContent.AddTo(text), ChronicleTestContent.Definition()));
     }
 
     [Fact]
@@ -186,16 +186,18 @@ public sealed class InformationBrowserTests
         Assert.Equal(before, session.Snapshot.Revision);
     }
     [Fact]
-    public void EveryCategoryReadsRealStateAndUnoccupiedRegionIsNotACity()
+    public void CatalogsReadRealStateAndUnoccupiedRegionIsNotACity()
     {
         var (session, query) = Fixture();
         long before = session.Snapshot.Revision;
-        foreach (var category in InformationQuery.MenuCategories)
+        foreach (var category in InformationQuery.MenuCategories.Where(c => c is not (InformationCategory.Records or InformationCategory.Chronicle)))
         {
             var table = query.Read(category);
-            foreach (var row in table.Rows) Assert.Equal(table.Columns.Length, row.Cells.Length);
             for (int page = 0; page < table.Pages.Length; page++)
-                foreach (var row in query.Read(category, page).Rows) Assert.Equal(query.Read(category, page).Columns.Length, row.Cells.Length);
+            {
+                var pageTable = page == 0 ? table : query.Read(category, page);
+                Assert.All(pageTable.Rows, row => Assert.Equal(pageTable.Columns.Length, row.Cells.Length));
+            }
         }
         Assert.Single(query.Read(InformationCategory.Cities).Rows);
         Assert.Equal(2, query.Read(InformationCategory.Regions).Rows.Length);
@@ -207,21 +209,34 @@ public sealed class InformationBrowserTests
     }
 
     [Fact]
-    public void SuccessfulCommandRefreshesResourcesCorpsAndJournalWithoutChangingInitialChronicle()
+    public void SuccessfulCommandRefreshesResourcesAndPreservesInitialChronicle()
     {
         var (session, query) = Fixture();
-        string initial = query.Read(InformationCategory.Chronicle).Rows[0].Cells[1].Text;
+        string initial = query.ReadChronicle().Lines[0].BbCode;
         Assert.True(session.Develop(new(5, 15, [1], DomesticActivity.Commerce)).Accepted);
         Assert.Equal(50, query.Read(InformationCategory.Forces, 2).Rows[0].Cells[1].Number);
         Assert.Equal(50, query.Read(InformationCategory.Corps, 2).Rows[0].Cells[1].Number);
-        Assert.Single(query.Read(InformationCategory.Records).Rows);
         Assert.False(session.Develop(new(5, 15, [1], DomesticActivity.Commerce)).Accepted);
         Assert.Single(session.Records);
         Assert.False(session.Develop(new(5, 15, [2], DomesticActivity.Commerce)).Accepted);
-        session.AddChronicleNote("A note");
-        Assert.Equal(initial, query.Read(InformationCategory.Chronicle).Rows[0].Cells[1].Text);
-        Assert.Contains(query.Read(InformationCategory.Chronicle).Rows, r => r.Cells[1].Text == "A note");
+        session.AddChronicleNote("[preset=blue-outline]literal[/preset]");
+        Assert.Equal(initial, query.ReadChronicle().Lines[0].BbCode);
+        Assert.Equal(MessageMarkup.Escape("[preset=blue-outline]literal[/preset]"), query.ReadChronicle().Lines[^1].BbCode);
         Assert.Throws<ArgumentException>(() => session.AddChronicleNote(" "));
+    }
+
+    [Fact]
+    public void ChronicleSuppressesRepeatedDatePartsAcrossDaysWithinEachXun()
+    {
+        var chronicle = new ChroniclePresentation("ruler", [
+            new(new(190, 1, 1), "first", null), new(new(190, 1, 2), "same xun", null),
+            new(new(190, 1, 11), "next xun", null), new(new(190, 2, 1), "next month", null),
+            new(new(191, 1, 1), "next year", null)]);
+        Assert.Equal(new ChronicleDate("190年", "1月", "上旬"), chronicle.DateAt(0));
+        Assert.Equal(new ChronicleDate("", "", ""), chronicle.DateAt(1));
+        Assert.Equal(new ChronicleDate("", "", "中旬"), chronicle.DateAt(2));
+        Assert.Equal(new ChronicleDate("", "2月", "上旬"), chronicle.DateAt(3));
+        Assert.Equal(new ChronicleDate("191年", "1月", "上旬"), chronicle.DateAt(4));
     }
 
     [Fact]

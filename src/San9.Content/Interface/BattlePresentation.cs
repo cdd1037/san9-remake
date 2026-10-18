@@ -157,7 +157,7 @@ public sealed record BattlePresentationDefinition(Dictionary<string, DecisionMes
         var catalog = images.ToDictionary(a => a.Id);
         if (Duel is null) throw new InvalidDataException("Missing duel presentation.");
         Duel.Validate(texts, sounds, people, catalog);
-        string[] required = ["activation-own","activation-enemy","chain-own","chain-enemy","support","link","blocked","damage",
+        string[] required = ["activation-own","activation-enemy","activation-other","chain-own","chain-enemy","support","link","blocked","damage",
             "defection","healed","hit-reaction","block-reaction","block-reply","chain-confused","chain-unformed","link-0","link-1","link-2","link-3",
             "sniping-action","sniping-fatal","sniping-heavy","sniping-light","sniping-own","sniping-enemy"];
         if (required.Except(Messages.Keys).Any()) throw new InvalidDataException("Incomplete battle message roles.");

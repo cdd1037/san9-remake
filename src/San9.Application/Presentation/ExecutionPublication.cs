@@ -35,7 +35,7 @@ public static class ExecutionPublication
                 bool Player(int? force) => before.World.Simulation.Controls.Any(c => c.ForceId == force && c.Kind == ControllerKind.Player);
                 if (Player(executed.ExecutingForceId) || Player(death.PreviousForceId))
                 {
-                    var sequence = ExecutionPresentation.Create(occurrenceBefore, occurrenceContext.AtOccurrence(death.Clock), execution, executed, Pick);
+                    var sequence = ExecutionPresentation.Create(occurrenceContext.AtOccurrence(death.Clock), execution, executed, Pick);
                     messages.AddRange(Player(executed.ExecutingForceId) ? sequence : sequence.Skip(2));
                 }
             }

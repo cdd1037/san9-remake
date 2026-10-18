@@ -77,7 +77,10 @@ public sealed class CapturedRulerDispositionTests
         Assert.Equal(CommandRejection.None, PrisonerExecution.Respond(world, new(Guid.NewGuid(), 1, 0, 11, 12), rules, events));
         new ResolutionPipeline(rules).FinishUnitAndBuildingEvents(world, events, new(190, 1, 1), 11);
         Assert.Null(world.Simulation.PendingExecutionSuccession);
-        Assert.Single(events.OfType<PrisonerExecutedEvent>());
+        var executed = Assert.Single(events.OfType<PrisonerExecutedEvent>());
+        Assert.Equal(new(1, true, 21, PrisonerExecutionPath.CapturedRulerDisposition), executed.Occurrence);
+        Assert.True(events.IndexOf(executed) < events.FindIndex(e => e is OfficerDiedEvent));
+        Assert.True(events.IndexOf(executed) < events.FindIndex(e => e is ForceLeaderChangedEvent));
         Assert.Single(events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.UnitAndBuildingEvents);
     }
     [Theory]

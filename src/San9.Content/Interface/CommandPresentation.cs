@@ -63,6 +63,8 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
     [System.Text.Json.Serialization.JsonRequired]
     public ProgressPresentationDefinition? Progress { get; init; }
     [System.Text.Json.Serialization.JsonRequired]
+    public ChroniclePresentationDefinition? Chronicle { get; init; }
+    [System.Text.Json.Serialization.JsonRequired]
     public EventPresentationDefinition? Events { get; init; }
 
     [System.Text.Json.Serialization.JsonRequired]
@@ -75,6 +77,12 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
         Decisions.Validate(texts, Sounds, personIds);
         Events?.Validate(texts, Sounds, personIds);
         MapAudio?.Validate(Sounds);
+        if (Chronicle is { } chronicle)
+        {
+            if (ChroniclePresentationDefinition.HintRoles.Except(chronicle.Hints.Keys).Any() || ChroniclePresentationDefinition.MessageRoles.Except(chronicle.Messages.Keys).Any()) throw new InvalidDataException("Incomplete journal hints.");
+            new DecisionPresentations([], []) { Shared = chronicle.Messages }.Validate(texts, Sounds, personIds);
+            new DecisionPresentations([], []) { Shared = chronicle.Hints }.Validate(texts, Sounds, personIds);
+        }
         if (Progress is { } progress)
         {
             if (MapAudio is null) throw new InvalidDataException("Missing map audio presentation.");

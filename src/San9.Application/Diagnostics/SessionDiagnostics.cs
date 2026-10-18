@@ -8,7 +8,7 @@ using San9.Core.Simulation;
 namespace San9.Application.Diagnostics;
 
 public sealed record SessionDiagnosticSnapshot(WorldDiagnosticSnapshot World, ImmutableArray<SessionRecord> Records,
-    ImmutableArray<ChronicleEntry> Chronicle, EndingSelection? Ending, Presentation.StrategicContextState StrategicContext,
+    ImmutableArray<ChronicleEntry> Chronicle, ImmutableArray<ChronicleFact> History, EndingSelection? Ending, Presentation.StrategicContextState StrategicContext,
     long NextOperationSequence, ControllerKind PlayerForceController, AI.OriginalAiState OriginalAi);
 
 public static class SessionDiagnostics
@@ -18,7 +18,7 @@ public static class SessionDiagnostics
         Compare(expected.CaptureCurrentState(), actual.CaptureCurrentState());
 
     public static SessionDiagnosticSnapshot Capture(SessionSnapshot session) => new(WorldDiagnostics.Capture(session.World),
-        session.Records, session.Chronicle, session.Ending, session.StrategicContext,
+        session.Records, session.Chronicle, session.History, session.Ending, session.StrategicContext,
         session.NextOperationSequence, session.PlayerForceController, session.OriginalAi);
 
     public static JsonElement Serialize(SessionSnapshot session) =>
@@ -42,6 +42,7 @@ public static class SessionDiagnostics
         // Keep diagnostic paths in ordinal order; World owns its own normalization and comparison.
         bool equal = comparison.Check(expected.Chronicle, actual.Chronicle, "$.chronicle") &&
             comparison.Check(expected.Ending, actual.Ending, "$.ending") &&
+            comparison.Check(expected.History, actual.History, "$.history") &&
             comparison.Check(expected.NextOperationSequence, actual.NextOperationSequence, "$.nextOperationSequence") &&
             comparison.Check(expected.OriginalAi, actual.OriginalAi, "$.originalAi") &&
             comparison.Check(expected.PlayerForceController, actual.PlayerForceController, "$.playerForceController") &&

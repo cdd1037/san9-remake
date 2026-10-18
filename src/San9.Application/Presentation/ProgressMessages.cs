@@ -54,6 +54,7 @@ public static class ProgressMessages
         {
             var fact = events[index];
             string? role = null;
+            var importance = MapReportImportance.Summary;
             GameClock clock = after.World.Clock;
             MapCell? location = null;
             int? colorForce = null;
@@ -81,25 +82,36 @@ public static class ProgressMessages
                     role = "waypoint-reached";
                     break;
                 case UnitTerminatedEvent lost when lost.Target is { } target &&
-                    (Player(target.ForceId) || Player(lost.Source?.ForceId)) &&
                     !(lost.Winner is null && events.OfType<ForceSurrenderedEvent>()
                         .Any(s => s.ForceId == target.ForceId && s.Clock == lost.Clock)):
                     clock = lost.Clock; objects.Add(target); location = target.Position is { } point ? MapCoordinates.Cell(point) : target.ServicePlaceId is int home ? PlaceLocation(home) : null;
                     colorForce = target.ForceId;
                     values["unit"] = MessageBinding.Reference(target.IsSettlement ? MessageEntityKind.Settlement : MessageEntityKind.Unit, target.Id);
                     role = "unit-lost";
-                    if (!Player(target.ForceId) && lost.Source is { } source && target.CommanderId is int commander)
+                    if (!Player(target.ForceId) && !Player(lost.Source?.ForceId))
+                    {
+                        if (target.ForceId is not int owner) { role = null; break; }
+                        Force("enemy-force", owner); role = "unit-lost-other"; importance = MapReportImportance.Detailed;
+                    }
+                    else if (!Player(target.ForceId) && lost.Source is { } source && target.CommanderId is int commander)
                     {
                         objects.Add(source); values["unit"] = MessageBinding.Reference(source.IsSettlement ? MessageEntityKind.Settlement : MessageEntityKind.Unit, source.Id);
                         Person("other", commander); Force("enemy-force", target.ForceId!.Value); role = "unit-defeated"; colorForce = source.ForceId;
                     }
                     break;
-                case SettlementCapturedEvent captured when captured.Source is { } capturingSource &&
-                    (Player(capturingSource.ForceId) || Player(captured.PreviousOwnerId)):
+                case SettlementCapturedEvent captured when captured.Source is { ForceId: not null } capturingSource:
                     clock = captured.Clock; Place(captured.SettlementId); Force("force", capturingSource.ForceId!.Value);
                     colorForce = Player(capturingSource.ForceId) ? capturingSource.ForceId : captured.PreviousOwnerId;
                     role = "territory-changed";
-                    if (captured.Destroyed)
+                    if (!Player(capturingSource.ForceId) && !Player(captured.PreviousOwnerId))
+                    {
+                        importance = MapReportImportance.Detailed;
+                        if (captured.Destroyed) role = "facility-destroyed-other";
+                        else if (captured.PreviousOwnerId is int previousOwner)
+                        { Force("enemy-force", previousOwner); role = "territory-changed-other"; }
+                        else { role = null; break; }
+                    }
+                    else if (captured.Destroyed)
                     {
                         role = "facility-destroyed";
                         if (Player(capturingSource.ForceId) && capturingSource.CommanderId is int destroyer)
@@ -108,20 +120,18 @@ public static class ProgressMessages
                     else if (capturingSource.CommanderId is int capturingCommander)
                     { Person("actor", capturingCommander); role = Player(capturingSource.ForceId) ? "settlement-won" : "settlement-lost"; }
                     break;
-                case FacilityDestroyedEvent destroyed when Player(destroyed.Source.ForceId) ||
-                    Player(before.World.Settlements.Single(s => s.Id == destroyed.SettlementId).OwnerId):
+                case FacilityDestroyedEvent destroyed:
                     clock = destroyed.Clock; Place(destroyed.SettlementId);
                     colorForce = Player(destroyed.Source.ForceId) ? destroyed.Source.ForceId : before.World.Settlements.Single(s => s.Id == destroyed.SettlementId).OwnerId;
                     role = "facility-destroyed";
-                    if (Player(destroyed.Source.ForceId) && destroyed.Source.CommanderId is int demolisher)
+                    if (!Player(destroyed.Source.ForceId) && !Player(before.World.Settlements.Single(s => s.Id == destroyed.SettlementId).OwnerId))
+                    { role = "facility-destroyed-other"; importance = MapReportImportance.Detailed; }
+                    else if (Player(destroyed.Source.ForceId) && destroyed.Source.CommanderId is int demolisher)
                     { Person("actor",demolisher); role = "facility-won"; }
                     break;
-                case FacilityConstructionChangedEvent built when built.Phase == "completed" &&
-                    Player(before.World.Settlements.FirstOrDefault(s => s.Id == built.SettlementId)?.OwnerId ??
-                        after.World.Settlements.Single(s => s.Id == built.SettlementId).OwnerId):
+                case FacilityConstructionChangedEvent { Phase: "completed", Occurrence: { } construction } built when Player(construction.ForceId):
                     role = "construction-completed"; clock = built.Clock; Place(built.SettlementId);
-                    colorForce = before.World.Settlements.FirstOrDefault(s => s.Id == built.SettlementId)?.OwnerId ??
-                        after.World.Settlements.Single(s => s.Id == built.SettlementId).OwnerId;
+                    colorForce = construction.ForceId;
                     break;
                 case UnitAbsorbedEvent delivered when delivered.WasTransport && Player(delivered.Source.ForceId) && delivered.Source.CommanderId is int deliveringCommander:
                     role = "transport-completed"; clock = delivered.Clock; Place(delivered.SettlementId); Person("actor", deliveringCommander); colorForce = delivered.Source.ForceId;
@@ -181,7 +191,7 @@ public static class ProgressMessages
             var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision,$"report-text:{index}:{role}"));
             var message = ProgressMessageProducer.Produce(content.Records[role], occurrence, texts, values,n => (int)(random.NextUInt64() % (ulong)n));
             result.Add(new(identity, message.Message, location,
-                MapRecordColors.Resolve(before, after, colorForce)));
+                MapRecordColors.Resolve(before, after, colorForce), importance));
             if (role is "settlement-won" or "settlement-lost")
             {
                 string territoryRole = role == "settlement-won" ? "territory-changed" : "territory-lost";

@@ -324,7 +324,7 @@ public static class InterfaceSkinCompiler
         }) Extra("detail-" + role, resource, palette, true);
         foreach (var (role, resource, palette, frames) in new[]
         {
-            ("leader-background",30,3,2), ("tab",303,38,4), ("treasure",100,9,4), ("close",308,38,4), ("close-icon",305,38,4), ("help",306,38,4),
+            ("leader-background",30,3,2), ("tab",303,38,4), ("chronicle-input",304,38,4), ("treasure",100,9,4), ("close",308,38,4), ("close-icon",305,38,4), ("help",306,38,4),
             ("tactic-0",104,9,2), ("tactic-1",105,9,2), ("tactic-2",106,9,2), ("tactic-3",112,9,2),
             ("tactic-4",107,9,2), ("tactic-5",108,9,2), ("tactic-6",109,9,2), ("tactic-7",110,9,2), ("tactic-8",111,9,2)
         })
@@ -355,6 +355,10 @@ public static class InterfaceSkinCompiler
         Extra("command-summary-merchant", 1239, bindings[1239] - 311, true);
         Extra("command-summary-training", 1240, bindings[1240] - 311, true);
         Extra("hover-divider", 425, 55, true);
+        // RE-0084: CLogDlg text surface and the full-screen right border.
+        Extra("progress-record-side", 52, bindings[52] - 200, true);
+        foreach (var (part, resource) in new[] { ("top-left", 323), ("top", 324), ("top-right", 325), ("left", 326), ("center", 327), ("right", 328), ("bottom-left", 329), ("bottom", 330), ("bottom-right", 331) })
+            Extra("progress-record-" + part, resource, bindings[resource] - 200, true);
         Extra("information-background", 337, 40);
         Extra("information-summary", 381, 46);
         foreach (var (part, resource) in new[] { ("bottom", 338), ("left", 339), ("right", 340), ("top", 341), ("bottom-left", 342), ("top-left", 343), ("bottom-right", 344), ("top-right", 345), ("ornament", 346) })

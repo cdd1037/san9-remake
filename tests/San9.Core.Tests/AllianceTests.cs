@@ -64,7 +64,9 @@ public sealed class AllianceTests
         List<DomainEvent> events = [];
         AllianceDiplomacy.ForceEliminated(mutation, 4, events);
         Assert.Equal(new[] { 1, 2 }, mutation.Simulation.Alliance!.MemberForceIds);
-        Assert.Single(events.OfType<AllianceMemberRemovedEvent>());
+        var departure = Assert.Single(events.OfType<AllianceMemberRemovedEvent>());
+        Assert.Equal(AllianceRemovalReason.ForceEliminated, departure.Reason);
+        Assert.Contains(4, departure.Alliance.MemberForceIds);
         AllianceDiplomacy.ForceEliminated(mutation, 1, events);
         Assert.Null(mutation.Simulation.Alliance);
         Assert.Equal(AllianceEndReason.InsufficientMembers, Assert.Single(events.OfType<AllianceEndedEvent>()).Reason);

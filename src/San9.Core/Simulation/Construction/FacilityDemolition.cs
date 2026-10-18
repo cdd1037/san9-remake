@@ -4,7 +4,7 @@ namespace San9.Core.Simulation;
 
 public sealed record DemolishFacilityCommand(Guid CommandId, int IssuerId, long Sequence, int SettlementId)
     : GameCommand(CommandId, IssuerId, Sequence);
-public sealed record FacilityDemolishedEvent(GameClock Clock, int SettlementId, int DestinationCityId) : DomainEvent;
+public sealed record FacilityDemolishedEvent(GameClock Clock, int SettlementId, int DestinationCityId, int ForceId, int? FacilityTypeId) : DomainEvent;
 
 internal static class FacilityDemolition
 {
@@ -53,7 +53,7 @@ internal static class FacilityDemolition
             events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, null, "facility-demolished"));
         }
         BattleAftermath.Reconcile(world, new HashSet<int> { command.IssuerId }, rules, events, false);
-        events.Add(new FacilityDemolishedEvent(world.Clock, facility.Id, cityId));
+        events.Add(new FacilityDemolishedEvent(world.Clock, facility.Id, cityId, command.IssuerId, facility.Facility?.TypeId ?? definition.FacilityTypeId));
         return CommandRejection.None;
     }
 }

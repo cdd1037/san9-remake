@@ -6,10 +6,10 @@ namespace San9.Application.Presentation;
 
 public static class ExecutionPresentation
 {
-    public static IReadOnlyList<CommandMessage> Create(StrategySnapshot before, WorldMessageContext context,
+    public static IReadOnlyList<CommandMessage> Create(WorldMessageContext context,
         ExecutionPresentationDefinition definition, PrisonerExecutedEvent result, Func<int,int> random)
     {
-        int ruler = before.World.Forces.Single(f => f.Id == result.ExecutingForceId).LeaderId!.Value;
+        int ruler = result.Occurrence.ExecutingRulerId;
         var announcement = new Dictionary<string,MessageBinding> {
             ["person.0"] = MessageBinding.Reference(MessageEntityKind.Person,ruler),
             ["person.1"] = MessageBinding.Reference(MessageEntityKind.Person,result.OfficerId) };

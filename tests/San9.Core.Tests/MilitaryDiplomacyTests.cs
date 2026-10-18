@@ -121,7 +121,10 @@ public sealed class MilitaryDiplomacyTests
         List<DomainEvent> events = [];
         MilitaryDiplomacy.BeginAdvance(m, new() { Military = Military() }, events);
         Assert.Null(m.Simulation.Alliance);
-        Assert.Equal(AllianceEndReason.Betrayal, Assert.Single(events.OfType<AllianceEndedEvent>()).Reason);
+        var ended = Assert.Single(events.OfType<AllianceEndedEvent>());
+        Assert.Equal(AllianceEndReason.Betrayal, ended.Reason);
+        Assert.Equal(1, ended.BetrayingForceId);
+        Assert.Contains(1, ended.Alliance.MemberForceIds);
     }
 
     [Fact]

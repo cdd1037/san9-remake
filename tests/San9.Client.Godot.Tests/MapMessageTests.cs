@@ -18,7 +18,7 @@ public sealed class MapMessageTests
         var summary = new MapMessageRecord(Guid.NewGuid().ToString("N"), Message("summary"));
         log.Append(detail); log.Append(summary);
         Assert.Equal(summary, Assert.Single(log.Visible));
-        Assert.Equal(2, log.ReadHistory().Rows.Length);
+        Assert.Equal(2, log.Entries.Count);
         log.ReportMode = Settings.ProgressReportMode.Off;
         var hidden = summary with { Id = Guid.NewGuid().ToString("N") }; log.Append(hidden);
         Assert.Equal(summary, Assert.Single(log.Visible));
@@ -31,37 +31,29 @@ public sealed class MapMessageTests
     }
 
     [Fact]
-    public void HistoryUsesCapturedMessagesBeyondVisibleRowsAndPreservesEscapedText()
+    public void HistoryFiltersCapturedPublicationsAndResetsItsViewportWithoutChangingTheLog()
     {
-        var log = new MapMessageLog();
-        var original = new MapMessageRecord(Guid.NewGuid().ToString("N"), Message("[preset=blue-outline]李儒[/preset] [lb]preset=green]"));
-        int changed = 0;
-        log.Changed += () => changed++;
-        log.Append(original); log.Append(original);
-        for (int i = 0; i < 12; i++) log.Append(new(Guid.NewGuid().ToString("N"), Message()));
-        var history = log.ReadHistory();
-        Assert.Equal(13, history.Rows.Length);
-        Assert.Equal(13, changed);
-        Assert.Equal("李儒 [preset=green]", history.Rows[0].Cells[1].Text);
-        Assert.Same(original.Message, log.Entries[history.Rows[0].Key.Id].Message);
-        Assert.DoesNotContain(original, log.Visible);
-    }
-
-    [Fact]
-    public void HistorySortingKeepsMessageIdentityAndOrdersDaysWithinTheSameXun()
-    {
-        var log = new MapMessageLog();
-        log.Append(new(Guid.NewGuid().ToString("N"), new("later", new(190, 1, 3), "[preset=blue-outline]乙[/preset]")));
-        log.Append(new(Guid.NewGuid().ToString("N"), new("earlier", new(190, 1, 2), "[preset=green-outline]甲[/preset]")));
-        var browser = new InformationBrowser();
-        browser.Open(InformationCategory.Records);
-        browser.Order(log.ReadHistory());
-        browser.Sort(0, 2);
-        browser.Sort(0, 2); // Existing table interaction toggles descending first, then ascending.
-        var rows = browser.Order(log.ReadHistory());
-        Assert.Equal("earlier", log.Entries[rows[0].Key.Id].Message.Key);
-        Assert.Equal("190年1月2日", rows[0].Cells[0].Text);
-        Assert.Equal("later", log.Entries[rows[1].Key.Id].Message.Key);
+        var log = new MapMessageLog { ReportMode = Settings.ProgressReportMode.Off };
+        var original = new MapMessageRecord("first", Message("[preset=blue-outline]李儒[/preset] [lb]preset=green]"), new(8, 9));
+        log.Append(original);
+        for (int i = 0; i < 30; i++)
+            log.Append(new($"detail-{i}", Message(), Importance: MapReportImportance.Detailed));
+        var history = new ProgressRecordHistory();
+        history.Refresh(log, log.ReportMode);
+        Assert.Equal(Settings.ProgressReportMode.Detailed, history.Mode);
+        Assert.Equal(31, history.Rows.Length);
+        Assert.Same(original, history.Rows[0]);
+        history.Scroll(int.MaxValue);
+        Assert.Equal(9, history.Offset);
+        history.SelectMode(log, Settings.ProgressReportMode.Summary);
+        Assert.Equal(0, history.Offset);
+        Assert.Same(original, Assert.Single(history.Rows));
+        Assert.Empty(log.Visible);
+        Assert.Equal(31, log.Entries.Count);
+        history.SelectMode(log, Settings.ProgressReportMode.Detailed);
+        history.Scroll(9);
+        history.Refresh(log, Settings.ProgressReportMode.Detailed);
+        Assert.Equal(9, history.Offset);
     }
 
     [Fact]

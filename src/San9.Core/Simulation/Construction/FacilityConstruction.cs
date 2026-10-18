@@ -12,7 +12,9 @@ public sealed record ConstructFacilityCommand(Guid CommandId, int IssuerId, long
     [JsonRequired] public WorldPosition? Waypoint { get; init; }
 }
 public sealed record FacilityConstructionChangedEvent(GameClock Clock, int SettlementId, int UnitId, string Phase,
-    int Durability) : DomainEvent;
+    int Durability, [property: JsonRequired] FacilityOccurrence? Occurrence) : DomainEvent;
+
+public sealed record FacilityOccurrence(int ForceId, int FacilityTypeId, int CityId, WorldPosition Position);
 
 internal static class FacilityConstruction
 {
@@ -30,7 +32,7 @@ internal static class FacilityConstruction
             rules.Treasures, events, UnitPurpose.Construction);
         if (rejection != CommandRejection.None) return rejection;
         ResourceAccounts.Change(world, preparation.Account, ResourceKind.Money, -preparation.Cost, "facility-construction", command.RegionId, events, true);
-        events.Add(new FacilityConstructionChangedEvent(world.Clock, command.RegionId, unitId, "ordered", 0));
+        events.Add(new FacilityConstructionChangedEvent(world.Clock, command.RegionId, unitId, "ordered", 0, new(command.IssuerId, command.FacilityTypeId, rules.Personnel.RegionCities[command.RegionId], command.Position)));
         return CommandRejection.None;
     }
 
@@ -76,7 +78,7 @@ internal static class FacilityConstruction
         {
             world.Replace(place with { IsDestroyed = true, OwnerId = null, CorpsId = null, Durability = 0, Soldiers = 0,
                 Wounded = 0, Morale = 0, ConfusionDaysRemaining = 0, Facility = place.Facility! with { BuilderUnitId = null } });
-            events.Add(new FacilityConstructionChangedEvent(world.Clock, place.Id, unitId, "cancelled", 0));
+            events.Add(new FacilityConstructionChangedEvent(world.Clock, place.Id, unitId, "cancelled", 0, null));
             foreach (var other in world.Units.Values.Where(u => u.Order?.SettlementId == place.Id).ToArray())
             {
                 world.Replace(other with { Order = null, AwaitingPostAction = other.Order!.IsAttack });
@@ -136,7 +138,7 @@ internal static class FacilityConstruction
                     Facility = new(type.Id, plan.Position, id)
                 };
                 if (existing is null) world.AddSettlement(place); else world.Replace(place);
-                events.Add(new FacilityConstructionChangedEvent(world.Clock, place.Id, id, "started", durability));
+                events.Add(new FacilityConstructionChangedEvent(world.Clock, place.Id, id, "started", durability, new(unit.OwnerId, type.Id, rules.Personnel.RegionCities[plan.RegionId], plan.Position)));
                 Grow(world, unit, type, military, true, events);
                 continue;
             }
@@ -145,7 +147,7 @@ internal static class FacilityConstruction
             bool complete = next == existing.MaxDurability;
             world.Replace(existing with { Durability = next, CanHostPersons = complete && type.CanHostPersons,
                 Facility = existing.Facility! with { BuilderUnitId = complete ? null : id } });
-            events.Add(new FacilityConstructionChangedEvent(world.Clock, existing.Id, id, complete ? "completed" : "progress", next));
+            events.Add(new FacilityConstructionChangedEvent(world.Clock, existing.Id, id, complete ? "completed" : "progress", next, new(unit.OwnerId, type.Id, rules.Personnel.RegionCities[plan.RegionId], plan.Position)));
             Grow(world, unit, type, military, complete, events);
             if (!complete) continue;
             unit = world.Units[id] with { Order = null };

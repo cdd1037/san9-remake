@@ -69,8 +69,41 @@ public sealed class AttackRequestTests
         world.Replace(world.Settlements[30] with { OwnerId = 4 });
         Assert.False(AttackRequests.Fulfill(world, 1, 30, events));
         AttackRequests.Cleanup(world, events);
-        Assert.Equal(AttackRequestEndReason.Invalidated, Assert.Single(events.OfType<AttackRequestEndedEvent>()).Reason);
+        Assert.Equal(AttackRequestEndReason.TargetOwnerChanged, Assert.Single(events.OfType<AttackRequestEndedEvent>()).Reason);
         Assert.Equal(100, world.Forces[1].BaseTrust);
+        Assert.Equal(70, MilitaryDiplomacy.Relation(world, 1, 2));
+    }
+
+    [Theory]
+    [InlineData(AttackRequestEndReason.TargetOwnerChanged)]
+    [InlineData(AttackRequestEndReason.TargetDestroyed)]
+    [InlineData(AttackRequestEndReason.RequestedForceEliminated)]
+    [InlineData(AttackRequestEndReason.RequesterForceEliminated)]
+    [InlineData(AttackRequestEndReason.TargetForceEliminated)]
+    public void InvalidationCapturesItsCauseOnceBeforeLaterWorldChanges(AttackRequestEndReason expected)
+    {
+        var world = World();
+        List<DomainEvent> events = [];
+        AttackRequests.Establish(world, 1, 2, 30, events);
+        if (expected == AttackRequestEndReason.TargetOwnerChanged)
+            world.Replace(world.Settlements[30] with { OwnerId = 4 });
+        else if (expected == AttackRequestEndReason.TargetDestroyed)
+            world.Replace(world.Settlements[30] with { IsDestroyed = true, OwnerId = null });
+        else
+        {
+            int force = expected == AttackRequestEndReason.RequestedForceEliminated ? 1
+                : expected == AttackRequestEndReason.RequesterForceEliminated ? 2 : 3;
+            world.Replace(world.Forces[force] with { IsEliminated = true });
+        }
+        AttackRequests.Cleanup(world, events);
+        Assert.Empty(world.Simulation.AttackRequests);
+        world.Replace(world.Forces[1] with { IsEliminated = true });
+        world.Replace(world.Settlements[30] with { OwnerId = 4, IsDestroyed = false });
+        AttackRequests.Cleanup(world, events);
+        var ended = Assert.Single(events.OfType<AttackRequestEndedEvent>());
+        Assert.Equal(expected, ended.Reason);
+        Assert.Null(ended.LiableForceId);
+        Assert.All(world.Forces.Values, force => Assert.Equal(100, force.BaseTrust));
         Assert.Equal(70, MilitaryDiplomacy.Relation(world, 1, 2));
     }
 

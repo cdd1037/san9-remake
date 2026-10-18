@@ -11,7 +11,7 @@ internal sealed partial class WorldEventSceneBuilder
         {
             case AllianceEndedEvent ended when ended.Reason is not (AllianceEndReason.SubjugationSucceeded or AllianceEndReason.Betrayal):
                 clock = ended.Clock; Force("target-force", ended.TargetForceId);
-                if (AllianceAtOccurrence() is { } alliance) Force("leader-force", alliance.LeaderForceId);
+                Force("leader-force", ended.Alliance.LeaderForceId);
                 Message(ended.Reason switch
                 {
                     AllianceEndReason.LeaderEliminated => "alliance-leader-defeated",

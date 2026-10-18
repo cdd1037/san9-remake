@@ -3,7 +3,11 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public enum AttackRequestEndReason { Fulfilled, Expired, Broken, Invalidated, AllianceRealignment }
+public enum AttackRequestEndReason
+{
+    Fulfilled, Expired, Broken, AllianceRealignment,
+    RequestedForceEliminated, RequesterForceEliminated, TargetForceEliminated, TargetDestroyed, TargetOwnerChanged
+}
 public sealed record AttackRequestEstablishedEvent(GameClock Clock, AttackRequestState Request) : DomainEvent;
 public sealed record AttackRequestEndedEvent(GameClock Clock, AttackRequestState Request,
     AttackRequestEndReason Reason, int? LiableForceId) : DomainEvent;
@@ -100,7 +104,15 @@ internal static class AttackRequests
     internal static void Cleanup(WorldMutation world, List<DomainEvent> events)
     {
         foreach (var request in world.Simulation.AttackRequests.Where(r => !Valid(world, r)).ToArray())
-            End(world, request, AttackRequestEndReason.Invalidated, null, events);
+        {
+            var reason = !Alive(world, request.RequestedForceId) ? AttackRequestEndReason.RequestedForceEliminated
+                : !Alive(world, request.RequesterForceId) ? AttackRequestEndReason.RequesterForceEliminated
+                : world.Settlements.GetValueOrDefault(request.TargetSettlementId) is not { IsDestroyed: false } ? AttackRequestEndReason.TargetDestroyed
+                : world.Settlements[request.TargetSettlementId].OwnerId != request.TargetForceId ? AttackRequestEndReason.TargetOwnerChanged
+                : !Alive(world, request.TargetForceId) ? AttackRequestEndReason.TargetForceEliminated
+                : throw new InvalidOperationException("Invalid attack request has no world-state cause.");
+            End(world, request, reason, null, events);
+        }
     }
 
     private static void End(WorldMutation world, AttackRequestState request, AttackRequestEndReason reason, int? liable, List<DomainEvent> events)

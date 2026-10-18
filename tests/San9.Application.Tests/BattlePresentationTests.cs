@@ -305,6 +305,8 @@ public sealed class BattlePresentationTests
         }));
         var messages = roles.Skip(17).ToDictionary(r => r, r => new DecisionMessageDefinition(r, [], r switch
         { "announcement" or "action" => "actor", "hit" or "united" or "defensive" => "target-commander", _ => "responder" }));
+        texts.Messages["activation-other"] = new([new MessageLiteral("activation-other")]);
+        common.Add("activation-other", new("activation-other", []));
         BattleSprite sprite = new("sheet", 8, 100);
         BattleZoomBody body = new(sprite, sprite, sprite, null)
         { Formation = [new(200, 300, 24, 12, 3, 0)], BlockPoints = [new(500, 200), new(600, 250), new(700, 300)] };
@@ -496,13 +498,17 @@ public sealed class BattlePresentationTests
     }
 
     [Fact]
-    public void UnrelatedComputerBattleDoesNotDiscloseMessagesOrEffects()
+    public void ComputerBattleRetainsADetailedReportWithoutPlayerScenesOrEffects()
     {
         var (session, texts, content, occurrence) = Fixture();
         occurrence = occurrence with { Source = occurrence.Source with { ForceId = 3 } };
         var fact = new TacticActivatedEvent(session.Snapshot.Clock, 10, false, 20, false, 99, [3], false, 10) { Occurrence = occurrence };
         var plan = BattlePresentationPlan.Create(session.View, session.View, [fact], session.Messages(texts), texts, content);
-        Assert.Empty(plan.Messages); Assert.Empty(plan.Visuals); Assert.Equal(0, plan.Duration);
+        Assert.Empty(plan.Messages); Assert.Empty(plan.Visuals);
+        var report = Assert.Single(plan.Records).Record;
+        Assert.Equal("activation-other", report.Message.Key);
+        Assert.Equal(MapReportImportance.Detailed, report.Importance);
+        Assert.Null(report.ForceColorCode);
     }
 
     [Theory]

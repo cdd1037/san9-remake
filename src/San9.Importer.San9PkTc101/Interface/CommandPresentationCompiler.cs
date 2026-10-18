@@ -39,6 +39,7 @@ internal static class CommandPresentationCompiler
             Missions = MissionPresentationCompiler.Compile(),
             Progress = ExecutionPresentationCompiler.Compile(),
             Events = EventPresentationCompiler.Compile(people),
+            Chronicle = ChroniclePresentationCompiler.Compile(),
             Demolition = new(Key(6023), Key(5588), Key(5591), "demolition-result"),
             TreasureTransfer = new(Key(5535), Key(5574), Key(5542), Key(5788), Key(5575), Key(7176), Key(7177), Key(7407), "reward-result", "loyalty-decrease"),
             Execution = new(Person(669), Key(5753), Key(5468), Key(5754), "execution-result"),

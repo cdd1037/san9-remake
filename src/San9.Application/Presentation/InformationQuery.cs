@@ -3,17 +3,10 @@ using San9.Core.Domain;
 
 namespace San9.Application.Presentation;
 
-public sealed class InformationQuery(GameSession session, TextCatalog texts)
+public sealed class InformationQuery(GameSession session, TextCatalog texts, San9.Content.Interface.ChroniclePresentationDefinition? chronicle = null)
 {
     public static IReadOnlyList<InformationCategory> MenuCategories { get; } = Array.AsReadOnly(Enum.GetValues<InformationCategory>().Where(c => !ForceCapabilityCatalog.Supports(c)).ToArray());
     private StrategySnapshot View => session.View;
-    private string Name(string key) => texts.Resolve(key);
-    private string Force(int? id) => View.Forces.FirstOrDefault(f => f.Id == id) is { } f ? Name(f.NameKey) : "无";
-    private string Person(int? id) => View.Officers.FirstOrDefault(o => o.Id == id) is { } o ? Name(o.NameKey) : "无";
-    private string Place(int? id) => View.Settlements.FirstOrDefault(s => s.Id == id) is { } s ? s.ResolveName(texts)
-        : id is int region && View.RegionNameKeys.TryGetValue(region, out string? key) ? Name(key) : "无";
-    private string Rank(int? id) => View.Information.Ranks.FirstOrDefault(r => r.Id == id) is { } r ? Name(r.NameKey) : "无";
-    private string Office(int? id) => View.Information.Offices.FirstOrDefault(o => o.Id == id) is { } o ? Name(o.NameKey) : "无";
     public static string Status(OfficerStatus status) => status switch
     { OfficerStatus.Ruler => "君主", OfficerStatus.Governor => "都督", OfficerStatus.Strategist => "军师", OfficerStatus.Serving => "一般", OfficerStatus.Captive => "俘虏", OfficerStatus.Free => "在野", _ => throw new ArgumentOutOfRangeException(nameof(status)) };
     public static string MenuTitle(InformationCategory category) => category switch
@@ -40,7 +33,6 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
         var v = View;
         if (ForceCapabilityCatalog.Supports(category)) return ForceCapabilityCatalog.Read(session, texts, category, force ?? throw new ArgumentException("A force catalog requires an owner."), page);
         if (AdministrativeCatalog.Supports(category)) return new AdministrativeCatalog(v, texts).Read(category, page, force, settlement, corps, region);
-        InformationRow Row(int id, CatalogCell[] cells, int? location = null) => new(new(category, id), cells, location);
         switch (category)
         {
             case InformationCategory.Units:
@@ -49,25 +41,12 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts)
                 return OfficerCatalog.Read(v, texts, page, force, settlement, officer, corps, region, unit);
             case InformationCategory.Treasures:
                 return TreasureCatalog.Read(v, texts, force: force, settlement: settlement);
-            case InformationCategory.Records:
-                return new("进行记录", ["记录"], ["日期", "内容"], session.Records.Select((r, i) => Row(i,
-                    [$"{r.Clock.Year}年{r.Clock.Month}月{(int)r.Clock.Xun}旬", $"{Person(r.OfficerId)}在{Place(r.SettlementId)}执行{(r.Activity == DomesticActivity.Commerce ? "商业" : "开垦")}，增加{r.Increment}，支出{r.Cost}。"], r.SettlementId)).ToArray());
-            case InformationCategory.Chronicle:
-            {
-                var initial = session.InitialView;
-                var ruler = initial.Forces.Single(f => f.Id == initial.PlayerForceId);
-                var rows = new List<InformationRow>
-                {
-                    Row(0, [$"{session.InitialDate}", $"{Rank(ruler.RankId)} {Name(ruler.NameKey)}统治{Place(ruler.LeaderSettlementId)}周边。"], ruler.LeaderSettlementId)
-                };
-                var strategist = initial.World.Officers.FirstOrDefault(o => o.OwnerId == ruler.Id && o.Status == OfficerStatus.Strategist);
-                if (strategist is not null) rows.Add(Row(1, [session.InitialDate, $"{Person(strategist.Id)}辅佐{Name(ruler.NameKey)}担任军师。"], strategist.SettlementId));
-                rows.AddRange(session.Chronicle.Select((e, i) => Row(i + 2, [$"{e.Year}年{e.Month}月{e.Day}日", e.Text])));
-                return new($"{Name(ruler.NameKey)}军年表", ["年表"], ["日期", "内容"], rows.ToArray());
-            }
             default: throw new ArgumentOutOfRangeException(nameof(category));
         }
     }
+
+    public ChroniclePresentation ReadChronicle() => ChroniclePresentation.Read(session, texts, chronicle ?? throw new InvalidOperationException("Missing chronicle presentation."));
+    public string JournalHint(string role) => ChroniclePresentation.Hint(session, texts, chronicle ?? throw new InvalidOperationException("Missing chronicle presentation."), role);
 
     public UnitDetailData UnitDetail(int id) => UnitDetails.Read(View, session.MilitaryRules, texts, id);
 

@@ -16,6 +16,7 @@ public sealed partial class GameSession
         var simulation = _simulation;
         var records = _records.ToArray();
         var chronicle = _chronicle.ToArray();
+        var history = History;
         var sequence = NextOperationSequence;
         var ending = _ending;
         _executing = true;
@@ -24,7 +25,7 @@ public sealed partial class GameSession
             // Apply branches the shared committed runtime once, before making any changes.
             var worker = new GameSession(_definition, simulation)
             { NextOperationSequence = sequence, _ending = ending, _originalAi = _originalAi,
-                _strategicContext = _strategicContext, PlayerForceController = PlayerForceController };
+                _strategicContext = _strategicContext, PlayerForceController = PlayerForceController, History = history };
             worker._records.AddRange(records);
             worker._chronicle.AddRange(chronicle);
             var result = worker.Apply(request);
@@ -71,6 +72,7 @@ public sealed partial class GameSession
                 {
                     _owner._simulation = worker._simulation;
                     _owner._view = worker._view;
+                    _owner.History = worker.History;
                     _owner._ending = worker._ending;
                     _owner._strategicContext = worker._strategicContext;
                     _owner._originalAi = worker._originalAi;

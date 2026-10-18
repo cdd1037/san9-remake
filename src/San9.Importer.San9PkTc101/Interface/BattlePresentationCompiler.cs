@@ -95,6 +95,7 @@ internal static class BattlePresentationCompiler
             Report(role, id, ("person.0", "actor"), ("unit.0", "source"), ("unit.1", "target"), ("tactic.0", "tactic"));
         foreach (var (role, id) in new[] { ("chain-own", 10102), ("chain-enemy", 10103) })
             Report(role, id, ("person.0", "actor"), ("unit.0", "target"), ("tactic.0", "tactic"));
+        Report("activation-other", 9972, ("force.0", "force"), ("unit.0", "source"), ("tactic.0", "tactic"));
         Report("support", 10083, ("person.0", "actor"), ("unit.0", "source"), ("tactic.0", "tactic"));
         Report("link", 9973, ("person.0", "actor"), ("tactic.0", "tactic"));
         Report("blocked", 9974, ("person.0", "responder"));

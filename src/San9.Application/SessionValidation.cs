@@ -9,7 +9,7 @@ internal static class SessionValidation
     {
         if (!snapshot.World.Simulation.CanPersist)
             throw new ArgumentException("Session is not at a save boundary.");
-        if (snapshot.Records.IsDefault || snapshot.Chronicle.IsDefault || snapshot.Records.Length > GameSession.RecentRecordLimit ||
+        if (snapshot.Records.IsDefault || snapshot.Chronicle.IsDefault || snapshot.History.IsDefault || snapshot.Records.Length > GameSession.RecentRecordLimit ||
             snapshot.NextOperationSequence < 0)
             throw new ArgumentException("Missing session state.");
         if (!Enum.IsDefined(snapshot.PlayerForceController)) throw new ArgumentException("Invalid player force controller.");
@@ -120,6 +120,27 @@ internal static class SessionValidation
                 !Enum.IsDefined(record.Activity) || record.Increment < 0 || record.Cost < 0)
                 throw new ArgumentException("Invalid recent development record.");
             previousDay = record.Clock.DayNumber;
+        }
+        previousDay = snapshot.World.Simulation.Started.DayNumber;
+        foreach (var fact in snapshot.History)
+        {
+            if (fact is null || fact.Clock.DayNumber < previousDay || fact.Clock.DayNumber > snapshot.World.Clock.DayNumber ||
+                !snapshot.World.Forces.Any(f => f.Id == fact.ForceId) ||
+                !San9.Content.Interface.ChroniclePresentationDefinition.MessageRoles.Contains(fact.Role) ||
+                fact.ForceColorCode is < 0 or > 50 || fact.Values is null || fact.TextKeys is null ||
+                fact.TextKeys.Any(v => string.IsNullOrWhiteSpace(v.Key) || string.IsNullOrWhiteSpace(v.Value)))
+                throw new ArgumentException("Invalid chronicle fact.");
+            foreach (var value in fact.Values.Values)
+            {
+                if (value is null || value.Entity is { } entity && !(entity.Kind switch
+                {
+                    San9.Content.Text.MessageEntityKind.Person => snapshot.World.Officers.Any(p => p.Id == entity.Id),
+                    San9.Content.Text.MessageEntityKind.Settlement => snapshot.World.Settlements.Any(p => p.Id == entity.Id),
+                    San9.Content.Text.MessageEntityKind.Force => snapshot.World.Forces.Any(p => p.Id == entity.Id),
+                    _ => false
+                })) throw new ArgumentException("Invalid chronicle reference.");
+            }
+            previousDay = fact.Clock.DayNumber;
         }
         previousDay = snapshot.World.Simulation.Started.DayNumber;
         foreach (var note in snapshot.Chronicle)

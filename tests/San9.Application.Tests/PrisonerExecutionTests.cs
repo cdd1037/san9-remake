@@ -47,7 +47,10 @@ public sealed class PrisonerExecutionTests
         var result = session.Execute(new("player"), command);
         Assert.True(result.Submission.Accepted);
         Assert.Equal(OfficerDeathCause.Execution, Assert.Single(result.Events.OfType<OfficerDiedEvent>()).Cause);
-        Assert.Single(result.Events.OfType<PrisonerExecutedEvent>());
+        var executed = Assert.Single(result.Events.OfType<PrisonerExecutedEvent>());
+        Assert.Equal(new(2, false, 1, PrisonerExecutionPath.StrategicCommand), executed.Occurrence);
+        Assert.Contains(session.History, f => f.Role == "execution-local" && f.ForceId == 2);
+        Assert.DoesNotContain(session.History, f => f.Role == "execution");
         Assert.Equal(75, session.Snapshot.Officers.Single(p => p.Id == 4).LoyaltyTo(1));
         Assert.Equal(70, session.Snapshot.Officers.Single(p => p.Id == 5).LoyaltyTo(1));
         Assert.Equal(0, session.Snapshot.Officers.Single(p => p.Id == 6).LoyaltyTo(1));
@@ -83,6 +86,10 @@ public sealed class PrisonerExecutionTests
         var result = session.Execute(new("player"), new ExecutePrisonerCommand(Guid.NewGuid(), 1, 0, 7));
         Assert.True(result.Submission.Accepted);
         Assert.Null(session.GetExecutionSuccessionPrompt());
+        var executed = Assert.Single(result.Events.OfType<PrisonerExecutedEvent>());
+        Assert.Equal(new(2, true, 1, PrisonerExecutionPath.StrategicCommand), executed.Occurrence);
+        Assert.Contains(session.History, f => f.Role == "execution-local" && f.ForceId == 2);
+        Assert.DoesNotContain(session.History, f => f.Role == "execution");
         var force = session.Snapshot.Forces.Single(f => f.Id == 2);
         Assert.Equal(last, force.IsEliminated);
         if (last)

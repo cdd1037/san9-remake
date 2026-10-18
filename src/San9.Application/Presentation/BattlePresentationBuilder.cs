@@ -257,7 +257,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
         else return;
         _impact = _cursor;
         if (occurrence is not null) Capture(occurrence.Source, occurrence.Target);
-        if (occurrence is null || !Visible(occurrence) || !battle.Tactics.TryGetValue(tacticId, out var definition)) return;
+        if (occurrence is null || !battle.Tactics.TryGetValue(tacticId, out var definition)) return;
         var source = occurrence.Source; var target = occurrence.Target;
         var occurrenceContext = context.AtOccurrence(clock, source.Id == target.Id && source.IsSettlement == target.IsSettlement ? [source] : [source, target]);
         Dictionary<string, MessageBinding> values = new()
@@ -274,12 +274,12 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             ["damage"] = new(0)
         };
         if (target.ForceId is int targetForce) values["target-force"] = ProgressMessageProducer.Force(targetForce);
-        void AddRecord(string role, DecisionMessageDefinition message, double time, BattleObjectContext location, int? colorForce)
+        void AddRecord(string role, DecisionMessageDefinition message, double time, BattleObjectContext location, int? colorForce, MapReportImportance importance = MapReportImportance.Summary)
         {
             var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision, $"battle:{_index}:{role}:{_messages.Count + _records.Count}"));
             var produced = ProgressMessageProducer.Produce(message, occurrenceContext, texts, values, n => (int)(random.NextUInt64() % (ulong)n));
             var id = Identity($"{role}:{_messages.Count + _records.Count}");
-            _records.Add(new(time, new(id, produced.Message, Location(location), MapRecordColors.Resolve(before, after, colorForce)), produced.SoundRole));
+            _records.Add(new(time, new(id, produced.Message, Location(location), MapRecordColors.Resolve(before, after, colorForce), importance), produced.SoundRole));
         }
         void Add(string role, DecisionMessageDefinition message, double time, BattleMessageChannel channel, bool atSource = false)
         {
@@ -294,6 +294,15 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
                     texts.Resolve(before.MessageSpeaker(speaker).NameKey), Location(obj), obj.IsSettlement ? null : obj.Id, color)
                 };
             _messages.Add(new(id, time, produced, channel));
+        }
+        if (!Visible(occurrence))
+        {
+            if (fact is TacticActivatedEvent && !definition.Support)
+            {
+                AddRecord("activation-other", battle.Messages["activation-other"], _cursor, source, null, MapReportImportance.Detailed);
+                _cursor += 1;
+            }
+            return;
         }
         if (fact is TacticActivatedEvent active)
         {

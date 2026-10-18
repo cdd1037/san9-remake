@@ -5,7 +5,7 @@ namespace San9.Content.Interface;
 public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dictionary<string,string> Roles, Dictionary<string,string> Colors,
     Dictionary<string, CursorDefinition> Cursors)
 {
-    public const int CurrentSchemaVersion = 52;
+    public const int CurrentSchemaVersion = 54;
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<int, TargetMarkerOffset> BuildingTargetOffsets { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired]
@@ -40,7 +40,9 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         .Concat(new[] { "left", "middle", "right" }.SelectMany(p => new[] { "information-title-" + p, "information-footer-" + p }))
         .Concat(Enumerable.Range(0, 51).SelectMany(c => Enumerable.Range(0, 4).Select(f => $"information-map-force-{c}" + (f == 0 ? "" : $"-{f}"))))
         .Concat(Enumerable.Range(0, 4).Select(f => "information-map-city" + (f == 0 ? "" : $"-{f}")))
-        .Concat(new[] { "information-summary", "information-map-selected" })
+        .Concat(Enumerable.Range(0, 4).Select(f => "detail-chronicle-input" + (f == 0 ? "" : $"-{f}")))
+        .Concat(new[] { "information-summary", "information-map-selected", "progress-record-side" })
+        .Concat(new[] { "top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right" }.Select(p => "progress-record-" + p))
         .Concat(new[] { "left", "middle", "right", "close", "map-left", "map-middle", "map-right" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => "information-action-" + p + (f == 0 ? "" : $"-{f}"))))
         .Concat(new[] { "catalog-checkbox", "catalog-accept-left", "catalog-accept-middle", "catalog-accept-right", "catalog-bulk-left", "catalog-bulk-middle", "catalog-bulk-right", "catalog-header-left", "catalog-header-middle", "catalog-header-right", "catalog-row-left", "catalog-row-middle", "catalog-row-right", "catalog-help", "catalog-scroll-up", "catalog-scroll-down" }
             .SelectMany(p => Enumerable.Range(0,4).Select(f => p + (f == 0 ? "" : $"-{f}"))))

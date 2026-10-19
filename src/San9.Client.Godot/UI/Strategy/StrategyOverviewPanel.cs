@@ -21,6 +21,7 @@ public partial class StrategyOverviewPanel : FixedPage
     private MinimapGeometry Geometry => Service.OverviewMap.Geometry;
     private TextureScope Textures => _scope!;
     private static readonly Vector2 Origin = new(40, 71);
+    private readonly Node2D _viewport = new();
     private readonly Dictionary<OverviewLayer, StrategyButton> _buttons = [];
     private IReadOnlyList<ForceRankingColumn> _rankings = [];
     private long _revision = -1;
@@ -40,7 +41,9 @@ public partial class StrategyOverviewPanel : FixedPage
     public override void _Ready()
     {
         Name = "StrategyOverview"; Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
-        World.ViewportPresentationChanged += QueueRedraw;
+        _viewport.Draw += DrawViewport;
+        AddChild(_viewport);
+        World.ViewportPresentationChanged += _viewport.QueueRedraw;
     }
     private void BuildButtons()
     {
@@ -81,6 +84,7 @@ public partial class StrategyOverviewPanel : FixedPage
             _scope.RequestPrefixes("overview-background", "overview-terrain", "overview-ranking", "overview-marker-", "overview-facility-", "overview-unit-", "button-overview-");
             _map ??= new(Service, Skin);
             BuildButtons();
+            _viewport.QueueRedraw();
         }
         foreach (var pair in _buttons)
         {
@@ -102,7 +106,8 @@ public partial class StrategyOverviewPanel : FixedPage
 
     public override void _ExitTree()
     {
-        World.ViewportPresentationChanged -= QueueRedraw;
+        World.ViewportPresentationChanged -= _viewport.QueueRedraw;
+        _viewport.Draw -= DrawViewport;
         _scope?.Dispose(); _map?.Dispose();
     }
 
@@ -145,7 +150,6 @@ public partial class StrategyOverviewPanel : FixedPage
                 int color = view.Forces.Single(f => f.Id == unit.OwnerId).ColorCode;
                 if (color < 50) DrawTexture(Textures[$"overview-unit-{color}"],p-new Vector2(4,4));
             }
-        DrawViewport();
         DrawTexture(Textures["overview-ranking"], new(56,529));
         DrawText("势力排行榜", new(80, 540), 240, 24, new Color("f8f850"));
         string[] titles = ["信望", "都市", "武将", "士兵"];
@@ -179,10 +183,11 @@ public partial class StrategyOverviewPanel : FixedPage
     }
     private void DrawViewport()
     {
+        if (!State.IsOpen || _scope is null) return;
         var half = World.ViewportSize / (2 * World.ZoomFactor);
         var a = Geometry.FromWorld(World.CameraPosition.X-half.X, World.CameraPosition.Y-half.Y);
         var b = Geometry.FromWorld(World.CameraPosition.X+half.X, World.CameraPosition.Y+half.Y);
         var points = Geometry.ClipViewport(a.U,a.V,b.U,b.V).Select(p => Origin + new Vector2((float)p.U*800,(float)p.V*400)).ToArray();
-        if (points.Length > 2) DrawPolyline([..points,points[0]],Colors.White,1);
+        if (points.Length > 2) _viewport.DrawPolyline([..points,points[0]],Colors.White,1);
     }
 }

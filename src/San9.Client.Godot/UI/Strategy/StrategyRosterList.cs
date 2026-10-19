@@ -28,7 +28,7 @@ public partial class StrategyRosterList : Control
             AddChild(row); _rows.Add(row);
             row.Pressed += () => { if (row.EntryKey is RosterKey key) Activated?.Invoke(key); };
         }
-        _decoration = new TextureRect { Texture = Textures["roster-scroll-decoration"],
+        _decoration = new TextureRect { Texture = Textures.Get("roster-scroll-decoration", this),
             Position = new(100, 0), MouseFilter = MouseFilterEnum.Ignore };
         AddChild(_decoration);
         _scroll = new SkinnedScrollBar { Skin = ScrollBarSkin.FromInterface(Textures),

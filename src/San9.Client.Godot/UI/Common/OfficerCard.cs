@@ -34,7 +34,7 @@ public partial class OfficerCard : Control
             AddChild(new AsyncPortrait { Service = Service, Role = officer.PortraitRole,
                 View = San9.Content.Images.PortraitView.Face, Position = new(7,28), Size = new(64,80), MouseFilter = MouseFilterEnum.Ignore });
             AddChild(new OfficerAbilityRadar { Abilities = officer.Abilities, Position = new(107,43), Scale = new(52f/164,52f/164) });
-            AddChild(new TextureRect { Texture = Textures["detail-leader-radar-grid"], Position = new(107,43), MouseFilter = MouseFilterEnum.Ignore });
+            AddChild(new TextureRect { Texture = Textures.Get("detail-leader-radar-grid", this), Position = new(107,43), MouseFilter = MouseFilterEnum.Ignore });
             CommandPanelArt.Label(this, _text, "统率", new(116,27,32,16), new Color("f8f850"));
             CommandPanelArt.Label(this, _text, "武力", new(76,60,32,16), new Color("e85440"));
             CommandPanelArt.Label(this, _text, "智力", new(116,94,32,16), new Color("60d868"));
@@ -43,15 +43,15 @@ public partial class OfficerCard : Control
         QueueRedraw();
     }
 
-    public override void _Draw() => DrawTexture(Textures[Officer is null ? "detail-leader-background-1" : "detail-leader-background"], Vector2.Zero);
+    public override void _Draw() => DrawTexture(Textures.Get(Officer is null ? "detail-leader-background-1" : "detail-leader-background", this), Vector2.Zero);
     public override void _ExitTree() => _text.Dispose();
 }
 
 internal static class CommandPanelArt
 {
-    public static StyleBoxTexture Field(TextureScope textures) => new()
+    public static StyleBoxTexture Field(TextureScope textures, CanvasItem canvas) => new()
     {
-        Texture = textures["deployment-field"], TextureMarginLeft = 16, TextureMarginRight = 16,
+        Texture = textures.Get("deployment-field", canvas), TextureMarginLeft = 16, TextureMarginRight = 16,
         TextureMarginTop = 8, TextureMarginBottom = 8,
         AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile, AxisStretchVertical = StyleBoxTexture.AxisStretchMode.Tile
     };
@@ -68,25 +68,25 @@ internal static class CommandPanelArt
 
     public static void Strip(CanvasItem canvas, TextureScope textures, string role, Rect2 bounds)
     {
-        var left = textures[role+"-left"];
-        var right = textures[role+"-right"];
+        var left = textures.Get(role+"-left", canvas);
+        var right = textures.Get(role+"-right", canvas);
         if (role == "deployment-mode")
         {
             // Mode label endcaps contain eight transparent pixels outside the visible bounds.
             float l = left.GetWidth()-8, r = right.GetWidth()-8;
             canvas.DrawTextureRectRegion(left, new(bounds.Position, new(l,bounds.Size.Y)), new(8,0,l,left.GetHeight()));
-            SkinPainter.Tile(canvas, textures[role+"-middle"], new(bounds.Position+new Vector2(l,0), new(bounds.Size.X-l-r,bounds.Size.Y)));
+            SkinPainter.Tile(canvas, textures.Get(role+"-middle", canvas), new(bounds.Position+new Vector2(l,0), new(bounds.Size.X-l-r,bounds.Size.Y)));
             canvas.DrawTextureRectRegion(right, new(new Vector2(bounds.End.X-r,bounds.Position.Y), new(r,bounds.Size.Y)), new(0,0,r,right.GetHeight()));
             return;
         }
-        SkinPainter.Strip(canvas, left, textures[role+"-middle"], right, bounds);
+        SkinPainter.Strip(canvas, left, textures.Get(role+"-middle", canvas), right, bounds);
     }
 
     public static void ColumnRule(CanvasItem canvas, TextureScope textures, Vector2 position, float height)
     {
-        var top = textures["deployment-column-top"];
-        var middle = textures["deployment-column-middle"];
-        var bottom = textures["deployment-column-bottom"];
+        var top = textures.Get("deployment-column-top", canvas);
+        var middle = textures.Get("deployment-column-middle", canvas);
+        var bottom = textures.Get("deployment-column-bottom", canvas);
         canvas.DrawTexture(top, position);
         SkinPainter.Tile(canvas, middle, new(position+new Vector2(0,top.GetHeight()), new(2,height-top.GetHeight()-bottom.GetHeight())));
         canvas.DrawTexture(bottom, position+new Vector2(0,height-bottom.GetHeight()));

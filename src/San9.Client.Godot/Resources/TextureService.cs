@@ -106,14 +106,8 @@ public partial class TextureService : Node
     public TextureScope CreateScope(IReadOnlyDictionary<string, ImageAsset>? assets = null, bool prefetch = false, CanvasItem? owner = null)
     {
         var scope = new TextureScope(this, assets ?? Roles, prefetch);
-        if (owner is not null) scope.Changed += () => Redraw(owner);
+        if (owner is not null) scope.BindRedraw(owner);
         _scopes.Add(scope); return scope;
-    }
-    private static void Redraw(Node node)
-    {
-        if (!GodotObject.IsInstanceValid(node) || !node.IsInsideTree()) return;
-        if (node is CanvasItem canvas) canvas.QueueRedraw();
-        foreach (var child in node.GetChildren()) Redraw(child);
     }
     public bool ActiveReady => _scopes.All(s => s.IsReady);
     public Exception? ActiveError => _scopes.Select(s => s.Error).FirstOrDefault(e => e is not null);

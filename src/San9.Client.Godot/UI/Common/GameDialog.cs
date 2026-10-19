@@ -37,7 +37,7 @@ public partial class GameDialog : Control
         AddChild(center);
         _style = new StyleBoxTexture
         {
-            Texture = Textures["dialog-frame"],
+            Texture = Textures.Get("dialog-frame", this),
             TextureMarginLeft = 96, TextureMarginRight = 96,
             TextureMarginTop = 56, TextureMarginBottom = 56,
             AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile,
@@ -116,7 +116,7 @@ public partial class GameDialog : Control
 
     private StrategyButton Button(string kind, GameButtonTextRole role, Action action)
     {
-        var frames = Enumerable.Range(0, 4).Select(frame => Textures[$"dialog-{kind}-{frame}"]).ToArray();
+        var frames = Enumerable.Range(0, 4).Select(frame => Textures.Get($"dialog-{kind}-{frame}", this)).ToArray();
         var button = new StrategyButton { Frames = frames, TextRole = role, CustomMinimumSize = frames[0].GetSize() };
         button.Pressed += action;
         return button;

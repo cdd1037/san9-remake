@@ -25,7 +25,7 @@ public partial class DeploymentView : FixedPage
     public override void _Ready()
     {
         Size = new(1024, 768); ZIndex = 25; MouseFilter = MouseFilterEnum.Stop;
-        var field = Textures["deployment-field"];
+        var field = Textures.Get("deployment-field", this);
         _fieldStyle = new StyleBoxTexture { Texture = field,
             TextureMarginLeft = 16, TextureMarginRight = 16, TextureMarginTop = 8, TextureMarginBottom = 8,
             AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile, AxisStretchVertical = StyleBoxTexture.AxisStretchMode.Tile };
@@ -203,24 +203,24 @@ public partial class DeploymentView : FixedPage
     }
     private void Tile(string role, Rect2 rect)
     {
-        var texture = Textures["deployment-" + role];
+        var texture = Textures.Get("deployment-" + role, this);
         for (float x = 0; x < rect.Size.X; x += texture.GetWidth()) for (float y = 0; y < rect.Size.Y; y += texture.GetHeight())
         { var size = new Vector2(Math.Min(texture.GetWidth(), rect.Size.X - x), Math.Min(texture.GetHeight(), rect.Size.Y - y)); DrawTextureRectRegion(texture, new(rect.Position + new Vector2(x, y), size), new(Vector2.Zero, size)); }
     }
     private void Strip(string role, Rect2 rect)
     {
-        var left = Textures["deployment-" + role + "-left"]; var right = Textures["deployment-" + role + "-right"];
+        var left = Textures.Get("deployment-" + role + "-left", this); var right = Textures.Get("deployment-" + role + "-right", this);
         Tile(role + "-middle", new(rect.Position + new Vector2(left.GetWidth(), 0), new(rect.Size.X - left.GetWidth() - right.GetWidth(), rect.Size.Y)));
         DrawTexture(left, rect.Position); DrawTexture(right, new(rect.End.X - right.GetWidth(), rect.Position.Y));
     }
     public override void _Draw()
     {
-        DrawTexture(Textures["formation-panel-deployment"], new(368, 148));
+        DrawTexture(Textures.Get("formation-panel-deployment", this), new(368, 148));
         Strip("facility", new(136, 100, _facilityWidth, 32));
         foreach (int x in new[] { 240, 296 })
         {
             // These labels crop eight pixels from the outer end caps in the original skin.
-            var left = Textures["deployment-mode-left"]; var right = Textures["deployment-mode-right"];
+            var left = Textures.Get("deployment-mode-left", this); var right = Textures.Get("deployment-mode-right", this);
             float l = left.GetWidth() - 8, r = right.GetWidth() - 8;
             DrawTextureRectRegion(left, new(x, 436, l, 24), new(8, 0, l, 24));
             Tile("mode-middle", new(x + l, 436, 48 - l - r, 24));

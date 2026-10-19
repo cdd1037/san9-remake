@@ -171,26 +171,26 @@ public partial class MapCommandPopup : Control
     public override void _Draw()
     {
         if (_summary is not {} summary) return;
-        DrawTexture(Textures["command-summary-" + summary.Kind], new(8, 120));
+        DrawTexture(Textures.Get("command-summary-" + summary.Kind, this), new(8, 120));
         Text(summary.Name, new(38, 142), 120, 24);
         Text(summary.Status, new(177, 145), 32);
-        if (summary.Icon is {} icon) DrawTexture(Textures["command-summary-" + icon], new(225, 142));
+        if (summary.Icon is {} icon) DrawTexture(Textures.Get("command-summary-" + icon, this), new(225, 142));
         foreach (var row in summary.Rows)
         {
             Text(row.Label, new(48, row.Y), 64);
             Text(row.Value, new(148, row.Y), 85, alignment: row.Numeric ? HorizontalAlignment.Right : HorizontalAlignment.Center);
         }
-        DrawTexture(Textures["command-top"], _menu.Position);
-        for (int i = 0; i < _primary.Count; i++) DrawTexture(Textures["command-middle"], _menu.Position + new Vector2(0, 16 + i * 28));
-        DrawTexture(Textures["command-bottom"], _menu.Position + new Vector2(0, _menu.Size.Y - 16));
+        DrawTexture(Textures.Get("command-top", this), _menu.Position);
+        for (int i = 0; i < _primary.Count; i++) DrawTexture(Textures.Get("command-middle", this), _menu.Position + new Vector2(0, 16 + i * 28));
+        DrawTexture(Textures.Get("command-bottom", this), _menu.Position + new Vector2(0, _menu.Size.Y - 16));
         if (_illustrated is {} entry)
         {
-            DrawTexture(Textures["command-illustration-frame"], _art);
-            DrawTexture(Textures["command-illustration-" + entry.Id], _art + new Vector2(14, 18));
+            DrawTexture(Textures.Get("command-illustration-frame", this), _art);
+            DrawTexture(Textures.Get("command-illustration-" + entry.Id, this), _art + new Vector2(14, 18));
             if (_conditionVisible && _hovered == entry)
             {
                 var card = _art + new Vector2(8, 162);
-                DrawTexture(Textures["command-condition"], card);
+                DrawTexture(Textures.Get("command-condition", this), card);
                 string[] lines = Texts.Resolve(CommandMenuSkin.DescriptionKey(entry.Id)).Split('\n');
                 for (int i = 0; i < lines.Length; i++) Text(lines[i], card + new Vector2(2, 6 + i * 16), 168, alignment: HorizontalAlignment.Left);
             }

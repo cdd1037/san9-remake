@@ -48,7 +48,7 @@ public partial class FormationBoardView : Control
                     Position = rect.Position,
                     Size = rect.Size,
                     Member = item.Member,
-                    Texture = Textures[item.Member.IsCommander ? "formation-commander" : "formation-member"]
+                    Textures = Textures
                 };
                 if (OfficerMoved is null) button.Pressed += () => OfficerActivated?.Invoke(item.Member.OfficerId);
                 else button.GuiInput += input =>
@@ -116,13 +116,13 @@ public partial class FormationBoardView : Control
     public override void _Draw()
     {
         var presentation = Data.Presentation;
-        if (presentation?.BackgroundRole is { } role) DrawTextureRect(Textures[role], new(Vector2.Zero, Size), false);
+        if (presentation?.BackgroundRole is { } role) DrawTextureRect(Textures.Get(role, this), new(Vector2.Zero, Size), false);
         else DrawRect(new(Vector2.Zero, Size), new Color("171b1b"));
         int columns = presentation?.Columns ?? 3, rows = presentation?.Rows ?? 3;
         if (presentation?.AvailableRole is { } available)
             foreach (var slot in presentation.Slots)
             {
-                var texture = Textures[available];
+                var texture = Textures.Get(available, this);
                 DrawTextureRectRegion(texture, new(slot.Column * Size.X / columns, slot.Row * Size.Y / rows, Size.X / columns, Size.Y / rows),
                     new(slot.Column * texture.GetWidth() / columns, slot.Row * texture.GetHeight() / rows, texture.GetWidth() / columns, texture.GetHeight() / rows));
             }
@@ -137,12 +137,12 @@ public partial class FormationBoardView : Control
 public partial class FormationMemberButton : BaseButton
 {
     public FormationMemberView Member { get; init; } = null!;
-    public Texture2D Texture { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
     private bool _highlighted;
     public bool Highlighted { get => _highlighted; set { if (_highlighted == value) return; _highlighted = value; QueueRedraw(); ApplyText(); } }
     private readonly List<Label> _labels = [];
     private readonly GameTextPresenter _text = new();
-    public override void _Draw() => DrawTextureRectRegion(Texture, new(Vector2.Zero, Size), new(Highlighted ? 120 : 0, 0, 120, 80));
+    public override void _Draw() => DrawTextureRectRegion(Textures.Get(Member.IsCommander ? "formation-commander" : "formation-member", this), new(Vector2.Zero, Size), new(Highlighted ? 120 : 0, 0, 120, 80));
 
     public override void _Ready()
     {

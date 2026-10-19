@@ -62,9 +62,9 @@ public partial class MapSpeechView : Control
 
     public override void _Draw()
     {
-        var left = Textures[MapSpeechSkin.Role(_placement,"left")];
-        var middle = Textures[MapSpeechSkin.Role(_placement,"middle")];
-        var right = Textures[MapSpeechSkin.Role(_placement,"right")];
+        var left = Textures.Get(MapSpeechSkin.Role(_placement,"left"), this);
+        var middle = Textures.Get(MapSpeechSkin.Role(_placement,"middle"), this);
+        var right = Textures.Get(MapSpeechSkin.Role(_placement,"right"), this);
         DrawTexture(left,Vector2.Zero);
         for (float x=left.GetWidth();x<FrameWidth-right.GetWidth();x+=middle.GetWidth()) DrawTexture(middle,new(x,0));
         DrawTexture(right,new(FrameWidth-right.GetWidth(),0));

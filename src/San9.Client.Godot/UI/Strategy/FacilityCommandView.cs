@@ -23,7 +23,7 @@ public partial class FacilityCommandView : FixedPage
     public override void _Ready()
     {
         Size = new(1024,768); MouseFilter = MouseFilterEnum.Stop;
-        _field = CommandPanelArt.Field(Textures); Rebuild();
+        _field = CommandPanelArt.Field(Textures, this); Rebuild();
     }
     public override void _Process(double delta) { if (!Draft.IsCurrent) Closed(); }
     private void Label(string value, Rect2 rect)
@@ -125,16 +125,16 @@ internal partial class FacilityCommandFields : Control
     public bool HasQuantity { get; init; }
     public override void _Draw()
     {
-        void Strip(string role, Rect2 rect) => SkinPainter.Strip(this,Textures[$"deployment-{role}-left"],Textures[$"deployment-{role}-middle"],Textures[$"deployment-{role}-right"],rect);
+        void Strip(string role, Rect2 rect) => SkinPainter.Strip(this,Textures.Get($"deployment-{role}-left", this),Textures.Get($"deployment-{role}-middle", this),Textures.Get($"deployment-{role}-right", this),rect);
         Strip("facility",new(280,Top,160,32));
-        SkinPainter.Tile(this,Textures["deployment-divider"],new(280,Top+40,464,5));
+        SkinPainter.Tile(this,Textures.Get("deployment-divider", this),new(280,Top+40,464,5));
         for (int i=0;i<Widths.Length;i++)
         {
             int y = Top+200+i*40, width = Widths[i];
             if (!HasQuantity || i > 0) Strip("label",new(280,y,96,32));
             DrawStyleBox(Field,new(384,y,width,32));
-            SkinPainter.Tile(this,Textures["deployment-field-rim"],new(384,y,width,4));
-            SkinPainter.Tile(this,Textures["deployment-field-rim"],new(384,y+28,width,4));
+            SkinPainter.Tile(this,Textures.Get("deployment-field-rim", this),new(384,y,width,4));
+            SkinPainter.Tile(this,Textures.Get("deployment-field-rim", this),new(384,y+28,width,4));
         }
     }
 }

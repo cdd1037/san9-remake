@@ -24,7 +24,7 @@ public partial class SaveSlotFlagView : Control
     public override void _Draw()
     {
         if (_textures is null) return;
-        foreach (string frame in _frames) DrawTexture(_textures[frame], Vector2.Zero);
+        foreach (string frame in _frames) DrawTexture(_textures.Get(frame, this), Vector2.Zero);
     }
 
     public override void _ExitTree() => _textures?.Dispose();

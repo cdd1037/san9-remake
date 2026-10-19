@@ -84,7 +84,7 @@ public partial class OfficerDetailView : FixedPage, IInformationPage
     }
     private void Icon(string role, Vector2 position, Action action)
     {
-        var button = new TextureButton { Position = position, TextureNormal = Textures["detail-"+role], TextureHover = Textures["detail-"+role+"-1"], TexturePressed = Textures["detail-"+role+"-2"] };
+        var button = new TextureButton { Position = position, TextureNormal = Textures.Get("detail-"+role, this), TextureHover = Textures.Get("detail-"+role+"-1", this), TexturePressed = Textures.Get("detail-"+role+"-2", this) };
         button.MouseEntered += ClearNameFocus;
         button.Pressed += action; AddChild(button);
     }
@@ -118,7 +118,7 @@ public partial class OfficerDetailView : FixedPage, IInformationPage
         var portrait = new AsyncPortrait { Service = Service, Role = _data.PortraitRole, IsDeceased = () => _data.IsDeceased, Position = new(94,118), Size = new(240,240), MouseFilter = MouseFilterEnum.Ignore };
         _body.AddChild(portrait);
         var radar = new OfficerAbilityRadar { Abilities = _data.RadarAbilities, Position = new(431,156), Size = new(164,164) }; _body.AddChild(radar);
-        _body.AddChild(new TextureRect { Texture = Textures["detail-radar-grid"], Position = new(431,156), MouseFilter = MouseFilterEnum.Ignore });
+        _body.AddChild(new TextureRect { Texture = Textures.Get("detail-radar-grid", this), Position = new(431,156), MouseFilter = MouseFilterEnum.Ignore });
         string[] names = ["统率","武力","智力","政治"];
         for (int i = 0; i < 4; i++)
         {
@@ -214,17 +214,17 @@ public partial class OfficerDetailView : FixedPage, IInformationPage
     public override void _Draw()
     {
         if(_data is null)return;
-        DrawTexture(Textures["detail-background"],Vector2.Zero);
-        DrawTextureRectRegion(Textures["detail-list-top"],new(872,72,152,352),new(0,0,152,352));
-        DrawTexture(Textures["detail-list-bottom"],new(872,424));
+        DrawTexture(Textures.Get("detail-background", this),Vector2.Zero);
+        DrawTextureRectRegion(Textures.Get("detail-list-top", this),new(872,72,152,352),new(0,0,152,352));
+        DrawTexture(Textures.Get("detail-list-bottom", this),new(872,424));
         Strip("title",new(56,34,568,60));Strip("name",new(232,50,196,28));
-        DrawTexture(Textures["detail-portrait-frame"],new(76,100));
-        Panel(new(360,100,446,276));DrawTexture(Textures["detail-radar-background"],new(380,120));
+        DrawTexture(Textures.Get("detail-portrait-frame", this),new(76,100));
+        Panel(new(360,100,446,276));DrawTexture(Textures.Get("detail-radar-background", this),new(380,120));
         for(int i=0;i<4;i++){Strip("label",new(660,120+i*32,48,24));Strip("field",new(714,120+i*32,72,24));}
         if(State.Page==OfficerDetailPage.Status)
         {
             Panel(new(76,384,792,224));Panel(new(76,616,424,112));
-            DrawTexture(Textures["detail-biography-field"],new(168,636));
+            DrawTexture(Textures.Get("detail-biography-field", this),new(168,636));
             int[] xs=[96,288,464,640];
             for(int column=0;column<4;column++)
             for(int row=0;row<_data.Fields[column].Length;row++)
@@ -234,10 +234,10 @@ public partial class OfficerDetailView : FixedPage, IInformationPage
         }
         else
         {
-            Panel(new(76,384,536,324));DrawTexture(Textures["detail-tactics-field"],new(168,404));Strip("label",new(96,404,64,24));
+            Panel(new(76,384,536,324));DrawTexture(Textures.Get("detail-tactics-field", this),new(168,404));Strip("label",new(96,404,64,24));
             for(int i=0;i<9;i++)
             {int y=412+32*i;Strip("tactic-category",new(176,y,52,24));Strip("field",new(232,y,48,24));
-                for(int j=0;j<_data.Tactics[i].Tactics.Length;j++)DrawTexture(Textures[$"detail-tactic-{i}"+(_data.Tactics[i].Tactics[j].Available?"":"-1")],new(298+72*j,y));}
+                for(int j=0;j<_data.Tactics[i].Tactics.Length;j++)DrawTexture(Textures.Get($"detail-tactic-{i}"+(_data.Tactics[i].Tactics[j].Available?"":"-1"), this),new(298+72*j,y));}
         }
     }
     public override void _ExitTree()=>_text.Dispose();
@@ -275,8 +275,8 @@ public partial class DetailActionButton : BaseButton
     public override void _Draw()
     {
         int frame=Disabled?3:Selected||ButtonPressed?2:IsHovered()||HasFocus()?1:0;
-        if(Role is "tab" or "treasure" or "chronicle-input")DrawTexture(Textures["detail-button-shadow"],Vector2.Zero);
-        DrawTexture(Textures["detail-"+Role+(frame==0?"":$"-{frame}")],Role is "tab" or "treasure" or "chronicle-input" ? new(4,4) : Vector2.Zero);
+        if(Role is "tab" or "treasure" or "chronicle-input")DrawTexture(Textures.Get("detail-button-shadow", this),Vector2.Zero);
+        DrawTexture(Textures.Get("detail-"+Role+(frame==0?"":$"-{frame}"), this),Role is "tab" or "treasure" or "chronicle-input" ? new(4,4) : Vector2.Zero);
     }
     public override void _ExitTree()=>_text.Dispose();
 }
@@ -298,14 +298,14 @@ public partial class DetailNameButton : BaseButton
     {
         int frame=ButtonPressed?2:_focused?1:0;
         string suffix=frame==0?"":$"-{frame}";
-        DrawTexture(Textures["roster-row-left"+suffix],Vector2.Zero);
-        var middle = Textures["roster-row-middle" + suffix];
+        DrawTexture(Textures.Get("roster-row-left"+suffix, this),Vector2.Zero);
+        var middle = Textures.Get("roster-row-middle" + suffix, this);
         for (float x = 8; x < Size.X - 8; x += middle.GetWidth())
         {
             float width = Math.Min(middle.GetWidth(), Size.X - 8 - x);
             DrawTextureRectRegion(middle, new(x, 0, width, 16), new(0, 0, width, 16));
         }
-        DrawTexture(Textures["roster-row-right"+suffix],new(Size.X-8,0));
+        DrawTexture(Textures.Get("roster-row-right"+suffix, this),new(Size.X-8,0));
     }
     public override void _ExitTree()=>_text.Dispose();
 }

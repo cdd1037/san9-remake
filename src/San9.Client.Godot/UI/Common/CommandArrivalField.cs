@@ -17,7 +17,7 @@ public partial class CommandArrivalField : Control
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
-        _field = CommandPanelArt.Field(Textures);
+        _field = CommandPanelArt.Field(Textures, this);
         _label = new Label { Text = _value, Size = Size, ClipText = true,
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
             MouseFilter = MouseFilterEnum.Ignore };
@@ -33,9 +33,9 @@ public partial class CommandArrivalField : Control
 
     private void Rim(float y)
     {
-        var left = Textures["deployment-arrival-rim-left"];
-        var middle = Textures["deployment-arrival-rim-middle"];
-        var right = Textures["deployment-arrival-rim-right"];
+        var left = Textures.Get("deployment-arrival-rim-left", this);
+        var middle = Textures.Get("deployment-arrival-rim-middle", this);
+        var right = Textures.Get("deployment-arrival-rim-right", this);
         SkinPainter.Tile(this, middle, new(left.GetWidth(), y, Size.X - left.GetWidth() - right.GetWidth() - 2, 4));
         DrawTextureRectRegion(left, new(0, y, left.GetWidth(), 4), new(0, 0, left.GetWidth(), 4));
         DrawTextureRectRegion(right, new(Size.X - right.GetWidth() - 2, y, right.GetWidth(), 4), new(0, 0, right.GetWidth(), 4));

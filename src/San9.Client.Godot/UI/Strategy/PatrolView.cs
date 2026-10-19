@@ -24,7 +24,7 @@ public partial class PatrolView : FixedPage
     public override void _Ready()
     {
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
-        _field = CommandPanelArt.Field(Textures);
+        _field = CommandPanelArt.Field(Textures, this);
         Rebuild();
     }
     public override void _Process(double delta) { if (Session.Snapshot.Revision != Draft.View.World.Revision) Closed(); }
@@ -105,16 +105,16 @@ internal partial class PatrolFields : Control
     public StyleBoxTexture Field { get; init; } = null!;
     public override void _Draw()
     {
-        void Strip(string role, Rect2 rect) => SkinPainter.Strip(this, Textures[$"deployment-{role}-left"], Textures[$"deployment-{role}-middle"], Textures[$"deployment-{role}-right"], rect);
+        void Strip(string role, Rect2 rect) => SkinPainter.Strip(this, Textures.Get($"deployment-{role}-left", this), Textures.Get($"deployment-{role}-middle", this), Textures.Get($"deployment-{role}-right", this), rect);
         Strip("facility",new(280,228,160,32));
-        SkinPainter.Tile(this, Textures["deployment-divider"], new(280,268,464,5));
+        SkinPainter.Tile(this, Textures.Get("deployment-divider", this), new(280,268,464,5));
         for (int i=0;i<3;i++)
         {
             int y = 428+i*40, width = i==0?136:i==1?96:64;
             Strip("label",new(280,y,96,32));
             DrawStyleBox(Field,new(384,y,width,32));
-            SkinPainter.Tile(this, Textures["deployment-field-rim"],new(384,y,width,4));
-            SkinPainter.Tile(this, Textures["deployment-field-rim"],new(384,y+28,width,4));
+            SkinPainter.Tile(this, Textures.Get("deployment-field-rim", this),new(384,y,width,4));
+            SkinPainter.Tile(this, Textures.Get("deployment-field-rim", this),new(384,y+28,width,4));
         }
     }
 }

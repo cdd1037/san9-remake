@@ -267,6 +267,7 @@ public partial class MapWorld : Node2D
     public void DrawHoverFlag(Node2D target, int color, int glyph, Vector2 position)
     {
         if (_flags is null) return;
+        _flags.BindRedraw(target);
         foreach (string id in HoverFlagAssets(color, glyph))
             if (_flags.TryGetReady(id, out var texture)) target.DrawTexture(texture, position);
     }

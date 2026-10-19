@@ -112,6 +112,6 @@ public partial class MapContextPopup : Control
     {
         SkinPainter.InformationMenu(this, Textures, _menu);
         foreach (var (button, entry) in _primary.Where(item => item.Entry.SeparatorBefore))
-            SkinPainter.Tile(this, Textures["shortcut-separator"], new(button.Position + new Vector2(-4, -12), new(button.Size.X + 8, 8)));
+            SkinPainter.Tile(this, Textures.Get("shortcut-separator", this), new(button.Position + new Vector2(-4, -12), new(button.Size.X + 8, 8)));
     }
 }

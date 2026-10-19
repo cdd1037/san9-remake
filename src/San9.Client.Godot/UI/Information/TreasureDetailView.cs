@@ -40,8 +40,8 @@ public partial class TreasureDetailView : FixedPage, IInformationPage
     }
     private void Icon(string role, Vector2 position, Action? action = null)
     {
-        var button = new TextureButton { Position = position, TextureNormal = Textures["detail-" + role],
-            TextureHover = Textures["detail-" + role + "-1"], TexturePressed = Textures["detail-" + role + "-2"] };
+        var button = new TextureButton { Position = position, TextureNormal = Textures.Get("detail-" + role, this),
+            TextureHover = Textures.Get("detail-" + role + "-1", this), TexturePressed = Textures.Get("detail-" + role + "-2", this) };
         if (action is not null) button.Pressed += action;
         AddChild(button);
     }
@@ -98,18 +98,18 @@ public partial class TreasureDetailView : FixedPage, IInformationPage
     public override void _Draw()
     {
         if (_data is null) return;
-        DrawTexture(Textures["detail-background"], Vector2.Zero);
-        DrawTextureRectRegion(Textures["detail-treasure-list-top"], new(856,72,168,492), new(0,0,168,492));
-        DrawTexture(Textures["detail-treasure-list-bottom"], new(856,564));
+        DrawTexture(Textures.Get("detail-background", this), Vector2.Zero);
+        DrawTextureRectRegion(Textures.Get("detail-treasure-list-top", this), new(856,72,168,492), new(0,0,168,492));
+        DrawTexture(Textures.Get("detail-treasure-list-bottom", this), new(856,564));
         Strip("title", new(56,34,568,60)); Strip("name", new(232,50,148,28));
-        DrawTexture(Textures["detail-portrait-frame"], new(76,100));
+        DrawTexture(Textures.Get("detail-portrait-frame", this), new(76,100));
         Panel(new(360,100,224,144));
         Strip("label", new(380,120,64,24)); Strip("field", new(452,120,88,24));
-        DrawTexture(Textures["detail-treasure-description"], new(380,152));
+        DrawTexture(Textures.Get("detail-treasure-description", this), new(380,152));
         Panel(new(360,252,286,96));
         Strip("label", new(380,272,64,24)); Strip("field", new(452,272,80,24)); Strip("field", new(538,272,88,24));
         Strip("label", new(380,304,64,24)); Strip("field", new(452,304,80,24));
-        if (_data.TacticGroup is int group) DrawTexture(Textures[$"detail-tactic-{group}"], new(538,304));
+        if (_data.TacticGroup is int group) DrawTexture(Textures.Get($"detail-tactic-{group}", this), new(538,304));
     }
     public override void _ExitTree() => _text.Dispose();
 }

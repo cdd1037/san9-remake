@@ -11,13 +11,14 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
     { public bool Installed; public bool Reported; }
     private readonly Dictionary<string, Binding> _bindings = [];
     private bool _disposed;
-    public event Action? Changed;
+    private readonly Dictionary<CanvasItem, Action> _consumers = [];
     public long Revision { get; private set; }
     public TextureService Service => service;
     public bool IsReady => _bindings.Values.All(b => b.Installed);
     public Exception? Error => _bindings.Values.Select(b => b.Lease.Error).FirstOrDefault(e => e is not null);
     public IReadOnlyDictionary<string, ImageAsset> Assets => assets;
     public int BindingCount => _bindings.Count;
+    internal int RedrawConsumerCount => _consumers.Count;
     public Texture2D this[string key]
     {
         get
@@ -26,6 +27,28 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
             return _bindings.TryGetValue(key, out var binding) ? binding.View :
                 throw new InvalidOperationException($"Texture '{key}' must be requested before binding or drawing.");
         }
+    }
+    /// <summary>Bind the actual drawing node, independently of the scope's creator or scene parent.</summary>
+    public Texture2D Get(string key, CanvasItem consumer)
+    {
+        var texture = this[key];
+        BindRedraw(consumer);
+        return texture;
+    }
+    public void BindRedraw(CanvasItem consumer)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!_consumers.ContainsKey(consumer)) AttachConsumer(consumer);
+    }
+    private void AttachConsumer(CanvasItem consumer)
+    {
+        void Detach()
+        {
+            consumer.TreeExiting -= Detach;
+            _consumers.Remove(consumer);
+        }
+        _consumers.Add(consumer, Detach);
+        consumer.TreeExiting += Detach;
     }
     private void Request(string key)
     {
@@ -62,7 +85,9 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
     {
         bool changed = false;
         foreach (var binding in _bindings.Values) changed |= Refresh(binding);
-        if (changed) Changed?.Invoke();
+        if (changed)
+            foreach (var consumer in _consumers.Keys)
+                if (GodotObject.IsInstanceValid(consumer) && consumer.IsInsideTree()) consumer.QueueRedraw();
     }
     private bool Refresh(Binding binding)
     {
@@ -77,7 +102,10 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
     }
     public void Dispose()
     {
-        if (_disposed) return; _disposed = true; Changed = null;
+        if (_disposed) return; _disposed = true;
+        foreach (var (consumer, detach) in _consumers)
+            if (GodotObject.IsInstanceValid(consumer)) consumer.TreeExiting -= detach;
+        _consumers.Clear();
         service.Retire(this, () =>
         {
             foreach (var b in _bindings.Values)

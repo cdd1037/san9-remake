@@ -73,7 +73,7 @@ public partial class StrategyHud
         AddChild(_executionPanels);
         _turnStatus = LabelAt("", new(270, 320), new(484, 96), 24, parent: _center);
         for (int phase = 0; phase < 2; phase++)
-            _turnTitles[phase] = Enumerable.Range(0, 4).Select(frame => (Texture2D)_textures[$"turn-title-{(phase == 0 ? "execution" : "strategy")}-{frame}"]).ToArray();
+            _turnTitles[phase] = Enumerable.Range(0, 4).Select(frame => (Texture2D)_textures.Get($"turn-title-{(phase == 0 ? "execution" : "strategy")}-{frame}", this)).ToArray();
         _turnBanner = new TextureRect { ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, MouseFilter = MouseFilterEnum.Ignore, Visible = false };
         AddChild(_turnBanner);
         _turnProgress = new TextureProgressBar
@@ -82,8 +82,8 @@ public partial class StrategyHud
             Size = new(304, 16),
             MaxValue = 304,
             Step = 1,
-            TextureUnder = _textures["turn-progress-frame"],
-            TextureProgress = _textures["turn-progress-fill"],
+            TextureUnder = _textures.Get("turn-progress-frame", this),
+            TextureProgress = _textures.Get("turn-progress-fill", this),
             MouseFilter = MouseFilterEnum.Ignore,
             Visible = false
         };

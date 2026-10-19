@@ -218,6 +218,6 @@ internal partial class MissionCommandFields : Control
     public override void _Draw()
     {
         CommandPanelArt.Strip(this,Textures,"deployment-facility",new(Bounds.Position,new(SourceWidth,32)));
-        SkinPainter.Tile(this,Textures["deployment-divider"],new(Bounds.Position+new Vector2(0,40),new(Bounds.Size.X,5)));
+        SkinPainter.Tile(this,Textures.Get("deployment-divider", this),new(Bounds.Position+new Vector2(0,40),new(Bounds.Size.X,5)));
     }
 }

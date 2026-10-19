@@ -32,7 +32,7 @@ public partial class MilitaryPolicyView : FixedPage
     public override void _Ready()
     {
         Size = new(1024, 768); ZIndex = 30; MouseFilter = MouseFilterEnum.Stop;
-        _field = new StyleBoxTexture { Texture = Textures["deployment-field"],
+        _field = new StyleBoxTexture { Texture = Textures.Get("deployment-field", this),
             TextureMarginLeft = 16, TextureMarginRight = 16, TextureMarginTop = 8, TextureMarginBottom = 8,
             AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile, AxisStretchVertical = StyleBoxTexture.AxisStretchMode.Tile };
         if (IsSpecial) { BuildSpecial(); return; }
@@ -187,10 +187,10 @@ public partial class MilitaryPolicyView : FixedPage
     private void DrawField(Rect2 bounds)
     {
         var rect = new Rect2(Origin+bounds.Position,bounds.Size); DrawStyleBox(_field,rect);
-        SkinPainter.Tile(this,Textures["deployment-field-rim"],new(rect.Position,new(rect.Size.X-2,4)));
-        SkinPainter.Tile(this,Textures["deployment-field-rim"],new(rect.Position+new Vector2(0,rect.Size.Y-4),new(rect.Size.X-2,4)));
+        SkinPainter.Tile(this,Textures.Get("deployment-field-rim", this),new(rect.Position,new(rect.Size.X-2,4)));
+        SkinPainter.Tile(this,Textures.Get("deployment-field-rim", this),new(rect.Position+new Vector2(0,rect.Size.Y-4),new(rect.Size.X-2,4)));
     }
-    private void Strip(string role, Rect2 bounds) => SkinPainter.Strip(this, Textures["deployment-" + role + "-left"],
-        Textures["deployment-" + role + "-middle"], Textures["deployment-" + role + "-right"], new(Origin + bounds.Position, bounds.Size));
+    private void Strip(string role, Rect2 bounds) => SkinPainter.Strip(this, Textures.Get("deployment-" + role + "-left", this),
+        Textures.Get("deployment-" + role + "-middle", this), Textures.Get("deployment-" + role + "-right", this), new(Origin + bounds.Position, bounds.Size));
     public override void _ExitTree() { _text.Dispose(); _field.Dispose(); }
 }

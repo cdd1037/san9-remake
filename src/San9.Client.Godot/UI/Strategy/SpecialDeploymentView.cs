@@ -31,7 +31,7 @@ public partial class SpecialDeploymentView : FixedPage
     public override void _Ready()
     {
         Size = new(1024, 768); ZIndex = 25; MouseFilter = MouseFilterEnum.Stop;
-        _field = CommandPanelArt.Field(Textures);
+        _field = CommandPanelArt.Field(Textures, this);
         _message = new GameMessageBar { Textures=Textures,Text=Hint }; AddChild(_message); Rebuild();
     }
     private void Label(string value, Rect2 bounds) => CommandPanelArt.Label(_body!, _text, value, bounds);
@@ -141,8 +141,8 @@ public partial class SpecialDeploymentView : FixedPage
         foreach (var bounds in _fields)
         {
             var rect = new Rect2(Origin+bounds.Position,bounds.Size); DrawStyleBox(_field,rect);
-            SkinPainter.Tile(this,Textures["deployment-field-rim"],new(rect.Position,new(rect.Size.X,4)));
-            SkinPainter.Tile(this,Textures["deployment-field-rim"],new(rect.Position+new Vector2(0,rect.Size.Y-4),new(rect.Size.X,4)));
+            SkinPainter.Tile(this,Textures.Get("deployment-field-rim", this),new(rect.Position,new(rect.Size.X,4)));
+            SkinPainter.Tile(this,Textures.Get("deployment-field-rim", this),new(rect.Position+new Vector2(0,rect.Size.Y-4),new(rect.Size.X,4)));
         }
         DrawLine(Origin+new Vector2(0,40),Origin+new Vector2(Construction?608:448,40),new Color("755635"),2);
     }

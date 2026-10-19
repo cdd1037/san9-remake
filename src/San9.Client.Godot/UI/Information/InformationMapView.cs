@@ -90,10 +90,10 @@ public partial class InformationMapView : FixedPage, IInformationPage
             _clearSelection.Pressed += () => { Selection.Clear(); RefreshSelection(); };
             AddChild(_clearSelection); RefreshSelection();
         }
-        var close=new TextureButton { Position=new(932,56), TextureNormal=Textures["information-action-close"],
-            TextureHover=Textures["information-action-close-1"],TexturePressed=Textures["information-action-close-2"] };
+        var close=new TextureButton { Position=new(932,56), TextureNormal=Textures.Get("information-action-close", this),
+            TextureHover=Textures.Get("information-action-close-1", this),TexturePressed=Textures.Get("information-action-close-2", this) };
         close.Pressed+=Closed; AddChild(close);
-        AddChild(new TextureRect { Position=new(900,32), Texture=Textures["catalog-help"], MouseFilter=MouseFilterEnum.Ignore });
+        AddChild(new TextureRect { Position=new(900,32), Texture=Textures.Get("catalog-help", this), MouseFilter=MouseFilterEnum.Ignore });
         AddChild(new GameMessageBar { Textures=Textures,Text=HintText.Length > 0 ? HintText : "请选择欲观看其情报的"+(Category==InformationCategory.Forces?"势力":"都市")+"。" });
         MouseExited+=()=>Hover(null);
         UpdateSummary(_hovered);
@@ -216,11 +216,11 @@ public partial class InformationMapView : FixedPage, IInformationPage
     }
     private void Tile(string role,Rect2 r)
     {
-        SkinPainter.Tile(this, Textures[role], r);
+        SkinPainter.Tile(this, Textures.Get(role, this), r);
     }
     private void Strip(string role,Vector2 point,float width)
     {
-        var left=Textures[role+"-left"]; var right=Textures[role+"-right"];
+        var left=Textures.Get(role+"-left", this); var right=Textures.Get(role+"-right", this);
         Tile(role+"-middle",new(point+new Vector2(left.GetWidth(),0),new(width-left.GetWidth()-right.GetWidth(),left.GetHeight())));
         DrawTexture(left,point); DrawTexture(right,point+new Vector2(width-right.GetWidth(),0));
     }
@@ -229,20 +229,20 @@ public partial class InformationMapView : FixedPage, IInformationPage
         Tile("information-background",new(56,24,896,720));
         Tile("information-frame-top",new(96,24,816,8));Tile("information-frame-bottom",new(96,736,816,8));
         Tile("information-frame-left",new(48,160,24,440));Tile("information-frame-right",new(948,160,16,440));
-        DrawTexture(Textures["information-frame-top-left"],new(8,8));DrawTexture(Textures["information-frame-top-right"],new(728,8));
-        DrawTexture(Textures["information-frame-bottom-left"],new(8,544));DrawTexture(Textures["information-frame-bottom-right"],new(728,544));
+        DrawTexture(Textures.Get("information-frame-top-left", this),new(8,8));DrawTexture(Textures.Get("information-frame-top-right", this),new(728,8));
+        DrawTexture(Textures.Get("information-frame-bottom-left", this),new(8,544));DrawTexture(Textures.Get("information-frame-bottom-right", this),new(728,544));
         Strip("information-title",new(16,8),264);
-        DrawTexture(Textures["information-frame-ornament"],new(0,8));
+        DrawTexture(Textures.Get("information-frame-ornament", this),new(0,8));
         Strip("information-footer",new(Selection is null ? 732 : 644,680),Selection is null ? 260 : 348);
-        DrawTexture(Textures["overview-terrain"], Origin);
-        DrawTexture(Textures["information-summary"],SummaryOrigin);
+        DrawTexture(Textures.Get("overview-terrain", this), Origin);
+        DrawTexture(Textures.Get("information-summary", this),SummaryOrigin);
     }
     private void DrawMarkers()
     {
         var forces=ReadView().Forces.ToDictionary(f=>f.Id);
         if (Selection is not null)
         {
-            var selected = Textures["information-map-selected"];
+            var selected = Textures.Get("information-map-selected", this);
             foreach (var marker in _markers)
                 if (marker.TargetId is int id && Selection.Selected.Contains(id))
                     _markerLayer.DrawTexture(selected,Center(marker)-selected.GetSize()/2);
@@ -253,7 +253,7 @@ public partial class InformationMapView : FixedPage, IInformationPage
             string role = Category == InformationCategory.Cities ? "information-map-city" : $"information-map-force-{color}";
             int frame = marker.TargetId is null ? 3 :
                 _hovered == marker.TargetId ? (_pressedTarget == marker.TargetId ? 2 : 1) : 0;
-            var t=Textures[role+(frame == 0 ? "" : $"-{frame}")];
+            var t=Textures.Get(role+(frame == 0 ? "" : $"-{frame}"), this);
             _markerLayer.DrawTexture(t,Center(marker)-t.GetSize()/2);
         }
     }

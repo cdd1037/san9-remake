@@ -293,7 +293,7 @@ public partial class MapSceneView : Node2D
     {
         TerrainDraws++;
         if (Presented is not { } frame) return;
-        var rect = frame.Region.Bounds; var fill = frame.Assets["cloud-fill"];
+        var rect = frame.Region.Bounds; var fill = frame.Assets.Get("cloud-fill", this);
         for (float y = 112 + MathF.Floor((rect.Position.Y - 112) / fill.GetHeight()) * fill.GetHeight(); y < rect.End.Y; y += fill.GetHeight())
         for (float x = 96 + MathF.Floor((rect.Position.X - 96) / fill.GetWidth()) * fill.GetWidth(); x < rect.End.X; x += fill.GetWidth())
             DrawTexture(fill, new(x, y));
@@ -306,6 +306,7 @@ public partial class MapSceneView : Node2D
     }
     private void DrawWater()
     {
+        Presented?.Assets.BindRedraw(_water);
         WaterDraws++;
         if (Presented is not { } frame) return;
         foreach (var s in frame.Region.Water)

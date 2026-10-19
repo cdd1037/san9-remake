@@ -16,7 +16,7 @@ public partial class VerticalChoiceDialog : FixedPage
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
         _frame = new()
         {
-            Texture = Textures["dialog-frame"],
+            Texture = Textures.Get("dialog-frame", this),
             TextureMarginLeft = 96,
             TextureMarginRight = 96,
             TextureMarginTop = 56,

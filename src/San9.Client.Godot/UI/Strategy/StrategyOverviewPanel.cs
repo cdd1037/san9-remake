@@ -58,7 +58,7 @@ public partial class StrategyOverviewPanel : FixedPage
             {
                 Title = title, Position = new(x,y), Size = new(108,60), IgnoreTextureSize = true,
                 ToggleMode = true, TextRole = textRole, HintText = Texts.ResolveRich(StrategyHintText.Key($"overview-{role}")),
-                Frames = Enumerable.Range(0,4).Select(f => (Texture2D)Textures[$"button-overview-{role}" + (f == 0 ? "" : $"-{f}")]).ToArray()
+                Frames = Enumerable.Range(0,4).Select(f => (Texture2D)Textures.Get($"button-overview-{role}" + (f == 0 ? "" : $"-{f}"), this)).ToArray()
             };
             // The four rectangular frames contain a diamond-shaped button.
             button.Pressed += () => State.Toggle(layer);
@@ -132,7 +132,7 @@ public partial class StrategyOverviewPanel : FixedPage
     public override void _Draw()
     {
         if (!State.IsOpen || _scope is null) return;
-        DrawTexture(Textures["overview-background"], Vector2.Zero);
+        DrawTexture(Textures.Get("overview-background", this), Vector2.Zero);
         _map!.Draw(this, Textures, Origin, State.ShowForces);
         var view = Session.View;
         if (State.ShowFacilities)
@@ -140,7 +140,7 @@ public partial class StrategyOverviewPanel : FixedPage
             {
                 var center = Origin + _map!.Point(facility.X, facility.Y);
                 int color = facility.OwnerId is int owner ? view.Forces.Single(f => f.Id == owner).ColorCode : 50;
-                var texture = Textures[$"overview-{(facility.CityMarkerColor is not null ? "marker" : "facility")}-{color}"];
+                var texture = Textures.Get($"overview-{(facility.CityMarkerColor is not null ? "marker" : "facility")}-{color}", this);
                 DrawTexture(texture, center - texture.GetSize()/2);
             }
         if (State.ShowUnits)
@@ -148,9 +148,9 @@ public partial class StrategyOverviewPanel : FixedPage
             {
                 var p = Origin + _map!.Point(unit.Cell.X, unit.Cell.Y);
                 int color = view.Forces.Single(f => f.Id == unit.OwnerId).ColorCode;
-                if (color < 50) DrawTexture(Textures[$"overview-unit-{color}"],p-new Vector2(4,4));
+                if (color < 50) DrawTexture(Textures.Get($"overview-unit-{color}", this),p-new Vector2(4,4));
             }
-        DrawTexture(Textures["overview-ranking"], new(56,529));
+        DrawTexture(Textures.Get("overview-ranking", this), new(56,529));
         DrawText("势力排行榜", new(80, 540), 240, 24, new Color("f8f850"));
         string[] titles = ["信望", "都市", "武将", "士兵"];
         int[] starts = [88,264,432,604];
@@ -171,7 +171,7 @@ public partial class StrategyOverviewPanel : FixedPage
     private void DrawEntry(ForceRankingEntry entry, int x, int y, int valueRight)
     {
         DrawText(entry.Rank.ToString(),new(x,y),16,16,Colors.White,HorizontalAlignment.Right);
-        DrawTexture(Textures[$"overview-marker-{entry.Force.ColorCode}"],new(x+20,y));
+        DrawTexture(Textures.Get($"overview-marker-{entry.Force.ColorCode}", this),new(x+20,y));
         DrawText(Texts.Resolve(entry.Force.NameKey),new(x+40,y),64,16,Colors.White);
         DrawText(entry.Value.ToString(),new(x+112,y),valueRight-(x+112),16,Colors.White,HorizontalAlignment.Right);
     }

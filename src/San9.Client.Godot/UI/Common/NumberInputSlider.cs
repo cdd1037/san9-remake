@@ -4,8 +4,9 @@ namespace San9.Client.Godot;
 
 public partial class NumberInputSlider : global::Godot.Range
 {
-    public Texture2D Fill { get; init; } = null!;
-    public Texture2D Thumb { get; init; } = null!;
+    public TextureScope Textures { get; init; } = null!;
+    private Texture2D Fill => Textures.Get("deployment-number-slider-fill", this);
+    private Texture2D Thumb => Textures.Get("deployment-number-slider-thumb", this);
     private bool _dragging;
 
     public override void _Ready()

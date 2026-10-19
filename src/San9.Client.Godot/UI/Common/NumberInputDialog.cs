@@ -32,7 +32,7 @@ public partial class NumberInputDialog : FixedPage
         Button("最大", new(298, 187), new(64, 40), () => State.Set(State.Maximum), "number-max");
         Button("", new(118, 195), new(24, 24), () => State.Step(-1), "number-minus");
         Button("", new(266, 195), new(24, 24), () => State.Step(1), "number-plus");
-        _slider = new NumberInputSlider { Fill = Textures["deployment-number-slider-fill"], Thumb = Textures["deployment-number-slider-thumb"], Position = Origin + new Vector2(144, 203), Size = new(120, 32), MinValue = State.Minimum, MaxValue = State.Maximum, Step = 1, FocusMode = FocusModeEnum.None };
+        _slider = new NumberInputSlider { Textures = Textures, Position = Origin + new Vector2(144, 203), Size = new(120, 32), MinValue = State.Minimum, MaxValue = State.Maximum, Step = 1, FocusMode = FocusModeEnum.None };
         _slider.ValueChanged += value => { if (!_refreshing) { State.Set((uint)value); Refresh(); } }; AddChild(_slider);
         Button("后退", new(107, 248), new(96, 46), State.Backspace, "number-back");
         Button("消去", new(203, 248), new(96, 46), State.Clear, "number-clear");
@@ -62,10 +62,10 @@ public partial class NumberInputDialog : FixedPage
             Title = title, FontSize = role is "number-accept" or "number-cancel" ? 24 : 16,
             ActiveOutline = new Color(role == "number-min" ? "5828c8" : role == "number-accept" ? "005028" : role == "number-cancel" ? "983810" : "b82000"),
             StretchMode = TextureButton.StretchModeEnum.Keep,
-            TextureNormal = Textures["deployment-" + role],
-            TextureHover = Textures["deployment-" + role + "-1"],
-            TexturePressed = Textures["deployment-" + role + "-2"],
-            TextureDisabled = Textures["deployment-" + role + "-3"]
+            TextureNormal = Textures.Get("deployment-" + role, this),
+            TextureHover = Textures.Get("deployment-" + role + "-1", this),
+            TexturePressed = Textures.Get("deployment-" + role + "-2", this),
+            TextureDisabled = Textures.Get("deployment-" + role + "-3", this)
         };
         button.Pressed += () => { action(); if (IsInsideTree()) Refresh(); }; AddChild(button);
         return button;
@@ -92,17 +92,17 @@ public partial class NumberInputDialog : FixedPage
     }
     public override void _Draw()
     {
-        DrawTexture(Textures["deployment-number-background"], Origin);
-        var titleLeft = Textures["deployment-number-title-left"];
-        var titleMiddle = Textures["deployment-number-title-middle"];
-        var titleRight = Textures["deployment-number-title-right"];
+        DrawTexture(Textures.Get("deployment-number-background", this), Origin);
+        var titleLeft = Textures.Get("deployment-number-title-left", this);
+        var titleMiddle = Textures.Get("deployment-number-title-middle", this);
+        var titleRight = Textures.Get("deployment-number-title-right", this);
         var titleAt = Origin + new Vector2(2, 3);
         DrawTexture(titleLeft, titleAt);
         DrawTexture(titleMiddle, titleAt + new Vector2(titleLeft.GetWidth(), 0));
         DrawTexture(titleRight, titleAt + new Vector2(152 - titleRight.GetWidth(), 0));
-        var left = Textures["deployment-number-field-left"];
-        var middle = Textures["deployment-number-field-middle"];
-        var right = Textures["deployment-number-field-right"];
+        var left = Textures.Get("deployment-number-field-left", this);
+        var middle = Textures.Get("deployment-number-field-middle", this);
+        var right = Textures.Get("deployment-number-field-right", this);
         var at = Origin + new Vector2(52, 51);
         DrawTexture(left, at);
         float end = 304 - right.GetWidth();

@@ -62,12 +62,12 @@ internal sealed class MapAnnotationLayer
             if (!entry.Target.IsUnit) Bar("durability", entry.Durability, entry.MaxDurability, new(0, 16), entry.Target.Id);
             Bar("morale", entry.Morale, 100, new(0, entry.Target.IsUnit ? 20 : 29), entry.Target.Id);
             GameTextPresenter.Draw(target, font, entry.Name, new(0, entry.Target.IsUnit ? 47 : 53), style);
-            foreach (string icon in entry.Icons) target.DrawTexture(textures["icon-" + icon], entry.Target.IsUnit ? new(2, 0) : icon == "emperor" ? new(96, 17) : new(75, 17));
+            foreach (string icon in entry.Icons) target.DrawTexture(textures.Get("icon-" + icon, target), entry.Target.IsUnit ? new(2, 0) : icon == "emperor" ? new(96, 17) : new(75, 17));
         }
         target.DrawSetTransform(Vector2.Zero);
         void Bar(string kind, int current, int maximum, Vector2 point, int objectId)
         {
-            target.DrawTexture(textures[$"bar-{kind}-frame"], point);
+            target.DrawTexture(textures.Get($"bar-{kind}-frame", target), point);
             int width = BuildingInfoGeometry.FillWidth(current, maximum);
             if (width == 0) return;
 
@@ -78,7 +78,7 @@ internal sealed class MapAnnotationLayer
             void Layer(string state, float opacity)
             {
                 if (opacity <= 0) return;
-                var fill = textures[$"bar-{kind}-{state}"];
+                var fill = textures.Get($"bar-{kind}-{state}", target);
                 target.DrawTextureRectRegion(fill, new(point + new Vector2(4, 4), new Vector2(width, fill.GetHeight())),
                     new(0, 0, width, fill.GetHeight()), new Color(1, 1, 1, opacity));
             }

@@ -39,7 +39,7 @@ public sealed class OverviewMapLayer(TextureService service, InterfaceSkin skin)
 
     public void Draw(CanvasItem owner, TextureScope textures, Vector2 origin, bool showTerritories = true)
     {
-        owner.DrawTexture(textures["overview-terrain"], origin);
+        owner.DrawTexture(textures.Get("overview-terrain", owner), origin);
         if (!showTerritories || _territories is null) return;
         DrawTerritories(owner, origin);
         DrawBorders(owner, origin);

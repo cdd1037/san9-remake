@@ -278,7 +278,7 @@ public partial class StrategyHud : Control
                 _ => throw new ArgumentOutOfRangeException(nameof(asset))
             },
             Frames = Enumerable.Range(0, asset == "button-territory" ? 6 : 4)
-                .Select(frame => (Texture2D)_textures[frame == 0 ? asset : $"{asset}-{frame}"]).ToArray(),
+                .Select(frame => (Texture2D)_textures.Get(frame == 0 ? asset : $"{asset}-{frame}", this)).ToArray(),
             StretchMode = TextureButton.StretchModeEnum.Scale,
             Disabled = !enabled,
             HintText = Texts.ResolveRich(StrategyHintText.Key(title switch
@@ -572,8 +572,8 @@ public partial class StrategyHud : Control
     }
     private void Strip(string role, Vector2 position, int width)
     {
-        var left = _textures[role + "-left"];
-        SkinPainter.Strip(this, left, _textures[role + "-middle"], _textures[role + "-right"],
+        var left = _textures.Get(role + "-left", this);
+        SkinPainter.Strip(this, left, _textures.Get(role + "-middle", this), _textures.Get(role + "-right", this),
             new(position, new(width, left.GetHeight())));
     }
     public override void _Draw()
@@ -581,12 +581,12 @@ public partial class StrategyHud : Control
         if (!_built) return;
         foreach (var (asset, point) in VisibleFrames())
         {
-            DrawTexture(_textures[asset], point);
+            DrawTexture(_textures.Get(asset, this), point);
         }
-        if (!SelectingTargets) DrawTexture(_textures["season-" + _badgeSeason], new(26, 31),
+        if (!SelectingTargets) DrawTexture(_textures.Get("season-" + _badgeSeason, this), new(26, 31),
             new Color(_badgeBrightness, _badgeBrightness, _badgeBrightness, 1));
         if (Turn.IsStrategy && !SelectingTargets) { Strip("field", new(377, 15), 88); Strip("field", new(457, 15), 112); Strip("field", new(561, 15), 112); }
-        if (_regionVisible) DrawTexture(_textures["region-frame"], GroupPosition(_bottomRight) + new Vector2(824, 738));
+        if (_regionVisible) DrawTexture(_textures.Get("region-frame", this), GroupPosition(_bottomRight) + new Vector2(824, 738));
     }
     public override void _ExitTree()
     {

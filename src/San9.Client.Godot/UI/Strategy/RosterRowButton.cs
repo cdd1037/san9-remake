@@ -65,9 +65,9 @@ public partial class RosterRowButton : BaseButton
     public override void _Draw()
     {
         string suffix = VisualFrame == 0 ? "" : $"-{VisualFrame}";
-        var left = Textures["roster-row-left" + suffix];
-        var middle = Textures["roster-row-middle" + suffix];
-        var right = Textures["roster-row-right" + suffix];
+        var left = Textures.Get("roster-row-left" + suffix, this);
+        var middle = Textures.Get("roster-row-middle" + suffix, this);
+        var right = Textures.Get("roster-row-right" + suffix, this);
         DrawTexture(left, Vector2.Zero);
         for (int x = 8; x < 92; x += 8)
         {

@@ -133,7 +133,7 @@ public partial class CatalogView : FixedPage, IInformationPage
 
     private void IconButton(string role, Vector2 position, Action action)
     {
-        var button = new TextureButton { Position = position, TextureNormal = Textures[role], TextureHover = Textures[role + "-1"], TexturePressed = Textures[role + "-2"] };
+        var button = new TextureButton { Position = position, TextureNormal = Textures.Get(role, this), TextureHover = Textures.Get(role + "-1", this), TexturePressed = Textures.Get(role + "-2", this) };
         button.Pressed += action; AddChild(button);
     }
     private Label LabelAt(string text, Vector2 position, Vector2 size, int fontSize = 16, Control? parent = null)
@@ -436,37 +436,37 @@ public partial class CatalogView : FixedPage, IInformationPage
 
     private void Tile(string role, Rect2 rect)
     {
-        SkinPainter.Tile(this, Textures[role], rect);
+        SkinPainter.Tile(this, Textures.Get(role, this), rect);
     }
     private void Strip(string role, Vector2 point, float width)
     {
-        var left = Textures[role + "-left"]; var right = Textures[role + "-right"];
+        var left = Textures.Get(role + "-left", this); var right = Textures.Get(role + "-right", this);
         Tile(role + "-middle", new(point + new Vector2(left.GetWidth(),0), new(width-left.GetWidth()-right.GetWidth(),left.GetHeight())));
         DrawTexture(left,point); DrawTexture(right,point+new Vector2(width-right.GetWidth(),0));
     }
     public override void _Draw()
     {
         if (_grid is null) return;
-        DrawTextureRectRegion(Textures["information-background"], _body, new(Vector2.Zero,_body.Size));
+        DrawTextureRectRegion(Textures.Get("information-background", this), _body, new(Vector2.Zero,_body.Size));
         float x=_body.Position.X,y=_body.Position.Y,right=_body.End.X,bottom=_body.End.Y;
         Tile("information-frame-top",new(x+64,y-8,_body.Size.X-304,8));
         Tile("information-frame-bottom",new(x+208,bottom-16,_body.Size.X-448,24));
         Tile("information-frame-left",new(x-16,y+216,24,_body.Size.Y-432));
         Tile("information-frame-right",new(right-8,y+216,16,_body.Size.Y-432));
-        DrawTexture(Textures["information-frame-top-left"],new(x-56,y-16));
-        DrawTexture(Textures["information-frame-top-right"],new(right-240,y-16));
-        DrawTexture(Textures["information-frame-bottom-left"],new(x-56,bottom-216));
-        DrawTexture(Textures["information-frame-bottom-right"],new(right-240,bottom-216));
+        DrawTexture(Textures.Get("information-frame-top-left", this),new(x-56,y-16));
+        DrawTexture(Textures.Get("information-frame-top-right", this),new(right-240,y-16));
+        DrawTexture(Textures.Get("information-frame-bottom-left", this),new(x-56,bottom-216));
+        DrawTexture(Textures.Get("information-frame-bottom-right", this),new(right-240,bottom-216));
         Strip("information-title",new(x-40,y-16),264);
-        DrawTexture(Textures["information-frame-ornament"],new(x-56,y-16));
+        DrawTexture(Textures.Get("information-frame-ornament", this),new(x-56,y-16));
         Strip("information-footer",new(right-(Selection is null ? 236 : 324),bottom-64),Selection is null ? 260 : 348);
         var tabs = new Rect2(x+40,y+64,TabStripFollowsPage ? Pages[_page].Columns.Sum(c => c.Width) : _body.Size.X-80,Pages.Count>7?80:48);
         Tile("catalog-tabs-top",new(tabs.Position+new Vector2(12,0),new(tabs.Size.X-24,8)));
         Tile("catalog-tabs-bottom",new(tabs.Position+new Vector2(12,tabs.Size.Y-8),new(tabs.Size.X-24,8)));
         Tile("catalog-tabs-left",new(tabs.Position+new Vector2(0,24),new(12,tabs.Size.Y-48)));
         Tile("catalog-tabs-right",new(tabs.Position+new Vector2(tabs.Size.X-12,24),new(12,tabs.Size.Y-48)));
-        DrawTexture(Textures["catalog-tabs-top-left"],tabs.Position); DrawTexture(Textures["catalog-tabs-top-right"],new(tabs.End.X-12,tabs.Position.Y));
-        DrawTexture(Textures["catalog-tabs-bottom-left"],new(tabs.Position.X,tabs.End.Y-24)); DrawTexture(Textures["catalog-tabs-bottom-right"],tabs.End-new Vector2(12,24));
+        DrawTexture(Textures.Get("catalog-tabs-top-left", this),tabs.Position); DrawTexture(Textures.Get("catalog-tabs-top-right", this),new(tabs.End.X-12,tabs.Position.Y));
+        DrawTexture(Textures.Get("catalog-tabs-bottom-left", this),new(tabs.Position.X,tabs.End.Y-24)); DrawTexture(Textures.Get("catalog-tabs-bottom-right", this),tabs.End-new Vector2(12,24));
         int width = Pages[_page].Columns.Sum(c => c.Width) + SelectionWidth;
         DrawTableFrame(width + 2 + (_needsScroll ? 16 : 0));
         int current = _state.CurrentIndex - _state.Offset;
@@ -479,7 +479,7 @@ public partial class CatalogView : FixedPage, IInformationPage
             if (Selection is not null)
             {
                 int checkFrame = _hoveredCheckboxId == id ? 1 : selected ? 2 : 0;
-                var check = Textures["catalog-checkbox" + (checkFrame == 0 ? "" : $"-{checkFrame}")];
+                var check = Textures.Get("catalog-checkbox" + (checkFrame == 0 ? "" : $"-{checkFrame}"), this);
                 var checkAt = _tableOrigin + new Vector2(12,28+r*24);
                 DrawTexture(check, checkAt);
 
@@ -487,12 +487,12 @@ public partial class CatalogView : FixedPage, IInformationPage
             if (pressed || currentRow || selected)
                 DrawRow(_tableOrigin + new Vector2(SelectionWidth,28+r*24), width-SelectionWidth, pressed ? 2 : currentRow ? 1 : 3);
         }
-        if(_portrait is { Visible: true }) DrawTextureRect(Textures["catalog-portrait-frame"], new(_portrait.Position - new Vector2(12,12), PortraitSize + new Vector2(24,24)), false);
+        if(_portrait is { Visible: true }) DrawTextureRect(Textures.Get("catalog-portrait-frame", this), new(_portrait.Position - new Vector2(12,12), PortraitSize + new Vector2(24,24)), false);
     }
     private void DrawRow(Vector2 point, int width, int frame)
     {
-        var left = Textures[$"catalog-row-left-{frame}"];
-        var right = Textures[$"catalog-row-right-{frame}"];
+        var left = Textures.Get($"catalog-row-left-{frame}", this);
+        var right = Textures.Get($"catalog-row-right-{frame}", this);
         DrawTexture(left,point);
         DrawTexture(right,point+new Vector2(width-right.GetWidth(),0));
         int middleStart = left.GetWidth()-1;
@@ -507,9 +507,9 @@ public partial class CatalogView : FixedPage, IInformationPage
             bool bottom = edge == "bottom";
             float y = bottom ? 25 : 0;
             float h = bottom ? height - 25 : 28;
-            var left = Textures["catalog-frame-" + edge + "-left"];
-            var middle = Textures["catalog-frame-" + edge];
-            var right = Textures["catalog-frame-" + edge + "-right"];
+            var left = Textures.Get("catalog-frame-" + edge + "-left", this);
+            var middle = Textures.Get("catalog-frame-" + edge, this);
+            var right = Textures.Get("catalog-frame-" + edge + "-right", this);
             float sourceY = bottom ? left.GetHeight() - h : 0;
             void Part(Texture2D texture, float x, float w) => DrawTextureRectRegion(texture,
                 new(origin + new Vector2(x, y), new(w, h)), new(0, sourceY, w, h));
@@ -560,13 +560,13 @@ public partial class CatalogSkinButton : BaseButton
     {
         int frame=Selected||GetDrawMode() is DrawMode.Pressed or DrawMode.HoverPressed?2:IsHovered()?1:0;
         string suffix=frame==0?"":$"-{frame}";
-        if(Kind==CatalogButtonKind.Tab){DrawTextureRectRegion(Textures["catalog-tab"+suffix],new(Vector2.Zero,Size),new(Vector2.Zero,Size));return;}
-        DrawTexture(Textures["catalog-header-left"+suffix],Vector2.Zero);
-        var mid=Textures["catalog-header-middle"+suffix];
+        if(Kind==CatalogButtonKind.Tab){DrawTextureRectRegion(Textures.Get("catalog-tab"+suffix, this),new(Vector2.Zero,Size),new(Vector2.Zero,Size));return;}
+        DrawTexture(Textures.Get("catalog-header-left"+suffix, this),Vector2.Zero);
+        var mid=Textures.Get("catalog-header-middle"+suffix, this);
         for(float x=8;x<Size.X-8;x+=mid.GetWidth())
         {var size=new Vector2(Math.Min(mid.GetWidth(),Size.X-8-x),24);DrawTextureRectRegion(mid,new(new(x,0),size),new(Vector2.Zero,size));}
-        DrawTexture(Textures["catalog-header-right"+suffix],new(Size.X-8,0));
-        if(SortDirection!=0)DrawTexture(Textures[SortDirection>0?"catalog-sort-up":"catalog-sort-down"],new(Size.X-9,8));
+        DrawTexture(Textures.Get("catalog-header-right"+suffix, this),new(Size.X-8,0));
+        if(SortDirection!=0)DrawTexture(Textures.Get(SortDirection>0?"catalog-sort-up":"catalog-sort-down", this),new(Size.X-9,8));
     }
     public override void _ExitTree()=>_text.Dispose();
 }

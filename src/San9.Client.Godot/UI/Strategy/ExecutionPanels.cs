@@ -137,8 +137,8 @@ public partial class ExecutionPanels : Control
             }
             if(bar)
             {
-                container.AddChild(new TextureRect { Texture=Textures["turn-command-remaining-frame"],Position=new(166,3),MouseFilter=MouseFilterEnum.Ignore });
-                var fill=Textures["turn-command-remaining-fill"];
+                container.AddChild(new TextureRect { Texture=Textures.Get("turn-command-remaining-frame", this),Position=new(166,3),MouseFilter=MouseFilterEnum.Ignore });
+                var fill=Textures.Get("turn-command-remaining-fill", this);
                 int width=(int)(fill.GetWidth()*Math.Min(10,value.RemainingDays)/10);
                 if(width>0) container.AddChild(new TextureRect { Texture=new AtlasTexture { Atlas=fill,Region=new(0,0,width,3) },Position=new(169,6),MouseFilter=MouseFilterEnum.Ignore });
             }
@@ -187,8 +187,8 @@ public partial class ExecutionPanels : Control
 
     public override void _Draw()
     {
-        if (ReportsVisible) DrawTexture(Textures["turn-record-panel"], Records.Position + RecordsOffset);
-        DrawTexture(Textures["turn-command-panel"], Commands.Position + CommandsOffset);
+        if (ReportsVisible) DrawTexture(Textures.Get("turn-record-panel", this), Records.Position + RecordsOffset);
+        DrawTexture(Textures.Get("turn-command-panel", this), Commands.Position + CommandsOffset);
     }
 
     public override void _ExitTree() => _text.Dispose();

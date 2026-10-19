@@ -47,7 +47,7 @@ python research/scripts/verify_texture_library.py --package local/generated/cont
 
 ## 所有权与预算
 
-`TextureScope.Assets`只提供资源元数据，枚举不会加载纹理；`Request`／`RequestPrefixes`显式申请，索引器只读取已申请的纹理视图，未申请时直接报错。申请不代表加载完成，就绪状态由`IsReady`／`TryGetReady`查询；`BindingCount`表示绑定数量。页面装配声明皮肤资源族，动态资源在内容绑定时申请，绘制回调不发起申请；图标先按元数据选尺寸，再申请对应角色。
+`TextureScope.Assets`只提供资源元数据，枚举不会加载纹理；`Request`／`RequestPrefixes`显式申请，索引器只读取已申请的纹理视图，未申请时直接报错。申请不代表加载完成，就绪状态由`IsReady`／`TryGetReady`查询；`BindingCount`表示绑定数量。页面装配声明皮肤资源族，动态资源在内容绑定时申请，绘制回调不发起申请；图标先按元数据选尺寸，再申请对应角色。自定义绘制通过`Get(role, canvas)`读取已申请纹理并登记实际绘制节点，资源就绪或失败后只通知登记的节点重绘，不从创建作用域的HUD递归推断消费者。接收整组裸纹理的滚动条通过`BindRedraw`登记轨道与滑块节点；节点离开场景树或作用域释放时解除登记。
 
 `Main` 装配会话级 `TextureService`。`TextureScope` 是显示资源租约与逻辑区域视图，使用 `Texture2D` 接口；多个角色和窗口共享同一物理 GPU 纹理。窗口只申请实际使用的角色。窗口关闭或重建时移除旧控件并释放作用域；旧绘制引用经过两帧退役后解绑、释放，避免仍在使用的原生绘制命令引用已释放纹理。
 
@@ -59,7 +59,7 @@ python research/scripts/verify_texture_library.py --package local/generated/cont
 | CPU 地形源图／遮罩／底云 | 保留合成所需像素，季节切换后替换季节源图 |
 | 512×512 合成地形块 | 主地图与预览共用 `TerrainChunkCache`，按合成器代际及块坐标复用；各视图保护显示／待提交及缓冲区域，闲置块 LRU |
 
-`Main` 的启动作用域持有皮肤角色中除人物／宝物头像外的全部资源，直到退出；各窗口仍按实际使用申请共享租约，关闭不影响启动作用域的常驻引用。加载失败走现有启动错误提示，不进入缺少皮肤的战略界面。此选择以增加启动加载量和固定显存占用，换取首次打开各窗口时无需冷加载共用皮肤；不批量预载头像或地图，也不增加窗口就绪切换机制。
+`Main` 的启动作用域持有`InterfaceSkin.RequiredUiAssets`声明的非头像资源，直到退出；各窗口仍按实际使用申请共享租约，关闭不影响启动作用域的常驻引用。加载失败走现有启动错误提示，不进入缺少皮肤的战略界面。此选择以增加启动加载量和固定显存占用，换取首次打开各窗口时无需冷加载这些共用皮肤；未列入启动集合的布阵等附加资源仍按页面申请并在就绪后重绘。不批量预载头像或地图，也不增加窗口就绪切换机制。
 
 非地形 GPU 目标预算为 256 MiB，地形块为 256 MiB；两者复用 `ResourceBudget` 的引用保护与按字节 LRU。正在使用的资源不得淘汰，固定资源超出目标时允许超额。计数按宽×高×通道估算，不是驱动实测显存，不含纹理对象、对齐、驱动开销及两帧退役中的对象。
 
@@ -101,3 +101,14 @@ F3 显示非地形固定／闲置 GPU 字节估算、地形 GPU 估算、CPU 合
 透明色、调色板Alpha、不透明和固定权重加色是不同的消费方式。通用图库默认的透明色解释不能替代界面皮肤或地图组成定义指定的逐色Alpha；不得因为像素为黑色、调色板有低覆盖度或通道全零而自动选择透明模式。HUD装饰框、轨道／滑块、菜单合成框／三段按钮、情报操作三段按钮及情报地图图标均已按原版消费者明确接入逐色Alpha，转换版本18原位重建。证据及全局检查范围见[RE-0158](../research/findings/RE-SAN9PK-0158.md#已接入界面透明模式复核2026-09-26)与[RE-0161](../research/findings/RE-SAN9PK-0161.md#已接入界面透明模式复核2026-09-26)。
 
 新增显示角色时，先确认具体消费者的混合语义，再选择对应转换出口；核验源透明色、源覆盖度、转换PNG的Alpha和可见RGB，以及装箱后的逻辑区域。`IndexedImageArchiveTests.PaletteAlphaUsesOriginalScaleAndCompleteTransparentKey`覆盖完整透明色、非透明色项的零／半覆盖和两种模式差异；仅有解码器单元测试不能证明每个角色接线正确，接入仍需消费者证据与像素核对。
+
+## 异步重绘的引擎回归
+
+`TextureRedrawVerification.tscn`使用现有190年包的元数据和受控内存图片，不读取原版资源、不进入战局。它延迟图片解码，在与作用域创建者不同的控件树中检查首次缺图后的自动补画、未绑定控件的反例、缓存重开、重复登记、节点重新入树及节点／作用域释放。此检查验证Godot绘制回调与资源生命周期，不代替正式页面的画面验收。
+
+```powershell
+dotnet build src/San9.Client.Godot/San9.Client.Godot.csproj
+& "<Godot Mono可执行文件>" --headless --path src/San9.Client.Godot res://Diagnostics/Verification/TextureRedrawVerification.tscn
+```
+
+入口要求`local/generated/content/scenario-190-live`已存在；成功输出`TEXTURE_REDRAW_OK`并以0退出。

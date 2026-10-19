@@ -55,9 +55,9 @@ public partial class InformationMenuButton : BaseButton
     public override void _Draw()
     {
         string suffix = VisualFrame == 0 ? "" : $"-{VisualFrame}";
-        var left = Textures[SkinPrefix + "-left" + suffix];
-        var middle = Textures[SkinPrefix + "-middle" + suffix];
-        var right = Textures[SkinPrefix + "-right" + suffix];
+        var left = Textures.Get(SkinPrefix + "-left" + suffix, this);
+        var middle = Textures.Get(SkinPrefix + "-middle" + suffix, this);
+        var right = Textures.Get(SkinPrefix + "-right" + suffix, this);
         DrawTexture(left, Vector2.Zero);
         float end = Size.X - right.GetWidth();
         for (float x = left.GetWidth(); x < end; x += middle.GetWidth())

@@ -20,8 +20,8 @@ public partial class InformationRowButton : BaseButton
     public override void _Draw()
     {
         if (!Selected && !HasFocus() && !IsHovered()) return;
-        DrawTextureRect(Textures["roster-row-left-1"], new(0, 4, 8, 16), false);
-        DrawTextureRect(Textures["roster-row-middle-1"], new(8, 4, Size.X - 16, 16), false);
-        DrawTextureRect(Textures["roster-row-right-1"], new(Size.X - 8, 4, 8, 16), false);
+        DrawTextureRect(Textures.Get("roster-row-left-1", this), new(0, 4, 8, 16), false);
+        DrawTextureRect(Textures.Get("roster-row-middle-1", this), new(8, 4, Size.X - 16, 16), false);
+        DrawTextureRect(Textures.Get("roster-row-right-1", this), new(Size.X - 8, 4, 8, 16), false);
     }
 }

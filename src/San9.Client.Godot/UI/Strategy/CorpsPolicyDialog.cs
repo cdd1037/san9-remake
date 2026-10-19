@@ -40,17 +40,17 @@ public partial class CorpsPolicyDialog : FixedPage
 
     public override void _Draw()
     {
-        DrawTextureRectRegion(Textures["deployment-policy-background"],new(Origin,new Vector2(296,312)),new(Vector2.Zero,new Vector2(296,312)));
+        DrawTextureRectRegion(Textures.Get("deployment-policy-background", this),new(Origin,new Vector2(296,312)),new(Vector2.Zero,new Vector2(296,312)));
         Vector2 frame = Origin-new Vector2(1,1);
-        void Piece(string role, Vector2 at) => DrawTexture(Textures["deployment-policy-frame-"+role],frame+at);
+        void Piece(string role, Vector2 at) => DrawTexture(Textures.Get("deployment-policy-frame-"+role, this),frame+at);
         Piece("top-left",Vector2.Zero); Piece("top-right",new(196,0));
         Piece("bottom-left",new(0,216)); Piece("bottom-right",new(196,216));
         for (int i = 0; i < 6; i++) { Piece("top",new(100+i*16,0)); Piece("bottom",new(100+i*16,308)); }
         for (int i = 0; i < 7; i++) { Piece("left",new(0,104+i*16)); Piece("right",new(288,104+i*16)); }
         Vector2 title = TitleOrigin;
-        DrawTexture(Textures["deployment-policy-title-left"],title);
-        for (int i = 0; i < 4; i++) DrawTexture(Textures["deployment-policy-title-middle"],title+new Vector2(32+i*24,0));
-        DrawTexture(Textures["deployment-policy-title-right"],title+new Vector2(128,0));
+        DrawTexture(Textures.Get("deployment-policy-title-left", this),title);
+        for (int i = 0; i < 4; i++) DrawTexture(Textures.Get("deployment-policy-title-middle", this),title+new Vector2(32+i*24,0));
+        DrawTexture(Textures.Get("deployment-policy-title-right", this),title+new Vector2(128,0));
     }
 
     public override void _Input(InputEvent input)

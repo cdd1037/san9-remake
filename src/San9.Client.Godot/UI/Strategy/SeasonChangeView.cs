@@ -32,7 +32,7 @@ public partial class SeasonChangeView : Control
         Visible = animation is not null;
         if (animation is null) return;
         _error.Text = error is null ? "" : $"季节地图加载失败：{error}\n点击重试";
-        _cover.Texture = Textures[$"season-cover-{animation.CoverFrame}"];
+        _cover.Texture = Textures.Get($"season-cover-{animation.CoverFrame}", this);
         _cover.SelfModulate = new Color(1, 1, 1, animation.CoverAlpha);
     }
 

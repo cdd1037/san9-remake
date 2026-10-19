@@ -113,7 +113,7 @@ public partial class StrategyMinimap : Control
         var point = Geometry.FromGrid(x, y);
         var scale = Size / new Vector2(320, 160);
         var center = new Vector2((float)point.X * Size.X, (float)point.Y * Size.Y) - new Vector2(0, scale.Y);
-        var texture = Textures[$"minimap-command-pulse-{_pulseFrame}"];
+        var texture = Textures.Get($"minimap-command-pulse-{_pulseFrame}", this);
         var size = texture.GetSize() * scale;
         _commandPulse.DrawTextureRect(texture, new(center - size / 2, size), false);
     }
@@ -131,7 +131,7 @@ public partial class StrategyMinimap : Control
             var point = Geometry.FromGrid(entry.Cell.X,entry.Cell.Y);
             var center = new Vector2((float)point.X*Size.X,(float)point.Y*Size.Y)-new Vector2(0,scale.Y);
             int frame = Math.Clamp((int)(entry.Time/.1),0,4);
-            var texture = Textures["minimap-record-pulse"+(frame == 0 ? "" : $"-{frame}")];
+            var texture = Textures.Get("minimap-record-pulse"+(frame == 0 ? "" : $"-{frame}"), this);
             var size = texture.GetSize()*scale;
             _recordPulse.DrawTextureRect(texture,new(center-size/2,size),false);
         }

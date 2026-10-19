@@ -75,6 +75,8 @@ public partial class SkinnedScrollBar : Control
 
     public override void _Draw()
     {
+        Skin.Textures.BindRedraw(this);
+        Skin.Textures.BindRedraw(Range);
         for (int y = 0; y < Size.Y; y += Skin.TrackMiddle.GetHeight())
         {
             float height = Math.Min(Skin.TrackMiddle.GetHeight(), Size.Y - y);

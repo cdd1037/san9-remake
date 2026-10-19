@@ -81,11 +81,11 @@ public partial class SaveLoadView : Control
             RowLabel($"{entry.Players}人游戏", new(296, 28), new(88, 24), 16, edge);
             if (entry.Historical is bool historical)
             {
-                content.AddChild(new TextureRect { Texture = Textures[historical ? "save-load-historical" : "save-load-fictional"],
+                content.AddChild(new TextureRect { Texture = Textures.Get(historical ? "save-load-historical" : "save-load-fictional", this),
                     Position = new(384, 28), MouseFilter = MouseFilterEnum.Ignore });
                 RowLabel(historical ? "史实" : "虚拟", new(392, 28), new(40, 24), 16, historical ? "5828c8" : "b82000");
             }
-            content.AddChild(new TextureRect { Texture = Textures["save-load-difficulty"], Position = new(440, 28), MouseFilter = MouseFilterEnum.Ignore });
+            content.AddChild(new TextureRect { Texture = Textures.Get("save-load-difficulty", this), Position = new(440, 28), MouseFilter = MouseFilterEnum.Ignore });
             RowLabel(entry.Difficulty, new(448, 28), new(40, 24), 16, "b82000");
             RowLabel(entry.CurrentDate, new(568, 20), new(260, 32), 24, "800090");
             // The timestamp frame spans x=848..992; keep equal inner margins with the current font.
@@ -169,8 +169,8 @@ public partial class SaveLoadView : Control
     {
         var painter = new SaveLoadSkinPainter(this, Textures);
         painter.Background(new(0, 0, 1024, 768)); painter.Frame(new(0, 0, 1024, 736)); painter.Title(new(24, 24), 112);
-        DrawTexture(Textures["save-load-footer"], new(0, 736));
-        DrawTexture(Textures["save-load-pages-background"], new(498, 631));
+        DrawTexture(Textures.Get("save-load-footer", this), new(0, 736));
+        DrawTexture(Textures.Get("save-load-pages-background", this), new(498, 631));
     }
     public override void _ExitTree() => _text.Dispose();
 }

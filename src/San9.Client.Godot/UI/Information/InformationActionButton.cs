@@ -44,7 +44,7 @@ public partial class InformationActionButton : BaseButton
         int frame = Disabled ? 3 : ButtonPressed || GetDrawMode() is DrawMode.Pressed or DrawMode.HoverPressed ? 2 : IsHovered() || HasFocus() ? 1 : 0;
         string suffix = frame == 0 ? "" : $"-{frame}";
         string prefix = SkinPrefix ?? (MapToggle ? "information-action-map-" : "information-action-");
-        var left = Textures[prefix + "left" + suffix]; var mid = Textures[prefix + "middle" + suffix]; var right = Textures[prefix + "right" + suffix];
+        var left = Textures.Get(prefix + "left" + suffix, this); var mid = Textures.Get(prefix + "middle" + suffix, this); var right = Textures.Get(prefix + "right" + suffix, this);
         float l = left.GetWidth(), r = right.GetWidth();
         DrawTextureRect(left, new(0, 0, l, Size.Y), false); DrawTextureRect(mid, new(l, 0, Size.X - l - r, Size.Y), false); DrawTextureRect(right, new(Size.X - r, 0, r, Size.Y), false);
     }

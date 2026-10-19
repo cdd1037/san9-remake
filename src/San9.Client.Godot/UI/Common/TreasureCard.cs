@@ -15,7 +15,7 @@ public partial class TreasureCard : Control
     public override void _Ready()
     {
         Size = new(336,176); MouseFilter = MouseFilterEnum.Ignore;
-        _field = CommandPanelArt.Field(Textures);
+        _field = CommandPanelArt.Field(Textures, this);
         CommandPanelArt.Label(this,_text,Treasure?.Name ?? "",Fields[0]);
         CommandPanelArt.Label(this,_text,"种类",new(144,4,48,24));
         CommandPanelArt.Label(this,_text,"能力",new(144,36,48,24));
@@ -34,8 +34,8 @@ public partial class TreasureCard : Control
         foreach (var bounds in Fields)
         {
             DrawStyleBox(_field,bounds);
-            SkinPainter.Tile(this,Textures["deployment-field-rim"],new(bounds.Position,new(bounds.Size.X,4)));
-            SkinPainter.Tile(this,Textures["deployment-field-rim"],new(bounds.Position+new Vector2(0,bounds.Size.Y-4),new(bounds.Size.X,4)));
+            SkinPainter.Tile(this,Textures.Get("deployment-field-rim", this),new(bounds.Position,new(bounds.Size.X,4)));
+            SkinPainter.Tile(this,Textures.Get("deployment-field-rim", this),new(bounds.Position+new Vector2(0,bounds.Size.Y-4),new(bounds.Size.X,4)));
         }
         CommandPanelArt.Strip(this,Textures,"deployment-mode",new(144,4,48,24));
         CommandPanelArt.Strip(this,Textures,"deployment-mode",new(144,36,48,24));

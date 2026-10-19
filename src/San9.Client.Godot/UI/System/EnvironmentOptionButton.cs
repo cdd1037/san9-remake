@@ -47,8 +47,8 @@ public partial class EnvironmentOptionButton : BaseButton
         int frame = Selected || (!Disabled && GetDrawMode() is DrawMode.Pressed or DrawMode.HoverPressed) ? 2
             : !Disabled && (IsHovered() || HasFocus()) ? 1 : 0;
         string suffix = frame == 0 ? "" : "-" + frame;
-        SkinPainter.Strip(this, Textures["environment-choice-left" + suffix], Textures["environment-choice-middle" + suffix],
-            Textures["environment-choice-right" + suffix], new(Vector2.Zero, Size));
+        SkinPainter.Strip(this, Textures.Get("environment-choice-left" + suffix, this), Textures.Get("environment-choice-middle" + suffix, this),
+            Textures.Get("environment-choice-right" + suffix, this), new(Vector2.Zero, Size));
     }
     public override void _ExitTree() => _text.Dispose();
 }

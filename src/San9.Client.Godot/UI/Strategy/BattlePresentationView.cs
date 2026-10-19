@@ -207,7 +207,7 @@ public partial class BattlePresentationView : Control
                 var actors = active.Officers?.Sample(elapsed, Textures.AnimationClips) ?? [];
                 foreach (var frame in actorPlayback.SampleBodies(elapsed).Concat(actorPlayback.SampleProjectiles(elapsed)).Concat(actorPlayback.SampleLocalEffects(elapsed)).Concat(actors).OrderBy(f => f.Depth ?? f.Y))
                 {
-                    var texture = _assets!.Assets.ContainsKey(frame.Sprite.Asset) ? _assets[frame.Sprite.Asset] : _flags![frame.Sprite.Asset];
+                    var texture = _assets!.Assets.ContainsKey(frame.Sprite.Asset) ? _assets.Get(frame.Sprite.Asset, this) : _flags!.Get(frame.Sprite.Asset, this);
                     var point = new Vector2((float)frame.X, (float)frame.Y);
                     if (frame.Centered) point -= new Vector2(texture.GetWidth() / frame.Sprite.Columns / 2f, texture.GetHeight() / 2f);
                     Effect(frame.Sprite with { Centered = false }, frame.Frame * frame.Sprite.FrameMilliseconds / 1000.0, point, frame.Opacity, frame.Frame);
@@ -218,14 +218,14 @@ public partial class BattlePresentationView : Control
                 {
                     var asset = active.Blocked ? active.Zoom!.Block : active.Zoom!.Impact;
                     if (elapsed < impact.Time || elapsed >= impact.Time + 16 * asset.FrameMilliseconds / 1000.0) continue;
-                    var texture = _assets![asset.Asset];
+                    var texture = _assets!.Get(asset.Asset, this);
                     int step = (int)((elapsed - impact.Time) * 1000 / asset.FrameMilliseconds);
                     Effect(asset with { Centered = impact.Centered }, step % asset.Columns * asset.FrameMilliseconds / 1000.0,
                         new(impact.X, impact.Y - (impact.Centered ? texture.GetHeight() / 2f : 0) - step * 2), Math.Max(0, 128 - step * 8) / 256f, step % asset.Columns);
                 }
             if (active.Doubled && BattleReinforcementPlayback.Sample(active.Zoom!.DoubleEffect, elapsed) is { } reinforcement)
             {
-                Effect(reinforcement.Sprite, 0, new(512, (768 - _assets![reinforcement.Sprite.Asset].GetHeight()) / 2f), reinforcement.Opacity);
+                Effect(reinforcement.Sprite, 0, new(512, (768 - _assets!.Get(reinforcement.Sprite.Asset, this).GetHeight()) / 2f), reinforcement.Opacity);
             }
         }
         if (_duel is { } scene && scene.Sample(time) is { } duelStage)
@@ -244,7 +244,7 @@ public partial class BattlePresentationView : Control
             }
             if (DuelSceneCue.SampleEffect(duelStage.Effects, sceneTime - duelStage.Start) is { } effect)
             {
-                var texture = _assets![effect.Sprite.Asset];
+                var texture = _assets!.Get(effect.Sprite.Asset, this);
                 Effect(effect.Sprite with { Centered = false }, 0,
                     new((1024 - texture.GetWidth() / (float)effect.Sprite.Columns) / 2, (768 - texture.GetHeight()) / 2f),
                     effect.Opacity, effect.Frame);
@@ -285,8 +285,8 @@ public partial class BattlePresentationView : Control
         if (_zoom is not { } cue || _assets is null || cue.Zoom is not { } zoom || _day is null) return;
         DrawRect(new(Vector2.Zero, GetViewportRect().Size), new Color(16 / 255f, 25 / 255f, 34 / 255f, 217 / 256f));
         DrawSetTransform(SceneOffset);
-        foreach (var layer in cue.Backdrop) DrawTexture(_assets[layer.Asset], new(layer.X, layer.Y));
-        DrawTexture(_assets[zoom.SourcePanel], new(0, 632)); DrawTexture(_assets[zoom.TargetPanel], new(680, 0));
+        foreach (var layer in cue.Backdrop) DrawTexture(_assets.Get(layer.Asset, this), new(layer.X, layer.Y));
+        DrawTexture(_assets.Get(zoom.SourcePanel, this), new(0, 632)); DrawTexture(_assets.Get(zoom.TargetPanel, this), new(680, 0));
         var font = GetThemeFont("font");
         string Person(int id) => Texts.Resolve(_day.Before.MessageSpeaker(id).NameKey);
         string Name(BattleObjectContext obj) => obj.IsSettlement ? _day.Before.Settlements.First(s => s.Id == obj.Id).ResolveName(Texts) :
@@ -312,7 +312,7 @@ public partial class BattlePresentationView : Control
                 if (BattleMapNumberPlayback.Sample(numbers, numberCue.Amount, _day.Elapsed - numberCue.Start) is not { } frame) continue;
                 var point = Project(numberCue.Target) + new Vector2((float)frame.X, (float)frame.Y);
                 for (int i = 0; i < frame.Text.Length; i++)
-                    layer.DrawTextureRectRegion(_assets[numbers.Asset], new(point + new Vector2(i * numbers.GlyphWidth, 0), new(numbers.GlyphWidth, numbers.GlyphHeight)),
+                    layer.DrawTextureRectRegion(_assets.Get(numbers.Asset, layer), new(point + new Vector2(i * numbers.GlyphWidth, 0), new(numbers.GlyphWidth, numbers.GlyphHeight)),
                         new(BattleMapNumberPlayback.Column(frame.Text[i]) * numbers.GlyphWidth, frame.Row * numbers.GlyphHeight, numbers.GlyphWidth, numbers.GlyphHeight));
             }
         if (_zoom is { Playback.Numbers: { } numberPlayback } cue)
@@ -321,7 +321,7 @@ public partial class BattlePresentationView : Control
             var glyphs = numberPlayback.SampleTotal(elapsed);
             if (!cue.Blocked) glyphs = glyphs.Concat(cue.Playback!.Impacts.SelectMany(p => numberPlayback.SampleSmall(p, elapsed)));
             foreach (var glyph in glyphs)
-                layer.DrawTextureRectRegion(_assets[glyph.Sheet.Asset], new(SceneOffset + new Vector2((float)glyph.X, (float)glyph.Y), new(glyph.Sheet.Width, glyph.Sheet.Height)),
+                layer.DrawTextureRectRegion(_assets.Get(glyph.Sheet.Asset, layer), new(SceneOffset + new Vector2((float)glyph.X, (float)glyph.Y), new(glyph.Sheet.Width, glyph.Sheet.Height)),
                     new(0, (float)glyph.SourceY, glyph.Sheet.Width, glyph.Sheet.Height), new Color(1, 1, 1, glyph.Opacity));
         }
     }

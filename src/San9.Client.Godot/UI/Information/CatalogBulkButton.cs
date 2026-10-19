@@ -39,9 +39,9 @@ public partial class CatalogBulkButton : BaseButton
     public override void _Draw()
     {
         string suffix = _frame == 0 ? "" : $"-{_frame}";
-        var left = Textures["catalog-bulk-left" + suffix];
-        var middle = Textures["catalog-bulk-middle" + suffix];
-        var right = Textures["catalog-bulk-right" + suffix];
+        var left = Textures.Get("catalog-bulk-left" + suffix, this);
+        var middle = Textures.Get("catalog-bulk-middle" + suffix, this);
+        var right = Textures.Get("catalog-bulk-right" + suffix, this);
         DrawTexture(left, Vector2.Zero);
         for (float x = left.GetWidth(); x < Size.X - right.GetWidth(); x += middle.GetWidth())
         {

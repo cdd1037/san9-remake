@@ -28,7 +28,7 @@ public partial class StrategyHud
               ("cancel", CommandText.Resolve(Texts, "action.cancel"), 921, () => { if (_commandTargets is not null) EndCommandTargets(); else if (_personnelTargeting) EndPersonnelTargets(); else _flow.EndTargetSelection(); }) })
         {
             var button = new StrategyButton { Title = title, Position = new(x, 680), Size = new(88, 44), Visible = false,
-                Frames = Enumerable.Range(0, 4).Select(f => (Texture2D)_textures[$"target-{role}-{f}"]).ToArray(),
+                Frames = Enumerable.Range(0, 4).Select(f => (Texture2D)_textures.Get($"target-{role}-{f}", this)).ToArray(),
                 TextRole = role == "list" ? GameButtonTextRole.ConfirmYes : GameButtonTextRole.ConfirmNo };
             button.Pressed += action;
             _bottomRight.AddChild(button); _targetButtons.Add(button); _hudButtons.Add(button);

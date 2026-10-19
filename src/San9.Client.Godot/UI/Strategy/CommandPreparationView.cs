@@ -173,12 +173,12 @@ internal partial class CommandValueField : Control
 {
     public TextureScope Textures { get; init; } = null!;
     private StyleBoxTexture field = null!;
-    public override void _Ready() { MouseFilter = MouseFilterEnum.Ignore; field = CommandPanelArt.Field(Textures); }
+    public override void _Ready() { MouseFilter = MouseFilterEnum.Ignore; field = CommandPanelArt.Field(Textures, this); }
     public override void _Draw()
     {
         DrawStyleBox(field,new(Vector2.Zero,Size));
-        SkinPainter.Tile(this,Textures["deployment-field-rim"],new(0,0,Size.X,4));
-        SkinPainter.Tile(this,Textures["deployment-field-rim"],new(0,Size.Y-4,Size.X,4));
+        SkinPainter.Tile(this,Textures.Get("deployment-field-rim", this),new(0,0,Size.X,4));
+        SkinPainter.Tile(this,Textures.Get("deployment-field-rim", this),new(0,Size.Y-4,Size.X,4));
     }
     public override void _ExitTree() => field.Dispose();
 }

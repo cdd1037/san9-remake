@@ -63,7 +63,7 @@ public abstract partial class JournalPage : FixedPage, IInformationPage
 
     private void Icon(string role, Vector2 at, Action pressed)
     {
-        var button = new TextureButton { Position = at, TextureNormal = Textures["detail-" + role], TextureHover = Textures["detail-" + role + "-1"], TexturePressed = Textures["detail-" + role + "-2"] };
+        var button = new TextureButton { Position = at, TextureNormal = Textures.Get("detail-" + role, this), TextureHover = Textures.Get("detail-" + role + "-1", this), TexturePressed = Textures.Get("detail-" + role + "-2", this) };
         TrackHint(button, Topic);
         button.Pressed += pressed; AddChild(button);
     }

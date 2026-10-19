@@ -61,13 +61,13 @@ public partial class BattlePresentationView
             if (_duelText.Markup != markup) _duelText.Present(markup, new(24, Colors.Black, GameTextEffect.None, Colors.Transparent));
             var font = _duelText.GetThemeFont("normal_font");
             float width = font.GetMultilineStringSize(_duelText.GetParsedText(), width: layout.MaximumTextWidth, fontSize: 24).X;
-            int tileWidth = _assets![layout.MiddleAsset].GetWidth();
+            int tileWidth = _assets!.Get(layout.MiddleAsset, this).GetWidth();
             _duelSpeechTiles = Mathf.CeilToInt(Math.Max(layout.ReferenceWidth, width) / tileWidth);
             int textWidth = _duelSpeechTiles * tileWidth;
             _duelSpeechPosition = new(layout.Position.X + (layout.Right ? layout.ReferenceWidth - textWidth : 0), layout.Position.Y);
             _duelText.Size = new(textWidth, layout.LineHeight * 3);
             _duelText.Position = GameTextMetrics.GlyphCellPosition(
-                SceneOffset + _duelSpeechPosition + new Vector2(_assets[layout.StartAsset].GetWidth() + layout.TextOffset.X, layout.TextOffset.Y), font, 24);
+                SceneOffset + _duelSpeechPosition + new Vector2(_assets.Get(layout.StartAsset, this).GetWidth() + layout.TextOffset.X, layout.TextOffset.Y), font, 24);
             _duelText.AddThemeConstantOverride("line_separation", layout.LineHeight - Mathf.CeilToInt(font.GetHeight(24)));
         }
         int index = _duel.Stages.IndexOf(stage);
@@ -90,7 +90,7 @@ public partial class BattlePresentationView
         var ui = duel.Definition.Interface;
         DrawRect(new(Vector2.Zero, GetViewportRect().Size), new Color(new Color(ui.TintColor), ui.TintOpacity));
         DrawSetTransform(SceneOffset);
-        DrawTexture(_assets[duel.Backdrop], new(ui.BackdropPosition.X, ui.BackdropPosition.Y));
+        DrawTexture(_assets.Get(duel.Backdrop, this), new(ui.BackdropPosition.X, ui.BackdropPosition.Y));
         void Text(string text, float x, float y, int size = 22, Color? color = null) =>
             DrawString(font, new(x, y), text, fontSize: size, modulate: color ?? Colors.White);
 
@@ -102,14 +102,14 @@ public partial class BattlePresentationView
                 {
                     var clip = Textures.AnimationClips[role];
                     int frame = (flag.Phase + (int)((time - duel.Start) * 1000 / clip.FrameMilliseconds)) % clip.Frames.Length;
-                    DrawTexture(_flags![clip.Frames[frame]], new(flag.Position.X, flag.Position.Y));
+                    DrawTexture(_flags!.Get(clip.Frames[frame], this), new(flag.Position.X, flag.Position.Y));
                 }
             }));
         foreach (var audience in duel.Definition.Audience)
         {
             var mood = audience.Right ? stage.RightAudience : stage.LeftAudience;
             var animation = mood == DuelAudienceMood.Cheer ? audience.Cheer : mood == DuelAudienceMood.Dismay ? audience.Defeat : audience.Idle;
-            var texture = _assets[animation.Asset];
+            var texture = _assets.Get(animation.Asset, this);
             var size = new Vector2(texture.GetWidth() / (float)animation.Columns, texture.GetHeight());
             double audienceAge = age + (audience.Right ? stage.RightAudienceAge : stage.LeftAudienceAge);
             for (int i = 0; i < audience.Positions.Length; i++)
@@ -125,7 +125,7 @@ public partial class BattlePresentationView
         void Fighter(DuelFighterView fighter, bool right, DuelAction action)
         {
             var animation = duel.Definition.Bodies.Single(b => b.Female == fighter.Female && b.Right == right).Actions[action];
-            var texture = _assets[animation.Asset];
+            var texture = _assets.Get(animation.Asset, this);
             int frame = DuelSceneCue.AnimationFrame(animation, age + (right ? stage.RightAnimationAge : stage.LeftAnimationAge), action is DuelAction.Idle or DuelAction.Return);
             var size = new Vector2(texture.GetWidth() / (float)animation.Columns, texture.GetHeight());
             var point = DuelSceneCue.Position(stage, time, right);
@@ -156,14 +156,14 @@ public partial class BattlePresentationView
             // Original order: the bust is behind the native frame, including its transparent margins.
             layer.DrawTextureRect(_duelPortraits[fighter.Id][$"information-person-{fighter.Id}"],
                 new(origin + new Vector2(portrait.X, portrait.Y), new(portrait.Width, portrait.Height)), false);
-            layer.DrawTexture(_assets[panel.Asset], origin);
+            layer.DrawTexture(_assets.Get(panel.Asset, layer), origin);
             void Text(string text, DuelUiRect rect, int size, Color color) => GameTextPresenter.DrawAtGlyphCell(layer, font, text,
                 origin + new Vector2(rect.X, rect.Y), new(size, color, size == 16 ? GameTextEffect.None : GameTextEffect.Shadow, Colors.Black), HorizontalAlignment.Center, rect.Width);
             Text(Texts.Resolve(_day.Before.MessageSpeaker(fighter.Id).NameKey), panel.Name, 24, new("f0f0f0"));
             Text(CommandText.Resolve(Texts, "label.war"), panel.WarLabel, 16, Colors.Black);
             Text(fighter.War.ToString(), panel.War, 24, new(fighter.Injury > 0 ? "f06850" : "f0f0f0"));
             Text(CommandText.Resolve(Texts, "label.health"), panel.HealthLabel, 16, Colors.Black);
-            var health = _assets[panel.HealthAsset];
+            var health = _assets.Get(panel.HealthAsset, layer);
             double hp = DuelSceneCue.HitPoints(stage, DuelTime(stage), panel.Right);
             int width = DuelInterfacePlayback.HealthWidth(health.GetWidth(), hp);
             int x = panel.Right ? 0 : health.GetWidth() - width;
@@ -177,8 +177,8 @@ public partial class BattlePresentationView
     {
         if (_duel is null || _duelSpeechLayout is not { } layout || !ResourcesReady) return;
         var point = SceneOffset + _duelSpeechPosition;
-        var start = _assets![layout.StartAsset];
-        var middle = _assets[layout.MiddleAsset];
+        var start = _assets!.Get(layout.StartAsset, _duelSpeechFrame);
+        var middle = _assets.Get(layout.MiddleAsset, _duelSpeechFrame);
         _duelSpeechFrame.DrawTexture(start, point);
         point.X += start.GetWidth();
         for (int i = 0; i < _duelSpeechTiles; i++)
@@ -186,6 +186,6 @@ public partial class BattlePresentationView
             _duelSpeechFrame.DrawTexture(middle, point);
             point.X += middle.GetWidth();
         }
-        _duelSpeechFrame.DrawTexture(_assets[layout.EndAsset], point);
+        _duelSpeechFrame.DrawTexture(_assets.Get(layout.EndAsset, _duelSpeechFrame), point);
     }
 }

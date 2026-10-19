@@ -29,7 +29,7 @@ public partial class OfficerPropertyList : Control
     {
         if (LabelWidth < 32 || ValueGap < 0 || RowHeight < 24 || RowSpacing < RowHeight) throw new InvalidOperationException("Invalid property row dimensions.");
         MouseFilter = MouseFilterEnum.Ignore;
-        _field = CommandPanelArt.Field(Textures);
+        _field = CommandPanelArt.Field(Textures, this);
         Rebuild();
     }
 
@@ -54,8 +54,8 @@ public partial class OfficerPropertyList : Control
             int width = _properties[row].ValueWidth;
             CommandPanelArt.Strip(this, Textures, LabelSkinPrefix, new(0,y,LabelWidth,RowHeight));
             DrawStyleBox(_field, new(LabelWidth+ValueGap,y,width,RowHeight));
-            SkinPainter.Tile(this, Textures["deployment-field-rim"], new(LabelWidth+ValueGap,y,width,4));
-            SkinPainter.Tile(this, Textures["deployment-field-rim"], new(LabelWidth+ValueGap,y+RowHeight-4,width,4));
+            SkinPainter.Tile(this, Textures.Get("deployment-field-rim", this), new(LabelWidth+ValueGap,y,width,4));
+            SkinPainter.Tile(this, Textures.Get("deployment-field-rim", this), new(LabelWidth+ValueGap,y+RowHeight-4,width,4));
         }
     }
 

@@ -39,7 +39,7 @@ public partial class UnitDetailView : FixedPage, IInformationPage
     }
     private void Icon(string role, Vector2 at, Action action)
     {
-        var button = new TextureButton { Position = at, TextureNormal = Textures["detail-"+role], TextureHover = Textures["detail-"+role+"-1"], TexturePressed = Textures["detail-"+role+"-2"] };
+        var button = new TextureButton { Position = at, TextureNormal = Textures.Get("detail-"+role, this), TextureHover = Textures.Get("detail-"+role+"-1", this), TexturePressed = Textures.Get("detail-"+role+"-2", this) };
         button.Pressed += action; AddChild(button);
     }
     public void RefreshData() { _sidebar.Refresh(); RefreshBody(); }
@@ -96,13 +96,13 @@ public partial class UnitDetailView : FixedPage, IInformationPage
     }
     public override void _Draw()
     {
-        DrawTexture(Textures["detail-background"],Vector2.Zero);
-        DrawTextureRectRegion(Textures["detail-unit-list-top"],new(864,72,160,452),new(0,0,160,452));
-        DrawTexture(Textures["detail-unit-list-bottom"],new(864,524));
-        DrawTexture(Textures["formation-panel-detail"],new(76,100));
+        DrawTexture(Textures.Get("detail-background", this),Vector2.Zero);
+        DrawTextureRectRegion(Textures.Get("detail-unit-list-top", this),new(864,72,160,452),new(0,0,160,452));
+        DrawTexture(Textures.Get("detail-unit-list-bottom", this),new(864,524));
+        DrawTexture(Textures.Get("formation-panel-detail", this),new(76,100));
         var painter = new DetailSkinPainter(this,Textures);
         painter.Strip("title",new(56,34,568,60)); painter.Strip("name",new(232,50,124,28));
-        DrawTextureRect(Textures["detail-status-badge"],new(492,48,68,32),false);
+        DrawTextureRect(Textures.Get("detail-status-badge", this),new(492,48,68,32),false);
         painter.Panel(new(604,100,256,612));
         foreach (int y in new[] {120,152,196,228,260,304,336,368,400,432,464})
         { painter.Strip("label",new(624,y,96,24)); painter.Strip("field",new(728,y,112,24)); }

@@ -77,8 +77,8 @@ public abstract partial class SettingsView : Control
         painter.Background(_panel); painter.Frame(_panel, note: true);
         painter.Title(_panel.Position + new Vector2(13, 12), 184);
         for (int row = 0; row < _rowCount; row++)
-            SkinPainter.Strip(this, Textures["environment-label-left"], Textures["environment-label-middle"],
-                Textures["environment-label-right"], new(_panel.Position + new Vector2(22, 88 + row * RowSpacing), new(LabelWidth, 40)));
+            SkinPainter.Strip(this, Textures.Get("environment-label-left", this), Textures.Get("environment-label-middle", this),
+                Textures.Get("environment-label-right", this), new(_panel.Position + new Vector2(22, 88 + row * RowSpacing), new(LabelWidth, 40)));
     }
     public override void _GuiInput(InputEvent input) => AcceptEvent();
     public override void _ExitTree() => _text.Dispose();

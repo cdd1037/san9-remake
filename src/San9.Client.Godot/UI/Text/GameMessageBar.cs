@@ -40,7 +40,7 @@ public partial class GameMessageBar : Control
     public override void _Draw()
     {
         if (string.IsNullOrEmpty(_text)) return;
-        var left = Textures["message-left"]; var middle = Textures["message-middle"]; var right = Textures["message-right"];
+        var left = Textures.Get("message-left", this); var middle = Textures.Get("message-middle", this); var right = Textures.Get("message-right", this);
         int capWidth = left.GetWidth() + right.GetWidth();
         // The text and its padding occupy the middle; the fading caps sit outside it.
         int middleWidth = Math.Min(_label.GetContentWidth() + 8, Math.Max(0, (int)Size.X - capWidth));

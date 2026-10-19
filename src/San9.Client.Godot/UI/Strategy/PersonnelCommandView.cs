@@ -166,19 +166,19 @@ internal partial class PersonnelCommandFields : Control
     public string Kind { get; init; } = "";
     public float SourceWidth { get; init; }
     private StyleBoxTexture _field = null!;
-    public override void _Ready() { MouseFilter = MouseFilterEnum.Ignore; _field = CommandPanelArt.Field(Textures); }
+    public override void _Ready() { MouseFilter = MouseFilterEnum.Ignore; _field = CommandPanelArt.Field(Textures, this); }
     public override void _Draw()
     {
         var at = Bounds.Position;
         CommandPanelArt.Strip(this,Textures,"deployment-facility",new(at,new(SourceWidth,32)));
-        SkinPainter.Tile(this,Textures["deployment-divider"],new(at+new Vector2(0,40),new(Bounds.Size.X,5)));
+        SkinPainter.Tile(this,Textures.Get("deployment-divider", this),new(at+new Vector2(0,40),new(Bounds.Size.X,5)));
         if (Kind is "search" or "move") Field(new(at+new Vector2(104,48),new(Kind == "search" ? 128 : 144,32)));
     }
     private void Field(Rect2 bounds)
     {
         DrawStyleBox(_field,bounds);
-        SkinPainter.Tile(this,Textures["deployment-field-rim"],new(bounds.Position,new(bounds.Size.X,4)));
-        SkinPainter.Tile(this,Textures["deployment-field-rim"],new(bounds.Position+new Vector2(0,bounds.Size.Y-4),new(bounds.Size.X,4)));
+        SkinPainter.Tile(this,Textures.Get("deployment-field-rim", this),new(bounds.Position,new(bounds.Size.X,4)));
+        SkinPainter.Tile(this,Textures.Get("deployment-field-rim", this),new(bounds.Position+new Vector2(0,bounds.Size.Y-4),new(bounds.Size.X,4)));
     }
     public override void _ExitTree() => _field.Dispose();
 }

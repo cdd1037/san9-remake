@@ -66,7 +66,7 @@ public partial class GameRichTextLabel : RichTextLabel
             if (candidates.Length == 0) throw new InvalidDataException($"Missing text icon: {match.Groups["id"].Value}");
             string role = candidates[0].Role;
             Textures.Request([role]);
-            var texture = Textures[role];
+            var texture = Textures.Get(role, this);
             // A cached resource name, not a disk file. Ownership remains with the loaded skin textures.
             string path = $"res://message-images/{texture.GetInstanceId()}.tres";
             if (texture.ResourcePath != path) texture.TakeOverPath(path);

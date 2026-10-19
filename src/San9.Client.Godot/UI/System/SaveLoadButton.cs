@@ -56,7 +56,7 @@ public partial class SaveLoadButton : BaseButton
     public override void _Draw()
     {
         int frame = Disabled ? DisabledFrame : Selected || GetDrawMode() is DrawMode.Pressed or DrawMode.HoverPressed ? 2 : IsHovered() || HasFocus() ? 1 : 0;
-        DrawTexture(Textures["save-load-" + Skin + (frame == 0 ? "" : $"-{frame}")], Vector2.Zero);
+        DrawTexture(Textures.Get("save-load-" + Skin + (frame == 0 ? "" : $"-{frame}"), this), Vector2.Zero);
     }
     public override void _ExitTree() => _text.Dispose();
 }

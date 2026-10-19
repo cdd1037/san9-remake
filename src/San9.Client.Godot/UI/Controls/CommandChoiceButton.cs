@@ -33,10 +33,10 @@ public partial class CommandChoiceButton : BaseButton
     public override void _Draw()
     {
         string role = "deployment-choice-" + (ButtonPressed ? "selected" : IsHovered() ? "hover" : "normal");
-        var left = Textures[role + "-left"]; var right = Textures[role + "-right"];
+        var left = Textures.Get(role + "-left", this); var right = Textures.Get(role + "-right", this);
         // The option takes the top 32 pixels of the 40-pixel source strip.
         DrawTextureRectRegion(left, new(0, 0, 20, Size.Y), new(0, 0, 20, Size.Y));
-        SkinPainter.Tile(this, Textures[role + "-middle"], new(20, 0, Size.X - 40, Size.Y));
+        SkinPainter.Tile(this, Textures.Get(role + "-middle", this), new(20, 0, Size.X - 40, Size.Y));
         DrawTextureRectRegion(right, new(Size.X - 20, 0, 20, Size.Y), new(0, 0, 20, Size.Y));
     }
     public override void _ExitTree() => _text.Dispose();

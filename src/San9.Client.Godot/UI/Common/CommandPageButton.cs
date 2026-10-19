@@ -23,5 +23,5 @@ public partial class CommandPageButton : BaseButton
         if (frame == next) return;
         frame = next; QueueRedraw();
     }
-    public override void _Draw() => DrawTexture(Textures[SkinPrefix + (frame == 0 ? "" : $"-{frame}")], Vector2.Zero);
+    public override void _Draw() => DrawTexture(Textures.Get(SkinPrefix + (frame == 0 ? "" : $"-{frame}"), this), Vector2.Zero);
 }

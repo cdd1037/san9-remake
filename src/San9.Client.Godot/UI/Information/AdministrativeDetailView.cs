@@ -28,7 +28,7 @@ public partial class AdministrativeDetailView : FixedPage, IInformationPage
     private int _titleExtra;
     private void Badge(string role, string text, Vector2 position, Vector2 size)
     {
-        _body.AddChild(new TextureRect { Texture = Textures["detail-"+role+"-badge"], Position = position,
+        _body.AddChild(new TextureRect { Texture = Textures.Get("detail-"+role+"-badge", this), Position = position,
             Size = size, MouseFilter = MouseFilterEnum.Ignore });
         Label(text,new(position,size),24,HorizontalAlignment.Center);
     }
@@ -43,10 +43,10 @@ public partial class AdministrativeDetailView : FixedPage, IInformationPage
         AddChild(_sidebar);
         var close = new DetailActionButton { Title = "关闭", Role = "close", Textures = Textures, Position = new(875,687), Size = new(108,44) };
         close.Pressed += Closed; AddChild(close);
-        var icon = new TextureButton { Position = new(964,56), TextureNormal = Textures["detail-close-icon"],
-            TextureHover = Textures["detail-close-icon-1"], TexturePressed = Textures["detail-close-icon-2"] };
+        var icon = new TextureButton { Position = new(964,56), TextureNormal = Textures.Get("detail-close-icon", this),
+            TextureHover = Textures.Get("detail-close-icon-1", this), TexturePressed = Textures.Get("detail-close-icon-2", this) };
         icon.Pressed += Closed; AddChild(icon);
-        AddChild(new TextureRect { Position = new(932,32), Texture = Textures["detail-help"], MouseFilter = MouseFilterEnum.Ignore });
+        AddChild(new TextureRect { Position = new(932,32), Texture = Textures.Get("detail-help", this), MouseFilter = MouseFilterEnum.Ignore });
         AddChild(new GameMessageBar { Textures = Textures, Text = "现在显示的是" + Title + "。" });
         RefreshBody();
     }
@@ -102,7 +102,7 @@ public partial class AdministrativeDetailView : FixedPage, IInformationPage
         _panels.Add(new(76,100,force ? 592 : 624,156));
         _panels.Add(new(76,268,force ? 664 : 640,force ? 300 : 156));
         _strips.Add(("leader-label",new(96,120,48,24))); Label(force ? "君主" : "都督",new(96,120,48,24),alignment:HorizontalAlignment.Center);
-        _body.AddChild(new TextureRect { Texture = Textures["detail-leader-background"], Position = new(152,120), MouseFilter = MouseFilterEnum.Ignore });
+        _body.AddChild(new TextureRect { Texture = Textures.Get("detail-leader-background", this), Position = new(152,120), MouseFilter = MouseFilterEnum.Ignore });
         Label(_data.LeaderName,new(164,120,172,24));
         if (_data.PortraitRole is { } role)
             _body.AddChild(new AsyncPortrait { Service = Service, Role = role, View = San9.Content.Images.PortraitView.Face,
@@ -110,7 +110,7 @@ public partial class AdministrativeDetailView : FixedPage, IInformationPage
         if (_data.LeaderAbilities is { } abilities)
         {
             _body.AddChild(new OfficerAbilityRadar { Abilities = abilities, Position = new(258,162), Scale = new(52f/164,52f/164) });
-            _body.AddChild(new TextureRect { Texture = Textures["detail-leader-radar-grid"], Position = new(258,162), MouseFilter = MouseFilterEnum.Ignore });
+            _body.AddChild(new TextureRect { Texture = Textures.Get("detail-leader-radar-grid", this), Position = new(258,162), MouseFilter = MouseFilterEnum.Ignore });
             Label("统率",new(264,146,40,16),16,HorizontalAlignment.Center,new Color("f8f850"));
             Label("武力",new(228,180,32,16),16,HorizontalAlignment.Center,new Color("e85440"));
             Label("智力",new(264,212,40,16),16,HorizontalAlignment.Center,new Color("60d868"));
@@ -182,10 +182,10 @@ public partial class AdministrativeDetailView : FixedPage, IInformationPage
     }
     public override void _Draw()
     {
-        DrawTexture(Textures["detail-background"],Vector2.Zero);
+        DrawTexture(Textures.Get("detail-background", this),Vector2.Zero);
         float topHeight = Rows * 20 - 8;
-        DrawTextureRectRegion(Textures["detail-list-top"],new(872,72,152,topHeight),new(0,0,152,topHeight));
-        DrawTexture(Textures["detail-list-bottom"],new(872,72+topHeight));
+        DrawTextureRectRegion(Textures.Get("detail-list-top", this),new(872,72,152,topHeight),new(0,0,152,topHeight));
+        DrawTexture(Textures.Get("detail-list-bottom", this),new(872,72+topHeight));
         foreach (var panel in _panels) Panel(panel);
         foreach (var strip in _strips) Strip(strip.Role,strip.Rect);
     }

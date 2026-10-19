@@ -56,7 +56,7 @@ public partial class CommandNarration : FixedPage
     public override void _Ready()
     {
         Size = new(1024,768); MouseFilter = MouseFilterEnum.Stop;
-        _resultFrame = new() { Texture = Textures["dialog-frame"], TextureMarginLeft = 96, TextureMarginRight = 96,
+        _resultFrame = new() { Texture = Textures.Get("dialog-frame", this), TextureMarginLeft = 96, TextureMarginRight = 96,
             TextureMarginTop = 56, TextureMarginBottom = 56, AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile,
             AxisStretchVertical = StyleBoxTexture.AxisStretchMode.Tile };
         _streams = new(ContentRoot, Sounds);
@@ -123,7 +123,7 @@ public partial class CommandNarration : FixedPage
             var imageSize=new Vector2(asset.Width,asset.Height)*scale;
             float top=(768-imageSize.Y-64-(resultBodyHeight+112))/2;
             _imageFrameBounds=new((1024-imageSize.X-64)/2,top,imageSize.X+64,imageSize.Y+64);
-            _image = new TextureRect { Texture=_illustration[imageRole],Position=_imageFrameBounds.Value.Position+new Vector2(32,32),Size=imageSize,
+            _image = new TextureRect { Texture=_illustration.Get(imageRole, this),Position=_imageFrameBounds.Value.Position+new Vector2(32,32),Size=imageSize,
                 ExpandMode=TextureRect.ExpandModeEnum.IgnoreSize,StretchMode=TextureRect.StretchModeEnum.Scale,MouseFilter=MouseFilterEnum.Ignore,
                 Modulate = new Color(1, 1, 1, SceneOpacity.Darken(0, IllustrationFadeSeconds)) };
             if(entry.IllustrationDeceased) _image.Material=_deceasedMaterial ??= PortraitMaterials.Deceased();
@@ -158,7 +158,7 @@ public partial class CommandNarration : FixedPage
         _resultFrameBounds = new(message.Position-new Vector2(80,40),new(width,height));
         return bodyHeight;
     }
-    private void Art(string role, Vector2 position) => _body!.AddChild(new TextureRect { Texture = Textures["narration-"+role], Position = position, MouseFilter = MouseFilterEnum.Ignore });
+    private void Art(string role, Vector2 position) => _body!.AddChild(new TextureRect { Texture = Textures.Get("narration-"+role, this), Position = position, MouseFilter = MouseFilterEnum.Ignore });
     private void NameLabel(string value, Rect2 rect, int size)
     {
         var label = new Label { Text = value, Position = rect.Position, Size = rect.Size, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
@@ -231,7 +231,7 @@ public partial class CommandNarration : FixedPage
     }
     private void DrawImageFrame(Rect2 bounds)
     {
-        Texture2D Part(string part) => Textures["narration-image-frame-"+part];
+        Texture2D Part(string part) => Textures.Get("narration-image-frame-"+part, this);
         foreach (var edge in new[] { "top", "bottom" })
         {
             var texture=Part(edge);
@@ -259,7 +259,7 @@ public partial class CommandNarration : FixedPage
     private void UpdateContinuation()
     {
         string role = HasPerson ? $"narration-portrait-next-{PortraitFrames[_frame%PortraitFrames.Length]}" : $"narration-result-next-{_frame%7}";
-        if (_continuation is not null) _continuation.Texture = Textures[role];
+        if (_continuation is not null) _continuation.Texture = Textures.Get(role, this);
     }
     public override void _ExitTree()
     {

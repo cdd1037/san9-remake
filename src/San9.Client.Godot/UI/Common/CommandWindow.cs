@@ -63,9 +63,9 @@ public partial class CommandWindow : Control
 
     private void Icon(string role, Vector2 at, Action action, bool disabled = false)
     {
-        var button = new TextureButton { Position = at, TextureNormal = Textures["deployment-" + role],
-            TextureHover = Textures["deployment-" + role + "-1"], TexturePressed = Textures["deployment-" + role + "-2"],
-            TextureDisabled = Textures["deployment-" + role + "-3"], Disabled = disabled };
+        var button = new TextureButton { Position = at, TextureNormal = Textures.Get("deployment-" + role, this),
+            TextureHover = Textures.Get("deployment-" + role + "-1", this), TexturePressed = Textures.Get("deployment-" + role + "-2", this),
+            TextureDisabled = Textures.Get("deployment-" + role + "-3", this), Disabled = disabled };
         button.Pressed += action; AddChild(button);
     }
 
@@ -76,7 +76,7 @@ public partial class CommandWindow : Control
         // The command base selects background 270 independently of the frame size.
         string[] roles = ["deployment-background", FrameKey("cutout-top-left"), FrameKey("cutout-top-right"), FrameKey("cutout-bottom-left")];
         if (!Textures.AreReady(roles)) return;
-        using var source = Textures[roles[0]].GetImage();
+        using var source = Textures.Get(roles[0], this).GetImage();
         source.Convert(Image.Format.Rgba8);
         byte[] sourcePixels = source.GetData();
         int width = (int)Size.X + 64, height = (int)Size.Y + 128;
@@ -89,7 +89,7 @@ public partial class CommandWindow : Control
         foreach (var (role, at) in new (string, Vector2I)[] { (roles[1], Vector2I.Zero),
             (roles[2], new(width - 144, 0)), (roles[3], new(0, height - 160)) })
         {
-            using var mask = Textures[role].GetImage();
+            using var mask = Textures.Get(role, this).GetImage();
             mask.Convert(Image.Format.Rgba8);
             byte[] maskPixels = mask.GetData();
             int maskWidth = mask.GetWidth(), maskHeight = mask.GetHeight();
@@ -107,19 +107,19 @@ public partial class CommandWindow : Control
         if (_background is not null) DrawTexture(_background, new(-32, -64));
         float titleWidth = 160 + Title.Length * 16;
         Strip("title", new(-24, -72, titleWidth, 56));
-        Tile("top-edge", new(-24 + titleWidth, -72, Size.X - (SmallFrame ? 88 : 112) - (-24 + titleWidth), Textures[FrameKey("top-edge")].GetHeight()));
+        Tile("top-edge", new(-24 + titleWidth, -72, Size.X - (SmallFrame ? 88 : 112) - (-24 + titleWidth), Textures.Get(FrameKey("top-edge"), this).GetHeight()));
         float footerLeft = Size.X - (SmallFrame ? 266 : 298);
         float edgeLeft = SmallFrame ? 28 : 116;
         Strip("footer", new(footerLeft, Size.Y + 16, SmallFrame ? 280 : 296, 56));
-        Tile("edge", new(edgeLeft, Size.Y + 56, footerLeft - edgeLeft, Textures[FrameKey("edge")].GetHeight()));
-        Tile("left-edge", new(-36, SmallFrame ? 8 : 104, Textures["deployment-left-edge"].GetWidth(), Size.Y - (SmallFrame ? 28 : 136)));
-        Tile("right-edge", new(Size.X + 25, SmallFrame ? 12 : 88, Textures["deployment-right-edge"].GetWidth(), Size.Y - (SmallFrame ? 28 : 120)));
+        Tile("edge", new(edgeLeft, Size.Y + 56, footerLeft - edgeLeft, Textures.Get(FrameKey("edge"), this).GetHeight()));
+        Tile("left-edge", new(-36, SmallFrame ? 8 : 104, Textures.Get("deployment-left-edge", this).GetWidth(), Size.Y - (SmallFrame ? 28 : 136)));
+        Tile("right-edge", new(Size.X + 25, SmallFrame ? 12 : 88, Textures.Get("deployment-right-edge", this).GetWidth(), Size.Y - (SmallFrame ? 28 : 120)));
         foreach (var (role, at) in new (string, Vector2)[] { ("top-left", new(-62, -79)), ("top-right", new(Size.X - 112, -80)),
             ("bottom-left", new(-64, Size.Y - 96)), ("bottom-right", new(Size.X - 24, Size.Y - 96)) })
-            DrawTexture(Textures[FrameKey(role)], at);
+            DrawTexture(Textures.Get(FrameKey(role), this), at);
     }
-    private void Tile(string role, Rect2 rect) => SkinPainter.Tile(this, Textures[FrameKey(role)], rect);
-    private void Strip(string role, Rect2 rect) => SkinPainter.Strip(this, Textures[FrameKey(role + "-left")],
-        Textures[FrameKey(role + "-middle")], Textures[FrameKey(role + "-right")], rect);
+    private void Tile(string role, Rect2 rect) => SkinPainter.Tile(this, Textures.Get(FrameKey(role), this), rect);
+    private void Strip(string role, Rect2 rect) => SkinPainter.Strip(this, Textures.Get(FrameKey(role + "-left"), this),
+        Textures.Get(FrameKey(role + "-middle"), this), Textures.Get(FrameKey(role + "-right"), this), rect);
     public override void _ExitTree() { _text.Dispose(); _background?.Dispose(); }
 }

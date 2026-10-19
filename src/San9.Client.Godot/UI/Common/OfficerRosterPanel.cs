@@ -52,7 +52,7 @@ public partial class OfficerRosterPanel : Control
         if (VisibleRows < 1 || Columns.Count == 0 || Columns.Any(c => c.Width < 48))
             throw new InvalidOperationException("A roster needs a positive page size and columns at least 48 pixels wide.");
         MouseFilter = MouseFilterEnum.Ignore;
-        _field = CommandPanelArt.Field(Textures);
+        _field = CommandPanelArt.Field(Textures, this);
         Rebuild();
     }
 
@@ -111,8 +111,8 @@ public partial class OfficerRosterPanel : Control
         if (ShowPagination || PageCount > 1)
         {
             DrawStyleBox(_field, new(56,PageLabelY,PageNumberWidth,24));
-            SkinPainter.Tile(this, Textures["deployment-field-rim"], new(56,PageLabelY,PageNumberWidth,4));
-            SkinPainter.Tile(this, Textures["deployment-field-rim"], new(56,PageLabelY+20,PageNumberWidth,4));
+            SkinPainter.Tile(this, Textures.Get("deployment-field-rim", this), new(56,PageLabelY,PageNumberWidth,4));
+            SkinPainter.Tile(this, Textures.Get("deployment-field-rim", this), new(56,PageLabelY+20,PageNumberWidth,4));
         }
         float x = 0;
         foreach (var column in Columns)
@@ -123,7 +123,7 @@ public partial class OfficerRosterPanel : Control
         }
         for (int row = 0; row < VisibleRows && Page*VisibleRows+row < _entries.Length; row++)
             foreach (var (column, role) in _entries[Page*VisibleRows+row].Icons)
-                DrawTexture(Textures[role], new(Columns.Take(column).Sum(c => c.Width)+3,40+row*20));
+                DrawTexture(Textures.Get(role, this), new(Columns.Take(column).Sum(c => c.Width)+3,40+row*20));
     }
 
     public override void _ExitTree() { _text.Dispose(); _field.Dispose(); }

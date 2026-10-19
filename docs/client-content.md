@@ -142,6 +142,8 @@ Core按目标格实时选择：范围内更高且具备高处资格的邻格优�
 
 ## 转换与运行
 
+右键快捷菜单使用皮肤schema55，增加进行按钮、情报子菜单按钮及分隔纹的语义资源。已有包升级时先执行`import-textures --rebuild skin`，再执行`import-client`；当前190年包已原位更新。客户端只消费转换包，布局变化不要求再次转换。
+
 原版音乐的离线转码及音效去角色重复的素材整理见[音频准备](audio-preparation.md)。转码与运行包导入独立，不固定到版本Importer；Importer从私有目录复制已准备的WAV／Ogg Vorbis／MP3并生成语义引用。
 
 三个导入入口（`import-textures`、`import-client`、`import-text`）统一接受 `--game-dir`，不再接受分离的 `--source-exe`／`--data-dir`。所选目录须直接包含 `San9PK.exe` 和原版S9数据；`--scenario`只接受该目录内的剧本文件名，例如`D_Sce002.S9`，不接受另一个路径。Importer共用`San9SourceDirectory`定位输入，继续校验原版身份，缺失文件明确报错。本地入口为`private/游戏文件/`；该目录内的DLL仅供研究，不参与内容转换或客户端加载。

@@ -95,6 +95,7 @@ public partial class MapWorld : Node2D
     public Action<San9.Core.Domain.MapCell>? SitePicked { get; set; }
     public event Action<int, Vector2>? BuildingContextRequested;
     public event Action<int, Vector2>? UnitContextRequested;
+    public event Action<Vector2>? EmptyContextRequested;
     public event Action<MapObjectTarget, Vector2>? CommandMenuRequested;
     public event Action? MapReady;
     public event Action? ViewportPresentationChanged;
@@ -345,6 +346,7 @@ public partial class MapWorld : Node2D
                     if (target.IsUnit) UnitContextRequested?.Invoke(target.Id, button.Position);
                     else BuildingContextRequested?.Invoke(target.Id, button.Position);
                 }
+                else EmptyContextRequested?.Invoke(button.Position);
                 GetViewport().SetInputAsHandled();
             }
             else if (button.Pressed && button.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)

@@ -109,7 +109,7 @@ public partial class StrategyHud
                 ["force.0"] = MessageBinding.Reference(MessageEntityKind.Force, Session.View.PlayerForceId)
             }, _ => throw new InvalidDataException("Turn confirmation must not require randomness.")).BbCode;
         Overview.Close();
-        _contextMenu.Hide(); _mapContext.Close(); _commandMenu.Close();
+        _mapContext.Close(); _commandMenu.Close();
         Selection.Clear(); World.HoverObject(null);
         _hoverCard.ShowInfo(null, Vector2.Zero);
         UpdateTurnControls();

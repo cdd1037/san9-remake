@@ -107,17 +107,17 @@ public partial class StrategyHud
         await Click(ruler.GetGlobalRect().GetCenter());
         Check(ruler.EntryKey?.Id == first && _rosterList.Roster.Current.Ordinary.All(s => s.Key.Id != first), "Ruler row was not pinned and deduplicated.");
         Left(ruler.GetGlobalRect().GetCenter(), true, true); Left(ruler.GetGlobalRect().GetCenter(), false); await View();
-        Check(!_contextMenu.Visible && Selection.BuildingId == oldSelection, "Double click introduced an extra action.");
+        Check(!_mapContext.Visible && Selection.BuildingId == oldSelection, "Double click introduced an extra action.");
         GetViewport().PushInput(new InputEventMouseButton { Position = rowPoint, GlobalPosition = rowPoint,
             ButtonIndex = MouseButton.Right, Pressed = true }, true);
         GetViewport().PushInput(new InputEventMouseButton { Position = rowPoint, GlobalPosition = rowPoint,
             ButtonIndex = MouseButton.Right, Pressed = false }, true);
         await Frame();
-        Check(_contextMenu.Visible && _contextMenu.ItemCount == 4 && !_contextMenu.IsItemDisabled(1) && new[] { 0, 2, 3 }.All(_contextMenu.IsItemDisabled),
-            "Shared context menu did not expose the current capability boundary.");
+        Check(_mapContext.Visible && _mapContext.Buttons.Count == 4 && _mapContext.Buttons.All(button => !button.Disabled),
+            "Shortcut menu did not expose advance, information, save and load.");
         Input.ParseInputEvent(new InputEventKey { Keycode = Key.Escape, Pressed = true });
         Input.ParseInputEvent(new InputEventKey { Keycode = Key.Escape, Pressed = false });
-        await Frame(); Check(!_contextMenu.Visible, "Escape did not close the shortcut menu.");
+        await Frame(); Check(!_mapContext.Visible, "Escape did not close the shortcut menu.");
         await Click(new(955, 254));
         Check(_rosterList.Roster.Page == San9.Application.Presentation.RosterPage.Officers &&
             _officers!.ButtonPressed && !_facilities!.ButtonPressed, "Officer tab did not select exclusively.");

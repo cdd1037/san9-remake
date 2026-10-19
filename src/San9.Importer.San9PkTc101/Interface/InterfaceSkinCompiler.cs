@@ -56,6 +56,10 @@ public static class InterfaceSkinCompiler
             Export("information-menu-" + part, index, 11, paletteAlpha: true);
         foreach (var (part, index) in new[] { ("left", 23), ("middle", 24), ("right", 25) })
             Export("information-menu-button-" + part, index, 10, 4, paletteAlpha: true);
+        foreach (var (kind, start) in new[] { ("advance", 26), ("submenu", 29) })
+        foreach (var (part, offset) in new[] { ("left", 0), ("middle", 1), ("right", 2) })
+            Export($"shortcut-{kind}-{part}", start + offset, 10, 4, paletteAlpha: true);
+        Export("shortcut-separator", 50, 11, paletteAlpha: true);
         foreach (var (level, start) in new[] { ("primary", 0), ("secondary", 9) })
         foreach (var (tone, offset) in new[] { ("blue", 0), ("green", 3), ("brown", 6) })
         foreach (var (part, piece) in new[] { ("left", 0), ("middle", 1), ("right", 2) })

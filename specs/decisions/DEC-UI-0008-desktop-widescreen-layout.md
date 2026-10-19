@@ -88,7 +88,8 @@ HUD 按组锚定：日期及资源区靠左上，小地图和侧栏靠右，底�
 | 外交条件、俘虏处置、仕官待遇等 | `DiplomacyDecisionView`、`DecisionView` 的命令窗口状态 | 沿用命令窗口半透明遮罩；其他答复按子窗口类型处理 |
 | 数值输入、军团方针 | `NumberInputDialog`、`CorpsPolicyDialog` | 沿用半透明遮罩 |
 | 情报、功能下拉菜单 | `InformationMenuView`、`FunctionsMenuView` | 透明，跟随对应 HUD 按钮，不随中央内容区域居中 |
-| 地图左右键菜单、子菜单及说明图片 | `MapCommandPopup`、`MapContextPopup` | 透明，按实际鼠标位置和视口避让 |
+| 地图左键菜单、子菜单及说明图片 | `MapCommandPopup` | 透明，按实际鼠标位置和视口避让 |
+| 地图／HUD右键菜单及情报子菜单 | `MapContextPopup` | 透明，按鼠标位置定位，仅裁切到游戏区域边界，不执行HUD避让 |
 | 环境设置、PK 设置 | `EnvironmentSettingsView`、`PkSettingsView` | 沿用透明外围和局部面板 |
 | 确认、通知、帮助、失败及重试提示 | `GameDialog` | 透明并继承已有底层背景，不因宽屏增加暗幕 |
 | 多选项答复、存档备注或确认 | `VerticalChoiceDialog`、`SaveSlotConfirmation` | 透明并继承已有底层背景 |

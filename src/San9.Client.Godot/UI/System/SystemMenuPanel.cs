@@ -58,6 +58,9 @@ public partial class SystemMenuPanel : Control
     public async void Open(SaveLoadMode mode)
     {
         if (_busy) return;
+        _textures ??= Service.CreateScope(owner: this);
+        _textures.RequestPrefixes("save-load-", "message-");
+        Show();
         var token = _lifetime.Token;
         _busy = true;
         try

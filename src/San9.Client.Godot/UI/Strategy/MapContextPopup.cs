@@ -1,21 +1,26 @@
 using Godot;
 using San9.Rendering;
-using San9.Application.Presentation;
 
 namespace San9.Client.Godot;
+
+public sealed record MapPopupEntry(string Title, string Hint, bool Enabled, Action? Activate = null,
+    IReadOnlyList<MapPopupEntry>? Children = null, bool SeparatorBefore = false,
+    string SkinPrefix = "information-menu-button");
 
 /// <summary>A logical-viewport modal: outside clicks close it without reaching the map.</summary>
 public partial class MapContextPopup : Control
 {
-    public Func<IReadOnlyList<OverlayBounds>> Obstacles { get; init; } = () => [];
-    private IReadOnlyList<OverlayBounds> _lastObstacles = [];
     public TextureScope Textures { get; init; } = null!;
-    public Action<MapContextEntry> Activated { get; init; } = null!;
+    private readonly List<(InformationMenuButton Button, MapPopupEntry Entry)> _primary = [], _secondary = [];
+    private InformationMenuButton? _expanded;
+    private Rect2? _submenu;
     private Rect2 _menu;
     private Vector2 _anchor;
     private bool _dismissOnRightRelease;
-    public string Hint => GetChildren().OfType<InformationMenuButton>().FirstOrDefault(b => b.IsHovered()) is {} button
-        ? $"查看{button.Title}。" : "";
+    public IReadOnlyList<InformationMenuButton> Buttons => _primary.Select(item => item.Button).ToArray();
+    public InformationMenuButton? HoverButton => GetChildren().OfType<InformationMenuButton>().FirstOrDefault(b => b.IsHovered());
+    public string Hint => HoverButton?.HintText ?? "";
+    public bool HintEnabled => HoverButton?.Disabled != true;
     public override void _Ready()
     {
         Size = GetViewportRect().Size; ZIndex = 19; MouseFilter = MouseFilterEnum.Stop; Hide();
@@ -25,42 +30,64 @@ public partial class MapContextPopup : Control
     private void Relayout()
     {
         Size = GetViewportRect().Size;
-        _lastObstacles = Obstacles();
-        _menu.Position = new(Math.Clamp(_anchor.X - 16, 0, Math.Max(0, Size.X - _menu.Size.X)),
-            Math.Clamp(_anchor.Y - 16, 0, Math.Max(0, Size.Y - _menu.Size.Y)));
-        var fitted = OverlayLayout.Place(new(_menu.Position.X, _menu.Position.Y, _menu.Size.X, _menu.Size.Y),
-            new(0, 0, Size.X, Size.Y), _lastObstacles);
-        _menu.Position = new((float)fitted.X, (float)fitted.Y);
-        int row = 0;
-        foreach (var button in GetChildren().OfType<InformationMenuButton>())
-            button.Position = _menu.Position + new Vector2(16, 16 + row++ * 24);
+        _menu.Position = new(Math.Clamp(_anchor.X - 18, 0, Math.Max(0, Size.X - _menu.Size.X)),
+            Math.Clamp(_anchor.Y - 18, 0, Math.Max(0, Size.Y - 32 - _menu.Size.Y)));
+        float y = 16;
+        foreach (var (button, entry) in _primary)
+        {
+            if (entry.SeparatorBefore) y += 16;
+            button.Position = _menu.Position + new Vector2(16, y);
+            y += 24;
+        }
+        if (_expanded is not null) LayoutSubmenu();
         QueueRedraw();
     }
-    public override void _Process(double delta)
-    {
-        if (Visible && !_lastObstacles.SequenceEqual(Obstacles())) Relayout();
-    }
-    public void Open(IReadOnlyList<MapContextEntry> entries, Vector2 point)
+    public void Open(IReadOnlyList<MapPopupEntry> entries, Vector2 point, int buttonWidth = 72)
     {
         Close();
         if (entries.Count == 0) return;
         _anchor = point;
-        _menu = new(Vector2.Zero, new(104, 32 + entries.Count * 24));
+        _menu = new(Vector2.Zero, new(32 + buttonWidth, 32 + entries.Count * 24 + entries.Count(e => e.SeparatorBefore) * 16));
         for (int i = 0; i < entries.Count; i++)
         {
             var entry = entries[i];
-            var button = new InformationMenuButton { Title = entry.Title, Textures = Textures,
-                Position = _menu.Position + new Vector2(16, 16 + i * 24), Size = new(72, 24), Disabled = !entry.Enabled };
-            button.Pressed += () => { Close(); Activated(entry); };
-            AddChild(button);
+            _primary.Add((AddButton(entry, buttonWidth), entry));
         }
         Relayout(); Show();
+    }
+    private InformationMenuButton AddButton(MapPopupEntry entry, int width, bool secondary = false)
+    {
+        var button = new InformationMenuButton { Title = entry.Title, HintText = entry.Hint, Textures = Textures,
+            Size = new(width, 24), Disabled = !entry.Enabled,
+            SkinPrefix = secondary ? "shortcut-submenu" : entry.SkinPrefix };
+        button.Pressed += () =>
+        {
+            if (entry.Children is { Count: > 0 }) Expand(entry.Children, button);
+            else { Close(); entry.Activate?.Invoke(); }
+        };
+        AddChild(button);
+        return button;
+    }
+    private void Expand(IReadOnlyList<MapPopupEntry> entries, InformationMenuButton button)
+    {
+        foreach (var item in _secondary) { RemoveChild(item.Button); item.Button.QueueFree(); }
+        _secondary.Clear(); _expanded = button;
+        foreach (var entry in entries) _secondary.Add((AddButton(entry, 72, true), entry));
+        LayoutSubmenu(); QueueRedraw();
+    }
+    private void LayoutSubmenu()
+    {
+        var (x, y) = ContextMenuGeometry.Submenu(_expanded!.Position.X, _expanded.Position.Y, _expanded.Size.X,
+            72, _secondary.Count * 24, Size.X, Size.Y - 32);
+        _submenu = new(new(x, y), new(72, _secondary.Count * 24));
+        for (int i = 0; i < _secondary.Count; i++) _secondary[i].Button.Position = new(x, y + i * 24);
     }
     public void Close()
     {
         Hide();
         _dismissOnRightRelease = false;
         foreach (Node child in GetChildren()) { RemoveChild(child); child.QueueFree(); }
+        _primary.Clear(); _secondary.Clear(); _expanded = null; _submenu = null;
     }
     public override void _Input(InputEvent input)
     {
@@ -77,8 +104,14 @@ public partial class MapContextPopup : Control
     }
     public override void _GuiInput(InputEvent input)
     {
-        if (input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mouse && !_menu.HasPoint(mouse.Position)) Close();
+        if (input is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Left } mouse &&
+            !_menu.HasPoint(mouse.Position) && _submenu?.HasPoint(mouse.Position) != true) Close();
         AcceptEvent();
     }
-    public override void _Draw() => SkinPainter.InformationMenu(this, Textures, _menu);
+    public override void _Draw()
+    {
+        SkinPainter.InformationMenu(this, Textures, _menu);
+        foreach (var (button, entry) in _primary.Where(item => item.Entry.SeparatorBefore))
+            SkinPainter.Tile(this, Textures["shortcut-separator"], new(button.Position + new Vector2(-4, -12), new(button.Size.X + 8, 8)));
+    }
 }

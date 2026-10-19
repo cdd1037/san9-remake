@@ -32,7 +32,6 @@ public partial class StrategyHud : Control
     private (bool Strategy, bool Targeting, bool Command, bool Region)? _drawState;
     private Vector2? _hoverPosition;
     private StrategyRosterList _rosterList = null!;
-    private PopupMenu _contextMenu = null!;
     private MapContextPopup _mapContext = null!;
     private MapCommandPopup _commandMenu = null!;
     public StrategyOverlayHost OverlayHost { get; init; } = null!;
@@ -65,7 +64,7 @@ public partial class StrategyHud : Control
         _textures = Textures.CreateScope(owner: this);
         _textures.RequestPrefixes("button-", "top-", "radar-", "sidebar-", "ruler-", "field-", "region-",
             "season-", "turn-", "target-", "hover-", "icon-", "minimap-",
-            "roster-", "scroll-", "message-", "dialog-", "narration-", "command-", "information-menu-");
+            "roster-", "scroll-", "message-", "dialog-", "narration-", "command-", "information-menu-", "shortcut-");
         Name = "StrategyHud"; SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); MouseFilter = MouseFilterEnum.Stop;
         BuildLayout();
         World.MapReady += Build;
@@ -150,14 +149,6 @@ public partial class StrategyHud : Control
         _topRight.AddChild(_minimap);
         foreach (var (text, x, y) in new[] { ("东", 880, 154), ("西", 710, 52), ("南", 710, 154), ("北", 880, 52) })
             _text.Apply(LabelAt(text, new(x, y), new(16, 16), 16, parent: _topRight), GameTextStyles.For(GameTextRole.Compass));
-        _contextMenu = new PopupMenu();
-        AddChild(_contextMenu);
-        foreach (string title in new[] { "进行", "情报", "储存", "载入" })
-        {
-            _contextMenu.AddItem(title is "情报" or "进行" ? title : title + "（尚未实现）");
-            _contextMenu.SetItemDisabled(_contextMenu.ItemCount - 1, title is not ("情报" or "进行"));
-        }
-        _contextMenu.IdPressed += id => { if (id == 0) RequestAdvance(); else if (id == 1) Information.OpenMenu(); };
         _rosterList = new StrategyRosterList
         {
             Position = new(892, 303),
@@ -209,12 +200,13 @@ public partial class StrategyHud : Control
         OverlayHost.AddChild(SystemMenu);
         SystemMenu.VisibilityChanged += () => FocusBehaviorRecursive = SystemMenu.Visible
             ? FocusBehaviorRecursiveEnum.Disabled : FocusBehaviorRecursiveEnum.Inherited;
-        _mapContext = new MapContextPopup { Obstacles = MapObstacles, Textures = _textures, Activated = OpenMapContextEntry };
+        _mapContext = new MapContextPopup { Textures = _textures };
         OverlayHost.AddChild(_mapContext);
         _commandMenu = new MapCommandPopup { Obstacles = MapObstacles, Textures = _textures, Texts = Texts, Activated = ActivateCommand };
         OverlayHost.AddChild(_commandMenu);
         World.BuildingContextRequested += ShowSettlementContext;
         World.UnitContextRequested += ShowUnitContext;
+        World.EmptyContextRequested += ShowShortcutMenu;
         World.CommandMenuRequested += ShowCommandMenu;
         _hoverCard = new MapHoverCard { Obstacles = MapObstacles, World = World, Textures = _textures, UiFont = GetThemeFont("font"), Visible = false };
         AddChild(_hoverCard);
@@ -312,7 +304,7 @@ public partial class StrategyHud : Control
 
     private StrategyInteraction Interaction => StrategyInteraction.Resolve(_built, Turn?.Screen,
         Turn?.CanAdvance == true, _commandTargets is not null ? CommandTargetStage : _personnel is null ? _flow?.Stage ?? MilitaryCommandStage.None : PersonnelStage, Overview.IsOpen,
-        OverlayHost.IsInsideTree() && OverlayHost.HasModal || _contextMenu?.Visible == true || _notice?.Visible == true);
+        OverlayHost.IsInsideTree() && OverlayHost.HasModal || _notice?.Visible == true);
     private bool IsMapInteractionBlocked => !Interaction.CanUseMap;
     public bool CanNavigateMap => Interaction.CanNavigate && _battleView?.IsSceneActive != true && !HasMapPopup;
     private bool HasMapPopup => _commandMenu?.Visible == true || _mapContext?.Visible == true;
@@ -369,7 +361,7 @@ public partial class StrategyHud : Control
         _contextTarget = new(id, false);
         _contextRevision = Session.Snapshot.Revision;
         _commandMenu.Close();
-        _mapContext.Open(SettlementContextMenu.Read(Scenario, id), point);
+        _mapContext.Open(ContextEntries(SettlementContextMenu.Read(Scenario, id)), point);
         World.HoverObject(null); _hoverCard.ShowInfo(null, point); _hoverTarget = null;
     }
 
@@ -411,7 +403,7 @@ public partial class StrategyHud : Control
         _contextTarget = new(id, true);
         _contextRevision = Session.Snapshot.Revision;
         _commandMenu.Close();
-        _mapContext.Open(UnitMapInteraction.Menu(Scenario, id), point);
+        _mapContext.Open(ContextEntries(UnitMapInteraction.Menu(Scenario, id)), point);
         World.HoverObject(null); _hoverCard.ShowInfo(null, point); _hoverTarget = null;
     }
     private void OpenMapContextEntry(MapContextEntry entry)
@@ -420,13 +412,26 @@ public partial class StrategyHud : Control
         var entries = target.IsUnit ? UnitMapInteraction.Menu(Scenario, target.Id) : SettlementContextMenu.Read(Scenario, target.Id);
         if (entries.Contains(entry) && entry.Enabled) Information.OpenContext(entry);
     }
-    private void ShowContextMenu()
+    private MapPopupEntry[] ContextEntries(IReadOnlyList<MapContextEntry> entries) => entries
+        .Select(entry => new MapPopupEntry(entry.Title, $"查看{entry.Title}。", entry.Enabled, () => OpenMapContextEntry(entry))).ToArray();
+    private void ShowContextMenu() => ShowShortcutMenu(GetGlobalMousePosition());
+    private void ShowShortcutMenu(Vector2 point)
     {
         if (!CanIssueOrders) return;
-        _contextMenu.SetItemDisabled(0, !Turn.CanAdvance);
-        var point = GetViewport().GetScreenTransform() * GetGlobalMousePosition();
-        _contextMenu.Position = new((int)point.X, (int)point.Y);
-        _contextMenu.Popup();
+        _contextTarget = null;
+        _contextRevision = Session.Snapshot.Revision;
+        _commandMenu.Close();
+        var query = new InformationQuery(Session, Texts, CommandPresentation.Chronicle);
+        var information = InformationQuery.MenuCategories.Select(category => new MapPopupEntry(
+            InformationQuery.MenuTitle(category), Texts.ResolveRich(query.MenuHintKey(category)), query.Available(category),
+            () => Information.Open(category))).ToArray();
+        _mapContext.Open([
+            new("进行", Texts.ResolveRich(StrategyHintText.Key("advance")), Turn.CanAdvance, RequestAdvance, SkinPrefix: "shortcut-advance"),
+            new("情报", Texts.ResolveRich(StrategyHintText.Key("information")), true, Children: information, SeparatorBefore: true),
+            new("储存", Texts.ResolveRich(StrategyHintText.Key("functions-save")), true, () => SystemMenu.Open(Persistence.SaveLoadMode.Save)),
+            new("载入", Texts.ResolveRich(StrategyHintText.Key("functions-load")), true, () => SystemMenu.Open(Persistence.SaveLoadMode.Load))
+        ], point, 40);
+        World.HoverObject(null); _hoverCard.ShowInfo(null, point); _hoverTarget = null;
     }
     private void SelectRosterPage(RosterPage page)
     {
@@ -465,7 +470,7 @@ public partial class StrategyHud : Control
             return;
         }
         if (_commandMenu.Visible) { _message.SetMessage(_commandMenu.Hint, _commandMenu.HintEnabled); return; }
-        if (_mapContext.Visible) { _message.SetMessage(_mapContext.Hint, true); return; }
+        if (_mapContext.Visible) { _message.SetMessage(_mapContext.Hint, _mapContext.HintEnabled); return; }
         if (_personnelTargeting) { _message.SetMessage(_personnel?.Draft.Kind == "search" ? "请选择目标地域。" : "请选择目标设施。",true); return; }
         if (_commandTargets is not null) { _message.SetMessage("请选择目标。",true); return; }
         if (_targets is not null)
@@ -590,6 +595,7 @@ public partial class StrategyHud : Control
         World.EdgeScrollModeChanged -= ShowScrollModeNotice;
         World.BuildingContextRequested -= ShowSettlementContext;
         World.UnitContextRequested -= ShowUnitContext;
+        World.EmptyContextRequested -= ShowShortcutMenu;
         World.CommandMenuRequested -= ShowCommandMenu;
         GetWindow().MouseExited -= ClearHover;
         _textures.Dispose();

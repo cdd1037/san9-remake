@@ -103,7 +103,7 @@ public sealed class ChainedPlotTests
     public void CoupPurgesOnlyColocatedServingFamilyAndTransfersTreasuresWithSingleLoyaltyPolicy()
     {
         var state = World(true); var world = state.BeginMutation(Rules().Abilities);
-        Assert.Equal(CommandRejection.None, PersonnelMissions.StartSearch(world, new("player"), new(Guid.NewGuid(), 1, 0, [20], 2), Rules().Personnel, []));
+        Assert.Equal(CommandRejection.None, PersonnelMissions.StartSearch(world, new("player"), new(Guid.NewGuid(), 1, 0, [20], 2), Rules().Personnel, Rules().Military, []));
         world.SetSimulation(world.Simulation with { NextSequence = 1 });
         // A supporter in the old bloodline takes precedence over the opposition clamp, but is away from the purge.
         world.Replace(world.Officers[14] with { BloodlineId = 700 });
@@ -124,7 +124,7 @@ public sealed class ChainedPlotTests
     public void TravelingRulerDoesNotPurgePeopleAtHisServicePlaceAndHisMissionIsCancelled()
     {
         var state = World(true); var world = state.BeginMutation(Rules().Abilities);
-        Assert.Equal(CommandRejection.None, PersonnelMissions.StartSearch(world, new("player"), new(Guid.NewGuid(), 1, 0, [11], 2), Rules().Personnel, []));
+        Assert.Equal(CommandRejection.None, PersonnelMissions.StartSearch(world, new("player"), new(Guid.NewGuid(), 1, 0, [11], 2), Rules().Personnel, Rules().Military, []));
         world.SetSimulation(world.Simulation with { NextSequence = 1 });
         List<DomainEvent> events = []; ChainedPlot.Apply(world, Rules(), events);
         Assert.Equal(11, Assert.Single(Assert.Single(events.OfType<ChainedPlotEvent>()).KilledOfficerIds));

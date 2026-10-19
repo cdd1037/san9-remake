@@ -62,6 +62,9 @@ internal static class PersonnelMissions
         person.SettlementId is int origin && world.Settlements.TryGetValue(origin, out var home) && home.OwnerId == force && home.CanHostPersons && home.Durability > 0 &&
         !person.Acted && !world.IsBusy(id);
 
+    internal static bool CanStartMission(WorldMutation world, int force, int id, MilitaryRulebook? military) =>
+        CanAct(world, force, id) && SettlementOperations.Available(world, world.Settlements[world.Officers[id].SettlementId!.Value], military);
+
     internal static bool Recruitable(WorldMutation world, int force, OfficerState target) =>
         (target.OwnerId is not int owner || !world.Forces[owner].IsBarbarian) &&
         target.OwnerId != force && (target.Status is OfficerStatus.Free or OfficerStatus.Serving or OfficerStatus.Strategist or OfficerStatus.Governor ||
@@ -89,7 +92,7 @@ internal static class PersonnelMissions
     {
         destination = -1; unit = null;
         var rules = simulationRules.Personnel;
-        if (!CanAct(world, command.IssuerId, command.OfficerId)) return CommandRejection.PersonUnavailable;
+        if (!CanStartMission(world, command.IssuerId, command.OfficerId, simulationRules.Military)) return CommandRejection.PersonUnavailable;
         if (!world.Officers.TryGetValue(command.TargetOfficerId, out var target)) return CommandRejection.UnknownPerson;
         if (!Recruitable(world, command.IssuerId, target)) return CommandRejection.PersonUnavailable;
         if (world.Forces[command.IssuerId].LeaderId is null) return CommandRejection.PersonUnavailable;
@@ -106,9 +109,9 @@ internal static class PersonnelMissions
     }
 
     internal static CommandRejection StartSearch(WorldMutation world, CommandContext context, SearchCommand command,
-        PersonnelRulebook rules, List<DomainEvent> events)
+        PersonnelRulebook rules, MilitaryRulebook? military, List<DomainEvent> events)
     {
-        var rejection = ValidateSearch(world, command, rules);
+        var rejection = ValidateSearch(world, command, rules, military);
         if (rejection != CommandRejection.None) return rejection;
         var ids = command.OfficerIds.Order().ToArray();
         for (int index = 0; index < ids.Length; index++)
@@ -124,11 +127,11 @@ internal static class PersonnelMissions
         return CommandRejection.None;
     }
 
-    internal static CommandRejection ValidateSearch(WorldMutation world, SearchCommand command, PersonnelRulebook rules)
+    internal static CommandRejection ValidateSearch(WorldMutation world, SearchCommand command, PersonnelRulebook rules, MilitaryRulebook? military)
     {
         if (command.OfficerIds.IsDefaultOrEmpty || command.OfficerIds.Distinct().Count() != command.OfficerIds.Length)
             return CommandRejection.InvalidTask;
-        if (world.Forces[command.IssuerId].LeaderId is null || command.OfficerIds.Any(id => !CanAct(world, command.IssuerId, id)))
+        if (world.Forces[command.IssuerId].LeaderId is null || command.OfficerIds.Any(id => !CanStartMission(world, command.IssuerId, id, military)))
             return CommandRejection.PersonUnavailable;
         if (command.OfficerIds.Any(id => !rules.Places.ContainsKey(world.Officers[id].SettlementId!.Value)) ||
             !CanSearch(world, command.IssuerId, command.DestinationId, rules))
@@ -146,9 +149,9 @@ internal static class PersonnelMissions
     }
 
     internal static CommandRejection StartMove(WorldMutation world, CommandContext context, MoveOfficersCommand command,
-        PersonnelRulebook rules, List<DomainEvent> events)
+        PersonnelRulebook rules, MilitaryRulebook? military, List<DomainEvent> events)
     {
-        var rejection = ValidateMove(world, command, rules);
+        var rejection = ValidateMove(world, command, rules, military);
         if (rejection != CommandRejection.None) return rejection;
         var ids = command.OfficerIds.Order().ToArray();
         for (int index = 0; index < ids.Length; index++)
@@ -161,14 +164,14 @@ internal static class PersonnelMissions
         return CommandRejection.None;
     }
 
-    internal static CommandRejection ValidateMove(WorldMutation world, MoveOfficersCommand command, PersonnelRulebook rules)
+    internal static CommandRejection ValidateMove(WorldMutation world, MoveOfficersCommand command, PersonnelRulebook rules, MilitaryRulebook? military)
     {
         if (command.OfficerIds.IsDefaultOrEmpty || command.OfficerIds.Distinct().Count() != command.OfficerIds.Length)
             return CommandRejection.InvalidTask;
         if (!world.Settlements.TryGetValue(command.DestinationId, out var destination) ||
             destination.OwnerId != command.IssuerId || !destination.CanHostPersons || destination.Durability == 0 || !rules.Places.ContainsKey(destination.Id))
             return CommandRejection.InvalidTask;
-        if (command.OfficerIds.Any(id => !CanAct(world, command.IssuerId, id) ||
+        if (command.OfficerIds.Any(id => !CanStartMission(world, command.IssuerId, id, military) ||
             world.Officers[id].SettlementId == destination.Id || !rules.Places.ContainsKey(world.Officers[id].SettlementId!.Value) ||
             world.Corps.Values.Any(c => c.LeaderId == id && c.IsRoot && destination.CorpsId != c.Id) ||
             !GovernanceMaintenance.CanRemove(world, id)))

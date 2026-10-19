@@ -52,7 +52,7 @@ internal static class GiftDiplomacy
         GiftOffer? offer, SimulationRules rules)
     {
         if (offer?.IsValid != true || !Target(world, forceId, target)) return CommandRejection.InvalidTask;
-        if (!PersonnelMissions.CanAct(world, forceId, officerId)) return CommandRejection.PersonUnavailable;
+        if (!PersonnelMissions.CanStartMission(world, forceId, officerId, rules.Military)) return CommandRejection.PersonUnavailable;
         var origin = world.Settlements[world.Officers[officerId].SettlementId!.Value];
         if (ResourceAccounts.Resolve(world, forceId, origin.CorpsId).Id != ResourceAccounts.Root(world, forceId).Id)
             return CommandRejection.InvalidCorps;

@@ -17,10 +17,10 @@ internal sealed partial class OriginalAiMilitary
 
     private SettlementState[] AttackSources(SettlementState target)
     {
-        var places = Places.ToDictionary(s => s.Id);
+        var places = WorkSources.ToDictionary(s => s.Id);
         int city = City(target.Id);
         var neighbors = content.CityConnections.Where(c => c.FromCityId == city).Select(c => c.ToCityId).ToArray();
-        var candidates = Places.Where(s => City(s.Id) == city)
+        var candidates = WorkSources.Where(s => City(s.Id) == city)
             .Concat(neighbors.Select(id => places.GetValueOrDefault(id)).OfType<SettlementState>())
             .Concat(Geography.Neighbors(target.Id).Where(p => neighbors.Contains(p.CityId))
                 .Select(p => places.GetValueOrDefault(p.Id)).OfType<SettlementState>())
@@ -78,7 +78,7 @@ internal sealed partial class OriginalAiMilitary
         var obligation = World.Simulation.AttackRequests.FirstOrDefault(r => r.RequestedForceId == Owner && r.RemainingXun > 0);
         if (request && (obligation is null || !World.Forces.Any(f => f.Id == obligation.RequesterForceId && !f.IsEliminated))) return;
         var group = state.Forces.FirstOrDefault(f => f.ForceId == Owner)?.Group ?? OriginalAiGroup.Unassigned;
-        var cities = Places.Where(s => s.Soldiers > 0 && s.Morale >= (request ? 70 : 90) && People(s.Id).Length > 0)
+        var cities = WorkSources.Where(s => s.Soldiers > 0 && s.Morale >= (request ? 70 : 90) && People(s.Id).Length > 0)
             .GroupBy(s => City(s.Id)).OrderByDescending(g => g.Sum(s => (long)s.Soldiers)).Select(g => g.Key).ToArray();
         if (request) cities = cities.Take(1).ToArray();
         foreach (int city in cities)
@@ -106,7 +106,7 @@ internal sealed partial class OriginalAiMilitary
                 if (!More || planned) break;
                 var target = World.Settlements.FirstOrDefault(s => s.Id == originalTarget.Id && Target(s));
                 if (target is null) continue;
-                var sources = Places.Where(s => (request ? Near(s.Id, target.Id) : City(s.Id) == city) && s.Soldiers >= (request ? 10000 : 1) &&
+                var sources = WorkSources.Where(s => (request ? Near(s.Id, target.Id) : City(s.Id) == city) && s.Soldiers >= (request ? 10000 : 1) &&
                     s.Morale >= (request ? 70 : 90) && People(s.Id).Length >= (request ? 2 : 1)).OrderByDescending(s => s.Soldiers).ToArray();
                 // City requests may reinforce an existing attack; other buildings reject an existing friendly assignment.
                 if (request && sources.Length > 0 && target.Kind != SettlementKind.City && World.Units.Any(u =>
@@ -133,7 +133,7 @@ internal sealed partial class OriginalAiMilitary
                 {
                     if (!More || request && assigned > 2 * Demand(target)) break;
                     if (request && !World.Simulation.AttackRequests.Contains(obligation!)) break;
-                    var source = Places.FirstOrDefault(s => s.Id == allocation.SourceId);
+                    var source = WorkSources.FirstOrDefault(s => s.Id == allocation.SourceId);
                     target = World.Settlements.FirstOrDefault(s => s.Id == target.Id && Target(s));
                     if (target is null) break;
                     if (source is null) continue;
@@ -202,7 +202,7 @@ internal sealed partial class OriginalAiMilitary
     private void Construct(int city, OriginalAiGroup group, int? targetRegion = null)
     {
         if (!More || rules.ConstructionFormations is not { } fixedPair) return;
-        var source = Places.Where(s => City(s.Id) == city && s.Morale >= 90 && People(s.Id).Length >= 2)
+        var source = WorkSources.Where(s => City(s.Id) == city && s.Morale >= 90 && People(s.Id).Length >= 2)
             .OrderByDescending(s => s.Soldiers).FirstOrDefault();
         if (source is null) return;
         var people = AttackPeople(source.Id, false);

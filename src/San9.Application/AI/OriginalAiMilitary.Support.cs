@@ -106,10 +106,10 @@ internal sealed partial class OriginalAiMilitary
         while (More)
         {
             bool chosen = false;
-            var group0 = Places.Where(s => Pressure(s.Id, content.OriginalAi.Advanced).Any(u => Opponent(u.OwnerId))).Select(s => s.Id).ToHashSet();
+            var group0 = Places.Where(s => s.ConfusionDaysRemaining == 0 && Pressure(s.Id, content.OriginalAi.Advanced).Any(u => Opponent(u.OwnerId))).Select(s => s.Id).ToHashSet();
             for (int group = 0; group < 2 && !chosen; group++)
             {
-                foreach (var source in Places.Where(s => s.Soldiers >= 20000 && People(s.Id).Length >= 2 &&
+                foreach (var source in Places.Where(s => s.ConfusionDaysRemaining == 0 && s.Soldiers >= 20000 && People(s.Id).Length >= 2 &&
                     (group == 0 ? group0.Contains(s.Id) : !group0.Contains(s.Id))))
                 {
                     var people = Commanders(People(source.Id));
@@ -161,7 +161,7 @@ internal sealed partial class OriginalAiMilitary
             }
             if (chosen) continue;
             // Group 2 has a different source order and a single-person plan, with no random selection.
-            foreach (var target in World.Settlements.Where(s => s.OwnerId == Owner && !s.IsDormant && !s.IsDestroyed &&
+            foreach (var target in World.Settlements.Where(s => s.OwnerId == Owner && !s.IsDormant && !s.IsDestroyed && s.ConfusionDaysRemaining == 0 &&
                 s.Durability > 0 && s.CanHostPersons && s.Facility?.BuilderUnitId is null)
                 .Where(s => Fortified(s) || rules.TryPlace(s, out var p) && p.FacilityTypeId is int type && rules.Facilities[type].IsHarbor &&
                 Policy.HarborReliefTacticId is int tactic && Force.ProvidedTactics.Contains(tactic))
@@ -213,7 +213,7 @@ internal sealed partial class OriginalAiMilitary
             !World.Forces.Single(f => f.Id == id).IsBarbarian);
         var geography = Geography;
         var budgets = Places.ToDictionary(s => s.Id, TransportBudget);
-        var sources = Places.Where(s => budgets[s.Id] > 0 && (!Front(s) || !geography.Priority(s.Id, Owner)) && s.Morale >= 70 &&
+        var sources = WorkSources.Where(s => budgets[s.Id] > 0 && (!Front(s) || !geography.Priority(s.Id, Owner)) && s.Morale >= 70 &&
             People(s.Id).Length > 0 && (s.Kind != SettlementKind.City || budgets[s.Id] >= 10000))
             .OrderByDescending(s => budgets[s.Id]).Select(s => s.Id).ToArray();
         var targets = Places.Where(s => budgets[s.Id] > 0 && Front(s) && geography.Priority(s.Id, Owner) &&
@@ -222,7 +222,7 @@ internal sealed partial class OriginalAiMilitary
         foreach (int home in sources)
         {
             if (!More || targets.Count == 0) break;
-            var source = Places.FirstOrDefault(s => s.Id == home);
+            var source = WorkSources.FirstOrDefault(s => s.Id == home);
             if (source is null) continue;
             var person = People(home).OrderBy(p => (long)Ability(p).War + Ability(p).Intelligence + Ability(p).Politics + Ability(p).Leadership).FirstOrDefault();
             if (person is null) continue;

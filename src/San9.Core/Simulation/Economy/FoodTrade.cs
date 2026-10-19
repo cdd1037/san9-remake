@@ -4,7 +4,7 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 public enum FoodTradeDirection { Buy, Sell }
-public enum FoodTradeRejection { None, InvalidDirection, InvalidParticipants, UnknownObject, WrongOwner, InvalidCity, OfficerUnavailable, MerchantAbsent, AlreadyUsed, NoCapacity }
+public enum FoodTradeRejection { None, InvalidDirection, InvalidParticipants, UnknownObject, WrongOwner, InvalidCity, OfficerUnavailable, MerchantAbsent, AlreadyUsed, NoCapacity, SettlementUnavailable }
 public sealed record FoodTradeCommand(Guid CommandId, int IssuerId, long Sequence, int SettlementId,
     ImmutableArray<int> OfficerIds, FoodTradeDirection Direction, uint FoodAmount) : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record FoodTradeQuote(FoodTradeRejection Rejection, int FoodExchangeRate, ResourceAccount? Account, uint MaximumFoodAmount)
@@ -16,7 +16,7 @@ public sealed record FoodTradeCompletedEvent(GameClock Clock, int ForceId, int S
 
 internal static class FoodTrade
 {
-    internal static FoodTradeQuote Quote(WorldMutation world, int forceId, int settlementId, ImmutableArray<int> officerIds, FoodTradeDirection direction)
+    internal static FoodTradeQuote Quote(WorldMutation world, int forceId, int settlementId, ImmutableArray<int> officerIds, FoodTradeDirection direction, MilitaryRulebook? military)
     {
         int price = world.Simulation.FoodExchangeRate;
         FoodTradeQuote Reject(FoodTradeRejection reason) => new(reason, price, null, 0);
@@ -28,6 +28,7 @@ internal static class FoodTrade
         var people = officerIds.Order().Select(id => world.Officers[id]).ToArray();
         if (city.OwnerId != forceId || people.Any(p => p.OwnerId != forceId)) return Reject(FoodTradeRejection.WrongOwner);
         if (city.Kind != SettlementKind.City || city.IsDestroyed) return Reject(FoodTradeRejection.InvalidCity);
+        if (!SettlementOperations.Available(world, city, military)) return Reject(FoodTradeRejection.SettlementUnavailable);
         if (people.Any(p => !p.IsServing || p.Acted || p.UnitId is not null || p.SettlementId != city.Id || world.IsBusy(p.Id)))
             return Reject(FoodTradeRejection.OfficerUnavailable);
         if (!city.MerchantPresent) return Reject(FoodTradeRejection.MerchantAbsent);
@@ -42,9 +43,9 @@ internal static class FoodTrade
         return new(limit > 0 ? FoodTradeRejection.None : FoodTradeRejection.NoCapacity, price, account, (uint)limit);
     }
 
-    internal static bool Apply(WorldMutation world, FoodTradeCommand command, List<DomainEvent> events)
+    internal static bool Apply(WorldMutation world, FoodTradeCommand command, MilitaryRulebook? military, List<DomainEvent> events)
     {
-        var quote = Quote(world, command.IssuerId, command.SettlementId, command.OfficerIds, command.Direction);
+        var quote = Quote(world, command.IssuerId, command.SettlementId, command.OfficerIds, command.Direction, military);
         if (!quote.Available || command.FoodAmount == 0 || command.FoodAmount > quote.MaximumFoodAmount) return false;
         bool buy = command.Direction == FoodTradeDirection.Buy;
         uint money = (uint)(buy ? ((long)command.FoodAmount + quote.FoodExchangeRate - 1) / quote.FoodExchangeRate : command.FoodAmount / quote.FoodExchangeRate);

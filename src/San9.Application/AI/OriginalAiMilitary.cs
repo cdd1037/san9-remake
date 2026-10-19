@@ -90,6 +90,9 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
                 s.Durability > 0 && s.CanHostPersons && s.Facility?.BuilderUnitId is null).ToArray();
         }
     }
+    // Ordinary automatic work uses queried normal status; defensive deployment has its own raw-state gate.
+    private IEnumerable<SettlementState> WorkSources => Places.Where(s => engine.CanStartSettlementWork(s.Id));
+
     private OfficerState[] People(int home)
     {
         Refresh();

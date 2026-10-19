@@ -71,6 +71,61 @@ public sealed class OriginalAiMilitaryTests
     }
 
     [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void OrdinaryAttackFiltersBlockedOriginsBeforePlanning(int state)
+    {
+        var h = new Harness(Fixture(), w =>
+        {
+            if (state == 0) return w;
+            var enemy = EnemyArmy(w);
+            return enemy with
+            {
+                Settlements = enemy.Settlements.Select(s => s.Id == 1 ? s with { ConfusionDaysRemaining = state == 1 ? 5 : 0 } : s).ToArray(),
+                Units = [.. enemy.Units.Select(u => u with { Position = state == 2 ? new(8, 7) : u.Position })]
+            };
+        });
+        var before = h.Engine.Snapshot;
+        Assert.Equal(state == 2, MilitaryEngagementQuery.Capture(before, new(Fixture().Military!)).Settlements.Contains(1));
+        var report = h.Run(OriginalAiWork.Attack, 1);
+        Assert.Equal(state == 0 ? 1 : 0, report.Submitted);
+        if (state != 0)
+        {
+            Assert.Equal(0, report.Attempts);
+            Assert.Empty(h.Commands);
+            StateAssert.Equal(before, h.Engine.Snapshot);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DefensiveDeploymentAllowsEngagementButExcludesConfusedSource(bool confused)
+    {
+        var content = Fixture(4);
+        var h = new Harness(content, w =>
+        {
+            var enemy = EnemyArmy(w);
+            return enemy with
+            {
+                Settlements = enemy.Settlements.Select(s => s.Id == 1 ? s with { ConfusionDaysRemaining = confused ? 5 : 0 } : s).ToArray(),
+                Units = [.. enemy.Units.Select(u => u with { Position = new(8, 7) })]
+            };
+        });
+        Assert.Contains(1, MilitaryEngagementQuery.Capture(h.Engine.Snapshot, new(content.Military!)).Settlements);
+        var before = h.Engine.Snapshot;
+        var report = h.Run(OriginalAiWork.Deploy, 1);
+        Assert.Equal(confused ? 0 : 1, report.Submitted);
+        if (confused)
+        {
+            Assert.Equal(0, report.Attempts);
+            Assert.Empty(h.Commands);
+            StateAssert.Equal(before, h.Engine.Snapshot);
+        }
+    }
+
+    [Theory]
     [InlineData(2, true, 1)]
     [InlineData(3, true, 0)]
     [InlineData(3, false, 1)]
@@ -936,8 +991,10 @@ public sealed class OriginalAiMilitaryTests
             { Simulation = world.Simulation with { OtherForceOrdersVisible = true } });
     }
 
-    [Fact]
-    public void SinglePersonPressureReliefUsesItsOwnPoliciesAndNeverDrawsRandom()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SinglePersonPressureReliefUsesNormalTargetAndItsOwnPoliciesWithoutRandom(bool confused)
     {
         var content = Fixture(1);
         content = content with
@@ -948,8 +1005,14 @@ public sealed class OriginalAiMilitaryTests
             Military = content.Military! with { Places = content.Military.Places.Add(new(3, new(27, 7), new(1, 1)) { Combat = new(1, 1, 1, 1, 10) }),
                 RegionIds = Enumerable.Range(0, 60).Select(i => (int?)(i % 20 < 2 ? 1 : i % 20 < 10 ? 3 : 2)).ToImmutableArray() }
         };
-        var h = new Harness(content, w => EnemyArmy(w, target: 3), _ => throw new InvalidOperationException("Unexpected planning draw"));
-        Assert.Equal(1, h.Run(OriginalAiWork.Deploy, 1).Submitted);
+        var h = new Harness(content, w =>
+        {
+            var enemy = EnemyArmy(w, target: 3);
+            return enemy with { Settlements = enemy.Settlements.Select(s => s.Id == 3
+                ? s with { ConfusionDaysRemaining = confused ? 5 : 0 } : s).ToArray() };
+        }, _ => throw new InvalidOperationException("Unexpected planning draw"));
+        Assert.Equal(confused ? 0 : 1, h.Run(OriginalAiWork.Deploy, 1).Submitted);
+        if (confused) { Assert.Empty(h.Commands); return; }
         var command = Assert.IsType<DeployUnitCommand>(Assert.Single(h.Commands));
         Assert.Single(command.OfficerIds);
         Assert.Equal(10000u, command.Soldiers);
@@ -1081,8 +1144,11 @@ public sealed class OriginalAiMilitaryTests
         if (expected > 0) Assert.IsType(fallback ? typeof(DeployUnitCommand) : typeof(TransportUnitCommand), Assert.Single(h.Commands));
     }
 
-    [Fact]
-    public void TransportUsesPositiveRearBudgetAndTheLeastAbleOfficer()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void TransportUsesReadyRearSourceAndTheLeastAbleOfficer(int state)
     {
         var content = Fixture();
         content = content with
@@ -1093,12 +1159,30 @@ public sealed class OriginalAiMilitaryTests
             CityConnections = [new(1, 2), new(2, 1), new(3, 1)],
             RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 3 },
             RegionNameKeys = new() { [1] = "region.1", [2] = "region.2", [3] = "region.3" },
-            Military = content.Military! with { Places = content.Military.Places.Add(new(3, new(17, 7), new(1, 1))),
+            Military = content.Military! with { Places = content.Military.Places.Add(new(3, new(17, 7), new(1, 1)) { Combat = new(10, 10, 10, 10, 50) }),
                 RegionIds = Enumerable.Range(0, 60).Select(i => (int?)(i % 20 == 3 ? 3 : i % 20 < 10 ? 1 : 2)).ToImmutableArray(),
                 TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 60).ToImmutableArray() }
         };
-        var h = new Harness(content, draw: _ => throw new InvalidOperationException("Transport must not draw"));
-        Assert.Equal(1, h.Run(OriginalAiWork.Transport).Submitted);
+        var h = new Harness(content, w =>
+        {
+            if (state == 0) return w;
+            var enemy = EnemyArmy(w, target: 3);
+            return enemy with
+            {
+                Settlements = enemy.Settlements.Select(s => s.Id == 3 ? s with { ConfusionDaysRemaining = state == 1 ? 5 : 0 } : s).ToArray(),
+                Units = [.. enemy.Units.Select(u => u with { Position = state == 2 ? new(18, 7) : u.Position })]
+            };
+        }, draw: _ => throw new InvalidOperationException("Transport must not draw"));
+        var before = h.Engine.Snapshot;
+        var report = h.Run(OriginalAiWork.Transport);
+        Assert.Equal(state == 0 ? 1 : 0, report.Submitted);
+        if (state != 0)
+        {
+            Assert.Equal(0, report.Attempts);
+            Assert.Empty(h.Commands);
+            StateAssert.Equal(before, h.Engine.Snapshot);
+            return;
+        }
         var command = Assert.IsType<TransportUnitCommand>(Assert.Single(h.Commands));
         Assert.Equal(3, command.SettlementId);
         Assert.Equal(1, command.DestinationId);

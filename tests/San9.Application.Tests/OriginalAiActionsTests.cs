@@ -78,6 +78,40 @@ public sealed class OriginalAiActionsTests
         internal OriginalAiWorkReport Run(OriginalAiWork work, int limit = 1) => Actions.Run(work, limit, State, State.Corps[0]);
     }
 
+    public static IEnumerable<object[]> BlockedOriginCases() =>
+        from work in Enum.GetValues<OriginalAiWork>().Where(OriginalAiActions.Handles)
+        from engaged in new[] { false, true }
+        select new object[] { work, engaged };
+
+    [Theory]
+    [MemberData(nameof(BlockedOriginCases))]
+    public void BlockedMissionOriginsDoNotConsumePairAttempts(OriginalAiWork work, bool engaged)
+    {
+        var basis = Fixture();
+        var combat = new CombatProfile(10, 10, 10, 10, 50);
+        var content = basis with { Military = basis.Military! with
+        {
+            Formations = [basis.Military.Formations[0] with { Combat = combat, Attack = new(10, true) }],
+            Places = [.. basis.Military.Places.Select(p => p with { Combat = combat })]
+        } };
+        var h = new Harness(content, w => w with
+        {
+            Settlements = w.Settlements.Select(s => s.Id == 1 ? s with { ConfusionDaysRemaining = engaged ? 0 : 5 } : s).ToArray(),
+            Units = [.. w.Units.Select(u => u.Id == 20 ? u with { Position = engaged ? new(9, 7) : u.Position } :
+                work == OriginalAiWork.Confuse ? u with { Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 20 } } : u)],
+            Officers = w.Officers.Select(p => work == OriginalAiWork.ReturnPrisoner && p.Id == 12
+                ? p with { Status = OfficerStatus.Captive, SettlementId = 2 } : p).ToArray(),
+            Relations = w.Relations.Select(r => work == OriginalAiWork.Gift && r.FirstId == 1 && r.SecondId == 2
+                ? r with { Value = 40 } : r).ToArray()
+        });
+        Assert.Equal(engaged, MilitaryEngagementQuery.Capture(h.Engine.Snapshot, new(content.Military!)).Settlements.Contains(1));
+        if (work == OriginalAiWork.Surrender) h.State = h.State with { DiplomaticOrder = [1, 2, 3] };
+        var before = h.Engine.Snapshot;
+        Assert.Equal(0, h.Run(work, 3).Attempts);
+        Assert.Empty(h.Commands);
+        StateAssert.Equal(before, h.Engine.Snapshot);
+    }
+
     [Theory]
     [InlineData(false, 0, UnitCondition.Normal, 1)]
     [InlineData(false, 9, UnitCondition.Normal, 1)]

@@ -34,9 +34,11 @@ public sealed class OriginalAiPersonnelTests
         internal OriginalAiState State { get; }
         internal List<GameCommand> Commands { get; } = [];
         internal List<DomainEvent> Events { get; } = [];
-        internal Harness(ScenarioInitialState content, Func<int, int>? draw = null, bool reject = false, int corpsId = 1)
+        internal Harness(ScenarioInitialState content, Func<int, int>? draw = null, bool reject = false, int corpsId = 1,
+            Func<WorldSnapshot, WorldSnapshot>? change = null)
         {
             var initial = new ScenarioSessionDefinition(content).CreateWorld(190).CreateSnapshot();
+            initial = change?.Invoke(initial) ?? initial;
             Engine = GameSession.EngineFactory(content)(WorldState.Restore(initial with
                 { Simulation = initial.Simulation with { Boundary = SimulationBoundary.Stable } }));
             if (corpsId == 2) Engine.EndControl(new("player"));
@@ -54,6 +56,62 @@ public sealed class OriginalAiPersonnelTests
         }
         internal OriginalAiWorkReport Run(OriginalAiWork work, int attempts = 3, IReadOnlyDictionary<int, long>? quotas = null,
             OriginalAiState? state = null) => Personnel.Run(work, attempts, state ?? State, quotas ?? ImmutableDictionary<int, long>.Empty);
+    }
+
+    [Theory]
+    [InlineData(OriginalAiWork.MoveOfficers, false)]
+    [InlineData(OriginalAiWork.MoveOfficers, true)]
+    [InlineData(OriginalAiWork.Search, false)]
+    [InlineData(OriginalAiWork.Search, true)]
+    [InlineData(OriginalAiWork.RecruitLocal, false)]
+    [InlineData(OriginalAiWork.RecruitLocal, true)]
+    [InlineData(OriginalAiWork.RecruitEnemy, false)]
+    [InlineData(OriginalAiWork.RecruitEnemy, true)]
+    public void BlockedSourcesDoNotConsumePersonnelAttempts(OriginalAiWork work, bool engaged)
+    {
+        var basis = Fixture();
+        var content = basis with
+        {
+            Settlements = [basis.Settlements[0], basis.Settlements[1] with { X = 3, Y = 1 }, basis.Settlements[0] with { Id = 3, X = 5 }],
+            Officers = [.. basis.Officers, new("free", new(200, null, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Free }),
+                new("undiscovered", new(201, null, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Undiscovered })],
+            Military = new(20, 3, Enumerable.Repeat(0, 60).ToImmutableArray(), [new(0, 1, null)],
+                [new(400, 10, 0, 30000, 1, new(1, 1), TravelMode.Land)
+                    { Combat = new(10, 10, 10, 10, 50), Attack = new(10, true), CaptureRanks = [BattleRank.Middle] }],
+                [new(1, new(7, 7), new(1, 1)) { Combat = new(10, 10, 10, 10, 50) }, new(2, new(17, 7), new(1, 1)), new(3, new(27, 7), new(1, 1))])
+        };
+        var h = new Harness(content, change: w => w with
+        {
+            Settlements = w.Settlements.Select(s => s.Id == 1 ? s with { ConfusionDaysRemaining = engaged ? 0 : 5 } : s).ToArray(),
+            Units = engaged ? [new(900, 2, new(9, 7), 1000) { FormationId = 400, Morale = 100,
+                Order = new(MilitaryOrderKind.AttackSettlement, null, 1) }] : [],
+            Simulation = w.Simulation with { NextUnitId = 901 }
+        });
+        Assert.Equal(engaged, MilitaryEngagementQuery.Capture(h.Engine.Snapshot, new(content.Military!)).Settlements.Contains(1));
+        var before = h.Engine.Snapshot;
+        var report = h.Run(work, quotas: new Dictionary<int, long> { [1] = 1, [3] = 1 });
+        Assert.Equal(0, report.Attempts);
+        Assert.Empty(h.Commands);
+        StateAssert.Equal(before, h.Engine.Snapshot);
+    }
+
+    [Fact]
+    public void ConfusedDestinationCanReceivePersonnelAndConfusedHomeCanReward()
+    {
+        var basis = Fixture();
+        var content = basis with { Settlements = [.. basis.Settlements, basis.Settlements[0] with { Id = 3, X = 5 }] };
+        var moving = new Harness(content, change: w => w with { Settlements = w.Settlements.Select(s => s.Id == 3
+            ? s with { ConfusionDaysRemaining = 5 } : s).ToArray() });
+        Assert.Equal(1, moving.Run(OriginalAiWork.MoveOfficers,
+            quotas: new Dictionary<int, long> { [1] = 2, [3] = 1 }).Submitted);
+        Assert.Equal(3, Assert.IsType<MoveOfficersCommand>(Assert.Single(moving.Commands)).DestinationId);
+        var rewarding = new Harness(basis, change: w => w with
+        {
+            Settlements = w.Settlements.Select(s => s.Id == 1 ? s with { ConfusionDaysRemaining = 5 } : s).ToArray(),
+            Officers = w.Officers.Select(p => p.Id == 2 ? p.WithLoyalty(1, 80) : p).ToArray()
+        });
+        Assert.Equal(1, rewarding.Run(OriginalAiWork.Reward).Submitted);
+        Assert.IsType<RewardOfficerCommand>(Assert.Single(rewarding.Commands));
     }
 
     [Fact]

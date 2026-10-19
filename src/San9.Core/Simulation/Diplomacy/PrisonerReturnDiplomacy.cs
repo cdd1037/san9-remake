@@ -34,7 +34,7 @@ internal static class PrisonerReturnDiplomacy
     {
         if (!GiftDiplomacy.Target(world, force, target) || !PrisonerCompensation.IsHeld(world, prisoner, force, target))
             return CommandRejection.InvalidTask;
-        if (!PersonnelMissions.CanAct(world, force, actor)) return CommandRejection.PersonUnavailable;
+        if (!PersonnelMissions.CanStartMission(world, force, actor, rules.Military)) return CommandRejection.PersonUnavailable;
         var origin = world.Settlements[world.Officers[actor].SettlementId!.Value];
         if (ResourceAccounts.Resolve(world, force, origin.CorpsId).Id != ResourceAccounts.Root(world, force).Id) return CommandRejection.InvalidCorps;
         if (!rules.Personnel.Places.ContainsKey(origin.Id) || !GiftDiplomacy.Destination(world, target, rules, out _, out _) ||

@@ -20,7 +20,7 @@ internal static class SurrenderDiplomacy
     internal static CommandRejection Eligibility(WorldMutation world, int source, int actor, int target, SimulationRules rules)
     {
         if (!Target(world, source, target)) return CommandRejection.InvalidTask;
-        if (!PersonnelMissions.CanAct(world, source, actor)) return CommandRejection.PersonUnavailable;
+        if (!PersonnelMissions.CanStartMission(world, source, actor, rules.Military)) return CommandRejection.PersonUnavailable;
         var origin = world.Settlements[world.Officers[actor].SettlementId!.Value];
         if (ResourceAccounts.Resolve(world, source, origin.CorpsId).Id != ResourceAccounts.Root(world, source).Id) return CommandRejection.InvalidCorps;
         return rules.Personnel.Places.ContainsKey(origin.Id) && GiftDiplomacy.Destination(world, target, rules, out _, out _)

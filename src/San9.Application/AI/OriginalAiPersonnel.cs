@@ -64,7 +64,7 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
         return p.IsServing && p.OwnerId == _corps.OwnerId && !p.Acted && p.UnitId is null &&
             p.SettlementId is int home && _placeIds.Contains(home) && !_busy.Contains(p.Id);
     }
-    private IEnumerable<OfficerState> Actors(int politics) => Own.Where(p => Available(p) &&
+    private IEnumerable<OfficerState> Actors(int politics) => Own.Where(p => Available(p) && engine.CanStartSettlementWork(p.SettlementId!.Value) &&
         _cityIds.Contains(p.SettlementId!.Value) && Ability(p).Politics >= politics && Ability(p).Politics <= 115)
         .OrderByDescending(p => Ability(p).Politics);
     private GameCommand Command(Func<Guid, int, long, GameCommand> create)
@@ -284,11 +284,12 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
         // Actual occupancy and the batch's all-serving quota are different inputs.
         var counts = OriginalAiStaffing.Counts(World, corpsId);
         var surplus = places.ToDictionary(s => s.Id, s => counts.GetValueOrDefault(s.Id) - quotas.GetValueOrDefault(s.Id));
-        var sources = places.Where(s => surplus[s.Id] > 0).ToList();
+        var sources = places.Where(s => surplus[s.Id] > 0 && engine.CanStartSettlementWork(s.Id)).ToList();
+        if (sources.Count == 0 && !places.Any(s => counts.GetValueOrDefault(s.Id) > 1 && engine.CanStartSettlementWork(s.Id))) yield break;
         var destinations = places.Where(s => surplus[s.Id] < 0).OrderBy(s => surplus[s.Id]).ToArray();
         foreach (var destination in destinations)
         {
-            var available = Own.Where(Available).ToLookup(p => p.SettlementId!.Value);
+            var available = Own.Where(p => Available(p) && engine.CanStartSettlementWork(p.SettlementId!.Value)).ToLookup(p => p.SettlementId!.Value);
             var source = sources.Where(s => available.Contains(s.Id)).OrderByDescending(s => surplus[s.Id]).FirstOrDefault();
             bool fallback = source is null && destination.Kind == SettlementKind.City && counts.GetValueOrDefault(destination.Id) == 0;
             // B11 repairs the original fallback's reuse of the exhausted surplus list.

@@ -109,7 +109,7 @@ internal sealed class OriginalAiProjection(SimulationEngine engine, ScenarioInit
         var corps = world.Corps.Single(c => c.Id == corpsId);
         var accountPlaces = world.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed && s.OwnerId == corps.OwnerId &&
             (s.CorpsId == corps.Id || s.CorpsId is null && corps.IsRoot)).ToArray();
-        var places = accountPlaces.Where(s => s.CanHostPersons && s.Facility?.BuilderUnitId is null).ToArray();
+        var places = accountPlaces.Where(s => s.CanHostPersons && engine.CanStartSettlementWork(s.Id)).ToArray();
         var busy = world.Simulation.Tasks.Where(t => t.ForceId == corps.OwnerId).Select(t => t.OfficerId).ToHashSet();
         var available = world.Officers.Where(o => !o.IsDormant && o.OwnerId == corps.OwnerId && o.IsServing && !o.Acted &&
             o.UnitId is null && o.SettlementId is not null && !busy.Contains(o.Id)).ToLookup(o => o.SettlementId!.Value);
@@ -156,7 +156,7 @@ internal sealed class OriginalAiProjection(SimulationEngine engine, ScenarioInit
         var corps = world.Corps.Single(c => c.Id == corpsId);
         var place = world.Settlements.FirstOrDefault(s => s.Id == id && !s.IsDormant && !s.IsDestroyed &&
             s.OwnerId == corps.OwnerId && (s.CorpsId == corps.Id || s.CorpsId is null && corps.IsRoot) &&
-            s.CanHostPersons && s.Facility?.BuilderUnitId is null);
+            s.CanHostPersons && engine.CanStartSettlementWork(s.Id));
         return place is null ? null : DomesticObservation.Settlement(place, corpsId, corps.Treasury.Money, corps.Treasury.Food, []);
     }
 

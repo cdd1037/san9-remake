@@ -23,7 +23,7 @@ internal static class AlienateStrategies
     internal static CommandRejection Eligibility(WorldMutation world, int forceId, int officerId, int targetId,
         SimulationRules rules)
     {
-        if (!PersonnelMissions.CanAct(world, forceId, officerId)) return CommandRejection.PersonUnavailable;
+        if (!PersonnelMissions.CanStartMission(world, forceId, officerId, rules.Military)) return CommandRejection.PersonUnavailable;
         if (!EligibleTarget(world, forceId, targetId, rules)) return CommandRejection.InvalidTask;
         int origin = world.Officers[officerId].SettlementId!.Value;
         return rules.Personnel.Places.ContainsKey(origin)

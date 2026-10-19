@@ -5,7 +5,7 @@ namespace San9.Core.Simulation;
 
 internal static class DomesticDevelopmentHandler
 {
-    internal static DevelopmentOutcome Prepare(WorldMutation world, DevelopmentCommand command)
+    internal static DevelopmentOutcome Prepare(WorldMutation world, DevelopmentCommand command, MilitaryRulebook? military)
     {
         if (!Enum.IsDefined(command.Activity)) return new(DevelopmentRejection.UnsupportedActivity);
         if (command.Activity != DomesticActivity.Recruit && command.RecruitAmount is not null) return new(DevelopmentRejection.UnsupportedActivity);
@@ -16,6 +16,7 @@ internal static class DomesticDevelopmentHandler
         var people = command.OfficerIds.Order().Select(id => world.Officers[id]).ToArray();
         if (city.OwnerId != force.Id || people.Any(p => p.OwnerId != force.Id)) return new(DevelopmentRejection.WrongOwner);
         if (city.IsDestroyed || city.Facility?.BuilderUnitId is not null) return new(DevelopmentRejection.UnsupportedActivity);
+        if (!SettlementOperations.Available(world, city, military)) return new(DevelopmentRejection.SettlementUnavailable);
         if (people.Any(p => !p.IsServing || p.Acted || p.SettlementId != city.Id || world.IsBusy(p.Id)))
             return new(DevelopmentRejection.OfficerUnavailable);
         var abilities = world.AbilitiesFor(people);
@@ -68,9 +69,9 @@ internal static class DomesticDevelopmentHandler
         return new(DevelopmentRejection.None, increment, cost);
     }
 
-    internal static DevelopmentOutcome Apply(WorldMutation world, DevelopmentCommand command, EconomyRulebook rules, List<DomainEvent> events)
+    internal static DevelopmentOutcome Apply(WorldMutation world, DevelopmentCommand command, EconomyRulebook rules, MilitaryRulebook? military, List<DomainEvent> events)
     {
-        var prepared = Prepare(world, command);
+        var prepared = Prepare(world, command, military);
         if (!prepared.Accepted) return prepared;
         var force = world.Forces[command.ForceId];
         var city = world.Settlements[command.SettlementId];

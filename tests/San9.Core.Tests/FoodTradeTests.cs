@@ -25,18 +25,18 @@ public sealed class FoodTradeTests
     public void IntegerTradesConserveBothResourcesAndConsumeSharedCityUse(FoodTradeDirection direction, uint amount, uint money)
     {
         var world = World(); List<DomainEvent> events = [];
-        Assert.True(FoodTrade.Apply(world, Command(direction, amount, 1, 2), events));
+        Assert.True(FoodTrade.Apply(world, Command(direction, amount, 1, 2), null, events));
         var result = Assert.Single(events.OfType<FoodTradeCompletedEvent>());
         Assert.Equal(money, result.MoneyAmount);
         Assert.Equal(direction == FoodTradeDirection.Buy ? 10000 - money : 10000 + money, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
         Assert.Equal(direction == FoodTradeDirection.Buy ? 10000 + amount : 10000 - amount, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food);
         Assert.True(world.Officers[1].Acted); Assert.True(world.Officers[2].Acted); Assert.False(world.Officers[3].Acted);
-        Assert.Equal(FoodTradeRejection.AlreadyUsed, FoodTrade.Quote(world, 1, 1, [3], FoodTradeDirection.Buy).Rejection);
-        Assert.Equal(FoodTradeRejection.AlreadyUsed, FoodTrade.Quote(world, 1, 1, [3], FoodTradeDirection.Sell).Rejection);
+        Assert.Equal(FoodTradeRejection.AlreadyUsed, FoodTrade.Quote(world, 1, 1, [3], FoodTradeDirection.Buy, null).Rejection);
+        Assert.Equal(FoodTradeRejection.AlreadyUsed, FoodTrade.Quote(world, 1, 1, [3], FoodTradeDirection.Sell, null).Rejection);
         Assert.Empty(world.Simulation.RandomStreams);
         XunRecovery.Settlements(world);
         XunRecovery.Personnel(world);
-        Assert.True(FoodTrade.Quote(world, 1, 1, [1], direction).Available);
+        Assert.True(FoodTrade.Quote(world, 1, 1, [1], direction, null).Available);
     }
 
     [Theory]
@@ -47,8 +47,8 @@ public sealed class FoodTradeTests
     {
         var world = World(100000, 100000);
         world.Replace(world.Officers[1] with { BaseAbilities = new(80, 80, politics, 80) });
-        Assert.Equal(expected, FoodTrade.Quote(world, 1, 1, [1], FoodTradeDirection.Buy).MaximumFoodAmount);
-        Assert.Equal(expected + 6000, FoodTrade.Quote(world, 1, 1, [1, 2], FoodTradeDirection.Sell).MaximumFoodAmount);
+        Assert.Equal(expected, FoodTrade.Quote(world, 1, 1, [1], FoodTradeDirection.Buy, null).MaximumFoodAmount);
+        Assert.Equal(expected + 6000, FoodTrade.Quote(world, 1, 1, [1, 2], FoodTradeDirection.Sell, null).MaximumFoodAmount);
     }
 
     [Theory]
@@ -63,9 +63,9 @@ public sealed class FoodTradeTests
     public void LimitsRespectCurrentBalancesAndCapacities(FoodTradeDirection direction, uint money, uint food, uint expected)
     {
         var world = World(money, food);
-        Assert.Equal(expected, FoodTrade.Quote(world, 1, 1, [1], direction).MaximumFoodAmount);
+        Assert.Equal(expected, FoodTrade.Quote(world, 1, 1, [1], direction, null).MaximumFoodAmount);
         List<DomainEvent> events = [];
-        Assert.False(FoodTrade.Apply(world, Command(direction, expected + 1, 1), events));
+        Assert.False(FoodTrade.Apply(world, Command(direction, expected + 1, 1), null, events));
         Assert.Equal(money, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money); Assert.Equal(food, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food);
         Assert.False(world.Officers[1].Acted); Assert.False(world.Settlements[1].FoodTradeUsed); Assert.Empty(events);
     }
@@ -96,7 +96,7 @@ public sealed class FoodTradeTests
             case "task": world.SetSimulation(world.Simulation with { Tasks = [new(Guid.NewGuid(), "personnel-search", "player", 1, 1, 1, world.Clock, world.Clock, 0, 0)] }); break;
         }
         var city = world.Settlements[1]; var person = world.Officers[1]; List<DomainEvent> events = [];
-        Assert.False(FoodTrade.Apply(world, command, events));
+        Assert.False(FoodTrade.Apply(world, command, null, events));
         Assert.Equal(10000u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money); Assert.Equal(10000u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food);
         Assert.Equal(city, world.Settlements[1]); Assert.Equal(person, world.Officers[1]); Assert.Empty(events); Assert.Empty(world.Simulation.RandomStreams);
     }
@@ -104,9 +104,9 @@ public sealed class FoodTradeTests
     [Fact]
     public void QuoteDoesNotReserveFundsAndExecutionRechecksCurrentState()
     {
-        var world = World(); Assert.Equal(6000u, FoodTrade.Quote(world, 1, 1, [1], FoodTradeDirection.Buy).MaximumFoodAmount);
+        var world = World(); Assert.Equal(6000u, FoodTrade.Quote(world, 1, 1, [1], FoodTradeDirection.Buy, null).MaximumFoodAmount);
         world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Money = 1 } });
-        List<DomainEvent> events = []; Assert.False(FoodTrade.Apply(world, Command(FoodTradeDirection.Buy, 8, 1), events));
+        List<DomainEvent> events = []; Assert.False(FoodTrade.Apply(world, Command(FoodTradeDirection.Buy, 8, 1), null, events));
         Assert.Equal(1u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money); Assert.Empty(events);
     }
 

@@ -33,7 +33,7 @@ internal static class BurnStrategies
 
     internal static CommandRejection Eligibility(WorldMutation world, int force, int officer, int target, SimulationRules rules)
     {
-        if (!PersonnelMissions.CanAct(world, force, officer)) return CommandRejection.PersonUnavailable;
+        if (!PersonnelMissions.CanStartMission(world, force, officer, rules.Military)) return CommandRejection.PersonUnavailable;
         return Eligible(world, force, world.Officers[officer].SettlementId!.Value, target, rules)
             ? CommandRejection.None : CommandRejection.InvalidTask;
     }

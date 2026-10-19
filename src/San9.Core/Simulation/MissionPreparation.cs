@@ -89,6 +89,14 @@ internal static class MissionPreparation
 
 public sealed partial class SimulationEngine
 {
+    /// <summary>Current origin state for civilian work; does not check ownership, personnel or resources.</summary>
+    public bool CanStartSettlementWork(int settlementId)
+    {
+        var world = PreparationWorld();
+        return world.Settlements.TryGetValue(settlementId, out var home) && !home.IsDestroyed &&
+            home.Facility?.BuilderUnitId is null && SettlementOperations.Available(world, home, _rules.Military);
+    }
+
     public ImmutableArray<int> GetGiftTreasures(int forceId)
     {
         var world = PreparationWorld();
@@ -117,7 +125,7 @@ public sealed partial class SimulationEngine
         {
             DevelopCommand develop => develop.Development is null || develop.Development.ForceId != command.IssuerId
                 ? CommandRejection.NotActiveController
-                : DomesticDevelopmentHandler.Prepare(world, develop.Development).Accepted
+                : DomesticDevelopmentHandler.Prepare(world, develop.Development, _rules.Military).Accepted
                     ? CommandRejection.None : CommandRejection.DevelopmentFailed,
             OrderUnitCommand order => MilitaryMovement.OrderEligibility(world, order, _rules.Military),
             SelectTacticCommand tactic => MilitaryTactics.Eligibility(world, tactic, _rules),
@@ -129,8 +137,8 @@ public sealed partial class SimulationEngine
             ConfiscateTreasureCommand confiscate => PersonnelTreasures.ConfiscateEligibility(world, confiscate, _rules.Treasures),
             SetCorpsDelegationCommand delegation => CorpsDelegations.Eligibility(world, delegation, _rules.Military),
             RecruitOfficerCommand recruit => PersonnelMissions.ValidateRecruit(world, recruit, _rules, out _, out _),
-            SearchCommand search => PersonnelMissions.ValidateSearch(world, search, _rules.Personnel),
-            MoveOfficersCommand move => PersonnelMissions.ValidateMove(world, move, _rules.Personnel),
+            SearchCommand search => PersonnelMissions.ValidateSearch(world, search, _rules.Personnel, _rules.Military),
+            MoveOfficersCommand move => PersonnelMissions.ValidateMove(world, move, _rules.Personnel, _rules.Military),
             TransportUnitCommand transport => MilitaryMovement.TransportEligibility(world, transport, _rules.Military, _rules.Treasures),
             ConstructFacilityCommand construct => FacilityConstruction.Eligibility(world, construct, _rules),
             DeployUnitCommand deploy => MilitaryMovement.PrepareDeployment(world, deploy, _rules.Military,

@@ -33,7 +33,7 @@ internal static class SeizeStrategies
     internal static CommandRejection Eligibility(WorldMutation world, int forceId, int officerId, int targetId,
         SimulationRules rules)
     {
-        if (!PersonnelMissions.CanAct(world, forceId, officerId)) return CommandRejection.PersonUnavailable;
+        if (!PersonnelMissions.CanStartMission(world, forceId, officerId, rules.Military)) return CommandRejection.PersonUnavailable;
         return Eligible(world, forceId, world.Officers[officerId].SettlementId!.Value, targetId, rules)
             ? CommandRejection.None : CommandRejection.InvalidTask;
     }

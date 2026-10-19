@@ -60,7 +60,7 @@ internal sealed partial class OriginalAiActions(SimulationEngine engine, Scenari
     private bool Direct(UnitState u) => u.OwnerId == Owner && (u.CorpsId == corpsId || u.CorpsId is null && Corps.IsRoot);
     private bool Available(OfficerState p) => !p.IsDormant && p.IsServing && p.OwnerId == Owner && !p.Acted && p.UnitId is null &&
         p.SettlementId is int home && World.Settlements.Any(s => s.Id == home && Direct(s) && !s.IsDestroyed &&
-            !s.IsDormant && s.Kind == SettlementKind.City && s.Durability > 0 && s.Facility?.BuilderUnitId is null) &&
+            !s.IsDormant && s.Kind == SettlementKind.City && s.Durability > 0 && s.Facility?.BuilderUnitId is null && engine.CanStartSettlementWork(s.Id)) &&
         !World.Simulation.Tasks.Any(t => t.OfficerId == p.Id);
     private int City(int id) => content.RegionCityIds.GetValueOrDefault(id, id);
     private bool Near(int source, int target) => City(source) == City(target) ||

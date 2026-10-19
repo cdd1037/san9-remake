@@ -40,7 +40,7 @@ internal static class UnitStrategies
     internal static CommandRejection SubmissionEligibility(WorldMutation world, int forceId, int officerId,
         UnitStrategyKind strategy, int targetId, SimulationRules rules)
     {
-        if (!PersonnelMissions.CanAct(world, forceId, officerId)) return CommandRejection.PersonUnavailable;
+        if (!PersonnelMissions.CanStartMission(world, forceId, officerId, rules.Military)) return CommandRejection.PersonUnavailable;
         if (!Eligible(world, forceId, strategy, targetId, rules)) return CommandRejection.InvalidTask;
         int origin = world.Officers[officerId].SettlementId!.Value;
         if (strategy == UnitStrategyKind.Reinforce &&

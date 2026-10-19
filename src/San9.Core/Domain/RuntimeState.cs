@@ -63,7 +63,7 @@ public sealed record DevelopmentCommand(int ForceId, int SettlementId, System.Co
     /// <summary>Exact recruitment order; null asks the planner to use the current maximum. Other activities require null.</summary>
     [JsonRequired] public uint? RecruitAmount { get; init; }
 }
-public enum DevelopmentRejection { None, UnknownObject, UnsupportedActivity, WrongOwner, OfficerUnavailable, AlreadyUsed, AtMaximum, InsufficientFunds, NotAuthorized, InvalidParticipants, NoRecruits, NoSoldiers }
+public enum DevelopmentRejection { None, UnknownObject, UnsupportedActivity, WrongOwner, OfficerUnavailable, AlreadyUsed, AtMaximum, InsufficientFunds, NotAuthorized, InvalidParticipants, NoRecruits, NoSoldiers, SettlementUnavailable }
 public enum DomesticBonusKind { SpecialPair, Affinity }
 public sealed record DomesticBonus(DomesticBonusKind Kind, int SpeakerId, int? PartnerId = null);
 

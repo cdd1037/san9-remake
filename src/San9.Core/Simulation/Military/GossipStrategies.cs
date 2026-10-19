@@ -66,7 +66,7 @@ internal static class GossipStrategies
     internal static CommandRejection Eligibility(WorldMutation world, int forceId, int officerId,
         int firstTargetForceId, int secondTargetForceId, SimulationRules rules)
     {
-        if (!PersonnelMissions.CanAct(world, forceId, officerId)) return CommandRejection.PersonUnavailable;
+        if (!PersonnelMissions.CanStartMission(world, forceId, officerId, rules.Military)) return CommandRejection.PersonUnavailable;
         if (!EligibleTargets(world, forceId, firstTargetForceId, secondTargetForceId) ||
             !rules.Personnel.Places.ContainsKey(world.Officers[officerId].SettlementId!.Value) ||
             !TryDestination(world, firstTargetForceId, rules, out _, out _)) return CommandRejection.InvalidTask;

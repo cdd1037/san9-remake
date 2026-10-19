@@ -379,7 +379,7 @@ public sealed partial class SimulationEngine
     public FoodTradeQuote GetFoodTradeQuote(int forceId, int settlementId, System.Collections.Immutable.ImmutableArray<int> officerIds, FoodTradeDirection direction)
     {
         if (_world.IsExecuting) throw new InvalidOperationException("Simulation is executing.");
-        return FoodTrade.Quote(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, settlementId, officerIds, direction);
+        return FoodTrade.Quote(_world.BeginMutation(_rules.Abilities, _rules.Economy), forceId, settlementId, officerIds, direction, _rules.Military);
     }
 
     public MerchantInvestmentPrompt? GetMerchantInvestmentPrompt()
@@ -711,7 +711,7 @@ public sealed partial class SimulationEngine
                     if (releaseRejection != CommandRejection.None) return Reject(releaseRejection);
                     break;
                 case SearchCommand search:
-                    var searchRejection = PersonnelMissions.StartSearch(mutation, context, search, _rules.Personnel, events);
+                    var searchRejection = PersonnelMissions.StartSearch(mutation, context, search, _rules.Personnel, _rules.Military, events);
                     if (searchRejection != CommandRejection.None) return Reject(searchRejection);
                     break;
                 case RecruitOfficerCommand recruit:
@@ -719,16 +719,16 @@ public sealed partial class SimulationEngine
                     if (recruitRejection != CommandRejection.None) return Reject(recruitRejection);
                     break;
                 case MoveOfficersCommand move:
-                    var moveRejection = PersonnelMissions.StartMove(mutation, context, move, _rules.Personnel, events);
+                    var moveRejection = PersonnelMissions.StartMove(mutation, context, move, _rules.Personnel, _rules.Military, events);
                     if (moveRejection != CommandRejection.None) return Reject(moveRejection);
                     break;
                 case FoodTradeCommand trade:
-                    if (!FoodTrade.Apply(mutation, trade, events)) return Reject(CommandRejection.FoodTradeFailed);
+                    if (!FoodTrade.Apply(mutation, trade, _rules.Military, events)) return Reject(CommandRejection.FoodTradeFailed);
                     break;
                 case DevelopCommand develop:
                     if (develop.Development is null || develop.Development.ForceId != command.IssuerId)
                         return Reject(CommandRejection.NotActiveController);
-                    development = DomesticDevelopmentHandler.Apply(mutation, develop.Development, _rules.Economy, events);
+                    development = DomesticDevelopmentHandler.Apply(mutation, develop.Development, _rules.Economy, _rules.Military, events);
                     if (!development.Value.Accepted) return Reject(CommandRejection.DevelopmentFailed, development);
                     events.Add(new DevelopmentCompletedEvent(mutation.Clock, develop.Development,
                         development.Value.Increment, development.Value.Cost) { Bonus = development.Value.Bonus });

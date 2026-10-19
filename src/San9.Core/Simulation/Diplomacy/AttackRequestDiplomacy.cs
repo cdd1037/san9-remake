@@ -36,7 +36,7 @@ internal static class AttackRequestDiplomacy
     internal static CommandRejection Eligibility(WorldMutation world, int force, int actor, int target, int place, SimulationRules rules)
     {
         if (!Target(world, force, target, place)) return CommandRejection.InvalidTask;
-        if (!PersonnelMissions.CanAct(world, force, actor)) return CommandRejection.PersonUnavailable;
+        if (!PersonnelMissions.CanStartMission(world, force, actor, rules.Military)) return CommandRejection.PersonUnavailable;
         var origin = world.Settlements[world.Officers[actor].SettlementId!.Value];
         if (ResourceAccounts.Resolve(world, force, origin.CorpsId).Id != ResourceAccounts.Root(world, force).Id) return CommandRejection.InvalidCorps;
         return rules.Personnel.Places.ContainsKey(origin.Id) && GiftDiplomacy.Destination(world, target, rules, out _, out _)

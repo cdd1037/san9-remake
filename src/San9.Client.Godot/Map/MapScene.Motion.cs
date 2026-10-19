@@ -10,10 +10,6 @@ namespace San9.Client.Godot;
 internal sealed partial class MapScene
 {
     public TurnDayPresentation? Day { get; }
-    public SettlementView SampleSettlement(SettlementView value)
-    {
-        return MapFrame?.Settlements.GetValueOrDefault(value.Id) ?? value;
-    }
     private readonly Dictionary<int, UnitVisualState> _unitStates;
     private Dictionary<int, MapUnitMotion> _motions = [];
     private MapAttackMotion[] _attacks = [];

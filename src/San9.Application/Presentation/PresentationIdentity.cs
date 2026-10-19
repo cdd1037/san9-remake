@@ -42,16 +42,16 @@ internal sealed class PresentationIdentity(StrategySnapshot before, StrategySnap
             case CityIndependenceEvent independence:
                 forces ??= before.World.Forces.ToDictionary(f => f.Id);
                 forces[independence.ForceId] = after.World.Forces.Single(f => f.Id == independence.ForceId) with { LeaderId = independence.FounderId }; break;
+            default:
+                return;
         }
-        if (fact is ForceLeaderChangedEvent or PeerageChangedEvent or ForceFoundedEvent or CityIndependenceEvent)
-            projected = null;
+        projected = null;
     }
 
     private void SetSettlement(SettlementState value)
     {
         settlements ??= before.World.Settlements.ToDictionary(s => s.Id);
         settlements[value.Id] = value;
-        projected = null;
     }
 
     internal static StrategySnapshot BeforeFact(StrategySnapshot before, StrategySnapshot after,

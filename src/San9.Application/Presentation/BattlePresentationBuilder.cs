@@ -219,12 +219,11 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             foreach (var report in reports) _records.Add(new(_cursor, report));
             presented = reports.Count > 0;
         }
-        if (content.Capture is { } capture && events[_index] is SettlementCapturedEvent captured)
+        if (content.Capture is { } capture && events[_index] is SettlementCapturedEvent captured &&
+            CapturePresentation.Create(occurrence, occurrenceContext, texts, capture, captured) is { } message)
         {
-            var scenes = CapturePresentation.Read(occurrence, occurrenceContext, texts, capture, captured);
-            foreach (var message in scenes)
-                _messages.Add(new(Identity("capture"), _cursor, message, BattleMessageChannel.Dialogue));
-            presented |= scenes.Count > 0;
+            _messages.Add(new(Identity("capture"), _cursor, message, BattleMessageChannel.Dialogue));
+            presented = true;
         }
         if (presented) _presented.Add(_index);
     }

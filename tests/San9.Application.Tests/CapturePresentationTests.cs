@@ -19,8 +19,8 @@ public sealed class CapturePresentationTests
         var context = new WorldMessageContext(definition, before.World, texts);
         var fact = Fact(before, 1, 2);
 
-        var first = Assert.Single(CapturePresentation.Read(before, context, texts, content, fact));
-        var repeated = Assert.Single(CapturePresentation.Read(before, context, texts, content, fact));
+        var first = Assert.IsType<CommandMessage>(CapturePresentation.Create(before, context, texts, content, fact));
+        var repeated = Assert.IsType<CommandMessage>(CapturePresentation.Create(before, context, texts, content, fact));
 
         Assert.Contains(first.Message.BbCode, new[] { "first", "second" });
         Assert.Equal(first.Message.BbCode, repeated.Message.BbCode);
@@ -83,7 +83,7 @@ public sealed class CapturePresentationTests
     {
         var (definition, before, texts, content) = Fixture(fort);
         var fact = Fact(before, winnerIsPlayer ? 1 : 2, previous);
-        var message = Assert.Single(CapturePresentation.Read(before, new(definition, before.World, texts), texts, content, fact));
+        var message = Assert.IsType<CommandMessage>(CapturePresentation.Create(before, new(definition, before.World, texts), texts, content, fact));
         Assert.Equal(winnerIsPlayer ? "won" : "lost", message.Message.Key);
         Assert.Equal(music, message.BackgroundMusicRole);
         Assert.Equal(illustration, message.IllustrationRole);
@@ -97,8 +97,8 @@ public sealed class CapturePresentationTests
     {
         var (definition, before, texts, content) = Fixture();
         var context = new WorldMessageContext(definition, before.World, texts);
-        Assert.Empty(CapturePresentation.Read(before, context, texts, content, Fact(before, 1, 2) with { Destroyed = true }));
-        Assert.Empty(CapturePresentation.Read(before, context, texts, content, Fact(before, 2, 3)));
+        Assert.Null(CapturePresentation.Create(before, context, texts, content, Fact(before, 1, 2) with { Destroyed = true }));
+        Assert.Null(CapturePresentation.Create(before, context, texts, content, Fact(before, 2, 3)));
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public sealed class CapturePresentationTests
             var source = new BattleObjectContext(100000, false, winner,
                 before.World.Forces.Single(f => f.Id == winner).LeaderId, new(0, 0), place.Id, false);
             var fact = new SettlementCapturedEvent(before.World.Clock, place.Id, won ? enemy : player, new(source.Id, false), false) { Source = source, Result = before.World.Settlements.Single(s => s.Id == place.Id) };
-            var message = Assert.Single(CapturePresentation.Read(before, session.Messages(package.Text), package.Text, capture, fact));
+            var message = Assert.IsType<CommandMessage>(CapturePresentation.Create(before, session.Messages(package.Text), package.Text, capture, fact));
             Assert.NotEmpty(message.Message.BbCode);
             Assert.True(package.Skin.Roles.ContainsKey(message.IllustrationRole!));
             Assert.Equal(place.Kind == SettlementKind.City ? won ? capture.VictoryMusic : capture.LossMusic : null, message.BackgroundMusicRole);

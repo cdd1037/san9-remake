@@ -4,6 +4,7 @@
 
 # IDA databases and local analysis state
 /research/analysis/
+/research/archive/
 *.idb
 *.i64
 *.id0

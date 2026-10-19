@@ -23,7 +23,8 @@ public partial class MapWorld : Node2D
     private string? _requestedSeason;
     public string? PreviewSeasonOverride { get; private set; }
     internal string? PresentationSeason { get; set; }
-    private bool _dragging, _showBoundaries = true, _awaitingSeason;
+    private bool _showBoundaries = true, _awaitingSeason;
+    private readonly MapDragController _mapDrag = new();
     private readonly Stopwatch _navigation = new(), _loadWatch = new();
     private double? _fixedAnimationTime;
     private double _animationMilliseconds;
@@ -116,7 +117,7 @@ public partial class MapWorld : Node2D
     }
     private void OnViewportResized()
     {
-        _dragging = false; _edgeScroll.CancelGesture(); HoverObject(null);
+        _mapDrag.Cancel(); _edgeScroll.CancelGesture(); HoverObject(null);
         _camera.ForceUpdateScroll();
         RequestDisplay();
         ViewportPresentationChanged?.Invoke();
@@ -175,7 +176,7 @@ public partial class MapWorld : Node2D
         _animationMilliseconds += delta * 1000;
         _unitPositionClock.Advance(delta, Day);
         long start = Stopwatch.GetTimestamp();
-        if (!Input.IsMouseButtonPressed(MouseButton.Middle)) _dragging = false;
+        if (!Input.IsMouseButtonPressed(MouseButton.Middle)) _mapDrag.Cancel();
         SynchronizeSeason();
         if (_loading is { IsCompleted: true } completed)
         {
@@ -314,8 +315,8 @@ public partial class MapWorld : Node2D
         if (input is InputEventMouseButton button)
         {
             if (!GetViewportRect().HasPoint(button.Position)) return;
-            if (!CanPickAt(button.Position)) { _dragging = false; return; }
-            if (IsInputBlocked?.Invoke(button.Position) == true) { _dragging = false; return; }
+            if (!CanPickAt(button.Position)) { _mapDrag.Cancel(); return; }
+            if (IsInputBlocked?.Invoke(button.Position) == true) { _mapDrag.Cancel(); return; }
             if (button.ButtonIndex is MouseButton.Left or MouseButton.Right && TargetPicked is { } pick)
             {
                 if (button.Pressed)
@@ -340,10 +341,15 @@ public partial class MapWorld : Node2D
             }
             if (button.ButtonIndex is MouseButton.Left or MouseButton.Right && CanIssueOrders?.Invoke() == false)
             { GetViewport().SetInputAsHandled(); return; }
-            if (button.ButtonIndex == MouseButton.Middle) { _dragging = button.Pressed; GetViewport().SetInputAsHandled(); }
+            if (button.ButtonIndex == MouseButton.Middle)
+            {
+                if (button.Pressed) _mapDrag.Press(new(button.Position.X, button.Position.Y));
+                else _mapDrag.Cancel();
+                GetViewport().SetInputAsHandled();
+            }
             else if (button.Pressed && button.ButtonIndex == MouseButton.Right)
             {
-                _dragging = false;
+                _mapDrag.Cancel();
                 if (ObjectAtViewport(button.Position) is {} target)
                 {
                     if (target.IsUnit) UnitContextRequested?.Invoke(target.Id, button.Position);
@@ -354,6 +360,8 @@ public partial class MapWorld : Node2D
             }
             else if (button.Pressed && button.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
             {
+                if (_mapDrag.IsHeld || Input.IsMouseButtonPressed(MouseButton.Middle))
+                { GetViewport().SetInputAsHandled(); return; }
                 var offset = button.Position - ViewportSize / 2;
                 float zoom = Math.Clamp(RequestedZoom * (button.ButtonIndex == MouseButton.WheelUp ? 1.2f : 1 / 1.2f), .25f, 2);
                 var center = RequestedPosition + offset / RequestedZoom - offset / zoom;
@@ -366,10 +374,12 @@ public partial class MapWorld : Node2D
                 GetViewport().SetInputAsHandled();
             }
         }
-        else if (input is InputEventMouseMotion motion && _dragging)
+        else if (input is InputEventMouseMotion motion && _mapDrag.IsHeld)
         {
-            if (IsInputBlocked?.Invoke(motion.Position) == true) { _dragging = false; return; }
-            MoveWorld(-motion.Relative.X / RequestedZoom, -motion.Relative.Y / RequestedZoom); GetViewport().SetInputAsHandled();
+            if (IsInputBlocked?.Invoke(motion.Position) == true) { _mapDrag.Cancel(); return; }
+            var movement = _mapDrag.Move(new(motion.Position.X, motion.Position.Y));
+            if (movement != default) MoveWorld(-movement.X / RequestedZoom, -movement.Y / RequestedZoom);
+            GetViewport().SetInputAsHandled();
         }
     }
     public override void _ExitTree()

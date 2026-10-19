@@ -24,7 +24,7 @@ public partial class ClientVerification
             Check(selected == Selection.Square, "Letterbox input changed selection.");
             World._UnhandledInput(new InputEventMouseButton { ButtonIndex = MouseButton.Middle, Pressed = true, Position = new(700, 400) });
             var previous = World.CameraPosition;
-            World._UnhandledInput(new InputEventMouseMotion { Position = new(700, 400), Relative = new(120, 60) });
+            World._UnhandledInput(new InputEventMouseMotion { Position = new(820, 460), Relative = new(120, 60) });
             await WaitForView();
             Check(previous.DistanceTo(World.CameraPosition) > 50, "Drag failed.");
             World.SetZoom(0.01f); await WaitForView(); Check(World.ZoomFactor == 0.25f, "Minimum zoom failed.");

@@ -8,6 +8,33 @@ namespace San9.Application.Tests;
 
 public sealed class UnitCatalogTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void TransportDestinationSurvivesTemporaryContactInEveryInformationView(bool settlementContact)
+    {
+        var definition = G01ScenarioTests.Fixture();
+        var original = GameSession.Start(definition, 1).Snapshot;
+        var unit = new UnitState(77, 1, new(12, 12), 1000) { CommanderId = 1, ServicePlaceId = 1,
+            Order = new(MilitaryOrderKind.Transport, null, 2), ContactTarget = new(settlementContact ? 1 : 78, settlementContact) };
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, definition.Officers.Select(o => o.NameKey)
+            .Concat(definition.Forces.Select(f => f.NameKey)).Concat(definition.Settlements.Select(s => s.NameKey))
+            .ToDictionary(key => key, key => key));
+        foreach (int destination in new[] { 2, 1 })
+        {
+            unit = unit with { Order = unit.Order! with { SettlementId = destination } };
+            var world = original with { Units = [unit, new(78, 2, new(13, 12), 1000) { CommanderId = 4 }] };
+            var view = new StrategySnapshot(definition, world);
+            var row = UnitCatalog.Read(view, null, texts, 4).Rows.Single(r => r.Key.Id == unit.Id);
+            var detail = UnitDetails.Read(view, null, texts, unit.Id);
+            var summary = MapCommandSummary.Unit(view, texts, unit.Id);
+            Assert.Equal($"city.{destination}", row.Cells[2].Text);
+            Assert.Equal(row.Cells[2].Text, detail.Orders[1].Value);
+            Assert.Equal(detail.Orders.Select(f => f.Value), summary.Rows.Skip(5).Select(r => r.Value));
+            Assert.True(unit.EffectiveOrder!.IsAttack);
+        }
+    }
+
     [Fact]
     public void PagesProjectLiveMembersFormationsOrdersAndHideEnemyCommands()
     {

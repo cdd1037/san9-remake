@@ -40,12 +40,13 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
                 view.FacilityNameSuffixKeys.TryGetValue(construction.FacilityTypeId, out string? key) ? texts.Resolve(key) : "建设",
             _ => ""
         };
-        CatalogCell target = effective?.Kind switch
+        var destination = unit.Order is { Kind: MilitaryOrderKind.Transport } transport ? transport : effective;
+        CatalogCell target = destination?.Kind switch
         {
-            MilitaryOrderKind.AttackUnit => Unit(effective.UnitId!.Value),
-            MilitaryOrderKind.Move => Surroundings(effective.Position!.Value),
-            MilitaryOrderKind.Construct => Region(effective.Construction!.RegionId) + "周围",
-            _ => effective?.SettlementId is int destination ? Place(destination) : CatalogCell.Unavailable
+            MilitaryOrderKind.AttackUnit => Unit(destination.UnitId!.Value),
+            MilitaryOrderKind.Move => Surroundings(destination.Position!.Value),
+            MilitaryOrderKind.Construct => Region(destination.Construction!.RegionId) + "周围",
+            _ => destination?.SettlementId is int place ? Place(place) : CatalogCell.Unavailable
         };
         return (order, target);
     }

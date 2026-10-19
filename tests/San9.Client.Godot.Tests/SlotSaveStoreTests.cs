@@ -161,5 +161,71 @@ public sealed class SlotSaveStoreTests : IDisposable
         Assert.Empty(Directory.GetFiles(_directory));
         Assert.Equal(SaveFailure.IoFailure, store.ReadCatalog(40)[1].Error!.Failure);
     }
+    [Fact]
+    public async Task AutoSaveCapturesBeforeOrdersAndDoesNotOccupyOrReplaceManualSlots()
+    {
+        var store = new SlotSaveStore(_directory, Definition);
+        Assert.Empty(store.ReadAutoSaveCatalog());
+        var session = GameSession.Start(Definition, 1);
+        byte[] manual = SlotSaveStore.Encode(session, Summary("手动档"));
+        store.Write(1, manual);
+        var queue = new AutoSaveQueue(store);
+        var write = queue.Enqueue(session, Summary("自动档"));
+        session.AdvanceXun();
+        await write;
+        Assert.Equal(new GameClock(190, 1, 1), store.LoadAutoSave(store.ReadAutoSaveCatalog()[0].Id).Snapshot.Clock);
+        Assert.Equal("自动档", store.ReadAutoSaveCatalog()[0].Listing.Summary!.Note);
+        Assert.Equal(manual, File.ReadAllBytes(store.PathFor(1)));
+        Assert.Single(store.ReadCatalog(40));
+        Assert.True(session.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public async Task QueuedXunSavesFinishInRequestOrderWithTheirOwnCapturedState()
+    {
+        var store = new SlotSaveStore(_directory, Definition);
+        var queue = new AutoSaveQueue(store);
+        var session = GameSession.Start(Definition, 1);
+        var first = queue.Enqueue(session, Summary("首旬"));
+        session.AdvanceXun();
+        var second = queue.Enqueue(session, Summary("次旬"));
+        var capturedClock = session.Snapshot.Clock;
+        session.AdvanceXun();
+        await Task.WhenAll(first, second);
+        Assert.Equal(capturedClock, store.LoadAutoSave(store.ReadAutoSaveCatalog()[0].Id).Snapshot.Clock);
+        Assert.Equal("次旬", store.ReadAutoSaveCatalog()[0].Listing.Summary!.Note);
+        Assert.Empty(store.ReadCatalog(40));
+    }
+
+    [Fact]
+    public async Task AutoSaveRetainsFiveAcrossRestartAndFailedWritePreservesExistingFiles()
+    {
+        var store = new SlotSaveStore(_directory, Definition);
+        var queue = new AutoSaveQueue(store);
+        var session = GameSession.Start(Definition, 1);
+        for (int i = 1; i <= 7; i++)
+        {
+            await queue.Enqueue(session, Summary($"旬{i}"));
+            session.AdvanceXun();
+        }
+        store = new SlotSaveStore(_directory, Definition);
+        var entries = store.ReadAutoSaveCatalog();
+        Assert.Equal(new long[] { 7, 6, 5, 4, 3 }, entries.Select(e => e.Id));
+        Assert.Equal(new[] { "旬7", "旬6", "旬5", "旬4", "旬3" }, entries.Select(e => e.Listing.Summary!.Note));
+        var previousFiles = Directory.GetFiles(_directory).ToDictionary(path => path, File.ReadAllBytes);
+        Assert.Equal(5, previousFiles.Count);
+        Directory.CreateDirectory(store.AutoSavePathFor(8));
+        var error = await Assert.ThrowsAsync<SaveException>(() => queue.Enqueue(session, Summary("失败")));
+        Assert.Equal(SaveFailure.IoFailure, error.Failure);
+        Assert.True(session.HasUnsavedChanges);
+        Assert.Equal(5, Directory.GetFiles(_directory).Length);
+        foreach (var (path, bytes) in previousFiles) Assert.Equal(bytes, File.ReadAllBytes(path));
+        Directory.Delete(store.AutoSavePathFor(8));
+        await queue.Enqueue(session, Summary("恢复"));
+        Assert.Equal(new long[] { 8, 7, 6, 5, 4 }, store.ReadAutoSaveCatalog().Select(e => e.Id));
+        Assert.Equal(session.Snapshot.Clock, store.LoadAutoSave(8).Snapshot.Clock);
+        Assert.Equal(5, Directory.GetFiles(_directory).Length);
+    }
+
     public void Dispose() { if (Directory.Exists(_directory)) Directory.Delete(_directory, recursive: true); }
 }

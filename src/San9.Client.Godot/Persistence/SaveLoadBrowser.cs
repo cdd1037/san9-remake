@@ -6,7 +6,7 @@ public enum SaveLoadMode { Save, Load }
 public sealed record SaveSlotSummary(string Ruler, string? PortraitRole, string StartDate, string Scenario,
     string CurrentDate, DateTimeOffset SavedAt, int Players, bool? Historical, string Difficulty, string Note);
 
-public sealed record SaveSlotRequest(SaveLoadMode Mode, int Slot, string Note);
+public sealed record SaveSlotRequest(SaveLoadMode Mode, int Slot, string Note, long? AutoSaveId = null);
 
 /// <summary>Owns navigation and a pending selection. Confirmation never writes a save or alters a session.</summary>
 public sealed class SaveLoadBrowser
@@ -14,7 +14,19 @@ public sealed class SaveLoadBrowser
     public const int PageSize = 5;
     private Dictionary<int, SaveSlotListing> _entries = [];
     public int SlotCount { get; }
-    public int PageCount => (SlotCount + PageSize - 1) / PageSize;
+    private IReadOnlyList<AutoSaveEntry> _autoSaves = [];
+    public int AutoSavePage => (SlotCount + PageSize - 1) / PageSize;
+    public int PageCount => AutoSavePage + 1;
+    public bool IsAutoSavePage => Page == AutoSavePage;
+    public int SlotAt(int row) => IsAutoSavePage ? SlotCount + row + 1 : Page * PageSize + row + 1;
+    private SaveSlotListing? Listing(int slot) => slot > SlotCount
+        ? _autoSaves.ElementAtOrDefault(slot - SlotCount - 1)?.Listing : _entries.GetValueOrDefault(slot);
+    public void SetAutoSaves(IReadOnlyList<AutoSaveEntry> entries)
+    {
+        if (entries.Count > SlotSaveStore.AutoSaveCount) throw new ArgumentOutOfRangeException(nameof(entries));
+        _autoSaves = entries.ToArray();
+        PendingSlot = null;
+    }
     public int Page { get; private set; }
     public SaveLoadMode Mode { get; private set; }
     public int? PendingSlot { get; private set; }
@@ -26,10 +38,10 @@ public sealed class SaveLoadBrowser
         SlotCount = slotCount;
     }
 
-    public SaveSlotSummary? Entry(int slot) => _entries.GetValueOrDefault(slot)?.Summary;
-    public SaveSlotFlag? Flag(int slot) => _entries.GetValueOrDefault(slot)?.Flag;
-    public string? Error(int slot) => _entries.GetValueOrDefault(slot)?.Error is { } error ? SaveFailureMessages.Describe(error) : null;
-    public bool Occupied(int slot) => _entries.ContainsKey(slot);
+    public SaveSlotSummary? Entry(int slot) => Listing(slot)?.Summary;
+    public SaveSlotFlag? Flag(int slot) => Listing(slot)?.Flag;
+    public string? Error(int slot) => Listing(slot)?.Error is { } error ? SaveFailureMessages.Describe(error) : null;
+    public bool Occupied(int slot) => Listing(slot) is not null;
     public void SetEntries(IReadOnlyDictionary<int, SaveSlotListing> entries)
     {
         var replacement = entries.ToDictionary(p => p.Key, p => p.Value);
@@ -47,8 +59,9 @@ public sealed class SaveLoadBrowser
     }
     public bool Select(int slot)
     {
-        if (!IsOpen || PendingSlot is not null || slot < 1 || slot > SlotCount ||
-            (slot - 1) / PageSize != Page || Mode == SaveLoadMode.Load && !Occupied(slot)) return false;
+        if (!IsOpen || PendingSlot is not null || slot < 1 || slot > SlotCount + SlotSaveStore.AutoSaveCount ||
+            (slot > SlotCount ? AutoSavePage : (slot - 1) / PageSize) != Page ||
+            Mode == SaveLoadMode.Save && slot > SlotCount || Mode == SaveLoadMode.Load && !Occupied(slot)) return false;
         PendingSlot = slot; return true;
     }
     public void CancelSelection() => PendingSlot = null;
@@ -56,6 +69,7 @@ public sealed class SaveLoadBrowser
     {
         if (!IsOpen || PendingSlot is not int slot) return null;
         PendingSlot = null;
-        return new(Mode, slot, Mode == SaveLoadMode.Save ? note : Entry(slot)?.Note ?? "");
+        return new(Mode, slot, Mode == SaveLoadMode.Save ? note : Entry(slot)?.Note ?? "",
+            slot > SlotCount ? _autoSaves[slot - SlotCount - 1].Id : null);
     }
 }

@@ -15,10 +15,11 @@ public sealed class TurnPresentationTests
     public void NewlyPublishedResultsAreConsumedAndDismissedBeforeTheNextDayOrStrategyTitle(int month, int days)
     {
         var session = Session(month, days == 10 ? 21 : 1);
-        int titles = 0, seasons = 0;
+        int titles = 0, seasons = 0, xunStarts = 0;
         var turn = new TurnPresentation(session)
         {
             StrategyTitleStarted = () => titles++,
+            XunStarted = () => { Assert.True(session.Snapshot.Simulation.CanPersist); xunStarts++; },
             PresentSeasonChange = _ => { seasons++; return true; }
         };
         Assert.False(turn.UsesExecutionMusic);
@@ -47,6 +48,7 @@ public sealed class TurnPresentationTests
         Assert.Equal(0, titles);
         Assert.Equal(0, seasons);
         Assert.Equal(1, turn.StrategyEntrance);
+        Assert.Equal(0, xunStarts);
 
         consumed = turn.Publication;
         dialogueOpen = true;
@@ -70,8 +72,13 @@ public sealed class TurnPresentationTests
             turn.Update(TurnPresentation.TransitionDuration);
             Assert.Equal(TurnScreen.Strategy, turn.Screen);
             Assert.Equal(2, turn.StrategyEntrance);
+            Assert.Equal(1, xunStarts);
             turn.Update(100);
             Assert.Equal(1, titles);
+            Assert.Equal(1, xunStarts);
+            var rebound = new TurnPresentation(session) { XunStarted = () => xunStarts++ };
+            rebound.Update(100);
+            Assert.Equal(1, xunStarts);
         }
     }
 

@@ -65,13 +65,15 @@ public partial class SystemMenuPanel : Control
         _busy = true;
         try
         {
-            var catalog = await Task.Run(() => Store.ReadCatalog(Browser.SlotCount), token);
+            var (catalog, autoSave) = await Task.Run(() => (Store.ReadCatalog(Browser.SlotCount), Store.ReadAutoSaveCatalog()), token);
             if (token.IsCancellationRequested) return;
             Browser.SetEntries(catalog);
+            Browser.SetAutoSaves(autoSave);
             Browser.Open(mode);
             ReplacePage(new SaveLoadView { State = Browser, Textures = _textures!, Service = Service, Closed = Close, Requested = Request });
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (SaveException error) { if (!token.IsCancellationRequested) ShowLoadFailure(SaveFailureMessages.Describe(error)); }
         finally { if (!token.IsCancellationRequested) HideBusy(); }
     }
     public void Close()
@@ -83,6 +85,7 @@ public partial class SystemMenuPanel : Control
     private void Request(SaveSlotRequest request)
     {
         if (request.Mode == SaveLoadMode.Save) Save(request);
+        else if (request.AutoSaveId is { } id) RequestLoad(() => Store.LoadAutoSave(id));
         else RequestLoad(() => Store.Load(request.Slot));
     }
     public void RequestLoad(Func<GameSession> read)

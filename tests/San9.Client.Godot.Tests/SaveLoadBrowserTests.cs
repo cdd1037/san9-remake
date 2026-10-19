@@ -80,4 +80,32 @@ public sealed class SaveLoadBrowserTests
             new Dictionary<int, SaveSlotListing> { [41] = new(null, new SaveException(SaveFailure.IoFailure, "Unavailable")) }));
         Assert.Equal(new(SaveLoadMode.Save, 1, "替换"), browser.Confirm("替换"));
     }
+    [Fact]
+    public void AutomaticPageHasFiveRowsLoadsCapturedIdentityAndCannotBeManuallyOverwritten()
+    {
+        var browser = new SaveLoadBrowser();
+        browser.SetAutoSaves([new(12, new(Saved, null)), new(11, new(null, new SaveException(SaveFailure.InvalidFormat, "broken")))]);
+        browser.Open(SaveLoadMode.Load);
+        Assert.Equal(9, browser.PageCount);
+        Assert.True(browser.ChangePage(8));
+        Assert.True(browser.IsAutoSavePage);
+        Assert.Equal(41, browser.SlotAt(0));
+        Assert.Equal(45, browser.SlotAt(4));
+        Assert.False(browser.Select(43));
+        Assert.True(browser.Select(41));
+        var request = browser.Confirm("")!;
+        Assert.Equal(12, request.AutoSaveId);
+        // A subsequent catalog refresh must not redirect an already-created load request.
+        browser.SetAutoSaves([new(13, new(Saved, null)), new(12, new(Saved, null))]);
+        Assert.Equal(12, request.AutoSaveId);
+        browser.Open(SaveLoadMode.Save);
+        Assert.Equal(8, browser.Page);
+        Assert.False(browser.Select(41));
+        Assert.False(browser.Select(45));
+        Assert.Null(browser.Confirm("不能覆盖"));
+        Assert.True(browser.ChangePage(7));
+        Assert.True(browser.Select(40));
+        Assert.Null(browser.Confirm("手动档")!.AutoSaveId);
+    }
+
 }

@@ -38,9 +38,20 @@ public partial class SessionUiHost : Node
     private SceneTransitionOverlay _transition = null!;
     private SceneReplacementTransition? _replacement;
     private bool _bound;
+    private SessionReplacementKind _pendingKind;
+    private AutoSaveQueue _autoSaves = null!;
+    private readonly CancellationTokenSource _lifetime = new();
+    private Label _autoSaveNotice = null!;
+    private double _noticeRemaining;
 
     public override void _Ready()
     {
+        _autoSaves = new(SaveStore);
+        _autoSaveNotice = new Label { Position = new(16, 112), ZIndex = 1000,
+            MouseFilter = Control.MouseFilterEnum.Ignore, Visible = false };
+        _autoSaveNotice.AddThemeConstantOverride("outline_size", 6);
+        _autoSaveNotice.AddThemeColorOverride("font_outline_color", Colors.Black);
+        AddChild(_autoSaveNotice);
         _transition = new() { ZIndex = 100, MouseFilter = Control.MouseFilterEnum.Stop };
         AddChild(_transition);
         _settings = new(new UserSettingsStore(ProjectSettings.GlobalizePath(UserSettingsStore.UserDataPath)));
@@ -56,6 +67,7 @@ public partial class SessionUiHost : Node
     {
         if (IsSwitching) return;
         _pending = next;
+        _pendingKind = kind;
         if (_sessionUi is not null) _sessionUi.ProcessMode = ProcessModeEnum.Disabled;
         _bound = false;
         if (_sessionUi is not null && kind == SessionReplacementKind.NewGame)
@@ -84,6 +96,11 @@ public partial class SessionUiHost : Node
 
     public override void _Process(double delta)
     {
+        if (_noticeRemaining > 0)
+        {
+            _noticeRemaining -= delta;
+            if (_noticeRemaining <= 0) _autoSaveNotice.Hide();
+        }
         if (!IsSwitching) return;
         if (_replacement is { } replacement)
         {
@@ -124,6 +141,7 @@ public partial class SessionUiHost : Node
         {
             CommandPresentation = Content.Presentation, ContentRoot = Content.ContentRoot,
             SaveStore = SaveStore,
+            XunStarted = SaveXunStart,
             SaveSummary = note => SaveSlotSummaryFactory.Create(Session, Definition, Content.Text, note),
             ActivateSession = next => Activate(next, SessionReplacementKind.Load),
             StartNewGame = () => Callable.From(() => Activate(CreateNewSession(), SessionReplacementKind.NewGame)).CallDeferred(),
@@ -152,6 +170,8 @@ public partial class SessionUiHost : Node
         World.CanNavigate = () => !IsSwitching && Hud.CanNavigateMap;
         World.CanIssueOrders = () => !IsSwitching && Hud.CanIssueOrders;
         _pending = null;
+        _autoSaveNotice.Hide();
+        if (_pendingKind is SessionReplacementKind.Startup or SessionReplacementKind.NewGame) SaveXunStart();
         _replacement?.RevealPreparedScene();
         if (!Session.RulesVersionWarnings.IsEmpty)
             Hud.SystemMenu.ShowLoadWarning(string.Join("\n", Session.RulesVersionWarnings.Select(w => w.Message)));
@@ -159,6 +179,27 @@ public partial class SessionUiHost : Node
 
     public void RequestQuickLoad() => Hud.SystemMenu.RequestLoad(() =>
         San9.Application.Persistence.SaveService.Load(ProjectSettings.GlobalizePath(QuickSaveShortcuts.SavePath), Definition));
+
+    private async void SaveXunStart()
+    {
+        var session = Session;
+        var token = _lifetime.Token;
+        long sequence = session.NextOperationSequence;
+        try
+        {
+            await _autoSaves.Enqueue(session, SaveSlotSummaryFactory.Create(session, Definition, Content.Text, "旬开始自动存档"));
+            if (token.IsCancellationRequested || !ReferenceEquals(session, Session)) return;
+            session.MarkSaved(sequence);
+        }
+        catch (San9.Application.Persistence.SaveException error)
+        {
+            GD.PushWarning(error.ToString());
+            if (token.IsCancellationRequested || !ReferenceEquals(session, Session)) return;
+            _autoSaveNotice.Text = $"自动存档失败：{SaveFailureMessages.Describe(error)}";
+            _autoSaveNotice.Show();
+            _noticeRemaining = 5;
+        }
+    }
 
     public override void _Input(InputEvent input)
     {
@@ -168,6 +209,7 @@ public partial class SessionUiHost : Node
 
     public override void _ExitTree()
     {
+        _lifetime.Cancel(); _lifetime.Dispose();
         _windowDisplay.Dispose();
         _pending = null;
         World.IsInputBlocked = null;

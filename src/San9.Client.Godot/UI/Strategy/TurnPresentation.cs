@@ -30,6 +30,7 @@ public sealed class TurnPresentation(GameSession session)
     public long Publication { get; private set; }
     public long StrategyEntrance { get; private set; } = 1;
     public Action? StrategyTitleStarted { get; init; }
+    public Action? XunStarted { get; init; }
     public Action? ExecutionTitleStarted { get; init; }
     public bool Paused { get; private set; }
     private PlaybackSpeed _playbackSpeed = PlaybackSpeed.Normal;
@@ -136,7 +137,11 @@ public sealed class TurnPresentation(GameSession session)
         if (Screen == TurnScreen.Returning)
         {
             _remaining -= seconds;
-            if (_remaining <= 0) { Screen = TurnScreen.Strategy; Display = null; StrategyEntrance++; }
+            if (_remaining <= 0)
+            {
+                Screen = TurnScreen.Strategy; Display = null; StrategyEntrance++;
+                XunStarted?.Invoke();
+            }
             return;
         }
         if (Screen == TurnScreen.Entering)

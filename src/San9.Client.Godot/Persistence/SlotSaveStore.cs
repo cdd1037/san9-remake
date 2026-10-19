@@ -9,6 +9,7 @@ namespace San9.Client.Godot.Persistence;
 public sealed record SlotSaveHeader(int Version, int SaveVersion, string RulesVersion, SaveSlotSummary Summary, SaveSlotFlag Flag);
 public sealed record SlotSaveDocument(SlotSaveHeader Header, SaveEnvelope Save);
 public sealed record SaveSlotFlag(int Color, int Glyph);
+public sealed record AutoSaveEntry(long Id, SaveSlotListing Listing);
 public sealed record SaveSlotListing(SaveSlotSummary? Summary, SaveException? Error, SaveSlotFlag? Flag = null);
 
 /// <summary>One atomic JSON file: independently readable header first, authoritative save second.</summary>
@@ -16,6 +17,18 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
 {
     private const int FormatVersion = 4;
     public const string UserDirectory = "user://saves/slots";
+    public const int AutoSaveCount = 5;
+    public string AutoSavePathFor(long id)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(id, 1);
+        return Path.Combine(directory, $"auto-{id:D20}.save.json");
+    }
+    private long[] AutoSaveIds() => Directory.Exists(directory)
+        ? Directory.EnumerateFiles(directory, "auto-*.save.json")
+            .Select(path => Path.GetFileName(path)[5..^10])
+            .Select(name => long.TryParse(name, out long id) ? id : 0)
+            .Where(id => id > 0).OrderDescending().ToArray()
+        : [];
     public string PathFor(int slot)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(slot, 1);
@@ -28,7 +41,7 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
         {
             try
             {
-                var header = ReadFile(slot, ReadPreview);
+                var header = ReadFile(PathFor(slot), ReadPreview);
                 entries.Add(slot, new(header.Summary, null, header.Flag));
             }
             catch (SaveException error) when (error.InnerException is FileNotFoundException or DirectoryNotFoundException) { }
@@ -46,13 +59,46 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
         return CanonicalJson.Encode(new SlotSaveDocument(header, save));
     }
     public void Write(int slot, byte[] bytes)
+        => WriteFile(PathFor(slot), bytes);
+    public void WriteAutoSave(byte[] bytes)
     {
-        string path = PathFor(slot);
+        try
+        {
+            var ids = AutoSaveIds();
+            long id = checked(ids.FirstOrDefault() + 1);
+            WriteFile(AutoSavePathFor(id), bytes);
+            // Publish the new file before pruning: a failed write keeps all previous saves.
+            foreach (long expired in ids.Skip(AutoSaveCount - 1)) File.Delete(AutoSavePathFor(expired));
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        { throw new SaveException(SaveFailure.IoFailure, "Could not retain automatic saves.", error); }
+    }
+    public IReadOnlyList<AutoSaveEntry> ReadAutoSaveCatalog()
+    {
+        try
+        {
+            return AutoSaveIds().Take(AutoSaveCount).Select(id =>
+            {
+                try
+                {
+                    var header = ReadFile(AutoSavePathFor(id), ReadPreview);
+                    return new AutoSaveEntry(id, new(header.Summary, null, header.Flag));
+                }
+                catch (SaveException error) { return new AutoSaveEntry(id, new(null, error)); }
+            }).ToArray();
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        { throw new SaveException(SaveFailure.IoFailure, "Could not list automatic saves.", error); }
+    }
+    private static void WriteFile(string path, byte[] bytes)
+    {
         try { AtomicUserFile.Write(path, bytes); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         { throw new SaveException(SaveFailure.IoFailure, "Could not atomically write slot save.", error); }
     }
-    public GameSession Load(int slot) => ReadFile(slot, stream =>
+    public GameSession Load(int slot) => LoadFile(PathFor(slot));
+    public GameSession LoadAutoSave(long id) => LoadFile(AutoSavePathFor(id));
+    private GameSession LoadFile(string path) => ReadFile(path, stream =>
     {
         var document = StrictJson.Deserialize<SlotSaveDocument>(stream);
         ValidateHeader(document.Header);
@@ -100,11 +146,11 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
         if (header.Summary.Players < 1 || header.Flag.Color < 0 || header.Flag.Glyph < -1)
             throw new JsonException("Invalid slot preview metadata.");
     }
-    private T ReadFile<T>(int slot, Func<Stream, T> read)
+    private static T ReadFile<T>(string path, Func<Stream, T> read)
     {
         try
         {
-            using var stream = File.OpenRead(PathFor(slot));
+            using var stream = File.OpenRead(path);
             return read(stream);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)

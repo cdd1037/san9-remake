@@ -16,6 +16,7 @@ public partial class SaveLoadView : Control
     private SaveSlotConfirmation? _confirmation;
     private SaveLoadButton? _selectedRow;
     private GameDialog _notice = null!;
+    private float PageTabsLeft => 996 - (State.PageCount - 1) * 60 - 64;
     public override void _Ready()
     {
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
@@ -26,7 +27,7 @@ public partial class SaveLoadView : Control
         {
             int page = i;
             int start = i * SaveLoadBrowser.PageSize + 1, end = Math.Min(State.SlotCount, start + SaveLoadBrowser.PageSize - 1);
-            _pages.Add(Button("page", $"{start:00}-{end:00}", new(512 + i * 60, 634), new(64, 32), () => ChangePage(page)));
+            _pages.Add(Button("page", i == State.AutoSavePage ? "自动" : $"{start:00}-{end:00}", new(PageTabsLeft + i * 60, 634), new(64, 32), () => ChangePage(page)));
         }
         Button("no", "中止", new(862, 680), new(112, 48), Closed, 24);
         AddChild(new GameMessageBar { Textures = Textures, Text = State.Mode == SaveLoadMode.Save ? "选择欲储存资料的栏位。" : "请选择欲载入的资料。" });
@@ -49,14 +50,15 @@ public partial class SaveLoadView : Control
         foreach (Node row in _rows.GetChildren()) { _rows.RemoveChild(row); row.QueueFree(); }
         for (int i = 0; i < SaveLoadBrowser.PageSize; i++)
         {
-            int slot = State.Page * SaveLoadBrowser.PageSize + i + 1;
-            if (slot > State.SlotCount) break;
+            int slot = State.SlotAt(i);
+            if (!State.IsAutoSavePage && slot > State.SlotCount) break;
             var entry = State.Entry(slot);
             var content = new Control { MouseFilter = MouseFilterEnum.Ignore };
             var row = new SaveLoadButton { Textures = Textures, Skin = State.Mode == SaveLoadMode.Save ? "save-row" : "load-row",
                 Position = new(8, 72 + i * 104), Size = new(1008, 104), DisabledFrame = 0,
                 Content = content,
-                Disabled = State.Mode == SaveLoadMode.Load && !State.Occupied(slot) };
+                Disabled = State.IsAutoSavePage && State.Mode == SaveLoadMode.Save ||
+                    State.Mode == SaveLoadMode.Load && !State.Occupied(slot) };
             row.Pressed += () => SelectSlot(slot, row); _rows.AddChild(row);
             string edge = State.Mode == SaveLoadMode.Save ? "5828c8" : "005028";
             void RowLabel(string text, Vector2 at, Vector2 size, int fontSize, string outline, bool fixedColor = false,
@@ -66,7 +68,7 @@ public partial class SaveLoadView : Control
                 label.HorizontalAlignment = alignment;
                 row.StyleContentLabel(label, new(outline), fixedColor);
             }
-            RowLabel(slot.ToString(), new(24, 16), new(40, 32), 24, edge);
+            RowLabel(State.IsAutoSavePage ? $"A{i + 1}" : slot.ToString(), new(24, 16), new(40, 32), 24, edge);
             if (entry is null)
             {
                 if (State.Error(slot) is { } error) LabelAt(error, new(176, 24), new(650, 32), 24, content, new("f06850"));
@@ -134,7 +136,7 @@ public partial class SaveLoadView : Control
         FocusBehaviorRecursive = FocusBehaviorRecursiveEnum.Inherited;
         _pages[State.Page].GrabFocus();
     }
-    private void ShowHelp() => ShowNotice(State.Mode == SaveLoadMode.Save ? "选择栏位，输入备注后确认储存。\n已有资料的栏位将被覆盖。" : "选择已有资料的栏位后确认载入。\n载入将替换当前游戏进度，空栏位不可选择。");
+    private void ShowHelp() => ShowNotice(State.Mode == SaveLoadMode.Save ? "选择栏位，输入备注后确认储存。\n已有资料的栏位将被覆盖。自动页仅供载入。" : "选择已有资料的栏位后确认载入。\n载入将替换当前游戏进度，空栏位不可选择。\n自动页保留最近五次旬开始存档，按新到旧排列。");
     public void Back()
     {
         if (_notice.Visible) CloseNotice();
@@ -170,7 +172,15 @@ public partial class SaveLoadView : Control
         var painter = new SaveLoadSkinPainter(this, Textures);
         painter.Background(new(0, 0, 1024, 768)); painter.Frame(new(0, 0, 1024, 736)); painter.Title(new(24, 24), 112);
         DrawTexture(Textures.Get("save-load-footer", this), new(0, 736));
-        DrawTexture(Textures.Get("save-load-pages-background", this), new(498, 631));
+        var background = Textures.Get("save-load-pages-background", this);
+        var size = background.GetSize();
+        float left = PageTabsLeft - 14;
+        float width = 1010 - left;
+        const float cap = 16;
+        // Extend the flat center; preserve the slanted end caps and the right anchor.
+        DrawTextureRectRegion(background, new(left, 631, cap, size.Y), new(0, 0, cap, size.Y));
+        DrawTextureRectRegion(background, new(left + cap, 631, width - 2 * cap, size.Y), new(cap, 0, size.X - 2 * cap, size.Y));
+        DrawTextureRectRegion(background, new(1010 - cap, 631, cap, size.Y), new(size.X - cap, 0, cap, size.Y));
     }
     public override void _ExitTree() => _text.Dispose();
 }

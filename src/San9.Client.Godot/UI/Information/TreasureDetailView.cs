@@ -17,29 +17,17 @@ public partial class TreasureDetailView : FixedPage, IInformationPage
     public TextCatalog Texts { get; init; } = null!;
     private GameMessageBar _message = null!;
     private readonly GameTextPresenter _text = new();
-    private readonly List<DetailNameButton> _names = [];
+    private DetailSidebar _sidebar = null!;
     private Control _body = null!;
-    private SkinnedScrollBar _scroll = null!;
     private TreasureDetailData _data = null!;
-    private bool _refreshing;
 
     public override void _Ready()
     {
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
         _body = new Control { MouseFilter = MouseFilterEnum.Ignore }; AddChild(_body);
-        for (int row = 0; row < DetailSelectionState.VisibleRows; row++)
-        {
-            int slot = row;
-            var button = new DetailNameButton { Textures = Textures, Position = new(890, 124 + row * 20), Size = new(96, 16) };
-            button.MouseEntered += () => { State.PointAt(State.Candidates[State.Offset + slot]); RefreshNames(); };
-            button.Pressed += () => Activate(State.Candidates[State.Offset + slot]);
-            AddChild(button); _names.Add(button);
-        }
-        _scroll = new SkinnedScrollBar { Skin = ScrollBarSkin.FromCatalog(Textures), Position = new(990,124),
-            Size = new(16,498), ContextRequested = Closed };
-        AddChild(_scroll); _scroll.Range.Page = DetailSelectionState.VisibleRows;
-        _scroll.Range.MaxValue = Math.Max(DetailSelectionState.VisibleRows, State.Candidates.Count);
-        _scroll.Range.ValueChanged += value => { if (!_refreshing) { State.Scroll((int)value); RefreshNames(); } };
+        _sidebar = new DetailSidebar { State = State, Textures = Textures, ReadName = ReadName,
+            Rows = DetailSelectionState.VisibleRows, NameBounds = new(890,124,96,16), Activated = Activate, Closed = Closed };
+        AddChild(_sidebar);
         _message = new GameMessageBar { Textures = Textures }; AddChild(_message);
         SetHint("treasure-detail");
         var close = new DetailActionButton { Title = "关闭", Role = "close", Textures = Textures, Position = new(875,687), Size = new(108,44) };
@@ -48,7 +36,7 @@ public partial class TreasureDetailView : FixedPage, IInformationPage
         close.Pressed += Closed; AddChild(close);
         Icon("close-icon", new(964,56), Closed);
         Icon("help", new(934,33));
-        RefreshNames(); RefreshBody();
+        RefreshBody();
     }
     private void Icon(string role, Vector2 position, Action? action = null)
     {
@@ -65,21 +53,9 @@ public partial class TreasureDetailView : FixedPage, IInformationPage
         (parent ?? _body).AddChild(label); _text.Apply(label, GameTextStyles.CatalogRow with { FontSize = size }); return label;
     }
     private void SetHint(string role) => _message.SetMessage(Texts.ResolveRich(StrategyHintText.Key(role)), true);
-    private void ClearNameFocus() { State.ClearFocus(); RefreshNames(); }
-    public void RefreshData() { _scroll.Range.MaxValue = Math.Max(DetailSelectionState.VisibleRows, State.Candidates.Count); RefreshNames(); RefreshBody(); }
-    private void Activate(int id) { State.Activate(id); CurrentChanged(id); RefreshNames(); RefreshBody(); }
-    private void RefreshNames()
-    {
-        _refreshing = true;
-        for (int row = 0; row < _names.Count; row++)
-        {
-            int index = State.Offset + row;
-            _names[row].Visible = index < State.Candidates.Count;
-            if (_names[row].Visible) _names[row].Bind(ReadName(State.Candidates[index]), State.FocusedId == State.Candidates[index]);
-        }
-        _scroll.Visible = State.Candidates.Count > DetailSelectionState.VisibleRows;
-        _scroll.Range.Value = State.Offset; _scroll.UpdateArrows(); _refreshing = false; QueueRedraw();
-    }
+    private void ClearNameFocus() { State.ClearFocus(); _sidebar.Refresh(); }
+    public void RefreshData() { _sidebar.Refresh(); RefreshBody(); }
+    private void Activate(int id) { State.Activate(id); CurrentChanged(id); _sidebar.Refresh(); RefreshBody(); }
     private void RefreshBody()
     {
         _data = Read(State.CurrentId);
@@ -105,13 +81,7 @@ public partial class TreasureDetailView : FixedPage, IInformationPage
         if (!IsVisibleInTree()) return;
         if (input is InputEventKey { Pressed: true, Keycode: Key.Escape } || input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right })
         { GetViewport().SetInputAsHandled(); Closed(); return; }
-        if (input is InputEventMouseButton { Pressed: true } mouse && mouse.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
-        { GetViewport().SetInputAsHandled(); State.Scroll(State.Offset + (mouse.ButtonIndex == MouseButton.WheelDown ? 1 : -1)); RefreshNames(); }
-        if (input is not InputEventKey { Pressed: true } key) return;
-        if (key.Keycode is Key.Up or Key.Down)
-        { GetViewport().SetInputAsHandled(); State.MoveFocus(key.Keycode == Key.Down ? 1 : -1); RefreshNames(); }
-        else if (key.Keycode == Key.Enter && State.FocusedId is int id)
-        { GetViewport().SetInputAsHandled(); Activate(id); }
+        _sidebar.HandleInput(input);
     }
     private void Tile(string role,Rect2 rect)
     {

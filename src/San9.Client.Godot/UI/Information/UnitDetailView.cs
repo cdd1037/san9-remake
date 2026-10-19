@@ -16,31 +16,21 @@ public partial class UnitDetailView : FixedPage, IInformationPage
     public Action<int> OpenOfficer { get; init; } = null!;
     public Action Closed { get; init; } = null!;
     private readonly GameTextPresenter _text = new();
-    private readonly List<DetailNameButton> _names = [];
+    private DetailSidebar _sidebar = null!;
     private Control? _body;
-    private SkinnedScrollBar _scroll = null!;
     private DetailActionButton _officers = null!;
-    private bool _refreshing;
     private bool _help;
     public override void _Ready()
     {
         Size = new(1024,768); MouseFilter = MouseFilterEnum.Stop;
-        State.SetVisibleRows(VisibleRows);
-        for (int row = 0; row < VisibleRows; row++)
-        {
-            int slot = row;
-            var name = new DetailNameButton { Textures = Textures, Position = new(898,124+row*20), Size = new(88,16) };
-            name.MouseEntered += () => { State.PointAt(State.Candidates[State.Offset+slot]); RefreshNames(); };
-            name.Pressed += () => Activate(State.Candidates[State.Offset+slot]); AddChild(name); _names.Add(name);
-        }
-        _scroll = new SkinnedScrollBar { Skin = ScrollBarSkin.FromCatalog(Textures), Position = new(990,124), Size = new(16,438), ContextRequested = Closed };
-        AddChild(_scroll); _scroll.Range.Page = VisibleRows;
-        _scroll.Range.ValueChanged += value => { if (!_refreshing) { State.Scroll((int)value); RefreshNames(); } };
+        _sidebar = new DetailSidebar { State = State, Textures = Textures, ReadName = ReadName,
+            Rows = VisibleRows, NameBounds = new(898,124,88,16), Activated = Activate, Closed = Closed };
+        AddChild(_sidebar);
         _officers = Action("武将", "treasure", new(888,629), new(120,40), () => OpenOfficers(State.CurrentId));
         Action("关闭", "close", new(875,687), new(108,44), Closed);
         Icon("close-icon",new(964,56),Closed); Icon("help",new(934,33),()=> { _help = !_help; RefreshBody(); });
         AddChild(new GameMessageBar { Textures = Textures, Text = "现在显示的是部队情报。" });
-        RefreshNames(); RefreshBody();
+        RefreshBody();
     }
     private DetailActionButton Action(string text, string role, Vector2 at, Vector2 size, Action action)
     {
@@ -52,19 +42,8 @@ public partial class UnitDetailView : FixedPage, IInformationPage
         var button = new TextureButton { Position = at, TextureNormal = Textures["detail-"+role], TextureHover = Textures["detail-"+role+"-1"], TexturePressed = Textures["detail-"+role+"-2"] };
         button.Pressed += action; AddChild(button);
     }
-    public void RefreshData() { _scroll.Range.MaxValue = Math.Max(VisibleRows, State.Candidates.Count); RefreshNames(); RefreshBody(); }
-    private void Activate(int id) { State.Activate(id); CurrentChanged(id); RefreshNames(); RefreshBody(); }
-    private void RefreshNames()
-    {
-        _refreshing = true;
-        for (int row = 0; row < _names.Count; row++)
-        {
-            int index = State.Offset + row; _names[row].Visible = index < State.Candidates.Count;
-            if (_names[row].Visible) _names[row].Bind(ReadName(State.Candidates[index]), State.FocusedId == State.Candidates[index]);
-        }
-        _scroll.Range.MaxValue = Math.Max(VisibleRows, State.Candidates.Count);
-        _scroll.Visible = State.Candidates.Count > VisibleRows; _scroll.Range.Value = State.Offset; _scroll.UpdateArrows(); _refreshing = false;
-    }
+    public void RefreshData() { _sidebar.Refresh(); RefreshBody(); }
+    private void Activate(int id) { State.Activate(id); CurrentChanged(id); _sidebar.Refresh(); RefreshBody(); }
     private void Label(string text, Rect2 rect, int font = 16, bool center = false)
     {
         var label = new Label { Text = text, Position = rect.Position, Size = rect.Size, ClipText = true, VerticalAlignment = VerticalAlignment.Center,
@@ -110,15 +89,10 @@ public partial class UnitDetailView : FixedPage, IInformationPage
     }
     public override void _Input(InputEvent input)
     {
+        if (!IsVisibleInTree()) return;
         if (input is InputEventKey { Pressed: true, Keycode: Key.Escape } || input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right })
-        { GetViewport().SetInputAsHandled(); if (_help) { _help=false; RefreshBody(); } else Closed(); }
-        else if (input is InputEventMouseButton { Pressed: true } mouse && mouse.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
-        { State.Scroll(State.Offset+(mouse.ButtonIndex==MouseButton.WheelDown?1:-1)); RefreshNames(); GetViewport().SetInputAsHandled(); }
-        else if (input is InputEventKey { Pressed: true } key)
-        {
-            if (key.Keycode is Key.Up or Key.Down) { State.MoveFocus(key.Keycode==Key.Down?1:-1); RefreshNames(); GetViewport().SetInputAsHandled(); }
-            else if (key.Keycode==Key.Enter && State.FocusedId is int id) { GetViewport().SetInputAsHandled(); Activate(id); }
-        }
+        { GetViewport().SetInputAsHandled(); if (_help) { _help=false; RefreshBody(); } else Closed(); return; }
+        _sidebar.HandleInput(input);
     }
     public override void _Draw()
     {

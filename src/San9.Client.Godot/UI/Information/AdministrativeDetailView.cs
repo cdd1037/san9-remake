@@ -20,13 +20,11 @@ public partial class AdministrativeDetailView : FixedPage, IInformationPage
     public TextureService Service { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;
     private readonly GameTextPresenter _text = new();
-    private readonly List<DetailNameButton> _names = [];
+    private DetailSidebar _sidebar = null!;
     private readonly List<Rect2> _panels = [];
     private readonly List<(string Role, Rect2 Rect)> _strips = [];
     private Control _body = null!;
-    private SkinnedScrollBar _scroll = null!;
     private AdministrativeDetailData _data = null!;
-    private bool _refreshing;
     private int _titleExtra;
     private void Badge(string role, string text, Vector2 position, Vector2 size)
     {
@@ -40,18 +38,9 @@ public partial class AdministrativeDetailView : FixedPage, IInformationPage
     {
         Size = new(1024,768); MouseFilter = MouseFilterEnum.Stop;
         _body = new Control { MouseFilter = MouseFilterEnum.Ignore }; AddChild(_body);
-        for (int row = 0; row < Rows; row++)
-        {
-            int slot = row;
-            var name = new DetailNameButton { Textures = Textures, Position = new(902,124 + row * 20), Size = new(88,16) };
-            name.MouseEntered += () => { State.PointAt(State.Candidates[State.Offset + slot]); RefreshNames(); };
-            name.Pressed += () => Activate(State.Candidates[State.Offset + slot]);
-            AddChild(name); _names.Add(name);
-        }
-        _scroll = new SkinnedScrollBar { Skin = ScrollBarSkin.FromCatalog(Textures), Position = new(990,124), Size = new(16,Rows * 20 - 2), ContextRequested = Closed };
-        AddChild(_scroll); _scroll.Range.Page = Rows;
-        _scroll.Range.MaxValue = Math.Max(Rows, State.Candidates.Count);
-        _scroll.Range.ValueChanged += value => { if (!_refreshing) { State.Scroll((int)value); RefreshNames(); } };
+        _sidebar = new DetailSidebar { State = State, Textures = Textures, ReadName = ReadName,
+            Rows = Rows, NameBounds = new(902,124,88,16), Activated = Activate, Closed = Closed };
+        AddChild(_sidebar);
         var close = new DetailActionButton { Title = "关闭", Role = "close", Textures = Textures, Position = new(875,687), Size = new(108,44) };
         close.Pressed += Closed; AddChild(close);
         var icon = new TextureButton { Position = new(964,56), TextureNormal = Textures["detail-close-icon"],
@@ -59,22 +48,10 @@ public partial class AdministrativeDetailView : FixedPage, IInformationPage
         icon.Pressed += Closed; AddChild(icon);
         AddChild(new TextureRect { Position = new(932,32), Texture = Textures["detail-help"], MouseFilter = MouseFilterEnum.Ignore });
         AddChild(new GameMessageBar { Textures = Textures, Text = "现在显示的是" + Title + "。" });
-        RefreshNames(); RefreshBody();
+        RefreshBody();
     }
-    public void RefreshData() { _scroll.Range.MaxValue = Math.Max(Rows, State.Candidates.Count); RefreshNames(); RefreshBody(); }
-    private void Activate(int id) { State.Activate(id); CurrentChanged(id); RefreshNames(); RefreshBody(); }
-    private void RefreshNames()
-    {
-        _refreshing = true;
-        for (int row = 0; row < _names.Count; row++)
-        {
-            int index = State.Offset + row;
-            _names[row].Visible = index < State.Candidates.Count;
-            if (_names[row].Visible) _names[row].Bind(ReadName(State.Candidates[index]), State.FocusedId == State.Candidates[index]);
-        }
-        _scroll.Visible = State.Candidates.Count > Rows;
-        _scroll.Range.Value = State.Offset; _scroll.UpdateArrows(); _refreshing = false;
-    }
+    public void RefreshData() { _sidebar.Refresh(); RefreshBody(); }
+    private void Activate(int id) { State.Activate(id); CurrentChanged(id); _sidebar.Refresh(); RefreshBody(); }
     private void Label(string text, Rect2 rect, int size = 16, HorizontalAlignment alignment = HorizontalAlignment.Left, Color? color = null)
     {
         var label = new Label { Text = text, TooltipText = text, Position = rect.Position, Size = rect.Size, ClipText = true,
@@ -189,12 +166,7 @@ public partial class AdministrativeDetailView : FixedPage, IInformationPage
         if (!IsVisibleInTree()) return;
         if (input is InputEventKey { Pressed: true, Keycode: Key.Escape } || input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right })
         { GetViewport().SetInputAsHandled(); Closed(); return; }
-        if (input is InputEventMouseButton { Pressed: true } mouse && mouse.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
-        { GetViewport().SetInputAsHandled(); State.Scroll(State.Offset + (mouse.ButtonIndex == MouseButton.WheelDown ? 1 : -1)); RefreshNames(); }
-        if (input is not InputEventKey { Pressed: true } key) return;
-        if (key.Keycode is Key.Up or Key.Down)
-        { GetViewport().SetInputAsHandled(); State.MoveFocus(key.Keycode == Key.Down ? 1 : -1); RefreshNames(); }
-        else if (key.Keycode == Key.Enter && State.FocusedId is int id) { GetViewport().SetInputAsHandled(); Activate(id); }
+        _sidebar.HandleInput(input);
     }
     private void Tile(string role, Rect2 rect)
     {

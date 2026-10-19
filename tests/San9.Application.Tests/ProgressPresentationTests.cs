@@ -59,8 +59,9 @@ public sealed class ProgressPresentationTests
         var texts = MissionScenario.Texts(before) with
         { Messages = roles.ToDictionary(role => role, role => new MessageDefinition([new MessageLiteral(role)])) };
         var content = new ProgressPresentationDefinition(roles.ToDictionary(role => role, role => new DecisionMessageDefinition(role, [])), []);
-        DomainEvent[] facts = [new SettlementCapturedEvent(before.World.Clock, place, previousOwner, new(source.Id, false), false) { Source = source },
-            new FacilityDestroyedEvent(before.World.Clock, place, new(source.Id, false)) { Source = source },
+        DomainEvent[] facts = [new SettlementCapturedEvent(before.World.Clock, place, previousOwner, new(source.Id, false), false) { Source = source, Result = before.World.Settlements.Single(s => s.Id == place) },
+            new FacilityDestroyedEvent(before.World.Clock, place, new(source.Id, false)) { Source = source, PreviousOwnerId = previousOwner,
+                Result = before.World.Settlements.Single(s => s.Id == place) with { IsDestroyed = true, OwnerId = null } },
             new OfficerCapturedEvent(before.World.Clock, enemyAttacker ? 3 : 23, source.ForceId!.Value, place, null)];
         var records = ProgressMessages.Read(before, before, session.Messages(texts), texts, content, facts);
         Assert.Equal(4, records.Count);

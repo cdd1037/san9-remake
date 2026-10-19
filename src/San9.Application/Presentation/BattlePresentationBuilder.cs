@@ -22,6 +22,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
     private readonly Dictionary<(int Id, bool IsSettlement), BattleObjectContext> _objects = [];
     private readonly Dictionary<(int Id, bool IsSettlement), bool> _mapVisibility = [];
     private readonly Dictionary<(int Id, bool IsSettlement), UnitCondition> _conditions = [];
+    private readonly PresentationIdentity _identities = new(before, after);
     private double _cursor = 1, _impact = 1.5, _mapAvailable;
     private int _index;
 
@@ -42,6 +43,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             _conditions[(place.Id, true)] = place.ConfusionDaysRemaining > 0 ? UnitCondition.Confused : UnitCondition.Normal;
         for (_index = 0; _index < events.Count; _index++)
         {
+            int firstValue = _stateValues.Count;
             switch (events[_index])
             {
                 case DuelStartedEvent duel: PresentDuel(duel); break;
@@ -57,13 +59,17 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
                     PresentAftermath(); break;
                 case TacticActivatedEvent or IntelligenceEffectResolvedEvent: PresentTactic(events[_index]); break;
             }
+            for (int i = firstValue; i < _stateValues.Count; i++)
+                _stateValues[i] = _stateValues[i] with { FactIndex = _index, AfterDialogueId = _mapDialogue };
+            _identities.Apply(events[_index]);
+            PresentMapChange(events[_index]);
         }
         double finalCue = _visuals.Select(c => c.End).Concat(_records.Select(c => c.Time))
-            .Concat(_messages.Select(c => c.Time)).Concat(_stateValues.Select(c => c.Time))
+            .Concat(_messages.Select(c => c.Time)).Concat(_stateValues.Select(c => c.Time)).Concat(_mapChanges.Select(c => c.Time))
             .Concat(_mapEffects.Select(c => c.Start + c.Sprite.Columns * c.Sprite.FrameMilliseconds / 1000.0))
             .Concat(_mapNumbers.Select(c => c.Start + BattleMapNumberPlayback.Duration(content.Battle!.MapNumbers!))).DefaultIfEmpty(0).Max();
         return new BattlePresentationPlan(_messages, _records, _visuals, _stateValues, _mapEffects, _mapNumbers, content.Battle?.MapNumbers, _presented,
-            _duels.Count == 0 && _messages.Count == 0 && _records.Count == 0 && _visuals.Count == 0 && _mapEffects.Count == 0 && _mapNumbers.Count == 0 ? 0 : Math.Max(_cursor, finalCue), _duels);
+            _duels.Count == 0 && _messages.Count == 0 && _records.Count == 0 && _visuals.Count == 0 && _mapEffects.Count == 0 && _mapNumbers.Count == 0 && _mapChanges.Count == 0 ? 0 : Math.Max(_cursor, finalCue), _duels, _mapChanges);
     }
 
     private bool Player(int? force) => before.World.Simulation.Controls.Any(c => c.ForceId == force && c.Kind == ControllerKind.Player);
@@ -203,22 +209,24 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
 
     private void PresentAftermath()
     {
+        _cursor = Math.Max(_cursor, _impact);
+        var occurrence = _identities.View;
+        var occurrenceContext = context.ForWorld(occurrence.World);
         bool presented = false;
         if (content.Progress is { } progress)
         {
-            var reports = ProgressMessages.Read(before, after, context, texts, progress, events, _index);
+            var reports = ProgressMessages.Read(occurrence, after, occurrenceContext, texts, progress, events, _index);
             foreach (var report in reports) _records.Add(new(_cursor, report));
             presented = reports.Count > 0;
         }
         if (content.Capture is { } capture && events[_index] is SettlementCapturedEvent captured)
         {
-            var occurrence = PresentationIdentity.BeforeFact(before, after, events, _index);
-            var scenes = CapturePresentation.Read(occurrence, context.ForWorld(occurrence.World), texts, capture, captured);
+            var scenes = CapturePresentation.Read(occurrence, occurrenceContext, texts, capture, captured);
             foreach (var message in scenes)
                 _messages.Add(new(Identity("capture"), _cursor, message, BattleMessageChannel.Dialogue));
             presented |= scenes.Count > 0;
         }
-        if (presented) { _presented.Add(_index); _cursor += 1; }
+        if (presented) _presented.Add(_index);
     }
 
     private void PresentMapNotification()

@@ -10,6 +10,31 @@ namespace San9.Application.Tests;
 
 public sealed class BattlePresentationTests
 {
+    [Fact]
+    public void DefeatRemovesAtImpactAndAdditionalCaptivesDoNotExtendTheDay()
+    {
+        var (session, texts, content, occurrence) = Fixture();
+        string[] roles = ["enemy-captured", "person-captured", "unit-defeated"];
+        foreach (string role in roles) texts.Messages[role] = new([new MessageLiteral(role)]);
+        content = content with { Progress = new(roles.ToDictionary(r => r, r => new DecisionMessageDefinition(r, [])), []) };
+        BattlePresentationPlan Plan(int count)
+        {
+            List<DomainEvent> facts = [new BattleDamageEvent(session.Snapshot.Clock, 10, 20, null, 500, 0, 500, 0, 0)
+                { Source = occurrence.Source, Target = occurrence.Target }];
+            facts.AddRange(new[] { 21, 22, 23 }.Take(count).Select(id =>
+                new OfficerCapturedEvent(session.Snapshot.Clock, id, 1, 1, null)));
+            facts.Add(new UnitTerminatedEvent(session.Snapshot.Clock, 20, new(10, false), 0)
+                { Source = occurrence.Source, Target = occurrence.Target });
+            return BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content);
+        }
+        var one = Plan(1); var three = Plan(3);
+        Assert.Equal(one.Duration, three.Duration);
+        Assert.Equal(Assert.Single(three.Values).Time, Assert.Single(three.MapChanges).Time);
+        Assert.All(three.Records, c => Assert.Equal(Assert.Single(three.MapChanges).Time, c.Time));
+        Assert.DoesNotContain(new BattleMapFrame(session.View, [], []).RemovedUnits, id => id == 20);
+        Assert.Contains(20, new BattleMapFrame(session.View, three.MapChanges, three.Values).RemovedUnits);
+    }
+
     [Theory]
     [InlineData(false, false, false)]
     [InlineData(false, true, false)]

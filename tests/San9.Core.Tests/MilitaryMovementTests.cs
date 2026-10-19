@@ -439,7 +439,9 @@ public sealed class MilitaryMovementTests
         Assert.Equal(DevelopmentRejection.OfficerUnavailable,
             engine.Execute(Player, new DevelopCommand(Guid.NewGuid(), 1, 1, new(1, 1, [11], DomesticActivity.Commerce))).Development!.Value.Rejection);
         var advanced = Advance(engine);
-        Assert.Single(advanced.Events.OfType<UnitAbsorbedEvent>());
+        var absorbed = Assert.Single(advanced.Events.OfType<UnitAbsorbedEvent>());
+        Assert.Equal(engine.Snapshot.Settlements.Single(s => s.Id == 2).Soldiers, absorbed.Result.Soldiers);
+        Assert.Equal(60, absorbed.Result.Morale);
         Assert.Empty(engine.Snapshot.Units);
         Assert.Equal(1, engine.Snapshot.Officers[0].SettlementId);
         Assert.Null(engine.Snapshot.Officers[0].UnitId);

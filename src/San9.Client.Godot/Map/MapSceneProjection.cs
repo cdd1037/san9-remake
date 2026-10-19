@@ -8,10 +8,10 @@ namespace San9.Client.Godot;
 internal sealed record MapSceneProjection(BuildingVisualState[] BuildingStates,
     MapBuilding[] Buildings, MapAnimatedSprite[] Animations, Dictionary<int, UnitVisualState> Units)
 {
-    public static MapSceneProjection Create(StrategySnapshot state, MapPackage map)
+    public static MapSceneProjection Create(StrategySnapshot state, MapPackage map, BattleMapFrame? frame = null)
     {
         var forces = state.Forces.ToDictionary(f => f.Id);
-        var buildingStates = state.Settlements.Select(s =>
+        var buildingStates = (frame?.Settlements.Values ?? state.Settlements).Select(s =>
         {
             var force = s.OwnerId is int owner ? forces[owner] : null;
             return new BuildingVisualState(s.Id, s.Durability, s.Appearance, Math.Max(s.Commerce, s.Cultivation),
@@ -24,7 +24,8 @@ internal sealed record MapSceneProjection(BuildingVisualState[] BuildingStates,
         }).ToArray();
         var visuals = BuildingVisuals.Resolve(map, buildingStates);
         var unitPositions = state.World.Units.ToDictionary(u => u.Id, u => u.Position);
-        var units = state.World.Units.Where(u => !u.IsEmbedded && !u.IsPersonnel && u.FormationId is not null && u.Soldiers > 0)
+        var units = state.World.Units.Where(u => !u.IsEmbedded && !u.IsPersonnel && u.FormationId is not null && u.Soldiers > 0 &&
+                frame?.RemovedUnits.Contains(u.Id) != true)
             .Select(u =>
             {
                 var order = u.EffectiveOrder;

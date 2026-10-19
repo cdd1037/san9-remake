@@ -6,10 +6,13 @@ namespace San9.Core.Simulation;
 public sealed record SettlementCapturedEvent(GameClock Clock, int SettlementId, int? PreviousOwnerId, BattleSource Winner, bool Destroyed) : DomainEvent
 {
     [System.Text.Json.Serialization.JsonRequired] public required BattleObjectContext Source { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public required SettlementState Result { get; init; }
 }
 public sealed record FacilityDestroyedEvent(GameClock Clock, int SettlementId, BattleSource Attacker) : DomainEvent
 {
     [System.Text.Json.Serialization.JsonRequired] public required BattleObjectContext Source { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public required int? PreviousOwnerId { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public required SettlementState Result { get; init; }
 }
 public sealed record ForceEliminatedEvent(GameClock Clock, int ForceId, bool WasPlayerControlled) : DomainEvent;
 public sealed record ForceLeaderChangedEvent(GameClock Clock, int ForceId, int? PreviousId, int OfficerId) : DomainEvent;
@@ -84,7 +87,9 @@ internal static class BattleAftermath
             world.Replace(settlement with { IsDestroyed = true, OwnerId = null, CorpsId = null,
                 Soldiers = 0, Wounded = 0, Morale = 0, Durability = 0, ConfusionDaysRemaining = 0 });
             MilitaryPolicies.RemoveTarget(world, id, true, events);
-            events.Add(new FacilityDestroyedEvent(world.Clock, id, winner) { Source = BattleObjectContext.Capture(world, winner) });
+            events.Add(new FacilityDestroyedEvent(world.Clock, id, winner)
+                { Source = BattleObjectContext.Capture(world, winner), PreviousOwnerId = settlement.OwnerId,
+                    Result = world.Settlements[id] });
             return;
         }
         bool destroyed = settlement.Durability == 0 && definition.DestroyedAtZeroDurability;
@@ -137,7 +142,7 @@ internal static class BattleAftermath
                 MilitaryPolicies.Return(world, unit, rules.Military!, events, "settlement-abandoned");
         MilitaryPolicies.SettlementChanged(world, id, rules.Military!, events);
         events.Add(new SettlementCapturedEvent(world.Clock, id, settlement.OwnerId, winner, destroyed)
-            { Source = BattleObjectContext.Capture(world, winner) });
+            { Source = BattleObjectContext.Capture(world, winner), Result = world.Settlements[id] });
     }
 
     private static void ResolvePeople(WorldMutation world, IEnumerable<OfficerState> people,

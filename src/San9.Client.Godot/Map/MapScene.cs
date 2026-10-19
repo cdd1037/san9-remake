@@ -13,6 +13,7 @@ internal sealed partial class MapScene
     public TerrainRenderer Terrain { get; }
     public string Season { get; }
     public StrategySnapshot State { get; }
+    public BattleMapFrame? MapFrame { get; }
     public IReadOnlyDictionary<int, SettlementView> Settlements { get; }
     public MapBuilding[] Buildings { get; }
     public UnitOccluder[] Occluders { get; }
@@ -34,7 +35,8 @@ internal sealed partial class MapScene
     public MapScene(MapPackage map, TerrainRenderer terrain, string season, StrategySnapshot state, IReadOnlyDictionary<string, San9.Content.Images.ImageAsset> assets, Func<double> positionTime, MapScene? previous = null, TurnDayPresentation? day = null)
     {
         Map = map; Terrain = terrain; Season = season; State = state; _assets = assets; _positionTime = positionTime;
-        Settlements = state.Settlements.ToDictionary(s => s.Id);
+        MapFrame = day?.MapFrame;
+        Settlements = MapFrame?.Settlements ?? state.Settlements.ToDictionary(s => s.Id);
         Clips = previous is not null && ReferenceEquals(previous.Terrain, terrain) ? previous.Clips : map.Animations.Clips.ToDictionary(c => c.Id);
         if (previous is not null && ReferenceEquals(previous.Terrain, terrain)) _waterBuckets = previous._waterBuckets;
         else
@@ -48,7 +50,7 @@ internal sealed partial class MapScene
                 }
             _waterBuckets = buckets.ToDictionary(p => p.Key, p => p.Value.ToArray());
         }
-        var projection = MapSceneProjection.Create(state, map);
+        var projection = MapSceneProjection.Create(state, map, MapFrame);
         var buildingStates = projection.BuildingStates;
         if (day is not null)
         {

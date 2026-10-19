@@ -34,7 +34,8 @@ public partial class MapWorld : Node2D
     internal MapScene? Scene { get; private set; }
     internal double AnimationTime => _fixedAnimationTime ?? _animationMilliseconds;
     public TurnDayPresentation? Day { get; set; }
-    public bool IsDayReady => IsVisibleReady && ReferenceEquals(_display?.Presented?.Region.Scene.Day, Day);
+    public bool IsDayReady => IsVisibleReady && ReferenceEquals(_display?.Presented?.Region.Scene.Day, Day) &&
+        ReferenceEquals(_display?.Presented?.Region.Scene.MapFrame, Day?.MapFrame);
     internal TerrainChunkCache<ImageTexture> Terrain => _terrain!;
     public MapSceneView? Display => _display;
     internal bool TrySpeechUnitAnchor(int id, out Vector2 anchor, out int direction)
@@ -187,7 +188,8 @@ public partial class MapWorld : Node2D
             }
             catch (Exception error) { _error = error.Message; _awaitingSeason = false; GD.PushError(_error); }
         }
-        if (Scene is not null && (!ReferenceEquals(Scene.State, View) || !ReferenceEquals(Scene.Day, Day))) RefreshRuntimeObjects();
+        if (Scene is not null && (!ReferenceEquals(Scene.State, View) || !ReferenceEquals(Scene.Day, Day) ||
+            !ReferenceEquals(Scene.MapFrame, Day?.MapFrame))) RefreshRuntimeObjects();
         _terrain?.Pump(() => Textures.CanUpload);
         if (_display?.Error is not null) _awaitingSeason = false;
         UpdateEdgeScrolling(delta);

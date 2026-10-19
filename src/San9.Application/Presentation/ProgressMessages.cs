@@ -122,9 +122,9 @@ public static class ProgressMessages
                     break;
                 case FacilityDestroyedEvent destroyed:
                     clock = destroyed.Clock; Place(destroyed.SettlementId);
-                    colorForce = Player(destroyed.Source.ForceId) ? destroyed.Source.ForceId : before.World.Settlements.Single(s => s.Id == destroyed.SettlementId).OwnerId;
+                    colorForce = Player(destroyed.Source.ForceId) ? destroyed.Source.ForceId : destroyed.PreviousOwnerId;
                     role = "facility-destroyed";
-                    if (!Player(destroyed.Source.ForceId) && !Player(before.World.Settlements.Single(s => s.Id == destroyed.SettlementId).OwnerId))
+                    if (!Player(destroyed.Source.ForceId) && !Player(destroyed.PreviousOwnerId))
                     { role = "facility-destroyed-other"; importance = MapReportImportance.Detailed; }
                     else if (Player(destroyed.Source.ForceId) && destroyed.Source.CommanderId is int demolisher)
                     { Person("actor",demolisher); role = "facility-won"; }

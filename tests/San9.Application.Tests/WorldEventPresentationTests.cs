@@ -263,7 +263,7 @@ public sealed class WorldEventPresentationTests
         var source = new BattleObjectContext(0, false, force, actor, null, place, false);
         var request = new AttackRequestState(otherForce, force, enemyPlace, thirdForce, 3);
         DomainEvent[] journalSamples = [new AdviserAppointedEvent(clock, force, null, actor),
-            new SettlementCapturedEvent(clock, enemyPlace, otherForce, new(0, false), false) { Source = source },
+            new SettlementCapturedEvent(clock, enemyPlace, otherForce, new(0, false), false) { Source = source, Result = before.World.Settlements.Single(s => s.Id == enemyPlace) },
             new SettlementTransferredEvent(clock, enemyPlace, otherForce, force), new ForceSurrenderedEvent(clock, otherForce, force, 0, 0, 0, 0, [], []),
             new SettlementDefectedEvent(clock, enemyPlace, otherForce, force, SettlementDefectionKind.Abandoned, other, []),
             new PersonnelTerritoryTransferredEvent(clock, enemyPlace, otherForce, force, other),
@@ -283,7 +283,7 @@ public sealed class WorldEventPresentationTests
         }
         if (before.Settlements.FirstOrDefault(p => p.OwnerId == force && p.FacilityTypeId is not null && p.Kind == SettlementKind.Facility) is { } facility)
         {
-            foreach (DomainEvent fact in new DomainEvent[] { new FacilityDemolishedEvent(clock, facility.Id, place, force, facility.FacilityTypeId!.Value), new FacilityConstructionChangedEvent(clock, facility.Id, 0, "completed", 1, new(force, facility.FacilityTypeId!.Value, place, new(facility.X, facility.Y))) })
+            foreach (DomainEvent fact in new DomainEvent[] { new FacilityDemolishedEvent(clock, facility.Id, place, force, facility.FacilityTypeId!.Value), new FacilityConstructionChangedEvent(clock, facility.Id, 0, "completed", 1, new(force, facility.FacilityTypeId!.Value, place, new(facility.X, facility.Y))) { Result = before.World.Settlements.Single(s => s.Id == facility.Id) } })
             foreach (var item in ChronicleHistory.Read(before, before, [fact]))
                 Assert.NotEmpty(ChroniclePresentation.Render(item, session.Messages(package.Text), before, package.Text, package.Presentation.Chronicle!).BbCode);
         }
@@ -292,8 +292,9 @@ public sealed class WorldEventPresentationTests
         var npcTarget = new BattleObjectContext(100004, false, thirdForce,
             before.World.Forces.Single(f => f.Id == thirdForce).LeaderId, new(17, 7), enemyPlace, false);
         DomainEvent[] detailedFacts = [
-            new SettlementCapturedEvent(clock, enemyPlace, otherForce, new(npcTarget.Id, false), false) { Source = npcTarget },
-            new FacilityDestroyedEvent(clock, enemyPlace, new(npcTarget.Id, false)) { Source = npcTarget },
+            new SettlementCapturedEvent(clock, enemyPlace, otherForce, new(npcTarget.Id, false), false) { Source = npcTarget, Result = before.World.Settlements.Single(s => s.Id == enemyPlace) },
+            new FacilityDestroyedEvent(clock, enemyPlace, new(npcTarget.Id, false)) { Source = npcTarget, PreviousOwnerId = otherForce,
+                Result = before.World.Settlements.Single(s => s.Id == enemyPlace) with { IsDestroyed = true, OwnerId = null } },
             new UnitTerminatedEvent(clock, npcSource.Id, new(npcTarget.Id, false), 0) { Target = npcSource, Source = npcTarget }];
         var reports = ProgressMessages.Read(before, before, session.Messages(package.Text), package.Text, package.Presentation.Progress!, detailedFacts);
         Assert.Equal(new[] { "messages.10120", "messages.9916", "messages.9994" }, reports.Select(r => r.Message.Key));

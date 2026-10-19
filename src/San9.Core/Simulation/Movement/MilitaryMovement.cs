@@ -39,6 +39,7 @@ public sealed record UnitWaypointReachedEvent(GameClock Clock, BattleObjectConte
 public sealed record UnitAbsorbedEvent(GameClock Clock, int UnitId, int SettlementId) : DomainEvent
 {
     [JsonRequired] public required BattleObjectContext Source { get; init; }
+    [JsonRequired] public required SettlementState Result { get; init; }
     [JsonRequired] public bool WasTransport { get; init; }
 }
 
@@ -343,7 +344,8 @@ internal static class MilitaryMovement
                 throw new InvalidOperationException("Validated unit absorption could not settle previous corps.");
         }
         events.Add(new UnitAbsorbedEvent(world.Clock, unit.Id, home.Id)
-            { Source = BattleObjectContext.Capture(unit), WasTransport = unit.Order?.Kind == MilitaryOrderKind.Transport });
+            { Source = BattleObjectContext.Capture(unit), WasTransport = unit.Order?.Kind == MilitaryOrderKind.Transport,
+                Result = world.Settlements[home.Id] });
     }
 
     private static bool CanAbsorb(WorldMutation world, UnitState unit, SettlementState home, SettlementState returnHome)

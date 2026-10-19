@@ -8,15 +8,28 @@ namespace San9.Application.Presentation;
 internal sealed class PresentationIdentity(StrategySnapshot before, StrategySnapshot after)
 {
     private Dictionary<int, ForceState>? forces;
+    private Dictionary<int, SettlementState>? settlements;
     private StrategySnapshot? projected;
 
-    internal StrategySnapshot View => forces is null ? before : projected ??=
-        before.ForWorld(before.World with { Forces = forces.Values.OrderBy(f => f.Id).ToImmutableArray() });
+    internal StrategySnapshot View => forces is null && settlements is null ? before : projected ??=
+        before.ForWorld(before.World with
+        {
+            Forces = forces?.Values.OrderBy(f => f.Id).ToImmutableArray() ?? before.World.Forces,
+            Settlements = settlements?.Values.OrderBy(s => s.Id).ToImmutableArray() ?? before.World.Settlements
+        });
 
     internal void Apply(DomainEvent fact)
     {
         switch (fact)
         {
+            case FacilityConstructionChangedEvent { Result: { } result }:
+                SetSettlement(result); break;
+            case SettlementCapturedEvent captured:
+                SetSettlement(captured.Result); break;
+            case FacilityDestroyedEvent destroyed:
+                SetSettlement(destroyed.Result); break;
+            case UnitAbsorbedEvent absorbed:
+                SetSettlement(absorbed.Result); break;
             case ForceLeaderChangedEvent leader:
                 forces ??= before.World.Forces.ToDictionary(f => f.Id);
                 forces[leader.ForceId] = forces[leader.ForceId] with { LeaderId = leader.OfficerId }; break;
@@ -32,6 +45,13 @@ internal sealed class PresentationIdentity(StrategySnapshot before, StrategySnap
         }
         if (fact is ForceLeaderChangedEvent or PeerageChangedEvent or ForceFoundedEvent or CityIndependenceEvent)
             projected = null;
+    }
+
+    private void SetSettlement(SettlementState value)
+    {
+        settlements ??= before.World.Settlements.ToDictionary(s => s.Id);
+        settlements[value.Id] = value;
+        projected = null;
     }
 
     internal static StrategySnapshot BeforeFact(StrategySnapshot before, StrategySnapshot after,

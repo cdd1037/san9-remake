@@ -17,6 +17,7 @@ public partial class StrategyMinimap : Control
     private MinimapGeometry Geometry => Textures.Service.OverviewMap.Geometry;
     private TextureRect? _background;
     private San9.Application.Presentation.StrategySnapshot? _state;
+    private BattleMapFrame? _mapFrame;
     private readonly Node2D _markers = new();
     private readonly Node2D _viewport = new();
     private readonly Node2D _commandPulse = new();
@@ -67,7 +68,9 @@ public partial class StrategyMinimap : Control
             _recordLocations.RemoveAll(entry => entry.Time >= .5);
             _recordPulse.QueueRedraw();
         }
-        if (!ReferenceEquals(_state, Scenario)) { _state = Scenario; _markers.QueueRedraw(); _commandPulse.QueueRedraw(); }
+        var mapFrame = World.Display?.Presented?.Region.Scene.MapFrame;
+        if (!ReferenceEquals(_state, Scenario) || !ReferenceEquals(_mapFrame, mapFrame))
+        { _state = Scenario; _mapFrame = mapFrame; _markers.QueueRedraw(); _commandPulse.QueueRedraw(); }
         if (_commandSource is not null)
         {
             _pulseTime = (_pulseTime + delta) % 1.7;
@@ -113,7 +116,7 @@ public partial class StrategyMinimap : Control
         var point = Geometry.FromGrid(x, y);
         var scale = Size / new Vector2(320, 160);
         var center = new Vector2((float)point.X * Size.X, (float)point.Y * Size.Y) - new Vector2(0, scale.Y);
-        var texture = Textures.Get($"minimap-command-pulse-{_pulseFrame}", this);
+        var texture = Textures.Get($"minimap-command-pulse-{_pulseFrame}", _commandPulse);
         var size = texture.GetSize() * scale;
         _commandPulse.DrawTextureRect(texture, new(center - size / 2, size), false);
     }
@@ -131,14 +134,14 @@ public partial class StrategyMinimap : Control
             var point = Geometry.FromGrid(entry.Cell.X,entry.Cell.Y);
             var center = new Vector2((float)point.X*Size.X,(float)point.Y*Size.Y)-new Vector2(0,scale.Y);
             int frame = Math.Clamp((int)(entry.Time/.1),0,4);
-            var texture = Textures.Get("minimap-record-pulse"+(frame == 0 ? "" : $"-{frame}"), this);
+            var texture = Textures.Get("minimap-record-pulse"+(frame == 0 ? "" : $"-{frame}"), _recordPulse);
             var size = texture.GetSize()*scale;
             _recordPulse.DrawTextureRect(texture,new(center-size/2,size),false);
         }
     }
     private void DrawMarkers()
     {
-        foreach (var s in Scenario.Settlements.Where(s => s.CityMarkerColor is not null))
+        foreach (var s in (_mapFrame?.Settlements.Values ?? Scenario.Settlements).Where(s => s.CityMarkerColor is not null && !s.IsDestroyed))
         {
             var p = Geometry.FromGrid(s.X, s.Y); var position = new Vector2((float)p.X * Size.X, (float)p.Y * Size.Y);
             var color = new Color(Skin.Colors[$"city-marker-{s.CityMarkerColor}"]);

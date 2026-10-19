@@ -1,5 +1,6 @@
 using San9.Content.Interface;
 using San9.Content.Text;
+using San9.Core.Domain;
 using San9.Core.Simulation;
 
 namespace San9.Application.Presentation;
@@ -26,9 +27,11 @@ public static class CapturePresentation
         var place = before.World.Settlements.Single(s => s.Id == fact.SettlementId);
         int type = before.MilitaryRules!.Place(place).FacilityTypeId!.Value;
         var presentation = content.Places[type];
+        var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision,
+            $"capture:{fact.SettlementId}:{winner}:{fact.PreviousOwnerId}"));
         var message = ProgressMessageProducer.Produce(content.Messages[won ? "won" : "lost"],
             context.AtOccurrence(fact.Clock), texts, values,
-            _ => throw new InvalidDataException("Capture results must not require randomness."));
+            n => (int)(random.NextUInt64() % (ulong)n));
         bool unowned = fact.PreviousOwnerId is null;
         return [message with
         {

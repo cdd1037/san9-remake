@@ -28,7 +28,25 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
         CombatMilliseconds < Plan!.AttackDuration(attack) * 1000;
     public bool IsCombatBlocking => _combatStarted && CombatMilliseconds < _combatDuration * 1000 - 1e-6;
     public BattlePresentationPlan? Battle { get; } = battle;
+    private BattleMapFrame? _mapFrame;
+    private (int Changes, int Values) _mapVersion = (-1, -1);
+    public BattleMapFrame MapFrame
+    {
+        get
+        {
+            var changes = Battle?.MapChanges.Where(c => c.Time <= Elapsed && IsDialogueComplete(c.AfterDialogueId)) ?? [];
+            var values = Battle?.Values.Where(c => c.IsSettlement && c.Time <= Elapsed && IsDialogueComplete(c.AfterDialogueId)) ?? [];
+            var version = (changes.Count(), values.Count());
+            if (_mapFrame is null || _mapVersion != version)
+            {
+                _mapFrame = new(Before, changes, values);
+                _mapVersion = version;
+            }
+            return _mapFrame;
+        }
+    }
     private readonly HashSet<string> _completedDialogues = [];
+    public bool IsDialogueComplete(string? id) => id is null || _completedDialogues.Contains(id);
     public double DuelDialogueElapsed { get; private set; }
     public IReadOnlyList<BattleMessageCue> PendingDialogues => Battle?.Messages
         .Where(c => c.Channel == BattleMessageChannel.Dialogue && !_completedDialogues.Contains(c.Id) && c.Time <= Elapsed + 1e-9)

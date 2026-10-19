@@ -12,14 +12,7 @@ internal sealed partial class MapScene
     public TurnDayPresentation? Day { get; }
     public SettlementView SampleSettlement(SettlementView value)
     {
-        if (Day?.Battle is not { } battle) return value;
-        var changes = battle.Values.Where(v => v.IsSettlement && v.TargetId == value.Id && v.Time <= Day.Elapsed).ToArray();
-        return value with
-        {
-            Soldiers = (uint)Math.Clamp((long)value.Soldiers + changes.Sum(v => v.Soldiers), 0, uint.MaxValue),
-            Morale = Math.Clamp(value.Morale + changes.Sum(v => v.Morale), 0, 100),
-            Durability = Math.Clamp(value.Durability + changes.Sum(v => v.Durability), 0, value.MaxDurability)
-        };
+        return MapFrame?.Settlements.GetValueOrDefault(value.Id) ?? value;
     }
     private readonly Dictionary<int, UnitVisualState> _unitStates;
     private Dictionary<int, MapUnitMotion> _motions = [];
@@ -85,7 +78,8 @@ internal sealed partial class MapScene
         }
         if (day?.Battle is { } battle)
         {
-            var changes = battle.Values.Where(v => !v.IsSettlement && v.TargetId == id && v.Time * 1000 <= milliseconds).ToArray();
+            var changes = battle.Values.Where(v => !v.IsSettlement && v.TargetId == id && v.Time * 1000 <= milliseconds &&
+                day.IsDialogueComplete(v.AfterDialogueId)).ToArray();
             uint soldiers = state.Soldiers, lastLiving = soldiers;
             foreach (var change in changes)
             {

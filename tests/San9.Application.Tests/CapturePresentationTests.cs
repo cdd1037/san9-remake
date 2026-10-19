@@ -10,6 +10,68 @@ namespace San9.Application.Tests;
 
 public sealed class CapturePresentationTests
 {
+    [Fact]
+    public void AuthoredCaptureChoicesUseDeterministicPresentationRandomness()
+    {
+        var (definition, before, texts, content) = Fixture();
+        texts.Messages["won"] = new([new MessageRandomChoice(
+            [[new MessageLiteral("first")], [new MessageLiteral("second")]])]);
+        var context = new WorldMessageContext(definition, before.World, texts);
+        var fact = Fact(before, 1, 2);
+
+        var first = Assert.Single(CapturePresentation.Read(before, context, texts, content, fact));
+        var repeated = Assert.Single(CapturePresentation.Read(before, context, texts, content, fact));
+
+        Assert.Contains(first.Message.BbCode, new[] { "first", "second" });
+        Assert.Equal(first.Message.BbCode, repeated.Message.BbCode);
+    }
+
+    [Fact]
+    public void MapResultsAndClampedDeltasFollowFactsInsteadOfAnimationTimes()
+    {
+        var (_, before, _, _) = Fixture();
+        var place = before.Settlements.Single(s => s.Id == 2);
+        BattleMapChangeCue[] changes = [new(8, 1, null, place with { Soldiers = 100, Morale = 20 }),
+            new(1.5, 3, null, place with { Soldiers = 400, Morale = 95 })];
+        BattleValueCue[] values = [new(9, 2, true, -50, 0, 0) { FactIndex = 2 },
+            new(8, 2, true, 0, 20, 0) { FactIndex = 4 },
+            new(1.5, 2, true, -30, -10, 0) { FactIndex = 5 }];
+
+        var frame = new BattleMapFrame(before, changes, values);
+
+        Assert.Equal(370u, frame.Settlements[2].Soldiers);
+        Assert.Equal(90, frame.Settlements[2].Morale);
+    }
+
+    [Fact]
+    public void CaptureAndAbsorptionKeepOccurrenceStateInsteadOfLeakingTheFinalWorld()
+    {
+        var (definition, before, texts, capture) = Fixture();
+        var captured = before.World.Settlements.Single(s => s.Id == 2) with
+            { OwnerId = 1, Soldiers = 100, Morale = 20, Durability = 30 };
+        var absorbed = captured with { Soldiers = 400, Morale = 65 };
+        var source = Fact(before, 1, 2).Source;
+        DomainEvent[] facts = [Fact(before, 1, 2) with { Result = captured },
+            new UnitAbsorbedEvent(before.World.Clock, 10, 2) { Source = source, Result = absorbed },
+            new BattleDamageEvent(before.World.Clock, 20, null, 2, 50, 0, 50, 0, 0)];
+        var after = new StrategySnapshot(definition, before.World with
+            { Settlements = before.World.Settlements.Select(s => s.Id == 2 ? s with { Soldiers = 1, OwnerId = 2 } : s).ToImmutableArray() });
+        var plan = BattlePresentationPlan.Create(before, after, facts, new(definition, before.World, texts), texts,
+            new([], null) { Capture = capture });
+        var dialogue = Assert.Single(plan.Messages);
+        Assert.All(plan.MapChanges, c => Assert.Equal(dialogue.Id, c.AfterDialogueId));
+        Assert.Equal(dialogue.Id, Assert.Single(plan.Values).AfterDialogueId);
+        var frame = new BattleMapFrame(before, plan.MapChanges, plan.Values);
+        var place = frame.Settlements[2];
+        Assert.Equal(1, place.OwnerId);
+        Assert.Equal(before.Forces.Single(f => f.Id == 1).ColorCode, place.CityMarkerColor);
+        Assert.Equal(350u, place.Soldiers);
+        Assert.Equal(65, place.Morale);
+        Assert.Equal(30, place.Durability);
+        Assert.Contains(10, frame.RemovedUnits);
+        Assert.Equal(400u, absorbed.Soldiers);
+    }
+
     [Theory]
     [InlineData(true, 2, false, "victory", "city")]
     [InlineData(false, 1, false, "loss", "city")]
@@ -81,7 +143,7 @@ public sealed class CapturePresentationTests
             int winner = won ? player : enemy;
             var source = new BattleObjectContext(100000, false, winner,
                 before.World.Forces.Single(f => f.Id == winner).LeaderId, new(0, 0), place.Id, false);
-            var fact = new SettlementCapturedEvent(before.World.Clock, place.Id, won ? enemy : player, new(source.Id, false), false) { Source = source };
+            var fact = new SettlementCapturedEvent(before.World.Clock, place.Id, won ? enemy : player, new(source.Id, false), false) { Source = source, Result = before.World.Settlements.Single(s => s.Id == place.Id) };
             var message = Assert.Single(CapturePresentation.Read(before, session.Messages(package.Text), package.Text, capture, fact));
             Assert.NotEmpty(message.Message.BbCode);
             Assert.True(package.Skin.Roles.ContainsKey(message.IllustrationRole!));
@@ -91,7 +153,7 @@ public sealed class CapturePresentationTests
 
     private static SettlementCapturedEvent Fact(StrategySnapshot before, int winner, int? previous) =>
         new(before.World.Clock, 2, previous, new(10000, false), false)
-        { Source = new(10000, false, winner, winner == 1 ? 3 : 23, new(0, 0), 1, false) };
+        { Source = new(10000, false, winner, winner == 1 ? 3 : 23, new(0, 0), 1, false), Result = before.World.Settlements.Single(s => s.Id == 2) };
 
     private static (ScenarioInitialState Definition, StrategySnapshot Before, TextCatalog Texts, CapturePresentationDefinition Capture) Fixture(bool fort = false)
     {

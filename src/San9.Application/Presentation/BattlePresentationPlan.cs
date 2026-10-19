@@ -29,7 +29,13 @@ public sealed record BattleVisualCue(string Id, double Start, double End, Battle
     public BattleOfficerPlayback? Officers { get; init; }
     public ImmutableArray<BattleSceneLayer> Backdrop { get; init; } = [];
 }
-public sealed record BattleValueCue(double Time, int TargetId, bool IsSettlement, long Soldiers, int Morale, int Durability, UnitCondition? Condition = null);
+public sealed record BattleValueCue(double Time, int TargetId, bool IsSettlement, long Soldiers, int Morale, int Durability, UnitCondition? Condition = null)
+{
+    public int FactIndex { get; init; }
+    public string? AfterDialogueId { get; init; }
+}
+public sealed record BattleMapChangeCue(double Time, int FactIndex, int? RemovedUnitId, SettlementView? Settlement,
+    string? AfterDialogueId = null);
 public sealed record BattleMapEffectCue(string Id, double Start, BattleObjectContext Target, BattleSprite Sprite);
 public sealed record BattleMapNumberCue(string Id, double Start, BattleObjectContext Target, long Amount);
 
@@ -43,15 +49,18 @@ public sealed class BattlePresentationPlan
     public IReadOnlySet<int> PresentedFacts { get; }
     public double Duration { get; }
     public IReadOnlyList<BattleValueCue> Values { get; }
+    public IReadOnlyList<BattleMapChangeCue> MapChanges { get; }
     public IReadOnlyList<BattleMapEffectCue> MapEffects { get; }
     public IReadOnlyList<BattleMapNumberCue> MapNumbers { get; }
     public BattleMapNumberDefinition? NumberDefinition { get; }
     internal BattlePresentationPlan(List<BattleMessageCue> messages, List<BattleRecordCue> records, List<BattleVisualCue> visuals, List<BattleValueCue> values,
-        List<BattleMapEffectCue> effects, List<BattleMapNumberCue> numbers, BattleMapNumberDefinition? numberDefinition, HashSet<int> facts, double duration, List<DuelSceneCue> duels)
+        List<BattleMapEffectCue> effects, List<BattleMapNumberCue> numbers, BattleMapNumberDefinition? numberDefinition, HashSet<int> facts, double duration, List<DuelSceneCue> duels,
+        List<BattleMapChangeCue> mapChanges)
     {
         Duels = duels.AsReadOnly();
         Messages = messages.AsReadOnly(); Records = records.AsReadOnly(); Visuals = visuals.AsReadOnly(); Values = values.AsReadOnly();
         MapEffects = effects.AsReadOnly(); MapNumbers = numbers.AsReadOnly(); NumberDefinition = numberDefinition;
+        MapChanges = mapChanges.AsReadOnly();
         PresentedFacts = facts.ToFrozenSet(); Duration = duration;
     }
 

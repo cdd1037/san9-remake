@@ -39,7 +39,27 @@ public sealed class ConstructionSessionTests
         definition.FacilityNameSuffixKeys[9000] = "changed-by-author";
         Assert.True(session.Execute(new("player"), new ConstructFacilityCommand(Guid.NewGuid(), 1, 0, 1, [11], 10000,
             8000, 9000, new(17, 2))).Submission.Accepted);
-        session.AdvanceXun();
+        var beforeConstruction = session.View;
+        var advance = session.AdvanceXun();
+        var started = advance.Events.OfType<FacilityConstructionChangedEvent>().First(e => e.Phase == "started");
+        Assert.NotNull(started.Result);
+        Assert.NotNull(started.Result.Facility!.BuilderUnitId);
+        DomainEvent[] mapFacts = [started,
+            new FacilityDestroyedEvent(started.Clock, 8000, new(1, true))
+                { Source = new(1, true, 1, 11, null, 1, true), PreviousOwnerId = 1,
+                    Result = started.Result with { IsDestroyed = true, OwnerId = null, CorpsId = null,
+                        Soldiers = 0, Wounded = 0, Durability = 0, Morale = 0 } }];
+        var mapPlan = BattlePresentationPlan.Create(beforeConstruction, session.View, mapFacts,
+            session.Messages(texts, beforeConstruction.World), texts, new([], null));
+        var startedFrame = new BattleMapFrame(beforeConstruction, mapPlan.MapChanges.Where(c => c.Time <= 1), []);
+        Assert.DoesNotContain(beforeConstruction.Settlements, s => s.Id == 8000);
+        Assert.True(startedFrame.Settlements[8000].IsUnderConstruction);
+        Assert.Equal(started.Durability, startedFrame.Settlements[8000].Durability);
+        var destroyed = new BattleMapFrame(beforeConstruction, mapPlan.MapChanges, []).Settlements[8000];
+        Assert.True(destroyed.IsDestroyed);
+        Assert.Null(destroyed.CorpsId);
+        Assert.Equal(0u, destroyed.Wounded);
+        Assert.False(destroyed.IsFacilityListEntry);
         var building = session.View.Settlements.Single(s => s.Id == 8000);
         Assert.True(building.IsUnderConstruction);
         Assert.Equal(9000, building.FacilityTypeId);

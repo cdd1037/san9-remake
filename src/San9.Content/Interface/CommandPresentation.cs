@@ -70,12 +70,16 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
     [System.Text.Json.Serialization.JsonRequired]
     public DemolitionPresentationDefinition? Demolition { get; init; }
 
+    [System.Text.Json.Serialization.JsonRequired]
+    public CapturePresentationDefinition? Capture { get; init; }
+
     public static CommandPresentation Empty => new([], null);
     public void Validate(TextCatalog texts, IEnumerable<int> people, IEnumerable<int> settlements)
     {
         var personIds = people.ToHashSet();
         Decisions.Validate(texts, Sounds, personIds);
         Events?.Validate(texts, Sounds, personIds);
+        Capture?.Validate(texts, Sounds, personIds);
         MapAudio?.Validate(Sounds);
         if (Chronicle is { } chronicle)
         {

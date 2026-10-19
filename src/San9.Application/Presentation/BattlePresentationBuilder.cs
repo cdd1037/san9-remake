@@ -203,16 +203,22 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
 
     private void PresentAftermath()
     {
+        bool presented = false;
         if (content.Progress is { } progress)
         {
             var reports = ProgressMessages.Read(before, after, context, texts, progress, events, _index);
-            if (reports.Count > 0)
-            {
-                _presented.Add(_index);
-                foreach (var report in reports) _records.Add(new(_cursor, report));
-                _cursor += 1;
-            }
+            foreach (var report in reports) _records.Add(new(_cursor, report));
+            presented = reports.Count > 0;
         }
+        if (content.Capture is { } capture && events[_index] is SettlementCapturedEvent captured)
+        {
+            var occurrence = PresentationIdentity.BeforeFact(before, after, events, _index);
+            var scenes = CapturePresentation.Read(occurrence, context.ForWorld(occurrence.World), texts, capture, captured);
+            foreach (var message in scenes)
+                _messages.Add(new(Identity("capture"), _cursor, message, BattleMessageChannel.Dialogue));
+            presented |= scenes.Count > 0;
+        }
+        if (presented) { _presented.Add(_index); _cursor += 1; }
     }
 
     private void PresentMapNotification()

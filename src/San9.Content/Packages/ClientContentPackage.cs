@@ -48,6 +48,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
         foreach (string illustration in Presentation.Events?.Messages.Values.Select(m => m.Illustration)
             .OfType<string>().Where(r => r != "actor") ?? [])
             if (!Skin.Roles.ContainsKey(illustration)) throw new InvalidDataException($"Missing event illustration: {illustration}.");
+        Presentation.Capture?.ValidateReferences(Scenario.Military?.Facilities.Select(f => f.Id) ?? [], Skin.Roles);
         Presentation.Battle?.Validate(Text, Presentation.Sounds, Scenario.Officers.Select(o => o.State.Id),
             Scenario.Information.Tactics.Select(t => t.Id), images.DistinctBy(a => a.Id));
         Presentation.MapAudio?.ValidateReferences(Map.Units, Scenario.Information.Ranks.Select(r => r.Id), Map.BuildingTypes.Select(t => t.Id));

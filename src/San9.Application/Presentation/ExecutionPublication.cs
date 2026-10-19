@@ -39,6 +39,8 @@ public static class ExecutionPublication
                     messages.AddRange(Player(executed.ExecutingForceId) ? sequence : sequence.Skip(2));
                 }
             }
+            if (content.Capture is { } captureContent && fact is SettlementCapturedEvent captured)
+                messages.AddRange(CapturePresentation.Read(occurrenceBefore, occurrenceContext, texts, captureContent, captured));
             if (content.Events is { } eventContent)
             {
                 if (fact is OfficerDiedEvent casualty && casualty.Cause is OfficerDeathCause.Melee or OfficerDeathCause.Sniping or OfficerDeathCause.Duel)

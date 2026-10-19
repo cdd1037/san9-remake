@@ -22,6 +22,8 @@ public static class InformationArtCompiler
         roles.Add("event-founded",Image("g_still",65));
         roles.Add("event-consolidation",Image("g_stilpk",0));
         roles.Add("event-court",Image("g_still",68));
+        roles.Add("capture-settlement",Image("g_still",69));
+        roles.Add("capture-fortification",Image("g_still",70));
         roles.Add("event-visit",Image("g_still",57));
         roles.Add("event-alliance-victory",Image("g_still",67));
         foreach (var person in scenario.Officers)

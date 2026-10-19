@@ -76,8 +76,14 @@ public static class OfficerDetails
             var row = OfficerCatalog.Read(view, texts, page, null, null, id).Rows.Single(r => r.Key.Id == id);
             for (int c = 0; c < definition.Columns.Length; c++)
                 values[definition.Columns[c].Id] = new(definition.Columns[c].Title, row.Cells[c].Text);
-            if (page >= 4) tactics.Add(new(definition.Title, (int)row.Cells[1].Number!.Value,
-                definition.Columns.Skip(2).Select((c, index) => new OfficerTactic(c.Title, row.Cells[index + 2].Number > 0)).ToArray()));
+            if (page >= 4)
+            {
+                var cells = definition.Columns.Select((column, index) => (Column: column, Cell: row.Cells[index])).ToArray();
+                tactics.Add(new(definition.Title,
+                    (int)cells.Single(c => c.Column.Id.StartsWith("proficiency.", StringComparison.Ordinal)).Cell.Number!.Value,
+                    cells.Where(c => c.Column.Id.StartsWith("tactic.", StringComparison.Ordinal))
+                        .Select(c => new OfficerTactic(c.Column.Title, c.Cell.Number > 0)).ToArray()));
+            }
         }
         string name = texts.Resolve(officer.NameKey);
         if (officer.CourtesyNameKey is string courtesy) name += $"〈{texts.Resolve(courtesy)}〉";

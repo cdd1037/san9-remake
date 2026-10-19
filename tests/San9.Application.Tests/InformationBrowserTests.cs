@@ -158,12 +158,43 @@ public sealed class InformationBrowserTests
         Assert.Equal("良", ability.Rows.Single(r => r.Key.Id == 1).Cells[6].Text);
         var infantry = query.Read(InformationCategory.Officers, 4);
         var cells = infantry.Rows.Single(r => r.Key.Id == 1).Cells;
-        Assert.Equal(200, cells[1].Number);
-        Assert.Equal(["○", "△", "△"], cells.Skip(2).Select(c => c.Text));
-        Assert.All(infantry.Rows.Single(r => r.Key.Id == 2).Cells.Skip(2), c => Assert.Equal("", c.Text));
+        Assert.Equal(200, cells[2].Number);
+        Assert.Equal(["○", "△", "△"], cells.Skip(3).Select(c => c.Text));
+        Assert.All(infantry.Rows.Single(r => r.Key.Id == 2).Cells.Skip(3), c => Assert.Equal("", c.Text));
         for (int page = 0; page < 13; page++)
             Assert.Equal(ability.Rows.Select(r => r.Key), query.Read(InformationCategory.Officers, page).Rows.Select(r => r.Key));
         Assert.Equal(before, session.Snapshot.Revision);
+    }
+
+    [Fact]
+    public void TacticPagesExposeMasteryIndependentlyOfProficiencyAndPreserveDetailTactics()
+    {
+        var definition = G01ScenarioTests.Fixture();
+        var session = GameSession.Start(definition, 1);
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion,
+            definition.Officers.Select(o => o.NameKey).Concat(definition.Settlements.Select(s => s.NameKey))
+                .ToDictionary(key => key, key => key));
+        var original = session.Snapshot;
+        var world = original with { Officers = original.Officers.Select(o => o.Id == 1
+            ? o with { MasteredCategories = [0, 2, 4, 6, 8], TacticProficiencies = [0, 600, 0, 600, 0, 600, 0, 600, 0] }
+            : o with { MasteredCategories = [] }).ToArray() };
+        var view = new StrategySnapshot(definition, world);
+        var detail = OfficerDetails.Read(view, texts, 1);
+        var previousDetail = OfficerDetails.Read(session.View, texts, 1);
+        for (int category = 0; category < 9; category++)
+        {
+            var table = OfficerCatalog.Read(view, texts, category + 4, null, null);
+            int mastery = Array.IndexOf(table.Columns, "精通");
+            var mastered = table.Rows.Single(r => r.Key.Id == 1).Cells[mastery];
+            Assert.Equal(new CatalogCell(category % 2 == 0 ? "☆" : "", category % 2 == 0 ? 1 : 0), mastered);
+            Assert.Equal(new CatalogCell("", 0), table.Rows.Single(r => r.Key.Id == 2).Cells[mastery]);
+            Assert.Equal(world.Officers.Single(o => o.Id == 1).TacticProficiencies[category], detail.Tactics[category].Proficiency);
+            Assert.Equal(previousDetail.Tactics[category].Tactics, detail.Tactics[category].Tactics);
+            var state = new CatalogTableState();
+            state.SetRows(table.Rows.Select(r => new CatalogRow(r.Key.Id, r.Cells)).ToArray());
+            state.Sort(mastery);
+            Assert.Equal(category % 2 == 0 ? 1 : 0, state.Rows[0].Cells[mastery].Number);
+        }
     }
 
     [Fact]

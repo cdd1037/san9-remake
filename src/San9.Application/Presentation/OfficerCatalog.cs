@@ -9,7 +9,7 @@ public static class OfficerCatalog
     private static CatalogColumn N(string id, string title, int width = 3) => C(id, title, width, CatalogAlignment.Right);
     private static CatalogPage P(string title, params CatalogColumn[] columns) => new(title, [C("name", "武将", 8, CatalogAlignment.Left), .. columns]);
     private static CatalogPage T(string title, int category, params string[] tactics) => P(title,
-        [N($"proficiency.{category}", title + "熟练", 4), .. tactics.Select((name, index) => C($"tactic.{TacticStarts[category] + index}", name, 2))]);
+        [C($"mastery.{category}", "精通", 2), N($"proficiency.{category}", title + "熟练", 4), .. tactics.Select((name, index) => C($"tactic.{TacticStarts[category] + index}", name, 2))]);
     private static readonly int[] TacticStarts = [0, 3, 6, 9, 12, 15, 19, 23, 27];
     public static IReadOnlyList<CatalogPage> Pages { get; } = Array.AsReadOnly(new[]
     {
@@ -69,6 +69,11 @@ public static class OfficerCatalog
                 }
                 CatalogCell Cell(string id)
                 {
+                    if (id.StartsWith("mastery.", StringComparison.Ordinal))
+                    {
+                        bool mastered = person.MasteredCategories.Contains(int.Parse(id.AsSpan(8)));
+                        return new(mastered ? "☆" : "", mastered ? 1 : 0);
+                    }
                     if (id.StartsWith("proficiency.", StringComparison.Ordinal)) return person.TacticProficiencies[int.Parse(id.AsSpan(12))];
                     if (id.StartsWith("tactic.", StringComparison.Ordinal))
                     {

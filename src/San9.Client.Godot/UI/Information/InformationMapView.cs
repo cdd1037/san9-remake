@@ -242,7 +242,7 @@ public partial class InformationMapView : FixedPage, IInformationPage
         var forces=ReadView().Forces.ToDictionary(f=>f.Id);
         if (Selection is not null)
         {
-            var selected = Textures.Get("information-map-selected", this);
+            var selected = Textures.Get("information-map-selected", _markerLayer);
             foreach (var marker in _markers)
                 if (marker.TargetId is int id && Selection.Selected.Contains(id))
                     _markerLayer.DrawTexture(selected,Center(marker)-selected.GetSize()/2);
@@ -253,7 +253,7 @@ public partial class InformationMapView : FixedPage, IInformationPage
             string role = Category == InformationCategory.Cities ? "information-map-city" : $"information-map-force-{color}";
             int frame = marker.TargetId is null ? 3 :
                 _hovered == marker.TargetId ? (_pressedTarget == marker.TargetId ? 2 : 1) : 0;
-            var t=Textures.Get(role+(frame == 0 ? "" : $"-{frame}"), this);
+            var t=Textures.Get(role+(frame == 0 ? "" : $"-{frame}"), _markerLayer);
             _markerLayer.DrawTexture(t,Center(marker)-t.GetSize()/2);
         }
     }

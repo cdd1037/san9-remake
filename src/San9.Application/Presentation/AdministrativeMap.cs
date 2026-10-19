@@ -17,8 +17,10 @@ public static class AdministrativeMap
         }).ToArray();
     }
     public static InformationField[] Summary(StrategySnapshot view, TextCatalog texts, InformationKey key)
+        => Summary(new AdministrativeCatalog(view, texts), key);
+
+    public static InformationField[] Summary(AdministrativeCatalog catalog, InformationKey key)
     {
-        var catalog = new AdministrativeCatalog(view,texts);
         (string Id,string Label)[] columns = key.Category switch {
             InformationCategory.Forces => [("name","势力"),("rank","官爵"),("trust","信望"),("tactics","兵法"),
                 ("relation","友好"),("adviser","军师"),("cities","都市"),("officers","在任"),

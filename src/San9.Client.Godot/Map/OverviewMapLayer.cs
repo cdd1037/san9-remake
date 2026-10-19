@@ -20,14 +20,13 @@ public sealed class OverviewMapLayer(TextureService service, InterfaceSkin skin)
         return new((float)p.X * 800, (float)p.Y * 400);
     }
 
-    public void Update(StrategySnapshot view, IReadOnlySet<int>? highlightedCities = null)
+    public void Update(StrategySnapshot view)
     {
         var forces = view.Forces.ToDictionary(f => f.Id, f => f.ColorCode);
         var colors = view.Settlements.Where(s => s.Kind == SettlementKind.City).ToDictionary(s => s.Id, s =>
         {
             int code = s.OwnerId is int owner ? forces[owner] : 50;
             var color = new Color(skin.Colors[$"overview-force-{code}"]);
-            if (highlightedCities?.Contains(s.Id) == true) color = color.Lerp(Colors.White, .45f);
             return new OverviewColor((byte)color.R8, (byte)color.G8, (byte)color.B8);
         });
         if (_territories is not null && colors.Count == _colors.Count && colors.All(p => _colors.TryGetValue(p.Key, out var color) && color == p.Value)) return;
@@ -42,7 +41,17 @@ public sealed class OverviewMapLayer(TextureService service, InterfaceSkin skin)
     {
         owner.DrawTexture(textures["overview-terrain"], origin);
         if (!showTerritories || _territories is null) return;
-        owner.DrawTexture(_territories, origin);
+        DrawTerritories(owner, origin);
+        DrawBorders(owner, origin);
+    }
+
+    public void DrawTerritories(CanvasItem owner, Vector2 origin)
+    {
+        if (_territories is not null) owner.DrawTexture(_territories, origin);
+    }
+
+    public void DrawBorders(CanvasItem owner, Vector2 origin)
+    {
         owner.DrawSetTransform(origin);
         foreach (var border in _borders)
             owner.DrawPolyline(border, new Color(0, 0, 0, 143 / 255f), 1.5f, true);

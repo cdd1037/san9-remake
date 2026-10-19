@@ -12,7 +12,7 @@ public sealed class AmphibiousMovementTests
         [new(100, 6, 0, 10000, 5, new(1, 1), TravelMode.Land) { Combat = new(10, 10, 10, 10, 50),
             Attack = new(1, false), CaptureRanks = [BattleRank.Front, BattleRank.Middle, BattleRank.Middle, BattleRank.Rear, BattleRank.Rear] },
          new(200, shipSpeed, 0, 10000, 5, shipShape ?? new(1, 1), TravelMode.Water) { Combat = new(20, 20, 20, 20, 50),
-            Attack = new(4, false) { RequiresWaterOrHarbor = true }, CaptureRanks = Enumerable.Repeat(BattleRank.Middle, 5).ToImmutableArray() }], []));
+            Attack = new(4, false) { RequiresWaterContact = true }, CaptureRanks = Enumerable.Repeat(BattleRank.Middle, 5).ToImmutableArray() }], []));
 
     [Fact]
     public void AttackRangeAndRanksResolveFromTheActualOrCandidateShore()

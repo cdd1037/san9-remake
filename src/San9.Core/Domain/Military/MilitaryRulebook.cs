@@ -47,7 +47,7 @@ public sealed record OrdinaryAttack(int Range, bool DamagesWalls)
 {
     [JsonRequired] public int ElevationBonusPerLevel { get; init; }
     [JsonRequired] public int MaximumElevationBonus { get; init; }
-    [JsonRequired] public bool RequiresWaterOrHarbor { get; init; }
+    [JsonRequired] public bool RequiresWaterContact { get; init; }
     [JsonRequired] public bool RangedSiege { get; init; }
 }
 
@@ -360,14 +360,13 @@ public sealed partial class MilitaryRulebook
     public bool IsHarbor(SettlementState settlement) => !settlement.IsDestroyed && TryPlace(settlement, out var place) &&
         place.FacilityTypeId is int type && Facilities[type].IsHarbor;
 
-    public bool CanAttackTarget(OrdinaryAttack? attack, WorldPosition target, bool targetIsSettlement, bool targetIsHarbor) =>
-        attack is not null && (!attack.RequiresWaterOrHarbor || (targetIsSettlement ? targetIsHarbor : Map.IsWater(target)));
-
-    public int AttackRange(OrdinaryAttack? attack, WorldPosition source, WorldPosition target, bool targetIsSettlement, bool targetIsHarbor)
+    public int AttackRange(OrdinaryAttack? attack, MapOccupancy source, MapOccupancy target, bool targetIsSettlement,
+        Func<WorldPosition, bool>? blocksContact = null)
     {
-        if (!CanAttackTarget(attack, target, targetIsSettlement, targetIsHarbor)) return 0;
-        if (attack!.ElevationBonusPerLevel == 0) return attack.Range;
-        var from = MapCoordinates.Cell(source); var to = MapCoordinates.Cell(target);
+        if (!CanAttackTarget(attack, target, targetIsSettlement)) return 0;
+        if (attack!.RequiresWaterContact && !HasWaterContact(source, target, attack.Range, targetIsSettlement, blocksContact)) return 0;
+        if (attack.ElevationBonusPerLevel == 0) return attack.Range;
+        var from = MapCoordinates.Cell(source.Position); var to = MapCoordinates.Cell(target.Position);
         long difference = (long)elevations[from.Y * Map.Width + from.X] - elevations[to.Y * Map.Width + to.X];
         return checked(attack.Range + (int)Math.Min(attack.MaximumElevationBonus, Math.Max(0L, difference) * attack.ElevationBonusPerLevel));
     }

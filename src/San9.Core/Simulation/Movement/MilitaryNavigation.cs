@@ -38,15 +38,16 @@ internal static class MilitaryNavigation
         var order = unit.EffectiveOrder!;
         var formation = rules.Formations[unit.FormationId!.Value];
         var naval = unit.NavalFormationId is int id ? rules.Formations[id] : null;
-        int Range(FormationRule? f) => f?.Attack?.RangedSiege == true
-            ? Math.Max(1, checked(f.Attack.Range + f.Attack.MaximumElevationBonus)) : 1;
+        int Range(FormationRule? f) => f?.Attack is { } attack && (attack.RangedSiege || attack.RequiresWaterContact)
+            ? Math.Max(1, checked(attack.Range + attack.MaximumElevationBonus)) : 1;
         var travel = rules.Travel(unit);
         if (order.IsAttack)
             return NavigationArrivalForecast.Advance(travel, unit.Position, MilitaryCombat.TargetArea(world, order, rules), true,
                 world.MovementOccupancy(rules, unit.OwnerId, unit.Policies, movingUnit, null), budget, work, unit.Lookahead,
                 range: position => MilitaryCombat.ApproachRange(world, unit, order, rules, position), rectangularReach: true,
                 maximumRange: Math.Max(Range(formation), Range(naval)),
-                lookaheadCells: order.UnitId is null ? 25 : 6, randomSeed: seed, continueApproach: true, mobility: rules.Formation(unit).MovementBudget / 5);
+                lookaheadCells: order.UnitId is null ? 25 : 6, randomSeed: seed, continueApproach: true, mobility: rules.Formation(unit).MovementBudget / 5,
+                requireTargetClearance: formation.Attack?.RequiresWaterContact == true || naval?.Attack?.RequiresWaterContact == true);
         var target = order.Construction is { } construction
             ? rules.FacilityArea(construction.Position, construction.FacilityTypeId)
             : order.SettlementId is int destination

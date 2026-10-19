@@ -100,7 +100,7 @@ public sealed class MilitaryContentCompilerTests
                 source.DefensePower, source.Id == 7 ? 80 : 50), formation.Combat);
             Assert.Equal(source.Id == 27 ? null : new OrdinaryAttack(source.Id == 10 ? 15 : source.Id is 21 or 26 ? 5 : 10, true)
                 { ElevationBonusPerLevel = source.Id < 20 ? 5 : 0, MaximumElevationBonus = source.Id < 20 ? 10 : 0,
-                    RequiresWaterOrHarbor = source.Id is 21 or 26, RangedSiege = source.Id == 10 }, formation.Attack);
+                    RequiresWaterContact = source.Id is 21 or 26, RangedSiege = source.Id == 10 }, formation.Attack);
             Assert.Equal(source.Id is not (13 or 14), formation.GainsDailyCombatProficiency);
             Assert.Equal(source.Id == 7, formation.HalvesHostileStrategyChance);
             Assert.Equal(source.Id == 27, formation.ImmuneToDisorder);

@@ -43,6 +43,8 @@ public readonly record struct MapOccupancy(WorldPosition Position, Footprint Foo
     }
     public bool Overlaps(MapOccupancy other) =>
         Left < other.Right && other.Left < Right && Top < other.Bottom && other.Top < Bottom;
+    public bool Contains(WorldPosition point) =>
+        point.X >= Left && point.X < Right && point.Y >= Top && point.Y < Bottom;
     public bool IntersectsExpanded(MapOccupancy other, int range)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(range);

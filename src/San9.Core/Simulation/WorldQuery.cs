@@ -15,6 +15,7 @@ internal interface IWorldQuery
     IReadOnlyDictionary<(int FirstId, int SecondId), ForceRelation> Relations { get; }
     IEnumerable<OfficerState> ServingUnitMembers(int unitId);
     bool HasTreasureTactic(int officerId, int tacticId, TreasureRulebook rules);
+    bool BlocksWaterContact(MilitaryRulebook rules, WorldPosition position, int? target);
     IReadOnlyList<MapOccupancy> MovementOccupancy(MilitaryRulebook rules, int owner, UnitPolicies policies, int? movingUnit, int? entry);
 }
 
@@ -45,7 +46,6 @@ internal sealed class WorldQuery : IWorldQuery
     private readonly ILookup<int, TreasureState> treasures;
     private readonly ILookup<int, OfficerState> members;
     private MovementOccupancy? occupancy;
-    private MilitaryRulebook? occupancyRules;
     private readonly Dictionary<(int Owner, UnitPolicies Policies, int? MovingUnit, int? Entry), IReadOnlyList<MapOccupancy>> passages = [];
 
     internal void SetForecastUnit(UnitState unit)
@@ -61,18 +61,26 @@ internal sealed class WorldQuery : IWorldQuery
     public bool HasTreasureTactic(int officerId, int tacticId, TreasureRulebook rules) => treasures[officerId].Any(t =>
         t.Discovery != TreasureDiscovery.Disabled && t.Discovered && rules.Items[t.Id].TacticId == tacticId);
 
-    public IReadOnlyList<MapOccupancy> MovementOccupancy(MilitaryRulebook rules, int owner, UnitPolicies policies, int? movingUnit, int? entry)
+    public bool BlocksWaterContact(MilitaryRulebook rules, WorldPosition position, int? target) =>
+        OccupancyFor(rules).BlocksContact(position, target);
+
+    private MovementOccupancy OccupancyFor(MilitaryRulebook rules)
     {
-        if (occupancy is null || !ReferenceEquals(occupancyRules, rules))
+        if (occupancy is null || !ReferenceEquals(occupancy.Rules, rules))
         {
             occupancy = new(this, rules);
-            occupancyRules = rules;
             passages.Clear();
         }
+        return occupancy;
+    }
+
+    public IReadOnlyList<MapOccupancy> MovementOccupancy(MilitaryRulebook rules, int owner, UnitPolicies policies, int? movingUnit, int? entry)
+    {
+        var current = OccupancyFor(rules);
         var key = (owner, policies, movingUnit, entry);
         if (!passages.TryGetValue(key, out var result))
         {
-            result = occupancy.Query(this, owner, policies, movingUnit, entry).ToImmutableArray();
+            result = current.Query(this, owner, policies, movingUnit, entry).ToImmutableArray();
             passages.Add(key, result);
         }
         return result;

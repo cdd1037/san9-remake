@@ -6,13 +6,37 @@ namespace San9.Core.Simulation;
 /// <summary>World-owned occupancy rectangles in stable order; passage is filtered per query.</summary>
 internal sealed class MovementOccupancy
 {
-    private readonly MilitaryRulebook rules;
+    internal MilitaryRulebook Rules { get; }
     private readonly SortedDictionary<(bool Unit, int Id), MapOccupancy> areas = [];
+
+    private readonly Dictionary<MapCell, HashSet<int>> buildingCells = [];
+
+    internal bool BlocksContact(WorldPosition position, int? target)
+    {
+        if (!buildingCells.TryGetValue(MapCoordinates.Cell(position), out var ids)) return false;
+        foreach (int id in ids)
+        {
+            if (id == target) continue;
+            var area = areas[(false, id)];
+            if (area.Contains(position)) return true;
+        }
+        return false;
+    }
+
+    private IEnumerable<MapCell> BuildingCells(MapOccupancy area)
+    {
+        int scale = MapCoordinates.UnitsPerCell;
+        long left = Math.Max(0, area.Left), top = Math.Max(0, area.Top);
+        long right = Math.Min(Rules.Map.FineWidth, area.Right), bottom = Math.Min(Rules.Map.FineHeight, area.Bottom);
+        if (left >= right || top >= bottom) yield break;
+        for (int y = (int)(top / scale); y <= (bottom - 1) / scale; y++)
+            for (int x = (int)(left / scale); x <= (right - 1) / scale; x++) yield return new(x, y);
+    }
 
     internal MovementOccupancy(IWorldQuery world, MilitaryRulebook rules) : this(world.Settlements.Values, world.Units.Values, rules) { }
     private MovementOccupancy(IEnumerable<SettlementState> places, IEnumerable<UnitState> units, MilitaryRulebook rules)
     {
-        this.rules = rules;
+        Rules = rules;
         foreach (var place in places) Set(place);
         foreach (var unit in units) Set(unit);
     }
@@ -26,18 +50,28 @@ internal sealed class MovementOccupancy
     }
 
     internal void Set(UnitState unit) => Set((true, unit.Id), unit.FormationId is int id
-        ? new(unit.Position, rules.UnitFootprint(unit)) : null);
-    internal void Set(SettlementState place) => Set((false, place.Id), !place.IsDestroyed && rules.TryPlace(place, out var p)
-        ? rules.BuildingArea(p) : null);
+        ? new(unit.Position, Rules.UnitFootprint(unit)) : null);
+    internal void Set(SettlementState place) => Set((false, place.Id), !place.IsDestroyed && Rules.TryPlace(place, out var p)
+        ? Rules.BuildingArea(p) : null);
     internal void RemoveUnit(int id) => Set((true, id), null);
     private void Set((bool Unit, int Id) key, MapOccupancy? area)
     {
-        if (area is not { } next) areas.Remove(key);
-        else
+        if (area is { } next) area = next with { Object = new(key.Id, !key.Unit) };
+        if (areas.TryGetValue(key, out var previous))
         {
-            next = next with { Object = new(key.Id, !key.Unit) };
-            if (!areas.TryGetValue(key, out var previous) || previous != next) areas[key] = next;
+            if (area == previous) return;
+            if (!key.Unit)
+                foreach (var cell in BuildingCells(previous))
+                    if (buildingCells.TryGetValue(cell, out var ids) && ids.Remove(key.Id) && ids.Count == 0) buildingCells.Remove(cell);
         }
+        if (area is not { } value) { areas.Remove(key); return; }
+        areas[key] = value;
+        if (!key.Unit)
+            foreach (var cell in BuildingCells(value))
+            {
+                if (!buildingCells.TryGetValue(cell, out var ids)) buildingCells[cell] = ids = [];
+                ids.Add(key.Id);
+            }
     }
 
     internal IReadOnlyList<MapOccupancy> Query(IWorldQuery world, int owner, UnitPolicies policies, int? movingUnit = null, int? entry = null)
@@ -62,7 +96,7 @@ internal sealed class MovementOccupancy
             {
                 if (key.Id == entry) continue;
                 var place = places[key.Id];
-                if (rules.Place(place).FacilityTypeId is int type && rules.Facilities[type].IsWork) result.Add(area with { Avoidance = NavigationAvoidance.Facility });
+                if (Rules.Place(place).FacilityTypeId is int type && Rules.Facilities[type].IsWork) result.Add(area with { Avoidance = NavigationAvoidance.Facility });
                 else if (place.OwnerId is not null && enemyOf(place.OwnerId))
                     result.Add(area with { Avoidance = NavigationAvoidance.Facility });
                 else result.Add(area with { Hard = false, Avoidance = NavigationAvoidance.None });

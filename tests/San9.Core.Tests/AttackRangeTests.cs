@@ -17,7 +17,7 @@ public sealed class AttackRangeTests
             [new(7000, movementBudget, 0, 100000, 1, new(1, 1), TravelMode.Land)
                 { Combat = combat, CaptureRanks = [BattleRank.Front],
                     Attack = new(1, false) { ElevationBonusPerLevel = restricted ? 0 : 5, MaximumElevationBonus = restricted ? 0 : 10,
-                        RequiresWaterOrHarbor = restricted }, Tactics = new(100, 0, 2, [0], []) },
+                        RequiresWaterContact = restricted }, Tactics = new(100, 0, 2, [0], []) },
                 new(7001, 1, 0, 100000, 1, new(1, 1), TravelMode.Land)
                 { Combat = combat, Attack = new(1, false), CaptureRanks = [BattleRank.Front] }],
             [new(1, new(2, 2), new(1, 1)) { FacilityTypeId = 8000, Combat = combat },
@@ -67,10 +67,10 @@ public sealed class AttackRangeTests
     [Theory]
     [InlineData(false, true, false, true)]
     [InlineData(false, false, true, false)]
-    [InlineData(true, false, true, true)]
-    [InlineData(true, true, false, false)]
+    [InlineData(true, false, true, false)]
+    [InlineData(true, true, false, true)]
     [InlineData(true, false, false, false)]
-    public void RestrictedAttackUsesTargetWaterTerrainOrActualHarbor(bool settlement, bool water, bool harbor, bool accepted)
+    public void WaterContactEligibilityUsesShorelineInsteadOfBuildingType(bool settlement, bool water, bool harbor, bool accepted)
     {
         var engine = Engine(restricted: true, waterTarget: water, harbor: harbor);
         var before = engine.Snapshot;
@@ -90,6 +90,6 @@ public sealed class AttackRangeTests
     {
         var attack = new OrdinaryAttack(10, false) { ElevationBonusPerLevel = 5, MaximumElevationBonus = 10 };
         var rules = new MilitaryRulebook(new(2, 1, [0, 0], [new(0, 1, 1)], [], []) { Elevations = [difference, 0] });
-        Assert.Equal(expected, rules.AttackRange(attack, new(2, 2), new(7, 2), false, false));
+        Assert.Equal(expected, rules.AttackRange(attack, new(new(2, 2), new(1, 1)), new(new(7, 2), new(1, 1)), false));
     }
 }

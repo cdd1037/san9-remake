@@ -36,18 +36,23 @@ internal static class MilitaryCombat
         if (formation.Combat is null || formation.Attack is null) return false;
         if (order.Kind == MilitaryOrderKind.AttackUnit)
             return order.UnitId is int id && world.Units.TryGetValue(id, out var unit) && MilitaryDiplomacy.CanFight(world, owner, unit.OwnerId) &&
-                unit.FormationId is int f && rules.Formation(unit).Combat is not null && rules.CanAttackTarget(formation.Attack, unit.Position, false, false);
+                unit.FormationId is not null && rules.Formation(unit).Combat is not null && rules.CanAttackTarget(formation.Attack, Area(unit, rules), false);
         return order.Kind == MilitaryOrderKind.AttackSettlement && order.SettlementId is int place &&
             world.Settlements.TryGetValue(place, out var settlement) && !settlement.IsDestroyed && settlement.Facility?.BuilderUnitId is null &&
             MilitaryDiplomacy.CanFight(world, owner, settlement.OwnerId) && rules.TryPlace(settlement, out var definition) && definition.Combat is not null &&
-            rules.CanAttackTarget(formation.Attack, definition.Position, true, rules.IsHarbor(settlement));
+            rules.CanAttackTarget(formation.Attack, rules.BuildingArea(definition), true);
     }
 
     internal static int UnitRange(IWorldQuery world, UnitState source, MilitaryOrder target, MilitaryRulebook rules, WorldPosition? position = null)
+        => UnitRange(world, source, TargetArea(world, target, rules), target.SettlementId, rules, position);
+
+    private static int UnitRange(IWorldQuery world, UnitState source, MapOccupancy target, int? settlementId,
+        MilitaryRulebook rules, WorldPosition? position = null)
     {
-        var targetPosition = target.UnitId is int id ? world.Units[id].Position : rules.Place(world.Settlements[target.SettlementId!.Value]).Position;
-        return rules.AttackRange(rules.Formation(source, position).Attack, position ?? source.Position, targetPosition,
-            target.UnitId is null, target.SettlementId is int place && rules.IsHarbor(world.Settlements[place]));
+        var actualPosition = position ?? source.Position;
+        var attack = rules.Formation(source, actualPosition).Attack;
+        return rules.AttackRange(attack, Area(source, rules, actualPosition), target, settlementId is not null,
+            attack?.RequiresWaterContact == true ? point => world.BlocksWaterContact(rules, point, settlementId) : null);
     }
 
     internal static int FacilityRange(IWorldQuery world, SettlementState source, UnitState target, MilitaryRulebook rules) =>
@@ -57,7 +62,8 @@ internal static class MilitaryCombat
         order.UnitId is int id ? Area(world.Units[id], rules) :
         rules.SettlementArea(world.Settlements[order.SettlementId!.Value]);
 
-    internal static MapOccupancy Area(UnitState unit, MilitaryRulebook rules) => new(unit.Position, rules.UnitFootprint(unit));
+    internal static MapOccupancy Area(UnitState unit, MilitaryRulebook rules, WorldPosition? position = null) =>
+        new(position ?? unit.Position, rules.UnitFootprint(unit, position));
 
     internal static int WallDamage(WorldMutation world, UnitState unit, SettlementState target, MilitaryRulebook rules)
     {
@@ -75,9 +81,10 @@ internal static class MilitaryCombat
     internal static int ApproachRange(IWorldQuery world, UnitState source, MilitaryOrder target, MilitaryRulebook rules, WorldPosition position)
     {
         var formation = rules.Formation(source, position);
+        if (formation.Attack?.RequiresWaterContact == true) return UnitRange(world, source, target, rules, position);
         if (formation.Attack?.RangedSiege != true || rules.Map.IsWater(position)) return 1;
         int reach = UnitRange(world, source, target, rules, position);
-        var area = new MapOccupancy(position, rules.UnitFootprint(source, position));
+        var area = Area(source, rules, position);
         bool targetCanReply;
         if (target.SettlementId is int id)
         {
@@ -89,8 +96,7 @@ internal static class MilitaryCombat
         else
         {
             var unit = world.Units[target.UnitId!.Value];
-            int range = rules.AttackRange(rules.Formation(unit).Attack, unit.Position, position, false, false);
-            targetCanReply = Area(unit, rules).IntersectsExpanded(area, range);
+            targetCanReply = Area(unit, rules).IntersectsExpanded(area, UnitRange(world, unit, area, null, rules));
         }
         return targetCanReply ? 1 : reach;
     }

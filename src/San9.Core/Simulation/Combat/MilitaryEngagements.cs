@@ -83,7 +83,9 @@ internal static class MilitaryEngagements
                 ? military.SettlementArea(place) : null
             : world.Units.TryGetValue(target.Id, out var unit) && unit.FormationId is not null ? MilitaryCombat.Area(unit, military) : null;
         return source.FormationId is not null && area is { } other &&
-            MilitaryCombat.Area(source, military).IntersectsExpanded(other, MapCoordinates.UnitsPerCell);
+            MilitaryCombat.Area(source, military).IntersectsExpanded(other, MapCoordinates.UnitsPerCell) &&
+            (military.Formation(source).Attack?.RequiresWaterContact != true ||
+                MilitaryCombat.UnitRange(world, source, MilitaryContacts.Attack(target), military) > 0);
     }
 
     // A frozen-world ETA predicts the next combat phase for its one moving subject only.
@@ -95,7 +97,8 @@ internal static class MilitaryEngagements
             FindTarget(world, unit, military) is { } own && area.IntersectsExpanded(own.Area(world, military), MapCoordinates.UnitsPerCell);
         bool passive = world.Units.Values.Any(other => other.Id != unit.Id && other.FormationId is not null &&
             MilitaryCombat.Area(other, military).IntersectsExpanded(area, MapCoordinates.UnitsPerCell) &&
-            (unit.PassiveEngagement && other.ContactTarget is { IsSettlement: false } previous && previous.Id == unit.Id ||
+            (unit.PassiveEngagement && other.ContactTarget is { IsSettlement: false } previous && previous.Id == unit.Id &&
+                RetainsContact(world, other, previous, military) ||
                 other.EffectiveOrder?.UnitId == unit.Id && FindTarget(world, other, military) == subject));
         if (!passive)
             foreach (var place in world.Settlements.Values)

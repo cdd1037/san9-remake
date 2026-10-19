@@ -158,15 +158,15 @@ public static class MilitaryPlanner
             if (routes.TryGetValue(key, out bool reachable)) return reachable;
             var settlement = world.Settlements.Single(s => s.Id == target);
             var place = rules.Place(settlement);
-            if (!rules.CanAttackTarget(formation.Attack, place.Position, true, rules.IsHarbor(settlement)) &&
-                (navalId is not int naval || !rules.CanAttackTarget(rules.Formations[naval].Attack, place.Position, true, rules.IsHarbor(settlement)))) return false;
+            var area = rules.BuildingArea(place);
+            if (!rules.CanAttackTarget(formation.Attack, area, true) &&
+                (navalId is not int naval || !rules.CanAttackTarget(rules.Formations[naval].Attack, area, true))) return false;
             int MaximumRange(OrdinaryAttack? attack) => attack is null ? 0 : checked(attack.Range + attack.MaximumElevationBonus);
             int maximumRange = Math.Max(MaximumRange(formation.Attack), MaximumRange(navalAttack));
-            var area = rules.BuildingArea(place);
             var result = travel.Map.ReachabilityIntoRange(from, area, travel.Shape,
                 travel.Mode, MilitaryRouteQuery.Occupancy(world, rules, seat.ForceId, new(), includeUnits: false)
                     .Where(o => o.Position != area.Position || o.Footprint != area.Footprint),
-                work, maximumRange, position => rules.AttackRange(Attack(position), position, place.Position, true, rules.IsHarbor(settlement)));
+                work, maximumRange, position => rules.AttackRange(Attack(position), new(position, rules.Formation(formation.Id, navalId, position).Footprint), area, true));
             if (result == RouteReachability.Incomplete) return false;
             reachable = result == RouteReachability.Reachable;
             routes.Add(key, reachable);

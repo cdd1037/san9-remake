@@ -20,6 +20,9 @@ internal sealed partial class WorldMutation : IWorldQuery
     IReadOnlyList<MapOccupancy> IWorldQuery.MovementOccupancy(MilitaryRulebook rules, int owner, UnitPolicies policies, int? movingUnit, int? entry) =>
         MovementOccupancy(rules, owner, policies, movingUnit, entry);
 
+    bool IWorldQuery.BlocksWaterContact(MilitaryRulebook rules, WorldPosition position, int? target) =>
+        OccupancyFor(rules).BlocksContact(position, target);
+
     private readonly WorldState _owner;
     private readonly long _expectedRevision;
     private bool _committed;
@@ -31,7 +34,14 @@ internal sealed partial class WorldMutation : IWorldQuery
     private MilitaryRulebook? _engagementRules;
     private MovementOccupancy? _movementOccupancy;
     internal IReadOnlyList<MapOccupancy> MovementOccupancy(MilitaryRulebook rules, int owner, UnitPolicies policies, int? movingUnit, int? entry) =>
-        (_movementOccupancy ??= new(this, rules)).Query(this, owner, policies, movingUnit, entry);
+        OccupancyFor(rules).Query(this, owner, policies, movingUnit, entry);
+
+    private MovementOccupancy OccupancyFor(MilitaryRulebook rules)
+    {
+        if (_movementOccupancy is null || !ReferenceEquals(_movementOccupancy.Rules, rules))
+            _movementOccupancy = new(this, rules);
+        return _movementOccupancy;
+    }
 
     internal EngagementRelations Engagements(MilitaryRulebook military)
     {

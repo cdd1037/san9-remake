@@ -73,7 +73,7 @@ public static class MilitaryContentCompiler
                     {
                         ElevationBonusPerLevel = Mode(f.Id) == TravelMode.Land ? 5 : 0,
                         MaximumElevationBonus = Mode(f.Id) == TravelMode.Land ? 10 : 0,
-                        RequiresWaterOrHarbor = f.Id is 21 or 26, RangedSiege = f.Id == 10
+                        RequiresWaterContact = f.Id is 21 or 26, RangedSiege = f.Id == 10
                     },
                     DoublesCapture = f.Id == 1,
                     PreventsTacticRescue = f.Id == 1,

@@ -102,5 +102,5 @@ public sealed partial class MilitaryRulebook
 
     public int FacilityAttackRange(SettlementState source, WorldPosition target, IEnumerable<SettlementState> settlements) =>
         RockfallCovers(source, target, settlements) ? Rockfall!.AttackRange :
-        AttackRange(FacilityAttack(source).Attack, Place(source).Position, target, false, false);
+        AttackRange(FacilityAttack(source).Attack, SettlementArea(source), new(target, new(1, 1)), false);
 }

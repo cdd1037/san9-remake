@@ -121,9 +121,13 @@ public sealed class GiftSessionTests
         Assert.Equal(1, pending.RespondingForceId);
         Assert.Equal(AdviserOpinion.Unavailable, session.GetGiftAdvice(2, 21, 1, new(GiftKind.Money, 1000, null)).Opinion);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
-        var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
-            pending.RemainingTaskIds[0], 0, accept);
-        var result = session.Execute(new("player"), response);
+        var draft = DecisionDraftTests.DiplomacyDraft(session, "gift");
+        Assert.Equal("gift", draft.Role);
+        Assert.Equal(pending.RemainingTaskIds[0], draft.Diplomacy!.TaskId);
+        Assert.Equal(new GiftOffer(kind, amount, kind == GiftKind.Treasure ? 9 : null), draft.Diplomacy.Gift);
+        var response = draft.Options.Single(o => o.Role == (accept ? "accept" : "decline"))
+            .CreateCommand(Guid.NewGuid(), session.Snapshot.Simulation.NextSequence, null, 0);
+        var result = session.Execute(new(draft.ControllerId), response);
         Assert.True(result.Submission.Accepted);
         EventAssert.Equal(result.Events, restored.Execute(new("player"), response).Events);
         StateAssert.Equal(session.Capture(), restored.Capture());

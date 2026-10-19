@@ -43,8 +43,14 @@ public sealed class SurrenderSessionTests
         var task = Assert.Single(session.Snapshot.Simulation.Tasks, t => t.Surrender is not null);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var restored = outbound;
-        var response = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, task.Id, 0, accept);
-        var result = session.Execute(new("player"), response);
+        var draft = DecisionDraftTests.DiplomacyDraft(session, "surrender");
+        Assert.Equal("surrender", draft.Role);
+        Assert.Equal(task.Id, draft.Diplomacy!.TaskId);
+        Assert.Equal(2, draft.Diplomacy.RequesterForceId);
+        Assert.Equal(1, draft.Diplomacy.TargetForceId);
+        var response = draft.Options.Single(o => o.Role == (accept ? "accept" : "decline"))
+            .CreateCommand(Guid.NewGuid(), session.Snapshot.Simulation.NextSequence, null, 0);
+        var result = session.Execute(new(draft.ControllerId), response);
         EventAssert.Equal(result.Events, restored.Execute(new("player"), response).Events);
         Assert.Equal(accept, Assert.Single(result.Events.OfType<SurrenderResolvedEvent>()).Accepted);
         Assert.Equal(accept, session.Snapshot.Forces.Single(f => f.Id == 1).IsEliminated);

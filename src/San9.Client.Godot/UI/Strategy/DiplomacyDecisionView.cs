@@ -5,7 +5,7 @@ using San9.Core.Simulation;
 
 namespace San9.Client.Godot;
 
-/// <summary>The four native diplomatic layouts share semantic quote data and child selectors.</summary>
+/// <summary>Diplomatic replies show the incoming proposal and submit the corresponding public response.</summary>
 public partial class DiplomacyDecisionView : FixedPage
 {
     protected override Color PageBackground => new(0, 0, 0, .35f);
@@ -19,25 +19,28 @@ public partial class DiplomacyDecisionView : FixedPage
     {
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
         var data = Draft.Diplomacy!;
-        bool attack = data.TargetSettlementId is not null, accepting = data.Offer is not null;
+        bool binary = Draft.Role is "gift" or "surrender";
+        bool attack = data.TargetSettlementId is not null, accepting = binary || data.Offer is not null;
+        var accept = Draft.Options.Single(o => o.Role == (accepting ? "accept" : "free"));
+        var decline = Draft.Options.Single(o => o.Role == "decline");
         var bounds = attack ? accepting ? new Rect2(292, 248, 440, 272) : new Rect2(292, 228, 440, 312) :
             accepting ? new Rect2(360, 240, 304, 288) : new Rect2(360, 220, 304, 328);
         var window = new CommandWindow { Texts = Texts,
             Textures = Textures,
-            Title = attack ? "请求攻打" : "俘虏返还",
+            Title = Draft.Role switch { "gift" => "接受赠礼", "surrender" => "回应劝降", _ => attack ? "请求攻打" : "俘虏返还" },
             Position = bounds.Position,
             Size = bounds.Size,
             Help = () => { },
             Closed = () => { },
             CanClose = false,
-            Cancelled = () => Choose(Draft.Options.Single(o => o.Role == "decline")),
-            Accepted = () => Choose(Draft.Options.Single(o => o.Role == (accepting ? "accept" : "free"))),
-            AcceptTitle = accepting ? "允诺" : "无",
-            CancelTitle = "拒绝"
+            Cancelled = () => Choose(decline),
+            Accepted = () => Choose(accept),
+            AcceptTitle = accept.Title,
+            CancelTitle = decline.Title
         };
         AddChild(window);
         string Force(int id) => Texts.Resolve(Draft.Before.Forces.Single(f => f.Id == id).NameKey) + "军";
-        Field(window, 0, "执行势力", Force(accepting ? data.TargetForceId : data.RequesterForceId));
+        Field(window, 0, binary ? "来访势力" : "执行势力", Force(binary || !accepting ? data.RequesterForceId : data.TargetForceId));
         Field(window, 32, "友好", data.Relation.ToString());
         if (data.TargetSettlementId is int target)
         {
@@ -63,7 +66,7 @@ public partial class DiplomacyDecisionView : FixedPage
             Field(window, attack ? 160 : 192, "条件", condition);
             if (offer.Kind == CompensationKind.Money) Field(window, attack ? 192 : 224, "资金", $"{data.PaymentBalance} → {data.PaymentBalance - offer.Money}");
         }
-        else
+        else if (!binary)
         {
             string[] roles = ["prisoner", "money", "treasure", "free"];
             for (int i = 0; i < roles.Length; i++)
@@ -73,6 +76,17 @@ public partial class DiplomacyDecisionView : FixedPage
                 button.Disabled = option is null;
             }
         }
+        if (data.Gift is { } gift)
+        {
+            Field(window, 64, "赠礼", gift.Kind switch
+            {
+                GiftKind.Money => $"资金 {gift.Amount}",
+                GiftKind.Food => $"兵粮 {gift.Amount}",
+                GiftKind.Treasure => Texts.Resolve(Draft.Before.Information.Treasures.Single(t => t.Id == gift.TreasureId).NameKey),
+                _ => throw new InvalidDataException("Unknown gift kind.")
+            });
+        }
+        else if (Draft.Role == "surrender") Field(window, 64, "投降于", Force(data.RequesterForceId));
     }
     private void Field(Control parent, int y, string label, string value)
     {

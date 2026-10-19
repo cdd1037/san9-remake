@@ -37,7 +37,15 @@ public sealed class DecisionDraftTests
             .CreateCommand(Guid.NewGuid(), session.Snapshot.Simulation.NextSequence, null, 0);
         var result = session.Execute(new(draft.ControllerId), answer);
         Assert.True(result.Submission.Accepted);
-        Assert.Equal(choice, Assert.Single(result.Events.OfType<SearchConflictResolvedEvent>()).Choice);
+        var resolved = Assert.Single(result.Events.OfType<SearchConflictResolvedEvent>());
+        Assert.Equal(choice, resolved.Choice);
+        if (kind == "mediation" && choice == SearchConflictChoice.MediatePeace)
+        {
+            Assert.Equal(EventResult.Succeeded, resolved.Result);
+            Assert.True(resolved.Soldiers > 0);
+            Assert.NotEqual((long)resolved.Soldiers, resolved.MoneyReward);
+            Assert.Equal(resolved.Soldiers.ToString(), Assert.Single(draft.Results(choice.ToString(), result.Events, null, 0)).Message.BbCode);
+        }
     }
 
     [Theory]
@@ -67,16 +75,24 @@ public sealed class DecisionDraftTests
         return session;
     }
 
+    internal static DecisionDraft DiplomacyDraft(GameSession session, string role) => SearchDraft(session, role, ["accept", "decline"]);
+
     private static DecisionDraft SearchDraft(GameSession session, string role, IEnumerable<string> choices)
     {
         var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, [])
-        { Messages = new() { ["prompt"] = new([new MessageLiteral("选择")]) } };
+        { Messages = new()
+        {
+            ["prompt"] = new([new MessageLiteral("选择")]),
+            ["soldiers"] = new([new MessageValue(new("binding", "number.0"))])
+        } };
         var presentation = CommandPresentation.Empty with
         {
             Decisions = new(new()
             {
                 [role] = new(DecisionWindowKind.VerticalChoice,
-                new("prompt", []), [], [], choices.ToDictionary(c => c, c => c))
+                new("prompt", []), [], role == "mediation"
+                    ? new() { ["success"] = [new("soldiers", new() { ["number.0"] = "soldiers" })] }
+                    : [], choices.ToDictionary(c => c, c => c))
             }, new() { ["citizen"] = 1 })
             {
                 Subjects = new()

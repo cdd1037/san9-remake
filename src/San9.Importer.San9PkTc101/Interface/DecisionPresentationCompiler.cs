@@ -10,6 +10,7 @@ internal static class DecisionPresentationCompiler
         DecisionMessageDefinition M(int source, string? speaker = null, string? sound = null, string? image = null,
             params (string Slot, string Role)[] inputs)
         {
+            // Numeric slots have event-specific meanings; explicit bindings let validation catch omissions.
             Dictionary<string, string> bindings = new()
             {
                 ["person.0"] = speaker ?? "actor",
@@ -18,8 +19,6 @@ internal static class DecisionPresentationCompiler
                 ["force.0"] = "force",
                 ["force.1"] = "target-force",
                 ["building.0"] = "place",
-                ["number.0"] = "cost",
-                ["number.1"] = "amount",
                 ["string.0"] = "subject",
                 ["tactic.0"] = "tactic",
                 ["treasure.0"] = "treasure"
@@ -111,7 +110,7 @@ internal static class DecisionPresentationCompiler
         events["country-title"] = events["country-title"] with { SelectionConfirmation = M(6139) };
         Add("emperor-transfer", DecisionWindowKind.VerticalChoice, M(9326, inputs: [("person.0", "other")]), [], [("accept", "拥立"), ("decline", "废黜")],
             ("accept", [M(9327, "other", inputs: [("person.0", "other")]), M(9328, sound: "decision-announcement"), M(9324, sound: increase)]),
-            ("decline", [M(9330, "other", inputs: [("person.0", "other")]), M(9331, sound: "decision-announcement")]));
+            ("decline", [M(9330, "other", inputs: [("person.0", "other"), ("number.0", "dynasty-years")]), M(9331, sound: "decision-announcement")]));
         Add("office-request", DecisionWindowKind.PersonDisposition, M(6147), [M(6137, sound: "decision-announcement", image: "actor"), M(6188, "actor")], allowNo,
             ("accept", [M(6200, "ruler", inputs: [("person.0", "ruler"), ("person.1", "actor")]), M(6148, "actor"), M(6174, sound: increase)]),
             ("decline", [M(6211, "ruler", inputs: [("person.0", "ruler"), ("person.1", "actor")]), M(6160, "actor")]));
@@ -122,21 +121,21 @@ internal static class DecisionPresentationCompiler
             ("accept", [M(9361, sound: "decision-announcement"), M(9324, sound: increase)]), ("decline", [M(9363, sound: "execution-result")]));
         shared["shanyang-movie-introduction"] = M(7529);
         events["shanyang-title"] = events["country-title"] with { Results = new() { ["choose"] = events["shanyang-gong"].Results["accept"] } };
-        Add("mystic-book-offer", DecisionWindowKind.VerticalChoice, M(8008), [M(7892), M(7893, "other", inputs: [("person.0", "other")])], allowNo,
-            ("accept", [M(7894, "other", inputs: [("person.0", "other")]), M(7895, sound: increase)]),
-            ("decline", [M(7896, "other", inputs: [("person.0", "other")]), M(7897, sound: decrease)]));
+        Add("mystic-book-offer", DecisionWindowKind.VerticalChoice, M(8008, inputs: [("number.0", "cost")]), [M(7892), M(7893, "other", inputs: [("person.0", "other"), ("number.0", "cost")])], allowNo,
+            ("accept", [M(7894, "other", inputs: [("person.0", "other")]), M(7895, sound: increase, inputs: [("number.0", "cost")])]),
+            ("decline", [M(7896, "other", inputs: [("person.0", "other")]), M(7897, sound: decrease, inputs: [("number.0", "cost")])]));
         Add("mystic-book-return", DecisionWindowKind.VerticalChoice, M(8009), [M(7898), M(7899, "other", inputs: [("person.0", "other")])], allowNo,
             ("accept", [M(7900, "other", inputs: [("person.0", "other")]), M(7901, sound: decrease)]), ("decline", [M(7902, "other", inputs: [("person.0", "other")])]));
         Add("scholar-insult", DecisionWindowKind.VerticalChoice, M(8010), [M(7903), M(7904, "other", inputs: [("person.0", "other"), ("person.1", "actor")])], [("accept", "无视"), ("decline", "处斩")],
             ("accept", [M(7905, "other", inputs: [("person.0", "other")]), M(7857, sound: increase)]), ("decline", [M(7906, "other", inputs: [("person.0", "other")]), M(7858, sound: decrease)]));
-        Add("longevity", DecisionWindowKind.Confirmation, M(7881), [M(7878, image: "decision-dippers"), M(7879, "north-dipper"), M(7880, "south-dipper")], yesNo,
+        Add("longevity", DecisionWindowKind.Confirmation, M(7881, inputs: [("number.0", "cost")]), [M(7878, image: "decision-dippers"), M(7879, "north-dipper"), M(7880, "south-dipper")], yesNo,
             ("accept", [M(7882, "south-dipper"), M(7883, "north-dipper"), M(7175, sound: increase)]), ("decline", [M(7884, "north-dipper"), M(7885, sound: decrease)]));
-        Add("treasure-monument", DecisionWindowKind.Confirmation, M(7978), [M(7977)], yesNo,
+        Add("treasure-monument", DecisionWindowKind.Confirmation, M(7978, inputs: [("number.0", "cost")]), [M(7977)], yesNo,
             ("accept", [M(7979, sound: good, image: "decision-tongque"), M(7856), M(7857, sound: increase)]), ("decline", [M(7980)]));
-        Add("scholar-return", DecisionWindowKind.Confirmation, M(7918), [M(7917)], yesNo,
-            ("accept", [M(7919, sound: good), M(7920, "other", inputs: [("person.0", "actor"), ("person.1", "other")]), M(7857, sound: increase)]), ("decline", [M(7921, sound: bad)]));
+        Add("scholar-return", DecisionWindowKind.Confirmation, M(7918, inputs: [("number.0", "cost")]), [M(7917)], yesNo,
+            ("accept", [M(7919, sound: good, inputs: [("number.0", "cost")]), M(7920, "other", inputs: [("person.0", "actor"), ("person.1", "other")]), M(7857, sound: increase)]), ("decline", [M(7921, sound: bad)]));
         Add("merchant-investment", DecisionWindowKind.VerticalChoice, M(8023), [M(7996, image: "trade-image"), M(7997, "citizen", inputs: [("person.0", "citizen"), ("person.1", "actor")])], [("invest", "投资"), ("decline", "拒绝"), ("execute", "处斩")],
-            ("success", [M(7999, "citizen"), M(8000), M(8001, "citizen", good)]), ("failure", [M(7999, "citizen"), M(8000), M(8002, "citizen", bad), M(8003, sound: decrease)]),
+            ("success", [M(7999, "citizen", inputs: [("number.0", "cost")]), M(8000), M(8001, "citizen", good)]), ("failure", [M(7999, "citizen", inputs: [("number.0", "cost")]), M(8000), M(8002, "citizen", bad), M(8003, sound: decrease, inputs: [("number.0", "cost")])]),
             ("decline", [M(8004, "citizen"), M(8005)]), ("execute", [M(8006, "citizen"), M(7858), M(8007, sound: decrease)]));
         Add("tiger", DecisionWindowKind.VerticalChoice, M(8022), [M(7968, image: "decision-beast"), M(7969, "citizen")], allowNo,
             ("success", [M(7970, sound: good), M(7847, "citizen"), M(7857, sound: increase)]), ("failure", [M(7971, sound: bad), M(7858, sound: decrease)]), ("decline", [M(7849, "citizen"), M(7858, sound: decrease)]));
@@ -160,6 +159,23 @@ internal static class DecisionPresentationCompiler
                     new() { ["success"] = [M(6375, sound: good, inputs: [("person.0", "other")])], ["failure"] = [M(6558, sound: bad, inputs: [("person.0", "host"), ("person.1", "other")])] }
             };
         Add("alliance", DecisionWindowKind.Confirmation, M(9390), [], yesNo, ("decline", [M(9394)]));
+        foreach (var (role, prompt, proposal, accepted, refused) in new[]
+            { ("gift", 6087, 6559, 6568, 6581), ("surrender", 6092, 6596, 6605, 6618) })
+        {
+            Add(role, DecisionWindowKind.Diplomacy, M(prompt),
+                [M(6351, sound: "decision-announcement", inputs: [("person.0", "host"), ("person.1", "requester-ruler")]),
+                 M(6352, "actor", inputs: [("person.1", "host"), ("person.2", "requester-ruler")]),
+                 M(6361, "host", inputs: [("person.0", "host"), ("person.1", "actor"), ("force.0", "target-force"), ("force.1", "requester-force")]),
+                 M(proposal, "actor", inputs: [("person.0", "actor"), ("person.1", "host"), ("person.2", "requester-ruler")])],
+                [("accept", role == "gift" ? "接受" : "投降"), ("decline", "拒绝")],
+                ("accept", [M(accepted, "host", inputs: [("person.0", "host"), ("person.1", "actor"), ("force.0", "target-force"), ("force.1", "requester-force")])]),
+                ("decline", [M(refused, "host", inputs: [("person.0", "host"), ("person.1", "actor"), ("force.0", "target-force"), ("force.1", "requester-force")])]));
+        }
+        events["surrender"] = events["surrender"] with
+        {
+            Results = events["surrender"].Results.ToDictionary(p => p.Key, p => p.Value.Append(
+                M(p.Key == "accept" ? 6631 : 6635, "actor", inputs: [("person.0", "actor"), ("person.1", "host")])).ToArray())
+        };
         shared["alliance-formation-image"] = M(9391, image: "decision-alliance", inputs: [("force.0", "leader-force")]);
         shared["alliance-leader-declaration"] = M(9392, "other");
         shared["alliance-leader-trust"] = M(9393, inputs: [("force.0", "leader-force")]);
@@ -169,7 +185,16 @@ internal static class DecisionPresentationCompiler
             ("monument",7982,7981,0), ("homecoming-sacrifice",7986,7985,0), ("training-site",7990,7989,0) })
         {
             var kind = role is "monument" or "homecoming-sacrifice" or "training-site" ? DecisionWindowKind.Confirmation : DecisionWindowKind.VerticalChoice;
-            Add(role, kind, M(prompt), reply == 0 ? [M(intro)] : [M(intro, image: role == "festival" ? "decision-festival" : null), M(reply, "citizen", inputs: [("person.0", "citizen"), ("person.1", "actor")])],
+            (string Slot, string Role)[] promptInputs = role switch
+            {
+                "volunteers" => [("number.0", "soldiers")],
+                "bribe" => [("number.0", "amount")],
+                "monument" or "homecoming-sacrifice" or "training-site" => [("number.0", "cost")],
+                _ => []
+            };
+            Add(role, kind, M(prompt, inputs: promptInputs), reply == 0 ? [M(intro)] : [M(intro, image: role == "festival" ? "decision-festival" : null), M(reply, "citizen", inputs: role == "bribe"
+                ? [("person.0", "citizen"), ("person.1", "actor"), ("number.0", "amount")]
+                : [("person.0", "citizen"), ("person.1", "actor")])],
                 [("Accept", "允诺"), ("DonateMoney", "施与金钱 {cost}"), ("DonateFood", "施与兵粮 {cost}"), ("DemandMoney", "要求金钱"), ("Decline", "拒绝"), ("Execute", "处斩")]);
         }
         DecisionMessageDefinition Citizen(int source) => M(source, "citizen");
@@ -191,8 +216,8 @@ internal static class DecisionPresentationCompiler
             ("money-demand",8011,7907,7908), ("scholar-punishment",7888,7886,7887), ("evildoer",8014,7846,7930),
             ("land-spirit",8018,7846,7951), ("bandit-suppression",8019,7851,7852),
             ("traveler-rescue",8020,7955,7852), ("bandit-mediation",8021,7957,7958) })
-            Add(role, DecisionWindowKind.VerticalChoice, M(prompt, inputs: role is "money-demand" or "scholar-punishment" ? [("person.0", "other"), ("person.1", "actor")] : []),
-                [M(intro, inputs: role is "money-demand" or "scholar-punishment" ? [("person.0", "other"), ("person.1", "actor")] : []), M(reply, "other")],
+            Add(role, DecisionWindowKind.VerticalChoice, M(prompt, inputs: role is "money-demand" or "scholar-punishment" ? [("person.0", "other"), ("person.1", "actor"), ("number.0", "cost")] : []),
+                [M(intro, inputs: role is "money-demand" or "scholar-punishment" ? [("person.0", "other"), ("person.1", "actor"), ("number.0", "cost")] : []), M(reply, "other", inputs: role == "money-demand" ? [("number.0", "cost")] : [])],
                 [("Pay","允诺 {cost}"),("Execute","斩杀"),("Allow","容许"),("Fight","武力解决"),("Persuade","智力解决"),
                  ("Appease","以金钱 {cost} 怀柔"),("MediatePeace","和平仲裁"),("Decline","拒绝")]);
         Results("money-demand", ("Pay", [M(7911, "other"), Up()]), ("Execute", [M(7914, "other"), Down()]));
@@ -206,10 +231,10 @@ internal static class DecisionPresentationCompiler
         Results("evildoer", ("success", [M(7931, sound: good), Citizen(7847), Up()]), ("failure", [M(7932, sound: bad), Citizen(7848), Down()]), ("Decline", [Citizen(7933), Down()]));
         Results("land-spirit", ("success", [M(7952, sound: good), Citizen(7847), Up()]), ("failure", [M(7953, sound: bad), Citizen(7848), Down()]), ("Decline", [Citizen(7849), Down()]));
         Results("bandit-suppression", ("success", [M(7853, sound: good), Citizen(7847), Up()]), ("failure", [M(7854, sound: bad), Citizen(7848), Down()]),
-            ("Appease", [M(7954, sound: good), Citizen(7847), Up()]), ("Decline", [Citizen(7849), Down()]));
+            ("Appease", [M(7954, sound: good, inputs: [("number.0", "cost")]), Citizen(7847), Up()]), ("Decline", [Citizen(7849), Down()]));
         Results("traveler-rescue", ("success", [M(7853, sound: good), M(7956, sound: increase, inputs: [("number.0", "amount")])]),
             ("failure", [M(7854, sound: bad), Citizen(7848), Down()]), ("Decline", [Citizen(7849), Down()]));
-        Results("bandit-mediation", ("success", [M(7959, sound: good), Citizen(7960), M(7855, sound: increase, inputs: [("number.0", "amount")]), Up()]),
+        Results("bandit-mediation", ("success", [M(7959, sound: good), Citizen(7960), M(7855, sound: increase, inputs: [("number.0", "soldiers")]), Up()]),
             ("failure", [M(7854, sound: bad), Citizen(7962), Down()]), ("Decline", [Down()]));
         foreach (string role in new[] { "evildoer", "land-spirit", "bandit-suppression", "traveler-rescue", "bandit-mediation" })
             events[role] = events[role] with { Introduction = events[role].Introduction.Select(m => m.Speaker == "other" ? m with { Speaker = "citizen", Bindings = new(m.Bindings) { ["person.0"] = "citizen" } } : m).ToArray() };

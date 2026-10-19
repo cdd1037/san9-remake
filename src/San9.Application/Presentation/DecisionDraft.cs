@@ -10,7 +10,10 @@ public sealed record DecisionPerson(int Id, string NameKey, OfficerAbilities Abi
 public sealed record DecisionOption(string Role, string Title, DecisionInputKind Input,
     int[] Candidates, uint Minimum, uint Maximum, Func<Guid, long, int?, uint, GameCommand> CreateCommand);
 public sealed record DiplomaticDecisionData(Guid TaskId, int RequesterForceId, int TargetForceId, int? TargetSettlementId, int? PrisonerId,
-    CompensationOffer? Offer, uint PaymentBalance, int Relation);
+    CompensationOffer? Offer, uint PaymentBalance, int Relation)
+{
+    public GiftOffer? Gift { get; init; }
+}
 
 /// <summary>One pending transaction and its retained presentation. Message variation never consumes simulation randomness.</summary>
 public sealed class DecisionDraft
@@ -50,7 +53,7 @@ public sealed class DecisionDraft
             if (!Before.World.Simulation.Controls.Any(c => c.Kind == ControllerKind.Player && c.ForceId == diplomacy.TargetForceId))
                 introduction[0] = _presentation.Shared["diplomacy-foreign-arrival"];
             if (role == "attack-request" && !values.ContainsKey("enemy-force")) introduction[^1] = _presentation.Shared["diplomacy-unowned-target"];
-            if (values.ContainsKey("adviser")) introduction.Add(_presentation.Shared["diplomacy-adviser"]);
+            if (role is "attack-request" or "prisoner-return" && values.ContainsKey("adviser")) introduction.Add(_presentation.Shared["diplomacy-adviser"]);
         }
         Introduction = introduction.Select(Produce).ToArray();
         List<ProducedMessage> confirmations = [];
@@ -112,7 +115,7 @@ public sealed class DecisionDraft
                     _values["cost"] = new(e.Cost); _values["amount"] = new(e.MoneyReward); _values["soldiers"] = new(e.Soldiers); break;
                 case SearchConflictResolvedEvent e when e.OfficerId == actorId && e.EventId == Role:
                     branch = e.Choice switch { SearchConflictChoice.Decline => "Decline", SearchConflictChoice.Allow => "Allow", SearchConflictChoice.Execute => "Execute", SearchConflictChoice.Pay => "Pay", SearchConflictChoice.Appease => "Appease", _ => e.Result == EventResult.Succeeded ? "success" : "failure" };
-                    _values["cost"] = new(e.Cost); _values["amount"] = new(e.MoneyReward); break;
+                    _values["cost"] = new(e.Cost); _values["amount"] = new(e.MoneyReward); _values["soldiers"] = new(e.Soldiers); break;
                 case AttackRequestResolvedEvent e when e.TaskId == Diplomacy?.TaskId && Role == "attack-request":
                     branch = e.Outcome == AttackRequestOutcome.Accepted ? "success" : e.Outcome == AttackRequestOutcome.AlreadyAgreed ? "already-agreed" : "failure"; break;
                 case PrisonerReturnResolvedEvent e when e.TaskId == Diplomacy?.TaskId && Role == "prisoner-return": branch = e.Accepted ? "success" : "failure"; break;
@@ -195,7 +198,7 @@ public sealed class DecisionDraft
             Option("choose", (id, seq, selected, _) => new ChooseCountryTitleCommand(id, force, seq, selected!.Value), DecisionInputKind.Country, country.CandidateIds);
         }
         else if (session.GetEmperorTransferPrompt() is { } emperor)
-        { Context("emperor-transfer", emperor.ForceId, emperor.EmperorId, emperor.CityId, emperor.EmperorId, 400); Binary((id, seq, accept) => new RespondEmperorTransferCommand(id, force, seq, emperor.EmperorId, emperor.CityId, accept ? EmperorTransferChoice.Support : EmperorTransferChoice.Depose)); }
+        { Context("emperor-transfer", emperor.ForceId, emperor.EmperorId, emperor.CityId, emperor.EmperorId); values["dynasty-years"] = new(400); Binary((id, seq, accept) => new RespondEmperorTransferCommand(id, force, seq, emperor.EmperorId, emperor.CityId, accept ? EmperorTransferChoice.Support : EmperorTransferChoice.Depose)); }
         else if (session.GetOfficeRequestPrompt() is { } office)
         { Context("office-request", office.ForceId, office.OfficerId, office.SettlementId); person = office.OfficerId; Binary((id, seq, accept) => new RespondOfficeRequestCommand(id, force, seq, office.OfficerId, accept ? EventChoice.Accept : EventChoice.Reject)); }
         else if (session.GetSearchRecruitmentPrompt() is { } recruit)
@@ -244,7 +247,7 @@ public sealed class DecisionDraft
             };
             values["subject"] = new(0, subject); values["soldiers"] = new(community.OfferedSoldiers);
             if (community.EventId == "training-site") values["training-image"] = new(0, community.TacticCategory == 4 ? "decision-training-water" : "decision-training-land");
-            if (community.EventId == "bribe") values["cost"] = new(community.OfferedMoney);
+            if (community.EventId == "bribe") values["amount"] = new(community.OfferedMoney);
             if (community.RequiredTreasureId is int treasure) values["treasure"] = MessageBinding.Reference(MessageEntityKind.Treasure, treasure);
         }
         else if (session.GetSearchConflictPrompt() is { } conflict)
@@ -290,6 +293,14 @@ public sealed class DecisionDraft
             Diplomacy("attack-request", attack.TaskId, attack.Step, attack.RespondingForceId, attack.RequesterForceId, attack.TargetForceId, attack.Offer, attack.TargetSettlementId, null);
         else if (session.GetPrisonerReturnPrompt() is { } prisoner)
             Diplomacy("prisoner-return", prisoner.TaskId, prisoner.Step, prisoner.RespondingForceId, prisoner.RequesterForceId, prisoner.TargetForceId, prisoner.Offer, null, prisoner.PrisonerId);
+        else if (world.Simulation.PendingDailyTask is { } daily &&
+            world.Simulation.Tasks.Single(t => t.Id == daily.RemainingTaskIds[0]) is { } task &&
+            (task.Gift is not null || task.Surrender is not null))
+        {
+            int target = task.Gift?.TargetForceId ?? task.Surrender!.TargetForceId;
+            Diplomacy(task.Gift is null ? "surrender" : "gift", task.Id, task.ResolutionStep,
+                daily.RespondingForceId, task.ForceId, target, null, null, null, task.Gift?.Offer);
+        }
         else throw new InvalidDataException("The pending decision has no presentation handler.");
         return new(session, texts, presentation, role, force, values, options, person, diplomacy);
 
@@ -300,7 +311,7 @@ public sealed class DecisionDraft
                 throw new InvalidDataException("Missing encounter province.");
         }
 
-        void Diplomacy(string kind, Guid task, int step, int responding, int requester, int target, CompensationOffer? offer, int? place, int? prisoner)
+        void Diplomacy(string kind, Guid task, int step, int responding, int requester, int target, CompensationOffer? offer, int? place, int? prisoner, GiftOffer? gift = null)
         {
             Context(kind, responding, world.Simulation.Tasks.Single(t => t.Id == task).OfficerId, place, prisoner);
             values["target-force"] = Force(target); values["requester-force"] = Force(requester);
@@ -309,9 +320,10 @@ public sealed class DecisionDraft
             if (world.Forces.Single(f => f.Id == target).AdviserId is int adviser) values["adviser"] = Person(adviser);
             uint balance = world.Corps.Single(c => c.OwnerId == requester && c.IsRoot).Treasury.Money;
             int relation = world.Relations.SingleOrDefault(r => r.FirstId == Math.Min(requester, target) && r.SecondId == Math.Max(requester, target))?.Value ?? 0;
-            diplomacy = new(task, requester, target, place, prisoner, offer, balance, relation);
+            diplomacy = new(task, requester, target, place, prisoner, offer, balance, relation) { Gift = gift };
+            if (kind is "gift" or "surrender") { Daily(task, step); return; }
             if (place is int targetPlace && world.Settlements.Single(s => s.Id == targetPlace).OwnerId is int enemy) values["enemy-force"] = Force(enemy);
-            if (offer is not null) { values["cost"] = new(offer.Money); Binary((id, seq, accept) => new RespondDailyTaskCommand(id, force, seq, task, step, accept)); return; }
+            if (offer is not null) { values["cost"] = new(offer.Money); Daily(task, step); return; }
             Option("free", (id, seq, _, _) => Reply(id, seq, new(CompensationKind.Free, 0, null, null)));
             Option("decline", (id, seq, _, _) => Reply(id, seq, new(CompensationKind.Refuse, 0, null, null)));
             if (balance > 0) Option("money", (id, seq, _, amount) => Reply(id, seq, new(CompensationKind.Money, amount, null, null)), DecisionInputKind.Money, min: 1, max: Math.Min(balance, 1000000));

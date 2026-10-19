@@ -85,9 +85,11 @@ public sealed class IntelligenceMartialChainTests
             if (followups.Length == 0) { failed++; continue; }
             chains++;
             var chain = followups[0];
-            Assert.DoesNotContain(11, chain.OfficerIds);
-            Assert.Equal(2, chain.OfficerIds.Length); // Same-category, different-name responders still link.
-            primaries.Add(chain.OfficerIds[0]);
+            Assert.DoesNotContain(11, chain.Participants.Select(p => p.OfficerId));
+            Assert.Equal(2, chain.Participants.Length); // Same-category, different-name responders still link.
+            Assert.All(chain.Participants, p => Assert.Equal(p.OfficerId == 12 ? 9100 : 9101, p.TacticId));
+            Assert.Equal(chain.TacticId, chain.Participants[0].TacticId);
+            primaries.Add(chain.Participants[0].OfficerId);
         }
         Assert.Equal(expected, chains > 0);
         if (expected) { Assert.Equal(2, primaries.Count); Assert.True(failed > 0); }
@@ -197,8 +199,8 @@ public sealed class IntelligenceMartialChainTests
             if (chain is null) continue;
             int elapsed = engine.Snapshot.Clock.Day - chain.Clock.Day;
             Assert.Equal(30 - elapsed, engine.Snapshot.Officers.Single(p => p.Id == 11).TacticCooldown);
-            Assert.Equal(30 - elapsed, engine.Snapshot.Officers.Single(p => p.Id == chain.OfficerIds[0]).TacticCooldown);
-            Assert.Equal(10 - elapsed, engine.Snapshot.Officers.Single(p => p.Id == chain.OfficerIds[1]).TacticCooldown);
+            Assert.Equal(30 - elapsed, engine.Snapshot.Officers.Single(p => p.Id == chain.Participants[0].OfficerId).TacticCooldown);
+            Assert.Equal(10 - elapsed, engine.Snapshot.Officers.Single(p => p.Id == chain.Participants[1].OfficerId).TacticCooldown);
             var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), EconomyRulebook.Empty,
                 PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
             engine.EndControl(Player); restored.EndControl(Player);

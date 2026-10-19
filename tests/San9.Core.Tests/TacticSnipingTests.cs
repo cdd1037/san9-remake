@@ -191,7 +191,7 @@ public sealed class TacticSnipingTests
         m.Replace(m.Units[1] with { MemberRanks = m.Units[1].MemberRanks.Add(21, BattleRank.Middle) });
         m.Replace(m.Units[2] with { CommanderId = 22, MemberRanks = m.Units[2].MemberRanks.Remove(21) });
         TacticCombat.TryUnit(m, 1, UnitTarget, rules, events);
-        Assert.Equal(new[] { 11, 21 }, Assert.Single(events.OfType<TacticActivatedEvent>()).OfficerIds);
+        Assert.Equal(new[] { 11, 21 }, Assert.Single(events.OfType<TacticActivatedEvent>()).Participants.Select(p => p.OfficerId));
         Assert.Equal(21, Assert.Single(events.OfType<TacticSnipingResolvedEvent>()).ActorId);
     }
 

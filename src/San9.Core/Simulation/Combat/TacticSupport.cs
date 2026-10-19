@@ -46,7 +46,7 @@ internal static class TacticSupport
     {
         world.Replace(world.Officers[actor.Id] with { TacticCooldown = tactic.MinimumInterval });
         events.Add(new TacticActivatedEvent(world.Clock, source.Id, source.IsSettlement, targets[0],
-            tactic.Effect == TacticEffect.Inspire && source.IsSettlement, tactic.Id, [actor.Id], false, 10)
+            tactic.Effect == TacticEffect.Inspire && source.IsSettlement, tactic.Id, [new(actor.Id, tactic.Id)], false, 10)
         {
             Occurrence = TacticOccurrence.Capture(world, source,
             new(source.IsSettlement && tactic.Effect == TacticEffect.Inspire ? MilitaryOrderKind.AttackSettlement : MilitaryOrderKind.AttackUnit,

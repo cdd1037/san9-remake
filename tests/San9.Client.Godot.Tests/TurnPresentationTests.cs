@@ -200,7 +200,7 @@ public sealed class TurnPresentationTests
         var target = source with { Id = 11, Position = new(24, 24) };
         var occurrence = new San9.Core.Simulation.TacticOccurrence(source, target, null, null,
             San9.Core.Domain.UnitCondition.Normal, null, null, null, false);
-        San9.Core.Simulation.DomainEvent[] events = [new San9.Core.Simulation.TacticActivatedEvent(session.Snapshot.Clock,10,false,11,false,99,[7],false,10)
+        San9.Core.Simulation.DomainEvent[] events = [new San9.Core.Simulation.TacticActivatedEvent(session.Snapshot.Clock,10,false,11,false,99,[new(7, 99)],false,10)
             { Occurrence=occurrence }];
         var plan = San9.Application.Presentation.BattlePresentationPlan.Create(session.View, session.View, events, session.Messages(texts), texts, content);
         var day = new TurnDayPresentation(session.View, session.View, events, battle: plan);
@@ -249,7 +249,7 @@ public sealed class TurnPresentationTests
         var source = new BattleObjectContext(10, false, 5, 7, new(12, 12), 15, false);
         var target = source with { Id = 11 };
         var occurrence = new TacticOccurrence(source, target, null, null, San9.Core.Domain.UnitCondition.Normal, null, null, null, false);
-        DomainEvent[] events = [new TacticActivatedEvent(session.Snapshot.Clock, 10, false, 11, false, 99, [7], false, 10)
+        DomainEvent[] events = [new TacticActivatedEvent(session.Snapshot.Clock, 10, false, 11, false, 99, [new(7, 99)], false, 10)
         { Occurrence = occurrence }];
         var plan = San9.Application.Presentation.BattlePresentationPlan.Create(session.View, session.View, events,
             session.Messages(texts), texts, content);

@@ -30,12 +30,13 @@ public sealed class TacticCombatTests
     public void ActivationRetainsAllSourceMembersEvenWhenOnlyOneActivates()
     {
         var fact = Engine(members: 2, seed: 29, linkMultiplier: 2).AdvanceXun().Events.OfType<TacticActivatedEvent>().First();
-        Assert.Single(fact.OfficerIds);
+        Assert.Single(fact.Participants);
         Assert.Equal(2, fact.Occurrence!.SourceMemberIds.Length);
-        Assert.Contains(fact.OfficerIds[0], fact.Occurrence.SourceMemberIds);
+        Assert.Contains(fact.Participants[0].OfficerId, fact.Occurrence.SourceMemberIds);
         var restored = (TacticActivatedEvent)System.Text.Json.JsonSerializer.Deserialize<DomainEvent>(
             System.Text.Json.JsonSerializer.Serialize<DomainEvent>(fact))!;
         Assert.Equal(fact.Occurrence.SourceMemberIds.ToArray(), restored.Occurrence!.SourceMemberIds.ToArray());
+        Assert.Equal(fact.Participants.ToArray(), restored.Participants.ToArray());
     }
 
     [Theory]
@@ -51,6 +52,19 @@ public sealed class TacticCombatTests
         Assert.Equal(damage, restored);
     }
 
+    [Fact]
+    public void SameCategoryLinkCapturesEachParticipantsActualTactic()
+    {
+        var fact = Engine(members: 2, seed: 22, linkMultiplier: 4, distinctLinkedTactic: true)
+            .AdvanceXun().Events.OfType<TacticActivatedEvent>().First();
+        Assert.Equal(2, fact.Participants.Length);
+        Assert.All(fact.Participants, p => Assert.Equal(p.OfficerId == 11 ? 9000 : 9001, p.TacticId));
+        Assert.Equal(fact.TacticId, fact.Participants[0].TacticId);
+        var restored = (TacticActivatedEvent)System.Text.Json.JsonSerializer.Deserialize<DomainEvent>(
+            System.Text.Json.JsonSerializer.Serialize<DomainEvent>(fact))!;
+        Assert.Equal(fact.Participants.ToArray(), restored.Participants.ToArray());
+    }
+
     [Theory]
     [InlineData(2, 22UL, 2)] // Link stream rolls 49: below the ordinary 50% threshold.
     [InlineData(2, 29UL, 1)] // 50 is outside that threshold.
@@ -60,7 +74,7 @@ public sealed class TacticCombatTests
     {
         var first = Engine(members: 2, seed: seed, linkMultiplier: multiplier).AdvanceXun()
             .Events.OfType<TacticActivatedEvent>().First();
-        Assert.Equal(participants, first.OfficerIds.Length);
+        Assert.Equal(participants, first.Participants.Length);
     }
 
     [Theory]
@@ -77,7 +91,7 @@ public sealed class TacticCombatTests
     private static SimulationEngine Engine(int members = 1, bool water = false, bool settlement = false,
         int power = 13, bool equipped = true, int injury = 0, int cooldown = 0, bool allowedFacility = true, bool counter = false,
         int primaryProficiency = 0, int linkedProficiency = 0, ulong seed = 42, int linkMultiplier = 2, TacticLinkRules? links = null,
-        int? vulnerableCategory = null, int defenderProficiency = 0, CityInfluenceRule? influence = null, int opportunityChance = 100, int computerBonus = 0, bool normalPower = false, bool waterLearning = false, bool differentCommander = false, WorldSnapshot? restoredState = null)
+        int? vulnerableCategory = null, int defenderProficiency = 0, CityInfluenceRule? influence = null, int opportunityChance = 100, int computerBonus = 0, bool normalPower = false, bool waterLearning = false, bool differentCommander = false, WorldSnapshot? restoredState = null, bool distinctLinkedTactic = false)
     {
         var combat = normalPower ? new CombatProfile(10, 10, 0, 10, 50) : new CombatProfile(0, 0, 0, 1000, 50);
         var mode = water ? TravelMode.Water : TravelMode.Land;
@@ -93,6 +107,7 @@ public sealed class TacticCombatTests
             LinkRules = links ?? TacticLinkRules.Empty,
             CityInfluence = influence,
             Tactics = [new(9000, 0, TacticEffect.Martial, power, 9, 0, !water, allowedFacility, [100, 200]),
+                new(9001, 0, TacticEffect.Martial, power + 1, 9, 0, true, allowedFacility, [100, 200]),
                 new(9020, 4, TacticEffect.FormationTechnology, 0, 0, 0, false, false, [100])]
         });
         List<OfficerState> officers = [new(11, 1, null, new(80, 70, 70, 70), false)
@@ -102,8 +117,8 @@ public sealed class TacticCombatTests
         if (members == 2) officers.Add(new(12, 1, null, new(80, 70, 70, 70), false)
         {
             UnitId = 0,
-            LearnedTactics = [9000],
-            EquippedTacticId = 9000,
+            LearnedTactics = [distinctLinkedTactic ? 9001 : 9000],
+            EquippedTacticId = distinctLinkedTactic ? 9001 : 9000,
             TacticProficiencies = [linkedProficiency, 0, 0, 0, waterLearning ? 1000 : 0, 0, 0, 0, 0]
         });
         officers.Add(new(21, 2, settlement ? 2 : null, new(70, 70, 70, 70), false)
@@ -145,7 +160,7 @@ public sealed class TacticCombatTests
         var activations = result.Events.OfType<TacticActivatedEvent>().ToArray();
         Assert.Equal(2, activations.Length);
         Assert.Equal(9, activations[1].Clock.DayNumber - activations[0].Clock.DayNumber);
-        Assert.All(activations, e => Assert.Equal(new[] { 11 }, e.OfficerIds));
+        Assert.All(activations, e => Assert.Equal(new[] { 11 }, e.Participants.Select(p => p.OfficerId)));
         Assert.Equal(6, engine.Snapshot.Officers.Single(p => p.Id == 11).TacticProficiencies[0]);
         Assert.Equal(9, engine.Snapshot.Officers.Single(p => p.Id == 11).TacticCooldown);
         Assert.True(engine.Snapshot.Units.Single(u => u.Id == 1).Wounded > 0);
@@ -159,8 +174,8 @@ public sealed class TacticCombatTests
         var unrelated = Engine(members: 2, seed: 29).AdvanceXun().Events.OfType<TacticActivatedEvent>().First();
         var related = Engine(members: 2, seed: 29, links: new(true, 20, [new(11, 12, 45, false)]))
             .AdvanceXun().Events.OfType<TacticActivatedEvent>().First();
-        Assert.Single(unrelated.OfficerIds);
-        Assert.Equal(2, related.OfficerIds.Length);
+        Assert.Single(unrelated.Participants);
+        Assert.Equal(2, related.Participants.Length);
     }
 
     [Theory]
@@ -187,12 +202,12 @@ public sealed class TacticCombatTests
         engine.EndControl(Player);
         var second = engine.AdvanceXun();
         var events = first.Events.Concat(second.Events).OfType<TacticActivatedEvent>().ToArray();
-        Assert.Contains(events, e => e.OfficerIds.Length == 2);
+        Assert.Contains(events, e => e.Participants.Length == 2);
         var ready = new Dictionary<int, long>();
         foreach (var e in events)
-            for (int i = 0; i < e.OfficerIds.Length; i++)
+            for (int i = 0; i < e.Participants.Length; i++)
             {
-                int id = e.OfficerIds[i];
+                int id = e.Participants[i].OfficerId;
                 Assert.True(e.Clock.DayNumber >= ready.GetValueOrDefault(id));
                 ready[id] = e.Clock.DayNumber + (i == 0 ? 9 : 3);
             }
@@ -208,15 +223,15 @@ public sealed class TacticCombatTests
         {
             var solo = Engine(primaryProficiency: primaryProficiency, seed: seed).AdvanceXun()
                 .Events.OfType<TacticActivatedEvent>().First();
-            Assert.Equal(new[] { 11 }, solo.OfficerIds);
+            Assert.Equal(new[] { 11 }, solo.Participants.Select(p => p.OfficerId));
             foreach (int linkedProficiency in new[] { 0, 1000 })
             {
                 var linked = Engine(members: 2, primaryProficiency: primaryProficiency,
                     linkedProficiency: linkedProficiency, seed: seed, linkMultiplier: 4).AdvanceXun()
                     .Events.OfType<TacticActivatedEvent>().First();
-                Assert.Equal(2, linked.OfficerIds.Length);
-                if (linked.OfficerIds[0] != 11) continue;
-                Assert.Equal(new[] { 11, 12 }, linked.OfficerIds);
+                Assert.Equal(2, linked.Participants.Length);
+                if (linked.Participants[0].OfficerId != 11) continue;
+                Assert.Equal(new[] { 11, 12 }, linked.Participants.Select(p => p.OfficerId));
                 Assert.Equal(solo.Doubled, linked.Doubled);
                 compared++;
             }

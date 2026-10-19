@@ -125,7 +125,7 @@ internal static class FacilityCombat
         var members = tactic.Effect == TacticEffect.Martial
             ? IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackSettlement, null, settlementId)) : [];
         world.Replace(world.Officers[actor.Id] with { TacticCooldown = tactic.Effect == TacticEffect.Martial ? profile.MartialCooldown : tactic.MinimumInterval });
-        events.Add(new TacticActivatedEvent(world.Clock, settlementId, true, targetId, false, tactic.Id, [actor.Id], doubled, effect)
+        events.Add(new TacticActivatedEvent(world.Clock, settlementId, true, targetId, false, tactic.Id, [new(actor.Id, tactic.Id)], doubled, effect)
         { Occurrence = TacticOccurrence.Capture(world, source, target, tactic, military, rules.Treasures) });
         int? captured = null;
         var sniping = tactic.Effect == TacticEffect.Martial

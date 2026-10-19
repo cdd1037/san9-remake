@@ -299,7 +299,7 @@ public sealed class WorldEventPresentationTests
         Assert.Equal(new[] { "messages.10120", "messages.9916", "messages.9994" }, reports.Select(r => r.Message.Key));
         Assert.All(reports, r => { Assert.Equal(MapReportImportance.Detailed, r.Importance); Assert.Null(r.ForceColorCode); });
         int tacticId = package.Presentation.Battle!.Tactics.First(p => !p.Value.Support).Key;
-        var activation = new TacticActivatedEvent(clock, npcSource.Id, false, npcTarget.Id, false, tacticId, [other], false, 10)
+        var activation = new TacticActivatedEvent(clock, npcSource.Id, false, npcTarget.Id, false, tacticId, [new(other, tacticId)], false, 10)
             { Occurrence = new(npcSource, npcTarget, 0, 0, UnitCondition.Normal, null, null, null, false) };
         var battle = BattlePresentationPlan.Create(before, before, [activation], session.Messages(package.Text), package.Text, package.Presentation);
         Assert.Equal("messages.9972", Assert.Single(battle.Records).Record.Message.Key);

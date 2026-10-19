@@ -98,7 +98,7 @@ public sealed class FacilityCombatTests
         var result = Advance(engine);
         var activations = result.Events.OfType<TacticActivatedEvent>().ToArray();
         Assert.Equal([2, 5, 8, 11], activations.Select(e => e.Clock.Day).ToArray());
-        Assert.All(activations, e => { Assert.True(e.SourceIsSettlement); Assert.Equal(1, e.SourceId); Assert.Equal(11, Assert.Single(e.OfficerIds)); });
+        Assert.All(activations, e => { Assert.True(e.SourceIsSettlement); Assert.Equal(1, e.SourceId); Assert.Equal(11, Assert.Single(e.Participants).OfficerId); });
         Assert.Null(engine.Snapshot.Officers.Single(p => p.Id == 11).EquippedTacticId);
         Assert.True(engine.Snapshot.Units.Single().Soldiers < 10000);
         Assert.Equal(attacking ? 20 : 10, result.Events.OfType<BattleDamageEvent>().Count(e => e.AttackerIsSettlement && e.SoldierLoss == 0));
@@ -240,7 +240,7 @@ public sealed class FacilityCombatTests
         FacilityCombat.TryTactic(mutation, 1, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 },
             new SimulationRules { Military = military }, events);
         var activations = events.OfType<TacticActivatedEvent>().ToArray();
-        if (fires) Assert.Equal(appointed, Assert.Single(Assert.Single(activations).OfficerIds));
+        if (fires) Assert.Equal(appointed, Assert.Single(Assert.Single(activations).Participants).OfficerId);
         else Assert.Empty(activations);
     }
 

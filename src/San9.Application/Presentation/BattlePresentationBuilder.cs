@@ -254,7 +254,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
         TacticOccurrence? occurrence; int tacticId, actor, effect; GameClock clock;
         if (fact is TacticActivatedEvent activation)
         {
-            occurrence = activation.Occurrence; tacticId = activation.TacticId; actor = activation.OfficerIds[0]; effect = activation.Effect; clock = activation.Clock;
+            occurrence = activation.Occurrence; tacticId = activation.TacticId; actor = activation.Participants[0].OfficerId; effect = activation.Effect; clock = activation.Clock;
         }
         else if (fact is IntelligenceEffectResolvedEvent intelligence)
         {
@@ -312,6 +312,11 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
         }
         if (fact is TacticActivatedEvent active)
         {
+            void BindParticipant(TacticParticipant participant)
+            {
+                values["actor"] = ProgressMessageProducer.Person(participant.OfficerId);
+                values["tactic"] = MessageBinding.Reference(MessageEntityKind.Tactic, participant.TacticId);
+            }
             bool support = definition.Support;
             string report = support ? "support" : (active.IsChain ? "chain-" : "activation-") + (Player(source.ForceId) ? "own" : "enemy");
             var reportingSide = Player(source.ForceId) ? source : target;
@@ -319,18 +324,21 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             bool showScene = definition.Zoom is not null && tacticScenesEnabled;
             if (definition.Zoom is null)
                 Add("announcement", definition.Messages["announcement"], _cursor, BattleMessageChannel.Dialogue, true);
-            if (active.OfficerIds.Length > 1)
-                foreach (int officer in active.OfficerIds)
-                { values["actor"] = ProgressMessageProducer.Person(officer); AddRecord("link", battle.Messages["link"], _cursor, source, source.ForceId); }
-            for (int member = 0; member < active.OfficerIds.Length; member++)
+            if (active.Participants.Length > 1)
+                foreach (var participant in active.Participants)
+                {
+                    BindParticipant(participant);
+                    AddRecord("link", battle.Messages["link"], _cursor, source, source.ForceId);
+                }
+            for (int member = 0; member < active.Participants.Length; member++)
             {
-                values["actor"] = ProgressMessageProducer.Person(active.OfficerIds[member]);
+                BindParticipant(active.Participants[member]);
                 string role = member == 0 ? active.IsChain ? occurrence.TargetCondition == UnitCondition.NoFormation ? "chain-unformed" : "chain-confused" : "action" : $"link-{Math.Min(member - 1, 3)}";
                 Add(role, role == "action" ? definition.Messages[role] : battle.Messages[role],
                     _cursor,
-                    showScene ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech, true);
+                    definition.Zoom is not null ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech, true);
             }
-            values["actor"] = ProgressMessageProducer.Person(actor);
+            BindParticipant(active.Participants[0]);
             double preludeEnd = _cursor;
             for (int frame = 0; frame < definition.Prelude.Length; frame++)
             {
@@ -369,23 +377,22 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
                     snipingResponse = start + playback.FeedbackStart;
                 }
                 else _impact = preludeEnd;
-                var responseChannel = showScene ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech;
                 if (effect < 10)
                 {
-                    Add("block-reaction", battle.Messages["block-reaction"], responseStart, responseChannel);
-                    Add("block-reply", battle.Messages["block-reply"], responseStart, responseChannel, true);
+                    Add("block-reaction", battle.Messages["block-reaction"], responseStart, BattleMessageChannel.Dialogue);
+                    Add("block-reply", battle.Messages["block-reply"], responseStart, BattleMessageChannel.Dialogue, true);
                     AddRecord("blocked", battle.Messages["blocked"], end, target, target.ForceId);
                 }
-                else Add("hit-reaction", battle.Messages["hit-reaction"], responseStart, responseChannel);
+                else Add("hit-reaction", battle.Messages["hit-reaction"], responseStart, BattleMessageChannel.Dialogue);
                 values["damage"] = new(hit?.SoldierLoss ?? 0);
                 if (effect >= 10) AddRecord("damage", battle.Messages["damage"], end, target, target.ForceId);
                 if (sniping is not null)
                 {
                     values["actor"] = ProgressMessageProducer.Person(sniping.ActorId);
                     values["responder"] = ProgressMessageProducer.Person(sniping.OfficerId);
-                    Add("sniping-action", battle.Messages["sniping-action"], snipingStart, responseChannel, true);
+                    Add("sniping-action", battle.Messages["sniping-action"], snipingStart, BattleMessageChannel.Dialogue, true);
                     string response = sniping.Injury == 7 ? "sniping-fatal" : sniping.Injury == 4 ? "sniping-heavy" : "sniping-light";
-                    Add(response, battle.Messages[response], snipingResponse, responseChannel);
+                    Add(response, battle.Messages[response], snipingResponse, BattleMessageChannel.Dialogue);
                     double frameStart = snipingStart;
                     for (int frame = 0; showScene && frame < battle.SnipingEffect.Length; frame++)
                     {

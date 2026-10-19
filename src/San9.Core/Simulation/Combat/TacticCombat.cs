@@ -3,8 +3,10 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
+public sealed record TacticParticipant(int OfficerId, int TacticId);
+
 public sealed record TacticActivatedEvent(GameClock Clock, int SourceId, bool SourceIsSettlement, int TargetId,
-    bool TargetIsSettlement, int TacticId, ImmutableArray<int> OfficerIds, bool Doubled, int Effect) : DomainEvent
+    bool TargetIsSettlement, int TacticId, ImmutableArray<TacticParticipant> Participants, bool Doubled, int Effect) : DomainEvent
 {
     public TacticOccurrence? Occurrence { get; init; }
     public bool IsChain { get; init; }
@@ -86,7 +88,7 @@ internal static class TacticCombat
                     world.Settlements[target.SettlementId!.Value].ConfusionDaysRemaining == 0);
             world.Replace(world.Officers[primary.Officer.Id] with { TacticCooldown = primary.Tactic.MinimumInterval });
             events.Add(new TacticActivatedEvent(world.Clock, unit.Id, false, target.UnitId ?? target.SettlementId!.Value,
-                target.UnitId is null, primary.Tactic.Id, [primary.Officer.Id], false, intelligenceEffect)
+                target.UnitId is null, primary.Tactic.Id, [new(primary.Officer.Id, primary.Tactic.Id)], false, intelligenceEffect)
             { Occurrence = TacticOccurrence.Capture(world, new(unit.Id, false), target, primary.Tactic, military, rules.Treasures) });
             IntelligenceTactics.Resolve(world, new(unit.Id, false), primary.Officer, primary.Tactic, target, intelligenceEffect, rules, events);
             if (canStartChain) TryMartialChain(world, unit.Id, primary, target, rules, events);
@@ -138,7 +140,7 @@ internal static class TacticCombat
             world.Replace(world.Officers[participant.Officer.Id] with
             { TacticCooldown = participant.Officer.Id == primary.Officer.Id ? primary.Tactic.MinimumInterval : participant.Tactic.MinimumInterval / 3 });
         events.Add(new TacticActivatedEvent(world.Clock, unit.Id, false, target.UnitId ?? target.SettlementId!.Value,
-            target.UnitId is null, primary.Tactic.Id, participants.Select(p => p.Officer.Id).ToImmutableArray(), doubled, effect)
+            target.UnitId is null, primary.Tactic.Id, participants.Select(p => new TacticParticipant(p.Officer.Id, p.Tactic.Id)).ToImmutableArray(), doubled, effect)
         { Occurrence = TacticOccurrence.Capture(world, new(unit.Id, false), target, primary.Tactic, military, rules.Treasures), IsChain = isChain });
         var damageMembers = participants.Select(p => new MartialTacticMember(p.Tactic.Power,
             p.Officer.TacticProficiencies[category], world.Abilities(p.Officer).War, p.Officer.Id != primary.Officer.Id)).ToArray();

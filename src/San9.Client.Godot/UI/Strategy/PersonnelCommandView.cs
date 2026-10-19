@@ -89,7 +89,7 @@ public partial class PersonnelCommandView : FixedPage
             window.ActionButton(CommandText.Resolve(Texts, "label.actor"), "edit", new(0,88,104,40), SelectOfficers).Disabled = Draft.Candidates.IsEmpty;
             var roster = new OfficerRosterPanel { Service = Service, Textures = Textures,
                 Position = at + new Vector2(104,88), ShowPortrait = true, PortraitFollowsPage = false, VisibleRows = SearchRosterRows, ShowPagination = true,
-                Columns = [new("",96), new(CommandText.Resolve(Texts,"label.officer"),128),
+                Columns = [new(CommandText.Resolve(Texts,"label.advice"),96), new(CommandText.Resolve(Texts,"label.officer"),128),
                     new(CommandText.Resolve(Texts,"label.politics"),80)] };
             roster.SetEntries(Draft.OrderSearchOfficers(Draft.Members).Select(id => new OfficerRosterEntry(Card(id),
                 [Draft.AdviceSymbol(id), Card(id).Name, Card(id).Abilities.Politics.ToString()])));

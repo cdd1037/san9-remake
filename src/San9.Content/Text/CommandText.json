@@ -79,6 +79,7 @@
   "hint.target": 0,
   "hint.target-facility": 0,
   "hint.target-force": 0,
+  "label.advice": 0,
   "label.actor": 0,
   "label.actor-force": 0,
   "label.adviser-intelligence": 0,

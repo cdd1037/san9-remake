@@ -46,7 +46,7 @@ public static class PersonnelCatalog
                 _ => ["politics", "status", "leadership", "war", "intelligence", "learned"]
             };
         CatalogColumn[] prefix = !targets && draft.Kind == "search"
-            ? [new("advice", "", 8, CatalogAlignment.Center), OfficerColumn("name")] : [OfficerColumn("name")];
+            ? [new("advice", CommandText.Resolve(texts, "label.advice"), 8, CatalogAlignment.Center), OfficerColumn("name")] : [OfficerColumn("name")];
         return [new(CommandText.Resolve(texts, "title." + draft.Kind), [.. prefix, .. fields.Select(f => f == "estimate" ? Arrival(texts) : OfficerColumn(f))]), .. OfficerCatalog.Pages];
     }
     public static CatalogRow[] Officers(PersonnelDraft draft, TextCatalog texts, int page, bool targets = false)

@@ -107,7 +107,10 @@ public sealed class PersonnelCommandTests
         Assert.Equal("",draft.AdviceSymbol(1));
         Assert.True(draft.SetTarget(1));
         var texts = CatalogTexts(session.View);
-        Assert.Equal("advice",PersonnelCatalog.OfficerPages(draft,texts)[0].Columns[0].Id);
+        texts.Entries[CommandText.Key("label.advice")] = "Custom advice";
+        var adviceColumn = PersonnelCatalog.OfficerPages(draft,texts)[0].Columns[0];
+        Assert.Equal("advice",adviceColumn.Id);
+        Assert.Equal("Custom advice",adviceColumn.Title);
         Assert.All(PersonnelCatalog.Officers(draft,texts,0),r => Assert.Equal("×",r.Cells[0].Text));
         Assert.Same(before,session.Snapshot);
         var command = Assert.IsType<SearchCommand>(draft.CreateCommand(Guid.NewGuid(),0));

@@ -89,14 +89,6 @@ internal static class MissionPreparation
 
 public sealed partial class SimulationEngine
 {
-    /// <summary>Current origin state for civilian work; does not check ownership, personnel or resources.</summary>
-    public bool CanStartSettlementWork(int settlementId)
-    {
-        var world = PreparationWorld();
-        return world.Settlements.TryGetValue(settlementId, out var home) && !home.IsDestroyed &&
-            home.Facility?.BuilderUnitId is null && SettlementOperations.Available(world, home, _rules.Military);
-    }
-
     public ImmutableArray<int> GetGiftTreasures(int forceId)
     {
         var world = PreparationWorld();

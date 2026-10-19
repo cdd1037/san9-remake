@@ -83,8 +83,8 @@ public sealed class OriginalAiPersonnelTests
         {
             Forces = content.Forces.Select(f => f.Id == 1 ? f with { AdviserId = 3 } : f).ToArray(),
             Officers = content.Officers.Select(o => o.State.Id == 3 ? o with { State = o.State with { Status = OfficerStatus.Strategist,
-                BaseAbilities = new(50, 115, 50, 50) } } : o).Concat(Enumerable.Range(10, 4).Select(id => new OfficerInitialState($"officer.{id}",
-                    content.Officers[1].State with { Id = id, BirthYear = 188, BaseAbilities = new(50, 115, 50, 50) }))).ToArray()
+                StatusStartYear = 170, BaseAbilities = new(50, 115, 50, 50) } } : o).Concat(Enumerable.Range(10, 4).Select(id => new OfficerInitialState($"officer.{id}",
+                    content.Officers[1].State with { Id = id, StatusStartYear = 190, BaseAbilities = new(50, 115, 50, 50) }))).ToArray()
         };
         var h = new Harness(content);
         Assert.Equal(0, h.Run(OriginalAiWork.Adviser).Submitted);

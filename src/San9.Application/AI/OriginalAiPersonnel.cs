@@ -55,6 +55,7 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
     private ForceState Force { get { Refresh(); return _force; } }
     private OfficerState? Ruler { get { Refresh(); return _ruler; } }
     private OfficerAbilities Ability(OfficerState p) { Refresh(); return _abilities[p.Id]; }
+    private long ServiceYears(OfficerState p) => p.StatusStartYear is int year ? (long)World.Clock.Year - year + 1 : 0;
     private ImmutableArray<OfficerState> Own { get { Refresh(); return _own; } }
     private ImmutableArray<SettlementState> Places { get { Refresh(); return _places; } }
     private bool Available(OfficerState p)
@@ -103,7 +104,8 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
                 int lower = Math.Max(80, Math.Min(current is null ? 80 : Ability(current).Intelligence + 1, 115));
                 var candidates = ordinary.Where(p => p.Loyalty >= 80 && Ability(p).Intelligence >= lower && Ability(p).Intelligence <= 115);
                 if (current is not null) candidates = candidates.Append(current);
-                var adviser = candidates.OrderByDescending(p => Ability(p).Intelligence + Math.Min(World.Clock.Year - p.BirthYear, 10)).FirstOrDefault();
+                var adviser = candidates.OrderByDescending(p => Ability(p).Intelligence)
+                    .ThenByDescending(ServiceYears).FirstOrDefault();
                 if (adviser is not null && adviser.Id != current?.Id) Send(Command((id, f, seq) => new AppointAdviserCommand(id, f, seq, adviser.Id)));
                 break;
             case OriginalAiWork.Offices:
@@ -244,7 +246,7 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
         offices.Add(new(null, 10000, 0, false, false));
         var assigned = new Dictionary<int, int?>();
         var remaining = people.Select(p => p.Id).ToHashSet();
-        long Age(OfficerState p) => World.Clock.Year - (long)p.BirthYear + (p.Loyalty >= 150 ? 5 : 0);
+        long SeniorityScore(OfficerState p) => ServiceYears(p) + (p.Loyalty >= 150 ? 5 : 0);
         void Fill(IEnumerable<OfficeSlot> slots, IEnumerable<OfficerState> candidates, Func<OfficerState, bool> eligible)
         {
             var ordered = new Queue<OfficerState>(candidates.Where(p => remaining.Contains(p.Id)));
@@ -259,13 +261,13 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
         }
         if (Available(ruler))
             Fill(offices.Where(o => o.Special),
-                people.OrderByDescending(p => Ability(p).Leadership + Ability(p).Intelligence + Age(p)), _ => true);
+                people.OrderByDescending(p => Ability(p).Leadership + Ability(p).Intelligence + SeniorityScore(p)), _ => true);
         Fill(offices.OrderByDescending(o => o.HasBonus ? -1 : o.Priority).TakeWhile(o => !o.HasBonus),
-            people.OrderByDescending(p => Ability(p).Leadership + Age(p)), p => Ability(p).Leadership >= 60);
+            people.OrderByDescending(p => Ability(p).Leadership + SeniorityScore(p)), p => Ability(p).Leadership >= 60);
         long payroll = OriginalAiProjection.SalaryDemand(World, Corps, content.Information.Offices.ToDictionary(o => o.Id, o => o.Salary));
         if (Corps.Treasury.Money > payroll)
             Fill(offices.OrderByDescending(o => o.Capacity == 10000 ? o.Priority : -1).TakeWhile(o => o.Capacity <= 10000),
-                people.OrderByDescending(p => Ability(p).Intelligence + Ability(p).Politics + Age(p)),
+                people.OrderByDescending(p => Ability(p).Intelligence + Ability(p).Politics + SeniorityScore(p)),
                 p => Math.Max(Ability(p).Intelligence, Ability(p).Politics) >= 70);
         return assigned.Where(a => World.Officers.Single(p => p.Id == a.Key).OfficeId != a.Value)
             .Select(a => new OfficeAssignment(a.Key, a.Value)).ToImmutableArray();

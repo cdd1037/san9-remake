@@ -29,9 +29,10 @@ public partial class CommandNarration : FixedPage
     private double _imageElapsed;
     private readonly Settings.MessagePageTimer _pageTimer = new();
     public string? InitialSoundRole { get; init; }
-    public Func<string,IDisposable>? BeginMusic { get; init; }
+    public Func<string,bool,IDisposable>? BeginMusic { get; init; }
     private IDisposable? _music;
     private string? _musicRole;
+    private bool _musicLoop;
     public Action Closed { get; init; } = null!;
     public Action<CommandMessage>? MessagePresented { get; init; }
     public Func<MapSpeechMessage, bool>? IsMapSpeechComplete { get; init; }
@@ -71,10 +72,10 @@ public partial class CommandNarration : FixedPage
         _image = null; _imageElapsed = 0;
         _body = new Control { MouseFilter = MouseFilterEnum.Ignore }; AddChild(_body);
         var entry = Messages[_index];
-        if (_musicRole != entry.BackgroundMusicRole)
+        if (_musicRole != entry.BackgroundMusicRole || _musicLoop != entry.BackgroundMusicLoop)
         {
-            _music?.Dispose(); _music = null; _musicRole = entry.BackgroundMusicRole;
-            if (_musicRole is string music) _music = BeginMusic?.Invoke(music);
+            _music?.Dispose(); _music = null; _musicRole = entry.BackgroundMusicRole; _musicLoop = entry.BackgroundMusicLoop;
+            if (_musicRole is string music) _music = BeginMusic?.Invoke(music, _musicLoop);
         }
         MessagePresented?.Invoke(entry);
         if (IsMapSpeech)

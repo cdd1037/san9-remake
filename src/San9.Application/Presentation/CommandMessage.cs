@@ -11,6 +11,7 @@ public sealed record CommandMessage(ProducedMessage Message, int? SpeakerId, str
     public int? IllustrationPersonId { get; init; }
     public bool IllustrationDeceased { get; init; }
     public string? BackgroundMusicRole { get; init; }
+    public bool BackgroundMusicLoop { get; init; }
     public MapCell? FocusLocation { get; init; }
     public bool WaitForMapSpeech { get; init; }
     public string? MovieRole { get; init; }

@@ -21,7 +21,13 @@ public sealed class TurnPresentationTests
             StrategyTitleStarted = () => titles++,
             PresentSeasonChange = _ => { seasons++; return true; }
         };
+        Assert.False(turn.UsesExecutionMusic);
+        Assert.True(turn.Request());
+        Assert.False(turn.UsesExecutionMusic);
+        turn.Cancel();
+        Assert.False(turn.UsesExecutionMusic);
         Enter(turn);
+        Assert.True(turn.UsesExecutionMusic);
         for (int i = 1; i < days; i++) { Ready(turn); turn.Update(2); }
         Assert.True(turn.IsExecutionPresentation);
         long consumed = turn.Publication;
@@ -32,6 +38,7 @@ public sealed class TurnPresentationTests
         Ready(turn); turn.Update(2);
         Assert.Equal(TurnScreen.Presenting, turn.Screen);
         Assert.True(turn.IsExecutionPresentation);
+        Assert.True(turn.UsesExecutionMusic);
         Assert.Equal(consumed + 1, turn.Publication);
         Assert.False(turn.IsComputing);
         long operation = session.NextOperationSequence;
@@ -54,6 +61,7 @@ public sealed class TurnPresentationTests
         turn.Update(0);
         Assert.Equal(days == 10 ? TurnScreen.Returning : TurnScreen.Playing, turn.Screen);
         Assert.Equal(days != 10, turn.IsExecutionPresentation);
+        Assert.Equal(days != 10, turn.UsesExecutionMusic);
         Assert.Equal(days == 10 ? 1 : 0, titles);
         Assert.Equal(month == 3 ? 1 : 0, seasons);
         Assert.Equal(1, turn.StrategyEntrance);

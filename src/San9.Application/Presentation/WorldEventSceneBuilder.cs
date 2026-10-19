@@ -61,7 +61,7 @@ internal sealed partial class WorldEventSceneBuilder
             if (events[i] is UnitMovedEvent moved && moved.UnitId == unit) return MapCoordinates.Cell(moved.To);
         return before.World.Units.SingleOrDefault(u => u.Id == unit)?.Cell;
     }
-    private void Message(string role, bool speech = false, bool focus = false, string? music = null, string? movie = null, bool record = false)
+    private void Message(string role, bool speech = false, bool focus = false, string? music = null, string? movie = null, bool record = false, bool musicLoop = false)
     {
         var definition = content.Messages[role];
         var message = ProgressMessageProducer.Produce(definition, occurrence.AtOccurrence(clock), texts, values, Pick)
@@ -72,6 +72,7 @@ internal sealed partial class WorldEventSceneBuilder
             IllustrationDeceased = definition.Illustration == "actor",
             FocusLocation = focus ? location : null,
             BackgroundMusicRole = music,
+            BackgroundMusicLoop = musicLoop,
             MovieRole = movie
         };
         if (message.SpeakerId is int speakerId)

@@ -10,8 +10,11 @@ internal sealed class AudioStreams(string root, IReadOnlyDictionary<string, stri
     private readonly Dictionary<(string Path, bool Loop), AudioStream> _streams = [];
 
     internal AudioStream Get(string role, bool loop)
+        => GetFile(sounds[role], loop);
+
+    internal AudioStream GetFile(string path, bool loop)
     {
-        var key = (Path: sounds[role], Loop: loop);
+        var key = (Path: path, Loop: loop);
         if (_streams.TryGetValue(key, out var stream)) return stream;
         stream = Load(PackageFiles.Resolve(root, key.Path), loop);
         _streams.Add(key, stream);

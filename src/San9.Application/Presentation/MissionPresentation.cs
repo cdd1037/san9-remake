@@ -296,7 +296,7 @@ public static class MissionPresentation
                 Add("seize-action"); Add("seize-reaction-"+(seize.Outcome == SeizeOutcomeKind.Failure ? "failure" : "success")); break;
         }
         return e is GiftResolvedEvent or SurrenderResolvedEvent or AttackRequestResolvedEvent or PrisonerReturnResolvedEvent
-            ? sequence.Select((m,index) => index == 0 ? m : m with { BackgroundMusicRole = "diplomacy-music" }).ToArray() : sequence;
+            ? sequence.Select((m,index) => index == 0 ? m : m with { BackgroundMusicRole = "diplomacy-music", BackgroundMusicLoop = true }).ToArray() : sequence;
         void Meeting() { Add("diplomacy-arrival"); Add("diplomacy-greeting"); Add("diplomacy-welcome"); }
         void Diplomacy(string kind, bool accepted)
         {

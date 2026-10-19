@@ -24,7 +24,7 @@ internal static class CommandPresentationCompiler
         return new(new(SoundSources.ToDictionary(s => s.Role, s => AudioAssetCompiler.Path(AudioAssetCompiler.Resolve(audioFiles, s.File))))
             { ["diplomacy-music"] = AudioAssetCompiler.Path(AudioAssetCompiler.Resolve(audioFiles, "BGM/BGM_21")),
               ["force-eliminated-music"] = AudioAssetCompiler.Path(AudioAssetCompiler.Resolve(audioFiles, "BGM/BGM_26")),
-              ["event-court-music"] = AudioAssetCompiler.Path(AudioAssetCompiler.Resolve(audioFiles, "BGM/BGM_20")) },
+              ["event-court-music"] = AudioAssetCompiler.Path(AudioAssetCompiler.Resolve(audioFiles, "BGM/BGM_21")) },
             new(new() { ["normal"] = Key(5592), ["cooperative"] = Key(5826), ["citizen"] = Key(5832),
                 ["pair-first"] = Key(5861), ["pair-second"] = Key(5862), ["result"] = Key(5598) }, Person(674),
                 [new(Key(5873), Person(671), [], AdviceMetric.PublicOrder, 0),

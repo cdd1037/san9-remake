@@ -101,6 +101,7 @@ public sealed class WorldEventPresentationTests
         Assert.Equal("enemy", output.Messages[1].Speaker!.ForceName);
         Assert.Equal(21, output.Messages[3].IllustrationPersonId); Assert.True(output.Messages[3].IllustrationDeceased);
         Assert.Equal("force-eliminated-music", output.Messages[^1].BackgroundMusicRole);
+        Assert.False(output.Messages[^1].BackgroundMusicLoop);
         Assert.Empty(ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts, presentedFacts: new HashSet<int> { 0, 1, 2, 3 }).Messages);
     }
 
@@ -243,6 +244,16 @@ public sealed class WorldEventPresentationTests
             var output = WorldEventPresentation.Read(occurrence, occurrence, session.Messages(package.Text, occurrence.World),
                 package.Text, content, [fact, .. rewards], 0);
             Assert.All(output.Messages, m => Assert.False(string.IsNullOrWhiteSpace(m.Message.BbCode)));
+            if (fact is PeerageChangedEvent { Kind: PeerageChangeKind.Investiture or PeerageChangeKind.Abdication })
+            {
+                var music = output.Messages.Where(m => m.BackgroundMusicRole is not null).ToArray();
+                Assert.NotEmpty(music);
+                Assert.All(music, m =>
+                {
+                    Assert.True(m.BackgroundMusicLoop);
+                    Assert.Equal(package.Presentation.Sounds["diplomacy-music"], package.Presentation.Sounds[m.BackgroundMusicRole!]);
+                });
+            }
             foreach (var item in ChronicleHistory.Read(occurrence, occurrence, [fact]))
                 Assert.False(string.IsNullOrWhiteSpace(ChroniclePresentation.Render(item,
                     session.Messages(package.Text, occurrence.World), occurrence, package.Text, package.Presentation.Chronicle!).BbCode));

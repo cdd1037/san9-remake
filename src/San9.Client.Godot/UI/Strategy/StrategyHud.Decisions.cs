@@ -92,7 +92,7 @@ public partial class StrategyHud
                 Finished = CloseDecision,
                 Media = SceneMedia,
                 SkipIntroduction = draft.Diplomacy is { } diplomacy && !_diplomacyNarrated.Add(diplomacy.TaskId),
-                BeginMusic = Music.Begin
+                BeginMusic = role => Music.Begin(role, loop: true)
             };
             OverlayHost.AddChild(_decision);
         }

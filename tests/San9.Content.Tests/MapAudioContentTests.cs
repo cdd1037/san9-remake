@@ -23,9 +23,13 @@ public sealed class MapAudioContentTests
     {
         var audio = new MapAudioDefinition("cue", ["spring", "summer", "autumn", "winter"],
             ["spring", "summer", "autumn", "winter"], [99], new() { ["custom"] = new(["foot"], [], []) },
-            new() { [1000] = "build" }, ["battle"]) { RecordNotificationSound = "notification" };
+            new() { [1000] = "build" }, ["battle"]) { RecordNotificationSound = "notification", ExecutionMusic = new("combat", "rank-combat", "march", "rank-march", "domestic") };
         var sounds = audio.SoundRoles.Distinct().ToDictionary(r => r, r => $"audio/{r}.wav");
         audio.Validate(sounds);
+        Assert.Throws<InvalidDataException>(() => (audio with { ExecutionMusic = null! }).Validate(sounds));
+        var missingMusic = new Dictionary<string, string>(sounds);
+        missingMusic.Remove("rank-march");
+        Assert.Throws<InvalidDataException>(() => audio.Validate(missingMusic));
         sounds.Remove("foot");
         Assert.Throws<InvalidDataException>(() => audio.Validate(sounds));
         var units = MapUnitCatalog.Empty with { Bodies = [new("custom", [], 0, 0)] };

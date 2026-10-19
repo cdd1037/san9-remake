@@ -2,22 +2,28 @@ using San9.Content.Maps;
 
 namespace San9.Content.Interface;
 
+public sealed record ExecutionMusicDefinition(string Battle, string RankedBattle, string March, string RankedMarch, string Domestic)
+{
+    internal IEnumerable<string> Roles => [Battle, RankedBattle, March, RankedMarch, Domestic];
+}
+
 public sealed record MapBodySounds(string[] Movement, string[] Melee, string[] Ranged);
 public sealed record MapAudioDefinition(string ExecutionTitleSound, string[] SeasonalMusic,
     string[] RankedSeasonalMusic, int[] RankedMusicRankIds, Dictionary<string, MapBodySounds> Bodies,
     Dictionary<int, string> ConstructionSounds, string[] BattleAmbience)
 {
+    [System.Text.Json.Serialization.JsonRequired] public ExecutionMusicDefinition ExecutionMusic { get; init; } = null!;
     [System.Text.Json.Serialization.JsonRequired] public string RecordNotificationSound { get; init; } = null!;
     [System.Text.Json.Serialization.JsonRequired] public string[] FacilityArrowSounds { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public string[] RockfallImpactSounds { get; init; } = [];
     public IEnumerable<string> SoundRoles => new[] { ExecutionTitleSound, RecordNotificationSound }.Concat(ConstructionSounds.Values)
         .Concat(FacilityArrowSounds).Concat(RockfallImpactSounds)
-        .Concat(SeasonalMusic).Concat(RankedSeasonalMusic).Concat(BattleAmbience)
+        .Concat(SeasonalMusic).Concat(RankedSeasonalMusic).Concat(ExecutionMusic.Roles).Concat(BattleAmbience)
         .Concat(Bodies.Values.SelectMany(b => b.Movement.Concat(b.Melee).Concat(b.Ranged)));
 
     public void Validate(IReadOnlyDictionary<string, string> sounds)
     {
-        if (SeasonalMusic is null || RankedSeasonalMusic is null || RankedMusicRankIds is null ||
+        if (ExecutionMusic is null || SeasonalMusic is null || RankedSeasonalMusic is null || RankedMusicRankIds is null ||
             Bodies is null || ConstructionSounds is null || BattleAmbience is null || FacilityArrowSounds is null || RockfallImpactSounds is null ||
             SeasonalMusic.Length != 4 || RankedSeasonalMusic.Length != 4 || BattleAmbience.Length == 0 ||
             RankedMusicRankIds.Any(r => r < 0) || RankedMusicRankIds.Distinct().Count() != RankedMusicRankIds.Length ||

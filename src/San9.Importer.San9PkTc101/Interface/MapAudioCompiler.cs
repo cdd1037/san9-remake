@@ -20,7 +20,13 @@ internal static class MapAudioCompiler
     }
 
     internal static readonly (string Role, string File)[] MusicSources = Enumerable.Range(0, 8)
-        .Select(i => ($"map-music-{i}", $"BGM/BGM_{i + 4:00}")).ToArray();
+        .Select(i => ($"map-music-{i}", $"BGM/BGM_{i + 4:00}"))
+        .Concat(new (string Role, string File)[]
+        {
+            ("execution-battle", "BGM/BGM_12"), ("execution-battle-ranked", "BGM/BGM_13"),
+            ("execution-march", "BGM/BGM_14"), ("execution-march-ranked", "BGM/BGM_15"),
+            ("execution-domestic", "BGM/BGM_16")
+        }).ToArray();
 
     internal static (MapAudioDefinition Definition, (string Role, string File)[] Sources) Compile(byte[] exe)
     {
@@ -44,10 +50,11 @@ internal static class MapAudioCompiler
             i => new MapBodySounds(Action(i, 0), Action(i, 1), Action(i, 2)));
         string construction = Sound("map-construction", 21), fortification = Sound("map-fortification-construction", 22);
         var definition = new MapAudioDefinition(Sound("execution-title", 11),
-            MusicSources.Take(4).Select(s => s.Role).ToArray(), MusicSources.Skip(4).Select(s => s.Role).ToArray(),
+            MusicSources.Take(4).Select(s => s.Role).ToArray(), MusicSources.Skip(4).Take(4).Select(s => s.Role).ToArray(),
             [0, 1, 2], bodies, Enumerable.Range(0, 17).ToDictionary(i => i, i => i is >= 7 and <= 10 ? fortification : construction),
             Enumerable.Range(159, 3).Select(i => Sound($"map-battle-ambience-{i - 159}", i)).ToArray())
         {
+            ExecutionMusic = new("execution-battle", "execution-battle-ranked", "execution-march", "execution-march-ranked", "execution-domestic"),
             RecordNotificationSound = Sound("map-record-notification", 2),
             FacilityArrowSounds = Enumerable.Range(64, 3).Select(i => Sound($"map-facility-arrow-{i - 64}", i)).ToArray(),
             RockfallImpactSounds = [Sound("map-rockfall-impact", 75), Sound("map-rockfall-dust", 71)]

@@ -7,60 +7,67 @@ public partial class SceneMusicPlayer : Node
 {
     public string ContentRoot { get; init; } = "";
     public IReadOnlyDictionary<string,string> Tracks { get; init; } = null!;
-    public bool Enabled { get; private set; } = true;
-    private AudioStreamPlayer _player = null!;
-    private AudioStreamPlayer _map = null!;
-    private string? _mapRole;
-    private int _owners;
+    private readonly MusicPlaybackState _state = new();
+    private readonly Dictionary<MusicPlaybackState.Track, AudioStreamPlayer> _players = [];
+    private readonly HashSet<MusicPlaybackState.Track> _started = [];
     private AudioStreams _streams = null!;
-    public override void _Ready() { _streams = new(ContentRoot, Tracks); _player = new(); AddChild(_player); _map = new(); AddChild(_map); }
-    public void SetEnabled(bool enabled)
+    private float _mapGain = 1;
+    public bool Enabled => _state.Enabled;
+
+    public override void _Ready()
     {
-        if (Enabled == enabled) return;
-        Enabled = enabled;
-        if (!enabled) { _player.Stop(); _player.Stream = null; }
-        RefreshMapTrack();
+        _streams = new(ContentRoot, Tracks);
+        _state.Changed += Synchronize;
+        Synchronize();
     }
-    public void SetMapTrack(string? role)
+
+    public void SetEnabled(bool enabled) => _state.SetEnabled(enabled);
+    public void SetMapTrack(string? role) => _state.SetMapTrack(role is null ? null : Tracks[role]);
+    public IDisposable Begin(string role, bool loop) => _state.Begin(Tracks[role], loop);
+    public void SetMapTransitionGain(float gain)
     {
-        if (_mapRole == role) return;
-        _mapRole = role;
-        RefreshMapTrack();
+        if (_mapGain == gain) return;
+        _mapGain = gain;
+        UpdateGains();
     }
-    public void SetMapTransitionGain(float gain) => _map.VolumeDb = Mathf.LinearToDb(gain);
-    private void RefreshMapTrack()
+
+    private void Synchronize()
     {
-        if (!Enabled || _mapRole is null) { _map.Stop(); _map.Stream = null; return; }
-        var stream = _streams.Get(_mapRole, loop: true);
-        if (_map.Stream == stream && _map.Playing) return;
-        _map.Stop(); _map.Stream = stream; _map.Play(); _map.StreamPaused = _owners > 0;
-    }
-    public IDisposable Begin(string role)
-    {
-        if (!Enabled) return new Lease(() => { });
-        var stream = _streams.Get(role, loop: true);
-        var prior = _player.Stream;
-        float position = _player.GetPlaybackPosition();
-        bool playing = _player.Playing;
-        _owners++; _map.StreamPaused = true;
-        _player.Stop(); _player.Stream = stream; _player.Play();
-        return new Lease(() =>
+        var live = _state.Tracks.ToHashSet();
+        foreach (var track in _players.Keys.Where(t => !live.Contains(t)).ToArray())
         {
-            if (!GodotObject.IsInstanceValid(_player)) return;
-            _player.Stop(); _player.Stream = prior;
-            if (Enabled && playing) _player.Play(position);
-            _owners--; _map.StreamPaused = _owners > 0;
-        });
+            var player = _players[track];
+            player.Stop(); player.Stream = null;
+            RemoveChild(player); player.QueueFree();
+            _players.Remove(track); _started.Remove(track);
+        }
+        foreach (var track in live)
+        {
+            if (!_players.TryGetValue(track, out var player))
+            {
+                player = new() { Stream = _streams.GetFile(track.Resource, track.Loop) };
+                AddChild(player); _players.Add(track, player);
+            }
+            bool audible = ReferenceEquals(track, _state.Audible);
+            player.StreamPaused = !audible;
+            // A finished one-shot remains finished until its owner closes it.
+            if (audible && _started.Add(track)) player.Play();
+        }
+        UpdateGains();
     }
-    private sealed class Lease(Action release) : IDisposable
+
+    private void UpdateGains()
     {
-        private Action? _release = release;
-        public void Dispose() => Interlocked.Exchange(ref _release,null)?.Invoke();
+        foreach (var (track, player) in _players)
+            player.VolumeDb = Mathf.LinearToDb(ReferenceEquals(track, _state.MapTrack) &&
+                !(_state.HasScene && ReferenceEquals(track, _state.Audible)) ? _mapGain : 1);
     }
+
     public override void _ExitTree()
     {
-        _player.Stop(); _player.Stream = null;
-        _map.Stop(); _map.Stream = null;
+        _state.Changed -= Synchronize;
+        foreach (var player in _players.Values) { player.Stop(); player.Stream = null; }
+        _players.Clear(); _started.Clear();
         _streams.Dispose();
     }
 }

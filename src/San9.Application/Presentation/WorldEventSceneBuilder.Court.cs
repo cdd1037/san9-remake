@@ -29,7 +29,7 @@ internal sealed partial class WorldEventSceneBuilder
                 bool playerRank = Player(rank.ForceId);
                 if (rank.Kind == PeerageChangeKind.Abdication)
                 {
-                    if (playerRank) { Message("abdication-introduction"); Message("abdication-emperor", music: "event-court-music"); Message("abdication-reply", music: "event-court-music"); }
+                    if (playerRank) { Message("abdication-introduction"); Message("abdication-emperor", music: "event-court-music", musicLoop: true); Message("abdication-reply", music: "event-court-music", musicLoop: true); }
                     Message("abdication-result", record: true);
                 }
                 else if (rank.Kind == PeerageChangeKind.Proclamation)
@@ -39,7 +39,7 @@ internal sealed partial class WorldEventSceneBuilder
                 }
                 else if (rank.Kind == PeerageChangeKind.Investiture)
                 {
-                    if (playerRank) { Message("investiture-introduction"); Message("investiture-decree", music: "event-court-music"); Message("investiture-reply", music: "event-court-music"); }
+                    if (playerRank) { Message("investiture-introduction"); Message("investiture-decree", music: "event-court-music", musicLoop: true); Message("investiture-reply", music: "event-court-music", musicLoop: true); }
                     Message("investiture-result", record: true);
                 }
                 else

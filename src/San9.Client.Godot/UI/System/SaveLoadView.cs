@@ -27,7 +27,7 @@ public partial class SaveLoadView : Control
         {
             int page = i;
             int start = i * SaveLoadBrowser.PageSize + 1, end = Math.Min(State.SlotCount, start + SaveLoadBrowser.PageSize - 1);
-            _pages.Add(Button("page", i == State.AutoSavePage ? "自动" : $"{start:00}-{end:00}", new(PageTabsLeft + i * 60, 634), new(64, 32), () => ChangePage(page)));
+            _pages.Add(Button("page", i >= State.FirstAutoSavePage ? $"自动{i - State.FirstAutoSavePage + 1}" : $"{start:00}-{end:00}", new(PageTabsLeft + i * 60, 634), new(64, 32), () => ChangePage(page)));
         }
         Button("no", "中止", new(862, 680), new(112, 48), Closed, 24);
         AddChild(new GameMessageBar { Textures = Textures, Text = State.Mode == SaveLoadMode.Save ? "选择欲储存资料的栏位。" : "请选择欲载入的资料。" });
@@ -68,7 +68,7 @@ public partial class SaveLoadView : Control
                 label.HorizontalAlignment = alignment;
                 row.StyleContentLabel(label, new(outline), fixedColor);
             }
-            RowLabel(State.IsAutoSavePage ? $"A{i + 1}" : slot.ToString(), new(24, 16), new(40, 32), 24, edge);
+            RowLabel(State.IsAutoSavePage ? $"A{slot - State.SlotCount}" : slot.ToString(), new(24, 16), new(56, 32), 24, edge);
             if (entry is null)
             {
                 if (State.Error(slot) is { } error) LabelAt(error, new(176, 24), new(650, 32), 24, content, new("f06850"));
@@ -136,7 +136,7 @@ public partial class SaveLoadView : Control
         FocusBehaviorRecursive = FocusBehaviorRecursiveEnum.Inherited;
         _pages[State.Page].GrabFocus();
     }
-    private void ShowHelp() => ShowNotice(State.Mode == SaveLoadMode.Save ? "选择栏位，输入备注后确认储存。\n已有资料的栏位将被覆盖。自动页仅供载入。" : "选择已有资料的栏位后确认载入。\n载入将替换当前游戏进度，空栏位不可选择。\n自动页保留最近五次旬开始存档，按新到旧排列。");
+    private void ShowHelp() => ShowNotice(State.Mode == SaveLoadMode.Save ? "选择栏位，输入备注后确认储存。\n已有资料的栏位将被覆盖。自动页仅供载入。" : "选择已有资料的栏位后确认载入。\n载入将替换当前游戏进度，空栏位不可选择。\n自动页保留最近十次旬开始存档，每页五条，按新到旧排列。");
     public void Back()
     {
         if (_notice.Visible) CloseNotice();

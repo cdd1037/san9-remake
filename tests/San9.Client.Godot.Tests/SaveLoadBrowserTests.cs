@@ -81,23 +81,39 @@ public sealed class SaveLoadBrowserTests
         Assert.Equal(new(SaveLoadMode.Save, 1, "替换"), browser.Confirm("替换"));
     }
     [Fact]
-    public void AutomaticPageHasFiveRowsLoadsFixedPositionAndCannotBeManuallyOverwritten()
+    public void AutomaticPagesLoadFixedPositionsAndCannotBeManuallyOverwritten()
     {
         var browser = new SaveLoadBrowser();
         const int selected = 2;
-        browser.SetAutoSaves([new(selected, new(Saved, null)), new(1, new(null, new SaveException(SaveFailure.InvalidFormat, "broken")))]);
+        browser.SetAutoSaves([new(selected, new(Saved, null)), new(1, new(null, new SaveException(SaveFailure.InvalidFormat, "broken"))),
+            new(3, new(Saved, null)), new(4, new(Saved, null)), new(5, new(Saved, null)), new(10, new(Saved, null))]);
         browser.Open(SaveLoadMode.Load);
-        Assert.Equal(9, browser.PageCount);
+        Assert.Equal(10, browser.PageCount);
         Assert.True(browser.ChangePage(8));
         Assert.True(browser.IsAutoSavePage);
         Assert.Equal(41, browser.SlotAt(0));
         Assert.Equal(45, browser.SlotAt(4));
-        Assert.False(browser.Select(43));
+        Assert.False(browser.Select(46));
         Assert.True(browser.Select(41));
         var request = browser.Confirm("")!;
         Assert.Equal(selected, request.AutoSaveSlot);
+        Assert.True(browser.ChangePage(9));
+        Assert.True(browser.IsAutoSavePage);
+        Assert.Equal(46, browser.SlotAt(0));
+        Assert.Equal(50, browser.SlotAt(4));
+        Assert.False(browser.Select(41));
+        Assert.False(browser.Select(47));
+        Assert.True(browser.Select(46));
+        Assert.False(browser.ChangePage(8));
+        Assert.Equal(10, browser.Confirm("")!.AutoSaveSlot);
+        browser.Close();
+        browser.Open(SaveLoadMode.Load);
+        Assert.Equal(9, browser.Page);
+        Assert.False(browser.ChangePage(10));
         browser.Open(SaveLoadMode.Save);
-        Assert.Equal(8, browser.Page);
+        Assert.False(browser.Select(46));
+        Assert.False(browser.Select(50));
+        Assert.True(browser.ChangePage(8));
         Assert.False(browser.Select(41));
         Assert.False(browser.Select(45));
         Assert.Null(browser.Confirm("不能覆盖"));

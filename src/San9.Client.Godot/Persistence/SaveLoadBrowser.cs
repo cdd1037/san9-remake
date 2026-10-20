@@ -15,10 +15,10 @@ public sealed class SaveLoadBrowser
     private Dictionary<int, SaveSlotListing> _entries = [];
     public int SlotCount { get; }
     private IReadOnlyList<AutoSaveEntry> _autoSaves = [];
-    public int AutoSavePage => (SlotCount + PageSize - 1) / PageSize;
-    public int PageCount => AutoSavePage + 1;
-    public bool IsAutoSavePage => Page == AutoSavePage;
-    public int SlotAt(int row) => IsAutoSavePage ? SlotCount + row + 1 : Page * PageSize + row + 1;
+    public int FirstAutoSavePage => (SlotCount + PageSize - 1) / PageSize;
+    public int PageCount => FirstAutoSavePage + (SlotSaveStore.AutoSaveCount + PageSize - 1) / PageSize;
+    public bool IsAutoSavePage => Page >= FirstAutoSavePage;
+    public int SlotAt(int row) => IsAutoSavePage ? SlotCount + (Page - FirstAutoSavePage) * PageSize + row + 1 : Page * PageSize + row + 1;
     private SaveSlotListing? Listing(int slot) => slot > SlotCount
         ? _autoSaves.ElementAtOrDefault(slot - SlotCount - 1)?.Listing : _entries.GetValueOrDefault(slot);
     public void SetAutoSaves(IReadOnlyList<AutoSaveEntry> entries)
@@ -60,7 +60,7 @@ public sealed class SaveLoadBrowser
     public bool Select(int slot)
     {
         if (!IsOpen || PendingSlot is not null || slot < 1 || slot > SlotCount + SlotSaveStore.AutoSaveCount ||
-            (slot > SlotCount ? AutoSavePage : (slot - 1) / PageSize) != Page ||
+            (slot > SlotCount ? FirstAutoSavePage + (slot - SlotCount - 1) / PageSize : (slot - 1) / PageSize) != Page ||
             Mode == SaveLoadMode.Save && slot > SlotCount || Mode == SaveLoadMode.Load && !Occupied(slot)) return false;
         PendingSlot = slot; return true;
     }

@@ -231,7 +231,7 @@ public sealed class SlotSaveStoreTests : IDisposable
         var queue = new AutoSaveQueue(store);
         var session = GameSession.Start(Definition, 1, enableXunStartCheckpoints: true);
         List<Task> writes = [];
-        for (int i = 0; i < 7; i++)
+        for (int i = 0; i < 12; i++)
         {
             int xun = i;
             writes.Add(queue.Enqueue(session, _ => Summary($"旬{xun}") with { SavedAt = DateTimeOffset.UnixEpoch.AddSeconds(xun) }));
@@ -239,10 +239,10 @@ public sealed class SlotSaveStoreTests : IDisposable
         }
         await Task.WhenAll(writes);
         var entries = new SlotSaveStore(_directory, Definition).ReadAutoSaveCatalog();
-        Assert.Equal(new[] { 2, 1, 5, 4, 3 }, entries.Select(e => e.Slot));
-        Assert.Equal(new[] { "旬6", "旬5", "旬4", "旬3", "旬2" }, entries.Select(e => e.Listing.Summary!.Note));
-        Assert.Equal(5, Directory.GetFiles(_directory, "auto-*.save.json").Length);
-        Assert.Equal(60, store.LoadAutoSave(entries[0].Slot).Snapshot.Clock.DayNumber - new GameClock(190, 1, 1).DayNumber);
+        Assert.Equal(new[] { 2, 1, 10, 9, 8, 7, 6, 5, 4, 3 }, entries.Select(e => e.Slot));
+        Assert.Equal(Enumerable.Range(2, 10).Reverse().Select(i => $"旬{i}"), entries.Select(e => e.Listing.Summary!.Note));
+        Assert.Equal(10, Directory.GetFiles(_directory, "auto-*.save.json").Length);
+        Assert.Equal(110, store.LoadAutoSave(entries[0].Slot).Snapshot.Clock.DayNumber - new GameClock(190, 1, 1).DayNumber);
     }
 
     [Theory]
@@ -255,14 +255,14 @@ public sealed class SlotSaveStoreTests : IDisposable
         var store = new SlotSaveStore(_directory, definition);
         var queue = new AutoSaveQueue(store);
         var session = GameSession.Start(definition, 1, enableXunStartCheckpoints: true);
-        for (int i = 0; i < 6; i++)
+        for (int i = 0; i < 11; i++)
         {
             await queue.Enqueue(session, _ => Summary("轮换"));
-            Assert.True(File.Exists(store.AutoSavePathFor(i % 5 + 1)));
+            Assert.True(File.Exists(store.AutoSavePathFor(i % 10 + 1)));
             session.AdvanceXun();
         }
-        Assert.Equal(5, store.ReadAutoSaveCatalog().Count);
-        Assert.Equal(50, store.LoadAutoSave(store.ReadAutoSaveCatalog().Single(e => e.Slot == 1).Slot).Snapshot.Clock.DayNumber -
+        Assert.Equal(10, store.ReadAutoSaveCatalog().Count);
+        Assert.Equal(100, store.LoadAutoSave(store.ReadAutoSaveCatalog().Single(e => e.Slot == 1).Slot).Snapshot.Clock.DayNumber -
             new GameClock(190, month, day).DayNumber);
     }
 

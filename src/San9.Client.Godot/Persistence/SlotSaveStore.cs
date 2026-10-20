@@ -17,7 +17,7 @@ public sealed record SaveSlotListing(SaveSlotSummary? Summary, SaveException? Er
 public sealed class SlotSaveStore(string directory, ScenarioInitialState definition)
 {
     private const int FormatVersion = 4;
-    public const int AutoSaveCount = 5;
+    public const int AutoSaveCount = 10;
     private readonly BackgroundSaveQueue _writes = new();
     public string AutoSavePathFor(int slot)
     {

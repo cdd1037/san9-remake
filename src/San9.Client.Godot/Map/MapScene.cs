@@ -93,10 +93,12 @@ internal sealed partial class MapScene
             Map.Squares[building.Y * Map.Width + building.X].Elevation);
         return new(p.X, p.Y);
     }
+    public Rect2 AnnotationBounds(MapBuilding building) =>
+        new(Anchor(building), Settlements[building.Id].IsWork ? new(76, 33) : new(116, 55));
     public bool Intersects(MapBuilding building, Rect2 bounds) =>
         building.Sprites.Any(s => bounds.Intersects(Bounds(s))) ||
         BuildingAnimations(building.Id, true).Any(s => bounds.Intersects(Bounds(s))) ||
-        bounds.Intersects(new Rect2(Anchor(building), new(116, 55)));
+        bounds.Intersects(AnnotationBounds(building));
     public bool Intersects(UnitVisual unit, Rect2 bounds) =>
         Day is not null || _history.Length > 0 ? MotionBounds(unit).Intersects(bounds) :
         unit.Animations.Any(s => bounds.Intersects(Bounds(s))) ||

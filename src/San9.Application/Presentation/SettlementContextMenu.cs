@@ -10,7 +10,7 @@ public static class SettlementContextMenu
     public static IReadOnlyList<MapContextEntry> Read(StrategySnapshot view, int settlementId)
     {
         var place = view.World.Settlements.FirstOrDefault(s => s.Id == settlementId && !s.IsDormant && !s.IsDestroyed);
-        if (place is null) return [];
+        if (place is null || !view.Settlements.First(s => s.Id == settlementId).HasMapContextMenu) return [];
         bool city = place.Kind == SettlementKind.City;
         string prefix = city ? "都市" : "地域";
         List<MapContextEntry> entries = [new(prefix + "情报",

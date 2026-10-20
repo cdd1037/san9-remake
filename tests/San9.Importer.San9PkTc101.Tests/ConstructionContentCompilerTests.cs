@@ -20,6 +20,7 @@ public sealed class ConstructionContentCompilerTests
         var buildings = Buildings();
         var rules = ConstructionContentCompiler.Facilities(buildings, Formations());
         Assert.Equal(Enumerable.Range(0, 17), rules.Select(f => f.Id));
+        Assert.Equal(new[] { 14, 15, 16 }, ConstructionContentCompiler.MapContextExcludedFacilityIds);
         foreach (var rule in rules)
         {
             Assert.Equal(new CombatProfile(17, 23, 0, 41, 50), rule.Combat);

@@ -8,7 +8,7 @@ namespace San9.Client.Godot;
 internal sealed class MapAnnotationLayer
 {
     private sealed record Entry(MapObjectTarget Target, Vector2 Position, string Name, uint Soldiers,
-        int Morale, int Durability, int MaxDurability, string[] Icons, Rect2? HitBounds);
+        int Morale, int Durability, int MaxDurability, string[] Icons, Rect2? HitBounds, bool IsWork = false);
     private Entry[] _entries = [];
     public bool HasAnimatedBars { get; private set; }
     public void Prepare(MapSceneView.Frame frame, Font font, TextCatalog texts)
@@ -17,10 +17,10 @@ internal sealed class MapAnnotationLayer
         foreach (var building in frame.Region.Buildings)
         {
             var value = frame.Region.Scene.Settlements[building.Id];
-            var position = frame.Region.Scene.Anchor(building);
-            if (!frame.Region.Bounds.Intersects(new Rect2(position, new(116, 55)))) continue;
-            entries.Add(new(new(building.Id, false), position, value.ResolveName(texts), value.Soldiers,
-                value.Morale, value.Durability, value.MaxDurability, value.Icons.ToArray(), null));
+            var bounds = frame.Region.Scene.AnnotationBounds(building);
+            if (!frame.Region.Bounds.Intersects(bounds)) continue;
+            entries.Add(new(new(building.Id, false), bounds.Position, value.ResolveName(texts), value.Soldiers,
+                value.Morale, value.Durability, value.MaxDurability, value.Icons.ToArray(), null, value.IsWork));
         }
         var units = frame.Region.Scene.State.World.Units.ToDictionary(u => u.Id);
         int fontSize = GameTextStyles.Building(false).FontSize;
@@ -39,7 +39,7 @@ internal sealed class MapAnnotationLayer
                 }, bounds));
         }
         _entries = entries.ToArray();
-        HasAnimatedBars = _entries.Any(e => Animated(e.Morale, 100) || !e.Target.IsUnit && Animated(e.Durability, e.MaxDurability));
+        HasAnimatedBars = _entries.Any(e => !e.IsWork && Animated(e.Morale, 100) || !e.Target.IsUnit && Animated(e.Durability, e.MaxDurability));
         static bool Animated(int value, int maximum) => BuildingInfoGeometry.FillWidth(value, maximum) > 0 &&
             BuildingInfoGeometry.FillState(value, maximum) != "normal";
     }
@@ -56,6 +56,12 @@ internal sealed class MapAnnotationLayer
         {
             target.DrawSetTransform(project(entry.Position), 0, Vector2.One * zoom);
             var style = GameTextStyles.Building(hovered == entry.Target);
+            if (entry.IsWork)
+            {
+                Bar("durability", entry.Durability, entry.MaxDurability, Vector2.Zero, entry.Target.Id);
+                GameTextPresenter.Draw(target, font, entry.Name, new(0, 31), style);
+                continue;
+            }
             int soldiersY = entry.Target.IsUnit ? 20 : 16;
             GameTextPresenter.Draw(target, font, entry.Soldiers.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 new(0, soldiersY), style, HorizontalAlignment.Right, 72);

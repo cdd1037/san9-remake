@@ -256,6 +256,8 @@ G03经济内容保留基础信望、相性、精通类别、军团账户、兵�
 
 ## 情报显示元数据
 
+2026-10-20障碍物对齐采用剧本schema139／组合包schema201。`Information.MapContextExcludedFacilityIds`为必填集合，作者声明不开放地图对象右键入口的设施类型引用；空集合表示不额外排除，重复或未知引用拒绝加载。TC101仅排除土垒两方向和石兵，编号映射只在Importer。障碍物标牌及hover从既有 `FacilityRule.IsWork`派生，与驻人状态及该右键集合独立。旧包原位执行`import-client`；190年运行包已更新，不重转纹理或音频。
+
 情报契约包含必填ProvinceNameKeys及官爵IsUnranked、可空DescriptionKey。州名映射允许作者省略，缺失显示“—”；非空文本引用由组合包校验，无官爵标记至多一个。Importer将源州消息和官爵说明转换为语义文本键，运行时不依赖原版州／官爵编号；旧包须重转，不提供兼容分支。这些显示元数据不额外加入规则字段投影。
 
 都市初始兵法包含剧本位域与TC101新局初始化追加的兵法，后者由CityTacticContentCompiler转换，合并去重且保留落石／射台。城市编号映射仅存在于Importer；共享内容继续使用EnabledTacticIds。修正前生成包须重转；数据进入既有内容指纹，旧会话须重新开局，不能只刷新情报窗口。

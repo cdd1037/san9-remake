@@ -18,7 +18,7 @@ public sealed record MapHoverInfo(int Id, string Name, MapHoverTheme Theme, Forc
     public static MapHoverInfo? Resolve(StrategySnapshot view, TextCatalog texts, int id, MapInformationContext context)
     {
         var s = view.Settlements.SingleOrDefault(s => s.Id == id);
-        if (s is null) return null;
+        if (s is null || s.IsWork) return null;
         var force = view.Forces.SingleOrDefault(f => f.Id == s.OwnerId);
         var corps = view.World.Corps.SingleOrDefault(c => c.Id == s.CorpsId);
         var staffing = SettlementStaffing.Read(view, id);

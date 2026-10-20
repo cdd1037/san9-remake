@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -34,6 +35,8 @@ public sealed record SettlementView(int Id,string NameKey,int? OwnerId,int X,int
     public bool UsesRockfallPower { get; init; }
     public FacilityReprisal? Reprisal { get; init; }
     public bool IsUnderConstruction { get; init; }
+    public bool IsWork { get; init; }
+    public bool HasMapContextMenu { get; init; } = true;
 }
 
 internal sealed class StrategySnapshotSource
@@ -236,6 +239,7 @@ public sealed class StrategySnapshot
         {
             var definition = source.Settlement(s.Id);
             var militaryPlace = source.Military is { } rules && rules.TryPlace(s, out var place) ? place : null;
+            var facilityRule = militaryPlace?.FacilityTypeId is int type ? source.Military!.Facilities[type] : null;
             var attack = militaryPlace is null ? null : source.Military!.FacilityAttack(s);
             var cell = s.Facility is { } facility ? MapCoordinates.Cell(facility.Position) :
                 new MapCell(definition!.X, definition.Y);
@@ -259,11 +263,13 @@ public sealed class StrategySnapshot
                 IsFacilityListEntry = !s.IsDestroyed && s.CanHostPersons,
                 NameSuffixKey = s.Facility is {} built ? source.FacilityNameSuffixKeys.GetValueOrDefault(built.TypeId) : null,
                 FacilityTypeId = militaryPlace?.FacilityTypeId,
+                IsWork = facilityRule?.IsWork == true,
+                HasMapContextMenu = facilityRule is null || !source.Information.MapContextExcludedFacilityIds.Contains(facilityRule.Id),
                 EnabledTacticIds = militaryPlace?.EnabledTacticIds ?? [],
                 ConfiguredTacticId = source.Military?.FacilityTactic(s)?.Id,
                 BaseAttackRange = attack?.Attack?.Range,
                 UsesRockfallPower = attack?.UsesRockfallPower == true,
-                Reprisal = militaryPlace?.FacilityTypeId is int reprisalType ? source.Military?.Facilities[reprisalType].Reprisal : null,
+                Reprisal = facilityRule?.Reprisal,
                 IsUnderConstruction = s.Facility?.BuilderUnitId is not null
             };
         }).ToArray());
@@ -312,6 +318,7 @@ public sealed class StrategySnapshot
 
 public sealed class InformationCatalog(InformationDefinitions definitions)
 {
+    public IReadOnlySet<int> MapContextExcludedFacilityIds { get; } = definitions.MapContextExcludedFacilityIds.ToImmutableHashSet();
     public IReadOnlyList<CountryTitleDefinition> CountryTitles { get; } = Array.AsReadOnly(definitions.CountryTitles.ToArray());
     public IReadOnlyList<MilitaryCatalogDefinition> Tactics { get; } = Array.AsReadOnly(definitions.Tactics.ToArray());
     public IReadOnlyList<FormationCatalogDefinition> Formations { get; } = Array.AsReadOnly(definitions.Formations.ToArray());

@@ -5,6 +5,9 @@ namespace San9.Importer.San9PkTc101.Scenarios;
 
 public static class ConstructionContentCompiler
 {
+    // RE-SAN9PK-0073: source earth-wall orientations and stone formation have no object context menu.
+    public static ImmutableArray<int> MapContextExcludedFacilityIds => [14, 15, 16];
+
     public static ImmutableArray<FacilityRule> Facilities(IReadOnlyList<San9ScenarioFixedBuildingRecord> buildings,
         IReadOnlyList<San9ScenarioFormationRecord> formations)
     {

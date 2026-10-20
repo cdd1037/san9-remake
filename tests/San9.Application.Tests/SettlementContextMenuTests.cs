@@ -10,6 +10,57 @@ namespace San9.Application.Tests;
 public sealed class SettlementContextMenuTests
 {
     [Theory]
+    [InlineData(9000, false, false, false)]
+    [InlineData(9000, false, false, true)]
+    [InlineData(9001, true, false, false)]
+    [InlineData(9001, true, false, true)]
+    [InlineData(9002, true, true, false)]
+    [InlineData(9002, true, true, true)]
+    public void WorkHoverAndContextUseIndependentAuthoredCapabilities(int type, bool work, bool excluded, bool constructing)
+    {
+        var basis = G01ScenarioTests.Fixture();
+        var definition = basis with
+        {
+            RegionNameKeys = basis.Settlements.ToDictionary(s => s.Id, s => s.NameKey),
+            Military = new(4, 4, Enumerable.Repeat(0, 16).ToImmutableArray(), [new(0, 1, 1)],
+                [new(1, 10, 50, 10000, 5, new(1, 1), TravelMode.Land)],
+                basis.Settlements.Select(s => new BattlefieldPlace(s.Id, s.Position, new(1, 1)) { FacilityTypeId = 9000 }).ToImmutableArray())
+            {
+                Facilities = [new(9000, 0, 1000, new(1, 1), 0, true, true, true, 100000, null, null, null, []),
+                    new(9001, 0, 1000, new(1, 1), 0, true, false, false, 100000, null, null, null, []) { IsWork = true },
+                    new(9002, 0, 1000, new(1, 1), 0, true, false, false, 100000, null, null, null, []) { IsWork = true }]
+            },
+            Information = basis.Information with { MapContextExcludedFacilityIds = [9002] }
+        };
+        var session = GameSession.Start(definition, 1);
+        var before = session.Snapshot;
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion,
+            basis.RegionNameKeys.Values.Concat(basis.Officers.Select(o => o.NameKey)).Concat(basis.Forces.Select(f => f.NameKey))
+                .Concat(basis.Settlements.Select(s => s.NameKey)).Distinct().ToDictionary(k => k, k => k));
+        foreach (int? owner in new int?[] { 1, 2, null })
+        {
+            var snapshot = before with { Settlements = before.Settlements.Select(s => s.Id == 1 ? s with
+            {
+                Kind = SettlementKind.Facility, OwnerId = owner, CanHostPersons = !work && !constructing,
+                Facility = new(type, basis.Settlements.Single(p => p.Id == s.Id).Position) { BuilderUnitId = constructing ? 999 : null }
+            } : s).ToArray() };
+            var view = new StrategySnapshot(definition, snapshot);
+            var projected = view.Settlements.Single(s => s.Id == 1);
+            Assert.Equal(work, projected.IsWork);
+            Assert.Equal(!excluded, projected.HasMapContextMenu);
+            Assert.Equal(constructing, projected.IsUnderConstruction);
+            foreach (var context in new[] { MapInformationContext.Strategy, MapInformationContext.Execution })
+                Assert.Equal(work, MapHoverInfo.Resolve(view, texts, 1, context) is null);
+            var entries = SettlementContextMenu.Read(view, 1);
+            if (excluded) Assert.Empty(entries);
+            else if (work || constructing) Assert.Equal(InformationCategory.Regions, Assert.Single(entries).Target.Category);
+            else Assert.NotEmpty(entries);
+            if (work) Assert.Empty(MapCommandMenu.Settlement(view, 1));
+        }
+        StateAssert.Equal(before, session.Snapshot);
+    }
+
+    [Theory]
     [InlineData(SettlementKind.City, null)]
     [InlineData(SettlementKind.City, 1)]
     [InlineData(SettlementKind.City, 2)]

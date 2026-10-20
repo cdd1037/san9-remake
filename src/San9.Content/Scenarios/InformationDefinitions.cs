@@ -51,14 +51,19 @@ public sealed record FormationCatalogDefinition(int Id, string NameKey) : Milita
 public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefinition[] Offices, TreasureDefinition[] Treasures,
     CorpsState[] Corps, TreasureState[] TreasureStates)
 {
+    [JsonRequired] public ImmutableArray<int> MapContextExcludedFacilityIds { get; init; } = [];
     [JsonRequired] public MilitaryCatalogDefinition[] Tactics { get; init; } = [];
     [JsonRequired] public FormationCatalogDefinition[] Formations { get; init; } = [];
     [JsonRequired] public CountryTitleDefinition[] CountryTitles { get; init; } = [];
     [JsonRequired] public ForceRelation[] Relations { get; init; } = [];
     public static InformationDefinitions Empty => new([], [], [], [], []);
-    public InformationDefinitions Copy() => new(Ranks.ToArray(), Offices.ToArray(), Treasures.ToArray(), Corps.ToArray(), TreasureStates.ToArray()) { Relations = Relations.ToArray(), CountryTitles = CountryTitles.ToArray(), Tactics = Tactics.ToArray(), Formations = Formations.ToArray() };
+    public InformationDefinitions Copy() => new(Ranks.ToArray(), Offices.ToArray(), Treasures.ToArray(), Corps.ToArray(), TreasureStates.ToArray()) { MapContextExcludedFacilityIds = MapContextExcludedFacilityIds, Relations = Relations.ToArray(), CountryTitles = CountryTitles.ToArray(), Tactics = Tactics.ToArray(), Formations = Formations.ToArray() };
     public void Validate(ScenarioInitialState scenario)
     {
+        if (MapContextExcludedFacilityIds.IsDefault ||
+            MapContextExcludedFacilityIds.Distinct().Count() != MapContextExcludedFacilityIds.Length ||
+            MapContextExcludedFacilityIds.Any(id => scenario.Military?.Facilities.Any(f => f.Id == id) != true))
+            throw new InvalidDataException("Invalid map context facility reference.");
         static void Unique(IEnumerable<int> ids)
         { var values = ids.ToArray(); if (values.Any(i => i < 0) || values.Distinct().Count() != values.Length) throw new InvalidDataException("Invalid information identities."); }
         if (Relations.Any(r => r.FirstId >= r.SecondId || r.Value is < 0 or > 100 || !scenario.Forces.Any(f => f.Id == r.FirstId) || !scenario.Forces.Any(f => f.Id == r.SecondId)) || Relations.Select(r => (r.FirstId, r.SecondId)).Distinct().Count() != Relations.Length)

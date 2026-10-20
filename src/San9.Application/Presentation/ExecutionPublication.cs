@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using San9.Content.Interface;
 using San9.Content.Text;
 using San9.Core.Simulation;
@@ -9,10 +10,11 @@ public static class ExecutionPublication
 {
     public static ExecutionOutput Read(StrategySnapshot before, StrategySnapshot after,
         WorldMessageContext context, TextCatalog texts, CommandPresentation content,
-        IReadOnlyList<DomainEvent> events, IReadOnlySet<Guid>? alreadyPresented = null, IReadOnlySet<int>? presentedFacts = null, bool executionMap = true)
+        IReadOnlyList<DomainEvent> events, IReadOnlySet<Guid>? alreadyPresented = null, IReadOnlySet<string>? presentedFeedback = null, bool executionMap = true)
     {
         List<CommandMessage> messages = [];
         List<MapMessageRecord> records = [];
+        HashSet<string> published = [];
         var identities = new PresentationIdentity(before, after);
         var occurrenceBefore = before;
         var occurrenceContext = context;
@@ -25,68 +27,17 @@ public static class ExecutionPublication
                 occurrenceBefore = identities.View;
                 occurrenceContext = context.ForWorld(occurrenceBefore.World);
             }
-            if (presentedFacts?.Contains(index) == true) continue;
-            var fact = events[index];
-            if (content.Progress is { } feedback)
+            foreach (var batch in OccurrenceFeedback.Read(before, occurrenceBefore, after, context, occurrenceContext,
+                texts, content, events, index, alreadyPresented, executionMap))
             {
-                var outcome = OutcomeFeedback.Read(occurrenceBefore, after, occurrenceContext, texts, feedback, events, index, executionMap);
-                messages.AddRange(outcome.Messages); records.AddRange(outcome.Records);
-                if (executionMap || fact is not OfficerAbilityGrownEvent)
-                    records.AddRange(ProgressFeedback.Records(occurrenceBefore, after, occurrenceContext, texts, feedback, events, index));
-                if (!executionMap && fact is OfficerAbilityGrownEvent)
-                    messages.AddRange(ProgressFeedback.GrowthPrompts(occurrenceBefore, occurrenceContext, texts, feedback, [fact]));
+                for (int i = 0; i < batch.Output.Messages.Count; i++)
+                    if (presentedFeedback?.Contains(batch.MessageId(i)) != true)
+                    { messages.Add(batch.Output.Messages[i]); published.Add(batch.MessageId(i)); }
+                for (int i = 0; i < batch.Output.Records.Count; i++)
+                    if (presentedFeedback?.Contains(batch.RecordId(i)) != true)
+                    { records.Add(batch.Output.Records[i]); published.Add(batch.RecordId(i)); }
             }
-            var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision, $"publication:{index}"));
-            int Pick(int count) => (int)(random.NextUInt64() % (ulong)count);
-            if (fact is OfficerDiedEvent { Cause: OfficerDeathCause.Execution } death && content.Execution is { } execution &&
-                events.OfType<PrisonerExecutedEvent>().SingleOrDefault(e => e.OfficerId == death.OfficerId && e.Clock == death.Clock) is { } executed)
-            {
-                bool Player(int? force) => before.World.Simulation.Controls.Any(c => c.ForceId == force && c.Kind == ControllerKind.Player);
-                if (Player(executed.ExecutingForceId) || Player(death.PreviousForceId))
-                {
-                    var sequence = ExecutionPresentation.Create(occurrenceContext.AtOccurrence(death.Clock), execution, executed, Pick);
-                    messages.AddRange(Player(executed.ExecutingForceId) ? sequence : sequence.Skip(2));
-                }
-            }
-            if (content.Capture is { } captureContent && fact is SettlementCapturedEvent captured &&
-                CapturePresentation.Create(occurrenceBefore, occurrenceContext, texts, captureContent, captured) is { } captureMessage)
-                messages.Add(captureMessage);
-            if (content.Events is { } eventContent)
-            {
-                if (fact is OfficerDiedEvent casualty && casualty.Cause is OfficerDeathCause.Melee or OfficerDeathCause.Sniping or OfficerDeathCause.Duel)
-                {
-                    string role = casualty.Cause switch { OfficerDeathCause.Melee => "melee-announcement", OfficerDeathCause.Sniping => "sniping-announcement", _ => "duel-announcement" };
-                    messages.Add(ProgressMessageProducer.Produce(eventContent.Messages[role], occurrenceContext.AtOccurrence(casualty.Clock), texts,
-                        new Dictionary<string, MessageBinding> { ["actor"] = ProgressMessageProducer.Person(casualty.OfficerId) }, Pick));
-                }
-                var scene = WorldEventPresentation.ReadOccurrence(occurrenceBefore, after, occurrenceContext, texts, eventContent, events, index);
-                messages.AddRange(scene.Messages); records.AddRange(scene.Records);
-            }
-            if (content.Progress is { } progress)
-            {
-                var reportBefore = fact is ForceEliminatedEvent or ForceLeaderChangedEvent or OfficerDiedEvent
-                    ? occurrenceBefore : before;
-                var reportContext = ReferenceEquals(reportBefore, before) ? context : occurrenceContext;
-                records.AddRange(ProgressMessages.Read(reportBefore, after, reportContext, texts, progress, events, index));
-                messages.AddRange(MapNotificationSpeeches.Read(occurrenceBefore, after, occurrenceContext, texts, progress, fact, index));
-            }
-            var mission = MissionPresentation.Results(before, texts, [fact], alreadyPresented, content.Missions, context, content.Decisions.People);
-            messages.AddRange(mission.Messages);
-            records.AddRange(mission.Records);
-            var strategy = StrategyFeedback.Read(occurrenceBefore, after, occurrenceContext, texts, content, fact, index);
-            messages.AddRange(strategy.Messages); records.AddRange(strategy.Records);
-            if (content.Personnel is { } personnel && fact is SearchResolvedEvent or RecruitmentResolvedEvent)
-            {
-                var clock = fact is SearchResolvedEvent search ? search.Clock : ((RecruitmentResolvedEvent)fact).Clock;
-                DomainEvent[] related = fact is RecruitmentResolvedEvent recruitment
-                    ? new[] { fact }.Concat(events.OfType<PersonnelTerritoryTransferredEvent>().Where(e => e.OfficerId == recruitment.TargetOfficerId)).ToArray()
-                    : [fact];
-                messages.AddRange(PersonnelPresentation.Results(before, context.AtOccurrence(clock), texts, personnel, related, Pick));
-            }
-            if (fact is TaskCompletedEvent completed)
-                messages.AddRange(ExecutionMessages.Read(before, context.AtOccurrence(completed.Clock), texts, content.Decisions,
-                    new[] { fact }.Concat(events.OfType<TacticLearnedEvent>()).ToArray()));
         }
-        return new(messages, records);
+        return new(messages, records) { FeedbackIds = published.ToFrozenSet() };
     }
 }

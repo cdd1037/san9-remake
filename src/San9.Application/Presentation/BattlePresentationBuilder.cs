@@ -14,7 +14,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
 {
     private readonly List<BattleMessageCue> _messages = [];
     private readonly List<BattleVisualCue> _visuals = [];
-    private readonly HashSet<int> _presented = [];
+    private readonly HashSet<string> _presented = [];
     private readonly List<BattleRecordCue> _records = [];
     private readonly List<BattleValueCue> _stateValues = [];
     private readonly List<BattleMapEffectCue> _mapEffects = [];
@@ -25,6 +25,48 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
     private readonly PresentationIdentity _identities = new(before, after);
     private double _cursor = 1, _impact = 1.5, _mapAvailable;
     private int _index;
+
+    private int _feedbackIndex = -1;
+    private IReadOnlyList<FeedbackBatch> _feedback = [];
+
+    private IEnumerable<FeedbackBatch> Feedback(params FeedbackKind[] kinds)
+    {
+        if (_feedbackIndex != _index)
+        {
+            var view = _identities.View;
+            _feedback = OccurrenceFeedback.Read(before, view, after, context, context.ForWorld(view.World), texts, content, events, _index);
+            _feedbackIndex = _index;
+        }
+        foreach (var kind in kinds)
+            foreach (var batch in _feedback.Where(b => b.Kind == kind)) yield return batch;
+    }
+
+    private IEnumerable<(string Id, CommandMessage Message)> FeedbackMessages(params FeedbackKind[] kinds)
+    {
+        foreach (var batch in Feedback(kinds))
+            for (int i = 0; i < batch.Output.Messages.Count; i++)
+            {
+                string id = batch.MessageId(i);
+                if (_presented.Add(id)) yield return (id, batch.Output.Messages[i]);
+            }
+    }
+
+    private IEnumerable<MapMessageRecord> FeedbackRecords(params FeedbackKind[] kinds)
+    {
+        foreach (var batch in Feedback(kinds))
+            for (int i = 0; i < batch.Output.Records.Count; i++)
+                if (_presented.Add(batch.RecordId(i))) yield return batch.Output.Records[i];
+    }
+
+    private bool PublishFeedback(double time, params FeedbackKind[] kinds)
+    {
+        int count = _messages.Count + _records.Count;
+        foreach (var (id, message) in FeedbackMessages(kinds))
+            _messages.Add(new(id, time, message,
+                message.MapSpeech is null ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech));
+        foreach (var record in FeedbackRecords(kinds)) _records.Add(new(time, record));
+        return _messages.Count + _records.Count > count;
+    }
 
     private void Capture(BattleObjectContext source, BattleObjectContext target)
     {
@@ -143,12 +185,8 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
 
     private void PresentCondition(BattleConditionChangedEvent condition)
     {
-        if (condition.Condition == UnitCondition.Normal && content.Progress is { } progress)
-        {
-            foreach (var record in ProgressFeedback.Records(before, after, context, texts, progress, events, _index))
-                _records.Add(new(MapTime(_impact), record));
-            _presented.Add(_index);
-        }
+        if (condition.Condition == UnitCondition.Normal)
+            PublishFeedback(MapTime(_impact), FeedbackKind.Progress);
         var obj = condition.Target ?? TargetContext(condition.ObjectId, condition.IsSettlement);
         if (condition.SourceForceId is int sourceForce && obj is not null)
         {
@@ -193,16 +231,12 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
 
     private void PresentMission(DomainEvent fact)
     {
-        var mission = MissionPresentation.Results(before, texts, [fact], content: content.Missions, context: context, speakers: content.Decisions.People);
-        var strategy = StrategyFeedback.Read(_identities.View, after, context.ForWorld(_identities.View.World), texts, content, fact, _index);
-        mission = new(mission.Messages.Concat(strategy.Messages).ToArray(), mission.Records.Concat(strategy.Records).ToArray());
-        if (content.Progress is { } feedback)
-            mission = mission with { Records = mission.Records.Concat(ProgressFeedback.Records(before, after, context, texts, feedback, events, _index)).ToArray() };
-        if (mission.Messages.Count == 0 && mission.Records.Count == 0) return;
-        _presented.Add(_index);
+        var messages = FeedbackMessages(FeedbackKind.Mission, FeedbackKind.Strategy).ToArray();
+        var records = FeedbackRecords(FeedbackKind.Mission, FeedbackKind.Strategy, FeedbackKind.Progress).ToArray();
+        if (messages.Length == 0 && records.Length == 0) return;
         int? burning = fact is BurnResolvedEvent { Success: true } burn ? burn.TargetSettlementId : null;
         int? seizing = fact is SeizeResolvedEvent { Outcome: not SeizeOutcomeKind.Failure } seize ? seize.TargetSettlementId : null;
-        if (mission.Messages.Count > 0 && (burning ?? seizing) is int building && content.Battle?.BuildingEffects.TryGetValue(burning is null ? "seize" : "burn", out var effects) == true)
+        if (messages.Length > 0 && (burning ?? seizing) is int building && content.Battle?.BuildingEffects.TryGetValue(burning is null ? "seize" : "burn", out var effects) == true)
         {
             var place = before.Settlements.First(s => s.Id == building);
             int? type = place.FacilityTypeId ?? buildingTypes?.GetValueOrDefault(building);
@@ -213,10 +247,10 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
                     _visuals.Add(new(Identity($"mission-effect-{frame}"), _cursor + 0.3, _cursor + 0.3 + sprites[frame].Columns * sprites[frame].FrameMilliseconds / 1000.0, obj, obj, -1, 0, false, false, 0, 0, 0, sprites[frame], null));
             }
         }
-        foreach (var message in mission.Messages)
+        foreach (var (feedbackId, message) in messages)
         {
             double time = _cursor + (message.MapSpeech?.DelaySeconds ?? 2);
-            var id = message.MapSpeech?.Id ?? Identity($"mission-{_messages.Count}");
+            var id = message.MapSpeech?.Id ?? feedbackId;
             var fixedMessage = message with
             {
                 MapSpeech = message.MapSpeech is { } speech ? speech with { Id = id, DelaySeconds = 0 } : null
@@ -224,7 +258,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             _messages.Add(new(id, time, fixedMessage,
                 fixedMessage.MapSpeech is null ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech));
         }
-        foreach (var record in mission.Records)
+        foreach (var record in records)
             _records.Add(new(_cursor + 2, record));
         _cursor = Math.Max(_cursor + 6, _visuals.Select(v => v.End).DefaultIfEmpty(0).Max());
     }
@@ -232,71 +266,22 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
     private void PresentAftermath()
     {
         _cursor = Math.Max(_cursor, _impact);
-        var occurrence = _identities.View;
-        var occurrenceContext = context.ForWorld(occurrence.World);
-        bool presented = false;
-        if (content.Progress is { } progress)
-        {
-            var reports = ProgressMessages.Read(occurrence, after, occurrenceContext, texts, progress, events, _index);
-            foreach (var report in reports) _records.Add(new(_cursor, report));
-            presented = reports.Count > 0;
-        }
-        if (content.Capture is { } capture && events[_index] is SettlementCapturedEvent captured &&
-            CapturePresentation.Create(occurrence, occurrenceContext, texts, capture, captured) is { } message)
-        {
-            _messages.Add(new(Identity("capture"), _cursor, message, BattleMessageChannel.Dialogue));
-            presented = true;
-        }
-        if (presented) _presented.Add(_index);
+        PublishFeedback(_cursor, FeedbackKind.Report, FeedbackKind.Capture);
     }
 
     private void PresentOutcome()
     {
-        if (content.Progress is not { } progress) return;
-        var beforeFact = _identities.View;
-        var output = OutcomeFeedback.Read(beforeFact, after, context.ForWorld(beforeFact.World), texts, progress, events, _index);
-        if (output.Messages.Count + output.Records.Count == 0) return;
-        _presented.Add(_index);
-        foreach (var record in output.Records) _records.Add(new(_cursor, record));
-        foreach (var message in output.Messages)
-            _messages.Add(new(Identity($"outcome-{_messages.Count}"), _cursor, message,
-                message.MapSpeech is null ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech));
-        _cursor += 1;
+        if (PublishFeedback(_cursor, FeedbackKind.Outcome)) _cursor += 1;
     }
 
     private void PresentFeedback()
     {
-        var view = _identities.View;
-        var occurrence = context.ForWorld(view.World);
-        var records = content.Progress is { } progress
-            ? ProgressFeedback.Records(view, after, occurrence, texts, progress, events, _index) : [];
-        IReadOnlyList<CommandMessage> messages = [];
-        if (events[_index] is RecruitmentResolvedEvent recruit && content.Personnel is { } personnel)
-            messages = PersonnelPresentation.Results(before, context.AtOccurrence(recruit.Clock), texts, personnel,
-                new[] { events[_index] }.Concat(events.OfType<PersonnelTerritoryTransferredEvent>()
-                    .Where(e => e.OfficerId == recruit.TargetOfficerId)).ToArray(), _ => 0);
-        if (records.Count == 0 && messages.Count == 0) return;
-        _presented.Add(_index);
-        foreach (var record in records) _records.Add(new(_cursor, record));
-        foreach (var message in messages)
-            _messages.Add(new(Identity($"feedback-{_messages.Count}"), _cursor, message,
-                message.MapSpeech is null ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech));
-        _cursor += 1;
+        if (PublishFeedback(_cursor, FeedbackKind.Progress, FeedbackKind.Personnel)) _cursor += 1;
     }
 
     private void PresentMapNotification()
     {
-        if (content.Progress is not { } progress) return;
-        var view = _identities.View;
-        var occurrence = context.ForWorld(view.World);
-        var records = ProgressMessages.Read(view, after, occurrence, texts, progress, events, _index)
-            .Concat(ProgressFeedback.Records(view, after, occurrence, texts, progress, events, _index)).ToArray();
-        var speeches = MapNotificationSpeeches.Read(view, after, occurrence, texts, progress, events[_index], _index);
-        if (records.Length == 0 && speeches.Count == 0) return;
-        _presented.Add(_index);
-        foreach (var record in records) _records.Add(new(_cursor, record));
-        foreach (var speech in speeches) _messages.Add(new(speech.MapSpeech!.Id, _cursor, speech));
-        _cursor += 1;
+        if (PublishFeedback(_cursor, FeedbackKind.Report, FeedbackKind.Progress, FeedbackKind.MapSpeech)) _cursor += 1;
     }
 
     private void PresentHealing(TacticHealingEvent healing)

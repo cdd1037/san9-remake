@@ -21,7 +21,7 @@ public sealed class TurnPresentation(GameSession session)
     public Func<bool>? CanPlayDay { get; set; }
     public Action<TurnDayPresentation>? PresentDay { get; init; }
     public Action? RetryPresentation { get; init; }
-    public IReadOnlySet<int> LastPresentedFacts { get; private set; } = new HashSet<int>();
+    public IReadOnlySet<string> LastPresentedFeedback { get; private set; } = new HashSet<string>();
     /// <summary>The host must consume this publication and finish its result UI before continuing.</summary>
     public Func<long, bool>? CanContinue { get; set; }
     public Func<int, bool>? PresentSeasonChange { get; init; }
@@ -229,7 +229,7 @@ public sealed class TurnPresentation(GameSession session)
             {
                 SeasonChangeOrigin = previousDate;
             }
-            LastPresentedFacts = Day?.Battle?.PresentedFacts ?? new HashSet<int>();
+            LastPresentedFeedback = Day?.Battle?.PresentedFeedback ?? new HashSet<string>();
             LastResult = result;
             Publication++;
             Progress = Math.Clamp((Display.World.Clock.DayNumber - _startedDay) / 10.0, 0, 1);

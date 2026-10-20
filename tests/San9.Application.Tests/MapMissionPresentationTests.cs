@@ -69,9 +69,19 @@ public sealed class MapMissionPresentationTests
         Assert.Equal(record, Assert.Single(plan.Records).Record);
         Assert.Equal(messages.Messages.Select(m => m.MapSpeech!.Id), plan.Messages.Select(c => c.Id));
         var unpublished = ExecutionPublication.Read(before, before, session.Messages(texts,before.World), texts, content, facts,
-            presentedFacts: plan.PresentedFacts);
+            presentedFeedback: plan.PresentedFeedback);
         Assert.Empty(unpublished.Messages);
         Assert.Empty(unpublished.Records);
+
+        // Claiming dialogue must not swallow a different channel from the same occurrence.
+        var publication = ExecutionPublication.Read(before, before, session.Messages(texts, before.World), texts, content, facts);
+        var messageIds = publication.FeedbackIds.Where(id => id.Contains(":message:", StringComparison.Ordinal)).ToHashSet();
+        var recordsOnly = ExecutionPublication.Read(before, before, session.Messages(texts, before.World), texts, content, facts,
+            presentedFeedback: messageIds);
+        Assert.Empty(recordsOnly.Messages);
+        Assert.Equal(publication.Records, recordsOnly.Records);
+        Assert.Empty(ExecutionPublication.Read(before, before, session.Messages(texts, before.World), texts, content, facts,
+            presentedFeedback: messageIds.Concat(recordsOnly.FeedbackIds).ToHashSet()).Records);
 
         // Authored result media still plays, independently of the execution record.
         definitions[roles[2]] = definitions[roles[2]] with { Sound = "result-sound" };

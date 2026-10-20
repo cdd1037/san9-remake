@@ -17,17 +17,12 @@ internal sealed partial class BattlePresentationBuilder
         if (content.Battle?.Duel is not { } definition || !(Player(death.PreviousForceId) || unit is not null && MapVisible(unit))) return;
         var message = ProgressMessageProducer.Produce(definition.Messages["death"], context.ForWorld(before.World).AtOccurrence(death.Clock),
             texts, new Dictionary<string, MessageBinding> { ["actor"] = ProgressMessageProducer.Person(death.OfficerId) }, _ => 0);
-        _presented.Add(_index);
+        // The duel death line replaces only the generic casualty announcement.
+        _ = FeedbackMessages(FeedbackKind.Casualty).ToArray();
         _messages.Add(new(Identity("duel-death"), _cursor, message, BattleMessageChannel.Dialogue));
         PresentAftermath();
         _cursor += .5;
-        if(content.Events is { } eventContent)
-        {
-            var scene=WorldEventPresentation.Read(before,after,context,texts,eventContent,events,_index);
-            foreach(var card in scene.Messages)
-                _messages.Add(new(Identity("duel-death-card"),_cursor,card,BattleMessageChannel.Dialogue));
-            _cursor += .5;
-        }
+        if (PublishFeedback(_cursor, FeedbackKind.WorldEvent)) _cursor += .5;
     }
 
     private void PresentDuel(DuelStartedEvent started)
@@ -168,7 +163,6 @@ internal sealed partial class BattlePresentationBuilder
                 dialogue: duelScenesEnabled ? Message(role, actor, opponent) : null, leftHp: leftHp, rightHp: rightHp);
             left = left with { HitPoints = leftHp }; right = right with { HitPoints = rightHp };
         }
-        _presented.Add(_index);
         if (duelScenesEnabled)
         {
             _messages.Add(new($"{id}:introduction", start, Message("introduction", left.Id, right.Id), BattleMessageChannel.Dialogue) { SceneId = id });
@@ -181,7 +175,6 @@ internal sealed partial class BattlePresentationBuilder
         while (_index + 1 < events.Count && events[_index + 1] is DuelStrikeEvent or DuelPairWonEvent)
         {
             _index++;
-            _presented.Add(_index);
             if (events[_index] is DuelStrikeEvent strike)
             {
                 for (int p = 0; p < particles.Count; p++)

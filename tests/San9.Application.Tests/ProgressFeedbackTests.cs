@@ -82,7 +82,7 @@ public sealed class ProgressFeedbackTests
         Assert.Equal(MapCoordinates.Cell(new(27, 7)), plan.Records[0].Record.Location);
         Assert.All(plan.Records.Skip(1), r => Assert.Equal(MapCoordinates.Cell(new(32, 7)), r.Record.Location));
         Assert.Single(plan.Messages, m => m.Message.MapSpeech is not null);
-        var rest = ExecutionPublication.Read(before, after, session.Messages(texts), texts, content, facts, presentedFacts: plan.PresentedFacts);
+        var rest = ExecutionPublication.Read(before, after, session.Messages(texts), texts, content, facts, presentedFeedback: plan.PresentedFeedback);
         Assert.Empty(rest.Records); Assert.Empty(rest.Messages);
         var prompt = ExecutionPublication.Read(before, after, session.Messages(texts), texts, content, [facts[1]], executionMap: false);
         Assert.Equal("growth-prompt", Assert.Single(prompt.Messages).Message.Key);

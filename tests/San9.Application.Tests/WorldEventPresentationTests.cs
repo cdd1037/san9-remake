@@ -102,7 +102,7 @@ public sealed class WorldEventPresentationTests
         Assert.Equal(21, output.Messages[3].IllustrationPersonId); Assert.True(output.Messages[3].IllustrationDeceased);
         Assert.Equal("force-eliminated-music", output.Messages[^1].BackgroundMusicRole);
         Assert.False(output.Messages[^1].BackgroundMusicLoop);
-        Assert.Empty(ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts, presentedFacts: new HashSet<int> { 0, 1, 2, 3 }).Messages);
+        Assert.Empty(ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts, presentedFeedback: output.FeedbackIds).Messages);
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public sealed class WorldEventPresentationTests
         var output = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts);
         Assert.Equal("actor", output.Messages[^1].Message.BbCode);
         Assert.Equal("actor", Assert.Single(ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts,
-            presentedFacts: new HashSet<int> { 0 }).Messages).Message.BbCode);
+            presentedFeedback: ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, [facts[0]]).FeedbackIds).Messages).Message.BbCode);
         Assert.Equal(1, before.World.Forces.Single(f => f.Id == 1).LeaderId);
     }
 

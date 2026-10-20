@@ -46,7 +46,7 @@ public sealed class BattlePresentationPlan
     public IReadOnlyList<BattleMessageCue> Messages { get; }
     public IReadOnlyList<BattleRecordCue> Records { get; }
     public IReadOnlyList<BattleVisualCue> Visuals { get; }
-    public IReadOnlySet<int> PresentedFacts { get; }
+    public IReadOnlySet<string> PresentedFeedback { get; }
     public double Duration { get; }
     public IReadOnlyList<BattleValueCue> Values { get; }
     public IReadOnlyList<BattleMapChangeCue> MapChanges { get; }
@@ -54,14 +54,14 @@ public sealed class BattlePresentationPlan
     public IReadOnlyList<BattleMapNumberCue> MapNumbers { get; }
     public BattleMapNumberDefinition? NumberDefinition { get; }
     internal BattlePresentationPlan(List<BattleMessageCue> messages, List<BattleRecordCue> records, List<BattleVisualCue> visuals, List<BattleValueCue> values,
-        List<BattleMapEffectCue> effects, List<BattleMapNumberCue> numbers, BattleMapNumberDefinition? numberDefinition, HashSet<int> facts, double duration, List<DuelSceneCue> duels,
+        List<BattleMapEffectCue> effects, List<BattleMapNumberCue> numbers, BattleMapNumberDefinition? numberDefinition, HashSet<string> feedback, double duration, List<DuelSceneCue> duels,
         List<BattleMapChangeCue> mapChanges)
     {
         Duels = duels.AsReadOnly();
         Messages = messages.AsReadOnly(); Records = records.AsReadOnly(); Visuals = visuals.AsReadOnly(); Values = values.AsReadOnly();
         MapEffects = effects.AsReadOnly(); MapNumbers = numbers.AsReadOnly(); NumberDefinition = numberDefinition;
         MapChanges = mapChanges.AsReadOnly();
-        PresentedFacts = facts.ToFrozenSet(); Duration = duration;
+        PresentedFeedback = feedback.ToFrozenSet(); Duration = duration;
     }
 
     public static BattlePresentationPlan Create(StrategySnapshot before, StrategySnapshot after,

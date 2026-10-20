@@ -41,7 +41,7 @@ public sealed class ProgressPresentationTests
         var plan = BattlePresentationPlan.Create(before, before, facts, session.Messages(texts), texts, content);
         Assert.Equal(2, plan.Records.Count);
         Assert.Equal(3, plan.Messages.Count);
-        var rest = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts, presentedFacts: plan.PresentedFacts);
+        var rest = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts, presentedFeedback: plan.PresentedFeedback);
         Assert.Empty(rest.Records); Assert.Empty(rest.Messages);
     }
     [Theory]

@@ -17,7 +17,7 @@ public partial class StrategyHud
     {
         if (Turn.Publication > _executionPublication && Turn.LastResult is { } result && _executionBefore is { } before)
         {
-            var output = ExecutionPublication.Read(before, Session.View, Session.Messages(Texts, before.World), Texts, CommandPresentation, result.Events, _diplomacyNarrated, Turn.LastPresentedFacts);
+            var output = ExecutionPublication.Read(before, Session.View, Session.Messages(Texts, before.World), Texts, CommandPresentation, result.Events, _diplomacyNarrated, Turn.LastPresentedFeedback);
             foreach (var record in output.Records) PresentMapRecord(record);
             OpenNarration(PresentExecutionMessages(output.Messages),before);
             _executionPublication = Turn.Publication;

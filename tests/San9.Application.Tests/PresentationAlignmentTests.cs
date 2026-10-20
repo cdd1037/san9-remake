@@ -40,7 +40,7 @@ public sealed class PresentationAlignmentTests
         var plan = BattlePresentationPlan.Create(before, before, facts, session.Messages(texts, before.World), texts, content);
         Assert.Equal(3, plan.Messages.Count);
         Assert.All(plan.Messages, m => Assert.Equal(BattleMessageChannel.Dialogue, m.Channel));
-        var remaining = ExecutionPublication.Read(before, before, session.Messages(texts, before.World), texts, content, facts, presentedFacts: plan.PresentedFacts);
+        var remaining = ExecutionPublication.Read(before, before, session.Messages(texts, before.World), texts, content, facts, presentedFeedback: plan.PresentedFeedback);
         Assert.Empty(remaining.Messages); Assert.Empty(remaining.Records);
     }
 
@@ -114,7 +114,7 @@ public sealed class PresentationAlignmentTests
         Assert.All(plan.Records, r => Assert.Equal("battle-captured", r.Record.Message.Key));
         Assert.Equal(2, plan.Messages.Count);
         Assert.Equal(2, plan.Messages.Select(m => m.Message.MapSpeech!.Location).Distinct().Count());
-        var remaining = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts, presentedFacts: plan.PresentedFacts);
+        var remaining = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts, presentedFeedback: plan.PresentedFeedback);
         Assert.Empty(remaining.Messages); Assert.Empty(remaining.Records);
     }
 

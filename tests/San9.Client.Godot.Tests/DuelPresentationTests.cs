@@ -249,7 +249,7 @@ public sealed class DuelPresentationTests
 
         var plan = BattlePresentationPlan.Create(view, view, deaths, session.Messages(texts), texts, content);
         var publication = ExecutionPublication.Read(view, view, session.Messages(texts), texts, content,
-            deaths, presentedFacts: plan.PresentedFacts);
+            deaths, presentedFeedback: plan.PresentedFeedback);
 
         Assert.Equal(new[] { "death", "ruler-death" }, plan.Messages.Select(m => m.Message.Message.Key));
         Assert.Empty(publication.Messages);

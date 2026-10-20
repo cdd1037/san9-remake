@@ -147,8 +147,8 @@ public sealed class CapturePresentationTests
         var cue = Assert.Single(plan.Messages);
         Assert.Equal(BattleMessageChannel.Dialogue, cue.Channel);
         Assert.Equal("ruler", cue.Message.Message.BbCode);
-        Assert.Contains(0, plan.PresentedFacts);
-        Assert.Empty(ExecutionPublication.Read(before, after, context, texts, content, facts, presentedFacts: plan.PresentedFacts).Messages);
+        Assert.NotEmpty(plan.PresentedFeedback);
+        Assert.Empty(ExecutionPublication.Read(before, after, context, texts, content, facts, presentedFeedback: plan.PresentedFeedback).Messages);
         var fallback = Assert.Single(ExecutionPublication.Read(before, after, context, texts, content, facts).Messages);
         Assert.Equal(cue.Message, fallback);
         DomainEvent[] earlierSuccession = [facts[1], facts[0]];

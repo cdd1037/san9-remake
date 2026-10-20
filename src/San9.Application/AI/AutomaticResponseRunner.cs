@@ -30,7 +30,7 @@ internal static class AutomaticResponseRunner
                     response.Owner.ControllerId));
             }
             if (!result.Submission.Accepted) Fail(response, "response-rejected", result.Submission.Rejection);
-            if (engine.GetPendingResponse() == response) Fail(response, "response-no-progress");
+            if (response.HasSameDecision(engine.GetPendingResponse())) Fail(response, "response-no-progress");
             events.AddRange(result.Events);
         }
     }
@@ -39,7 +39,7 @@ internal static class AutomaticResponseRunner
     {
         var snapshot = engine.Snapshot;
         var id = SimulationIdentity.Command(snapshot.Simulation.NextSequence, response.Owner.ForceId);
-        if (response.Kind == "captured-ruler" && engine.GetCapturedRulerPrompt() is { } captive)
+        if (response.Prompt is ResponsePrompt<CapturedRulerPrompt> { Value: var captive })
         {
             var random = AiPlanningContext.Create(AiObservation.FromSnapshot(response.Owner.ForceId, snapshot),
                 $"response:{response.Kind}:{captive.RulerId}", new(1, 0)).CreateAnalysisRandom();
@@ -49,18 +49,18 @@ internal static class AutomaticResponseRunner
             return new ChooseCapturedRulerDispositionCommand(id, response.Owner.ForceId,
                 snapshot.Simulation.NextSequence, captive.RulerId, action);
         }
-        if (response.Kind == "execution-succession" && engine.GetExecutionSuccessionPrompt() is { } succession)
+        if (response.Prompt is ResponsePrompt<ExecutionSuccessionPrompt> { Value: var succession })
         {
             if (succession.CandidateIds.IsEmpty) Fail(response, "response-no-legal-option");
             // The rule-defined automatic succession order is an explicit legal option, even with zero search.
             return new ChooseExecutionSuccessorCommand(id, response.Owner.ForceId,
                 snapshot.Simulation.NextSequence, succession.RulerId, null);
         }
-        if (response.Kind == "sniping-succession" && engine.GetSnipingSuccessionPrompt() is { } sniping)
+        if (response.Prompt is ResponsePrompt<SnipingSuccessionPrompt> { Value: var sniping })
             return new ChooseSnipingSuccessorCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, sniping.RulerId, null);
-        if (response.Kind == "duel-succession" && engine.GetDuelSuccessionPrompt() is { } duel)
+        if (response.Prompt is ResponsePrompt<DuelSuccessionPrompt> { Value: var duel })
             return new ChooseDuelSuccessorCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, duel.RulerId, null);
-        if (engine.GetOfficeRequestPrompt() is { } office)
+        if (response.Prompt is ResponsePrompt<OfficeRequestPrompt> { Value: var office })
         {
             var person = snapshot.Officers.Single(p => p.Id == office.OfficerId);
             var ruler = snapshot.Officers.Single(p => p.Id == snapshot.Forces.Single(f => f.Id == response.Owner.ForceId).LeaderId);
@@ -71,10 +71,10 @@ internal static class AutomaticResponseRunner
             return new RespondOfficeRequestCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence,
                 office.OfficerId, accept ? EventChoice.Accept : EventChoice.Reject);
         }
-        if (engine.GetEmperorTransferPrompt() is { } emperor)
+        if (response.Prompt is ResponsePrompt<EmperorTransferPrompt> { Value: var emperor })
             return new RespondEmperorTransferCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence,
                 emperor.EmperorId, emperor.CityId, EmperorTransferChoice.Support);
-        if (engine.GetCountryTitlePrompt() is { } title)
+        if (response.Prompt is ResponsePrompt<CountryTitlePrompt> { Value: var title })
         {
             var random = AiPlanningContext.Create(AiObservation.FromSnapshot(response.Owner.ForceId, snapshot),
                 "response:country-title", new(1, 0)).CreateAnalysisRandom();
@@ -82,13 +82,13 @@ internal static class AutomaticResponseRunner
             if (selected is not int choice || !title.CandidateIds.Contains(choice)) Fail(response, "response-no-legal-option");
             return new ChooseCountryTitleCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, selected!.Value);
         }
-        if (engine.GetAllianceParticipationPrompt() is { } alliance)
+        if (response.Prompt is ResponsePrompt<AllianceParticipationPrompt> { Value: var alliance })
         {
             int target = alliance.Proposal.TargetForceId;
             return new AllianceParticipationCommand(id, response.Owner.ForceId, snapshot.Simulation.NextSequence, target,
                 alliance.Proposal.EligibleMemberForceIds.Contains(response.Owner.ForceId));
         }
-        if (response.Kind == "daily-task" && engine.GetDailyDecisionPrompt() is { } daily)
+        if (response.Daily is { } daily)
             return Daily(engine, id, response, snapshot.Simulation.NextSequence, daily);
         Fail(response, "response-unsupported");
         throw new InvalidOperationException("Unreachable response dispatch.");
@@ -100,7 +100,7 @@ internal static class AutomaticResponseRunner
         var response = new RespondDailyTaskCommand(id, force, sequence, prompt.TaskId, prompt.Step, false);
         if (prompt.Kind is "diplomacy-attack-request" or "diplomacy-prisoner-return")
             return engine.GetAutomaticDiplomacyResponse(id, force, sequence);
-        if (engine.GetSearchRecruitmentPrompt() is not null) return response with { Accept = true };
+        if (request.Prompt is ResponsePrompt<SearchRecruitmentPrompt>) return response with { Accept = true };
         // The remaining search/study prompts require direct player control in Core.
         Fail(request, "response-unsupported");
         throw new InvalidOperationException("Unreachable response dispatch.");

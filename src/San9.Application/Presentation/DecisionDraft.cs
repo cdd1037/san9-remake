@@ -178,7 +178,7 @@ public sealed class DecisionDraft
 
     public static DecisionDraft? Read(GameSession session, TextCatalog texts, CommandPresentation presentation)
     {
-        if (session.Snapshot.Simulation.Boundary != SimulationBoundary.AwaitingDecision) return null;
+        if (session.GetPendingResponse() is not { } response) return null;
         string role = ""; int force = -1; int? person = null; DiplomaticDecisionData? diplomacy = null;
         var world = session.Snapshot;
         Dictionary<string, MessageBinding> values = [];
@@ -201,36 +201,36 @@ public sealed class DecisionDraft
         void Daily(Guid task, int step) => Binary((id, seq, accept) => new RespondDailyTaskCommand(id, force, seq, task, step, accept));
         void Successor(string kind, int owner, int ruler, IEnumerable<int> candidates, Func<Guid, long, int?, GameCommand> command)
         { Context(kind, owner, ruler); Option("choose", (id, seq, selected, _) => command(id, seq, selected), DecisionInputKind.Person, candidates); Option("decline", (id, seq, _, _) => command(id, seq, null)); }
-        if (session.GetCountryTitlePrompt() is { } country)
+        if (response.Prompt is ResponsePrompt<CountryTitlePrompt> { Value: var country })
         {
             Context("country-title", country.ForceId, world.Forces.Single(f => f.Id == country.ForceId).LeaderId!.Value);
             Option("choose", (id, seq, selected, _) => new ChooseCountryTitleCommand(id, force, seq, selected!.Value), DecisionInputKind.Country, country.CandidateIds);
         }
-        else if (session.GetEmperorTransferPrompt() is { } emperor)
+        else if (response.Prompt is ResponsePrompt<EmperorTransferPrompt> { Value: var emperor })
         { Context("emperor-transfer", emperor.ForceId, emperor.EmperorId, emperor.CityId, emperor.EmperorId); values["dynasty-years"] = new(400); Binary((id, seq, accept) => new RespondEmperorTransferCommand(id, force, seq, emperor.EmperorId, emperor.CityId, accept ? EmperorTransferChoice.Support : EmperorTransferChoice.Depose)); }
-        else if (session.GetOfficeRequestPrompt() is { } office)
+        else if (response.Prompt is ResponsePrompt<OfficeRequestPrompt> { Value: var office })
         { Context("office-request", office.ForceId, office.OfficerId, office.SettlementId); person = office.OfficerId; Binary((id, seq, accept) => new RespondOfficeRequestCommand(id, force, seq, office.OfficerId, accept ? EventChoice.Accept : EventChoice.Reject)); }
-        else if (session.GetSearchRecruitmentPrompt() is { } recruit)
+        else if (response.Prompt is ResponsePrompt<SearchRecruitmentPrompt> { Value: var recruit })
         { Context("search-recruitment", recruit.ForceId, recruit.SearchingOfficerId, recruit.PlaceId, recruit.DiscoveredOfficerId); person = recruit.DiscoveredOfficerId; Daily(recruit.TaskId, recruit.Step); }
-        else if (session.GetShanyangGongPrompt() is { } shanyang)
+        else if (response.Prompt is ResponsePrompt<ShanyangGongPrompt> { Value: var shanyang })
         {
             Context(shanyang.ChoosingCountryTitle ? "shanyang-title" : "shanyang-gong", shanyang.ForceId, shanyang.SearchingOfficerId, shanyang.PlaceId, shanyang.EmperorId);
             if (shanyang.ChoosingCountryTitle) Option("choose", (id, seq, selected, _) => new RespondDailyTaskCommand(id, force, seq, shanyang.TaskId, shanyang.Step, true) { CountryTitleId = selected }, DecisionInputKind.Country, shanyang.CountryTitleIds);
             else Daily(shanyang.TaskId, shanyang.Step);
         }
-        else if (session.GetMysticBookOfferPrompt() is { } offer)
+        else if (response.Prompt is ResponsePrompt<MysticBookOfferPrompt> { Value: var offer })
         { Context("mystic-book-offer", offer.ForceId, offer.SearchingOfficerId, offer.PlaceId, offer.MysticOfficerId, offer.AcceptCost); values["decline-cost"] = new(offer.DeclineCost); values["treasure"] = MessageBinding.Reference(MessageEntityKind.Treasure, offer.TreasureId); Daily(offer.TaskId, offer.Step); }
-        else if (session.GetMysticBookReturnPrompt() is { } book)
+        else if (response.Prompt is ResponsePrompt<MysticBookReturnPrompt> { Value: var book })
         { Context("mystic-book-return", book.ForceId, book.SearchingOfficerId, book.PlaceId, book.MysticOfficerId); values["treasure"] = MessageBinding.Reference(MessageEntityKind.Treasure, book.TreasureId); Daily(book.TaskId, book.Step); }
-        else if (session.GetScholarInsultPrompt() is { } insult)
+        else if (response.Prompt is ResponsePrompt<ScholarInsultPrompt> { Value: var insult })
         { Context("scholar-insult", insult.ForceId, insult.SearchingOfficerId, insult.PlaceId, insult.ScholarOfficerId); Binary((id, seq, ignore) => new RespondDailyTaskCommand(id, force, seq, insult.TaskId, insult.Step, !ignore)); }
-        else if (session.GetLongevityPrompt() is { } longevity)
+        else if (response.Prompt is ResponsePrompt<LongevityPrompt> { Value: var longevity })
         { Context("longevity", longevity.ForceId, longevity.SearchingOfficerId, longevity.PlaceId, cost: longevity.Cost); Daily(longevity.TaskId, longevity.Step); }
-        else if (session.GetTreasureMonumentPrompt() is { } monument)
+        else if (response.Prompt is ResponsePrompt<TreasureMonumentPrompt> { Value: var monument })
         { Context("treasure-monument", monument.ForceId, monument.SearchingOfficerId, monument.PlaceId, cost: monument.Cost); values["treasure"] = MessageBinding.Reference(MessageEntityKind.Treasure, monument.TreasureId); Daily(monument.TaskId, monument.Step); }
-        else if (session.GetScholarReturnPrompt() is { } scholar)
+        else if (response.Prompt is ResponsePrompt<ScholarReturnPrompt> { Value: var scholar })
         { Context("scholar-return", scholar.ForceId, scholar.SearchingOfficerId, scholar.PlaceId, scholar.ScholarOfficerId, 1000); Daily(scholar.TaskId, scholar.Step); }
-        else if (session.GetMerchantInvestmentPrompt() is { } merchant)
+        else if (response.Prompt is ResponsePrompt<MerchantInvestmentPrompt> { Value: var merchant })
         {
             Context("merchant-investment", merchant.ForceId, merchant.OfficerId, merchant.PlaceId);
             values["subject"] = new(0, presentation.Decisions.Subjects["merchant." + merchant.CategoryId]);
@@ -239,7 +239,7 @@ public sealed class DecisionDraft
                 Option(choice.Item1, (id, seq, _, amount) => new RespondDailyTaskCommand(id, force, seq, merchant.TaskId, merchant.Step, choice.Item2 == MerchantInvestmentChoice.Invest) { MerchantInvestment = new(choice.Item2, amount) },
                     choice.Item2 == MerchantInvestmentChoice.Invest ? DecisionInputKind.Investment : DecisionInputKind.Immediate, min: merchant.MinimumInvestment, max: merchant.MaximumInvestment);
         }
-        else if (session.GetCommunitySearchPrompt() is { } community)
+        else if (response.Prompt is ResponsePrompt<CommunitySearchPrompt> { Value: var community })
         {
             Context(community.EventId, community.ForceId, community.OfficerId, community.PlaceId);
             foreach (var choice in community.Options) Option(choice.Choice.ToString(), (id, seq, _, _) => new RespondDailyTaskCommand(id, force, seq, community.TaskId, community.Step,
@@ -259,7 +259,7 @@ public sealed class DecisionDraft
             if (community.EventId == "bribe") values["amount"] = new(community.OfferedMoney);
             if (community.RequiredTreasureId is int treasure) values["treasure"] = MessageBinding.Reference(MessageEntityKind.Treasure, treasure);
         }
-        else if (session.GetSearchConflictPrompt() is { } conflict)
+        else if (response.Prompt is ResponsePrompt<SearchConflictPrompt> { Value: var conflict })
         {
             Context(conflict.EventId, conflict.ForceId, conflict.OfficerId, conflict.PlaceId, conflict.OtherOfficerId ?? presentation.Decisions.People["citizen"]);
             foreach (var choice in conflict.Options) Option(choice.Choice.ToString(), (id, seq, _, _) => new RespondDailyTaskCommand(id, force, seq, conflict.TaskId, conflict.Step,
@@ -275,32 +275,32 @@ public sealed class DecisionDraft
             values["subject"] = new(0, conflictSubject);
             values["bandit-image"] = new(0, conflictSubject is "海贼" or "江贼" ? "decision-bandits-water" : "decision-bandits-land");
         }
-        else if (session.GetTigerSearchPrompt() is { } tiger)
+        else if (response.Prompt is ResponsePrompt<TigerSearchPrompt> { Value: var tiger })
         { Context("tiger", tiger.ForceId, tiger.OfficerId, tiger.PlaceId); values["subject"] = new(0, "虎"); Daily(tiger.TaskId, tiger.Step); }
-        else if (session.GetBeastSearchPrompt() is { } beast)
+        else if (response.Prompt is ResponsePrompt<BeastSearchPrompt> { Value: var beast })
         { Context("beast", beast.ForceId, beast.OfficerId, beast.PlaceId); values["subject"] = new(0, "神兽"); Daily(beast.TaskId, beast.Step); }
-        else if (session.GetTacticStudyPrompt() is { } study)
+        else if (response.Prompt is ResponsePrompt<TacticStudyPrompt> { Value: var study })
         {
             Context("tactic-study", study.ForceId, world.Forces.Single(f => f.Id == study.ForceId).LeaderId!.Value, study.CityId);
             values["tactic"] = MessageBinding.Reference(MessageEntityKind.Tactic, study.TacticId);
             Option("choose", (id, seq, selected, _) => new ChooseTacticStudentCommand(id, force, seq, study.CityId, selected), DecisionInputKind.Person, study.CandidateIds);
             Option("decline", (id, seq, _, _) => new ChooseTacticStudentCommand(id, force, seq, study.CityId, null));
         }
-        else if (session.GetSnipingSuccessionPrompt() is { } sniping) Successor("succession", sniping.RespondingForceId, sniping.RulerId, sniping.CandidateIds, (id, seq, selected) => new ChooseSnipingSuccessorCommand(id, force, seq, sniping.RulerId, selected));
-        else if (session.GetDuelSuccessionPrompt() is { } duel) Successor("succession", duel.RespondingForceId, duel.RulerId, duel.CandidateIds, (id, seq, selected) => new ChooseDuelSuccessorCommand(id, force, seq, duel.RulerId, selected));
-        else if (session.GetCapturedRulerPrompt() is { } captive)
+        else if (response.Prompt is ResponsePrompt<SnipingSuccessionPrompt> { Value: var sniping }) Successor("succession", sniping.RespondingForceId, sniping.RulerId, sniping.CandidateIds, (id, seq, selected) => new ChooseSnipingSuccessorCommand(id, force, seq, sniping.RulerId, selected));
+        else if (response.Prompt is ResponsePrompt<DuelSuccessionPrompt> { Value: var duel }) Successor("succession", duel.RespondingForceId, duel.RulerId, duel.CandidateIds, (id, seq, selected) => new ChooseDuelSuccessorCommand(id, force, seq, duel.RulerId, selected));
+        else if (response.Prompt is ResponsePrompt<CapturedRulerPrompt> { Value: var captive })
         { Context("captured-ruler", captive.CaptorId, world.Forces.Single(f => f.Id == captive.CaptorId).LeaderId!.Value, other: captive.RulerId); person = captive.RulerId; Binary((id, seq, accept) => new ChooseCapturedRulerDispositionCommand(id, force, seq, captive.RulerId, accept ? CapturedRulerAction.Release : CapturedRulerAction.Execute)); }
-        else if (session.GetExecutionSuccessionPrompt() is { } execution) Successor("succession", execution.RespondingForceId, execution.RulerId, execution.CandidateIds, (id, seq, selected) => new ChooseExecutionSuccessorCommand(id, force, seq, execution.RulerId, selected));
-        else if (session.GetAllianceParticipationPrompt() is { } alliance)
+        else if (response.Prompt is ResponsePrompt<ExecutionSuccessionPrompt> { Value: var execution }) Successor("succession", execution.RespondingForceId, execution.RulerId, execution.CandidateIds, (id, seq, selected) => new ChooseExecutionSuccessorCommand(id, force, seq, execution.RulerId, selected));
+        else if (response.Prompt is ResponsePrompt<AllianceParticipationPrompt> { Value: var alliance })
         {
             int owner = alliance.Proposal.RespondingForceId!.Value;
             Context("alliance", owner, world.Forces.Single(f => f.Id == owner).LeaderId!.Value);
             values["target-force"] = Force(alliance.Proposal.TargetForceId);
             Binary((id, seq, accept) => new AllianceParticipationCommand(id, force, seq, alliance.Proposal.TargetForceId, accept));
         }
-        else if (session.GetAttackRequestPrompt() is { } attack)
+        else if (response.Prompt is ResponsePrompt<AttackRequestPrompt> { Value: var attack })
             Diplomacy("attack-request", attack.TaskId, attack.Step, attack.RespondingForceId, attack.RequesterForceId, attack.TargetForceId, attack.Offer, attack.TargetSettlementId, null);
-        else if (session.GetPrisonerReturnPrompt() is { } prisoner)
+        else if (response.Prompt is ResponsePrompt<PrisonerReturnPrompt> { Value: var prisoner })
             Diplomacy("prisoner-return", prisoner.TaskId, prisoner.Step, prisoner.RespondingForceId, prisoner.RequesterForceId, prisoner.TargetForceId, prisoner.Offer, null, prisoner.PrisonerId);
         else if (world.Simulation.PendingDailyTask is { } daily &&
             world.Simulation.Tasks.Single(t => t.Id == daily.RemainingTaskIds[0]) is { } task &&

@@ -510,55 +510,18 @@ public sealed partial class SimulationEngine
             var mutation = _world.BeginMutation(_rules.Abilities, _rules.Economy);
             List<DomainEvent> events = [];
             DevelopmentOutcome? development = null;
+            if (PendingResponseCoordinator.IsResponse(command))
+            {
+                var response = PendingResponseCoordinator.Resolve(mutation, command, _rules, _pipeline, events);
+                if (response.Rejection != CommandRejection.None) return Reject(response.Rejection);
+                if (response.ResumeFrom is { } resume) ContinueAfterDecision(mutation, resume, events);
+            }
+            else
             switch (command)
             {
-                case ChooseTacticStudentCommand student:
-                    var studyRejection = TacticStudy.Respond(mutation, student, _rules, events);
-                    if (studyRejection != CommandRejection.None) return Reject(studyRejection);
-                    if (mutation.Simulation.PendingTacticStudy is null)
-                        _pipeline.Prepare(mutation, events, ResolutionStage.QuarterStudyOffers);
-                    break;
                 case ExecutePrisonerCommand execution:
                     var executionRejection = PrisonerExecution.Start(mutation, execution, _rules, events);
                     if (executionRejection != CommandRejection.None) return Reject(executionRejection);
-                    break;
-                case ChooseSnipingSuccessorCommand snipingSuccessor:
-                    var sniping = mutation.Simulation.PendingSniping!;
-                    if (sniping.RulerId != snipingSuccessor.RulerId || snipingSuccessor.SuccessorId is int heir &&
-                        !RulerSuccession.Candidates(mutation, sniping.RulerId).Contains(heir)) return Reject(CommandRejection.InvalidDecision);
-                    int snipingHeir = snipingSuccessor.SuccessorId ?? RulerSuccession.Automatic(mutation,
-                        sniping.RespondingForceId, mutation.Officers[sniping.RulerId])!.Id;
-                    _pipeline.ResumeSniping(mutation, events, snipingHeir);
-                    ContinueAfterDecision(mutation, sniping.Exchange!.XunStarted, events);
-                    break;
-                case ChooseDuelSuccessorCommand duelSuccessor:
-                    var duel = mutation.Simulation.PendingDuel!;
-                    if (duel.Aftermath.PendingRulerId != duelSuccessor.RulerId ||
-                        duelSuccessor.SuccessorId is int selected && !DuelAftermath.Successors(mutation, duelSuccessor.RulerId).Contains(selected))
-                        return Reject(CommandRejection.InvalidDecision);
-                    int duelHeir = duelSuccessor.SuccessorId ?? RulerSuccession.Automatic(mutation,
-                        duel.RespondingForceId, mutation.Officers[duelSuccessor.RulerId])!.Id;
-                    _pipeline.ResumeDuel(mutation, events, duelHeir);
-                    ContinueAfterDecision(mutation, duel.XunStarted, events);
-                    break;
-                case ChooseCapturedRulerDispositionCommand disposition:
-                    var captive = mutation.Simulation.PendingCapturedRuler!;
-                    if (disposition.RulerId != captive.RulerId || !Enum.IsDefined(disposition.Action)) return Reject(CommandRejection.InvalidDecision);
-                    mutation.SetSimulation(mutation.Simulation with { PendingCapturedRuler = null, Boundary = SimulationBoundary.Stable });
-                    CapturedRulerDisposition.Resolve(mutation, _rules, events, captive, disposition.Action);
-                    if (!mutation.Simulation.HasPendingDailyResolution)
-                        _pipeline.FinishUnitAndBuildingEvents(mutation, events, captive.XunStarted, captive.RulerId);
-                    ContinueAfterDecision(mutation, captive.XunStarted, events);
-                    break;
-                case ChooseExecutionSuccessorCommand successor:
-                    var executionPending = mutation.Simulation.PendingExecutionSuccession!;
-                    var successionRejection = PrisonerExecution.Respond(mutation, successor, _rules, events);
-                    if (successionRejection != CommandRejection.None) return Reject(successionRejection);
-                    if (executionPending.XunStarted is { } executionStart)
-                    {
-                        _pipeline.FinishUnitAndBuildingEvents(mutation, events, executionStart, executionPending.RulerId);
-                        ContinueAfterDecision(mutation, executionStart, events);
-                    }
                     break;
                 case DemandSurrenderCommand surrender:
                     var surrenderRejection = SurrenderDiplomacy.Start(mutation, context, surrender, _rules, events);
@@ -575,41 +538,6 @@ public sealed partial class SimulationEngine
                 case GiftCommand gift:
                     var giftRejection = GiftDiplomacy.Start(mutation, context, gift, _rules, events);
                     if (giftRejection != CommandRejection.None) return Reject(giftRejection);
-                    break;
-                case RespondDailyTaskCommand response:
-                    var waiting = mutation.Simulation.PendingDailyTask!;
-                    if (waiting.RemainingTaskIds[0] != response.TaskId || response.Step !=
-                        mutation.Simulation.Tasks.Single(t => t.Id == response.TaskId).ResolutionStep)
-                        return Reject(CommandRejection.InvalidDecision);
-                    var respondingTask = mutation.Simulation.Tasks.Single(t => t.Id == response.TaskId);
-                    if (response.MerchantInvestment is not null && respondingTask.SearchEncounter is not MerchantInvestmentEncounter ||
-                        response.CountryTitleId is not null && respondingTask.SearchEncounter is not ShanyangGongEncounter ||
-                        !_rules.FindTask(respondingTask.Kind)!.AcceptsResponse(mutation, respondingTask, response))
-                        return Reject(CommandRejection.InvalidDecision);
-                    _pipeline.Respond(mutation, response, events);
-                    ContinueAfterDecision(mutation, waiting.XunStarted, events);
-                    break;
-                case RespondEmperorTransferCommand emperorTransfer:
-                    var emperorRejection = EmperorTransfer.Respond(mutation, _rules, emperorTransfer, events);
-                    if (emperorRejection != CommandRejection.None) return Reject(emperorRejection);
-                    _pipeline.Prepare(mutation, events, ResolutionStage.XunCleanup);
-                    break;
-                case ChooseCountryTitleCommand countryTitle:
-                    var titleRejection = PoliticalEvents.Respond(mutation, _rules, countryTitle, events);
-                    if (titleRejection != CommandRejection.None) return Reject(titleRejection);
-                    _pipeline.Prepare(mutation, events, ResolutionStage.QuarterPolitics);
-                    break;
-                case RespondOfficeRequestCommand officeRequest:
-                    var officeRejection = OfficeRequests.Respond(mutation, _rules, officeRequest, events);
-                    if (officeRejection != CommandRejection.None) return Reject(officeRejection);
-                    if (mutation.Simulation.PendingEvent is null)
-                        _pipeline.Prepare(mutation, events, ResolutionStage.XunUpdate);
-                    break;
-                case AllianceParticipationCommand participation:
-                    var participationRejection = AllianceFormation.Respond(mutation, participation, _rules, events);
-                    if (participationRejection != CommandRejection.None) return Reject(participationRejection);
-                    if (mutation.Simulation.PendingEvent is null)
-                        _pipeline.Prepare(mutation, events, ResolutionStage.QuarterEvents);
                     break;
                 case WaitCommand:
                     break;
@@ -807,78 +735,9 @@ public sealed partial class SimulationEngine
         if (_world.Simulation.Tasks.Any(t => t.Id == command.CommandId)) return CommandRejection.DuplicateCommandId;
         if (command.Sequence != _world.Simulation.NextSequence) return CommandRejection.WrongSequence;
         var sim = _world.Simulation;
-        if (sim.PendingSniping is { } sniping)
-        {
-            if (command is not ChooseSnipingSuccessorCommand) return CommandRejection.DecisionPending;
-            return sniping.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.ControllerId == context.ControllerId)
-                ? CommandRejection.None : CommandRejection.NotActiveController;
-        }
-        if (sim.PendingDuel is { } duel)
-        {
-            if (command is not ChooseDuelSuccessorCommand) return CommandRejection.DecisionPending;
-            return duel.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.ControllerId == context.ControllerId)
-                ? CommandRejection.None : CommandRejection.NotActiveController;
-        }
-        if (sim.PendingTacticStudy is { } study)
-        {
-            if (command is not ChooseTacticStudentCommand) return CommandRejection.DecisionPending;
-            return study.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.ControllerId == context.ControllerId)
-                ? CommandRejection.None : CommandRejection.NotActiveController;
-        }
-        if (sim.PendingCapturedRuler is { } captive)
-        {
-            if (command is not ChooseCapturedRulerDispositionCommand) return CommandRejection.DecisionPending;
-            return captive.CaptorId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.ControllerId == context.ControllerId)
-                ? CommandRejection.None : CommandRejection.NotActiveController;
-        }
-        if (sim.PendingExecutionSuccession is { } succession)
-        {
-            if (command is not ChooseExecutionSuccessorCommand) return CommandRejection.DecisionPending;
-            return succession.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.ControllerId == context.ControllerId)
-                ? CommandRejection.None : CommandRejection.NotActiveController;
-        }
-        if (sim.PendingDailyTask is { } daily)
-        {
-            if (command is not RespondDailyTaskCommand) return CommandRejection.DecisionPending;
-            return daily.RespondingForceId == command.IssuerId && GetPendingResponse()?.Owner.ControllerId == context.ControllerId
-                ? CommandRejection.None : CommandRejection.NotActiveController;
-        }
-        if (sim.PendingEvent is EmperorTransferEventSession emperor)
-        {
-            if (command is not RespondEmperorTransferCommand) return CommandRejection.DecisionPending;
-            return emperor.ForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.ControllerId == context.ControllerId)
-                ? CommandRejection.None : CommandRejection.NotActiveController;
-        }
-        if (sim.PendingEvent is CountryTitleEventSession title)
-        {
-            if (command is not ChooseCountryTitleCommand) return CommandRejection.DecisionPending;
-            return title.ForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.ControllerId == context.ControllerId)
-                ? CommandRejection.None : CommandRejection.NotActiveController;
-        }
-        if (sim.PendingEvent is OfficeRequestEventSession officeRequest)
-        {
-            if (command is not RespondOfficeRequestCommand) return CommandRejection.DecisionPending;
-            return officeRequest.RespondingForceId == command.IssuerId && sim.Controls.Any(c => c.ForceId == command.IssuerId &&
-                c.ControllerId == context.ControllerId)
-                ? CommandRejection.None : CommandRejection.NotActiveController;
-        }
-        if (sim.PendingEvent is AllianceEventSession { Proposal: var proposal })
-        {
-            if (command is not AllianceParticipationCommand) return CommandRejection.DecisionPending;
-            int respondent = proposal.Choices.First(p => p.Join is null).ForceId;
-            return respondent == command.IssuerId && sim.Controls.Any(c => c.ForceId == respondent &&
-                c.ControllerId == context.ControllerId)
-                ? CommandRejection.None : CommandRejection.NotActiveController;
-        }
+        if (GetPendingResponse() is { } pending) return pending.Authorize(context, command);
         if (sim.Boundary != SimulationBoundary.Stable) return CommandRejection.NotStable;
-        if (command is ChooseSnipingSuccessorCommand or ChooseCapturedRulerDispositionCommand or RespondEmperorTransferCommand or ChooseCountryTitleCommand or RespondOfficeRequestCommand or ChooseDuelSuccessorCommand or AllianceParticipationCommand or RespondDailyTaskCommand or ChooseExecutionSuccessorCommand or ChooseTacticStudentCommand) return CommandRejection.InvalidDecision;
+        if (PendingResponseCoordinator.IsResponse(command)) return CommandRejection.InvalidDecision;
         if (sim.ActiveControl >= sim.Controls.Length) return CommandRejection.NotActiveController;
         var seat = sim.Controls[sim.ActiveControl];
         return CorpsControl.Authorize(Snapshot, seat, context, command);

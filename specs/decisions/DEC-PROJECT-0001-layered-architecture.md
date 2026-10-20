@@ -16,6 +16,8 @@
 
 运行时定义由 Application 的 `ScenarioSessionDefinition` 持有，`ScenarioRules` 在剧本会话建立时统一编译规则，模拟、AI、查询、草稿、消息上下文和结局投影复用这些规则；世界快照和预览只替换状态，不重新构建规则。
 
+Core 的 `ResponseRequest` 提供待答身份、授权席位与有类型的提示，UI 和自动响应共同消费。`PendingResponseCoordinator` 负责响应规则及恢复阶段；`SimulationEngine` 保留命令事务、序列和日／旬推进。序列化仍使用现有待答状态，运行时描述不进入存档协议。
+
 ## 备选方案
 
 - Godot 节点驱动规则：初期直接，但长期难以无头验证和复用。

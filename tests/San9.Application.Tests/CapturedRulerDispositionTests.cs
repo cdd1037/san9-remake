@@ -363,12 +363,14 @@ public sealed class CapturedRulerDispositionTests
         Assert.Equal("ai:2", response.Owner.ControllerId);
         var command = AutomaticResponseRunner.Choose(engine, response);
         Assert.Contains(Assert.IsType<ChooseCapturedRulerDispositionCommand>(command).Action, engine.GetCapturedRulerPrompt()!.LegalActions);
+        Assert.IsType<ResponsePrompt<CapturedRulerPrompt>>(response.Prompt);
+        Assert.True(response.HasSameDecision(engine.GetPendingResponse()));
         var before = engine.Snapshot;
         Assert.Equal(CommandRejection.NotActiveController, engine.Execute(new("player"), command).Submission.Rejection);
         Assert.Equal(CommandRejection.InvalidDecision, engine.Execute(new("ai:2"),
             ((ChooseCapturedRulerDispositionCommand)command) with { RulerId = 8 }).Submission.Rejection);
         var failure = Assert.Throws<AutomaticResponseException>(() => AutomaticResponseRunner.Choose(engine,
-            response with { Kind = "unimplemented" }));
+            response with { Prompt = new ResponsePrompt<string>("unimplemented") }));
         Assert.Equal("response-unsupported", failure.Failure.Code);
         StateAssert.Equal(before, engine.Snapshot);
         Assert.True(engine.Execute(new("ai:2"), command).Submission.Accepted);

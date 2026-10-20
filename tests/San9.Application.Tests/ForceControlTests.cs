@@ -20,7 +20,7 @@ public sealed class ForceControlTests
         Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);
         Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
         Assert.Empty(session.Snapshot.Simulation.Controls.Where(c => c.Kind == ControllerKind.Player));
-        Assert.Equal(1, session.View.PlayerForceId);
+        Assert.Null(session.View.PlayerForceId);
         Assert.Equal(before.Officers, session.Snapshot.Officers);
         Assert.Equal(before.Corps, session.Snapshot.Corps);
         Assert.Equal(before.Simulation.Tasks, session.Snapshot.Simulation.Tasks);
@@ -56,20 +56,21 @@ public sealed class ForceControlTests
     }
 
     [Fact]
-    public void TakingOverReleasesOldPlayerButCannotReopenClosedRound()
+    public void TakingOverPreservesOtherPlayersAndCannotReopenCompletedSeats()
     {
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 190);
         Assert.Equal(SessionDisposition.Accepted, session.TakeOverForce(2).Disposition);
-        Assert.Equal(ControllerKind.Automatic, session.Snapshot.Simulation.Controls.Single(c => c.ForceId == 1).Kind);
+        Assert.Equal(ControllerKind.Player, session.Snapshot.Simulation.Controls.Single(c => c.ForceId == 1).Kind);
         session.EndControl(new("player"));
-        var before = session.Capture();
-        Assert.False(session.CanChangeForceControl);
-        Assert.Equal(SessionRejection.NotStable, session.TakeOverForce(1).Rejection);
-        StateAssert.Equal(before, session.Capture());
-        session.AdvanceXun();
+        Assert.Equal(2, session.View.PlayerForceId);
         Assert.True(session.CanChangeForceControl);
+        Assert.Equal(SessionDisposition.Accepted, session.HandOverForce(1).Disposition);
         Assert.Equal(SessionDisposition.Accepted, session.TakeOverForce(1).Disposition);
-        Assert.Equal(1, session.Snapshot.Simulation.Controls[0].ForceId);
+        Assert.Equal(2, session.View.PlayerForceId);
+        Assert.False(session.Execute(new("player"), new WaitCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence)).Submission.Accepted);
+        session.AdvanceXun();
+        Assert.Equal(1, session.View.PlayerForceId);
         Assert.True(session.Execute(new("player"), new WaitCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence)).Submission.Accepted);
     }
@@ -81,10 +82,11 @@ public sealed class ForceControlTests
         var session = GameSession.Start(scenario, 190);
         session.TakeOverForce(2);
         session.HandOverForce(2);
+        session.HandOverForce(1);
         session = SaveService.Decode(SaveService.Encode(session), scenario);
-        Assert.Equal(2, session.View.PlayerForceId);
+        Assert.Null(session.View.PlayerForceId);
         session.AdvanceXun();
-        Assert.Equal(2, session.View.PlayerForceId);
+        Assert.Null(session.View.PlayerForceId);
         Assert.NotEmpty(session.Records);
         Assert.Equal(SessionDisposition.Accepted, session.TakeOverForce(2).Disposition);
         Assert.Equal(2, session.Snapshot.Simulation.Controls[0].ForceId);

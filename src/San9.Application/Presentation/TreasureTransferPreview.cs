@@ -13,7 +13,7 @@ public sealed record TreasureTransferPreview(int RulerId, int? TargetId, IReadOn
     {
         var view = draft.View;
         bool grant = draft.Kind == "bestow";
-        int ruler = view.World.Forces.Single(f => f.Id == view.PlayerForceId).LeaderId!.Value;
+        int ruler = view.World.Forces.Single(f => f.Id == view.RequirePlayerForce()).LeaderId!.Value;
         var item = view.World.Treasures.SingleOrDefault(t => t.Id == draft.TreasureId);
         int? target = grant ? draft.Members.Cast<int?>().SingleOrDefault() : item?.HolderId;
         if (item is null) return new(ruler, target, [], [], null);
@@ -37,7 +37,7 @@ public sealed record TreasureTransferPreview(int RulerId, int? TargetId, IReadOn
             var person = view.World.Officers.Single(p => p.Id == id);
             if (person.IsServing)
             {
-                int previous = person.LoyaltyTo(view.PlayerForceId);
+                int previous = person.LoyaltyTo(view.RequirePlayerForce());
                 int next = grant ? (int)Math.Min(255L, (long)previous + definition.LoyaltyBonus)
                     : (int)Math.Max(0L, previous - 3L * definition.LoyaltyBonus / 2);
                 loyalty = new("忠诚", Math.Min(100,previous), Math.Min(100,next));

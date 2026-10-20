@@ -11,17 +11,17 @@ public sealed partial class GameSession
     // Captured on the owner thread. Calculation forks the engine and never accesses the live session.
     internal sealed record OperationInput(SimulationEngine Simulation, ScenarioSessionDefinition Definition,
         StrategySnapshot View, long Sequence, OriginalAiState OriginalAi,
-        EndingSelection? Ending, StrategicContextState StrategicContext, ImmutableArray<ChronicleFact> History);
+        EndingSelection? Ending, ImmutableDictionary<int, StrategicContextState> StrategicContexts, ImmutableArray<ChronicleFact> History);
 
     internal sealed record OperationCommit(SimulationEngine Simulation, OriginalAiState OriginalAi,
-        ImmutableArray<OriginalAiWorkReport> AiReports, EndingSelection? Ending, StrategicContextState StrategicContext,
+        ImmutableArray<OriginalAiWorkReport> AiReports, EndingSelection? Ending, ImmutableDictionary<int, StrategicContextState> StrategicContexts,
         ImmutableArray<ChronicleFact> History, SessionRecord[] Records, ChronicleEntry? Note);
 
     internal sealed record PreparedOperation(SessionResult Result, StrategySnapshot View,
         OperationCommit? Commit = null);
 
     private OperationInput CaptureOperationInput() => new(_simulation, _definition, View,
-        NextOperationSequence, _originalAi, _ending, _strategicContext, History);
+        NextOperationSequence, _originalAi, _ending, _strategicContexts, History);
 
     public SessionResult Apply(SessionRequest request)
     {
@@ -74,7 +74,7 @@ public sealed partial class GameSession
                 case ForceControlOperation control:
                     if (request.ControllerId != "player" || !Enum.IsDefined(control.Kind))
                         return Rejected(SessionRejection.InvalidRequest);
-                    if (candidate.Snapshot.Simulation.Boundary != SimulationBoundary.Stable || candidate.Snapshot.Simulation.ActiveControl != 0 || originalAi.Continuation is not null)
+                    if (candidate.Snapshot.Simulation.Boundary != SimulationBoundary.Stable || originalAi.Continuation is not null)
                         return Rejected(SessionRejection.NotStable);
                     try { candidate.SetForceControl(control.ForceId, control.Kind); }
                     catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
@@ -102,10 +102,13 @@ public sealed partial class GameSession
                     if (request.ControllerId != "player") return Rejected(SessionRejection.InvalidRequest);
                     if (candidate.Snapshot.Simulation.Boundary != SimulationBoundary.Stable)
                         return Rejected(SessionRejection.NotStable);
+                    bool closedPlayer = false;
                     while (candidate.Snapshot.Simulation.Boundary == SimulationBoundary.Stable &&
                         candidate.Snapshot.Simulation.ActiveControl < candidate.Snapshot.Simulation.Controls.Length)
                     {
                         var seat = candidate.Snapshot.Simulation.Controls[candidate.Snapshot.Simulation.ActiveControl];
+                        if (request.Operation is PrepareAdvanceOperation && closedPlayer && seat.Kind == ControllerKind.Player) break;
+                        closedPlayer |= seat.Kind == ControllerKind.Player;
                         originalAi = AutomaticTurnRunner.EndControl(candidate, new(seat.ControllerId), events, input.Definition, originalAi, aiReports);
                     }
                     if (request.Operation is AdvanceOperation && candidate.Snapshot.Simulation.Boundary == SimulationBoundary.Stable)
@@ -121,8 +124,9 @@ public sealed partial class GameSession
                 case ChronicleOperation chronicle:
                     if (request.ControllerId != "player" || chronicle.Text is null || chronicle.Text.Trim().Length is < 1 or > 240)
                         return Rejected(SessionRejection.InvalidRequest);
+                    if (input.View.PlayerForceId is not int noteForce) return Rejected(SessionRejection.InvalidRequest);
                     var clock = candidate.Snapshot.Clock;
-                    note = new(clock.Year, clock.Month, clock.Day, input.View.PlayerForceId, chronicle.Text.Trim());
+                    note = new(clock.Year, clock.Month, clock.Day, noteForce, chronicle.Text.Trim());
                     break;
                 default:
                     return Rejected(SessionRejection.InvalidRequest);
@@ -135,10 +139,14 @@ public sealed partial class GameSession
             var snapshot = candidate.Snapshot;
             var view = input.View.ForWorld(snapshot);
             var history = ChronicleHistory.Append(input.History, ChronicleHistory.Read(input.View, view, events, input.Definition.Content.Terminal));
-            var strategicContext = Presentation.StrategicContext.Prepare(view, view.PlayerForceId == input.View.PlayerForceId ? input.StrategicContext : StrategicContextState.Empty);
+            var strategicContexts = input.StrategicContexts.Where(p => snapshot.Simulation.Controls.Any(c =>
+                c.ForceId == p.Key && c.Kind == ControllerKind.Player)).ToImmutableDictionary();
+            if (view.PlayerForceId is int force)
+                strategicContexts = strategicContexts.SetItem(force, Presentation.StrategicContext.Prepare(view,
+                    strategicContexts.GetValueOrDefault(force, StrategicContextState.Empty)));
             var publishedEvents = events.ToImmutableArray();
             var commit = new OperationCommit(candidate, originalAi.Reconcile(snapshot), aiReports.ToImmutableArray(),
-                ending, strategicContext, history, completed, note);
+                ending, strategicContexts, history, completed, note);
             return new(new(SessionDisposition.Accepted, SessionRejection.None, publishedEvents, snapshot, Development: development),
                 view, commit);
         }
@@ -162,7 +170,7 @@ public sealed partial class GameSession
                 _originalAi = commit.OriginalAi;
                 LastOriginalAiWork = commit.AiReports;
                 _ending = commit.Ending;
-                _strategicContext = commit.StrategicContext;
+                _strategicContexts = commit.StrategicContexts;
                 History = commit.History;
                 _records.AddRange(commit.Records);
                 if (_records.Count > RecentRecordLimit) _records.RemoveRange(0, _records.Count - RecentRecordLimit);

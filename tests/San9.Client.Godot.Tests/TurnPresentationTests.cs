@@ -8,6 +8,52 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class TurnPresentationTests
 {
+    [Fact]
+    public void MultiplePlayersReturnToStrategyBeforeAdvancingTheDate()
+    {
+        var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "turn", 190, 1, 1, 1,
+            [new(1, "first", 1, 100), new(2, "second", 2, 100)],
+            [new(15, "first-city", 1, 0, 0, 0, 100, 100, 0, []), new(16, "second-city", 2, 1, 0, 0, 100, 100, 0, [])], [], [])
+        { Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, null, new(100, 100)) { IsRoot = true },
+            new San9.Core.Domain.CorpsState(2, 2, null, new(100, 100)) { IsRoot = true }], []) };
+        var session = GameSession.Start(definition, 190);
+        Assert.Equal(SessionDisposition.Accepted, session.TakeOverForce(2).Disposition);
+        var turn = new TurnPresentation(session);
+        var clock = session.Snapshot.Clock;
+        Assert.True(turn.Request());
+        turn.Confirm(); Ready(turn); turn.Update(2);
+        Assert.Equal(TurnScreen.Returning, turn.Screen);
+        Assert.Equal(clock, session.Snapshot.Clock);
+        Assert.Equal(2, session.View.PlayerForceId);
+        turn.Update(2);
+        Assert.True(turn.CanAdvance);
+        Enter(turn); Finish(turn);
+        Assert.Equal(TurnScreen.Strategy, turn.Screen);
+        Assert.Equal(clock.DayNumber + 10, session.Snapshot.Clock.DayNumber);
+        Assert.Equal(1, session.View.PlayerForceId);
+    }
+
+    [Fact]
+    public void ObserverContinuesAcrossXunsUntilAStopAndDoesNotRetainIdleStopRequests()
+    {
+        var session = Session();
+        Assert.Equal(SessionDisposition.Accepted, session.HandOverForce(5).Disposition);
+        var turn = new TurnPresentation(session);
+        turn.StopAtStrategyBoundary();
+        long started = session.Snapshot.Clock.DayNumber;
+        Enter(turn);
+        for (int i = 0; i < 40 && session.Snapshot.Clock.DayNumber < started + 11; i++)
+        { Ready(turn); turn.Update(2); }
+        Assert.True(session.Snapshot.Clock.DayNumber >= started + 11);
+        Assert.Null(session.View.PlayerForceId);
+        turn.StopAtStrategyBoundary();
+        Finish(turn);
+        Assert.Equal(TurnScreen.Strategy, turn.Screen);
+        Assert.Equal(started + 20, session.Snapshot.Clock.DayNumber);
+        Assert.True(session.Snapshot.Simulation.CanPersist);
+        Assert.True(turn.CanAdvance);
+    }
+
     [Theory]
     [InlineData(1, 1)]
     [InlineData(1, 10)]

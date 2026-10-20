@@ -1,4 +1,5 @@
 using San9.Tests;
+using System.Collections.Immutable;
 using San9.Application.Presentation;
 using San9.Content.Scenarios;
 using San9.Content.Text;
@@ -334,11 +335,14 @@ public sealed class AdministrativeInformationTests
     public void EnemyDelegationAndRequestFieldsHaveNoNumericSortKey()
     {
         var (session,text,definition)=Fixture();
-        var view=new StrategySnapshot(definition with { PlayerForceId=99 },session.View.World);
+        var world = session.View.World;
+        var view = new StrategySnapshot(definition, world with { Simulation = world.Simulation with
+            { Controls = world.Simulation.Controls.Select(c => c with { Kind = ControllerKind.Automatic }).ToImmutableArray() } });
         var catalog=new AdministrativeCatalog(view,text);
         var hidden=Cell(catalog.Read(InformationCategory.Corps,0),11,"方针");
         Assert.True(hidden.IsUnavailable); Assert.Null(hidden.Number); Assert.Contains("＊",hidden.Text);
-        Assert.True(Cell(catalog.Read(InformationCategory.Forces,4),5,"请求者").IsUnavailable);
+        var request = Cell(catalog.Read(InformationCategory.Forces,4),5,"请求者");
+        Assert.True(request.IsUnavailable); Assert.Null(request.Number); Assert.Contains("＊", request.Text);
     }
     [Fact]
     public void AllPagesFitTheSharedCatalogAndAllDetailQueriesAreReadOnly()

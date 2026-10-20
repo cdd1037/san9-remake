@@ -27,7 +27,8 @@ public partial class DiplomacyDecisionView : FixedPage
             accepting ? new Rect2(360, 240, 304, 288) : new Rect2(360, 220, 304, 328);
         var window = new CommandWindow { Texts = Texts,
             Textures = Textures,
-            Title = Draft.Role switch { "gift" => "接受赠礼", "surrender" => "回应劝降", _ => attack ? "请求攻打" : "俘虏返还" },
+            Title = (Draft.Role switch { "gift" => "接受赠礼", "surrender" => "回应劝降", _ => attack ? "请求攻打" : "俘虏返还" }) +
+                " · " + Texts.Resolve(Draft.Before.Forces.Single(f => f.Id == Draft.ForceId).NameKey),
             Position = bounds.Position,
             Size = bounds.Size,
             Help = () => { },

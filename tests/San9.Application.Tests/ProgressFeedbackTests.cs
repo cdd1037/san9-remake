@@ -17,7 +17,7 @@ public sealed class ProgressFeedbackTests
         var package = await ClientContentFiles.LoadAsync(root);
         var session = GameSession.Start(package.Scenario, 42);
         var view = session.View;
-        int force = view.PlayerForceId;
+        int force = view.RequirePlayerForce();
         int actor = view.World.Officers.First(p => p.OwnerId == force && p.IsServing).Id;
         int place = view.World.Officers.Single(p => p.Id == actor).SettlementId!.Value;
         int otherForce = view.World.Forces.First(f => f.Id != force && !f.IsDormant && !f.IsEliminated && f.LeaderId is not null).Id;

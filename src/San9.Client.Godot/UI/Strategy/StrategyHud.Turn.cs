@@ -22,7 +22,7 @@ public partial class StrategyHud
     private readonly Texture2D[][] _turnTitles = new Texture2D[2][];
     private readonly CanvasItemMaterial _titleFlashMaterial = new() { BlendMode = CanvasItemMaterial.BlendModeEnum.Add };
 
-    private San9.Core.Simulation.GameClock? _contextPresented;
+    private (int? Force, San9.Core.Simulation.GameClock? Clock)? _contextPresented;
     private long _strategyEntrancePresented;
     private SceneSoundPlayer _sceneSounds = null!;
     private MapSoundPlayer _mapSounds = null!;
@@ -33,7 +33,7 @@ public partial class StrategyHud
 
     private void BuildTurnControls()
     {
-        _contextPresented = Session.StrategicContext.Clock;
+        _contextPresented = (Session.View.PlayerForceId, Session.StrategicContext.Clock);
         _sceneSounds = new() { ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds };
         AddChild(_sceneSounds);
         _mapSounds = new() { ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds };
@@ -102,11 +102,11 @@ public partial class StrategyHud
     {
         if (!Interaction.CanAdvance) return;
         if (!Turn.Request()) return;
-        _turnConfirmation = Session.Messages(Texts).Produce("messages.6082",
+        _turnConfirmation = Session.View.PlayerForceId is int force ? Session.Messages(Texts).Produce("messages.6082",
             new Dictionary<string, MessageBinding>
             {
-                ["force.0"] = MessageBinding.Reference(MessageEntityKind.Force, Session.View.PlayerForceId)
-            }, _ => throw new InvalidDataException("Turn confirmation must not require randomness.")).BbCode;
+                ["force.0"] = MessageBinding.Reference(MessageEntityKind.Force, force)
+            }, _ => throw new InvalidDataException("Turn confirmation must not require randomness.")).BbCode : "继续电脑势力的行动？";
         Overview.Close();
         _mapContext.Close(); _commandMenu.Close();
         Selection.Clear(); World.HoverObject(null);
@@ -125,17 +125,21 @@ public partial class StrategyHud
         UpdateDecision();
         UpdateEnding();
         if (Turn.Screen == TurnScreen.Strategy && Turn.StrategyEntrance != _strategyEntrancePresented &&
-            Session.Snapshot.Simulation.Boundary == San9.Core.Simulation.SimulationBoundary.Stable && CommandPresentation.Progress is { } progress)
+            Session.Snapshot.Simulation.Boundary == San9.Core.Simulation.SimulationBoundary.Stable)
         {
             _strategyEntrancePresented = Turn.StrategyEntrance;
-            var context = Session.Messages(Texts);
-            List<CommandMessage> sequence = [.. StrategyEntryPresentation.Produce(Session.View, context, Texts, progress)];
-            if (Session.StrategicContext.Clock is { } clock && _contextPresented != clock)
+            FocusIncomingPlayer();
+            if (CommandPresentation.Progress is { } progress)
             {
-                _contextPresented = clock;
-                sequence.AddRange(StrategicContext.Produce(Session.StrategicContext, Session.View, context, Texts, progress));
+                var context = Session.Messages(Texts);
+                List<CommandMessage> sequence = [.. StrategyEntryPresentation.Produce(Session.View, context, Texts, progress)];
+                if (Session.StrategicContext.Clock is { } clock && _contextPresented != (Session.View.PlayerForceId, clock))
+                {
+                    _contextPresented = (Session.View.PlayerForceId, clock);
+                    sequence.AddRange(StrategicContext.Produce(Session.StrategicContext, Session.View, context, Texts, progress));
+                }
+                OpenNarration(sequence, Session.View);
             }
-            OpenNarration(sequence, Session.View);
         }
         World.Presentation = Turn.Display;
         World.Day = Turn.Day;
@@ -151,6 +155,19 @@ public partial class StrategyHud
         _executionPanels.Advance(showPanels || _mapRecordsRequested, delta, _decision is not null);
         _executionPanels.Bind(Turn.Display ?? Session.View);
         UpdateTurnControls();
+    }
+
+    private void FocusIncomingPlayer()
+    {
+        var view = Session.View;
+        if (view.PlayerForceId is not int force ||
+            view.World.Simulation.Controls.Count(c => c.Kind == San9.Core.Simulation.ControllerKind.Player) < 2) return;
+        var rulerId = view.Forces.Single(f => f.Id == force).LeaderId;
+        var ruler = view.Officers.SingleOrDefault(o => o.Id == rulerId);
+        if (ruler?.ServicePlaceId is int place && view.Settlements.Any(s => s.Id == place && !s.IsDestroyed))
+            World.FocusBuilding(place);
+        else if (ruler?.UnitId is int unit)
+            World.FocusUnit(unit);
     }
 
     private San9.Core.Domain.MapCell BattleCell(San9.Core.Simulation.BattleObjectContext obj)
@@ -213,11 +230,11 @@ public partial class StrategyHud
 
     private void UpdateTurnControls()
     {
-        foreach (var control in _strategicHeader) control.Visible = Turn.IsStrategy && !SelectingTargets;
+        foreach (var control in _strategicHeader) control.Visible = Turn.IsStrategy && Session.View.PlayerForceId is not null && !SelectingTargets;
         _year.Visible = _date.Visible = _season.Visible = !SelectingTargets;
         _advanceButton.Disabled = !Interaction.CanAdvance;
-        _informationButton.Disabled = !CanIssueOrders;
-        _functionsButton.Disabled = !CanIssueOrders;
+        _informationButton.Disabled = !Interaction.CanSave;
+        _functionsButton.Disabled = !Interaction.CanSave;
         _minimap!.MouseFilter = Turn.CanBrowseMap ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;
         _turnDialog.Visible = Turn.Screen is TurnScreen.Confirmation or TurnScreen.Failed;
         if (Turn.Screen == TurnScreen.Failed)

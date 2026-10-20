@@ -23,7 +23,7 @@ internal static class PrisonerReturnDiplomacy
     {
         var rejection = Eligibility(world, force, actor, target, prisoner, rules);
         if (rejection != CommandRejection.None) return new(rejection, null, AdviserOpinion.Unavailable);
-        if (Player(world, target)) return new(CommandRejection.None, null, AdviserOpinion.Unavailable);
+        if (Player(world, target)) return AdviserJudgment.Unpredictable(world, force);
         bool available = PrisonerCompensation.Quote(world, force, actor, target, prisoner, rules.Treasures).Kind != CompensationKind.Refuse;
         return AdviserJudgment.Evaluate(world, force, ConditionalRandomPurpose.PrisonerReturn, actor, target, prisoner, available ? 100 : 0);
     }

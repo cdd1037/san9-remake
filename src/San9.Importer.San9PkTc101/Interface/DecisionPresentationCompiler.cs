@@ -40,6 +40,9 @@ internal static class DecisionPresentationCompiler
         for (int i = 0; i < 3; i++) shared["training-growth-" + i] = M(7992 + i, sound: increase);
         shared["diplomacy-foreign-arrival"] = M(7112, sound: "decision-announcement", inputs: [("person.0", "requester-ruler"), ("person.1", "actor"), ("person.2", "host")]);
         shared["diplomacy-unowned-target"] = M(6411, "actor", inputs: [("person.1", "host")]);
+        shared["diplomacy-counteroffer-unpredictable"] = M(7321, "adviser", inputs: [("person.0", "adviser"), ("person.1", "host")]);
+        shared["diplomacy-counteroffer-favorable"] = M(7333, "adviser", inputs: [("person.0", "adviser"), ("person.1", "host")]);
+        shared["diplomacy-counteroffer-unfavorable"] = M(7337, "adviser", inputs: [("person.0", "adviser"), ("person.1", "host")]);
         shared["diplomacy-adviser"] = M(7329, "adviser", inputs: [("person.0", "adviser"), ("person.1", "host")]);
         shared["diplomacy-exchanged-prisoner"] = M(6375, sound: increase, inputs: [("person.0", "exchange-person")]);
         shared["alliance-responsibility"] = M(6070, inputs: [("force.0", "target-force")]);

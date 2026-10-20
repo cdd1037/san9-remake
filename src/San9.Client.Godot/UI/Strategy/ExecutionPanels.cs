@@ -116,10 +116,10 @@ public partial class ExecutionPanels : Control
         foreach (var child in _rows.GetChildren()) { _rows.RemoveChild(child); child.QueueFree(); }
         var rows=ExecutionCommands.Read(view,Texts).TakeLast(5).ToArray();
         int[] x=[14,74,110,166], widths=[60,36,56,74];
-        var force = view.World.Forces.Single(f => f.Id == view.PlayerForceId);
         for(int row=0;row<rows.Length;row++)
         {
             var value=rows[row];
+            var force = view.World.Forces.Single(f => f.Id == view.World.Officers.Single(p => p.Id == value.OfficerId).OwnerId);
             // Columns and decorations are local to the row surface, inset from the panel.
             var origin = Commands.Position + new Vector2(14,35+16*(5-rows.Length+row));
             var container = new Control { Position=origin,Size=new(244,16),MouseFilter=MouseFilterEnum.Ignore };

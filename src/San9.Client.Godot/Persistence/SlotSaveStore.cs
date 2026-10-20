@@ -58,9 +58,9 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
 
     private static SlotSaveDocument Capture(SaveEnvelope save, SaveSlotSummary summary, StrategySnapshot view)
     {
-        var force = view.Forces.Single(f => f.Id == view.PlayerForceId);
+        var force = view.Forces.SingleOrDefault(f => f.Id == view.PlayerForceId);
         var header = new SlotSaveHeader(FormatVersion, SessionProtocol.SaveFormatVersion, SessionProtocol.RulesVersion,
-            summary, new(force.ColorCode, force.FlagGlyph));
+            summary, new(force?.ColorCode ?? 0, force?.FlagGlyph ?? -1));
         return new(header, save);
     }
 
@@ -151,7 +151,7 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
             throw new SaveException(SaveFailure.UnsupportedVersion, "Unsupported slot or application save version.");
         if (string.IsNullOrWhiteSpace(header.RulesVersion))
             throw new JsonException("Missing slot rules version.");
-        if (header.Summary.Players < 1 || header.Flag.Color < 0 || header.Flag.Glyph < -1)
+        if (header.Summary.Players < 0 || header.Flag.Color < 0 || header.Flag.Glyph < -1)
             throw new JsonException("Invalid slot preview metadata.");
     }
     private static T ReadFile<T>(string path, Func<Stream, T> read)

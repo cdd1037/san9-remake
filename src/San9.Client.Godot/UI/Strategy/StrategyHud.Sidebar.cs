@@ -51,9 +51,15 @@ public partial class StrategyHud
 
         bool ready = expanded && !SidebarMoving;
         _rosterList.Visible = ready;
+        bool neutral = Session.View.PlayerForceId is null;
+        var advanceParent = neutral ? _bottomRight : _sidebarMotion;
+        if (_advanceButton.GetParent() != advanceParent)
+        { _advanceButton.Reparent(advanceParent, false); _advanceButton.Position = new(943, 664); }
         _sidebarMotion.Position = new(_sidebarOffset, 0);
         foreach (var button in _sidebarButtons)
         {
+            if (button == _advanceButton && neutral)
+            { button.Visible = Turn.IsStrategy; button.Disabled = !Turn.CanAdvance; continue; }
             button.Visible = SidebarVisible;
             button.Disabled = !ready || (button == _advanceButton ? !Turn.CanAdvance : !Turn.CanBrowseMap);
         }

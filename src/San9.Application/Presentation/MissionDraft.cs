@@ -57,7 +57,7 @@ public sealed class MissionDraft
         this.session = session; View = session.View; Kind = kind;
         inspiration = new(() =>
         {
-            var force = View.World.Forces.Single(f => f.Id == View.PlayerForceId);
+            var force = View.World.Forces.Single(f => f.Id == View.RequirePlayerForce());
             var treasures = View.Rules.Treasures;
             var tactics = session.MilitaryRules?.Tactics.Values.Where(t => t.Effect == TacticEffect.Inspire).Select(t => t.Id).ToHashSet() ?? [];
             return View.World.Officers.Where(p => p.OwnerId == force.Id &&
@@ -65,14 +65,14 @@ public sealed class MissionDraft
                 .Select(p => p.Id).ToImmutableHashSet();
         });
         Home = View.World.Settlements.Single(s => s.Id == homeId);
-        Actors = View.Officers.Where(p => p.OwnerId == View.PlayerForceId && p.SettlementId == homeId && p.IsAvailable)
+        Actors = View.Officers.Where(p => p.OwnerId == View.RequirePlayerForce() && p.SettlementId == homeId && p.IsAvailable)
             .OrderByDescending(p => ActorPriorityField switch { "war" => p.Abilities.War, "leadership" => p.Abilities.Leadership,
                 "politics" => p.Abilities.Politics, _ => p.Abilities.Intelligence })
             .ThenByDescending(p => Kind == "inspire" && KnowsInspiration(p.Id)).ThenBy(p => p.Id)
             .Select(p => p.Id).ToImmutableArray();
         ActorId = Actors.IsEmpty ? null : Actors[0];
         if (Kind != "gift") return;
-        var root = View.World.Corps.Single(c => c.OwnerId == View.PlayerForceId && c.IsRoot);
+        var root = View.World.Corps.Single(c => c.OwnerId == View.RequirePlayerForce() && c.IsRoot);
         if (root.Treasury.Money > 0) Gift = new(GiftKind.Money, Math.Min(1000, root.Treasury.Money), null);
         else if (root.Treasury.Food > 0) Gift = new(GiftKind.Food, Math.Min(1000, root.Treasury.Food), null);
         else if (!Treasures.IsEmpty) Gift = new(GiftKind.Treasure, 0, Treasures[0]);
@@ -86,7 +86,7 @@ public sealed class MissionDraft
     };
     public ImmutableArray<int> Targets => Candidates(TargetKind, false).ToImmutableArray();
     public ImmutableArray<int> SecondaryTargets => Candidates(SecondaryKind, true).ToImmutableArray();
-    public ImmutableArray<int> Treasures => IsCurrent ? session.GetGiftTreasures(View.PlayerForceId) : [];
+    public ImmutableArray<int> Treasures => IsCurrent ? session.GetGiftTreasures(View.RequirePlayerForce()) : [];
     private IEnumerable<int> Candidates(MissionTargetKind type, bool secondary)
     {
         if (!CanPrepare || ActorId is not int actor || secondary && !NeedsSecondary) return [];
@@ -95,7 +95,7 @@ public sealed class MissionDraft
             MissionTargetKind.Officer => View.Officers.Select(p => p.Id),
             MissionTargetKind.Settlement => View.Settlements.Where(s => !s.IsDestroyed).Select(s => s.Id),
             MissionTargetKind.Unit => View.World.Units.Where(u => !u.IsEmbedded && !u.IsPersonnel && u.Soldiers > 0).Select(u => u.Id),
-            _ => View.Forces.Where(f => !f.IsEliminated && f.Id != View.PlayerForceId).Select(f => f.Id)
+            _ => View.Forces.Where(f => !f.IsEliminated && f.Id != View.RequirePlayerForce()).Select(f => f.Id)
         };
         if (NeedsSecondary)
         {
@@ -106,9 +106,9 @@ public sealed class MissionDraft
     }
     private IEnumerable<int> RawSecondary(int target) => Kind switch
     {
-        "rumor" => View.Forces.Where(f => !f.IsEliminated && f.Id != target && f.Id != View.PlayerForceId).Select(f => f.Id),
+        "rumor" => View.Forces.Where(f => !f.IsEliminated && f.Id != target && f.Id != View.RequirePlayerForce()).Select(f => f.Id),
         "request" => View.Settlements.Where(s => !s.IsDestroyed).Select(s => s.Id),
-        "return" => View.Officers.Where(p => p.Status == OfficerStatus.Captive && p.OwnerId == View.PlayerForceId).Select(p => p.Id),
+        "return" => View.Officers.Where(p => p.Status == OfficerStatus.Captive && p.OwnerId == View.RequirePlayerForce()).Select(p => p.Id),
         _ => []
     };
     private CommandRejection EligibilityFor(int actor, int target, int? second)
@@ -124,7 +124,7 @@ public sealed class MissionDraft
     }
     private CommandAdvice AdviceFor(int actor, int target, int? second)
     {
-        int force = View.PlayerForceId;
+        int force = View.RequirePlayerForce();
         return Kind switch
         {
             "alienate" => session.GetAlienateAdvice(force, actor, target),
@@ -174,8 +174,8 @@ public sealed class MissionDraft
     public long? ArrivalDaysToOfficer(int id)
     {
         if (!IsCurrent || ActorId is not int actor) return null;
-        GameCommand? command = Kind == "alienate" ? new AlienateCommand(commandId,View.PlayerForceId,View.World.Simulation.NextSequence,actor,id) :
-            Kind == "return" && Prisoners.Contains(id) ? new ReturnPrisonerCommand(commandId,View.PlayerForceId,View.World.Simulation.NextSequence,actor,
+        GameCommand? command = Kind == "alienate" ? new AlienateCommand(commandId,View.RequirePlayerForce(),View.World.Simulation.NextSequence,actor,id) :
+            Kind == "return" && Prisoners.Contains(id) ? new ReturnPrisonerCommand(commandId,View.RequirePlayerForce(),View.World.Simulation.NextSequence,actor,
                 Targets.First(force => EligibilityFor(actor,force,id) == CommandRejection.None),id) : null;
         return command is not null && session.GetMissionPreparation(new("player"),command).Arrival is {} arrival ? arrival.DayNumber - View.World.Clock.DayNumber : null;
     }
@@ -192,7 +192,7 @@ public sealed class MissionDraft
     }
     private GameCommand CommandFor(int actor, int target, int? second)
     {
-        int force = View.PlayerForceId;
+        int force = View.RequirePlayerForce();
         long sequence = View.World.Simulation.NextSequence;
         return Kind switch
         {

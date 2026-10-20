@@ -22,6 +22,7 @@ internal static class MissionPresentationCompiler
         Add("return-start",5729,"actor",pair);
         Add("surrender-start",5747,"actor",[.. pair,("force.0","target-force")]);
         (string,string)[] advice = [("person.0","adviser"),("person.1","ruler")];
+        Add("diplomacy-unpredictable",7321,"adviser",advice);
         Add("strategy-favorable",7313,"adviser",advice);
         Add("strategy-unfavorable",7317,"adviser",advice);
         Add("gift-favorable",7353,"adviser",advice);

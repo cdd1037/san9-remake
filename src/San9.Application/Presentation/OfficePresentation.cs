@@ -14,7 +14,7 @@ public static class OfficePresentation
         var offices = before.Information.Offices.ToDictionary(o => o.Id);
         int Bonus(int? id) => id is int office ? offices[office].Salary / 2 : 0;
         List<CommandMessage> messages = [new(context.Produce(definition.Result,
-            new Dictionary<string,MessageBinding> { ["force.0"] = MessageBinding.Reference(MessageEntityKind.Force,before.PlayerForceId) },random),null,null)];
+            new Dictionary<string,MessageBinding> { ["force.0"] = MessageBinding.Reference(MessageEntityKind.Force,before.RequirePlayerForce()) },random),null,null)];
         // A salary decrease triggers the notice even when the officer's loyalty was already zero.
         if (changes.Any(e => Bonus(e.OfficeId) < Bonus(e.PreviousId)))
             messages.Add(new(context.Produce(definition.DemotionNotice,new Dictionary<string,MessageBinding>(),random),null,null));

@@ -593,7 +593,7 @@ public sealed class OriginalAiPersonnelTests
     {
         var content = OrganizationFixture();
         var initial = new Harness(content).Engine.Snapshot;
-        var session = GameSession.Restore(content, new(initial, [], [], 0) { PerspectiveForceId = content.PlayerForceId, OriginalAi = OriginalAiState.Create(content) }, GameSession.EngineFactory(content));
+        var session = GameSession.Restore(content, new(initial, [], [], 0) { OriginalAi = OriginalAiState.Create(content) }, GameSession.EngineFactory(content));
         // Explicitly delegate the root: descendants created by its public command must get a turn too.
         Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1, 0, 1, CorpsControlMode.Automatic)).Submission.Accepted);
         session.BeginRecording();
@@ -628,7 +628,7 @@ public sealed class OriginalAiPersonnelTests
                 { ControlMode = CorpsControlMode.Automatic }).ToArray() }
         };
         var initial = new Harness(content).Engine.Snapshot;
-        var session = GameSession.Restore(content, new(initial, [], [], 0) { PerspectiveForceId = content.PlayerForceId, OriginalAi = OriginalAiState.Create(content),
+        var session = GameSession.Restore(content, new(initial, [], [], 0) { OriginalAi = OriginalAiState.Create(content),
             PlayerForceController = ControllerKind.Player }, GameSession.EngineFactory(content));
         session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1, 0, 1, CorpsControlMode.Automatic));
         var result = session.Apply(session.Request(new EndControlOperation(), "player"));
@@ -656,7 +656,7 @@ public sealed class OriginalAiPersonnelTests
         var stream = new StableRandom(StableRandom.DeriveSeed(runSeed, "original-ai:2:68040"));
         Assert.Equal(0UL, stream.NextUInt64() % 100);
         initial = initial with { Simulation = initial.Simulation with { RunSeed = runSeed } };
-        var session = GameSession.Restore(content, new(initial, [], [], 0) { PerspectiveForceId = content.PlayerForceId, OriginalAi = OriginalAiState.Create(content) }, GameSession.EngineFactory(content));
+        var session = GameSession.Restore(content, new(initial, [], [], 0) { OriginalAi = OriginalAiState.Create(content) }, GameSession.EngineFactory(content));
         session.BeginRecording();
         Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new EndControlOperation(), "player")).Disposition);
         var result = session.Apply(session.Request(new EndControlOperation(), "ai:2"));
@@ -696,7 +696,7 @@ public sealed class OriginalAiPersonnelTests
                 { ControlMode = CorpsControlMode.Automatic }).ToArray() }
         };
         var initial = new Harness(content).Engine.Snapshot;
-        var session = GameSession.Restore(content, new(initial, [], [], 0) { PerspectiveForceId = content.PlayerForceId, OriginalAi = OriginalAiState.Create(content) }, GameSession.EngineFactory(content));
+        var session = GameSession.Restore(content, new(initial, [], [], 0) { OriginalAi = OriginalAiState.Create(content) }, GameSession.EngineFactory(content));
         var root = session.Snapshot.Corps.Single(c => c.Id == 1);
         var result = session.Apply(session.Request(new EndControlOperation(), "player"));
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);

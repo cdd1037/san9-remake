@@ -48,7 +48,6 @@ internal sealed class StrategySnapshotSource
         Rules = rules;
         Military = rules.Military;
         ImperialCourt = definition.ImperialCourt;
-        PlayerForceId = definition.PlayerForceId;
         FacilityNameSuffixKeys = new System.Collections.ObjectModel.ReadOnlyDictionary<int, string>(new Dictionary<int, string>(definition.FacilityNameSuffixKeys));
         Information = new(definition.Information);
         Treasures = rules.Treasures;
@@ -72,7 +71,6 @@ internal sealed class StrategySnapshotSource
     }
 
     internal ScenarioRules Rules { get; }
-    public int PlayerForceId { get; }
     public InformationCatalog Information { get; }
     internal OfficerAbilityRules Abilities { get; }
     internal TreasureRulebook Treasures { get; }
@@ -103,7 +101,7 @@ internal sealed class StrategySnapshotSource
     }
     public SettlementInitialState? Settlement(int id) => _settlements.GetValueOrDefault(id);
     public IReadOnlyList<string> SettlementIcons(int id) => _settlementIcons.GetValueOrDefault(id) ?? [];
-    public StrategySnapshot Project(WorldSnapshot world, int? perspectiveForceId = null) => new(this, world, perspectiveForceId);
+    public StrategySnapshot Project(WorldSnapshot world) => new(this, world);
 }
 
 public sealed class StrategySnapshot
@@ -163,11 +161,11 @@ public sealed class StrategySnapshot
         return estimate;
     }
     public StrategySnapshot(ScenarioInitialState definition, WorldSnapshot world)
-        : this(new StrategySnapshotSource(definition, new ScenarioRules(definition)), world, definition.PlayerForceId)
+        : this(new StrategySnapshotSource(definition, new ScenarioRules(definition)), world)
     {
     }
 
-    internal StrategySnapshot(StrategySnapshotSource source, WorldSnapshot world, int? perspectiveForceId = null)
+    internal StrategySnapshot(StrategySnapshotSource source, WorldSnapshot world)
     {
         _source = source;
         military = source.Military;
@@ -175,7 +173,7 @@ public sealed class StrategySnapshot
         Information = source.Information;
         FacilityNameSuffixKeys = source.FacilityNameSuffixKeys;
         World = world;
-        PlayerForceId = perspectiveForceId ?? world.Simulation.Controls.FirstOrDefault(c => c.Kind == ControllerKind.Player)?.ForceId ?? source.PlayerForceId;
+        PlayerForceId = ResolvePlayerForce(world);
         TacticCourses = source.TacticCourses;
         ProvinceNameKeys = source.ProvinceNameKeys;
         CityConnections = source.CityConnections; CityProvinceIds = source.CityProvinceIds;
@@ -275,17 +273,25 @@ public sealed class StrategySnapshot
     public MapCell? PlaceCell(int id) => Settlements.FirstOrDefault(p=>p.Id==id) is { } place ? new(place.X,place.Y) :
         _source.PlacePositions.TryGetValue(id,out var position) ? MapCoordinates.Cell(position) : null;
     /// <summary>Projects a world from the same scenario, reusing definitions and this view when the world is unchanged.</summary>
-    public StrategySnapshot ForWorld(WorldSnapshot world) => ReferenceEquals(World, world) ? this : _source.Project(world, world.Simulation.Controls.FirstOrDefault(c => c.Kind == ControllerKind.Player)?.ForceId ?? PlayerForceId);
+    public StrategySnapshot ForWorld(WorldSnapshot world) => ReferenceEquals(World, world) ? this : _source.Project(world);
     public int? EmperorId { get; }
     public int? EmperorCityId { get; }
     public bool ImperialCourtEnded => World.Simulation.ImperialCourtEnded;
     public int Year => World.Clock.Year;
     public int Month => World.Clock.Month;
     public int Day => World.Clock.Day;
-    public int PlayerForceId { get; }
+    public int? PlayerForceId { get; }
+    public int RequirePlayerForce() => PlayerForceId ?? throw new InvalidOperationException("No player force owns the current interaction.");
+    private static int? ResolvePlayerForce(WorldSnapshot world)
+    {
+        var simulation = world.Simulation;
+        if (simulation.ActiveControl < simulation.Controls.Length &&
+            simulation.Controls[simulation.ActiveControl] is { Kind: ControllerKind.Player } active) return active.ForceId;
+        return null;
+    }
     public CorpsState? PlayerCorps => World.Corps.SingleOrDefault(c => c.OwnerId == PlayerForceId && c.IsRoot);
     public EconomicOutlook? PlayerEconomicOutlook => PlayerCorps is {} corps
-        ? EconomicOutlook.Read(World, Information.Offices.ToDictionary(o => o.Id, o => o.Salary), PlayerForceId, corps.Id)
+        ? EconomicOutlook.Read(World, Information.Offices.ToDictionary(o => o.Id, o => o.Salary), corps.OwnerId, corps.Id)
         : null;
     public IReadOnlyList<CityTacticCourse> TacticCourses { get; }
     public IReadOnlyDictionary<int, string> ProvinceNameKeys { get; }

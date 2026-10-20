@@ -61,6 +61,11 @@ public sealed class StrategyRoster
         if (corpsId < 0) throw new ArgumentOutOfRangeException(nameof(corpsId));
         bool reset = CorpsId != corpsId;
         CorpsId = corpsId;
+        if (snapshot.PlayerForceId is null)
+        {
+            Facilities.Refresh(null, [], true); Officers.Refresh(null, [], true); Units.Refresh(null, [], true);
+            return;
+        }
         var force = snapshot.Forces.Single(f => f.Id == snapshot.PlayerForceId);
         static RosterEntry Facility(SettlementView s) => new(new(RosterPage.Facilities, s.Id), s.NameKey,
             new RosterSettlementLocation(s.Id), s.CityMarkerColor is not null ? San9.Content.Text.NameMessages.City : San9.Content.Text.NameMessages.Indented, s.HasAvailableOfficer) { NameSuffixKey = s.NameSuffixKey };

@@ -28,6 +28,6 @@ public sealed class FacilityDemolitionDraft(GameSession session, int settlementI
         }, _ => throw new InvalidDataException("Demolition confirmation must not require randomness."));
 
     public DemolishFacilityCommand CreateCommand(Guid id, long sequence) => CanExecute
-        ? new(id, View.PlayerForceId, sequence, SettlementId)
+        ? new(id, View.RequirePlayerForce(), sequence, SettlementId)
         : throw new InvalidOperationException("Demolition confirmation is no longer valid.");
 }

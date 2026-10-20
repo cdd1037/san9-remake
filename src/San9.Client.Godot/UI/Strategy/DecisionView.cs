@@ -188,6 +188,19 @@ public partial class DecisionView : FixedPage
         if (Pending) return;
         if (option.Role == "accept" && Draft.AcceptanceConfirmations.Count > 0)
         { ConfirmAcceptance(0, option, selected, amount); return; }
+        var advice = Draft.CounterofferAdvice(option, selected, amount);
+        if (advice.Count > 0)
+        {
+            Narrate(advice, () =>
+            {
+                var confirm = new GameDialog { Textures = Textures };
+                confirm.SetRichMessage("是否向对方提出该条件？");
+                confirm.Confirmed += () => SubmitAnswer(option, selected, amount);
+                confirm.Dismissed += ShowChoices;
+                Replace(confirm); confirm.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+            });
+            return;
+        }
         SubmitAnswer(option, selected, amount);
     }
     private void ConfirmAcceptance(int index, DecisionOption option, int? selected, uint amount)

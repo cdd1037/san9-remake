@@ -14,7 +14,7 @@ public static class ExilePresentation
         }).OfType<int>()).ToArray();
         if (ids.Length == 0) throw new ArgumentException("Exile presentation requires committed results.", nameof(events));
         int representative = ids[0];
-        int ruler = before.World.Forces.Single(f => f.Id == before.PlayerForceId).LeaderId
+        int ruler = before.World.Forces.Single(f => f.Id == before.RequirePlayerForce()).LeaderId
             ?? throw new InvalidOperationException("Exile requires a ruler.");
         bool dismissal = ids.Any(id => before.World.Officers.Single(p => p.Id == id).IsServing);
         var announcement = new Dictionary<string, MessageBinding> {
@@ -24,7 +24,7 @@ public static class ExilePresentation
             ["person.0"] = MessageBinding.Reference(MessageEntityKind.Person, representative),
             ["person.1"] = MessageBinding.Reference(MessageEntityKind.Person, ruler) };
         var result = new Dictionary<string, MessageBinding> {
-            ["force.0"] = MessageBinding.Reference(MessageEntityKind.Force, before.PlayerForceId),
+            ["force.0"] = MessageBinding.Reference(MessageEntityKind.Force, before.RequirePlayerForce()),
             ["number.0"] = new(ids.Length), ["number.1"] = new(ids.Length - 2) };
         for (int i = 0; i < 3; i++) result[$"person.{i}"] = MessageBinding.Reference(MessageEntityKind.Person, i < ids.Length ? ids[i] : representative);
         // Resolve against the pre-command world: dismissal removes the speaker's serving relationship.

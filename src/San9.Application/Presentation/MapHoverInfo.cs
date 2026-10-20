@@ -12,8 +12,8 @@ public sealed record MapHoverInfo(int Id, string Name, MapHoverTheme Theme, Forc
     public int? FlagGlyph { get; init; }
     public bool IsRulerCommander { get; init; }
 
-    public static MapHoverTheme ThemeFor(int? owner, int player, int relation) =>
-        owner == player ? MapHoverTheme.Own : owner is null || relation < 40 ? MapHoverTheme.Other : MapHoverTheme.Friendly;
+    public static MapHoverTheme ThemeFor(int? owner, int? player, int relation) =>
+        player is not null && owner == player ? MapHoverTheme.Own : owner is null || relation < 40 ? MapHoverTheme.Other : MapHoverTheme.Friendly;
 
     public static MapHoverInfo? Resolve(StrategySnapshot view, TextCatalog texts, int id, MapInformationContext context)
     {
@@ -32,7 +32,7 @@ public sealed record MapHoverInfo(int Id, string Name, MapHoverTheme Theme, Forc
         string Person(int? person) => view.Officers.SingleOrDefault(o => o.Id == person) is { } o ? texts.Resolve(o.NameKey) : "----";
         int relation = view.World.Relations.SingleOrDefault(r =>
             r.FirstId == view.PlayerForceId && r.SecondId == s.OwnerId || r.SecondId == view.PlayerForceId && r.FirstId == s.OwnerId)?.Value ?? 0;
-        bool own = s.OwnerId == view.PlayerForceId;
+        bool own = view.PlayerForceId is not null && s.OwnerId == view.PlayerForceId;
         List<MapHoverRow> rows =
         [
             new("状态", "一般"),

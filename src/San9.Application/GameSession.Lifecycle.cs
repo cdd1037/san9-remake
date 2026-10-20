@@ -9,7 +9,7 @@ namespace San9.Application;
 
 public sealed partial class GameSession
 {
-    private GameSession(ScenarioSessionDefinition definition, SimulationEngine simulation, int? perspectiveForceId = null)
+    private GameSession(ScenarioSessionDefinition definition, SimulationEngine simulation)
     {
         _definition = definition;
         _simulation = simulation;
@@ -17,9 +17,10 @@ public sealed partial class GameSession
         _originalAi = OriginalAiState.Create(definition.Content);
         _initialEvents = simulation.InitialEvents;
         _snapshotSource = new(definition.Content, definition.Rules);
-        _view = _snapshotSource.Project(simulation.Snapshot, perspectiveForceId);
+        _view = _snapshotSource.Project(simulation.Snapshot);
         _initialView = _view;
-        _strategicContext = StrategicContextState.Empty with { Clock = simulation.Snapshot.Clock.IsXunBoundary ? simulation.Snapshot.Clock : null };
+        _strategicContexts = simulation.Snapshot.Simulation.Controls.Where(c => c.Kind == ControllerKind.Player)
+            .ToImmutableDictionary(c => c.ForceId, _ => StrategicContextState.Empty with { Clock = simulation.Snapshot.Clock.IsXunBoundary ? simulation.Snapshot.Clock : null });
         _readOnlyRecords = _records.AsReadOnly();
         _readOnlyChronicle = _chronicle.AsReadOnly();
         InitialDate = $"{definition.Content.Year}年{definition.Content.Month}月{definition.Content.Day}日";
@@ -88,13 +89,13 @@ public sealed partial class GameSession
         Func<WorldState, SimulationEngine>? factory)
     {
         var simulation = (factory ?? owned.Rules.CreateEngine)(world);
-        var session = new GameSession(owned, simulation, snapshot.PerspectiveForceId);
+        var session = new GameSession(owned, simulation);
         session._records.AddRange(snapshot.Records);
         session._chronicle.AddRange(snapshot.Chronicle);
         session.History = snapshot.History;
         session.NextOperationSequence = snapshot.NextOperationSequence;
         session._ending = snapshot.Ending;
-        session._strategicContext = snapshot.StrategicContext;
+        session._strategicContexts = snapshot.StrategicContexts;
         session._originalAi = snapshot.OriginalAi;
         session.PlayerForceController = snapshot.PlayerForceController;
         session.HasUnsavedChanges = false;

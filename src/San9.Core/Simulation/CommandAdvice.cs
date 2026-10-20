@@ -13,6 +13,9 @@ public static class AdviserAccuracy
 
 internal static class AdviserJudgment
 {
+    internal static CommandAdvice Unpredictable(WorldMutation world, int forceId) =>
+        new(CommandRejection.None, world.Forces[forceId].AdviserId, AdviserOpinion.Unavailable);
+
     internal static CommandAdvice Evaluate(WorldMutation world, int forceId, ConditionalRandomPurpose purpose,
         int actorId, int targetId, double threshold) => Evaluate(world, forceId,
             ConditionalRandom.Percentile(world.Simulation.InitialSeed, purpose, world.Clock, actorId, targetId), threshold);

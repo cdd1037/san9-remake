@@ -102,7 +102,7 @@ public sealed class CorpsCommandTests
         Assert.Equal((uint)((ulong)draft.MaximumMoney * draft.Counts.People / draft.Counts.TotalPeople), draft.Money);
         Assert.Equal(1000U,draft.Food);
         var targets = draft.PolicyTargets(true);
-        Assert.DoesNotContain(draft.View.PlayerForceId,targets);
+        Assert.DoesNotContain(draft.View.RequirePlayerForce(),targets);
         Assert.NotEmpty(targets);
         draft.SetMoney(100); draft.SetFood(200);
         Assert.Equal(2,draft.GovernorId); Assert.False(draft.CanExecute);
@@ -124,7 +124,7 @@ public sealed class CorpsCommandTests
         foreach (var delegation in draft.View.Forces.Select(f => (CorpsDelegation)new DefeatForceDelegation(f.Id))
             .Concat(draft.View.Settlements.Select(s => new CaptureSettlementDelegation(s.Id))))
         {
-            var command = new SetCorpsDelegationCommand(Guid.NewGuid(),draft.View.PlayerForceId,
+            var command = new SetCorpsDelegationCommand(Guid.NewGuid(),draft.View.RequirePlayerForce(),
                 session.Snapshot.Simulation.NextSequence,corps,delegation);
             Assert.Equal(session.Validate(new("player"),command).Rejection,session.GetPreparationEligibility(new("player"),command));
         }

@@ -88,7 +88,7 @@ internal static class GiftDiplomacy
         var rejection = Eligibility(world, forceId, actor, target, offer, rules);
         if (rejection != CommandRejection.None) return new(rejection, null, AdviserOpinion.Unavailable);
         if (world.Simulation.Controls.Any(c => c.ForceId == target && c.Kind == ControllerKind.Player))
-            return new(CommandRejection.None, null, AdviserOpinion.Unavailable);
+            return AdviserJudgment.Unpredictable(world, forceId);
         return AdviserJudgment.Evaluate(world, forceId, ConditionalRandomPurpose.Gift, actor, target, Threshold(world, forceId, actor, target, offer, rules));
     }
 

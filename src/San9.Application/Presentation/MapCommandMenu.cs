@@ -34,7 +34,7 @@ public static class MapCommandMenu
     public static IReadOnlyList<MapCommandEntry> Settlement(StrategySnapshot view, int id)
     {
         var place = view.World.Settlements.SingleOrDefault(s => s.Id == id);
-        if (place is null || place.IsDormant || place.IsDestroyed || !place.CanHostPersons || place.OwnerId != view.PlayerForceId) return [];
+        if (view.PlayerForceId is null || place is null || place.IsDormant || place.IsDestroyed || !place.CanHostPersons || place.OwnerId != view.PlayerForceId) return [];
         var facilities = Facilities;
         if (place.Kind != SettlementKind.City)
         {

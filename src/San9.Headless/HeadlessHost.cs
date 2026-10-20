@@ -354,7 +354,8 @@ public sealed class HeadlessHost
             _report.RestoreCount++;
             checkpoints.Add(new { reason, clock = restored.Snapshot.Clock, operationCount = restored.NextOperationSequence });
         }
-        Compare(_session.Request(new ChronicleOperation($"Headless {_report.Policy} verification")));
+        if (_session.View.PlayerForceId is not null)
+            Compare(_session.Request(new ChronicleOperation($"Headless {_report.Policy} verification")));
         bool firstCommand = true;
         for (int xun = 0; xun < xuns && _session.Snapshot.Simulation.Boundary != SimulationBoundary.Terminal; xun++)
         {

@@ -90,6 +90,22 @@ public sealed class DecisionDraft
         { IllustrationRole = illustrationPerson is null ? illustration : null, IllustrationPersonId = illustrationPerson };
     }
 
+    public IReadOnlyList<CommandMessage> CounterofferAdvice(DecisionOption option, int? selected, uint amount)
+    {
+        if (Diplomacy is not { Offer: null } data || Role is not ("attack-request" or "prisoner-return") ||
+            option.Role == "decline" || option.CreateCommand(Guid.Empty, Before.World.Simulation.NextSequence, selected, amount)
+                is not RespondDailyTaskCommand { Offer: { } offer }) return [];
+        var advice = _session.GetCounterofferAdvice(data.TaskId, offer);
+        if (advice.AdviserId is not int adviser) return [];
+        _values["adviser"] = Person(adviser);
+        string role = advice.Opinion switch
+        {
+            AdviserOpinion.Unavailable => "unpredictable", AdviserOpinion.Favorable => "favorable",
+            AdviserOpinion.Unfavorable => "unfavorable", _ => throw new InvalidOperationException("Missing counteroffer opinion.")
+        };
+        return [Produce(_presentation.Shared["diplomacy-counteroffer-" + role])];
+    }
+
     public ProducedMessage? ConfirmSelection(int selected) => Definition.SelectionConfirmation is { } message ?
         Produce(message, Definition.Window == DecisionWindowKind.CountrySelection ? _context.PreviewCountryTitle(ForceId, selected) : _context).Message : null;
     public ProducedMessage? ConfirmCancel() => Definition.CancelConfirmation is { } message ? Produce(message).Message : null;

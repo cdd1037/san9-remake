@@ -8,8 +8,8 @@ using San9.Core.Simulation;
 namespace San9.Application.Diagnostics;
 
 public sealed record SessionDiagnosticSnapshot(WorldDiagnosticSnapshot World, ImmutableArray<SessionRecord> Records,
-    ImmutableArray<ChronicleEntry> Chronicle, ImmutableArray<ChronicleFact> History, EndingSelection? Ending, Presentation.StrategicContextState StrategicContext,
-    long NextOperationSequence, int PerspectiveForceId, ControllerKind PlayerForceController, AI.OriginalAiState OriginalAi);
+    ImmutableArray<ChronicleEntry> Chronicle, ImmutableArray<ChronicleFact> History, EndingSelection? Ending, ImmutableDictionary<int, Presentation.StrategicContextState> StrategicContexts,
+    long NextOperationSequence, ControllerKind PlayerForceController, AI.OriginalAiState OriginalAi);
 
 public static class SessionDiagnostics
 {
@@ -18,8 +18,8 @@ public static class SessionDiagnostics
         Compare(expected.CaptureCurrentState(), actual.CaptureCurrentState());
 
     public static SessionDiagnosticSnapshot Capture(SessionSnapshot session) => new(WorldDiagnostics.Capture(session.World),
-        session.Records, session.Chronicle, session.History, session.Ending, session.StrategicContext,
-        session.NextOperationSequence, session.PerspectiveForceId, session.PlayerForceController, session.OriginalAi);
+        session.Records, session.Chronicle, session.History, session.Ending, session.StrategicContexts,
+        session.NextOperationSequence, session.PlayerForceController, session.OriginalAi);
 
     public static JsonElement Serialize(SessionSnapshot session) =>
         JsonSerializer.SerializeToElement(Capture(session), SessionDiagnosticJsonContext.Default.SessionDiagnosticSnapshot);
@@ -45,10 +45,9 @@ public static class SessionDiagnostics
             comparison.Check(expected.History, actual.History, "$.history") &&
             comparison.Check(expected.NextOperationSequence, actual.NextOperationSequence, "$.nextOperationSequence") &&
             comparison.Check(expected.OriginalAi, actual.OriginalAi, "$.originalAi") &&
-            comparison.Check(expected.PerspectiveForceId, actual.PerspectiveForceId, "$.perspectiveForceId") &&
             comparison.Check(expected.PlayerForceController, actual.PlayerForceController, "$.playerForceController") &&
             comparison.Check(expected.Records, actual.Records, "$.records") &&
-            comparison.Check(expected.StrategicContext, actual.StrategicContext, "$.strategicContext");
+            comparison.Check(expected.StrategicContexts, actual.StrategicContexts, "$.strategicContexts");
         difference = comparison.Difference;
         if (!equal) return false;
         if (!describeDifference) return WorldDiagnostics.AreEqual(expected.World, actual.World);

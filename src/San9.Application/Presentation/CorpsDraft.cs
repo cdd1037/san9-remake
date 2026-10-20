@@ -21,7 +21,7 @@ public sealed class CorpsDraft
     public CorpsDelegation? Policy { get; private set; }
     public CorpsControlMode ControlMode { get; private set; }
     public bool IsCurrent => session.Snapshot.Revision == View.World.Revision;
-    public ImmutableArray<CorpsState> Corps => View.World.Corps.Where(c => c.OwnerId == View.PlayerForceId).OrderBy(c => c.Id).ToImmutableArray();
+    public ImmutableArray<CorpsState> Corps => View.World.Corps.Where(c => c.OwnerId == View.RequirePlayerForce()).OrderBy(c => c.Id).ToImmutableArray();
     private CorpsState Root => Corps.Single(c => c.IsRoot);
     public uint MaximumMoney => (uint)Math.Min(uint.MaxValue, (ulong)Root.Treasury.Money + (Selected?.IsRoot == false ? Selected.Treasury.Money : 0));
     public uint MaximumFood => (uint)Math.Min(uint.MaxValue, (ulong)Root.Treasury.Food + (Selected?.IsRoot == false ? Selected.Treasury.Food : 0));
@@ -32,9 +32,9 @@ public sealed class CorpsDraft
     {
         get
         {
-            var ruler = View.World.Officers.Single(p => p.Id == View.World.Forces.Single(f => f.Id == View.PlayerForceId).LeaderId);
+            var ruler = View.World.Officers.Single(p => p.Id == View.World.Forces.Single(f => f.Id == View.RequirePlayerForce()).LeaderId);
             int? home = ruler.SettlementId ?? View.World.Units.SingleOrDefault(u => u.Id == ruler.UnitId)?.ServicePlaceId;
-            return View.World.Settlements.Where(s => s.OwnerId == View.PlayerForceId && s.Kind == SettlementKind.City &&
+            return View.World.Settlements.Where(s => s.OwnerId == View.RequirePlayerForce() && s.Kind == SettlementKind.City &&
                 !s.IsDormant && !s.IsDestroyed && s.Id != home &&
                 (s.CorpsId == Root.Id || Operation == CorpsOperation.Change && s.CorpsId == CorpsId)).Select(s => s.Id).Order().ToImmutableArray();
         }
@@ -95,7 +95,7 @@ public sealed class CorpsDraft
     {
         if (!IsCurrent) return [];
         var candidates = force ? View.Forces.Select(f => f.Id) : View.Settlements.Select(s => s.Id);
-        return candidates.Where(id => session.CanSelectCorpsDelegation(new("player"), View.PlayerForceId,
+        return candidates.Where(id => session.CanSelectCorpsDelegation(new("player"), View.RequirePlayerForce(),
             force ? new DefeatForceDelegation(id) : new CaptureSettlementDelegation(id))).Order().ToImmutableArray();
     }
     public bool HasChanges => Operation switch
@@ -114,16 +114,16 @@ public sealed class CorpsDraft
     {
         get
         {
-            var pool = View.World.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed && s.OwnerId == View.PlayerForceId &&
+            var pool = View.World.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed && s.OwnerId == View.RequirePlayerForce() &&
                 (s.CorpsId == Root.Id || s.CorpsId == CorpsId)).Select(s => s.Id).ToHashSet();
-            var ruler = View.Officers.Single(p => p.Id == View.Forces.Single(f => f.Id == View.PlayerForceId).LeaderId);
+            var ruler = View.Officers.Single(p => p.Id == View.Forces.Single(f => f.Id == View.RequirePlayerForce()).LeaderId);
             var places = pool.Where(id => id != ruler.ServicePlaceId &&
                 (Cities.Contains(id) || View.RegionCityIds.TryGetValue(id, out int city) && Cities.Contains(city))).ToHashSet();
-            var units = View.World.Units.Where(u => u.OwnerId == View.PlayerForceId && (u.CorpsId == Root.Id || u.CorpsId == CorpsId)).ToArray();
+            var units = View.World.Units.Where(u => u.OwnerId == View.RequirePlayerForce() && (u.CorpsId == Root.Id || u.CorpsId == CorpsId)).ToArray();
             var unitIds = units.Select(u => u.Id).ToHashSet();
             var selectedUnits = units.Where(u => u.ServicePlaceId is int home && places.Contains(home) &&
                 u.FollowsServicePlace(Operation == CorpsOperation.Create)).Select(u => u.Id).ToHashSet();
-            var people = View.Officers.Where(p => p.IsServing && p.OwnerId == View.PlayerForceId &&
+            var people = View.Officers.Where(p => p.IsServing && p.OwnerId == View.RequirePlayerForce() &&
                 (p.UnitId is int unit ? unitIds.Contains(unit) : p.ServicePlaceId is int home && pool.Contains(home))).ToArray();
             ulong assigned = (ulong)people.Count(p => p.UnitId is int unit ? selectedUnits.Contains(unit) : p.ServicePlaceId is int home && places.Contains(home));
             ulong soldiers = (ulong)View.World.Settlements.Where(s => places.Contains(s.Id)).Sum(s => (long)s.Soldiers + s.Wounded) +
@@ -136,7 +136,7 @@ public sealed class CorpsDraft
 
     public GameCommand CreateCommand()
     {
-        int force = View.PlayerForceId; long sequence = View.World.Simulation.NextSequence;
+        int force = View.RequirePlayerForce(); long sequence = View.World.Simulation.NextSequence;
         return Operation switch
         {
             CorpsOperation.Create => new CreateCorpsCommand(commandId, force, sequence, Cities, Money, Food, Policy ?? new GeneralDelegation()),

@@ -13,7 +13,7 @@ public static class ExecutionCommands
         var people = view.World.Officers.ToDictionary(p => p.Id);
         // Daily commands resolve on the displayed date before the clock advances.
         int daysInXun = 10 - (view.World.Clock.Day - 1) % 10;
-        return view.World.Simulation.Tasks.Where(t => t.ForceId == view.PlayerForceId).OrderBy(t => t.Sequence).Select(task =>
+        return view.World.Simulation.Tasks.Where(t => view.World.Simulation.Controls.Any(c => c.ForceId == t.ForceId && c.Kind == San9.Core.Simulation.ControllerKind.Player)).OrderBy(t => t.Sequence).Select(task =>
         {
             var person = people[task.OfficerId]; var cells = commands.Read(person);
             long days = cells.Arrival.Number ?? Math.Max(0, task.Due.DayNumber - view.World.Clock.DayNumber);

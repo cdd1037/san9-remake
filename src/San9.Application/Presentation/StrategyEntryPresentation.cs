@@ -10,7 +10,7 @@ public static class StrategyEntryPresentation
     public static IReadOnlyList<CommandMessage> Produce(StrategySnapshot view, WorldMessageContext context,
         TextCatalog texts, ProgressPresentationDefinition content)
     {
-        if (view.World.Simulation.Boundary != SimulationBoundary.Stable) return [];
+        if (view.PlayerForceId is null || view.World.Simulation.Boundary != SimulationBoundary.Stable) return [];
         var force = view.World.Forces.Single(f => f.Id == view.PlayerForceId);
         if (force.LeaderId is not int ruler || !view.World.Officers.Any(p => p.Id == ruler && !p.IsDormant && p.IsServing)) return [];
         var message = ProgressMessageProducer.Produce(content.OrderPrompt, context, texts,

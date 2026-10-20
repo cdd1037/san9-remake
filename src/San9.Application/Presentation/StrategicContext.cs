@@ -23,6 +23,7 @@ public static class StrategicContext
     public static StrategicContextState Prepare(StrategySnapshot view, StrategicContextState previous,
         Func<int, int>? choose = null)
     {
+        if (view.PlayerForceId is null) return StrategicContextState.Empty;
         var world = view.World;
         if (!world.Clock.IsXunBoundary || world.Simulation.Boundary != SimulationBoundary.Stable ||
             world.Clock.DayNumber <= world.Simulation.Started.DayNumber || previous.Clock == world.Clock) return previous;

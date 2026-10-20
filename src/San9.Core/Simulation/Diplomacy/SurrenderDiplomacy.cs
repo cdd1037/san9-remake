@@ -58,7 +58,7 @@ internal static class SurrenderDiplomacy
     {
         var rejection = Eligibility(world, source, actor, target, rules);
         if (rejection != CommandRejection.None) return new(rejection, null, AdviserOpinion.Unavailable);
-        return PrisonerReturnDiplomacy.Player(world, target) ? new(CommandRejection.None, null, AdviserOpinion.Unavailable) :
+        return PrisonerReturnDiplomacy.Player(world, target) ? AdviserJudgment.Unpredictable(world, source) :
             AdviserJudgment.Evaluate(world, source, ConditionalRandomPurpose.Surrender, actor, target, Threshold(world, source, actor, target, rules));
     }
 

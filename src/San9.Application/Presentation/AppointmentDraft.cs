@@ -40,7 +40,7 @@ public sealed class AppointmentDraft
         {
             int Intelligence(int id) => View.Officers.Single(p => p.Id == id).Abilities.Intelligence;
             Candidates = Candidates.OrderByDescending(Intelligence).ThenBy(id => id).ToImmutableArray();
-            int? incumbent = View.World.Forces.Single(f => f.Id == View.PlayerForceId).AdviserId;
+            int? incumbent = View.World.Forces.Single(f => f.Id == View.RequirePlayerForce()).AdviserId;
             Members = Candidates.Where(id => incumbent is null || Intelligence(id) >= Intelligence(incumbent.Value)).Take(1).ToImmutableArray();
         }
         TreasureIds = query.AppointmentTreasures(kind).OrderBy(t => t.Id).Select(t => t.Id).ToImmutableArray();
@@ -51,7 +51,7 @@ public sealed class AppointmentDraft
             if (TreasureIds.Length == 1) TreasureId = TreasureIds[0];
         }
         OfficePlan = kind == "rank" ? new(View, Candidates, query.AppointmentOffices()) : null;
-        Money = View.World.Corps.Single(c => c.OwnerId == View.PlayerForceId && c.IsRoot).Treasury.Money;
+        Money = View.World.Corps.Single(c => c.OwnerId == View.RequirePlayerForce() && c.IsRoot).Treasury.Money;
         if (kind == "execute")
         {
             Candidates = Candidates.OrderByDescending(id => {
@@ -96,7 +96,7 @@ public sealed class AppointmentDraft
         // Reward and exile use separate existing transactions. Stop on a rejection and report actual committed results.
         foreach (int target in Kind is "reward" or "exile" ? Members : ImmutableArray.Create(Members.IsEmpty ? 0 : Members[0]))
         {
-            Guid id = Guid.NewGuid(); int force = View.PlayerForceId; long sequence = session.Snapshot.Simulation.NextSequence;
+            Guid id = Guid.NewGuid(); int force = View.RequirePlayerForce(); long sequence = session.Snapshot.Simulation.NextSequence;
             GameCommand command = Kind switch {
                 "strategist" => new AppointAdviserCommand(id, force, sequence, target),
                 "reward" => new RewardOfficerCommand(id, force, sequence, target),

@@ -28,8 +28,9 @@ public sealed partial class GameSession
     private OriginalAiState _originalAi;
     public OriginalAiState OriginalAi => _originalAi;
     public ImmutableArray<OriginalAiWorkReport> LastOriginalAiWork { get; private set; } = [];
-    private StrategicContextState _strategicContext;
-    public StrategicContextState StrategicContext => _strategicContext;
+    private ImmutableDictionary<int, StrategicContextState> _strategicContexts = ImmutableDictionary<int, StrategicContextState>.Empty;
+    public StrategicContextState StrategicContext => View.PlayerForceId is int force
+        ? _strategicContexts.GetValueOrDefault(force, StrategicContextState.Empty) : StrategicContextState.Empty;
     public event Action? Changed;
 
     public string InitialDate { get; }
@@ -40,7 +41,7 @@ public sealed partial class GameSession
     public ImmutableArray<ChronicleFact> History { get; private set; } = [];
     public WorldSnapshot Snapshot => _simulation.Snapshot;
     public StrategySnapshot InitialView => _initialView;
-    public StrategySnapshot View => _view.World.Revision == Snapshot.Revision ? _view : _view = _snapshotSource.Project(Snapshot, _view.PlayerForceId);
+    public StrategySnapshot View => _view.World.Revision == Snapshot.Revision ? _view : _view = _snapshotSource.Project(Snapshot);
 
     public SessionRequest Request(SessionOperation operation, string controllerId = "player", Guid? id = null)
     {
@@ -92,7 +93,7 @@ public sealed partial class GameSession
     }
 
     public bool CanChangeForceControl => !_executing && Snapshot.Simulation.Boundary == SimulationBoundary.Stable &&
-        Snapshot.Simulation.ActiveControl == 0 && _originalAi.Continuation is null;
+        _originalAi.Continuation is null;
 
     public SessionResult HandOverForce(int forceId) => Apply(Request(new ForceControlOperation(forceId, ControllerKind.Automatic)));
 

@@ -290,7 +290,7 @@ public sealed class ProgressPresentationTests
         var envelope = SaveService.Capture(session);
         var context = session.StrategicContext with { Prompts = [new("enemy-city",2,1,1,PlaceId:9999,CityId:1,EnemyForceId:2)] };
         var error = Assert.Throws<SaveException>(() => SaveService.Load(envelope with
-            { Session = envelope.Session with { StrategicContext = context } },definition));
+            { Session = envelope.Session with { StrategicContexts = envelope.Session.StrategicContexts.SetItem(1, context) } },definition));
         Assert.Equal(SaveFailure.InvalidState,error.Failure);
     }
 

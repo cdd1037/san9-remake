@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using San9.Tests;
 using System.Text.Json;
 using San9.Core.Domain;
@@ -31,6 +32,41 @@ public sealed class AttackRequestDiplomacyTests
         engine.EndControl(new("first")); engine.EndControl(new("second")); engine.EndControl(new("third"));
         engine.AdvanceXun();
         return engine;
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void CounterofferAdviceIsReadOnlyAndUsesTheRequestersController(bool player)
+    {
+        var snapshot = new SimulationEngine(World(), Rules()).Snapshot;
+        snapshot = snapshot with
+        {
+            Forces = snapshot.Forces.Select(f => f.Id == 2 ? f with { AdviserId = 22 } : f).ToArray(),
+            Officers = snapshot.Officers.Select(p => p.Id == 22 ? p with { Status = OfficerStatus.Strategist } : p).ToArray(),
+            Simulation = snapshot.Simulation with { Controls = snapshot.Simulation.Controls.Select(c =>
+                c.ForceId == 1 ? c with { Kind = player ? ControllerKind.Player : ControllerKind.Automatic } : c).ToImmutableArray() }
+        };
+        var engine = new SimulationEngine(WorldState.Restore(snapshot), Rules());
+        Assert.True(engine.Execute(new("first"), new RequestAttackCommand(Guid.NewGuid(), 1, 0, 12, 2, 3)).Submission.Accepted);
+        engine.EndControl(new("first")); engine.EndControl(new("second")); engine.EndControl(new("third"));
+        engine.AdvanceXun();
+        var prompt = engine.GetAttackRequestPrompt()!;
+        var before = engine.Snapshot;
+        var offer = new CompensationOffer(CompensationKind.Money, 1000, null, null);
+        var advice = engine.GetCounterofferAdvice(prompt.TaskId, offer);
+        Assert.Equal(CommandRejection.None, advice.Rejection);
+        Assert.Equal(22, advice.AdviserId);
+        Assert.Equal(player ? AdviserOpinion.Unavailable : AdviserOpinion.Favorable, advice.Opinion);
+        Assert.Equal(advice, engine.GetCounterofferAdvice(prompt.TaskId, offer));
+        Assert.Equal(CommandRejection.InvalidTask, engine.GetCounterofferAdvice(Guid.NewGuid(), offer).Rejection);
+        StateAssert.Equal(before, engine.Snapshot);
+        Assert.True(engine.Execute(new("second"), new RespondDailyTaskCommand(Guid.NewGuid(), 2,
+            before.Simulation.NextSequence, prompt.TaskId, 0, true) { Offer = offer }).Submission.Accepted);
+        Assert.Equal(CommandRejection.InvalidTask, engine.GetCounterofferAdvice(prompt.TaskId, offer).Rejection);
+        if (!player)
+            Assert.Equal(advice.Opinion == AdviserOpinion.Favorable,
+                engine.GetAutomaticDiplomacyResponse(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence).Accept);
     }
 
     [Theory]

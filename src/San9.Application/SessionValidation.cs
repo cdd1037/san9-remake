@@ -35,34 +35,36 @@ internal static class SessionValidation
                 throw new ArgumentException("Invalid runtime force provenance.");
         }
         var controls = snapshot.World.Simulation.Controls;
-        var players = controls.Where(c => c.Kind == ControllerKind.Player).ToArray();
-        if (snapshot.World.Simulation.Started != initialClock || players.Length > 1 ||
-            !snapshot.World.Forces.Any(f => f.Id == snapshot.PerspectiveForceId && !f.IsDormant && !f.IsBarbarian) ||
-            players.Any(c => c.ForceId != snapshot.PerspectiveForceId) ||
+        if (snapshot.World.Simulation.Started != initialClock ||
             controls.Any(c => c.ControllerId != (c.Kind == ControllerKind.Player ? "player" : $"ai:{c.ForceId}") ||
                 c.Kind == ControllerKind.Player && snapshot.World.Forces.Single(f => f.Id == c.ForceId).IsBarbarian) ||
             !controls.Select(c => c.ForceId).Order().SequenceEqual(snapshot.World.Forces.Where(f => !f.IsDormant && !f.IsEliminated).Select(f => f.Id).Order()))
             throw new ArgumentException("Scenario date or control configuration mismatch.");
         var content = definition.Content;
         bool ContextPlace(int? id) => id is null || snapshot.World.Settlements.Any(s => s.Id == id) || content.RegionNameKeys.ContainsKey(id.Value);
-        var context = snapshot.StrategicContext;
-        if (context is null || context.ReportedEnemyUnits.IsDefault || context.Prompts.IsDefault || context.Clues.IsDefault ||
-            context.Clock is { } entry && (!entry.IsXunBoundary || entry.DayNumber < snapshot.World.Simulation.Started.DayNumber || entry.DayNumber > snapshot.World.Clock.DayNumber) ||
-            context.Clock is null && (!context.Prompts.IsEmpty || !context.Clues.IsEmpty || !context.ReportedEnemyUnits.IsEmpty) ||
-            context.ReportedEnemyUnits.Any(id => id < 0) || context.ReportedEnemyUnits.Distinct().Count() != context.ReportedEnemyUnits.Length ||
-            context.Prompts.Any(p => !San9.Content.Interface.ProgressPresentationDefinition.ContextRoles.Contains(p.Role) ||
-                !snapshot.World.Officers.Any(o => o.Id == p.ActorId) || !snapshot.World.Officers.Any(o => o.Id == p.RulerId) ||
-                !snapshot.World.Forces.Any(f => f.Id == p.ForceId) ||
-                !ContextPlace(p.PlaceId) || !ContextPlace(p.CityId) || !ContextPlace(p.OtherPlaceId) ||
-                p.EnemyForceId is int enemy && !snapshot.World.Forces.Any(f => f.Id == enemy) ||
-                p.OtherOfficerId is int other && !snapshot.World.Officers.Any(o => o.Id == other) ||
-                p.TreasureId is int treasure && !snapshot.World.Treasures.Any(t => t.Id == treasure)) ||
-            context.Clues.Any(c => !Enum.IsDefined(c.Kind) || c.Kind == Presentation.StrategicClueKind.Person && c.TreasureId is not null ||
-                c.Kind == Presentation.StrategicClueKind.Treasure && c.OfficerId is not null || c.Clock.DayNumber > snapshot.World.Clock.DayNumber || c.Clock.DayNumber < snapshot.World.Simulation.Started.DayNumber ||
-                !ContextPlace(c.PlaceId) || c.RegionOnly && (c.OfficerId is not null || c.TreasureId is not null) ||
-                c.OfficerId is int person && !snapshot.World.Officers.Any(o => o.Id == person) ||
-                c.TreasureId is int item && !snapshot.World.Treasures.Any(t => t.Id == item)))
-            throw new ArgumentException("Invalid strategic context publication.");
+        if (snapshot.StrategicContexts is null) throw new ArgumentException("Missing strategic contexts.");
+        foreach (var (forceId, context) in snapshot.StrategicContexts)
+        {
+            if (!controls.Any(c => c.ForceId == forceId && c.Kind == ControllerKind.Player))
+                throw new ArgumentException("Invalid strategic context owner.");
+            if (context is null || context.ReportedEnemyUnits.IsDefault || context.Prompts.IsDefault || context.Clues.IsDefault ||
+                context.Clock is { } entry && (!entry.IsXunBoundary || entry.DayNumber < snapshot.World.Simulation.Started.DayNumber || entry.DayNumber > snapshot.World.Clock.DayNumber) ||
+                context.Clock is null && (!context.Prompts.IsEmpty || !context.Clues.IsEmpty || !context.ReportedEnemyUnits.IsEmpty) ||
+                context.ReportedEnemyUnits.Any(id => id < 0) || context.ReportedEnemyUnits.Distinct().Count() != context.ReportedEnemyUnits.Length ||
+                context.Prompts.Any(p => p.ForceId != forceId || !San9.Content.Interface.ProgressPresentationDefinition.ContextRoles.Contains(p.Role) ||
+                    !snapshot.World.Officers.Any(o => o.Id == p.ActorId) || !snapshot.World.Officers.Any(o => o.Id == p.RulerId) ||
+                    !snapshot.World.Forces.Any(f => f.Id == p.ForceId) ||
+                    !ContextPlace(p.PlaceId) || !ContextPlace(p.CityId) || !ContextPlace(p.OtherPlaceId) ||
+                    p.EnemyForceId is int enemy && !snapshot.World.Forces.Any(f => f.Id == enemy) ||
+                    p.OtherOfficerId is int other && !snapshot.World.Officers.Any(o => o.Id == other) ||
+                    p.TreasureId is int treasure && !snapshot.World.Treasures.Any(t => t.Id == treasure)) ||
+                context.Clues.Any(c => !Enum.IsDefined(c.Kind) || c.Kind == Presentation.StrategicClueKind.Person && c.TreasureId is not null ||
+                    c.Kind == Presentation.StrategicClueKind.Treasure && c.OfficerId is not null || c.Clock.DayNumber > snapshot.World.Clock.DayNumber || c.Clock.DayNumber < snapshot.World.Simulation.Started.DayNumber ||
+                    !ContextPlace(c.PlaceId) || c.RegionOnly && (c.OfficerId is not null || c.TreasureId is not null) ||
+                    c.OfficerId is int person && !snapshot.World.Officers.Any(o => o.Id == person) ||
+                    c.TreasureId is int item && !snapshot.World.Treasures.Any(t => t.Id == item)))
+                throw new ArgumentException("Invalid strategic context publication.");
+        }
         var activated = content.SearchEvents.OfType<ForceActivationSearchEventDefinition>()
             .Where(d => snapshot.World.Simulation.ConsumedEventKeys.Contains(d.ConsumptionKey)).ToArray();
         var activatedForces = activated.Select(d => d.ForceId).ToHashSet();

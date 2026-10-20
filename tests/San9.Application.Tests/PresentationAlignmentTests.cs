@@ -196,7 +196,7 @@ public sealed class PresentationAlignmentTests
     {
         if (Environment.GetEnvironmentVariable("SAN9_PRESENTATION_CONTENT") is not { Length: > 0 } root) return;
         var package = await ClientContentFiles.LoadAsync(root); var session = GameSession.Start(package.Scenario, 42);
-        var before = session.View; var clock = before.World.Clock; int own = before.PlayerForceId;
+        var before = session.View; var clock = before.World.Clock; int own = before.RequirePlayerForce();
         int actor = before.World.Officers.First(p => p.IsServing && p.OwnerId == own).Id;
         int place = before.World.Officers.Single(p => p.Id == actor).SettlementId!.Value;
         var enemy = before.World.Forces.First(f => f.Id != own && !f.IsDormant && !f.IsEliminated && f.LeaderId is not null);

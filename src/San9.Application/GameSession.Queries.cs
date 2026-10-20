@@ -38,6 +38,7 @@ public sealed partial class GameSession
 
     public DuelSuccessionPrompt? GetDuelSuccessionPrompt() => _simulation.GetDuelSuccessionPrompt();
 
+    public CommandAdvice GetCounterofferAdvice(Guid taskId, CompensationOffer offer) => _simulation.GetCounterofferAdvice(taskId, offer);
     public ResponseRequest? GetPendingResponse() => _simulation.GetPendingResponse();
     public CapturedRulerPrompt? GetCapturedRulerPrompt() => _simulation.GetCapturedRulerPrompt();
     public ExecutionSuccessionPrompt? GetExecutionSuccessionPrompt() => _simulation.GetExecutionSuccessionPrompt();

@@ -163,7 +163,7 @@ public sealed class CapturePresentationTests
         var package = await San9.Content.Packages.ClientContentFiles.LoadAsync(root);
         var session = GameSession.Start(package.Scenario, 42);
         var before = session.View;
-        int player = before.PlayerForceId;
+        int player = before.RequirePlayerForce();
         int enemy = before.World.Forces.First(f => f.Id != player && !f.IsDormant && !f.IsEliminated && f.LeaderId is not null).Id;
         var capture = package.Presentation.Capture!;
         foreach (var place in before.Settlements.Where(s => s.FacilityTypeId is not null).DistinctBy(s => s.FacilityTypeId))

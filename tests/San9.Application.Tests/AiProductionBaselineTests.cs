@@ -70,7 +70,6 @@ public sealed class AiProductionBaselineTests
         var restored = SaveService.Decode(SaveService.Encode(automatic), content);
         StateAssert.Equal(automatic.Capture(), restored.Capture());
         Assert.Equal(ControllerKind.Automatic, restored.PlayerForceController);
-        Assert.Throws<ArgumentException>(() => GameSession.Restore(content,
-            automatic.Capture() with { PerspectiveForceId = 999 }));
+        Assert.Null(restored.View.PlayerForceId);
     }
 }

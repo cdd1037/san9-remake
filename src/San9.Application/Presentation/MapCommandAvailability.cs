@@ -9,7 +9,7 @@ internal sealed partial class MapCommandAvailability(StrategySnapshot view)
     private readonly Dictionary<int, SettlementState> places = view.World.Settlements.ToDictionary(s => s.Id);
     private readonly Dictionary<int, ForceState> forces = view.World.Forces.ToDictionary(f => f.Id);
     private readonly Dictionary<int, OfficerView> people = view.Officers.ToDictionary(p => p.Id);
-    private int Owner => view.PlayerForceId;
+    private int Owner => view.RequirePlayerForce();
     private ForceState Force => forces[Owner];
     private static string? Key(string? reason) => reason is null ? null : CommandMenuSkin.ReasonKey(reason);
     private bool Controlled(int? corps) => !view.World.Corps.Any(c => c.OwnerId == Owner &&

@@ -13,7 +13,7 @@ public static class MissionPresentation
             with { IllustrationRole = content[role].Illustration };
     public static IReadOnlyList<CommandMessage> Advice(MissionDraft draft,IReadOnlyDictionary<string,DecisionMessageDefinition> content,WorldMessageContext context,TextCatalog texts)
     {
-        if (draft.Advice is not { AdviserId: int adviser, Opinion: AdviserOpinion.Favorable or AdviserOpinion.Unfavorable } advice || content.Count == 0) return [];
+        if (draft.Advice is not { AdviserId: int adviser, Opinion: AdviserOpinion.Favorable or AdviserOpinion.Unfavorable or AdviserOpinion.Unavailable } advice || content.Count == 0) return [];
         Dictionary<string,MessageBinding> values = new()
         {
             ["adviser"] = MessageBinding.Reference(MessageEntityKind.Person,adviser),
@@ -21,7 +21,9 @@ public static class MissionPresentation
         };
         if (draft.TargetId is int force && draft.TargetKind == MissionTargetKind.Force)
             values["target-force"] = MessageBinding.Reference(MessageEntityKind.Force, force);
-        return [Produce((draft.IsDiplomacy ? draft.Kind : "strategy")+(advice.Opinion == AdviserOpinion.Favorable ? "-favorable" : "-unfavorable"),content,values,context,texts)];
+        string role = advice.Opinion == AdviserOpinion.Unavailable ? "diplomacy-unpredictable" :
+            (draft.IsDiplomacy ? draft.Kind : "strategy") + (advice.Opinion == AdviserOpinion.Favorable ? "-favorable" : "-unfavorable");
+        return [Produce(role,content,values,context,texts)];
     }
     public static IReadOnlyList<CommandMessage> Departure(MissionDraft draft,IReadOnlyDictionary<string,DecisionMessageDefinition> content,WorldMessageContext context,TextCatalog texts)
     {

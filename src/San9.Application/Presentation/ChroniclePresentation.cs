@@ -11,6 +11,7 @@ public sealed record ChroniclePresentation(string RulerName, ChronicleLine[] Lin
     public static ChroniclePresentation Read(GameSession session, TextCatalog texts, San9.Content.Interface.ChroniclePresentationDefinition definition)
     {
         var view = session.View;
+        if (view.PlayerForceId is null) return new("", []);
         var force = view.World.Forces.Single(f => f.Id == view.PlayerForceId);
         var context = session.Messages(texts);
         string name = ReadName(session, texts);
@@ -44,6 +45,7 @@ public sealed record ChroniclePresentation(string RulerName, ChronicleLine[] Lin
 
     private static string ReadName(GameSession session, TextCatalog texts)
     {
+        if (session.View.PlayerForceId is null) return "";
         var force = session.Snapshot.Forces.Single(f => f.Id == session.View.PlayerForceId);
         return force.CountryTitleId is int title ? texts.Resolve(session.View.Information.CountryTitles.Single(t => t.Id == title).NameKey)
             : force.LeaderId is int leader ? session.Messages(texts).Query("person.name", [MessageBinding.Reference(MessageEntityKind.Person, leader)]).Text!

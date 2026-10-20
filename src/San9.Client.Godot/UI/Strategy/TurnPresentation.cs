@@ -58,6 +58,12 @@ public sealed class TurnPresentation(GameSession session)
     private long _startedDay;
     private bool _advancing;
     private bool _presentationFailed;
+    private bool _stopAtBoundary;
+    public void StopAtStrategyBoundary()
+    {
+        if (_advancing && Screen is not (TurnScreen.Strategy or TurnScreen.Returning or TurnScreen.Terminal))
+            _stopAtBoundary = true;
+    }
 
     public bool Request()
     {
@@ -264,8 +270,15 @@ public sealed class TurnPresentation(GameSession session)
             StrategyReady?.Invoke();
             return;
         }
+        bool playerTurn = state.ActiveControl < state.Controls.Length && state.Controls[state.ActiveControl].Kind == ControllerKind.Player;
+        if (session.Snapshot.Clock.DayNumber == _startedDay && playerTurn)
+        { ReturnToStrategy(); return; }
         if (session.Snapshot.Clock.DayNumber >= _startedDay + 10)
-        { Screen = TurnScreen.Returning; _remaining = TransitionDuration; StrategyTitleStarted?.Invoke(); return; }
+        {
+            if (!state.Controls.Any(c => c.Kind == ControllerKind.Player) && !_stopAtBoundary)
+            { _startedDay = session.Snapshot.Clock.DayNumber; Progress = 0; Screen = TurnScreen.Preparing; Start(new PrepareAdvanceOperation()); return; }
+            ReturnToStrategy(); return;
+        }
         if (state.ActiveControl < state.Controls.Length)
         {
             Screen = TurnScreen.Preparing;
@@ -274,5 +287,14 @@ public sealed class TurnPresentation(GameSession session)
         }
         Screen = TurnScreen.Playing;
         Start(new AdvanceDayOperation());
+    }
+
+    private void ReturnToStrategy()
+    {
+        _advancing = false;
+        _stopAtBoundary = false;
+        Screen = TurnScreen.Returning;
+        _remaining = TransitionDuration;
+        StrategyTitleStarted?.Invoke();
     }
 }

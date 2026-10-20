@@ -158,8 +158,8 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
         var alliance = view.World.Simulation.Alliance;
         bool allied = alliance is not null && (alliance.MemberForceIds.Contains(owner) || alliance.TargetForceId == owner);
         var request = view.World.Simulation.AttackRequests.FirstOrDefault(r => r.RequestedForceId == owner);
-        bool requestVisible = owner == view.PlayerForceId || request?.RequesterForceId == view.PlayerForceId;
-        var relation = view.World.Relations.FirstOrDefault(r => r.FirstId == Math.Min(owner, view.PlayerForceId) && r.SecondId == Math.Max(owner, view.PlayerForceId));
+        bool requestVisible = view.PlayerForceId is int observer && (owner == observer || request?.RequesterForceId == observer);
+        var relation = view.PlayerForceId is int player ? view.World.Relations.FirstOrDefault(r => r.FirstId == Math.Min(owner, player) && r.SecondId == Math.Max(owner, player)) : null;
         if (force.IsBarbarian && (field == "trust" || field.StartsWith("money", StringComparison.Ordinal) || field.StartsWith("food", StringComparison.Ordinal))) return Hidden;
         switch (field)
         {

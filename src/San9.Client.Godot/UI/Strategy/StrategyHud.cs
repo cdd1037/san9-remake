@@ -23,7 +23,7 @@ public partial class StrategyHud : Control
     private TextureScope _textures = null!;
     public SceneMusicPlayer Music { get; init; } = null!;
     private readonly List<(string Asset, Vector2 Position)> _frames = [];
-    private Label _footer = null!;
+    private Label _footer = null!, _rulerName = null!;
     private GameMessageBar _message = null!;
     private GameDialog _notice = null!;
     private Label _footerCity = null!;
@@ -122,11 +122,12 @@ public partial class StrategyHud : Control
         _frames.Add(("radar-frame", new(624, 0)));
         _frames.Add(("sidebar-frame", new(836, 167)));
         _frames.Add(("ruler-frame", new(275, 11)));
-        var force = p.Forces.Single(f => f.Id == p.PlayerForceId);
+        var force = p.Forces.SingleOrDefault(f => f.Id == p.PlayerForceId);
         _year = LabelAt($"{p.Year}年", new(104, 11), new(66, 32), 24);
         _date = LabelAt($"{p.Month}月上旬", new(182, 11), new(89, 32), 24);
-        _strategicHeader.Add(LabelAt(Texts.Resolve(force.NameKey), new(280, 11), new(92, 32), 24, HorizontalAlignment.Left));
-        AddResourceField("信望", force.Trust.ToString(), 385, 425, 32);
+        _rulerName = LabelAt(force is null ? "" : Texts.Resolve(force.NameKey), new(280, 11), new(92, 32), 24, HorizontalAlignment.Left);
+        _strategicHeader.Add(_rulerName);
+        AddResourceField("信望", force?.Trust.ToString() ?? "", 385, 425, 32);
         AddResourceField("资金", (Scenario.PlayerCorps?.Treasury.Money ?? 0).ToString(), 465, 505, 56);
         AddResourceField("兵粮", (Scenario.PlayerCorps?.Treasury.Food ?? 0).ToString(), 569, 609, 56);
         UpdateResources(p);
@@ -231,6 +232,7 @@ public partial class StrategyHud : Control
 
     private void UpdateResources(StrategySnapshot view)
     {
+        _rulerName.Text = view.Forces.SingleOrDefault(f => f.Id == view.PlayerForceId) is { } owner ? Texts.Resolve(owner.NameKey) : "";
         var economy = view.PlayerEconomicOutlook;
         var money = _resourceValues["资金"];
         var food = _resourceValues["兵粮"];
@@ -308,7 +310,7 @@ public partial class StrategyHud : Control
         Turn?.CanAdvance == true, _commandTargets is not null ? CommandTargetStage : _personnel is null ? _flow?.Stage ?? MilitaryCommandStage.None : PersonnelStage, Overview.IsOpen,
         OverlayHost.IsInsideTree() && OverlayHost.HasModal || _notice?.Visible == true,
         OverlayHost.Workflows.Blocked, SidebarMoving, _battleView?.IsSceneActive == true || HasMapPopup,
-        _pendingNarrations.Count != 0);
+        _pendingNarrations.Count != 0, Session.View.PlayerForceId is not null);
     private bool IsMapInteractionBlocked => !Interaction.CanUseMap;
     public bool CanNavigateMap => Interaction.CanNavigate;
     private bool HasMapPopup => _commandMenu?.Visible == true || _mapContext?.Visible == true;

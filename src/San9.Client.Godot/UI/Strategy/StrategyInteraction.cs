@@ -17,15 +17,15 @@ public readonly record struct StrategyInteraction(bool CanUseMap, bool CanNaviga
 
     public static StrategyInteraction Resolve(bool ready, TurnScreen? turn, bool canAdvance,
         MilitaryCommandStage command, bool overview, bool modal, InteractionBlock blocked = InteractionBlock.None,
-        bool sidebarMoving = false, bool navigationBlocked = false, bool narrationQueued = false)
+        bool sidebarMoving = false, bool navigationBlocked = false, bool narrationQueued = false, bool hasPlayerForce = true)
     {
         bool browsing = ready && turn is TurnScreen.Strategy or TurnScreen.Playing;
         bool commandModal = command is MilitaryCommandStage.Preparation or MilitaryCommandStage.TargetModal;
         bool map = browsing && !modal && !commandModal;
         bool orders = ready && canAdvance && command == MilitaryCommandStage.None && !sidebarMoving &&
             !blocked.HasFlag(InteractionBlock.Orders);
-        return new(map, map && !overview && !navigationBlocked, orders,
-            ready && turn is TurnScreen.Strategy or TurnScreen.Confirmation && command != MilitaryCommandStage.Targets && command != MilitaryCommandStage.TargetModal)
+        return new(map, map && !overview && !navigationBlocked, orders && hasPlayerForce,
+            ready && hasPlayerForce && turn is TurnScreen.Strategy or TurnScreen.Confirmation && command != MilitaryCommandStage.Targets && command != MilitaryCommandStage.TargetModal)
         {
             CanSave = orders && turn == TurnScreen.Strategy && !modal,
             CanAdvance = orders && !modal,

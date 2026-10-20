@@ -68,7 +68,7 @@ internal static class PersonnelReturns
         }
         var home = world.Settlements.Values.Where(s => s.OwnerId == person.OwnerId && s.CanHostPersons && s.Durability > 0 &&
                 places.Places.ContainsKey(s.Id)).OrderBy(s => PersonnelLocations.Route(world, places, origin, s.Id).Days).ThenBy(s => s.Id).FirstOrDefault();
-        if (home is null) { PersonnelTransitions.DiscoverDetached(world, personId, origin, events); return; }
+        if (home is null) { BattlePersonnel.DisplaceAtPlace(world, personId, origin, places, events); return; }
         context = context with { ForceId = person.OwnerId!.Value, ControllerId = "system" };
         var route = PersonnelLocations.Route(world, places, origin, home.Id);
         Schedule(world, context, personId, origin, home.Id, route.Days, afterDailyCommands, events, route);
@@ -95,8 +95,7 @@ internal static class PersonnelReturns
         if (home is null)
         {
             ReinforcementTransport.Disband(world, previous, "reinforcement-no-home", events);
-            // No friendly hosting object remains. Preserve a single geographic location, not an invalid service attachment.
-            PersonnelTransitions.DiscoverDetached(world, person.Id, from, events);
+            BattlePersonnel.DisplaceAtPlace(world, person.Id, from, places, events);
             return;
         }
         int days = DistanceTo(home.Id);

@@ -97,6 +97,7 @@ public sealed class ForceConsolidationTests
             (result.SurvivorId, result.AbsorbedId, result.MoneyRemoved, result.MoneyReceived, result.FoodRemoved, result.FoodReceived));
         Assert.False(mutation.Simulation.ForceConsolidationPending);
         Assert.True(mutation.Forces[2].IsEliminated);
+        Assert.All(mutation.AllOfficers.Values, p => Assert.False(p.ForceLoyalties.ContainsKey(2)));
         Assert.Equal(260, mutation.Forces[3].BaseTrust);
         Assert.Equal(600u, mutation.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 3).Treasury.Money);
         Assert.Equal(800u, mutation.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 3).Treasury.Food);

@@ -60,9 +60,9 @@ internal static class PrisonerRelease
         }
         else
         {
-            world.Replace(world.Officers[personId] with { Status = world.Forces[person.OwnerId!.Value].LeaderId == personId
-                ? OfficerStatus.Ruler : OfficerStatus.Serving, SettlementId = home.Id, RegionId = null, UnitId = null,
-                OfficeId = null, IsCommander = false, Acted = true, StatusStartYear = world.Clock.Year });
+            var status = world.Forces[person.OwnerId!.Value].LeaderId == personId ? OfficerStatus.Ruler : OfficerStatus.Serving;
+            world.Replace(PersonnelTransitions.BeginStatus(world.Officers[personId], status, world.Clock.Year) with
+                { SettlementId = home.Id, RegionId = null, UnitId = null });
             var context = new PersonnelReturnContext(control?.ControllerId ?? "system", person.OwnerId.Value, sequence);
             var route = new PersonnelRoute(position, PersonnelLocations.Position(world, places, home.Id), false);
             PersonnelReturns.Schedule(world, context, personId, origin, home.Id,

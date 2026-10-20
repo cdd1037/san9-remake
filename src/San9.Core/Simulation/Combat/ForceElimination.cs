@@ -18,11 +18,6 @@ internal static class ForceElimination
         var force = world.Forces[forceId];
         if (victorForceId is int victor)
             AllianceDiplomacy.CompleteSubjugation(world, forceId, victor, AllianceVictoryCause.ForceDefeated, events);
-        // Original retirement clears this loyalty column before any member relocation.
-        foreach (var person in world.Officers.Values.Where(p => p.Status is not
-            (OfficerStatus.NotAppeared or OfficerStatus.Dead or OfficerStatus.Special)).OrderBy(p => p.Id).ToArray())
-            if (person.LoyaltyTo(forceId) != 0)
-                RecruitmentRules.SetLoyalty(world, person.Id, forceId, 0, Reason, events);
         ForceTransfer.CancelTasks(world, forceId, rules, Reason, events, afterDailyCommands);
         foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId).OrderBy(p => p.Id).ToArray())
         {

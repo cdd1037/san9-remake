@@ -41,6 +41,20 @@ internal static class OfficerAppearance
                     location = Home(world, relative) ?? relative.RegionId;
             }
             Appear(world, person, relative?.Id, owner, location, events);
+            InitializeLoyalties(world, person.Id, events);
+        }
+    }
+
+    private static void InitializeLoyalties(WorldMutation world, int personId, List<DomainEvent> events)
+    {
+        var person = world.Officers[personId];
+        foreach (var force in world.Forces.Values.Where(f => !f.IsEliminated).OrderBy(f => f.Id))
+        {
+            int loyalty = person.OwnerId == force.Id
+                ? 75 + (50 - PersonnelRulebook.AffinityDistance(person, world.Officers[force.LeaderId!.Value])) / 2
+                : 50;
+            if (!person.ForceLoyalties.ContainsKey(force.Id) || person.LoyaltyTo(force.Id) != loyalty)
+                RecruitmentRules.SetLoyalty(world, personId, force.Id, loyalty, "officer-appeared", events);
         }
     }
 

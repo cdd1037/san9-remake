@@ -156,6 +156,7 @@ public sealed class SurrenderDiplomacyTests
         Assert.Contains(21, surrendered.JoinedOfficerIds);
         Assert.Contains(23, surrendered.DepartedOfficerIds);
         Assert.True(engine.Snapshot.Forces.Single(f => f.Id == 2).IsEliminated);
+        Assert.All(engine.Snapshot.Officers, p => Assert.False(p.ForceLoyalties.ContainsKey(2)));
         Assert.DoesNotContain(engine.Snapshot.Corps, c => c.OwnerId == 2);
         Assert.DoesNotContain(engine.Snapshot.Officers, p => p.OwnerId == 2);
         Assert.All(engine.Snapshot.Settlements.Where(s => s.Id is 2 or 4), s => Assert.Equal(1, s.OwnerId));

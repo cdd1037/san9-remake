@@ -74,9 +74,7 @@ internal static class OfficeRequests
             PersonnelTransitions.CancelMissions(world, session.OfficerId, "office-request-rejected", events, rules.Personnel, false);
             RecruitmentRules.SetLoyalty(world, session.OfficerId, owner, 45, "office-request-rejected", events);
             var person = world.Officers[session.OfficerId];
-            world.Replace(person with { SettlementId = world.Settlements.ContainsKey(destination) ? destination : null,
-                RegionId = world.Settlements.ContainsKey(destination) ? null : destination,
-                StatusStartYear = world.Clock.Year, Acted = true });
+            PersonnelTransitions.DiscoverDetached(world, session.OfficerId, destination, events);
             if (destination != home) events.Add(new FreeOfficerMigratedEvent(world.Clock, person.Id, home, destination));
         }
         events.Add(new OfficeRequestResolvedEvent(world.Clock, session.OfficerId, session.ForceId, choice, !valid));

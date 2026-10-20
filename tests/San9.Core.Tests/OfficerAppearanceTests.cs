@@ -31,14 +31,76 @@ public sealed class OfficerAppearanceTests
     [InlineData(191, OfficerStatus.NotAppeared)]
     public void InitializationUsesIndependentAppearanceYearAndPreservesAuthoredHiddenLocation(int year, OfficerStatus expected)
     {
-        var engine = new SimulationEngine(World(Child(year) with { BirthYear = 100 }, clock: new(190, 7, 1)));
+        var child = (Child(year) with { BirthYear = 100 }).WithLoyalty(1, 17).WithLoyalty(2, 89);
+        var engine = new SimulationEngine(World(child, clock: new(190, 7, 1)));
         var person = engine.Snapshot.Officers.Single(p => p.Id == 9000);
         Assert.Equal(expected, person.Status);
         Assert.Null(person.OwnerId);
         Assert.Equal(99, person.RegionId);
         Assert.Equal(100, person.BirthYear);
+        Assert.Equal(child.ForceLoyalties, person.ForceLoyalties);
         Assert.Equal(year <= 190 ? 1 : 0, engine.InitialEvents.OfType<OfficerAppearedEvent>().Count());
         Assert.Empty(new SimulationEngine(WorldState.Restore(engine.CaptureStableState())).InitialEvents);
+    }
+
+    [Theory]
+    [InlineData(0, 100)]
+    [InlineData(1, 99)]
+    [InlineData(49, 75)]
+    [InlineData(50, 75)]
+    public void AnnualServiceReinitializesLoyaltiesUsingTheRulerAffinity(int affinity, int expected)
+    {
+        var child = (Child() with { Affinity = affinity }).WithLoyalty(1, 7).WithLoyalty(2, 199);
+        var world = World(child).BeginMutation();
+        world.SetClock(new(191, 1, 1));
+        List<DomainEvent> events = [];
+        OfficerAppearance.AdvanceYear(world, Places, events);
+        Assert.Equal(expected, world.Officers[9000].LoyaltyTo(1));
+        Assert.Equal(50, world.Officers[9000].LoyaltyTo(2));
+        Assert.Equal(new[] { 1, 2 }, events.OfType<OfficerLoyaltyChangedEvent>().Select(e => e.ForceId));
+        Assert.Empty(world.Simulation.RandomStreams);
+    }
+
+    [Fact]
+    public void HiddenAnnualAppearanceResetsActiveForceLoyaltiesAndLeavesInactiveForcesAlone()
+    {
+        var child = Child(parent: null, bloodline: null).WithLoyalty(1, 7).WithLoyalty(2, 199);
+        var snapshot = World(child).CreateSnapshot();
+        var world = WorldState.Create(snapshot.Clock, 190,
+            snapshot.Forces.Concat([new(3, 0) { IsEliminated = true }, new(4, 0) { IsDormant = true }]),
+            snapshot.Settlements, snapshot.Officers.Select(p => p.Id == child.Id
+                ? p.WithLoyalty(4, 29) : p),
+            corps: snapshot.Corps.Append(new(4, 4, null, new(0, 0)) { IsRoot = true })).BeginMutation();
+        world.SetClock(new(191, 1, 1));
+        OfficerAppearance.AdvanceYear(world, Places, []);
+        var person = world.Officers[9000];
+        Assert.Equal(OfficerStatus.Undiscovered, person.Status);
+        Assert.Equal(50, person.LoyaltyTo(1));
+        Assert.Equal(50, person.LoyaltyTo(2));
+        Assert.False(person.ForceLoyalties.ContainsKey(3));
+        Assert.Equal(29, person.LoyaltyTo(4));
+    }
+
+    [Fact]
+    public void ChildJoiningARuntimeFoundedForceReceivesLoyaltyForItsNewIdentity()
+    {
+        var snapshot = World(Child(parent: 3) with { Affinity = 10 }).CreateSnapshot();
+        var founder = new OfficerState(3, 3, 40, new(70, 70, 70, 70), false)
+            { Status = OfficerStatus.Ruler, Affinity = 20 };
+        var force = new ForceState(3, 100) { LeaderId = 3,
+            Origin = new(ForceCreationKind.EmptyCityUprising, 3, 40, snapshot.Clock) };
+        var world = WorldState.Create(snapshot.Clock, 190, snapshot.Forces.Append(force),
+            snapshot.Settlements.Select(s => s.Id == 40 ? s with { OwnerId = 3, CorpsId = 3 } : s),
+            snapshot.Officers.Append(founder),
+            corps: snapshot.Corps.Append(new(3, 3, 3, new(0, 0)) { IsRoot = true })).BeginMutation();
+        world.SetClock(new(191, 1, 1));
+        OfficerAppearance.AdvanceYear(world, Places, []);
+        var person = world.Officers[9000];
+        Assert.Equal(3, person.OwnerId);
+        Assert.Equal(95, person.LoyaltyTo(3));
+        Assert.Equal(50, person.LoyaltyTo(1));
+        Assert.Equal(50, person.LoyaltyTo(2));
+        WorldInvariants.Validate(world);
     }
 
     [Fact]

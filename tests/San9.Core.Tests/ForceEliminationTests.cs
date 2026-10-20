@@ -95,10 +95,10 @@ public sealed class ForceEliminationTests
     [Theory]
     [InlineData(OfficerStatus.Serving, 0)]
     [InlineData(OfficerStatus.Undiscovered, 0)]
-    [InlineData(OfficerStatus.NotAppeared, 100)]
-    [InlineData(OfficerStatus.Dead, 100)]
-    [InlineData(OfficerStatus.Special, 100)]
-    public void RetirementClearsTheOldLoyaltyColumnBeyondItsOwnMembersWithOriginalStatusExclusions(OfficerStatus status, int loyalty)
+    [InlineData(OfficerStatus.NotAppeared, 0)]
+    [InlineData(OfficerStatus.Dead, 0)]
+    [InlineData(OfficerStatus.Special, 0)]
+    public void RetirementRemovesTheOldLoyaltyRelationshipRegardlessOfStatus(OfficerStatus status, int loyalty)
     {
         var world = World();
         world.Replace(world.Officers[30] with { Status = status, OwnerId = status == OfficerStatus.Serving ? 2 : null,
@@ -106,8 +106,22 @@ public sealed class ForceEliminationTests
         world.Replace(world.Officers[2].WithLoyalty(1, 100));
         Eliminate(world);
         Assert.Equal(loyalty, world.Officers[30].LoyaltyTo(1));
+        Assert.All(world.AllOfficers.Values, p => Assert.False(p.ForceLoyalties.ContainsKey(1)));
         Assert.Equal(0, world.Officers[2].LoyaltyTo(1));
         Assert.Equal(status, world.Officers[30].Status);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(100)]
+    public void RetirementAlsoRemovesDormantPeoplesZeroAndNonzeroRelationships(int loyalty)
+    {
+        var world = World();
+        world.Replace(world.Officers[30].WithLoyalty(1, loyalty).WithLoyalty(2, 77) with { IsDormant = true });
+        Eliminate(world);
+        Assert.False(world.AllOfficers[30].ForceLoyalties.ContainsKey(1));
+        Assert.Equal(77, world.AllOfficers[30].LoyaltyTo(2));
+        Assert.True(world.AllOfficers[30].IsDormant);
     }
 
     [Fact]

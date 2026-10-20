@@ -5,6 +5,12 @@ namespace San9.Core.Simulation;
 /// <summary>Owns personnel changes and the cancellation of missions that refer to the changed person.</summary>
 internal static class PersonnelTransitions
 {
+    internal static OfficerState BeginStatus(OfficerState person, OfficerStatus status, int year) => person with
+    {
+        Status = status, StatusStartYear = year, OfficeId = null, TacticCooldown = 0,
+        IsCommander = false, Acted = true
+    };
+
     internal static void RelocateAllegiance(WorldMutation world, int personId, int recipient, int loyalty,
         int? settlementId, int? unitId, SimulationRules rules, List<DomainEvent> events, string reason, bool afterDailyCommands)
     {
@@ -47,9 +53,8 @@ internal static class PersonnelTransitions
         if (person.OwnerId is int previous && world.Forces[previous].AdviserId == personId)
             world.Replace(world.Forces[previous] with { AdviserId = null });
         RecruitmentRules.SetLoyalty(world, personId, recipient, loyalty, reason, events);
-        world.Replace(world.Officers[personId] with { OwnerId = recipient,
-            Status = person.IsServing ? OfficerStatus.Serving : person.Status,
-            OfficeId = null, TacticCooldown = 0, IsCommander = false, Acted = true, StatusStartYear = world.Clock.Year });
+        world.Replace(BeginStatus(world.Officers[personId], person.IsServing ? OfficerStatus.Serving : person.Status,
+            world.Clock.Year) with { OwnerId = recipient });
         events.Add(new PersonAffiliationChangedEvent(world.Clock, personId, person.OwnerId, recipient, place));
     }
 
@@ -80,10 +85,9 @@ internal static class PersonnelTransitions
         var person = world.Officers[personId];
         if (person.OwnerId is int owner && world.Forces[owner].AdviserId == personId)
             world.Replace(world.Forces[owner] with { AdviserId = null });
-        world.Replace(person with { OwnerId = null, Status = OfficerStatus.Free, UnitId = null,
+        world.Replace(BeginStatus(person, OfficerStatus.Free, world.Clock.Year) with { OwnerId = null, UnitId = null,
             SettlementId = world.Settlements.ContainsKey(placeId) ? placeId : null,
-            RegionId = world.Settlements.ContainsKey(placeId) ? null : placeId, OfficeId = null,
-            IsCommander = false, Acted = true, StatusStartYear = world.Clock.Year });
+            RegionId = world.Settlements.ContainsKey(placeId) ? null : placeId });
         events.Add(new PersonAffiliationChangedEvent(world.Clock, personId, person.OwnerId, null, placeId));
     }
     internal static void Exile(WorldMutation world, int personId, int placeId, List<DomainEvent> events, PersonnelRulebook places, bool afterDailyCommands)
@@ -91,17 +95,8 @@ internal static class PersonnelTransitions
         var person = world.Officers[personId];
         int forceId = person.OwnerId!.Value;
         CancelMissions(world, personId, "person-exiled", events, places, afterDailyCommands);
-        if (world.Forces[forceId].AdviserId == personId)
-            world.Replace(world.Forces[forceId] with { AdviserId = null });
         RecruitmentRules.SetLoyalty(world, personId, forceId, 45, "exiled", events);
-        world.Replace(world.Officers[personId] with
-        {
-            OwnerId = null, Status = OfficerStatus.Free, StatusStartYear = world.Clock.Year, UnitId = null,
-            SettlementId = world.Settlements.ContainsKey(placeId) ? placeId : null,
-            RegionId = world.Settlements.ContainsKey(placeId) ? null : placeId,
-            OfficeId = null, IsCommander = false, Acted = true
-        });
-        events.Add(new PersonAffiliationChangedEvent(world.Clock, personId, forceId, null, placeId));
+        DiscoverDetached(world, personId, placeId, events);
     }
 
     internal static void Discover(WorldMutation world, int personId, int placeId, List<DomainEvent> events, PersonnelRulebook places, bool afterDailyCommands)
@@ -109,13 +104,7 @@ internal static class PersonnelTransitions
         var person = world.Officers[personId];
         if (person.Status != OfficerStatus.Undiscovered) throw new InvalidOperationException("Person was already discovered.");
         CancelMissions(world, personId, "person-discovered", events, places, afterDailyCommands);
-        world.Replace(person with
-        {
-            OwnerId = null, Status = OfficerStatus.Free, UnitId = null, SettlementId = world.Settlements.ContainsKey(placeId) ? placeId : null,
-            RegionId = world.Settlements.ContainsKey(placeId) ? null : placeId, StatusStartYear = world.Clock.Year,
-            OfficeId = null, IsCommander = false, Acted = true
-        });
-        events.Add(new PersonAffiliationChangedEvent(world.Clock, personId, person.OwnerId, null, placeId));
+        DiscoverDetached(world, personId, placeId, events);
     }
 
     internal static void Recruit(WorldMutation world, int personId, int forceId, int destinationId, List<DomainEvent> events, PersonnelRulebook places, bool afterDailyCommands, int? recruitmentLoyalty = null)
@@ -129,10 +118,9 @@ internal static class PersonnelTransitions
         if (person.OwnerId is int oldForce) RecruitmentRules.SetLoyalty(world, personId, oldForce, 45, "recruited-away", events);
         int loyalty = recruitmentLoyalty ?? 75 + (50 - PersonnelRulebook.AffinityDistance(person, world.Officers[world.Forces[forceId].LeaderId!.Value])) / 2;
         RecruitmentRules.SetLoyalty(world, personId, forceId, loyalty, "recruited", events);
-        world.Replace(world.Officers[personId] with
+        world.Replace(BeginStatus(world.Officers[personId], OfficerStatus.Serving, world.Clock.Year) with
         {
-            OwnerId = forceId, SettlementId = destinationId, RegionId = null, UnitId = null, Status = OfficerStatus.Serving,
-            StatusStartYear = world.Clock.Year, OfficeId = null, IsCommander = false, Acted = true
+            OwnerId = forceId, SettlementId = destinationId, RegionId = null, UnitId = null
         });
         events.Add(new PersonAffiliationChangedEvent(world.Clock, personId, person.OwnerId, forceId, destinationId));
     }

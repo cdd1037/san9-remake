@@ -11,28 +11,25 @@ public sealed class TerrainChunkCache<T>(Func<PngImage, T> upload, Action<T> rel
     long budget = 256L * 1024 * 1024,
     Func<TerrainChunkKey, CancellationToken, PngImage>? render = null) : IDisposable where T : class
 {
-    private sealed class Request(TerrainChunkKey key)
+    private sealed class Request(TerrainChunkKey key, CacheWorkLifetime<PngImage>.Work work)
     {
         public TerrainChunkKey Key = key;
         public int Users;
         public long Sequence;
         public volatile bool Prefetch;
-        public Task<PngImage>? Work;
-        public CancellationTokenSource Cancellation = new();
-        public IDisposable? Pin;
+        public CacheWorkLifetime<PngImage>.Work Work = work;
         public Exception? Error;
     }
     private readonly ResourceBudget<TerrainChunkKey, T> _cache = new(budget, release);
     private readonly Dictionary<TerrainChunkKey, Request> _requests = [];
-    private readonly List<Request> _retired = [];
-    private readonly BackgroundWorkQueue<PngImage> _workers = new();
+    private readonly CacheWorkLifetime<PngImage> _work = new();
     private readonly object _timingGate = new();
     public const long UploadQueueBudget = 32L * 1024 * 1024;
     private const long ChunkReservationBytes = (long)TerrainRenderer.ChunkSize * TerrainRenderer.ChunkSize * 3;
     private long _requestSequence;
     private bool _disposed;
     public long Bytes => _cache.Bytes;
-    public long PendingBytes => (_requests.Values.Count(r => r.Work is not null) + _retired.Count) * ChunkReservationBytes;
+    public long PendingBytes => _work.PendingBytes;
     public double RenderMilliseconds { get; private set; }
     public double UploadMilliseconds { get; private set; }
     public Lease Acquire(IEnumerable<TerrainChunkKey> keys, bool prefetch = false)
@@ -41,10 +38,10 @@ public sealed class TerrainChunkCache<T>(Func<PngImage, T> upload, Action<T> rel
         var requestedKeys = keys.Distinct().ToArray();
         var requests = requestedKeys.Select(key =>
         {
-            if (!_requests.TryGetValue(key, out var r)) _requests.Add(key, r = new(key) { Prefetch = prefetch, Sequence = ++_requestSequence });
+            if (!_requests.TryGetValue(key, out var r)) _requests.Add(key, r = new(key, _work.Create()) { Prefetch = prefetch, Sequence = ++_requestSequence });
             r.Users++;
             if (!prefetch) r.Prefetch = false;
-            if (_cache.Contains(key)) r.Pin ??= _cache.Pin(key);
+            if (_cache.Contains(key)) r.Work.Pin ??= _cache.Pin(key);
             return r;
         }).ToArray();
         return new(this, requests.Select(r => r.Key).ToArray(),
@@ -54,50 +51,45 @@ public sealed class TerrainChunkCache<T>(Func<PngImage, T> upload, Action<T> rel
                 foreach (var r in requests)
                 {
                     if (--r.Users > 0) continue;
-                    _requests.Remove(r.Key); r.Pin?.Dispose(); r.Cancellation.Cancel();
-                    if (r.Work is null) r.Cancellation.Dispose(); else _retired.Add(r);
+                    _requests.Remove(r.Key);
+                    _work.Retire(r.Work);
                 }
             });
     }
     public void Pump(Func<bool> canUpload)
     {
         if (_disposed) return;
-        _retired.RemoveAll(r =>
-        {
-            if (!r.Work!.IsCompleted) return false;
-            _ = r.Work.Exception; r.Work = null; r.Cancellation.Dispose();
-            return true;
-        });
-        foreach (var r in _requests.Values.Where(r => r.Work is { IsCompleted: true }).OrderBy(r => r.Prefetch).ThenBy(r => r.Sequence).ToArray())
+        _work.ReclaimCompleted();
+        foreach (var r in _requests.Values.Where(r => r.Work.Task is { IsCompleted: true }).OrderBy(r => r.Prefetch).ThenBy(r => r.Sequence).ToArray())
         {
             if (!canUpload()) break;
             try
             {
-                var pixels = r.Work!.GetAwaiter().GetResult();
+                var pixels = r.Work.Task!.GetAwaiter().GetResult();
                 var timer = Stopwatch.StartNew();
                 _cache.Add(r.Key, upload(pixels), (long)pixels.Width * pixels.Height * pixels.Channels);
                 UploadMilliseconds += timer.Elapsed.TotalMilliseconds;
-                r.Pin = _cache.Pin(r.Key);
+                r.Work.Pin = _cache.Pin(r.Key);
             }
             catch (Exception error) { r.Error = error; }
-            finally { r.Work = null; }
+            finally { r.Work.Complete(); }
         }
 
         // Scheduling only adds reservations; workers cannot change owner-thread accounting.
         long pendingBytes = PendingBytes, residentBytes = Bytes;
-        foreach (var r in _requests.Values.Where(r => r.Work is null && r.Error is null && !_cache.Contains(r.Key)).OrderBy(r => r.Prefetch).ThenBy(r => r.Sequence))
+        foreach (var r in _requests.Values.Where(r => r.Work.Task is null && r.Error is null && !_cache.Contains(r.Key)).OrderBy(r => r.Prefetch).ThenBy(r => r.Sequence))
         {
             if (pendingBytes + ChunkReservationBytes > UploadQueueBudget) break;
             if (r.Prefetch && residentBytes + pendingBytes + ChunkReservationBytes > budget) continue;
             pendingBytes += ChunkReservationBytes;
-            r.Work = _workers.Enqueue(() =>
+            _work.Start(r.Work, token =>
             {
                 var timer = Stopwatch.StartNew();
-                var pixels = render is null ? r.Key.Renderer.RenderChunk(r.Key.X, r.Key.Y, r.Cancellation.Token)
-                    : render(r.Key, r.Cancellation.Token);
+                var pixels = render is null ? r.Key.Renderer.RenderChunk(r.Key.X, r.Key.Y, token)
+                    : render(r.Key, token);
                 lock (_timingGate) RenderMilliseconds += timer.Elapsed.TotalMilliseconds;
                 return pixels;
-            }, () => r.Prefetch, r.Cancellation.Token);
+            }, () => r.Prefetch, ChunkReservationBytes);
         }
         var generations = _requests.Keys.Select(k => k.Renderer).ToHashSet();
         _cache.RemoveUnused(key => !generations.Contains(key.Renderer));
@@ -107,13 +99,8 @@ public sealed class TerrainChunkCache<T>(Func<PngImage, T> upload, Action<T> rel
     {
         if (_disposed) return;
         _disposed = true;
-        foreach (var r in _requests.Values.Concat(_retired))
-        {
-            r.Cancellation.Cancel(); r.Pin?.Dispose();
-            if (r.Work is { } work) _ = work.ContinueWith(t => { _ = t.Exception; r.Work = null; r.Cancellation.Dispose(); }, TaskScheduler.Default);
-            else r.Cancellation.Dispose();
-        }
-        _requests.Clear(); _retired.Clear(); _cache.Dispose();
+        _work.Dispose();
+        _requests.Clear(); _cache.Dispose();
     }
     public sealed class Lease : IDisposable
     {

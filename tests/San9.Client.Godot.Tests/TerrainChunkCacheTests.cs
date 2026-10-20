@@ -6,6 +6,52 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class TerrainChunkCacheTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RetiredCompletionKeepsItsReservationAndCannotAffectReacquiredResource(bool fail)
+    {
+        using var gate = new ManualResetEventSlim();
+        using var entered = new ManualResetEventSlim();
+        int loads = 0, uploads = 0;
+        CancellationToken retiredToken = default;
+        var released = new List<Gpu>();
+        PngImage Load(CancellationToken token)
+        {
+            if (Interlocked.Increment(ref loads) != 1) return Pixel(2);
+            retiredToken = token;
+            entered.Set();
+            gate.Wait(); // A loader may ignore cancellation, then complete or fail late.
+            if (fail) throw new IOException("retired load failed");
+            return Pixel(1);
+        }
+        var key = new TerrainChunkKey(Renderer(), 0, 0);
+        using var cache = new TerrainChunkCache<Gpu>(p => { uploads++; return new(p.Pixels[0]); }, released.Add,
+            render: (_, token) => Load(token));
+        using var old = cache.Acquire([key]);
+        cache.Pump(() => true);
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+            long reservation = cache.PendingBytes;
+            old.Dispose(); old.Dispose();
+            Assert.True(retiredToken.IsCancellationRequested);
+            using var current = cache.Acquire([key]);
+            Until(cache, () => current.IsReady);
+            Assert.Equal(reservation, cache.PendingBytes);
+            Assert.Equal(1, uploads);
+            gate.Set();
+            Until(cache, () => cache.PendingBytes == 0);
+            Assert.Null(current.Error);
+            Assert.Equal(2, current.Get(key).Value);
+            Assert.Equal(1, uploads);
+            cache.Dispose(); cache.Dispose(); current.Dispose();
+            Assert.Equal(2, Assert.Single(released).Value);
+            Assert.Equal(0, cache.PendingBytes);
+        }
+        finally { gate.Set(); }
+    }
+
     [Fact]
     public void FailedAcquireDoesNotKeepAnAbandonedGenerationAlive()
     {

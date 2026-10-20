@@ -47,7 +47,7 @@ internal static class FacilityDemolition
             world.Replace(unit with { Order = null, AwaitingPostAction = unit.Order!.IsAttack });
             UnitOrderChanges.Report(world, unit.Id, null, "facility-demolished", events);
         }
-        BattleAftermath.Reconcile(world, new HashSet<int> { command.IssuerId }, rules, events, false);
+        GovernanceLifecycle.Reconcile(world, new HashSet<int> { command.IssuerId }, rules, events, false);
         events.Add(new FacilityDemolishedEvent(world.Clock, facility.Id, cityId, command.IssuerId, facility.Facility?.TypeId ?? definition.FacilityTypeId));
         return CommandRejection.None;
     }

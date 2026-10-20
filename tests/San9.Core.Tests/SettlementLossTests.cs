@@ -44,7 +44,7 @@ public sealed class SettlementLossTests
         world.Replace(world.Officers[101] with { SettlementId = null, UnitId = 901 });
         world.Replace(world.Officers[103] with { SettlementId = 11 });
         world.AddUnit(new(901, 1, new(7, 2), 100) { CorpsId = 100, ServicePlaceId = 10 });
-        BattleAftermath.Reconcile(world, new HashSet<int> { 1 }, Rules(), [], false);
+        GovernanceLifecycle.Reconcile(world, new HashSet<int> { 1 }, Rules(), [], false);
         Assert.Equal(100, Assert.Single(world.Corps.Values, c => c.OwnerId == 1).Id);
         Assert.Equal(11, world.Units[901].ServicePlaceId);
         Assert.Equal(100, world.Settlements[11].CorpsId);
@@ -64,7 +64,7 @@ public sealed class SettlementLossTests
         world.Replace(world.Officers[101] with { Status = OfficerStatus.Dead, OwnerId = null, SettlementId = null });
         List<DomainEvent> events = [];
 
-        BattleAftermath.Reconcile(world, new HashSet<int> { 1 }, Rules(), events, false);
+        GovernanceLifecycle.Reconcile(world, new HashSet<int> { 1 }, Rules(), events, false);
 
         Assert.Equal(102, world.Forces[1].LeaderId);
         Assert.Equal(102, world.Corps[100].LeaderId);
@@ -98,7 +98,7 @@ public sealed class SettlementLossTests
         WorldInvariants.Validate(world);
         var rules = Rules();
         BattleAftermath.ResolveSettlementDefeat(world, 10, new(900, false), rules, []);
-        BattleAftermath.Reconcile(world, new HashSet<int> { 1, 2 }, rules, [], false);
+        GovernanceLifecycle.Reconcile(world, new HashSet<int> { 1, 2 }, rules, [], false);
         Assert.Equal(OfficerStatus.Serving, world.Officers[302].Status);
         Assert.Equal(30, world.Officers[302].SettlementId);
         Assert.Equal(3, world.Officers[302].OwnerId);
@@ -321,7 +321,7 @@ public sealed class SettlementLossTests
         world.Replace(world.Settlements[10] with { Kind = SettlementKind.Facility, CorpsId = 110, Soldiers = 100 });
         world.Replace(world.Officers[102] with { Status = OfficerStatus.Governor });
         world.Replace(world.Officers[103] with { SettlementId = 11 });
-        BattleAftermath.Reconcile(world, new HashSet<int> { 1 }, Rules(), [], false);
+        GovernanceLifecycle.Reconcile(world, new HashSet<int> { 1 }, Rules(), [], false);
         Assert.False(world.Corps.ContainsKey(110));
         Assert.Equal(1300u, world.Corps[100].Treasury.Money);
         Assert.Equal(100, world.Settlements[10].CorpsId);

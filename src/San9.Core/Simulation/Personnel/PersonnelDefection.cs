@@ -73,7 +73,7 @@ internal static class PersonnelDefection
             throw new InvalidOperationException("Validated affiliation transfer failed.");
         if (transfersPlace || target.UnitId is not null)
         {
-            BattleAftermath.Reconcile(world, new HashSet<int> { target.OwnerId!.Value }, rules, events, true, "personnel-recruited");
+            GovernanceLifecycle.Reconcile(world, new HashSet<int> { target.OwnerId!.Value }, rules, events, true, "personnel-recruited");
             ForceTransfer.ClearFriendlyOrders(world, "personnel-recruited", events);
             world.MaintainLeadership(events);
             ResolutionPipeline.CheckConquest(world, events);

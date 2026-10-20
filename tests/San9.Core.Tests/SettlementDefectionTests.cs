@@ -91,7 +91,7 @@ public sealed class SettlementDefectionTests
             Personnel = new(baseline.Personnel.Places.Values, new Dictionary<int, int> { [3] = 10, [2] = 2 },
                 neighbors ? [new(10, 2)] : []) };
         List<DomainEvent> events = [];
-        BattleAftermath.Reconcile(world, new HashSet<int> { 1 }, rules, events, true);
+        GovernanceLifecycle.Reconcile(world, new HashSet<int> { 1 }, rules, events, true);
         ResolutionPipeline.CheckConquest(world, events);
         ResolutionPipeline.CheckTerminal(world, events);
         WorldInvariants.Validate(world);

@@ -30,7 +30,7 @@ internal static class OfficerDeath
             ForceLifecycle.HasCity(world, force) &&
             (successorId is int chosen ? world.Officers[chosen] : RulerSuccession.Automatic(world, force, previous)) is { } successor)
             RulerSuccession.Commit(world, force, previous.Id, successor.Id, events);
-        if (previous.OwnerId is int affected) BattleAftermath.Reconcile(world, new HashSet<int> { affected }, rules, events, afterDailyCommands);
+        if (previous.OwnerId is int affected) GovernanceLifecycle.Reconcile(world, new HashSet<int> { affected }, rules, events, afterDailyCommands);
         int? recipient = recipientForce is int recipientOwner && !world.Forces[recipientOwner].IsEliminated
             ? world.Forces[recipientOwner].LeaderId : null;
         SettleTreasures(world, officerId, recipient, events);

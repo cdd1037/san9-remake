@@ -34,7 +34,7 @@ internal static class PersonnelTransitions
         if (person.Status == OfficerStatus.Governor && previousCorps is int corpsId &&
             world.Corps.TryGetValue(corpsId, out var corps) && !corps.IsRoot)
             GovernanceMaintenance.DissolveForced(world, corpsId, reason, events);
-        if (person.OwnerId is int previousForce) BattleAftermath.Reconcile(world, new HashSet<int> { previousForce }, rules, events, afterDailyCommands, reason);
+        if (person.OwnerId is int previousForce) GovernanceLifecycle.Reconcile(world, new HashSet<int> { previousForce }, rules, events, afterDailyCommands, reason);
         world.MaintainLeadership(events);
         ResolutionPipeline.CheckConquest(world, events);
     }

@@ -82,7 +82,7 @@ internal static class Guandu
         }
         if (terminated)
         {
-            BattleAftermath.Reconcile(world, new HashSet<int> { rival }, rules, events, true, "guandu");
+            GovernanceLifecycle.Reconcile(world, new HashSet<int> { rival }, rules, events, true, "guandu");
             world.MaintainLeadership(events);
             ResolutionPipeline.CheckConquest(world, events);
         }

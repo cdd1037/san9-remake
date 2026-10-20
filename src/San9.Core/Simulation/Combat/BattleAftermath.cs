@@ -37,7 +37,7 @@ internal static class BattleAftermath
         if (city is int cityId && (!world.Settlements.TryGetValue(cityId, out var s) || s.Kind != SettlementKind.City)) city = null;
         UnitTerminationService.Complete(world, id, winner, city, rules.Governance, events, repairCorps: false,
             target: BattleObjectContext.Capture(unit));
-        if (victorForce is int victorId) EliminateIfDefeated(world, unit.OwnerId, rules, events, world.CurrentDateCommandsConsumed, victorId);
+        if (victorForce is int victorId) GovernanceLifecycle.EliminateIfDefeated(world, unit.OwnerId, rules, events, world.CurrentDateCommandsConsumed, victorId);
     }
 
     internal static void ResolveSettlementDefeat(WorldMutation world, int id, BattleSource winner, SimulationRules rules, List<DomainEvent> events)
@@ -53,7 +53,7 @@ internal static class BattleAftermath
         var captures = ids.Select(id => (Id: id, Units: CaptureUnits(world, id, winner, rules.Military!))).ToArray();
         foreach (var capture in captures)
             CaptureSettlement(world, capture.Id, winner, capture.Units, rules, events);
-        foreach (int owner in previousOwners) EliminateIfDefeated(world, owner, rules, events, world.CurrentDateCommandsConsumed, victor);
+        foreach (int owner in previousOwners) GovernanceLifecycle.EliminateIfDefeated(world, owner, rules, events, world.CurrentDateCommandsConsumed, victor);
         foreach (var capture in captures.Where(c => !world.Settlements[c.Id].IsDestroyed && world.Settlements[c.Id].OwnerId == victor))
             foreach (int unitId in capture.Units)
                 if (world.Units.TryGetValue(unitId, out var unit))
@@ -226,53 +226,6 @@ internal static class BattleAftermath
             RegionId = null, OfficeId = null, IsCommander = false, Acted = true,
             StatusStartYear = status == person.Status ? person.StatusStartYear : world.Clock.Year });
         events.Add(new PersonAffiliationChangedEvent(world.Clock, person.Id, person.OwnerId, null, place ?? -1));
-    }
-
-    internal static void Reconcile(WorldMutation world, IReadOnlySet<int> affectedForces, SimulationRules rules, List<DomainEvent> events, bool afterDailyCommands, string reason = "battle")
-    {
-        foreach (var force in world.Forces.Values.Where(f => !f.IsEliminated && affectedForces.Contains(f.Id)).OrderBy(f => f.Id).ToArray())
-        {
-            var serving = world.Officers.Values.Where(p => p.OwnerId == force.Id && p.IsServing).OrderBy(p => p.Id).ToArray();
-            if (EliminateIfDefeated(world, force.Id, rules, events, afterDailyCommands)) continue;
-            if (force.LeaderId is not int leader || !world.Officers.TryGetValue(leader, out var ruler) ||
-                ruler.OwnerId != force.Id || !ruler.IsServing && ruler.Status != OfficerStatus.Captive)
-            {
-                var successor = rules.Governance.SelectSuccessor(serving, force.LeaderId ?? serving[0].Id, world.AbilitiesFor(serving)) ?? serving[0];
-                RulerSuccession.Appoint(world, force.Id, force.LeaderId, successor.Id, events);
-            }
-        }
-        foreach (var original in world.Corps.Values.OrderByDescending(c => c.IsRoot).ThenBy(c => c.Id).ToArray())
-        {
-            if (!world.Corps.TryGetValue(original.Id, out var corps)) continue;
-            var people = world.Officers.Values.Where(p => p.OwnerId == corps.OwnerId && p.IsServing && PersonnelLocations.Corps(world, p) == corps.Id).ToArray();
-            if (corps.IsRoot)
-            {
-                if (world.Forces[corps.OwnerId].LeaderId is int ruler) world.Replace(corps with { LeaderId = ruler });
-                if (people.Length == 0 || !world.Settlements.Values.Any(s => s.CorpsId == corps.Id && s.Kind == SettlementKind.City && !s.IsDestroyed))
-                {
-                    var child = world.Corps.Values.Where(c => c.OwnerId == corps.OwnerId && !c.IsRoot).OrderBy(c => c.Id).FirstOrDefault();
-                    if (child is not null) GovernanceMaintenance.DissolveForced(world, child.Id, reason, events);
-                }
-                continue;
-            }
-            if (people.Length > 0 && world.Settlements.Values.Any(s => s.CorpsId == corps.Id && s.Kind == SettlementKind.City))
-            {
-                if (GovernanceMaintenance.RepairCorps(world, corps.Id, rules.Governance, events) != CommandRejection.None)
-                    throw new InvalidOperationException("Cannot repair surviving battle corps.");
-                continue;
-            }
-            GovernanceMaintenance.DissolveForced(world, corps.Id, reason, events);
-        }
-        UnitServicePlaces.Repair(world, rules);
-    }
-
-    private static bool EliminateIfDefeated(WorldMutation world, int forceId, SimulationRules rules,
-        List<DomainEvent> events, bool afterDailyCommands, int? victorForceId = null)
-    {
-        if (world.Forces[forceId].IsEliminated) return true;
-        if (ForceLifecycle.HasCity(world, forceId) && world.Officers.Values.Any(p => p.OwnerId == forceId && p.IsServing)) return false;
-        ForceElimination.Apply(world, forceId, rules, events, afterDailyCommands, victorForceId);
-        return true;
     }
 
 }

@@ -82,7 +82,7 @@ internal static class MilitaryDailyCycle
         foreach (int id in defeated)
             if (world.Units.ContainsKey(id)) BattleAftermath.TerminateUnit(world, id, null, rules, events);
         if (affected.Count == 0) return;
-        BattleAftermath.Reconcile(world, affected, rules, events, false);
+        GovernanceLifecycle.Reconcile(world, affected, rules, events, false);
         ResolutionPipeline.CheckConquest(world, events);
     }
 }

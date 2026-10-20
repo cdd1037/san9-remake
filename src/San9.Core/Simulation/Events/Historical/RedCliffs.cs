@@ -66,7 +66,7 @@ internal static class RedCliffs
         }
         if (terminated)
         {
-            BattleAftermath.Reconcile(world, new HashSet<int> { rival }, rules, events, false, "red-cliffs");
+            GovernanceLifecycle.Reconcile(world, new HashSet<int> { rival }, rules, events, false, "red-cliffs");
             world.MaintainLeadership(events);
             ResolutionPipeline.CheckConquest(world, events);
         }

@@ -32,7 +32,7 @@ internal static class UnitDefections
                 .OrderBy(s => MapCoordinates.Distance(unit.Position, military.Place(s).Position)).ThenBy(s => s.Id)
                 .Select(s => (int?)s.Id).FirstOrDefault();
             UnitAffiliation.Transfer(world, unit, recipient, home, followers, region, false, rules, events);
-            BattleAftermath.Reconcile(world, new HashSet<int> { owner }, rules, events, false, "unit-defected");
+            GovernanceLifecycle.Reconcile(world, new HashSet<int> { owner }, rules, events, false, "unit-defected");
             ForceTransfer.ClearFriendlyOrders(world, "unit-defected", events);
             CorpsDelegations.Cleanup(world, military, events);
             world.MaintainLeadership(events);

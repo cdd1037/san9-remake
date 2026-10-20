@@ -152,7 +152,7 @@ public sealed class ForceEliminationTests
         rules ??= Rules();
         WorldInvariants.Validate(world);
         List<DomainEvent> events = [];
-        BattleAftermath.Reconcile(world, new HashSet<int> { 1 }, rules, events, true);
+        GovernanceLifecycle.Reconcile(world, new HashSet<int> { 1 }, rules, events, true);
         CorpsDelegations.Cleanup(world, rules.Military, events);
         world.MaintainLeadership(events);
         WorldInvariants.Validate(world);

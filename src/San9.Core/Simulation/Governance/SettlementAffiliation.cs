@@ -44,7 +44,7 @@ internal static class SettlementAffiliation
         DisplacePrisoners(world, place.Id, owner, rules, events);
         SettlementTasks.LocationChanged(world, place.Id, Reason, rules, events);
         events.Add(new SettlementTransferredEvent(world.Clock, place.Id, owner, recipient));
-        BattleAftermath.Reconcile(world, new HashSet<int> { owner }, rules, events, false, Reason);
+        GovernanceLifecycle.Reconcile(world, new HashSet<int> { owner }, rules, events, false, Reason);
         ForceTransfer.ClearFriendlyOrders(world, Reason, events);
         CorpsDelegations.Cleanup(world, rules.Military, events);
         world.MaintainLeadership(events);

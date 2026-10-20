@@ -31,23 +31,27 @@ internal static class GovernanceMaintenance
                 ? t with { Journey = t.Journey with { ReturnLeg = leg with { CorpsId = destination } } } : t).ToImmutableArray() });
 
 
+    internal static OfficerState[] Members(WorldMutation world, CorpsState corps) => world.Officers.Values
+        .Where(p => p.IsServing && p.OwnerId == corps.OwnerId && PersonnelLocations.Corps(world, p) == corps.Id).ToArray();
+
+    internal static bool CanSurvive(WorldMutation world, CorpsState corps, IEnumerable<OfficerState> members) =>
+        members.Any() && world.Settlements.Values.Any(s => s.CorpsId == corps.Id && s.Kind == SettlementKind.City &&
+            (!corps.IsRoot || !s.IsDestroyed));
+
     internal static bool CanRemove(WorldMutation world, int personId)
     {
         var person = world.Officers[personId];
         if (PersonnelLocations.Corps(world, person) is not int id ||
             !world.Corps.TryGetValue(id, out var corps) || corps.IsRoot) return true;
-        if (world.Officers.Values.Any(p => p.Id != personId && p.IsServing && p.OwnerId == corps.OwnerId &&
-            PersonnelLocations.Corps(world, p) == id) &&
-            world.Settlements.Values.Any(s => s.CorpsId == id && s.Kind == SettlementKind.City)) return true;
+        if (CanSurvive(world, corps, Members(world, corps).Where(p => p.Id != personId))) return true;
         var force = world.Forces[corps.OwnerId];
         return (ulong)ResourceAccounts.Root(world, force.Id).Treasury.Money + corps.Treasury.Money <= uint.MaxValue && (ulong)ResourceAccounts.Root(world, force.Id).Treasury.Food + corps.Treasury.Food <= uint.MaxValue;
     }
     internal static CommandRejection RepairCorps(WorldMutation world, int corpsId, GovernanceRulebook rules, List<DomainEvent> events)
     {
         if (!world.Corps.TryGetValue(corpsId, out var corps) || corps.IsRoot) return CommandRejection.None;
-        var people = world.Officers.Values.Where(p => p.IsServing && p.OwnerId == corps.OwnerId &&
-            PersonnelLocations.Corps(world, p) == corpsId).ToArray();
-        if (people.Length == 0 || !world.Settlements.Values.Any(s => s.CorpsId == corps.Id && s.Kind == SettlementKind.City))
+        var people = Members(world, corps);
+        if (!CanSurvive(world, corps, people))
             return CorpsGovernance.Dissolve(world, new(Guid.Empty, corps.OwnerId, 0, corps.Id), rules, events);
         if (people.Any(p => p.Id == corps.LeaderId)) return CommandRejection.None;
         var leader = rules.SelectSuccessor(people, corps.LeaderId!.Value, world.AbilitiesFor(people))!;

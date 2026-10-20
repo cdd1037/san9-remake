@@ -107,7 +107,9 @@ public sealed class PersistenceTests : IDisposable
         Assert.Equal(SessionDisposition.Rejected, rejected.Disposition);
         Assert.False(session.HasUnsavedChanges);
         var request = session.Request(new ChronicleOperation("changed"));
+        var view = session.View;
         Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);
+        Assert.Same(view, session.View);
         Assert.True(session.HasUnsavedChanges);
         SaveService.Write(FilePath("dirty.json"), session);
         Assert.False(session.HasUnsavedChanges);

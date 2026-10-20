@@ -169,7 +169,12 @@ public sealed class SlotSaveStoreTests : IDisposable
         byte[] manual = SlotSaveStore.Encode(session, Summary("手动档"));
         store.Write(1, manual);
         var queue = new AutoSaveQueue(store);
-        var write = queue.Enqueue(session, _ => Summary("自动档"));
+        var view = session.View;
+        var write = queue.Enqueue(session, captured =>
+        {
+            Assert.Same(view, captured);
+            return Summary("自动档");
+        });
         session.AdvanceXun();
         long? sequence = await write;
         session.MarkSaved(sequence!.Value);
@@ -177,6 +182,31 @@ public sealed class SlotSaveStoreTests : IDisposable
         Assert.Equal(manual, File.ReadAllBytes(store.PathFor(1)));
         Assert.Single(store.ReadCatalog(40));
         Assert.True(session.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public async Task DelayedAutoSaveProjectsTheCheckpointUsingSharedDefinitions()
+    {
+        var store = new SlotSaveStore(_directory, Definition);
+        var session = GameSession.Start(Definition, 1, enableXunStartCheckpoints: true);
+        var initial = session.View;
+        Assert.Equal(SessionDisposition.Accepted,
+            session.Apply(session.Request(new PkSettingsOperation(false, false, true))).Disposition);
+        session.AddChronicleNote("领取前修改");
+        var current = session.View;
+        Assert.NotSame(initial.World, current.World);
+        await new AutoSaveQueue(store).Enqueue(session, captured =>
+        {
+            Assert.Same(initial.World, captured.World);
+            Assert.Same(current.Information, captured.Information);
+            Assert.Same(current, session.View);
+            return Summary("延迟保存");
+        });
+        var loaded = store.LoadAutoSave(1);
+        Assert.Empty(loaded.Chronicle);
+        Assert.False(loaded.Snapshot.Simulation.BattleDeathsEnabled);
+        Assert.True(session.Snapshot.Simulation.BattleDeathsEnabled);
+        Assert.Single(session.Chronicle);
     }
 
     [Fact]

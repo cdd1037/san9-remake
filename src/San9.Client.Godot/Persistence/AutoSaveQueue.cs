@@ -11,7 +11,7 @@ public sealed class AutoSaveQueue(SlotSaveStore store)
         if (session.TakeXunStartCheckpoint() is not { } checkpoint) return null;
         try
         {
-            var document = store.CaptureAutoSave(checkpoint, summary);
+            var document = SlotSaveStore.CaptureAutoSave(checkpoint, session.View, summary);
             await store.WriteAutoSaveAsync(document);
             return checkpoint.NextOperationSequence;
         }

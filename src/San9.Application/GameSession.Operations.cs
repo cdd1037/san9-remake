@@ -10,7 +10,7 @@ public sealed partial class GameSession
 {
     // Captured on the owner thread. Calculation forks the engine and never accesses the live session.
     internal sealed record OperationInput(SimulationEngine Simulation, ScenarioSessionDefinition Definition,
-        StrategySnapshotSource SnapshotSource, StrategySnapshot View, long Sequence, OriginalAiState OriginalAi,
+        StrategySnapshot View, long Sequence, OriginalAiState OriginalAi,
         EndingSelection? Ending, StrategicContextState StrategicContext, ImmutableArray<ChronicleFact> History);
 
     internal sealed record OperationCommit(SimulationEngine Simulation, OriginalAiState OriginalAi,
@@ -20,7 +20,7 @@ public sealed partial class GameSession
     internal sealed record PreparedOperation(SessionResult Result, StrategySnapshot View,
         OperationCommit? Commit = null, IReadOnlyList<WorldSnapshot>? Frames = null);
 
-    private OperationInput CaptureOperationInput() => new(_simulation, _definition, _snapshotSource, View,
+    private OperationInput CaptureOperationInput() => new(_simulation, _definition, View,
         NextOperationSequence, _originalAi, _ending, _strategicContext, History);
 
     private SessionResult Apply(SessionRequest request, bool capturePresentation, out IReadOnlyList<WorldSnapshot> presentationFrames)
@@ -129,7 +129,7 @@ public sealed partial class GameSession
                 new SessionRecord(e.Clock, e.Command.ForceId, e.Command.SettlementId, e.Command.OfficerIds[0],
                     e.Command.Activity, e.Increment, e.Cost)).ToArray();
             var snapshot = candidate.Snapshot;
-            var view = input.SnapshotSource.Project(snapshot);
+            var view = input.View.ForWorld(snapshot);
             var history = ChronicleHistory.Append(input.History, ChronicleHistory.Read(input.View, view, events, input.Definition.Content.Terminal));
             var strategicContext = Presentation.StrategicContext.Prepare(view, input.StrategicContext);
             var publishedEvents = events.ToImmutableArray();

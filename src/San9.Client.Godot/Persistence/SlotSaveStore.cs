@@ -65,9 +65,10 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
         return new(header, save);
     }
 
-    public SlotSaveDocument CaptureAutoSave(SessionSnapshot checkpoint, Func<StrategySnapshot, SaveSlotSummary> summary)
+    public static SlotSaveDocument CaptureAutoSave(SessionSnapshot checkpoint, StrategySnapshot context,
+        Func<StrategySnapshot, SaveSlotSummary> summary)
     {
-        var view = new StrategySnapshot(definition, checkpoint.World);
+        var view = context.ForWorld(checkpoint.World);
         return Capture(new(SessionProtocol.SaveFormatVersion, SessionProtocol.RulesVersion, checkpoint), summary(view), view);
     }
 

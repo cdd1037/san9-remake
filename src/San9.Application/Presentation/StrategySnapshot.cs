@@ -271,7 +271,8 @@ public sealed class StrategySnapshot
     public WorldSnapshot World { get; }
     public MapCell? PlaceCell(int id) => Settlements.FirstOrDefault(p=>p.Id==id) is { } place ? new(place.X,place.Y) :
         _source.PlacePositions.TryGetValue(id,out var position) ? MapCoordinates.Cell(position) : null;
-    internal StrategySnapshot ForWorld(WorldSnapshot world) => _source.Project(world);
+    /// <summary>Projects a world from the same scenario, reusing definitions and this view when the world is unchanged.</summary>
+    public StrategySnapshot ForWorld(WorldSnapshot world) => ReferenceEquals(World, world) ? this : _source.Project(world);
     public int? EmperorId { get; }
     public int? EmperorCityId { get; }
     public bool ImperialCourtEnded => World.Simulation.ImperialCourtEnded;

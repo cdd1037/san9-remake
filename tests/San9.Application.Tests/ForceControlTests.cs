@@ -41,6 +41,10 @@ public sealed class ForceControlTests
         session.AdvanceXun();
         restored.AdvanceXun();
         StateAssert.Equal(session.Capture(), restored.Capture());
+        var handOver = session.Request(new HandOverAllForcesOperation());
+        Assert.Equal(SessionDisposition.Accepted, session.Apply(handOver).Disposition);
+        Assert.Equal(SessionDisposition.Accepted, restored.Apply(handOver).Disposition);
+        StateAssert.Equal(session.Capture(), restored.Capture());
         string path = Path.Combine(Path.GetTempPath(), $"san9-control-{Guid.NewGuid():N}.jsonl");
         try
         {
@@ -53,6 +57,48 @@ public sealed class ForceControlTests
             StateAssert.Equal(session.Capture(), recorded.Session.Capture());
         }
         finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void HandingOverAllPlayersIsOneOperationAndPreservesCompletedSeatsAndOrders()
+    {
+        var session = GameSession.Start(G01ScenarioTests.Fixture(), 190);
+        session.TakeOverForce(2);
+        session.EndControl(new("player"));
+        var before = session.Capture();
+        var request = session.Request(new HandOverAllForcesOperation());
+        Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);
+        Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
+        var after = session.Capture();
+        Assert.Equal(before.NextOperationSequence + 1, after.NextOperationSequence);
+        Assert.All(after.World.Simulation.Controls, c => Assert.Equal(ControllerKind.Automatic, c.Kind));
+        Assert.Equal(before.World.Simulation.ActiveControl, after.World.Simulation.ActiveControl);
+        Assert.Equal(before.World.Simulation.Controls.Take(before.World.Simulation.ActiveControl).Select(c => c.ForceId),
+            after.World.Simulation.Controls.Take(after.World.Simulation.ActiveControl).Select(c => c.ForceId));
+        Assert.Equal(before.World.Clock, after.World.Clock);
+        Assert.Equal(before.World.Officers, after.World.Officers);
+        Assert.Equal(before.World.Corps, after.World.Corps);
+        Assert.Equal(before.World.Simulation.Tasks, after.World.Simulation.Tasks);
+        Assert.Equal(before.World.Simulation.RandomStreams, after.World.Simulation.RandomStreams);
+        Assert.Empty(after.StrategicContexts);
+        Assert.Null(session.View.PlayerForceId);
+        Assert.Equal(SessionRejection.InvalidRequest, session.Apply(session.Request(new HandOverAllForcesOperation())).Rejection);
+        StateAssert.Equal(after, session.Capture());
+    }
+
+    [Fact]
+    public void HandingOverAllPlayersRequiresStablePlayerAuthorization()
+    {
+        var session = GameSession.Start(G01ScenarioTests.Fixture(), 190);
+        var before = session.Capture();
+        Assert.Equal(SessionRejection.InvalidRequest,
+            session.Apply(session.Request(new HandOverAllForcesOperation(), "ai:2")).Rejection);
+        StateAssert.Equal(before, session.Capture());
+        session.Apply(session.Request(new PrepareAdvanceOperation()));
+        session.Apply(session.Request(new AdvanceDayOperation()));
+        before = session.CaptureCurrentState();
+        Assert.Equal(SessionRejection.NotStable, session.Apply(session.Request(new HandOverAllForcesOperation())).Rejection);
+        StateAssert.Equal(before, session.CaptureCurrentState());
     }
 
     [Fact]

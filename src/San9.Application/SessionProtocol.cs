@@ -28,8 +28,10 @@ public sealed record RulesVersionWarning(string SavedVersion, string CurrentVers
 [JsonDerivedType(typeof(EndingOperation), "ending")]
 [JsonDerivedType(typeof(PkSettingsOperation), "pk-settings")]
 [JsonDerivedType(typeof(ForceControlOperation), "force-control")]
+[JsonDerivedType(typeof(HandOverAllForcesOperation), "hand-over-all-forces")]
 public abstract record SessionOperation;
 public sealed record ForceControlOperation(int ForceId, ControllerKind Kind) : SessionOperation;
+public sealed record HandOverAllForcesOperation : SessionOperation;
 public sealed record PkSettingsOperation(bool OtherForceOrdersVisible,
     bool OtherForceTacticsVisible, bool BattleDeathsEnabled) : SessionOperation;
 public sealed record CommandOperation(GameCommand Command) : SessionOperation;

@@ -71,12 +71,23 @@ public sealed partial class GameSession
                     catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
                     ending = selection.Selection;
                     break;
-                case ForceControlOperation control:
-                    if (request.ControllerId != "player" || !Enum.IsDefined(control.Kind))
+                case ForceControlOperation:
+                case HandOverAllForcesOperation:
+                    if (request.ControllerId != "player")
                         return Rejected(SessionRejection.InvalidRequest);
                     if (candidate.Snapshot.Simulation.Boundary != SimulationBoundary.Stable || originalAi.Continuation is not null)
                         return Rejected(SessionRejection.NotStable);
-                    try { candidate.SetForceControl(control.ForceId, control.Kind); }
+                    try
+                    {
+                        if (request.Operation is ForceControlOperation control)
+                            candidate.SetForceControl(control.ForceId, control.Kind);
+                        else
+                        {
+                            var players = candidate.Snapshot.Simulation.Controls.Where(c => c.Kind == ControllerKind.Player).ToArray();
+                            if (players.Length == 0) return Rejected(SessionRejection.InvalidRequest);
+                            foreach (var player in players) candidate.SetForceControl(player.ForceId, ControllerKind.Automatic);
+                        }
+                    }
                     catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
                     break;
                 case PkSettingsOperation pk:

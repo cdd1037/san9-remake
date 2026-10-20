@@ -35,6 +35,8 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<string, string> Notices { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired]
+    public Dictionary<string, string> ExitMenu { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired]
     public StrategistPresentationDefinition? Strategist { get; init; }
     [System.Text.Json.Serialization.JsonRequired]
     public RewardPresentationDefinition? Reward { get; init; }
@@ -229,6 +231,19 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
         foreach (var (role, key) in Notices)
             if (!texts.Messages.ContainsKey(key))
                 throw new InvalidDataException($"Missing notice message: {role}.");
+        if (ExitMenu.Count > 0)
+        {
+            string[] roles = ["exit", "delegate-current", "delegate-all", "confirm-exit-unsaved", "confirm-exit",
+                "confirm-current-unsaved", "confirm-current", "confirm-all-unsaved", "confirm-all"];
+            if (roles.Except(ExitMenu.Keys).Any()) throw new InvalidDataException("Incomplete exit menu presentation.");
+            foreach (var (role, key) in ExitMenu)
+            {
+                var requirements = MessageGraph.Requirements(key, texts.Messages);
+                string[] bindings = role.Contains("current", StringComparison.Ordinal) ? ["person.0"] : [];
+                if (!requirements.ReferencesValid || requirements.Bindings.Except(bindings).Any())
+                    throw new InvalidDataException($"Invalid exit menu message: {role}.");
+            }
+        }
         if (Patrol is not { } patrol) return;
         var ids = people.ToHashSet(); var cities = settlements.ToHashSet();
         foreach (string role in new[] { "normal", "cooperative", "citizen", "pair-first", "pair-second", "result" })

@@ -14,24 +14,32 @@ public partial class InformationMenuButton : BaseButton
         set { _title = value; if (_label is not null) _label.Text = value; }
     }
     public string HintText { get; init; } = "";
+    public string? RichTitle { get; init; }
+    public string DisplayText => _richLabel?.GetParsedText() ?? Title;
     public Func<bool, bool, bool, GameTextStyle> TextStyle { get; init; } = GameTextStyles.InformationMenu;
     public TextureScope Textures { get; init; } = null!;
     private readonly GameTextPresenter _text = new();
-    private Label _label = null!;
+    private Label? _label;
+    private GameRichTextLabel? _richLabel;
     private (bool Hovered, bool Pressed, bool Disabled)? _state;
     public int VisualFrame { get; private set; }
 
     public override void _Ready()
     {
         FocusMode = FocusModeEnum.None;
-        _label = new Label { Text = Title, Size = Size, HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
-        AddChild(_label);
-        _label.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        _label.OffsetLeft = TextInsets.X;
-        _label.OffsetTop = TextInsets.Y;
-        _label.OffsetRight = -TextInsets.Z;
-        _label.OffsetBottom = -TextInsets.W;
+        if (RichTitle is not null)
+        {
+            _richLabel = new() { Textures = Textures, MouseFilter = MouseFilterEnum.Ignore };
+            AddChild(_richLabel);
+            Resized += LayoutRichTitle;
+        }
+        else
+        {
+            _label = new Label { Text = Title, Size = Size, HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
+            AddChild(_label);
+            _label.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        }
         RefreshVisual();
     }
 
@@ -42,14 +50,33 @@ public partial class InformationMenuButton : BaseButton
         var state = (IsHovered(), pressed, Disabled);
         if (_state == state) return;
         _state = state;
-        _text.Apply(_label, TextStyle(state.Item1, pressed, Disabled));
+        var style = TextStyle(state.Item1, pressed, Disabled);
         var offset = pressed ? new Vector2(2, 2) : Vector2.Zero;
-        _label.OffsetLeft = TextInsets.X + offset.X;
-        _label.OffsetTop = TextInsets.Y + offset.Y;
-        _label.OffsetRight = -TextInsets.Z + offset.X;
-        _label.OffsetBottom = -TextInsets.W + offset.Y;
+        if (_label is not null)
+        {
+            _text.Apply(_label, style);
+            _label.OffsetLeft = TextInsets.X + offset.X;
+            _label.OffsetTop = TextInsets.Y + offset.Y;
+            _label.OffsetRight = -TextInsets.Z + offset.X;
+            _label.OffsetBottom = -TextInsets.W + offset.Y;
+        }
+        if (_richLabel is not null)
+        {
+            _richLabel.Present("[center]" + RichTitle + "[/center]", style);
+            LayoutRichTitle();
+        }
         VisualFrame = ButtonVisualState.Frame(false, state.Item1, pressed, Disabled);
         QueueRedraw();
+    }
+
+    private void LayoutRichTitle()
+    {
+        if (_richLabel is null) return;
+        bool pressed = _state?.Pressed == true;
+        var offset = pressed ? new Vector2(2, 2) : Vector2.Zero;
+        float height = _richLabel.GetThemeFont("normal_font").GetHeight(_richLabel.Style.FontSize);
+        _richLabel.Position = new Vector2(TextInsets.X, (Size.Y - height + TextInsets.Y - TextInsets.W) / 2) + offset;
+        _richLabel.Size = new(Size.X - TextInsets.X - TextInsets.Z, height);
     }
 
     public override void _Draw()

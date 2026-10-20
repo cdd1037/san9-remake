@@ -6,6 +6,25 @@ namespace San9.Content.Tests;
 public sealed class CommandPresentationTests
 {
     [Fact]
+    public void ExitMenuRequiresCompleteRolesValidReferencesAndOnlyRulerBindings()
+    {
+        string[] roles = ["exit", "delegate-current", "delegate-all", "confirm-exit-unsaved", "confirm-exit",
+            "confirm-current-unsaved", "confirm-current", "confirm-all-unsaved", "confirm-all"];
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, []) { Messages = roles.ToDictionary(r => r,
+            r => new MessageDefinition(r.Contains("current", StringComparison.Ordinal)
+                ? [new MessageValue(new("binding", "person.0"))] : [new MessageLiteral(r)])) };
+        var content = CommandPresentation.Empty with { ExitMenu = roles.ToDictionary(r => r) };
+        content.Validate(texts, [], []);
+        Assert.Throws<InvalidDataException>(() => (content with
+            { ExitMenu = roles.Where(r => r != "delegate-all").ToDictionary(r => r) }).Validate(texts, [], []));
+        texts.Messages["confirm-current"] = new([new MessageValue(new("binding", "person.1"))]);
+        Assert.Throws<InvalidDataException>(() => content.Validate(texts, [], []));
+        texts.Messages["confirm-current"] = new([new MessageValue(new("binding", "person.0"))]);
+        texts.Messages.Remove("confirm-exit");
+        Assert.Throws<InvalidDataException>(() => content.Validate(texts, [], []));
+    }
+
+    [Fact]
     public void DemolitionRejectsMissingMessageArgumentsAndResultSound()
     {
         var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, []) { Messages = new()

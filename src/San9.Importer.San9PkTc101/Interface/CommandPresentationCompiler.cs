@@ -36,6 +36,13 @@ internal static class CommandPresentationCompiler
                  new(Key(5877), Person(674), [15,29,16,40,23], AdviceMetric.PublicOrder, 4000)]))
         {
             Decisions = DecisionPresentationCompiler.Compile(people),
+            ExitMenu = new()
+            {
+                ["exit"] = Key(8028), ["delegate-current"] = Key(8029), ["delegate-all"] = Key(8030),
+                ["confirm-exit-unsaved"] = Key(8031), ["confirm-exit"] = Key(8032),
+                ["confirm-current-unsaved"] = Key(8033), ["confirm-current"] = Key(8034),
+                ["confirm-all-unsaved"] = Key(8035), ["confirm-all"] = Key(8036)
+            },
             Personnel = PersonnelPresentationCompiler.Compile(),
             Military = MilitaryPresentationCompiler.Compile(),
             Missions = MissionPresentationCompiler.Compile(),

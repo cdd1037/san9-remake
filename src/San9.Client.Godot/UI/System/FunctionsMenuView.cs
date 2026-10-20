@@ -13,6 +13,7 @@ public partial class FunctionsMenuView : HudDropdown
     public Action Closed { get; init; } = null!;
     public Action OpenEnvironment { get; init; } = null!;
     public Action OpenPkSettings { get; init; } = null!;
+    public Action OpenExit { get; init; } = null!;
     protected override Vector2 MenuSize => new(120, 296);
     protected override bool AlignRight => true;
     public override void _Ready()
@@ -30,6 +31,7 @@ public partial class FunctionsMenuView : HudDropdown
                 "load" => () => Open(SaveLoadMode.Load),
                 "environment" => OpenEnvironment,
                 "pk" => OpenPkSettings,
+                "exit" => OpenExit,
                 _ => null
             };
             var button = new InformationMenuButton { Title = entries[i].Title, Textures = Textures,

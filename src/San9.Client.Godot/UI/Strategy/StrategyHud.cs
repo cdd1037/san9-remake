@@ -196,6 +196,7 @@ public partial class StrategyHud : Control
             Store = SaveStore,
             Session = Session,
             CreateSummary = SaveSummary,
+            ExitMessages = CommandPresentation.ExitMenu,
             ActivateSession = ActivateSession,
             ReadSettings = ReadSettings,
             ApplySettings = ApplyUserSettings

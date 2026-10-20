@@ -14,6 +14,7 @@ public partial class SystemMenuPanel : Control
     public TextCatalog Texts { get; init; } = null!;
     public SlotSaveStore Store { get; init; } = null!;
     public GameSession Session { get; init; } = null!;
+    public IReadOnlyDictionary<string, string> ExitMessages { get; init; } = null!;
     public Func<string, SaveSlotSummary> CreateSummary { get; init; } = null!;
     public Action<GameSession> ActivateSession { get; init; } = null!;
     public Func<Settings.UserSettings> ReadSettings { get; init; } = null!;
@@ -41,7 +42,7 @@ public partial class SystemMenuPanel : Control
         _textures.RequestPrefixes("information-menu-", "save-load-", "message-");
         Show();
         ReplacePage(new FunctionsMenuView { AnchorControl = MenuAnchor, Textures = _textures, Texts = Texts, Open = Open,
-            OpenEnvironment = OpenEnvironment, OpenPkSettings = OpenPkSettings, Closed = Close });
+            OpenEnvironment = OpenEnvironment, OpenPkSettings = OpenPkSettings, OpenExit = OpenExit, Closed = Close });
     }
     private void OpenEnvironment()
     {

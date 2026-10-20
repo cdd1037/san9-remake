@@ -13,7 +13,7 @@ internal sealed partial class WorldEventSceneBuilder
             case PeerageChangedEvent { Kind: PeerageChangeKind.HanzhongKing } hanzhong:
                 clock = hanzhong.Clock; Force("force", hanzhong.ForceId);
                 if (Player(hanzhong.ForceId)) Message("hanzhong-introduction", movie: "hanzhong");
-                Message("hanzhong-result", record: true); TrustAndLoyalty(hanzhong.ForceId); break;
+                Message("hanzhong-result"); TrustAndLoyalty(hanzhong.ForceId); break;
             case PeerageChangedEvent rank when rank.Kind is PeerageChangeKind.Investiture or PeerageChangeKind.Promotion or PeerageChangeKind.Abdication or PeerageChangeKind.Proclamation:
                 clock = rank.Clock; Force("force", rank.ForceId);
                 int promoted = before.World.Forces.Single(f => f.Id == rank.ForceId).LeaderId!.Value;
@@ -30,30 +30,30 @@ internal sealed partial class WorldEventSceneBuilder
                 if (rank.Kind == PeerageChangeKind.Abdication)
                 {
                     if (playerRank) { Message("abdication-introduction"); Message("abdication-emperor", music: "event-court-music", musicLoop: true); Message("abdication-reply", music: "event-court-music", musicLoop: true); }
-                    Message("abdication-result", record: true);
+                    Message("abdication-result");
                 }
                 else if (rank.Kind == PeerageChangeKind.Proclamation)
                 {
                     if (playerRank) { Message("proclamation-introduction"); Message("proclamation-declaration", speech: true); }
-                    Message("proclamation-result", record: true);
+                    Message("proclamation-result");
                 }
                 else if (rank.Kind == PeerageChangeKind.Investiture)
                 {
                     if (playerRank) { Message("investiture-introduction"); Message("investiture-decree", music: "event-court-music", musicLoop: true); Message("investiture-reply", music: "event-court-music", musicLoop: true); }
-                    Message("investiture-result", record: true);
+                    Message("investiture-result");
                 }
                 else
                 {
                     if (playerRank) { Message("promotion-introduction"); Message("promotion-declaration", speech: true); }
-                    Message("promotion-result", record: true);
+                    Message("promotion-result");
                 }
                 TrustAndLoyalty(rank.ForceId); break;
             case EmperorTransferResolvedEvent transfer when !transfer.Invalidated && before.World.Simulation.PendingEvent is not EmperorTransferEventSession:
                 clock = transfer.Clock; Force("force", transfer.ForceId); Person("emperor", transfer.EmperorId);
                 values["dynasty-years"] = new(400); location = PlaceLocation(transfer.CityId);
                 if (transfer.Choice == EmperorTransferChoice.Support)
-                { Message("emperor-supported-dialogue"); Message("emperor-supported", record: true); Message("force-trust"); }
-                else { Message("emperor-deposed-dialogue"); Message("emperor-deposed", record: true); }
+                { Message("emperor-supported-dialogue"); Message("emperor-supported"); Message("force-trust"); }
+                else { Message("emperor-deposed-dialogue"); Message("emperor-deposed"); }
                 break;
             default: return false;
         }

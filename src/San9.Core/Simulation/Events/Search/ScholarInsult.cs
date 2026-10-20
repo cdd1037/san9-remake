@@ -42,7 +42,7 @@ internal static class ScholarInsult
         var actor = world.Officers[task.OfficerId]; var force = world.Forces[task.ForceId];
         if (attemptExecution)
         {
-            world.Replace(actor with { Injury = d.RetaliationInjury });
+            OfficerInjuries.Apply(world, actor with { Injury = d.RetaliationInjury }, events);
             world.Replace(force with { BaseTrust = Math.Max(0, force.BaseTrust - d.BaseTrustPenalty) });
         }
         else if (actor.BaseAbilities.Intelligence >= d.TrustRewardIntelligenceThreshold)

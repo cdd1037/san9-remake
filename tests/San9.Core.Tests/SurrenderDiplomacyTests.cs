@@ -85,7 +85,7 @@ public sealed class SurrenderDiplomacyTests
         bool grows = accept && politics < 100;
         var growth = events.OfType<OfficerAbilityGrownEvent>().ToArray();
         if (grows)
-            Assert.Equal(new OfficerAbilityGrownEvent(growth.Single().Clock, 12, "politics", 99, 100), Assert.Single(growth));
+            Assert.Equal(new OfficerAbilityGrownEvent(growth.Single().Clock, 12, "politics", 99, 100) { Occurrence = growth.Single().Occurrence }, Assert.Single(growth));
         else Assert.Empty(growth);
         Assert.Equal(grows ? 100 : politics, engine.Snapshot.Officers.Single(p => p.Id == 12).BaseAbilities.Politics);
         var random = new StableRandom(52);

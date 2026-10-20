@@ -35,10 +35,12 @@ public sealed class DecisionDraft
     private readonly WorldMessageContext _context;
     private readonly DecisionPresentations _presentation;
     private readonly GameSession _session;
+    private readonly ProgressPresentationDefinition? _progress;
 
     private DecisionDraft(GameSession session, TextCatalog texts, CommandPresentation presentation, string role, int force,
         Dictionary<string, MessageBinding> values, List<DecisionOption> options, int? person, DiplomaticDecisionData? diplomacy)
     {
+        _progress = presentation.Progress;
         _session = session; Before = session.View; ForceId = force; Role = role; _texts = texts; _context = session.Messages(texts); _values = values; _presentation = presentation.Decisions;
         ControllerId = Before.World.Simulation.Controls.Single(c => c.ForceId == force && c.Kind == ControllerKind.Player).ControllerId;
         Definition = presentation.Decisions.Events[role]; Options = options;
@@ -163,6 +165,13 @@ public sealed class DecisionDraft
         {
             _values["tactic"] = MessageBinding.Reference(MessageEntityKind.Tactic, learned.TacticId);
             if (_presentation.Shared.TryGetValue("learned-tactic", out var definition)) messages.Add(Produce(definition));
+        }
+        if (_progress is not null)
+        {
+            messages.AddRange(ProgressFeedback.GrowthPrompts(Before, _context, _texts, _progress, events));
+            for (int index = 0; index < events.Count; index++)
+                if (events[index] is OfficerInjuryWorsenedEvent)
+                    messages.AddRange(OutcomeFeedback.Read(Before, Before, _context, _texts, _progress, events, index, executionMap: false).Messages);
         }
         return messages;
     }

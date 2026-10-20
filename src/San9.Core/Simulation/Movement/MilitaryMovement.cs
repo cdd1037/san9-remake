@@ -30,7 +30,10 @@ public sealed record OrderUnitCommand(Guid CommandId, int IssuerId, long Sequenc
     [JsonRequired] public WorldPosition? Waypoint { get; init; }
 }
 public sealed record UnitDeployedEvent(GameClock Clock, int UnitId, int SettlementId, ImmutableArray<int> OfficerIds) : DomainEvent;
-public sealed record UnitOrderChangedEvent(GameClock Clock, int UnitId, MilitaryOrder? Order, string Reason) : DomainEvent;
+public sealed record UnitOrderChangedEvent(GameClock Clock, int UnitId, MilitaryOrder? Order, string Reason) : DomainEvent
+{
+    [JsonRequired] public MilitaryOrder? PreviousOrder { get; init; }
+}
 public sealed record UnitMovedEvent(GameClock Clock, int UnitId, WorldPosition From, WorldPosition To, int Spent, NavigationStatus Status) : DomainEvent
 {
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<WorldPosition> Steps { get; init; } = [];
@@ -232,7 +235,7 @@ internal static class MilitaryMovement
         var policies = command.Policies ?? unit.Policies;
         FacilityConstruction.Cancel(world, unit.Id, events);
         world.AssignMilitaryOrder(unit.Id, command.Order, policies, command.Waypoint);
-        events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, command.Order, "ordered"));
+        UnitOrderChanges.Report(world, unit.Id, command.Order, "ordered", events);
         if (policies != unit.Policies) events.Add(new UnitPoliciesChangedEvent(world.Clock, unit.Id, policies));
         return CommandRejection.None;
     }
@@ -276,7 +279,7 @@ internal static class MilitaryMovement
                     ? new(MilitaryOrderKind.Return, null, home) : null;
                 if (!ValidOrder(world, unit.OwnerId, fallback, formation, rules, unit.NavalFormationId, unit.Soldiers)) fallback = null;
                 world.Replace(unit with { Order = fallback });
-                events.Add(new UnitOrderChangedEvent(world.Clock, id, fallback, "target-invalid"));
+                UnitOrderChanges.Report(world, id, fallback, "target-invalid", events, previousOrder: order);
                 continue;
             }
             var result = MilitaryNavigation.Advance(world, unit, unit.Id, rules, MilitaryNavigation.Budget(unit, rules));
@@ -287,7 +290,7 @@ internal static class MilitaryMovement
             else
             {
                 world.Replace(unit with { Order = null });
-                events.Add(new UnitOrderChangedEvent(world.Clock, id, null, "arrived"));
+                UnitOrderChanges.Report(world, id, null, "arrived", events);
             }
         }
     }
@@ -314,7 +317,7 @@ internal static class MilitaryMovement
         var affected = new[] { sourceCorps, previousCorps }.Concat(followers.Select(u => u.CorpsId ?? root)).Distinct().ToArray();
         if (!CanAbsorb(world, unit, home, returnHome, transfer, followers.Select(u => u.Id).ToHashSet(), affected))
         {
-            events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, unit.Order, "absorption-blocked"));
+            UnitOrderChanges.Report(world, unit.Id, unit.Order, "absorption-blocked", events);
             return;
         }
         uint accepted = Math.Min(home.SoldierCapacity - home.Soldiers, unit.Soldiers);
@@ -325,7 +328,7 @@ internal static class MilitaryMovement
         int? cityId = Demobilization.City(world, home.Id, geography);
         if (overflow > 0 && cityId is null)
         {
-            events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, unit.Order, "absorption-no-demobilization-city"));
+            UnitOrderChanges.Report(world, unit.Id, unit.Order, "absorption-no-demobilization-city", events);
             return;
         }
         home = home with { Soldiers = total, Morale = morale, Wounded = home.Wounded + wounded,

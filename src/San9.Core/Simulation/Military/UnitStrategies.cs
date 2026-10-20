@@ -12,6 +12,8 @@ public sealed record UnitStrategyResolvedEvent(GameClock Clock, int OfficerId, i
     UnitStrategyKind Strategy, int Threshold, int Roll, bool Success,
     [property: System.Text.Json.Serialization.JsonRequired] UnitStrategyTarget Target) : DomainEvent
 {
+    [System.Text.Json.Serialization.JsonRequired] public StrategyAudience Audience { get; init; } = null!;
+    [System.Text.Json.Serialization.JsonRequired] public int PreviousMorale { get; init; }
     public uint RequestedSoldiers { get; init; }
     public uint DeliveredSoldiers { get; init; }
 }
@@ -198,10 +200,11 @@ internal static class UnitStrategies
                 EngagementTargetId = condition == UnitCondition.Disguised ? null : target.EngagementTargetId });
             if (condition == UnitCondition.Disguised)
             {
-                events.Add(new UnitOrderChangedEvent(world.Clock, target.Id, null, "false-report"));
+                UnitOrderChanges.Report(world, target.Id, null, "false-report", events);
                 if (target.EngagementTargetId is not null) events.Add(new UnitEngagementChangedEvent(world.Clock, target.Id, null, "false-report"));
             }
-            events.Add(new BattleConditionChangedEvent(world.Clock, target.Id, false, condition, days));
+            events.Add(new BattleConditionChangedEvent(world.Clock, target.Id, false, condition, days)
+            { SourceForceId = task.ForceId, Target = BattleObjectContext.Capture(target) });
             BattleLearning.Passive(world, members, TacticEffect.CounterConfusion, rules.Military!, events);
             var actor = world.Officers[task.OfficerId];
             OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Intelligence, "strategy-intelligence-growth", events);
@@ -212,7 +215,8 @@ internal static class UnitStrategies
             -1 - (int)(world.NextRandom("strategy-hostile-failure-relations") % 3), events);
         OfficerTacticGrowth.Increase(world, task.OfficerId, 7, 2, events);
         OfficerTacticGrowth.Increase(world, task.OfficerId, 8, 2, events);
-        events.Add(new UnitStrategyResolvedEvent(world.Clock, task.OfficerId, target.Id, mission.Strategy, threshold, roll, success, occurrence));
+        events.Add(new UnitStrategyResolvedEvent(world.Clock, task.OfficerId, target.Id, mission.Strategy, threshold, roll, success, occurrence)
+        { Audience = StrategyAudience.Capture(world, task.ForceId, world.Units[target.Id]), PreviousMorale = target.Morale });
         PersonnelReturns.Start(world, task, rules.Personnel, events, true);
     }
 
@@ -235,13 +239,15 @@ internal static class UnitStrategies
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, target.Id), ResourceKind.Soldiers,
             Kind, task.OriginSettlementId, delivered, delivered, events);
         if (success && condition != target.Condition)
-            events.Add(new BattleConditionChangedEvent(world.Clock, target.Id, false, condition, 0));
+            events.Add(new BattleConditionChangedEvent(world.Clock, target.Id, false, condition, 0)
+            { SourceForceId = task.ForceId, Target = BattleObjectContext.Capture(target) });
         if (success)
             OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Leadership, "strategy-leadership-growth", events);
         OfficerTacticGrowth.Increase(world, actor.Id, 7, 2, events);
         OfficerTacticGrowth.Increase(world, actor.Id, 8, 2, events);
         events.Add(new UnitStrategyResolvedEvent(world.Clock, actor.Id, target.Id, UnitStrategyKind.Reinforce,
-            threshold, roll, success, occurrence) { RequestedSoldiers = requested, DeliveredSoldiers = delivered });
+            threshold, roll, success, occurrence) { RequestedSoldiers = requested, DeliveredSoldiers = delivered,
+                Audience = StrategyAudience.Capture(world, task.ForceId, world.Units[target.Id]), PreviousMorale = target.Morale });
         var returning = task with { Reinforcements = delivered == troops.Soldiers && troops.Wounded == 0 ? null : troops with
         {
             Soldiers = troops.Soldiers - delivered,

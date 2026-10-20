@@ -63,9 +63,16 @@ public sealed class PrisonerEscapeTests
         var world = World(field: true, embedded: embedded);
         Rolls(world, 0);
         var before = world.Simulation.RandomStreams;
-        PrisonerEscapeCycle.Apply(world, Places, EconomyRulebook.Empty, []);
+        List<DomainEvent> events = [];
+        PrisonerEscapeCycle.Apply(world, Places, EconomyRulebook.Empty, events);
         Assert.Equal(embedded ? OfficerStatus.Serving : OfficerStatus.Captive, world.Officers[3].Status);
-        if (embedded) Assert.Null(world.Officers[3].UnitId);
+        if (embedded)
+        {
+            Assert.Null(world.Officers[3].UnitId);
+            var escaped = Assert.Single(events.OfType<PrisonerEscapedEvent>());
+            Assert.Equal(new PersonOccurrence(2, 1, new(0, 0)), escaped.Occurrence);
+            Assert.Equal(1, escaped.CaptorForceId);
+        }
         else Assert.Equal(before, world.Simulation.RandomStreams);
     }
 

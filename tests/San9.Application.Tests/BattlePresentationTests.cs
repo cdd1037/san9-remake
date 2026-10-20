@@ -235,6 +235,38 @@ public sealed class BattlePresentationTests
         Assert.True(plan.Duration >= number.Start + 1);
     }
 
+    [Theory]
+    [InlineData(UnitCondition.Disguised, 1, true)]
+    [InlineData(UnitCondition.NoFormation, 1, true)]
+    [InlineData(UnitCondition.HighSpirits, 1, true)]
+    [InlineData(UnitCondition.Disguised, 3, false)]
+    public void StandaloneStrategyStateUsesItsOwnVisibilityPositionAndTimeline(UnitCondition condition, int sourceForce, bool visible)
+    {
+        var (session, texts, content, occurrence) = Fixture();
+        content = content with { Battle = content.Battle! with
+        { ConditionEffects = new() { [condition] = new("status", 8, 100, Sound: "state-sound") } } };
+        var target = occurrence.Target with { Position = new(67, 12) };
+        DomainEvent[] facts = [new TacticActivatedEvent(session.Snapshot.Clock,10,false,20,false,99,[new(3,99)],false,10)
+            { Occurrence = occurrence },
+            new BattleConditionChangedEvent(session.Snapshot.Clock,20,false,condition,5)
+            { SourceForceId = sourceForce, Target = target }];
+        var after = new StrategySnapshot(MissionScenario.Create(), session.View.World with
+        { Units = [], Officers = session.View.World.Officers.Select(p => p with { UnitId = null }).ToImmutableArray() });
+        var plan = BattlePresentationPlan.Create(session.View, after, facts, session.Messages(texts), texts, content);
+        var scene = Assert.Single(plan.Visuals);
+        var value = Assert.Single(plan.Values, v => v.Condition == condition);
+        Assert.True(value.Time >= scene.End);
+        if (visible)
+        {
+            var effect = Assert.Single(plan.MapEffects);
+            Assert.Equal(target, effect.Target);
+            Assert.Equal(value.Time, effect.Start);
+            Assert.Equal("state-sound", effect.Sprite.Sound);
+            Assert.True(plan.Duration >= effect.Start + 0.8);
+        }
+        else Assert.Empty(plan.MapEffects);
+    }
+
     [Fact]
     public void RecoveryAndReapplyingAnExistingStateDoNotInventTriggerEffects()
     {
@@ -536,6 +568,54 @@ public sealed class BattlePresentationTests
             Assert.Contains(plan.Messages, c => c.Message.Message.Key == "reduced" && c.Message.MapSpeech!.UnitId == 21);
         }
         Assert.Equal(plan.Messages, BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content).Messages);
+    }
+
+    [Fact]
+    public void FailedAreaAttemptStillPlaysItsPreludeBeforeTheFailureResponse()
+    {
+        var (session, texts, content, occurrence) = Fixture(false);
+        content.Battle!.Tactics[99] = content.Battle.Tactics[99] with
+        { Prelude = [new("first", 1, 500, Sound: "screen"), new("last", 1, 500), new("last", 1, 125) { Opacity = .5f }] };
+        var fact = new IntelligenceEffectResolvedEvent(session.Snapshot.Clock, new(10, false), 20, false, 99, 0)
+        { ActorId = 3, Occurrence = occurrence, IsAttempt = true };
+        var plan = BattlePresentationPlan.Create(session.View, session.View, [fact], session.Messages(texts), texts, content);
+        Assert.Equal(3, plan.Visuals.Count);
+        Assert.All(plan.Visuals, v => Assert.True(v.ScreenEffect));
+        Assert.Equal("screen", plan.Visuals[0].Effect!.Sound);
+        Assert.All(plan.Visuals.Skip(1), v => Assert.Null(v.Effect!.Sound));
+        Assert.True(Assert.Single(plan.Messages, c => c.Message.Message.Key == "failed").Time >= plan.Visuals[^1].End);
+        Assert.Empty(plan.Records);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AreaOpeningUsesTheFirstVisibleAffectedTarget(bool playerAffected)
+    {
+        var (session, texts, content, occurrence) = Fixture(false);
+        content.Battle!.Tactics[99] = content.Battle.Tactics[99] with { Prelude = [new("screen", 1, 500)] };
+        var hidden = occurrence with { Source = occurrence.Source with { ForceId = 3 } };
+        var affected = hidden with { Target = hidden.Target with { Id = 21, ForceId = playerAffected ? 1 : 2, CommanderId = 3 } };
+        DomainEvent[] facts = [new TacticActivatedEvent(session.Snapshot.Clock,10,false,20,false,99,[new(3,99)],false,10)
+            { Occurrence = hidden },
+            new IntelligenceEffectResolvedEvent(session.Snapshot.Clock,new(10,false),21,false,99,3)
+            { ActorId = 3, Occurrence = affected },
+            new IntelligenceEffectResolvedEvent(session.Snapshot.Clock,new(10,false),20,false,99,10)
+            { ActorId = 3, Occurrence = hidden }];
+        var plan = BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content);
+        if (playerAffected)
+        {
+            Assert.Single(plan.Messages, c => c.Message.Message.Key == "announcement");
+            Assert.Single(plan.Messages, c => c.Message.Message.Key == "action");
+            Assert.Equal(affected.Target, Assert.Single(plan.Visuals, v => v.ScreenEffect).Target);
+            Assert.Single(plan.Messages, c => c.Message.Message.Key == "reduced");
+            Assert.DoesNotContain(plan.Messages, c => c.Message.Message.Key == "hit");
+        }
+        else
+        {
+            Assert.Empty(plan.Messages);
+            Assert.Empty(plan.Visuals);
+        }
     }
 
     [Theory]

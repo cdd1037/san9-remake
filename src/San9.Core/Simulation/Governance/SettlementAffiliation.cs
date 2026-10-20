@@ -23,7 +23,7 @@ internal static class SettlementAffiliation
         }
         int? root = world.Corps.Values.SingleOrDefault(c => c.OwnerId == recipient && c.IsRoot)?.Id;
         BattleTreasury.TransferTo(world, owner, place.CorpsId, BattleTreasury.Weight(place),
-            ResourceAccounts.Resolve(world, recipient, root), place.Id, Reason, events);
+            ResourceAccounts.Resolve(world, recipient, root), new(place.Id, true), Reason, events);
         int publicOrder = CityBattleEffects.CapturedPublicOrder(world, place, recipient, events);
         world.Replace(place with { OwnerId = recipient, CorpsId = root, PublicOrder = publicOrder });
         foreach (var unit in world.Units.Values.Where(u => u.IsEmbedded && u.ServicePlaceId == place.Id && u.OwnerId == owner).ToArray())

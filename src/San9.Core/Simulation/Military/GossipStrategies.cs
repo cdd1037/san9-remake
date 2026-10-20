@@ -7,7 +7,10 @@ public sealed record GossipCommand(Guid CommandId, int IssuerId, long Sequence, 
 public sealed record GossipMission(int FirstTargetForceId, int SecondTargetForceId);
 public sealed record GossipResolvedEvent(GameClock Clock, int OfficerId, int FirstTargetForceId,
     int SecondTargetForceId, int Threshold, int Roll, bool Success, int RelationLoss,
-    int TargetOfficerId, bool LoyaltyGatePassed, int LoyaltyLoss) : DomainEvent;
+    int TargetOfficerId, bool LoyaltyGatePassed, int LoyaltyLoss) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonRequired] public StrategyAudience Audience { get; init; } = null!;
+}
 
 internal static class GossipStrategies
 {
@@ -127,8 +130,11 @@ internal static class GossipStrategies
         var mission = task.Journey!.Gossip!;
         var actor = world.Officers[task.OfficerId];
         var target = Targets(world, mission.FirstTargetForceId)[0];
+        var audience = StrategyAudience.Capture(world, task.ForceId, target);
         int threshold = Threshold(world, actor.Id, mission.FirstTargetForceId, mission.SecondTargetForceId);
         int roll = task.Journey.SuccessRoll!.Value;
+        events.Add(new SecretContactReportedEvent(world.Clock, mission.FirstTargetForceId, target.Id, mission.SecondTargetForceId,
+            PersonOccurrence.Capture(world, target)));
         bool success = roll < threshold;
         int relationLoss;
         bool loyaltyGate = false;
@@ -158,7 +164,7 @@ internal static class GossipStrategies
         OfficerTacticGrowth.Increase(world, actor.Id, 8, 2, events);
         events.Add(new GossipResolvedEvent(world.Clock, actor.Id, mission.FirstTargetForceId,
             mission.SecondTargetForceId, threshold, roll, success, relationLoss, target.Id,
-            loyaltyGate, loyaltyLoss));
+            loyaltyGate, loyaltyLoss) { Audience = audience });
         PersonnelReturns.Start(world, task, places, events, true);
     }
 }

@@ -45,11 +45,21 @@ public sealed record SearchResolvedEvent(GameClock Clock, int OfficerId, int Pla
     public int? TreasureId { get; init; }
     public long Money { get; init; }
 }
-public sealed record RecruitmentResolvedEvent(GameClock Clock, int OfficerId, int TargetOfficerId, int Threshold, int Roll, bool Success) : DomainEvent;
+public sealed record RecruitmentResolvedEvent(GameClock Clock, int OfficerId, int TargetOfficerId, int Threshold, int Roll, bool Success) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public RecruitmentOccurrence Occurrence { get; init; } = null!;
+}
+public sealed record RecruitmentOccurrence(int ForceId, OfficerStatus PreviousStatus, PersonOccurrence Target,
+    bool TransferredUnit, bool TransferredPlace, int? DetainingForceId);
 public sealed record PersonAffiliationChangedEvent(GameClock Clock, int OfficerId, int? PreviousForceId, int? ForceId, int PlaceId) : DomainEvent;
 public sealed record OfficerMovedEvent(GameClock Clock, int OfficerId, int OriginId, int DestinationId) : DomainEvent;
 public sealed record ForceRelationChangedEvent(GameClock Clock, int FirstId, int SecondId, int Previous, int Current) : DomainEvent;
-public sealed record OfficerAbilityGrownEvent(GameClock Clock, int OfficerId, string Ability, int Previous, int Current) : DomainEvent;
+public sealed record OfficerAbilityGrownEvent(GameClock Clock, int OfficerId, string Ability, int Previous, int Current) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public PersonOccurrence Occurrence { get; init; } = null!;
+}
 
 internal static class PersonnelMissions
 {
@@ -405,6 +415,13 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
                 Route = journey.Route with { Destination = position } };
             task = task with { Journey = journey };
         }
+        var occurrence = new RecruitmentOccurrence(task.ForceId, target.Status, PersonOccurrence.Capture(world, target),
+            target.IsServing && target.UnitId is int targetUnit && world.Units[targetUnit].CommanderId == target.Id,
+            target.IsServing && target.IsCommander && target.SettlementId is not null,
+            target.Status == OfficerStatus.Captive ? target.SettlementId is int prison ? world.Settlements[prison].OwnerId
+                : target.UnitId is int detention ? world.Units[detention].OwnerId : null : null);
+        if (target.IsServing && target.OwnerId is int victim && victim != task.ForceId)
+            events.Add(new SecretContactReportedEvent(world.Clock, victim, target.Id, task.ForceId, occurrence.Target));
         bool historicalSuccess = Guandu.Apply(world, task.OfficerId, target.Id, simulationRules, events);
         int threshold = historicalSuccess ? 100 : RecruitmentRules.Threshold(world, task.OfficerId, target.Id, simulationRules);
         int roll = journey.SuccessRoll!.Value;
@@ -416,7 +433,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
             PersonnelMissions.GrowPolitics(world, task.OfficerId, events);
         }
         else RecruitmentRules.Failure(world, task.ForceId, target.Id, threshold, events);
-        events.Add(new RecruitmentResolvedEvent(world.Clock, task.OfficerId, target.Id, threshold, roll, success));
+        events.Add(new RecruitmentResolvedEvent(world.Clock, task.OfficerId, target.Id, threshold, roll, success) { Occurrence = occurrence });
         PersonnelReturns.Start(world, task, rules, events, true, arrived: journey.RecruitmentUnitId is not null);
     }
 

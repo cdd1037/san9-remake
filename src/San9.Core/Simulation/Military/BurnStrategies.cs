@@ -6,7 +6,13 @@ public sealed record BurnCommand(Guid CommandId, int IssuerId, long Sequence, in
     : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record BurnMission(int TargetSettlementId);
 public sealed record BurnResolvedEvent(GameClock Clock, int OfficerId, int TargetSettlementId, int Threshold,
-    int Roll, bool Success, int DurabilityLoss, uint FoodLoss, int InjuryBefore, int InjuryAfter) : DomainEvent;
+    int Roll, bool Success, int DurabilityLoss, uint FoodLoss, int InjuryBefore, int InjuryAfter) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public BurnOccurrence Occurrence { get; init; } = null!;
+    [System.Text.Json.Serialization.JsonRequired] public StrategyAudience Audience { get; init; } = null!;
+}
+public sealed record BurnOccurrence(int ForceId, int TargetForceId, int Durability);
 
 internal static class BuildingStrategyTargets
 {
@@ -75,6 +81,7 @@ internal static class BurnStrategies
     {
         var target = world.Settlements[task.Journey!.Burn!.TargetSettlementId];
         var actor = world.Officers[task.OfficerId];
+        var audience = StrategyAudience.Capture(world, task.ForceId, target);
         int threshold = Threshold(world, actor.Id, target.Id);
         int roll = task.Journey.SuccessRoll!.Value;
         bool success = roll < threshold;
@@ -97,14 +104,15 @@ internal static class BurnStrategies
         else
         {
             int injury = Math.Max(actor.Injury, (int)Math.Min(7, actor.Injury + ((long)roll - threshold) / 10));
-            world.Replace(actor with { Injury = injury });
+            OfficerInjuries.Apply(world, actor with { Injury = injury }, events);
             ForceRelations.Change(world, task.ForceId, target.OwnerId!.Value,
                 -1 - (int)(world.NextRandom("strategy-hostile-failure-relations") % 3), events);
         }
         OfficerTacticGrowth.Increase(world, actor.Id, 7, 2, events);
         OfficerTacticGrowth.Increase(world, actor.Id, 8, 2, events);
         events.Add(new BurnResolvedEvent(world.Clock, actor.Id, target.Id, threshold, roll, success, damage, food,
-            actor.Injury, world.Officers[actor.Id].Injury));
+            actor.Injury, world.Officers[actor.Id].Injury)
+        { Occurrence = new(task.ForceId, target.OwnerId!.Value, target.Durability - damage), Audience = audience });
         PersonnelReturns.Start(world, task, rules.Personnel, events, true);
     }
 }

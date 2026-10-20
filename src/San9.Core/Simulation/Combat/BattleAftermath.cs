@@ -31,7 +31,7 @@ internal static class BattleAftermath
         if (cause == UnitDefeatCause.DoubledMartialTactic && winner is { } source && source.Exists(world))
             MeleeDeaths.Apply(world, unit, rules, events);
         var shape = MilitaryCombat.Area(unit, rules.Military!);
-        ResolvePeople(world, world.UnitMembers(id), shape, unit, winner, unit.ServicePlaceId, rules, events);
+        ResolvePeople(world, world.UnitMembers(id), shape, unit, winner, unit.ServicePlaceId, rules, events, BattleObjectContext.Capture(unit));
         int? city = unit.ServicePlaceId is int home ?
             world.Settlements.GetValueOrDefault(home)?.Kind == SettlementKind.City ? home : rules.Personnel.RegionCities.GetValueOrDefault(home, -1) : null;
         if (city is int cityId && (!world.Settlements.TryGetValue(cityId, out var s) || s.Kind != SettlementKind.City)) city = null;
@@ -76,6 +76,7 @@ internal static class BattleAftermath
         SimulationRules rules, List<DomainEvent> events)
     {
         var settlement = world.Settlements[id];
+        var defeatedContext = BattleObjectContext.Capture(world, new(id, true));
         if (!MilitaryCombat.Defeated(settlement))
             throw new InvalidOperationException("Settlement has not fallen.");
         var definition = rules.Military!.Place(settlement);
@@ -118,10 +119,10 @@ internal static class BattleAftermath
                 -(long)settlement.Wounded, -(long)settlement.Wounded, events);
         }
         ResolvePeople(world, world.SettlementMembers(id).Where(p => !world.IsTraveling(p.Id)), rules.Military.BuildingArea(definition),
-            null, winner, id, rules, events, !cleared && settlement.Durability > 0);
+            null, winner, id, rules, events, defeatedContext, !cleared && settlement.Durability > 0);
         if (settlement.OwnerId is int owner)
         {
-            BattleTreasury.Transfer(world, owner, settlement.CorpsId, BattleTreasury.Weight(settlement), winner, id,
+            BattleTreasury.Transfer(world, owner, settlement.CorpsId, BattleTreasury.Weight(settlement), winner, new(id, true),
                 "settlement-captured", events);
         }
         int publicOrder = cleared ? settlement.PublicOrder : CityBattleEffects.CapturedPublicOrder(world, settlement, winner.Owner(world), events);
@@ -144,10 +145,13 @@ internal static class BattleAftermath
 
     private static void ResolvePeople(WorldMutation world, IEnumerable<OfficerState> people,
         MapOccupancy from, UnitState? defeatedUnit, BattleSource? winner, int? fallbackPlace, SimulationRules rules, List<DomainEvent> events,
-        bool canRecoverInPlace = false)
+        BattleObjectContext defeated, bool canRecoverInPlace = false)
     {
         var military = rules.Military!;
-        foreach (var original in people.OrderBy(p => p.Id).ToArray())
+        var participants = people.OrderBy(p => p.Id).ToArray();
+        var captorContext = winner is { } winning ? BattleObjectContext.Capture(world, winning) : null;
+        int firstFact = events.Count;
+        foreach (var original in participants)
         {
             int? excluded = defeatedUnit is null ? fallbackPlace : null;
             int? retreat = BattleRetreat.Destination(world, original, from.Position, excluded, military)?.Id;
@@ -199,6 +203,17 @@ internal static class BattleAftermath
                     BattlePersonnel.Displace(world, person.Id, from.Position, rules.Personnel, military, events);
                 else Detach(world, person, fallbackPlace, events);
             }
+        }
+        if (captorContext is not null)
+        {
+            var facts = events.Skip(firstFact).ToArray();
+            var members = participants.Where(p => p.IsServing).Select(p => p.Id).ToHashSet();
+            var captured = facts.OfType<OfficerCapturedEvent>().Where(e => members.Contains(e.OfficerId)).Select(e => e.OfficerId).ToImmutableArray();
+            var retreated = facts.OfType<OfficerEscapedBattleEvent>().Where(e => members.Contains(e.OfficerId)).Select(e => e.OfficerId).ToImmutableArray();
+            int? last = participants.LastOrDefault(p => p.IsServing)?.Id;
+            if (captured.Length + retreated.Length > 0)
+                events.Add(new BattlePersonnelResolvedEvent(world.Clock, defeated, captorContext, captured, retreated,
+                    last is int id && captured.Contains(id) ? id : null));
         }
     }
 

@@ -529,7 +529,10 @@ public sealed class FacilityConstructionTests
         engine = Engine(WorldState.Restore(saved with { Forces = saved.Forces.Select(f => f with { ProvidedTactics = [19] }).ToImmutableArray() }), rules);
         var result = Advance(engine);
         Assert.Single(result.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "cancelled");
-        Assert.Null(engine.Snapshot.Units.Single().Order);
+        Assert.Empty(engine.Snapshot.Units);
+        var response = Assert.Single(result.Events.OfType<UnitPolicyRespondedEvent>(), e => e.Response == UnitPolicyResponse.ConstructionAborted);
+        Assert.Equal(8000, response.PreviousPlaceId); Assert.Equal(1, response.HomeId);
+        Assert.Contains(result.Events.OfType<UnitAbsorbedEvent>(), e => e.SettlementId == 1);
         Assert.True(engine.Snapshot.Settlements.Single(s => s.Id == 8000).IsDestroyed);
         Assert.Equal(9334u, engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
     }

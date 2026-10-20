@@ -49,7 +49,7 @@ internal static class TigerSearch
         else
         {
             world.Replace(force with { BaseTrust = Math.Max(0, force.BaseTrust - d.BaseTrustPenalty) });
-            if (accept) world.Replace(world.Officers[task.OfficerId] with { Injury = d.DefeatInjury });
+            if (accept) OfficerInjuries.Apply(world, world.Officers[task.OfficerId] with { Injury = d.DefeatInjury }, events);
         }
         var actor = world.Officers[task.OfficerId];
         events.Add(new TigerSearchResolvedEvent(world.Clock, d.Id, task.ForceId, actor.Id, task.Journey!.DestinationPlaceId,

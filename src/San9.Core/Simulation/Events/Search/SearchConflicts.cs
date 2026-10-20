@@ -131,7 +131,7 @@ internal static class SearchConflicts
         switch (d)
         {
             case MoneyDemandSearchEventDefinition:
-                if (!won) world.Replace(actor with { Injury = d.DefeatInjury });
+                if (!won) OfficerInjuries.Apply(world, actor with { Injury = d.DefeatInjury }, events);
                 break;
             case ScholarPunishmentSearchEventDefinition scholar:
                 var site = ScholarSite(task, scholar)!;
@@ -142,7 +142,7 @@ internal static class SearchConflicts
                 }
                 else
                 {
-                    world.Replace(actor with { Injury = d.DefeatInjury, LifespanTier = Math.Min(actor.LifespanTier, scholar.PunishmentLifespanCeiling) });
+                    OfficerInjuries.Apply(world, actor with { Injury = d.DefeatInjury, LifespanTier = Math.Min(actor.LifespanTier, scholar.PunishmentLifespanCeiling) }, events);
                     PersonnelWithdrawal.Resolve(world, site.ScholarOfficerId, rules, events);
                     world.ConsumeEvent(new(d.Id, EventTrigger.Search, d.Priority, EventConsumption.OnSuccess, site.WithdrawalKey),
                         new(d.Id, EventOutcomeKind.Completed, false, EventResult.Succeeded));
@@ -152,15 +152,15 @@ internal static class SearchConflicts
                 break;
             case LandSpiritSearchEventDefinition spirit:
                 if (won) money = spirit.MoneyReward;
-                else if (!refused) world.Replace(actor with { Injury = d.DefeatInjury });
+                else if (!refused) OfficerInjuries.Apply(world, actor with { Injury = d.DefeatInjury }, events);
                 break;
             case BanditSuppressionSearchEventDefinition bandit:
                 if (choice == SearchConflictChoice.Appease) trust = bandit.AppeasementTrustReward;
-                else if (!won && !refused) world.Replace(actor with { Injury = d.DefeatInjury });
+                else if (!won && !refused) OfficerInjuries.Apply(world, actor with { Injury = d.DefeatInjury }, events);
                 break;
             case TravelerRescueSearchEventDefinition rescue:
                 if (won) { trust = 0; money = (long)rescue.IntelligenceRewardMultiplier * abilities.Intelligence + rescue.BaseMoneyReward; }
-                else if (!refused) world.Replace(actor with { Injury = d.DefeatInjury });
+                else if (!refused) OfficerInjuries.Apply(world, actor with { Injury = d.DefeatInjury }, events);
                 break;
             case BanditMediationSearchEventDefinition mediation:
                 favored = world.Forces[task.ForceId].LeaderId == MediationSite(task, mediation)!.FavoredLeaderId;
@@ -173,7 +173,7 @@ internal static class SearchConflicts
                         (long)(favored ? mediation.FavoredSoldierMultiplier : mediation.SoldierMultiplier) * abilities.War);
                     world.Replace(home with { Soldiers = home.Soldiers + soldiers });
                 }
-                else if (!refused) world.Replace(actor with { Injury = d.DefeatInjury });
+                else if (!refused) OfficerInjuries.Apply(world, actor with { Injury = d.DefeatInjury }, events);
                 break;
         }
         if (money > 0) ResourceAccounts.Change(world, account, ResourceKind.Money, money, "search-conflict", actor.Id, events);

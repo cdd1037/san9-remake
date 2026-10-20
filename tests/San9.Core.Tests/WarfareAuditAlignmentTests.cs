@@ -321,10 +321,13 @@ public sealed class WarfareAuditAlignmentTests
         // Captured city weighs 1,000 + 1,000 + 3,000 = 5,000; old side total is 20,000.
         m.Replace(m.Settlements[2] with { Population = 1000, DraftPopulation = 3000 });
         m.Replace(m.Units[2] with { Soldiers = 15000 });
-        BattleTreasury.Transfer(m, 2, null, BattleTreasury.Weight(m.Settlements[2]), new(1, false), 2, "capture", events);
+        BattleTreasury.Transfer(m, 2, null, BattleTreasury.Weight(m.Settlements[2]), new(1, false), new(2, true), "capture", events);
         Assert.Equal(87600u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money);
         Assert.Equal(112400u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
         Assert.Equal(87600u, m.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Food);
+        var captured = Assert.Single(events.OfType<TreasuryCapturedEvent>());
+        Assert.Equal(12400, captured.Money); Assert.Equal(12400, captured.Food);
+        Assert.True(captured.IsSettlement); Assert.Equal(2, captured.ObjectId);
     }
 
     [Fact]

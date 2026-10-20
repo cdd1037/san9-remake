@@ -12,7 +12,12 @@ public sealed record TacticActivatedEvent(GameClock Clock, int SourceId, bool So
     public bool IsChain { get; init; }
 }
 public sealed record TacticProficiencyGrownEvent(GameClock Clock, int OfficerId, int Category, int Previous, int Current) : DomainEvent;
-public sealed record TacticLearnedEvent(GameClock Clock, int OfficerId, int TacticId) : DomainEvent;
+public enum TacticLearningOrigin { Grant, Practice }
+public sealed record TacticLearnedEvent(GameClock Clock, int OfficerId, int TacticId) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonRequired] public TacticLearningOrigin Origin { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public PersonOccurrence Occurrence { get; init; } = null!;
+}
 
 internal static class TacticCombat
 {

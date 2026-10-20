@@ -28,7 +28,6 @@ internal static class ExecutionPresentationCompiler
             ["transport-completed"] = M(10029, values: [("person.0", "actor"), ("building.0", "place")]),
             ["person-captured"] = M(9977, values: [("person.0", "actor"), ("force.0", "force")]),
             ["enemy-captured"] = M(10116, values: [("person.0", "actor")]),
-            ["prisoner-escaped"] = M(6225, values: [("person.0", "actor"), ("building.0", "place")]),
             ["ruler-succeeded"] = M(9992, values: [("person.0", "actor"), ("person.1", "other")]),
             ["force-eliminated"] = M(10112, values: [("force.0", "force")]),
             ["ruler-death"] = M(7192, values: [("person.0", "actor")]),
@@ -38,6 +37,28 @@ internal static class ExecutionPresentationCompiler
             ["sniping-death"] = M(10142, values: [("person.0", "actor")]),
             ["duel-death"] = M(7167, values: [("person.0", "actor")])
         };
+        records.Add("unit-recovered", M(10002, values: [("person.0", "actor")]));
+        records.Add("settlement-recovered", M(10003, values: [("building.0", "place")]));
+        records.Add("ability-grown", M(10001, values: [("person.0", "actor"), ("number.0", "ability"), ("number.1", "amount"), ("number.2", "current")]));
+        records.Add("secret-contact", M(9917, values: [("person.0", "actor"), ("force.0", "force")]));
+        records.Add("burn-other", M(9946, values: [("building.0", "place")]));
+        records.Add("burn-durability", M(10017, values: [("building.0", "place"), ("number.0", "current"), ("number.1", "amount")]));
+        foreach (var (role, source) in new[] { ("recruit-meeting",10084), ("recruit-secret-meeting",10085), ("recruit-success",9918), ("recruit-failure",9920) })
+            records.Add(role, M(source, values: [("person.0", "actor"), ("person.1", "other")]));
+        foreach (var (role, source) in new[] { ("recruit-lost",9921), ("recruit-other",9919), ("recruit-captive",10046), ("recruit-captive-other",10047), ("recruit-unit-lost",10049) })
+            records.Add(role, M(source, values: [("person.0", "other"), ("force.0", "force")]));
+        foreach (var (role, source) in new[] { ("recruit-defected-other",9922), ("recruit-unit",10048) })
+            records.Add(role, M(source, values: [("person.0", "other"), ("force.0", "force"), ("force.1", "enemy-force")]));
+        foreach (var (role, source) in new[] { ("recruit-place",10050), ("recruit-place-lost",10051) })
+            records.Add(role, M(source, values: [("building.0", "place"), ("force.0", "force")]));
+        var policy = new[] {
+            ("policy-avoid-ordered",10054,10163), ("policy-avoid-despite-orders",10053,10154),
+            ("policy-attack-ordered",10052,10145), ("policy-attack-despite-orders",10055,10172),
+            ("policy-retreat-ordered",10056,10181), ("policy-retreat-outnumbered",10057,10190),
+            ("policy-retreat-low-morale",10058,10199), ("policy-retreat-despite-orders",10059,10208),
+            ("policy-pursue-ordered",10060,10217), ("policy-pursue-despite-orders",10061,10226),
+            ("policy-resume-orders",10062,10235), ("policy-return-home",10041,10276) };
+        foreach (var (role, source, _) in policy) records.Add(role, M(source, values: [("person.0", "actor")]));
         Dictionary<string, DecisionMessageDefinition> context = [];
         void Dialogue(string role, int source, params (string Slot, string Role)[] extra) => context.Add(role,
             M(source, "actor", new[] { ("person.0", "actor"), ("person.1", "ruler") }.Concat(extra).ToArray()));
@@ -63,7 +84,9 @@ internal static class ExecutionPresentationCompiler
         Dialogue("ruler-health",7266);
         Dialogue("adviser-health",7270);
         Dialogue("officer-health",7274,("person.2","other"));
-        return new(records, context)
+        var speeches = policy.ToDictionary(p => p.Item1, p => M(p.Item3, "actor", ("person.0", "actor"),
+            p.Item1.Contains("retreat") || p.Item1 == "policy-return-home" ? ("building.0", "place") : ("person.1", "other")));
+        var result = new ProgressPresentationDefinition(records, context)
         {
             MapSpeeches = new()
             {
@@ -76,8 +99,12 @@ internal static class ExecutionPresentationCompiler
                 ["contact-defense-weak"] = M(10488, "actor", ("person.0", "actor"), ("person.1", "other")),
                 ["contact-building"] = M(10452, "actor", ("person.0", "actor"), ("person.1", "other"))
             },
+            Feedback = new() { ["ability-grown"] = new("messages.7233", new() { ["person.0"] = "actor", ["number.0"] = "ability", ["number.1"] = "amount", ["number.2"] = "current" }, Sound: "decision-increase") },
             OrderPrompt = new("messages.5992", new() { ["person.0"] = "ruler" }, Sound: "strategy-order-prompt"),
             StrategyTitleSound = "strategy-title"
         };
+        foreach (var pair in speeches) result.MapSpeeches.Add(pair.Key, pair.Value);
+        OutcomePresentationCompiler.Add(result);
+        return result;
     }
 }

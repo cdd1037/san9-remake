@@ -17,6 +17,10 @@ internal static class MapNotificationSpeeches
         BattleObjectContext? opponent = null;
         switch (fact)
         {
+            case UnitPolicyRespondedEvent policy:
+                if (!before.World.Simulation.Controls.Any(c => c.Kind == ControllerKind.Player && c.ForceId == policy.Unit.ForceId)) return [];
+                participant = policy.Unit; clock = policy.Clock; role = ProgressFeedback.PolicyRole(policy.Response);
+                break;
             case UnitWaypointReachedEvent waypoint:
                 participant = waypoint.Unit with { Position = waypoint.Position };
                 clock = waypoint.Clock; role = "waypoint-reached";
@@ -37,6 +41,14 @@ internal static class MapNotificationSpeeches
         if (participant.CommanderId is not int actor || opponent is { CommanderId: null }) return [];
         var definition = content.MapSpeeches[role];
         Dictionary<string, MessageBinding> values = new() { ["actor"] = ProgressMessageProducer.Person(actor) };
+        if (fact is UnitPolicyRespondedEvent response)
+        {
+            if (response.OtherOfficerId is int otherOfficer) values["other"] = ProgressMessageProducer.Person(otherOfficer);
+            if (response.HomeId is int home) values["place"] = ProgressMessageProducer.Place(home);
+            if (response.Unit.ServicePlaceId is int origin) values["other-place"] = ProgressMessageProducer.Place(origin);
+            if (response.PreviousPlaceId is int previousPlace) values["previous-place"] = ProgressMessageProducer.Place(previousPlace);
+            if (MessageGraph.Requirements(definition.Key, texts.Messages).Bindings.Any(slot => !values.ContainsKey(definition.Bindings[slot]))) return [];
+        }
         if (opponent?.CommanderId is int other) values["other"] = ProgressMessageProducer.Person(other);
         var objects = opponent is null ? new[] { participant } : new[] { participant, opponent };
         var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision, $"map-notification:{index}:{role}"));

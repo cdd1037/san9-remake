@@ -29,7 +29,7 @@ internal static class OfficerTacticGrowth
         int proficiency = officer.TacticProficiencies[tactic.Category!.Value];
         if (officer.LearnedTactics.Contains(tactic.Id) || proficiency < tactic.TrainingRequirement ||
             !TacticCombat.Roll(world, stream, Math.Min(70, (proficiency - tactic.TrainingRequirement) / 5 + 30))) return;
-        Grant(world, officerId, tactic, events);
+        Grant(world, officerId, tactic.Id, events, TacticLearningOrigin.Practice);
     }
 
     internal static void Grant(WorldMutation world, int officerId, TacticRule tactic, List<DomainEvent> events)
@@ -38,11 +38,13 @@ internal static class OfficerTacticGrowth
         Grant(world, officerId, tactic.Id, events);
     }
 
-    internal static void Grant(WorldMutation world, int officerId, int tacticId, List<DomainEvent> events)
+    internal static void Grant(WorldMutation world, int officerId, int tacticId, List<DomainEvent> events,
+        TacticLearningOrigin origin = TacticLearningOrigin.Grant)
     {
         var officer = world.Officers[officerId];
         if (officer.LearnedTactics.Contains(tacticId)) return;
         world.Replace(officer with { LearnedTactics = officer.LearnedTactics.Add(tacticId) });
-        events.Add(new TacticLearnedEvent(world.Clock, officer.Id, tacticId));
+        events.Add(new TacticLearnedEvent(world.Clock, officer.Id, tacticId)
+            { Origin = origin, Occurrence = PersonOccurrence.Capture(world, officer) });
     }
 }

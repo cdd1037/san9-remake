@@ -27,6 +27,7 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
     [JsonRequired] public int? CommanderId { get; init; }
     [JsonRequired] public int? EngagementTargetId { get; init; }
     [JsonRequired] public MapObjectReference? ContactTarget { get; init; }
+    [JsonRequired] public bool ApproachNotificationPending { get; init; } = true;
     [JsonRequired] public bool ActiveEngagement { get; init; }
     [JsonRequired] public bool PassiveEngagement { get; init; }
     [JsonRequired] public bool AwaitingPostAction { get; init; }

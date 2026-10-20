@@ -33,7 +33,7 @@ public sealed class OfficerGrowthTests
             Assert.Equal(seed == 52 ? 2UL : 3UL, random.NextUInt64() % 100);
             Assert.Equal(before >= 100 ? seed : random.State, Assert.Single(world.Simulation.RandomStreams).State);
             if (expected == before) Assert.Empty(events);
-            else Assert.Equal(new OfficerAbilityGrownEvent(world.Clock, 1, ability.ToString().ToLowerInvariant(), before, expected), Assert.Single(events));
+            else Assert.Equal(new OfficerAbilityGrownEvent(world.Clock, 1, ability.ToString().ToLowerInvariant(), before, expected) { Occurrence = new(1, 1, null) }, Assert.Single(events));
             var actual = world.Officers[1].BaseAbilities;
             Assert.Equal(ability == OfficerAbility.War ? expected : before, actual.War);
             Assert.Equal(ability == OfficerAbility.Intelligence ? expected : before, actual.Intelligence);

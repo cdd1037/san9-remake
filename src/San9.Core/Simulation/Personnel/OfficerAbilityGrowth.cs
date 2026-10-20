@@ -31,7 +31,8 @@ internal static class OfficerAbilityGrowth
             _ => throw new ArgumentOutOfRangeException(nameof(ability))
         };
         world.Replace(officer with { BaseAbilities = updated });
-        events.Add(new OfficerAbilityGrownEvent(world.Clock, officerId, ability.ToString().ToLowerInvariant(), before, next));
+        events.Add(new OfficerAbilityGrownEvent(world.Clock, officerId, ability.ToString().ToLowerInvariant(), before, next)
+        { Occurrence = PersonOccurrence.Capture(world, officer) });
     }
 
     private static int Value(OfficerAbilities abilities, OfficerAbility ability) => ability switch

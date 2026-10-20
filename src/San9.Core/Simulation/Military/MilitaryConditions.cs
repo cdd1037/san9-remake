@@ -3,7 +3,13 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 public sealed record BattleConditionChangedEvent(GameClock Clock, int ObjectId, bool IsSettlement, UnitCondition Condition,
-    int DaysRemaining) : DomainEvent;
+    int DaysRemaining) : DomainEvent
+{
+    // Standalone effects retain their own context instead of inheriting the preceding tactic.
+    public int? SourceForceId { get; init; }
+    public BattleObjectContext? Target { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public UnitCondition? PreviousCondition { get; init; }
+}
 
 internal static class MilitaryConditions
 {
@@ -27,14 +33,18 @@ internal static class MilitaryConditions
         {
             var next = Tick(unit);
             world.Replace(next);
-            if (next.Morale != unit.Morale) events.Add(new HighSpiritsExpiredEvent(world.Clock, unit.Id, unit.Morale, next.Morale));
-            if (next.ConditionDaysRemaining == 0) events.Add(new BattleConditionChangedEvent(world.Clock, unit.Id, false, next.Condition, 0));
+            if (next.Morale != unit.Morale) events.Add(new HighSpiritsExpiredEvent(world.Clock, unit.Id, unit.Morale, next.Morale)
+                { Unit = BattleObjectContext.Capture(unit) });
+            if (next.ConditionDaysRemaining == 0 && unit.Condition != next.Condition)
+                events.Add(new BattleConditionChangedEvent(world.Clock, unit.Id, false, next.Condition, 0)
+                { Target = BattleObjectContext.Capture(world, new(unit.Id, false)), PreviousCondition = unit.Condition });
         }
         foreach (var place in world.Settlements.Values.Where(s => s.ConfusionDaysRemaining > 0).OrderBy(s => s.Id).ToArray())
         {
             int days = place.ConfusionDaysRemaining - 1;
             world.Replace(place with { ConfusionDaysRemaining = days });
-            if (days == 0) events.Add(new BattleConditionChangedEvent(world.Clock, place.Id, true, UnitCondition.Normal, 0));
+            if (days == 0) events.Add(new BattleConditionChangedEvent(world.Clock, place.Id, true, UnitCondition.Normal, 0)
+            { Target = BattleObjectContext.Capture(world, new(place.Id, true)) });
         }
     }
 
@@ -58,4 +68,7 @@ internal static class MilitaryConditions
     }
 }
 
-public sealed record HighSpiritsExpiredEvent(GameClock Clock, int UnitId, int PreviousMorale, int CurrentMorale) : DomainEvent;
+public sealed record HighSpiritsExpiredEvent(GameClock Clock, int UnitId, int PreviousMorale, int CurrentMorale) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonRequired] public BattleObjectContext Unit { get; init; } = null!;
+}

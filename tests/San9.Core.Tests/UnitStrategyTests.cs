@@ -94,7 +94,11 @@ public sealed class UnitStrategyTests
         var state = world.BeginMutation(rules.Abilities);
         state.Replace(state.Units[5] with { Condition = UnitCondition.NoFormation, ConditionDaysRemaining = 25,
             Order = new(MilitaryOrderKind.Move, new(70, 2), null) });
-        Day(state, rules);
+        var target = state.Units[5];
+        var facts = Day(state, rules);
+        var effect = Assert.Single(facts.OfType<BattleConditionChangedEvent>(), e => e.Condition == UnitCondition.Disguised);
+        Assert.Equal(1, effect.SourceForceId);
+        Assert.Equal(BattleObjectContext.Capture(target), effect.Target);
         Assert.Null(state.Units[5].Order);
         Assert.Equal(24, state.Units[5].ConditionDaysRemaining);
         Assert.Equal(UnitCondition.Disguised, state.Units[5].Condition);

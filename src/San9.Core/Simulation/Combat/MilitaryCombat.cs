@@ -133,7 +133,7 @@ internal static class MilitaryCombat
                 });
                 if (attacker.EngagementTargetId is not null)
                     events.Add(new UnitEngagementChangedEvent(world.Clock, id, null, "attack-target-invalid"));
-                else events.Add(new UnitOrderChangedEvent(world.Clock, id, null, "attack-target-invalid"));
+                else UnitOrderChanges.Report(world, id, null, "attack-target-invalid", events);
                 continue;
             }
             var targetArea = TargetArea(world, order, military);

@@ -138,8 +138,8 @@ internal static class SearchEvents
         else if (result == EventResult.Defeated)
         {
             var person = world.Officers[task.OfficerId];
-            world.Replace(person with { Injury = definition.DefeatInjury,
-                LifespanTier = definition.ReduceLifespanOnDefeat ? Math.Max(0, person.LifespanTier - 1) : person.LifespanTier });
+            OfficerInjuries.Apply(world, person with { Injury = definition.DefeatInjury,
+                LifespanTier = definition.ReduceLifespanOnDefeat ? Math.Max(0, person.LifespanTier - 1) : person.LifespanTier }, events);
         }
         world.ConsumeEvent(definition.Candidate(site.ConsumptionKey), new(definition.Id, EventOutcomeKind.Completed, false, result));
         var after = world.Officers[task.OfficerId];

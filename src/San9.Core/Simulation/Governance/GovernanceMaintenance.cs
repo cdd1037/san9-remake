@@ -58,10 +58,18 @@ internal static class GovernanceMaintenance
         if (force.AdviserId == leader.Id) world.Replace(force with { AdviserId = null });
         world.Replace(leader with { Status = leader.Status == OfficerStatus.Ruler ? OfficerStatus.Ruler : OfficerStatus.Governor });
         world.Replace(corps with { LeaderId = leader.Id });
-        events.Add(new CorpsLeaderChangedEvent(world.Clock, corps.Id, oldLeader.Id, leader.Id));
+        events.Add(new CorpsLeaderChangedEvent(world.Clock, corps.Id, oldLeader.Id, leader.Id)
+        { Occurrence = PersonOccurrence.Capture(world, leader) });
         return CommandRejection.None;
     }
 }
 
-public sealed record CommanderChangedEvent(GameClock Clock, int PlaceId, int? OfficerId) : DomainEvent;
-public sealed record CorpsLeaderChangedEvent(GameClock Clock, int CorpsId, int PreviousId, int OfficerId) : DomainEvent;
+public sealed record CommanderChangedEvent(GameClock Clock, int PlaceId, int? OfficerId) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonRequired] public int? PreviousId { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public int? ForceId { get; init; }
+}
+public sealed record CorpsLeaderChangedEvent(GameClock Clock, int CorpsId, int PreviousId, int OfficerId) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonRequired] public PersonOccurrence Occurrence { get; init; } = null!;
+}

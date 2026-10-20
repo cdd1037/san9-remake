@@ -8,7 +8,10 @@ public enum MapReportImportance { Summary, Detailed }
 
 /// <summary>A retained fact, independent of immediate report filtering. Location is where it happened.</summary>
 public sealed record MapMessageRecord(string Id, ProducedMessage Message, MapCell? Location = null, int? ForceColorCode = null,
-    MapReportImportance Importance = MapReportImportance.Summary);
+    MapReportImportance Importance = MapReportImportance.Summary)
+{
+    public string? SoundRole { get; init; }
+}
 
 internal static class MapRecordColors
 {

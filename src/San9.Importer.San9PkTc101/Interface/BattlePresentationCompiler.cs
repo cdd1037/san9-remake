@@ -87,8 +87,6 @@ internal static class BattlePresentationCompiler
             return Enumerable.Range(first, count).Select(i => new BattleSprite(Asset("g_dyneff", i, type), 1, 100,
                 Sound: Sound(Raw(0x263c48 + type * 12)))).ToArray();
         }
-        DecisionMessageDefinition Speech(int id, string speaker, string other) => new($"messages.{id}", new()
-        { ["person.0"] = speaker, ["person.1"] = other, ["tactic.0"] = "tactic", ["force.0"] = "force" }, speaker);
         Dictionary<string, DecisionMessageDefinition> common = [];
         void Report(string role, int id, params (string, string)[] values) => common.Add(role, new($"messages.{id}", values.ToDictionary(p => p.Item1, p => p.Item2)));
         foreach (var (role, id) in new[] { ("activation-own", 9970), ("activation-enemy", 9971) })
@@ -156,29 +154,7 @@ internal static class BattlePresentationCompiler
             };
             tactics.Add(id, new(new() { ["action"] = Speech(key, "actor", "target-commander") }, null, zoom));
         }
-        foreach (var (id, type, announcement, action, hit, reduced, failed) in new[] { (23,9,6794,10781,10799,10808,10790),
-            (25,12,6816,10817,10839,10848,10830),(26,4,6844,10867,10885,10892,10876),(27,11,6943,11037,11053,11062,11046),
-            (30,5,6965,11071,11087,11094,11080),(35,2,6868,10901,10919,10928,10910),(36,0,6893,10937,10955,10964,10946),
-            (37,1,6913,10971,10989,10998,10980),(38,3,6928,11005,11023,11032,11014) })
-            tactics.Add(id, new(new()
-            {
-                ["announcement"] = new($"messages.{announcement}", new()
-                { ["person.0"] = "actor", ["person.1"] = "target-commander", ["tactic.0"] = "tactic", ["force.0"] = "target-force" }, "actor"),
-                ["action"] = Speech(action, "actor", "target-commander"),
-                ["hit"] = Speech(hit, "target-commander", "actor"),
-                ["reduced"] = Speech(reduced, "responder", "actor"),
-                ["failed"] = Speech(failed, "responder", "actor"),
-                ["united"] = Speech(10745, "target-commander", "actor"),
-                ["counter-confusion"] = Speech(10754, "responder", "actor"),
-                ["counter-trap"] = Speech(10763, "responder", "actor"),
-                ["defensive"] = Speech(id == 26 ? 10736 : 10729, "target-commander", "actor")
-            }, Native(type), null)
-            {
-                UnitedResponse = id == 23,
-                FormationResponse = id == 23,
-                CounterResponse = id == 23 ? "counter-confusion" : id >= 35 ? "counter-trap" : null,
-                Prelude = id is 27 or 30 ? Dynamic(id == 27 ? 17 : 18) : []
-            });
+        foreach (var (id, definition) in CompileIntelligenceTactics(Native, Dynamic)) tactics.Add(id, definition);
         foreach (var (id, type, announcement, action, hit) in new[] { (28, 14, 6836, 10857, 10866), (29, 6, 6973, 11099, 11104) })
             tactics.Add(id, new(new()
             {
@@ -218,4 +194,44 @@ internal static class BattlePresentationCompiler
             SnipingEffect = Dynamic(16).Select(s => s with { FrameMilliseconds = 300 }).ToArray()
         }, sources.ToArray());
     }
+
+    internal static Dictionary<int, TacticPresentationDefinition> CompileIntelligenceTactics(
+        Func<int, BattleSprite> native, Func<int, BattleSprite[]> dynamic)
+    {
+        Dictionary<int, TacticPresentationDefinition> tactics = [];
+        foreach (var (id, type, announcement, action, hit, reduced, failed) in new[] { (23,9,6794,10781,10799,10808,10790),
+            (27,11,6816,10817,10839,10848,10830),(25,12,6844,10867,10885,10892,10876),(26,4,6943,11037,11053,11062,11046),
+            (30,5,6965,11071,11087,11094,11080),(35,2,6868,10901,10919,10928,10910),(36,0,6893,10937,10955,10964,10946),
+            (37,1,6913,10971,10989,10998,10980),(38,3,6928,11005,11023,11032,11014) })
+            tactics.Add(id, new(new()
+            {
+                ["announcement"] = new($"messages.{announcement}", new()
+                { ["person.0"] = "actor", ["person.1"] = "target-commander", ["tactic.0"] = "tactic", ["force.0"] = "target-force" }, "actor"),
+                ["action"] = Speech(action, "actor", "target-commander"),
+                ["hit"] = Speech(hit, "target-commander", "actor"),
+                ["reduced"] = Speech(reduced, "responder", "actor"),
+                ["failed"] = Speech(failed, "responder", "actor"),
+                ["united"] = Speech(10745, "target-commander", "actor"),
+                ["counter-confusion"] = Speech(10754, "responder", "actor"),
+                ["counter-trap"] = Speech(10763, "responder", "actor"),
+                ["defensive"] = Speech(id == 25 ? 10736 : 10729, "target-commander", "actor")
+            }, native(type), null)
+            {
+                UnitedResponse = id == 23,
+                FormationResponse = id == 23,
+                CounterResponse = id == 23 ? "counter-confusion" : id >= 35 ? "counter-trap" : null,
+                Prelude = id is 26 or 30 ? IntelligencePrelude(dynamic(id == 26 ? 17 : 18)) : []
+            });
+        return tactics;
+    }
+
+    private static BattleSprite[] IntelligencePrelude(BattleSprite[] frames) =>
+    [
+        .. frames.Select(s => s with { FrameMilliseconds = 500 }),
+        .. Enumerable.Range(1, 7).Select(step => frames[^1] with
+        { FrameMilliseconds = 125, Sound = null, Opacity = (255 - step * 32) / 256f })
+    ];
+
+    private static DecisionMessageDefinition Speech(int id, string speaker, string other) => new($"messages.{id}", new()
+    { ["person.0"] = speaker, ["person.1"] = other, ["tactic.0"] = "tactic", ["force.0"] = "force" }, speaker);
 }

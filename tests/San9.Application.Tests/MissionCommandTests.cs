@@ -217,7 +217,7 @@ public sealed class MissionCommandTests
 
 
     [Fact]
-    public void ResultsUsePublicationClockOnlyTrackPlayersAndDoNotRepeatAnsweredDiplomacy()
+    public void ResultsTrackPlayerForcesAndDoNotRepeatAnsweredDiplomacy()
     {
         var session = GameSession.Start(MissionScenario.Create(),42);
         var draft = new MissionDraft(session,1,"gift"); draft.SetActor(2); draft.SetTarget(2);
@@ -234,6 +234,9 @@ public sealed class MissionCommandTests
         var cancelled = MissionPresentation.Results(before,texts,[new TaskCancelledEvent(command.CommandId,clock,"target-invalidated")]);
         Assert.Contains("目标已失效",Assert.Single(cancelled.Records).Message.BbCode);
         var other = before.World with { Simulation = before.World.Simulation with { Tasks = before.World.Simulation.Tasks.Select(t => t with { ControllerId = "ai:1" }).ToImmutableArray() } };
+        // Delegating the work does not change the player's reporting eligibility.
+        Assert.Equal(messages.Records, MissionPresentation.Results(new(MissionScenario.Create(),other),texts,events).Records);
+        other = other with { Simulation = other.Simulation with { Tasks = other.Simulation.Tasks.Select(t => t with { ForceId = 2 }).ToImmutableArray() } };
         Assert.Empty(MissionPresentation.Results(new(MissionScenario.Create(),other),texts,events).Records);
     }
 

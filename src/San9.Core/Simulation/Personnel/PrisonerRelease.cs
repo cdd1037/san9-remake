@@ -73,7 +73,10 @@ internal static class PrisonerRelease
             PrisonerDepartureKind.Released when releasingCaptor is int releasedBy =>
                 new PrisonerReleasedEvent(world.Clock, releasedBy, personId, home?.OwnerId, destinationId),
             PrisonerDepartureKind.Escaped =>
-                new PrisonerEscapedEvent(world.Clock, personId, person.SettlementId, person.UnitId, destinationId),
+                new PrisonerEscapedEvent(world.Clock, personId, person.SettlementId, person.UnitId, destinationId)
+                { Occurrence = new(person.OwnerId, origin, person.UnitId is int field ? world.Units[field].Position : null),
+                    CaptorForceId = person.UnitId is int detentionUnit
+                    ? world.Units[detentionUnit].OwnerId : world.Settlements[person.SettlementId!.Value].OwnerId!.Value },
             PrisonerDepartureKind.Displaced =>
                 new PrisonerDisplacedEvent(world.Clock, personId, home?.OwnerId, origin, destinationId),
             PrisonerDepartureKind.Recovered =>

@@ -49,12 +49,17 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
                 case DuelStartedEvent duel: PresentDuel(duel); break;
                 case OfficerDiedEvent { Cause: OfficerDeathCause.Duel } death: PresentDuelDeath(death); break;
                 case BattleDamageEvent damage: PresentDamage(damage); break;
-                case BattleContactStartedEvent or UnitWaypointReachedEvent: PresentMapNotification(); break;
+                case BattleContactStartedEvent or UnitWaypointReachedEvent or UnitPolicyRespondedEvent: PresentMapNotification(); break;
                 case BattleConditionChangedEvent condition: PresentCondition(condition); break;
+                case SecretContactReportedEvent or OfficerAbilityGrownEvent or RecruitmentResolvedEvent: PresentFeedback(); break;
+                case TacticLearnedEvent or OfficerInjuryWorsenedEvent or CommanderChangedEvent or UnitCommanderChangedEvent or
+                    CorpsLeaderChangedEvent or CorpsDissolvedEvent or HighSpiritsExpiredEvent or OfficerAppearedEvent or
+                    TreasuryCapturedEvent or PrisonerEscapedEvent or BattlePersonnelResolvedEvent: PresentOutcome(); break;
                 case TacticMoraleChangedEvent morale: PresentMorale(morale); break;
                 case TacticDefectionEvent defection: PresentDefection(defection); break;
                 case TacticHealingEvent healing: PresentHealing(healing); break;
-                case BurnResolvedEvent or SeizeResolvedEvent or UnitStrategyResolvedEvent: PresentMission(events[_index]); break;
+                case BurnResolvedEvent or SeizeResolvedEvent or UnitStrategyResolvedEvent or AlienateResolvedEvent or GossipResolvedEvent:
+                    PresentMission(events[_index]); break;
                 case UnitTerminatedEvent or SettlementCapturedEvent or FacilityDestroyedEvent or OfficerCapturedEvent or TacticPrisonerRescuedEvent:
                     PresentAftermath(); break;
                 case TacticActivatedEvent or IntelligenceEffectResolvedEvent: PresentTactic(events[_index]); break;
@@ -138,7 +143,19 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
 
     private void PresentCondition(BattleConditionChangedEvent condition)
     {
-        var obj = TargetContext(condition.ObjectId, condition.IsSettlement);
+        if (condition.Condition == UnitCondition.Normal && content.Progress is { } progress)
+        {
+            foreach (var record in ProgressFeedback.Records(before, after, context, texts, progress, events, _index))
+                _records.Add(new(MapTime(_impact), record));
+            _presented.Add(_index);
+        }
+        var obj = condition.Target ?? TargetContext(condition.ObjectId, condition.IsSettlement);
+        if (condition.SourceForceId is int sourceForce && obj is not null)
+        {
+            _objects[(obj.Id, obj.IsSettlement)] = obj;
+            _mapVisibility[(obj.Id, obj.IsSettlement)] = Player(sourceForce) || Player(obj.ForceId);
+            _impact = MapTime(_cursor);
+        }
         double time = obj is null ? _impact : MapTime(_impact);
         var key = (condition.ObjectId, condition.IsSettlement);
         var previous = _conditions.GetValueOrDefault(key, UnitCondition.Normal);
@@ -177,11 +194,15 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
     private void PresentMission(DomainEvent fact)
     {
         var mission = MissionPresentation.Results(before, texts, [fact], content: content.Missions, context: context, speakers: content.Decisions.People);
+        var strategy = StrategyFeedback.Read(_identities.View, after, context.ForWorld(_identities.View.World), texts, content, fact, _index);
+        mission = new(mission.Messages.Concat(strategy.Messages).ToArray(), mission.Records.Concat(strategy.Records).ToArray());
+        if (content.Progress is { } feedback)
+            mission = mission with { Records = mission.Records.Concat(ProgressFeedback.Records(before, after, context, texts, feedback, events, _index)).ToArray() };
         if (mission.Messages.Count == 0 && mission.Records.Count == 0) return;
         _presented.Add(_index);
         int? burning = fact is BurnResolvedEvent { Success: true } burn ? burn.TargetSettlementId : null;
         int? seizing = fact is SeizeResolvedEvent { Outcome: not SeizeOutcomeKind.Failure } seize ? seize.TargetSettlementId : null;
-        if ((burning ?? seizing) is int building && content.Battle?.BuildingEffects.TryGetValue(burning is null ? "seize" : "burn", out var effects) == true)
+        if (mission.Messages.Count > 0 && (burning ?? seizing) is int building && content.Battle?.BuildingEffects.TryGetValue(burning is null ? "seize" : "burn", out var effects) == true)
         {
             var place = before.Settlements.First(s => s.Id == building);
             int? type = place.FacilityTypeId ?? buildingTypes?.GetValueOrDefault(building);
@@ -200,7 +221,8 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             {
                 MapSpeech = message.MapSpeech is { } speech ? speech with { Id = id, DelaySeconds = 0 } : null
             };
-            _messages.Add(new(id, time, fixedMessage));
+            _messages.Add(new(id, time, fixedMessage,
+                fixedMessage.MapSpeech is null ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech));
         }
         foreach (var record in mission.Records)
             _records.Add(new(_cursor + 2, record));
@@ -228,12 +250,49 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
         if (presented) _presented.Add(_index);
     }
 
+    private void PresentOutcome()
+    {
+        if (content.Progress is not { } progress) return;
+        var beforeFact = _identities.View;
+        var output = OutcomeFeedback.Read(beforeFact, after, context.ForWorld(beforeFact.World), texts, progress, events, _index);
+        if (output.Messages.Count + output.Records.Count == 0) return;
+        _presented.Add(_index);
+        foreach (var record in output.Records) _records.Add(new(_cursor, record));
+        foreach (var message in output.Messages)
+            _messages.Add(new(Identity($"outcome-{_messages.Count}"), _cursor, message,
+                message.MapSpeech is null ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech));
+        _cursor += 1;
+    }
+
+    private void PresentFeedback()
+    {
+        var view = _identities.View;
+        var occurrence = context.ForWorld(view.World);
+        var records = content.Progress is { } progress
+            ? ProgressFeedback.Records(view, after, occurrence, texts, progress, events, _index) : [];
+        IReadOnlyList<CommandMessage> messages = [];
+        if (events[_index] is RecruitmentResolvedEvent recruit && content.Personnel is { } personnel)
+            messages = PersonnelPresentation.Results(before, context.AtOccurrence(recruit.Clock), texts, personnel,
+                new[] { events[_index] }.Concat(events.OfType<PersonnelTerritoryTransferredEvent>()
+                    .Where(e => e.OfficerId == recruit.TargetOfficerId)).ToArray(), _ => 0);
+        if (records.Count == 0 && messages.Count == 0) return;
+        _presented.Add(_index);
+        foreach (var record in records) _records.Add(new(_cursor, record));
+        foreach (var message in messages)
+            _messages.Add(new(Identity($"feedback-{_messages.Count}"), _cursor, message,
+                message.MapSpeech is null ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech));
+        _cursor += 1;
+    }
+
     private void PresentMapNotification()
     {
         if (content.Progress is not { } progress) return;
-        var records = ProgressMessages.Read(before, after, context, texts, progress, events, _index);
-        var speeches = MapNotificationSpeeches.Read(before, after, context, texts, progress, events[_index], _index);
-        if (records.Count == 0 && speeches.Count == 0) return;
+        var view = _identities.View;
+        var occurrence = context.ForWorld(view.World);
+        var records = ProgressMessages.Read(view, after, occurrence, texts, progress, events, _index)
+            .Concat(ProgressFeedback.Records(view, after, occurrence, texts, progress, events, _index)).ToArray();
+        var speeches = MapNotificationSpeeches.Read(view, after, occurrence, texts, progress, events[_index], _index);
+        if (records.Length == 0 && speeches.Count == 0) return;
         _presented.Add(_index);
         foreach (var record in records) _records.Add(new(_cursor, record));
         foreach (var speech in speeches) _messages.Add(new(speech.MapSpeech!.Id, _cursor, speech));
@@ -269,8 +328,15 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
         }
         else return;
         _impact = _cursor;
-        if (occurrence is not null) Capture(occurrence.Source, occurrence.Target);
         if (occurrence is null || !battle.Tactics.TryGetValue(tacticId, out var definition)) return;
+        // Area tactics announce once at the first affected target visible to the player.
+        if (fact is TacticActivatedEvent && definition.Zoom is null && !definition.Support)
+            occurrence = events.Skip(_index + 1)
+                .TakeWhile(e => e is not TacticActivatedEvent and not IntelligenceEffectResolvedEvent { IsAttempt: true })
+                .OfType<IntelligenceEffectResolvedEvent>()
+                .Where(e => e.TacticId == tacticId && e.Source.Id == occurrence.Source.Id && e.Source.IsSettlement == occurrence.Source.IsSettlement)
+                .Select(e => e.Occurrence).FirstOrDefault(o => o is not null && Visible(o)) ?? occurrence;
+        Capture(occurrence.Source, occurrence.Target);
         var source = occurrence.Source; var target = occurrence.Target;
         var occurrenceContext = context.AtOccurrence(clock, source.Id == target.Id && source.IsSettlement == target.IsSettlement ? [source] : [source, target]);
         Dictionary<string, MessageBinding> values = new()
@@ -307,6 +373,21 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
                     texts.Resolve(before.MessageSpeaker(speaker).NameKey), Location(obj), obj.IsSettlement ? null : obj.Id, color)
                 };
             _messages.Add(new(id, time, produced, channel));
+        }
+        double Prelude()
+        {
+            double end = _cursor;
+            for (int frame = 0; frame < definition.Prelude.Length; frame++)
+            {
+                var sprite = definition.Prelude[frame];
+                double next = end + sprite.Columns * sprite.FrameMilliseconds / 1000.0;
+                _visuals.Add(new(Identity($"prelude-{frame}"), end, next,
+                    source, target, tacticId, actor, false, false, 0, 0, 0,
+                    sprite with { Sound = frame == 0 ? sprite.Sound : null }, null)
+                { ScreenEffect = true });
+                end = next;
+            }
+            return end;
         }
         if (!Visible(occurrence))
         {
@@ -346,16 +427,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
                     definition.Zoom is not null ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech, true);
             }
             BindParticipant(active.Participants[0]);
-            double preludeEnd = _cursor;
-            for (int frame = 0; frame < definition.Prelude.Length; frame++)
-            {
-                double frameEnd = preludeEnd + definition.Prelude[frame].Columns * definition.Prelude[frame].FrameMilliseconds / 1000.0;
-                _visuals.Add(new(Identity($"prelude-{frame}"), preludeEnd, frameEnd,
-                    source, target, tacticId, actor, false, false, 0, 0, 0,
-                    definition.Prelude[frame] with { Sound = frame == 0 ? definition.Prelude[frame].Sound : null }, null)
-                { ScreenEffect = true });
-                preludeEnd = frameEnd;
-            }
+            double preludeEnd = Prelude();
             if (definition.Zoom is { } zoom)
             {
                 var following = events.Skip(_index + 1).TakeWhile(e => e is not TacticActivatedEvent).ToArray();
@@ -436,6 +508,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             {
                 Add("announcement", definition.Messages["announcement"], _cursor, BattleMessageChannel.Dialogue, true);
                 Add("action", definition.Messages["action"], _cursor, BattleMessageChannel.MapSpeech, true);
+                _cursor = Prelude();
             }
             string role = effect >= 10 ? "hit" : effect > 0 ? "reduced" : "failed";
             values["responder"] = ProgressMessageProducer.Person((effect == 0 ? occurrence.IntelligenceOfficerId : occurrence.ResistanceOfficerId) ?? Soldier);

@@ -9,7 +9,7 @@ public static class ExecutionPublication
 {
     public static ExecutionOutput Read(StrategySnapshot before, StrategySnapshot after,
         WorldMessageContext context, TextCatalog texts, CommandPresentation content,
-        IReadOnlyList<DomainEvent> events, IReadOnlySet<Guid>? alreadyPresented = null, IReadOnlySet<int>? presentedFacts = null)
+        IReadOnlyList<DomainEvent> events, IReadOnlySet<Guid>? alreadyPresented = null, IReadOnlySet<int>? presentedFacts = null, bool executionMap = true)
     {
         List<CommandMessage> messages = [];
         List<MapMessageRecord> records = [];
@@ -27,6 +27,15 @@ public static class ExecutionPublication
             }
             if (presentedFacts?.Contains(index) == true) continue;
             var fact = events[index];
+            if (content.Progress is { } feedback)
+            {
+                var outcome = OutcomeFeedback.Read(occurrenceBefore, after, occurrenceContext, texts, feedback, events, index, executionMap);
+                messages.AddRange(outcome.Messages); records.AddRange(outcome.Records);
+                if (executionMap || fact is not OfficerAbilityGrownEvent)
+                    records.AddRange(ProgressFeedback.Records(occurrenceBefore, after, occurrenceContext, texts, feedback, events, index));
+                if (!executionMap && fact is OfficerAbilityGrownEvent)
+                    messages.AddRange(ProgressFeedback.GrowthPrompts(occurrenceBefore, occurrenceContext, texts, feedback, [fact]));
+            }
             var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision, $"publication:{index}"));
             int Pick(int count) => (int)(random.NextUInt64() % (ulong)count);
             if (fact is OfficerDiedEvent { Cause: OfficerDeathCause.Execution } death && content.Execution is { } execution &&
@@ -59,11 +68,13 @@ public static class ExecutionPublication
                     ? occurrenceBefore : before;
                 var reportContext = ReferenceEquals(reportBefore, before) ? context : occurrenceContext;
                 records.AddRange(ProgressMessages.Read(reportBefore, after, reportContext, texts, progress, events, index));
-                messages.AddRange(MapNotificationSpeeches.Read(before, after, context, texts, progress, fact, index));
+                messages.AddRange(MapNotificationSpeeches.Read(occurrenceBefore, after, occurrenceContext, texts, progress, fact, index));
             }
             var mission = MissionPresentation.Results(before, texts, [fact], alreadyPresented, content.Missions, context, content.Decisions.People);
             messages.AddRange(mission.Messages);
             records.AddRange(mission.Records);
+            var strategy = StrategyFeedback.Read(occurrenceBefore, after, occurrenceContext, texts, content, fact, index);
+            messages.AddRange(strategy.Messages); records.AddRange(strategy.Records);
             if (content.Personnel is { } personnel && fact is SearchResolvedEvent or RecruitmentResolvedEvent)
             {
                 var clock = fact is SearchResolvedEvent search ? search.Clock : ((RecruitmentResolvedEvent)fact).Clock;

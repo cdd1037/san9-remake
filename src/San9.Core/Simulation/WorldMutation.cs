@@ -64,14 +64,19 @@ internal sealed partial class WorldMutation : IWorldQuery
         if (_leadershipBefore is not null)
         {
             var before = _leadershipBefore;
+            var units = Units.Values.Where(u => u.CommanderId is not null).ToDictionary(u => u.Id);
             LeadershipMaintenance.Apply(this, _abilityRules.Governance);
             foreach (int place in before.Keys.Concat(Officers.Values.Where(p => p.IsCommander && p.SettlementId is not null)
                 .Select(p => p.SettlementId!.Value)).Distinct().Order())
             {
                 int? current = LeadershipMaintenance.Commander(this, place)?.Id;
                 if (before.GetValueOrDefault(place) != current)
-                    events.Add(new CommanderChangedEvent(Clock, place, current));
+                    events.Add(new CommanderChangedEvent(Clock, place, current)
+                    { PreviousId = before.GetValueOrDefault(place), ForceId = Settlements.GetValueOrDefault(place)?.OwnerId });
             }
+            foreach (var unit in Units.Values.Where(u => u.CommanderId is not null))
+                if (units.TryGetValue(unit.Id, out var previous) && previous.CommanderId != unit.CommanderId && previous.OwnerId == unit.OwnerId)
+                    events.Add(new UnitCommanderChangedEvent(Clock, BattleObjectContext.Capture(unit), previous.CommanderId!.Value, unit.CommanderId!.Value));
             _leadershipBefore = null;
         }
     }

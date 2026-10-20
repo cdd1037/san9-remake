@@ -9,6 +9,7 @@ public enum SeizeOutcomeKind { Item, Person, Money, Failure }
 public sealed record SeizeResolvedEvent(GameClock Clock, int OfficerId, int TargetSettlementId, int Roll,
     int ItemThreshold, int PersonThreshold, int MoneyThreshold, bool ItemGatePassed, SeizeOutcomeKind Outcome) : DomainEvent
 {
+    [System.Text.Json.Serialization.JsonRequired] public StrategyAudience Audience { get; init; } = null!;
     public int? TreasureId { get; init; }
     public int? PreviousHolderId { get; init; }
     public int? RecoveredOfficerId { get; init; }
@@ -113,6 +114,7 @@ internal static class SeizeStrategies
         int targetId = task.Journey!.Seize!.TargetSettlementId;
         var target = world.Settlements[targetId];
         var actor = world.Officers[task.OfficerId];
+        var audience = StrategyAudience.Capture(world, task.ForceId, target);
         var thresholds = ComputeThresholds(world, actor.Id, targetId, rules);
         bool itemGate = world.NextRandom("strategy-seize-item-gate") % 100 < 50;
         if (!itemGate) thresholds = thresholds with { Item = 0 };
@@ -158,7 +160,7 @@ internal static class SeizeStrategies
         {
             int injury = Math.Max(actor.Injury,
                 (int)Math.Min(7, actor.Injury + ((long)roll - thresholds.Money) / 10));
-            world.Replace(actor with { Injury = injury });
+            OfficerInjuries.Apply(world, actor with { Injury = injury }, events);
             ForceRelations.Change(world, task.ForceId, target.OwnerId!.Value,
                 -1 - (int)(world.NextRandom("strategy-seize-failure-relations") % 3), events);
             outcome = SeizeOutcomeKind.Failure;
@@ -174,6 +176,7 @@ internal static class SeizeStrategies
             PreviousHolderId = previousHolderId,
             RecoveredOfficerId = recoveredId,
             Money = money,
+            Audience = audience,
             InjuryBefore = injuryBefore,
             InjuryAfter = world.Officers[actor.Id].Injury
         });

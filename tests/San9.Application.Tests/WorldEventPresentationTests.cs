@@ -44,7 +44,7 @@ public sealed class WorldEventPresentationTests
         Assert.Equal(before.PlaceCell(1), declaration.MapSpeech!.Location);
         Assert.Equal("actor", declaration.Speaker!.ForceName);
         Assert.Equal("actor", output.Messages[1].Message.BbCode); Assert.Equal("founded", output.Messages[1].SoundRole);
-        Assert.Equal(clock, Assert.Single(output.Records).Message.Clock);
+        Assert.Empty(output.Records);
         StateAssert.Equal(before.World, session.Snapshot);
     }
 
@@ -65,11 +65,11 @@ public sealed class WorldEventPresentationTests
         Assert.Equal(new[] { "enemy-ruler", "third-ruler" }, speeches.Select(m => m.Speaker!.ForceName));
         var repeated = ExecutionPublication.Read(before, after, session.Messages(texts), texts, content, facts);
         Assert.Equal(first.Messages, repeated.Messages); Assert.Equal(first.Records, repeated.Records);
-        Assert.Single(first.Records);
+        Assert.Empty(first.Records);
     }
 
     [Fact]
-    public void ResultRecordRetainsItsRoleWhenDialogueSharesTheSameTemplate()
+    public void AResultDoesNotCreateARecordWhenDialogueSharesTheSameTemplate()
     {
         var (session, texts, content) = Fixture();
         var before = session.View;
@@ -82,7 +82,7 @@ public sealed class WorldEventPresentationTests
         var output = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts);
 
         Assert.NotEqual(output.Messages[1].Message.BbCode, output.Messages[3].Message.BbCode);
-        Assert.Same(output.Messages[3].Message, Assert.Single(output.Records).Message);
+        Assert.Empty(output.Records);
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public sealed class WorldEventPresentationTests
         var output = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts);
         Assert.Equal(new[] { "chained-coup", "ruler-death", "chained-result", "successor-declaration" }, output.Messages.Select(m => m.Message.Key));
         Assert.Equal("chained-coup", output.Messages[0].MovieRole);
-        Assert.Single(output.Records);
+        Assert.Empty(output.Records);
     }
 
     [Fact]
@@ -220,7 +220,7 @@ public sealed class WorldEventPresentationTests
             new QiaoMarriageEvent(clock,force,ruler,actor,1,1,1,otherForce),new SunMarriageEvent(clock,actor,otherForce,force,place,null,true),
             new FiveTigersRecognizedEvent(clock,force,[actor],10),new ExpeditionMemorialEvent(clock,force,actor,[actor],10,true),
             new ForceActivatedBySearchEvent(clock,"activation",force,actor,otherForce,place,[],[]),
-            new ImperialCeremonyResolvedEvent(clock,"ceremony",force,ruler,place,[actor]),new OfficerAbilityGrownEvent(clock,ruler,"leadership",90,95),
+            new ImperialCeremonyResolvedEvent(clock,"ceremony",force,ruler,place,[actor]),new OfficerAbilityGrownEvent(clock,ruler,"leadership",90,95) { Occurrence = new(force,place,null) },
             new SageVisitResolvedEvent(clock,"sage",force,actor,other,place,[]),new DivinerVisitResolvedEvent(clock,"diviner",force,actor,other,place),
             new PhysicianVisitResolvedEvent(clock,"physician",force,actor,other,place,before.Information.Treasures.First().Id),
             new WomenVisitResolvedEvent(clock,"women",force,actor,other,place,before.Information.Tactics.First().Id),

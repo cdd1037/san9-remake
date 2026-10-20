@@ -95,7 +95,7 @@ public sealed class DiplomacyTimingTests
         if (grows)
         {
             var actual = Assert.Single(growth);
-            Assert.Equal(new OfficerAbilityGrownEvent(actual.Clock, 12, "politics", 99, 100), actual);
+            Assert.Equal(new OfficerAbilityGrownEvent(actual.Clock, 12, "politics", 99, 100) { Occurrence = actual.Occurrence }, actual);
         }
         else Assert.Empty(growth);
         Assert.Equal(grows ? 100 : politics, engine.Snapshot.Officers.Single(p => p.Id == 12).BaseAbilities.Politics);

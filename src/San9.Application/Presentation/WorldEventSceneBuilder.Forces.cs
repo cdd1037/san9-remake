@@ -42,7 +42,7 @@ internal sealed partial class WorldEventSceneBuilder
                 Message("consolidation-arrival", focus: true);
                 Message("consolidation-offer", speech: true); Message("consolidation-reply", speech: true);
                 values["year"] = new(clock.Year); values["month"] = new(clock.Month);
-                Message("consolidation-result", record: true); Message("consolidation-trust"); Message("consolidation-soldiers"); Message("consolidation-morale"); break;
+                Message("consolidation-result"); Message("consolidation-trust"); Message("consolidation-soldiers"); Message("consolidation-morale"); break;
             case ForceEliminatedEvent eliminated:
                 clock = eliminated.Clock; Force("force", eliminated.ForceId);
                 values["year"] = new(clock.Year); values["month"] = new(clock.Month);

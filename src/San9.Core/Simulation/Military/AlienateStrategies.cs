@@ -5,7 +5,10 @@ namespace San9.Core.Simulation;
 public sealed record AlienateCommand(Guid CommandId, int IssuerId, long Sequence, int OfficerId, int TargetOfficerId)
     : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record AlienateResolvedEvent(GameClock Clock, int OfficerId, int TargetOfficerId, int Threshold,
-    int Roll, bool Success, int LoyaltyLoss, int RelationForceId) : DomainEvent;
+    int Roll, bool Success, int LoyaltyLoss, int RelationForceId) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonRequired] public StrategyAudience Audience { get; init; } = null!;
+}
 
 internal static class AlienateStrategies
 {
@@ -95,21 +98,21 @@ internal static class AlienateStrategies
     {
         var actor = world.Officers[task.OfficerId];
         var target = world.Officers[task.Journey!.TargetOfficerId!.Value];
+        var audience = StrategyAudience.Capture(world, task.ForceId, target);
         int threshold = Threshold(world, actor.Id, target.Id);
         int roll = task.Journey.SuccessRoll!.Value;
+        int contactForce = world.Forces.Values
+            .Where(force => !force.IsEliminated && !force.IsBarbarian && force.Id != task.ForceId && force.Id != target.OwnerId)
+            .OrderByDescending(force => ForceRelations.Get(world, force.Id, target.OwnerId!.Value).Value)
+            .ThenBy(force => force.Id).Select(force => force.Id).FirstOrDefault(task.ForceId);
+        events.Add(new SecretContactReportedEvent(world.Clock, target.OwnerId!.Value, target.Id, contactForce,
+            PersonOccurrence.Capture(world, target)));
         bool success = roll < threshold;
         int loyaltyLoss = 0;
         int relationForce = task.ForceId;
         if (success)
         {
-            int targetForce = target.OwnerId!.Value;
-            relationForce = world.Forces.Values
-                .Where(force => !force.IsEliminated && !force.IsBarbarian && force.Id != task.ForceId &&
-                    force.Id != targetForce)
-                .OrderByDescending(force => ForceRelations.Get(world, force.Id, targetForce).Value)
-                .ThenBy(force => force.Id)
-                .Select(force => force.Id)
-                .FirstOrDefault(task.ForceId);
+            relationForce = contactForce;
             loyaltyLoss = StrategyMath.AlienateLoyaltyLoss(target.Righteousness,
                 (int)(world.NextRandom("strategy-alienate-loyalty") % 3));
             RecruitmentRules.SetLoyalty(world, target.Id, target.OwnerId!.Value,
@@ -121,7 +124,7 @@ internal static class AlienateStrategies
         OfficerTacticGrowth.Increase(world, actor.Id, 7, 2, events);
         OfficerTacticGrowth.Increase(world, actor.Id, 8, 2, events);
         events.Add(new AlienateResolvedEvent(world.Clock, actor.Id, target.Id, threshold, roll, success, loyaltyLoss,
-            relationForce));
+            relationForce) { Audience = audience });
         PersonnelReturns.Start(world, task, places, events, true);
     }
 }

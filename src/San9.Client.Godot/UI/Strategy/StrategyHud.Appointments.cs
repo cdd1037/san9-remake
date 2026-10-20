@@ -52,7 +52,7 @@ public partial class StrategyHud
         var execution = result.Events.OfType<PrisonerExecutedEvent>().SingleOrDefault();
         if (result.CompletedCommands > 0 && (draft.Kind is "rank" or "reward" or "exile" or "bestow" or "confiscate" || execution is not null))
         {
-            var publication=ExecutionPublication.Read(draft.View,Session.View,beforeMessages,Texts,CommandPresentation,result.Events);
+            var publication=ExecutionPublication.Read(draft.View,Session.View,beforeMessages,Texts,CommandPresentation,result.Events,executionMap:false);
             foreach(var record in publication.Records) PresentMapRecord(record);
             var sequence = execution is not null ? publication.Messages
                 : draft.Kind == "rank" ? OfficePresentation.Create(draft.View,beforeMessages,CommandPresentation.Offices!,result.Events.OfType<OfficeAssignedEvent>(),Random.Shared.Next)

@@ -114,10 +114,10 @@ internal static class ChronicleHistory
                     b.Add(e.Clock, e.PreviousForceId, b.IsCity(e.PlaceId) ? "city-enticed-lost" : "facility-enticed-lost", place: e.PlaceId, nameForce: e.ForceId, colorForce: e.ForceId); break;
                 case ForceFoundedEvent e:
                     b.Activate(e.ForceId, e.FounderId);
-                    b.Add(e.Clock, e.ForceId, "founding", actor: e.FounderId, place: e.SettlementId); break;
+                    b.Broadcast(e.Clock, "founding", e.ForceId, actor: e.FounderId, place: e.SettlementId); break;
                 case CityIndependenceEvent e:
                     b.Activate(e.ForceId, e.FounderId);
-                    b.Add(e.Clock, e.ForceId, "independence", actor: e.FounderId, place: e.SettlementId, nameForce: e.PreviousForceId); break;
+                    b.Broadcast(e.Clock, "independence", e.ForceId, actor: e.FounderId, place: e.SettlementId, nameForce: e.PreviousForceId); break;
                 case ForceActivatedBySearchEvent e:
                     b.Activate(e.ActivatedForceId, after.World.Forces.Single(f => f.Id == e.ActivatedForceId).LeaderId);
                     b.Broadcast(e.Clock, "wa-discovered", e.SearchingForceId, actor: e.SearchingOfficerId); break;
@@ -210,11 +210,11 @@ internal static class ChronicleHistory
             Name("name", nameForce ?? owner); Name("other-name", otherNameForce);
             Facts.Add(new(clock, owner, role, Force(colorForce ?? owner)?.ColorCode, values.ToImmutable(), keys.ToImmutable()));
         }
-        internal void Broadcast(GameClock clock, string role, int? sourceForce, int? actor = null, int? other = null, int? nameForce = null, int? otherNameForce = null)
+        internal void Broadcast(GameClock clock, string role, int? sourceForce, int? actor = null, int? other = null, int? nameForce = null, int? otherNameForce = null, int? place = null)
         {
             foreach (var force in ActiveForces())
             {
-                Add(clock, force.Id, role, actor, other, nameForce: nameForce, otherNameForce: otherNameForce, colorForce: sourceForce);
+                Add(clock, force.Id, role, actor, other, place: place, nameForce: nameForce, otherNameForce: otherNameForce, colorForce: sourceForce);
                 if (sourceForce is null) Facts[^1] = Facts[^1] with { ForceColorCode = null };
             }
         }
@@ -290,7 +290,7 @@ internal static class ChronicleHistory
         internal void Peerage(PeerageChangedEvent e)
         {
             _changed[e.ForceId] = Force(e.ForceId)! with { RankId = e.RankId, CountryTitleId = e.CountryTitleId };
-            if (e.Kind == PeerageChangeKind.ShanyangGong) return;
+            if (e.Kind is PeerageChangeKind.ShanyangGong or PeerageChangeKind.HanzhongKing) return;
             var rank = before.Information.Ranks.Single(r => r.Id == e.RankId);
             var keys = new Dictionary<string, string> { ["name"] = rank.NameKey };
             bool emperor = e.Kind is PeerageChangeKind.Abdication or PeerageChangeKind.Proclamation;

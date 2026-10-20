@@ -20,7 +20,6 @@ public static class CorpsPresentation
             {
                 CorpsCreatedEvent e when e.ForceId == before.PlayerForceId => Produce("corps-created",e.CorpsId,committed),
                 CorpsChangedEvent e when e.ForceId == before.PlayerForceId => Produce("corps-changed",e.CorpsId,prior),
-                CorpsDissolvedEvent e when e.ForceId == before.PlayerForceId => new(new("corps-result", e.Clock, CommandText.Resolve(texts, "result.corps-dissolved", Corps(e.CorpsId))),null,null),
                 CorpsControlChangedEvent e when e.ForceId == before.PlayerForceId => new(new("corps-result", e.Clock,
                     CommandText.Resolve(texts, "result.corps-control", Corps(e.CorpsId), CommandText.Resolve(texts,
                         e.Mode == CorpsControlMode.Direct ? "corps.direct" : "corps.automatic"))),null,null),

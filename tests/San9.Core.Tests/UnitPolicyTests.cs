@@ -7,6 +7,27 @@ namespace San9.Core.Tests;
 
 public sealed class UnitPolicyTests
 {
+    [Theory]
+    [InlineData(false, UnitPolicyResponse.AvoidOrdered)]
+    [InlineData(true, UnitPolicyResponse.AvoidDespiteOrders)]
+    public void AvoidanceReportsOnceUntilEnemiesLeaveAndReturn(bool permitted, UnitPolicyResponse response)
+    {
+        var world = World(3, new(AttackApproachingEnemies: permitted));
+        var mutation = world.BeginMutation();
+        var rules = Rules();
+        List<DomainEvent> events = [];
+        MilitaryPolicies.ApproachXun(mutation, rules, events);
+        MilitaryPolicies.ApproachXun(mutation, rules, events);
+        var report = Assert.Single(events.OfType<UnitPolicyRespondedEvent>(), e => e.Unit.Id == 1);
+        Assert.Equal(response, report.Response);
+        Assert.Equal(new WorldPosition(20, 10), report.Unit.Position);
+        mutation.Replace(mutation.Units[2] with { Position = new(80, 10) });
+        MilitaryPolicies.ApproachXun(mutation, rules, events);
+        mutation.Replace(mutation.Units[2] with { Position = new(25, 10) });
+        MilitaryPolicies.ApproachXun(mutation, rules, events);
+        Assert.Equal(2, events.OfType<UnitPolicyRespondedEvent>().Count(e => e.Unit.Id == 1));
+    }
+
     private static MilitaryOrder Attack(int id) => new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id };
     private static readonly MilitaryOrder Mission = new(MilitaryOrderKind.Move, new(90, 10), null);
     private static MilitaryRulebook Rules() => new(new(20, 5, Enumerable.Repeat(0, 100).ToImmutableArray(),

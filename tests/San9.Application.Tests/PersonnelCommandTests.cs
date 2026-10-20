@@ -409,7 +409,8 @@ public sealed class PersonnelCommandTests
         var content = new PersonnelPresentationDefinition(roles.ToDictionary(r => r,r => new DecisionMessageDefinition(r,[],r == "captive-success" ? "target" : null)));
         var before = session.Snapshot;
         var messages = PersonnelPresentation.Results(session.View,session.Messages(texts),texts,content,
-            [new RecruitmentResolvedEvent(before.Clock,1,5,100,0,true)],_ => 0);
+            [new RecruitmentResolvedEvent(before.Clock,1,5,100,0,true)
+                { Occurrence = new(1, OfficerStatus.Captive, new(2, 1, null), false, false, 1) }],_ => 0);
         Assert.Equal(roles,messages.Select(m => m.Message.BbCode));
         Assert.Equal(5,messages[1].SpeakerId); Assert.All(messages,m => Assert.Null(m.SoundRole));
         Assert.Same(before,session.Snapshot);
@@ -426,7 +427,9 @@ public sealed class PersonnelCommandTests
             r == "employ-success" ? "target" : null,r == "employ-city" ? "transfer" : null,r == "employ-city" ? "city-image" : null)));
         var before = session.Snapshot;
         var messages = PersonnelPresentation.Results(session.View,session.Messages(texts),texts,content,
-            [new RecruitmentResolvedEvent(before.Clock,1,5,100,0,true),new PersonnelTerritoryTransferredEvent(before.Clock,2,2,1,5)],_ => 0);
+            [new RecruitmentResolvedEvent(before.Clock,1,5,100,0,true)
+                { Occurrence = new(1, OfficerStatus.Serving, new(2, 2, null), false, true, null) },
+                new PersonnelTerritoryTransferredEvent(before.Clock,2,2,1,5)],_ => 0);
         Assert.Equal(roles,messages.Select(m => m.Message.BbCode));
         Assert.Equal("transfer",messages[^1].SoundRole); Assert.Equal("city-image",messages[^1].IllustrationRole);
         Assert.Null(messages[^2].SoundRole);

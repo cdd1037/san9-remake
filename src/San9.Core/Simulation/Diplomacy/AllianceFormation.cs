@@ -133,7 +133,7 @@ internal static class AllianceFormation
             world.Replace(unit with { Order = order,
                 EngagementTargetId = conflict.ClearsContact ? null : unit.EngagementTargetId,
                 AwaitingPostAction = conflict.ChangesOrder ? false : unit.AwaitingPostAction });
-            if (conflict.ChangesOrder) events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, order, "alliance-formed"));
+            if (conflict.ChangesOrder) UnitOrderChanges.Report(world, unit.Id, order, "alliance-formed", events);
             if (conflict.ClearsContact) events.Add(new UnitEngagementChangedEvent(world.Clock, unit.Id, null, "alliance-formed"));
         }
     }

@@ -85,7 +85,7 @@ internal static class FacilityConstruction
             foreach (var other in world.Units.Values.Where(u => u.Order?.SettlementId == place.Id).ToArray())
             {
                 world.Replace(other with { Order = null, AwaitingPostAction = other.Order!.IsAttack });
-                events.Add(new UnitOrderChangedEvent(world.Clock, other.Id, null, "construction-cancelled"));
+                UnitOrderChanges.Report(world, other.Id, null, "construction-cancelled", events);
             }
         }
     }
@@ -118,8 +118,11 @@ internal static class FacilityConstruction
             if (!CanContinue(world, unit, military, rules.Personnel.RegionCities, rules.Treasures))
             {
                 Cancel(world, id, events);
-                world.Replace(world.Units[id] with { Order = null });
-                events.Add(new UnitOrderChangedEvent(world.Clock, id, null, "construction-target-invalid"));
+                var returning = new MilitaryOrder(MilitaryOrderKind.Return, null, unit.ServicePlaceId);
+                MilitaryOrder? nextOrder = MilitaryMovement.ValidOrder(world, unit.OwnerId, returning,
+                    military.Formation(unit), military, unit.NavalFormationId) ? returning : null;
+                world.Replace(world.Units[id] with { Order = nextOrder });
+                UnitOrderChanges.Report(world, id, nextOrder, "construction-target-invalid", events, previousOrder: unit.Order);
                 continue;
             }
             if (unit.Condition is UnitCondition.Confused or UnitCondition.Routed) continue;
@@ -161,7 +164,7 @@ internal static class FacilityConstruction
                 var order = new MilitaryOrder(MilitaryOrderKind.Return, null, unit.ServicePlaceId);
                 if (MilitaryMovement.ValidOrder(world, unit.OwnerId, order, military.Formations[unit.FormationId!.Value], military, unit.NavalFormationId))
                     world.Replace(unit with { Order = order });
-                events.Add(new UnitOrderChangedEvent(world.Clock, id, world.Units[id].Order, "construction-completed"));
+                UnitOrderChanges.Report(world, id, world.Units[id].Order, "construction-completed", events);
             }
         }
     }

@@ -2,7 +2,7 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public enum UnitTerminationReason { Defeated, ForceEliminated }
+public enum UnitTerminationReason { Defeated, ForceEliminated, MoraleCollapsed }
 
 public sealed record UnitTerminatedEvent(GameClock Clock, int UnitId, BattleSource? Winner, long UnrecoveredSoldiers) : DomainEvent
 {
@@ -57,6 +57,7 @@ internal static class UnitTerminationService
             throw new InvalidOperationException("Battle transaction cannot settle the defeated corps.");
         events.Add(new UnitTerminatedEvent(world.Clock, unitId, winner, pool - recovered)
         {
+            Reason = winner is null && defeated.Morale == 0 ? UnitTerminationReason.MoraleCollapsed : UnitTerminationReason.Defeated,
             Target = target ?? BattleObjectContext.Capture(defeated),
             Source = winner is { } source ? BattleObjectContext.Capture(world, source) : null
         });
@@ -107,6 +108,6 @@ internal static class UnitTerminationService
 
     private static void TransferTreasury(WorldMutation world, UnitState defeated, BattleSource winner, long weight, List<DomainEvent> events)
     {
-        BattleTreasury.Transfer(world, defeated.OwnerId, defeated.CorpsId, weight, winner, defeated.Id, "battle-treasury", events);
+        BattleTreasury.Transfer(world, defeated.OwnerId, defeated.CorpsId, weight, winner, new(defeated.Id, false), "battle-treasury", events);
     }
 }

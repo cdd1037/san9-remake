@@ -15,10 +15,10 @@ internal sealed partial class WorldEventSceneBuilder
                 clock = activation.Clock; Person("actor", activation.SearchingOfficerId); Force("force", activation.SearchingForceId);
                 location = PersonLocation(activation.SearchingOfficerId);
                 Message("activation-introduction", movie: "force-activation"); Message("activation-reaction", speech: true);
-                Message("activation-result", record: true); Message("force-trust"); break;
+                Message("activation-result"); Message("force-trust"); break;
             case ImperialCeremonyResolvedEvent ceremony:
                 clock = ceremony.Clock; Person("actor", ceremony.RulerId); Force("force", ceremony.ForceId);
-                Message("ceremony-introduction", movie: "imperial-ceremony"); Message("ceremony-result", record: true); TrustAndLoyalty(ceremony.ForceId);
+                Message("ceremony-introduction", movie: "imperial-ceremony"); Message("ceremony-result"); TrustAndLoyalty(ceremony.ForceId);
                 foreach (var growth in events.OfType<OfficerAbilityGrownEvent>().Where(e => e.OfficerId == ceremony.RulerId))
                 {
                     values["amount"] = new(growth.Current - growth.Previous); values["current"] = new(growth.Current); Message("ceremony-" + growth.Ability);

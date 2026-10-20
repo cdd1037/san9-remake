@@ -2,6 +2,10 @@ namespace San9.Core.Simulation;
 
 public sealed record OfficerCapturedEvent(GameClock Clock, int OfficerId, int CaptorId, int? SettlementId, int? UnitId) : DomainEvent;
 
+[System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerInjuryWorsenedEvent), "officer-injury-worsened")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(UnitCommanderChangedEvent), "unit-commander-changed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(TreasuryCapturedEvent), "treasury-captured")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(BattlePersonnelResolvedEvent), "battle-personnel-resolved")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(EmperorTransferOfferedEvent), "emperor-transfer-offered")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(EmperorTransferResolvedEvent), "emperor-transfer-resolved")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SunMarriageEvent), "sun-marriage")]
@@ -161,6 +165,8 @@ public sealed record OfficerCapturedEvent(GameClock Clock, int OfficerId, int Ca
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ScholarInsultResolvedEvent), "scholar-insult")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(MysticBookOfferResolvedEvent), "mystic-book-offer")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(MysticBookReturnResolvedEvent), "mystic-book-return")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(SecretContactReportedEvent), "secret-contact-reported")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(UnitPolicyRespondedEvent), "unit-policy-responded")]
 public abstract record DomainEvent;
 
 public sealed record DevelopmentCompletedEvent(

@@ -64,10 +64,13 @@ public partial class StrategyHud
         if (!result.Submission.Accepted) { view.ShowFailure(CommandFailureText.Describe(Texts, result.Submission.Rejection)); return; }
         var messages = CorpsPresentation.Results(view.Draft.View, result.Events, Texts, CommandPresentation.Missions,
             Session.Messages(Texts,view.Draft.View.World),Session.Messages(Texts));
+        var publication = ExecutionPublication.Read(view.Draft.View, Session.View, Session.Messages(Texts, view.Draft.View.World),
+            Texts, CommandPresentation, result.Events, executionMap: false);
+        foreach (var record in publication.Records) PresentMapRecord(record);
         CloseCorpsManagement();
         _contextTarget = null; _hoverTarget = null;
         _mapContext.Close(); _commandMenu.Close();
         Selection.Clear(); World.HoverObject(null); _hoverCard.ShowInfo(null, global::Godot.Vector2.Zero);
-        OpenNarration(messages, view.Draft.View);
+        OpenNarration(messages.Concat(publication.Messages).ToArray(), view.Draft.View);
     }
 }

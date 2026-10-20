@@ -88,6 +88,8 @@ public static class ProgressMessages
                     colorForce = target.ForceId;
                     values["unit"] = MessageBinding.Reference(target.IsSettlement ? MessageEntityKind.Settlement : MessageEntityKind.Unit, target.Id);
                     role = "unit-lost";
+                    if (lost.Reason == UnitTerminationReason.MoraleCollapsed && Player(target.ForceId))
+                    { role = "unit-morale-collapsed"; break; }
                     if (!Player(target.ForceId) && !Player(lost.Source?.ForceId))
                     {
                         if (target.ForceId is not int owner) { role = null; break; }
@@ -137,17 +139,12 @@ public static class ProgressMessages
                     role = "transport-completed"; clock = delivered.Clock; Place(delivered.SettlementId); Person("actor", deliveringCommander); colorForce = delivered.Source.ForceId;
                     break;
                 case OfficerCapturedEvent captured when Player(captured.CaptorId) || Player(before.World.Officers.Single(p => p.Id == captured.OfficerId).OwnerId):
+                    if (events.OfType<BattlePersonnelResolvedEvent>().Any(e => e.Clock == captured.Clock && e.CapturedIds.Contains(captured.OfficerId))) break;
                     int? capturedOwner = before.World.Officers.Single(p => p.Id == captured.OfficerId).OwnerId;
                     role = Player(captured.CaptorId) ? "enemy-captured" : "person-captured"; clock = captured.Clock; Person("actor", captured.OfficerId); Force("force", captured.CaptorId);
                     colorForce = Player(capturedOwner) ? capturedOwner : captured.CaptorId;
                     location = captured.SettlementId is int prison ? PlaceLocation(prison) : captured.UnitId is int unit
                         ? UnitLocation(unit,index) : PersonLocation(captured.OfficerId);
-                    break;
-                case PrisonerEscapedEvent escaped when before.World.Officers.Single(p => p.Id == escaped.OfficerId) is { } person &&
-                    (Player(person.OwnerId) || escaped.DetentionSettlementId is int detention && Player(before.World.Settlements.Single(s => s.Id == detention).OwnerId) ||
-                        escaped.DetentionUnitId is int detentionUnit && Player(before.World.Units.Single(u => u.Id == detentionUnit).OwnerId)):
-                    role = "prisoner-escaped"; clock = escaped.Clock; Person("actor", escaped.OfficerId);
-                    Place(escaped.DetentionSettlementId ?? before.World.Units.Single(u => u.Id == escaped.DetentionUnitId).ServicePlaceId!.Value); colorForce = person.OwnerId;
                     break;
                 case ForceLeaderChangedEvent succession when succession.PreviousId is int previous:
                     role = "ruler-succeeded"; clock = succession.Clock; Person("actor", succession.OfficerId); Person("other", previous);

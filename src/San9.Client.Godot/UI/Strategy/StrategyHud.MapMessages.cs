@@ -42,6 +42,7 @@ public partial class StrategyHud
         if (!_executionPanels.Append(entry)) return false;
         _mapRecordsRequested = true;
         _executionPanels.ExpandImmediately();
+        if (entry.SoundRole is { } sound) _sceneSounds.Play(sound, SoundEnabled);
         if (entry.Location is { } location)
         {
             _minimap!.PresentRecordLocation(location);

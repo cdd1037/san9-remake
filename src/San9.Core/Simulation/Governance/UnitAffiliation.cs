@@ -14,7 +14,7 @@ internal static class UnitAffiliation
         var people = world.Officers.Values.Where(p => p.IsServing && p.OwnerId == owner && p.UnitId == unit.Id).OrderBy(p => p.Id).ToArray();
         int? root = world.Corps.Values.SingleOrDefault(c => c.OwnerId == recipient && c.IsRoot)?.Id;
         BattleTreasury.TransferTo(world, owner, unit.CorpsId, (long)unit.Soldiers + unit.Wounded,
-            ResourceAccounts.Resolve(world, recipient, root), unit.Id, reason, events);
+            ResourceAccounts.Resolve(world, recipient, root), new(unit.Id, false), reason, events);
         // End the old construction under its old ownership before transferring the surviving army.
         FacilityConstruction.Cancel(world, unit.Id, events);
         unit = world.Units[unit.Id];

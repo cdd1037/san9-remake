@@ -3,7 +3,11 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 public sealed record PrisonerEscapedEvent(GameClock Clock, int OfficerId, int? DetentionSettlementId,
-    int? DetentionUnitId, int DestinationId) : DomainEvent;
+    int? DetentionUnitId, int DestinationId) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonRequired] public PersonOccurrence Occurrence { get; init; } = null!;
+    [System.Text.Json.Serialization.JsonRequired] public int CaptorForceId { get; init; }
+}
 
 internal static class PrisonerEscapeCycle
 {

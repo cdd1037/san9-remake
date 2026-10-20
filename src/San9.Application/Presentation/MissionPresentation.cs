@@ -66,7 +66,7 @@ public static class MissionPresentation
         string Person(int id) => texts.Resolve(before.Officers.Single(p => p.Id == id).NameKey);
         string Place(int id) => before.Settlements.Single(s => s.Id == id).ResolveName(texts);
         string Force(int id) => texts.Resolve(before.Forces.Single(f => f.Id == id).NameKey);
-        bool Player(PersistentTask task) => task.ForceId == before.PlayerForceId && task.ControllerId == "player";
+        bool Player(PersistentTask task) => before.World.Simulation.Controls.Any(c => c.ForceId == task.ForceId && c.Kind == ControllerKind.Player);
         foreach (var e in events)
         {
             // Only mission results enter this projection; identity, occurrence and authored role travel together.
@@ -142,8 +142,6 @@ public static class MissionPresentation
             }
             string? detail = original is null ? null : e switch
             {
-                AlienateResolvedEvent { Success: true } a => CommandText.Resolve(texts, "result.loyalty-loss", a.LoyaltyLoss),
-                BurnResolvedEvent { Success: true } b => CommandText.Resolve(texts, "result.burn-loss", Place(b.TargetSettlementId), b.DurabilityLoss, b.FoodLoss),
                 GossipResolvedEvent { Success: true } g => CommandText.Resolve(texts, "result.relation-loss", Force(g.SecondTargetForceId), g.RelationLoss),
                 UnitStrategyResolvedEvent { Strategy: UnitStrategyKind.Reinforce } u => CommandText.Resolve(texts, "result.reinforcement", u.DeliveredSoldiers, u.RequestedSoldiers),
                 GiftResolvedEvent { Refunded: > 0 } g => CommandText.Resolve(texts, "result.refund-resource",

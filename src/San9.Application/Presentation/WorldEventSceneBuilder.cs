@@ -103,7 +103,7 @@ internal sealed partial class WorldEventSceneBuilder
         speakerContext = occurrence;
         Message("founder-declaration", speech: true, focus: true);
         if (predecessor is int previous) Force("previous-force", previous);
-        Message(predecessor is null ? "force-founded" : "city-independent", record: true);
+        Message(predecessor is null ? "force-founded" : "city-independent");
     }
     private void Search(int actor, int other, int place, int force)
     { Person("actor", actor); Person("other", other); Place(place); Force("force", force); location = PlaceLocation(place); colorForce = force; }

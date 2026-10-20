@@ -66,6 +66,15 @@ public sealed class StrategyDiplomacyTests
             List<DomainEvent> events = [];
             // All targets are within two daily command stages; no intervening automatic planner is involved.
             for (int day = 0; day < 2; day++) new ResolutionPipeline(rules).AdvanceDay(mutation, events);
+            if (kind is 4 or 5)
+            {
+                var contact = Assert.Single(events.OfType<SecretContactReportedEvent>());
+                Assert.Equal(2, contact.RecipientForceId);
+                Assert.Equal(22, contact.OfficerId);
+                Assert.Equal(3, contact.ContactForceId);
+                Assert.Equal(2, contact.Occurrence.ForceId);
+                Assert.True(events.IndexOf(contact) < events.FindIndex(e => e is AlienateResolvedEvent or GossipResolvedEvent));
+            }
             var growth = events.OfType<OfficerAbilityGrownEvent>().Where(e => e.OfficerId == 11).ToArray();
             if (sample.Grows)
             {

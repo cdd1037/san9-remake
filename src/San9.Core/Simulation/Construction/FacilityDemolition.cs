@@ -25,7 +25,7 @@ internal static class FacilityDemolition
         {
             FacilityConstruction.Cancel(world, builder, events);
             world.Replace(world.Units[builder] with { Order = null });
-            events.Add(new UnitOrderChangedEvent(world.Clock, builder, null, "facility-demolished"));
+            UnitOrderChanges.Report(world, builder, null, "facility-demolished", events);
             facility = world.Settlements[facility.Id];
         }
 
@@ -45,7 +45,7 @@ internal static class FacilityDemolition
         foreach (var unit in world.Units.Values.Where(u => u.Order?.SettlementId == facility.Id).OrderBy(u => u.Id).ToArray())
         {
             world.Replace(unit with { Order = null, AwaitingPostAction = unit.Order!.IsAttack });
-            events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, null, "facility-demolished"));
+            UnitOrderChanges.Report(world, unit.Id, null, "facility-demolished", events);
         }
         BattleAftermath.Reconcile(world, new HashSet<int> { command.IssuerId }, rules, events, false);
         events.Add(new FacilityDemolishedEvent(world.Clock, facility.Id, cityId, command.IssuerId, facility.Facility?.TypeId ?? definition.FacilityTypeId));

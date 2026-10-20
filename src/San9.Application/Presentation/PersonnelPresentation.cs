@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using San9.Content.Interface;
 using San9.Content.Text;
 using San9.Core.Domain;
@@ -7,6 +8,11 @@ namespace San9.Application.Presentation;
 
 public static class PersonnelPresentation
 {
+    internal static WorldSnapshot RecruitmentWorld(WorldSnapshot world, RecruitmentResolvedEvent recruit) =>
+        world with { Officers = world.Officers.Select(p => p.Id == recruit.TargetOfficerId
+            ? p with { Status = recruit.Occurrence.PreviousStatus, OwnerId = recruit.Occurrence.Target.ForceId }
+            : p).ToImmutableArray() };
+
     private static Dictionary<string, MessageBinding> Values(StrategySnapshot view, int actorId, int placeId)
     {
         var actor = view.World.Officers.Single(p => p.Id == actorId);
@@ -89,8 +95,12 @@ public static class PersonnelPresentation
             }
             if (outcome is RecruitmentResolvedEvent recruit && Direct(recruit.OfficerId))
             {
-                var target = before.World.Officers.Single(p => p.Id == recruit.TargetOfficerId);
-                var values = Values(before, recruit.OfficerId, TargetPlace(before, target.Id));
+                var recruitmentWorld = RecruitmentWorld(before.World, recruit);
+                var target = recruitmentWorld.Officers.Single(p => p.Id == recruit.TargetOfficerId);
+                var recruitmentContext = context.ForWorld(recruitmentWorld).AtOccurrence(recruit.Clock);
+                int place = (recruit.Occurrence.Target.Position is { } position
+                    ? before.RegionAt(position) : recruit.Occurrence.Target.PlaceId)!.Value;
+                var values = Values(before, recruit.OfficerId, place);
                 values["target"] = MessageBinding.Reference(MessageEntityKind.Person, target.Id);
                 bool captive = target.Status == OfficerStatus.Captive;
                 if (target.OwnerId is int oldForce)
@@ -99,21 +109,21 @@ public static class PersonnelPresentation
                     if (before.World.Forces.Single(f => f.Id == oldForce).LeaderId is int ruler)
                         values["old-ruler"] = MessageBinding.Reference(MessageEntityKind.Person, ruler);
                 }
-                result.Add(Message(content, captive || target.Status == OfficerStatus.Free ? "employ-meeting" : "employ-secret-meeting", context, texts, values, random));
+                result.Add(Message(content, captive || target.Status == OfficerStatus.Free ? "employ-meeting" : "employ-secret-meeting", recruitmentContext, texts, values, random));
                 string reply = captive ? recruit.Success ? "captive-success" : target.OwnerId is null ? "captive-free-failure" : "captive-failure" :
                     recruit.Success ? "employ-success" : "employ-failure";
-                result.Add(Message(content, reply, context, texts, values, random));
+                result.Add(Message(content, reply, recruitmentContext, texts, values, random));
                 string resultRole = !recruit.Success ? "employ-result-failure" : captive && target.OwnerId is not null ? "captive-result-success" : "employ-result-success";
-                result.Add(Message(content, resultRole, context, texts, values, random));
+                result.Add(Message(content, resultRole, recruitmentContext, texts, values, random));
                 foreach (var transfer in events.OfType<PersonnelTerritoryTransferredEvent>().Where(e => e.OfficerId == target.Id))
                 {
                     values["place"] = Place(before, transfer.PlaceId);
-                    result.Add(Message(content, "employ-territory", context, texts, values, random));
+                    result.Add(Message(content, "employ-territory", recruitmentContext, texts, values, random));
                     if (before.World.Settlements.Single(s => s.Id == transfer.PlaceId).Kind == SettlementKind.City)
-                        result.Add(Message(content, "employ-city", context, texts, values, random));
+                        result.Add(Message(content, "employ-city", recruitmentContext, texts, values, random));
                 }
-                if (recruit.Success && target.UnitId is int unit && before.World.Units.Single(u => u.Id == unit).CommanderId == target.Id)
-                    result.Add(Message(content, "employ-unit", context, texts, values, random));
+                if (recruit.Success && recruit.Occurrence.TransferredUnit)
+                    result.Add(Message(content, "employ-unit", recruitmentContext, texts, values, random));
             }
         }
         return result;

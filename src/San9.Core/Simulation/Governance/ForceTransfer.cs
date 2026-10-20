@@ -49,7 +49,7 @@ internal static class ForceTransfer
             bool temporary = unit.EngagementTargetId is int other && world.Units[other].OwnerId == unit.OwnerId;
             if (main || temporary) world.Replace(unit with { Order = main ? null : unit.Order,
                 EngagementTargetId = temporary ? null : unit.EngagementTargetId, AwaitingPostAction = false });
-            if (main) events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, null, reason));
+            if (main) UnitOrderChanges.Report(world, unit.Id, null, reason, events);
             if (temporary) events.Add(new UnitEngagementChangedEvent(world.Clock, unit.Id, null, reason));
         }
     }

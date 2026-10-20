@@ -59,12 +59,14 @@ public sealed class ForceControlTests
         finally { File.Delete(path); }
     }
 
-    [Fact]
-    public void HandingOverAllPlayersIsOneOperationAndPreservesCompletedSeatsAndOrders()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void HandingOverAllPlayersIsOneOperationAndPreservesCompletedSeatsAndOrders(bool completeFirstSeat)
     {
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 190);
         session.TakeOverForce(2);
-        session.EndControl(new("player"));
+        if (completeFirstSeat) session.EndControl(new("player"));
         var before = session.Capture();
         var request = session.Request(new HandOverAllForcesOperation());
         Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);
@@ -73,8 +75,8 @@ public sealed class ForceControlTests
         Assert.Equal(before.NextOperationSequence + 1, after.NextOperationSequence);
         Assert.All(after.World.Simulation.Controls, c => Assert.Equal(ControllerKind.Automatic, c.Kind));
         Assert.Equal(before.World.Simulation.ActiveControl, after.World.Simulation.ActiveControl);
-        Assert.Equal(before.World.Simulation.Controls.Take(before.World.Simulation.ActiveControl).Select(c => c.ForceId),
-            after.World.Simulation.Controls.Take(after.World.Simulation.ActiveControl).Select(c => c.ForceId));
+        Assert.Equal(before.World.Simulation.Controls.Select(c => c.ForceId),
+            after.World.Simulation.Controls.Select(c => c.ForceId));
         Assert.Equal(before.World.Clock, after.World.Clock);
         Assert.Equal(before.World.Officers, after.World.Officers);
         Assert.Equal(before.World.Corps, after.World.Corps);

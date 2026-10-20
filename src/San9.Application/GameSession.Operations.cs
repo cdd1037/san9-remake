@@ -82,11 +82,7 @@ public sealed partial class GameSession
                         if (request.Operation is ForceControlOperation control)
                             candidate.SetForceControl(control.ForceId, control.Kind);
                         else
-                        {
-                            var players = candidate.Snapshot.Simulation.Controls.Where(c => c.Kind == ControllerKind.Player).ToArray();
-                            if (players.Length == 0) return Rejected(SessionRejection.InvalidRequest);
-                            foreach (var player in players) candidate.SetForceControl(player.ForceId, ControllerKind.Automatic);
-                        }
+                            candidate.HandOverAllForces();
                     }
                     catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
                     break;

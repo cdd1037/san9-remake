@@ -62,7 +62,7 @@ public partial class StrategyHud : Control
     private readonly GameTextPresenter _text = new();
     public override void _Ready()
     {
-        _textures = Textures.CreateScope(owner: this);
+        _textures = Textures.CreateScope();
         _textures.RequestPrefixes("button-", "top-", "radar-", "sidebar-", "ruler-", "field-", "region-",
             "season-", "turn-", "target-", "hover-", "icon-", "minimap-",
             "roster-", "scroll-", "message-", "dialog-", "narration-", "command-", "information-menu-", "shortcut-");

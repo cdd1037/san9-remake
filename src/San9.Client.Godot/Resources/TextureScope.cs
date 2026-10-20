@@ -19,19 +19,17 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
     public IReadOnlyDictionary<string, ImageAsset> Assets => assets;
     public int BindingCount => _bindings.Count;
     internal int RedrawConsumerCount => _consumers.Count;
-    public Texture2D this[string key]
+    /// <summary>Access a resource for skin composition. Drawing users must bind their own canvas item.</summary>
+    internal Texture2D GetResource(string key)
     {
-        get
-        {
-            ObjectDisposedException.ThrowIf(_disposed, this);
-            return _bindings.TryGetValue(key, out var binding) ? binding.View :
-                throw new InvalidOperationException($"Texture '{key}' must be requested before binding or drawing.");
-        }
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return _bindings.TryGetValue(key, out var binding) ? binding.View :
+            throw new InvalidOperationException($"Texture '{key}' must be requested before binding or drawing.");
     }
     /// <summary>Bind the actual drawing node, independently of the scope's creator or scene parent.</summary>
     public Texture2D Get(string key, CanvasItem consumer)
     {
-        var texture = this[key];
+        var texture = GetResource(key);
         BindRedraw(consumer);
         return texture;
     }
@@ -63,8 +61,15 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
         !TextureGroups.IsPortrait(key) && prefixes.Any(prefix => key.StartsWith(prefix, StringComparison.Ordinal))));
     public bool AreReady(IEnumerable<string> keys) => keys.All(k => _bindings.TryGetValue(k, out var b) && b.Installed);
     public Exception? ErrorFor(IEnumerable<string> keys) => keys.Select(k => _bindings.GetValueOrDefault(k)?.Lease.Error).FirstOrDefault(e => e is not null);
-    public bool TryGetReady(string key, out Texture2D texture)
+    public bool TryGetReady(string key, CanvasItem consumer, out Texture2D texture)
     {
+        BindRedraw(consumer);
+        return TryGetReadyResource(key, out texture);
+    }
+    /// <summary>Ready resource for native controls, cursor installation and sprite composition; no custom draw subscription.</summary>
+    internal bool TryGetReadyResource(string key, out Texture2D texture)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (_bindings.TryGetValue(key, out var binding) && binding.Installed && !prefetch)
         { texture = binding.View; return true; }
         texture = null!; return false;

@@ -80,7 +80,7 @@ public partial class StrategyOverviewPanel : FixedPage
         }
         if (_scope is null)
         {
-            _scope = Service.CreateScope(owner: this);
+            _scope = Service.CreateScope();
             _scope.RequestPrefixes("overview-background", "overview-terrain", "overview-ranking", "overview-marker-", "overview-facility-", "overview-unit-", "button-overview-");
             _map ??= new(Service, Skin);
             BuildButtons();

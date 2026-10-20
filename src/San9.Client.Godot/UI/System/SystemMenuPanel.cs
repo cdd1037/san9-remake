@@ -37,7 +37,7 @@ public partial class SystemMenuPanel : Control
         if (_busy) return;
         Browser.Close();
         ReplacePage(null);
-        _textures ??= Service.CreateScope(owner: this);
+        _textures ??= Service.CreateScope();
         _textures.RequestPrefixes("information-menu-", "save-load-", "message-");
         Show();
         ReplacePage(new FunctionsMenuView { AnchorControl = MenuAnchor, Textures = _textures, Texts = Texts, Open = Open,
@@ -58,7 +58,7 @@ public partial class SystemMenuPanel : Control
     public async void Open(SaveLoadMode mode)
     {
         if (_busy) return;
-        _textures ??= Service.CreateScope(owner: this);
+        _textures ??= Service.CreateScope();
         _textures.RequestPrefixes("save-load-", "message-");
         Show();
         var token = _lifetime.Token;
@@ -93,7 +93,7 @@ public partial class SystemMenuPanel : Control
         if (_busy) return;
         Browser.Close();
         ReplacePage(null);
-        _textures ??= Service.CreateScope(owner: this);
+        _textures ??= Service.CreateScope();
         _textures.RequestPrefixes("dialog-");
         Show();
         if (!Session.HasUnsavedChanges) { Load(read); return; }
@@ -115,7 +115,7 @@ public partial class SystemMenuPanel : Control
     private void ShowLoadNotice(string message)
     {
         HideBusy();
-        _textures ??= Service.CreateScope(owner: this);
+        _textures ??= Service.CreateScope();
         _textures.RequestPrefixes("dialog-");
         Show();
         var notice = MapDialog();

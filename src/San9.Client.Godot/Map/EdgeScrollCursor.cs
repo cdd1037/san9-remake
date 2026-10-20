@@ -36,7 +36,7 @@ internal sealed class EdgeScrollCursor : IDisposable
             _ => throw new ArgumentOutOfRangeException(nameof(direction))
         };
         string role = $"scroll-{name}-{(active ? "active" : "idle")}";
-        if (_textures is null || !_textures.TryGetReady(role, out var texture))
+        if (_textures is null || !_textures.TryGetReadyResource(role, out var texture))
         {
             Show(default, false);
             return;

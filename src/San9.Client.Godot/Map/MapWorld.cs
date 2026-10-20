@@ -132,7 +132,7 @@ public partial class MapWorld : Node2D
             _display = new() { Textures = Textures, Terrain = _terrain, AnimationTime = () => AnimationTime };
             _display.Committed += OnCommitted; AddChild(_display);
         }
-        _flags ??= Textures.CreateScope(Textures.MapAssets, owner: this);
+        _flags ??= Textures.CreateScope(Textures.MapAssets);
         _edgeCursor.Initialize(Textures);
         PreviewSeasonOverride = season;
         BeginLoad(DesiredSeason);
@@ -270,9 +270,8 @@ public partial class MapWorld : Node2D
     public void DrawHoverFlag(Node2D target, int color, int glyph, Vector2 position)
     {
         if (_flags is null) return;
-        _flags.BindRedraw(target);
         foreach (string id in HoverFlagAssets(color, glyph))
-            if (_flags.TryGetReady(id, out var texture)) target.DrawTexture(texture, position);
+            if (_flags.TryGetReady(id, target, out var texture)) target.DrawTexture(texture, position);
     }
     public void FocusWorld(Vector2 point) => RequestView(new(point.X, point.Y, RequestedZoom));
     public void FocusCell(San9.Core.Domain.MapCell cell)

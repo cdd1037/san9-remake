@@ -115,8 +115,8 @@ public partial class CommandNarration : FixedPage
         if (HasIllustration)
         {
             string imageRole = entry.IllustrationPersonId is int imagePerson ? $"information-person-{imagePerson}" : entry.IllustrationRole!;
-            _illustration = entry.IllustrationPersonId is not null ? Service.CreatePortraitScope(imageRole,San9.Content.Images.PortraitView.Full,this) :
-                Service.CreateScope(new Dictionary<string,San9.Content.Images.ImageAsset> { [imageRole]=Service.Roles[imageRole] },owner:this);
+            _illustration = entry.IllustrationPersonId is not null ? Service.CreatePortraitScope(imageRole,San9.Content.Images.PortraitView.Full) :
+                Service.CreateScope(new Dictionary<string,San9.Content.Images.ImageAsset> { [imageRole]=Service.Roles[imageRole] });
             _illustration.Request([imageRole]);
             var asset=_illustration.Assets[imageRole];
             float scale=Math.Min(1,Math.Min(928f/asset.Width,(592-resultBodyHeight)/asset.Height));

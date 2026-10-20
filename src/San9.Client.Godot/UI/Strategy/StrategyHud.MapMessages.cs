@@ -28,7 +28,7 @@ public partial class StrategyHud
     {
         _recordSounds = new() { ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, MaxPolyphony = 3 };
         AddChild(_recordSounds);
-        _speechTextures = Textures.CreateScope(owner: this);
+        _speechTextures = Textures.CreateScope();
         _speechTextures.RequestPrefixes("map-speech-","text-icon-");
         // Above map annotations (-2), below the HUD frame and controls (0).
         _speechHost = new Control { Size = Size, ZIndex = -1, MouseFilter = MouseFilterEnum.Ignore };

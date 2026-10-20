@@ -97,16 +97,15 @@ public partial class TextureService : Node
         for (int y = 0; y < mask.Height; y++) for (int x = 0; x < mask.Width; x++) bitmap.SetBit(x, y, mask.Contains(x, y));
         return bitmap;
     }
-    public TextureScope CreatePortraitScope(string role, PortraitView view, CanvasItem owner)
+    public TextureScope CreatePortraitScope(string role, PortraitView view)
     {
         var image = Roles[role];
         if (_portraits.TryGetValue(image.Id, out var portrait)) image = portrait.GetView(view);
-        return CreateScope(new Dictionary<string, ImageAsset> { [role] = image }, owner: owner);
+        return CreateScope(new Dictionary<string, ImageAsset> { [role] = image });
     }
-    public TextureScope CreateScope(IReadOnlyDictionary<string, ImageAsset>? assets = null, bool prefetch = false, CanvasItem? owner = null)
+    public TextureScope CreateScope(IReadOnlyDictionary<string, ImageAsset>? assets = null, bool prefetch = false)
     {
         var scope = new TextureScope(this, assets ?? Roles, prefetch);
-        if (owner is not null) scope.BindRedraw(owner);
         _scopes.Add(scope); return scope;
     }
     public bool ActiveReady => _scopes.All(s => s.IsReady);

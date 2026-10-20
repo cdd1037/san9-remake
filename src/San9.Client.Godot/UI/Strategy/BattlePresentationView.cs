@@ -105,14 +105,14 @@ public partial class BattlePresentationView : Control
             foreach (var effect in zoom.WaveEffects) Sprite(effect.Sprite);
             foreach (var sprite in zoom.DoubleEffect) Sprite(sprite);
         }
-        _assets = Textures.CreateScope(Textures.LibraryAssets, owner: this); _assets.Request(resources);
-        _flags = Textures.CreateScope(Textures.MapAssets, owner: this); _flags.Request(flagResources);
+        _assets = Textures.CreateScope(Textures.LibraryAssets); _assets.Request(resources);
+        _flags = Textures.CreateScope(Textures.MapAssets); _flags.Request(flagResources);
         foreach (var portrait in plan.Messages.Where(c => c.Message.SpeakerId is not null && c.Channel != BattleMessageChannel.DuelDialogue)
             .Select(c => (Speaker: c.Message.SpeakerId!.Value, View: c.Channel == BattleMessageChannel.Dialogue
                 ? San9.Content.Images.PortraitView.Bust : San9.Content.Images.PortraitView.Face)).Distinct())
         {
             var role = $"information-person-{portrait.Speaker}";
-            var scope = Textures.CreatePortraitScope(role, portrait.View, this);
+            var scope = Textures.CreatePortraitScope(role, portrait.View);
             scope.Request([role]); _portraits.Add(scope);
         }
         QueueRedraw(); return ResourcesReady;
@@ -181,7 +181,7 @@ public partial class BattlePresentationView : Control
         int slot = 0;
         void Effect(BattleSprite asset, double elapsed, Vector2 point, float opacity = 1, int? frameIndex = null, bool sceneCoordinates = true)
         {
-            if (!_assets!.TryGetReady(asset.Asset, out var texture) && (_flags is null || !_flags.TryGetReady(asset.Asset, out texture))) return;
+            if (!_assets!.TryGetReady(asset.Asset, this, out var texture) && (_flags is null || !_flags.TryGetReady(asset.Asset, this, out texture))) return;
             Sprite2D sprite;
             if (slot == _effects.Count) { sprite = new(); AddChild(sprite); _effects.Add(sprite); } else sprite = _effects[slot];
             slot++; sprite.Show(); sprite.Texture = texture; sprite.Hframes = asset.Columns;
@@ -329,7 +329,7 @@ public partial class BattlePresentationView : Control
     {
         _streams = new(ContentRoot, Sounds); _ambience = new(); AddChild(_ambience); _numberRoll = new(); AddChild(_numberRoll);
         _numberLayer = new() { DrawNumbers = DrawNumbers, ZIndex = 1 }; AddChild(_numberLayer);
-        _duelUi = Textures.CreateScope(owner: this);
+        _duelUi = Textures.CreateScope();
         _duelPanels = new Node2D { ZIndex = 3 }; AddChild(_duelPanels); _duelPanels.Draw += DrawDuelPanels;
         _duelSpeechFrame = new Node2D { ZIndex = 5 }; AddChild(_duelSpeechFrame); _duelSpeechFrame.Draw += DrawDuelSpeech;
         _duelText = new GameRichTextLabel { Textures = _duelUi, MouseFilter = MouseFilterEnum.Ignore, ZIndex = 6,

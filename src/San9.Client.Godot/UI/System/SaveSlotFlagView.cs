@@ -17,7 +17,7 @@ public partial class SaveSlotFlagView : Control
         Size = new(68, 52);
         _frames = FlagVisuals.Layers(5, Flag.Color, Flag.Glyph)
             .Select(layer => Service.AnimationClips[layer].Frames[3]).ToArray();
-        _textures = Service.CreateScope(Service.MapAssets, owner: this);
+        _textures = Service.CreateScope(Service.MapAssets);
         _textures.Request(_frames);
     }
 

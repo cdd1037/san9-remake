@@ -29,7 +29,7 @@ public partial class TextureRedrawVerification : Node
             var overlay = new Control();
             AddChild(hud); AddChild(overlay);
             scope = service.CreateScope(new Dictionary<string, ImageAsset>
-            { ["fixture"] = new("fixture", "fixture.png", 8, 8) }, owner: hud);
+            { ["fixture"] = new("fixture", "fixture.png", 8, 8) });
             scope.Request(["fixture"]);
             var visible = new TextureRedrawProbe { Textures = scope };
             var closed = new TextureRedrawProbe { Textures = scope };
@@ -38,18 +38,18 @@ public partial class TextureRedrawVerification : Node
             await Until(() => visible.DrawCount > 0 && closed.DrawCount > 0 && unbound.DrawCount > 0);
             Require(!visible.HadAtlas, "The cold draw must precede the texture upload.");
             overlay.RemoveChild(closed); closed.Free();
-            Require(scope.RedrawConsumerCount == 2, "A departing consumer must unsubscribe.");
+            Require(scope.RedrawConsumerCount == 1, "A departing consumer must unsubscribe.");
             overlay.RemoveChild(visible);
-            Require(scope.RedrawConsumerCount == 1, "Removing a retained page must unsubscribe.");
+            Require(scope.RedrawConsumerCount == 0, "Removing a retained page must unsubscribe.");
             overlay.AddChild(visible);
-            await Until(() => scope.RedrawConsumerCount == 2);
+            await Until(() => scope.RedrawConsumerCount == 1);
             int before = visible.DrawCount;
             int unboundBefore = unbound.DrawCount;
             release.Set();
             await Until(() => scope.IsReady && visible.DrawCount > before && visible.HadAtlas);
             Require(unbound.DrawCount == unboundBefore && !unbound.HadAtlas,
                 "The unbound control must reproduce the missed redraw outside the owner's subtree.");
-            Require(scope.RedrawConsumerCount == 2, "Repeated draws must not duplicate subscriptions.");
+            Require(scope.RedrawConsumerCount == 1, "Repeated draws must not duplicate subscriptions.");
             var cached = new TextureRedrawProbe { Textures = scope };
             overlay.AddChild(cached);
             await Until(() => cached.DrawCount > 0);
@@ -57,7 +57,7 @@ public partial class TextureRedrawVerification : Node
             overlay.RemoveChild(visible); visible.Free();
             overlay.RemoveChild(cached); cached.Free();
             overlay.RemoveChild(unbound); unbound.Free();
-            Require(scope.RedrawConsumerCount == 1, "Closing pages must retain only the explicit owner.");
+            Require(scope.RedrawConsumerCount == 0, "Closing pages must detach all drawing consumers.");
             scope.Dispose();
             Require(scope.RedrawConsumerCount == 0, "Disposing a scope must detach its remaining consumers.");
             GD.Print("TEXTURE_REDRAW_OK cold_upload cached_reopen shared_overlay consumer_reentry consumer_exit scope_dispose");
@@ -96,7 +96,7 @@ public partial class TextureRedrawProbe : Control
     public override void _Draw()
     {
         DrawCount++;
-        var texture = Observe ? Textures.Get("fixture", this) : Textures["fixture"];
+        var texture = Observe ? Textures.Get("fixture", this) : Textures.GetResource("fixture");
         HadAtlas = ((AtlasTexture)texture).Atlas is not null;
         DrawTexture(texture, Vector2.Zero);
     }

@@ -12,8 +12,8 @@ public sealed class TextureScopeTests
         { ["skin"] = new("skin", "skin.png", 8, 8) });
         Assert.Equal("skin", Assert.Single(scope.Assets).Key);
         Assert.Equal(0, scope.BindingCount);
-        Assert.Throws<InvalidOperationException>(() => scope["skin"]);
-        Assert.False(scope.TryGetReady("skin", out _));
+        Assert.Throws<InvalidOperationException>(() => scope.Get("skin", null!));
+        Assert.False(scope.AreReady(["skin"]));
         Assert.Equal(0, scope.BindingCount);
     }
 }

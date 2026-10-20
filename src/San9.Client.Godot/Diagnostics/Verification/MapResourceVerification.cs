@@ -56,10 +56,10 @@ public partial class ClientVerification
             prefetch.Request(region.Assets);
             await Until(() => home.Ready);
             Check(transition.TryCommit(), "Offscreen loading blocked the visible frame.");
-            Check(home.Assets.TryGetReady(extra[0].Id, out _), "Cross-boundary sprite was not required.");
+            Check(home.Assets.AreReady([extra[0].Id]), "Cross-boundary sprite was not required.");
             Check(!service.Cache.Contains(extra[2].File), "Delayed offscreen frame unexpectedly loaded.");
             long misses = service.Cache.Misses;
-            Check(!home.Assets.TryGetReady(extra[2].Id, out _), "Offscreen texture became a drawing dependency.");
+            Check(!home.Assets.AreReady([extra[2].Id]), "Offscreen texture became a drawing dependency.");
             Check(service.Cache.Misses == misses, "Readiness-only drawing initiated a load.");
             var target = Frame(300); transition.Request(target);
             Check(!transition.TryCommit(), "Navigation entered incomplete animation.");

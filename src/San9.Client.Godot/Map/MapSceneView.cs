@@ -119,7 +119,7 @@ public partial class MapSceneView : Node2D
     public override void _Ready()
     {
         _transition = new(f => f.Ready, f => f.Error, f => Textures.Defer(f.Dispose));
-        _ui = Textures.CreateScope(owner: this);
+        _ui = Textures.CreateScope();
         _ui.RequestPrefixes("bar-", "icon-");
         _outlineMaterial = new ShaderMaterial { Shader = new Shader { Code = """
             shader_type canvas_item;
@@ -208,7 +208,7 @@ public partial class MapSceneView : Node2D
         // Main-map coverage has slack; stationary previews retain their exact clipping rectangle.
         var coverage = prefetch ? rect.Grow(256) : rect;
         var region = scene.Select(coverage, boundaries);
-        var assets = Textures.CreateScope(Textures.MapAssets, owner: this);
+        var assets = Textures.CreateScope(Textures.MapAssets);
         var visible = camera.Chunks(scene.Map.CanvasWidth, scene.Map.CanvasHeight, (int)Math.Ceiling(size.X), (int)Math.Ceiling(size.Y)).ToHashSet();
         var terrain = Terrain.Acquire(Keys(0).OrderBy(k => visible.Contains((k.X, k.Y)) ? 0 : 1));
         var next = new Frame(region, camera, size, assets, terrain, boundaries);
@@ -217,7 +217,7 @@ public partial class MapSceneView : Node2D
         _prefetchAssets = null; _prefetchTerrain = null;
         if (prefetch)
         {
-            _prefetchAssets = Textures.CreateScope(Textures.MapAssets, true, this);
+            _prefetchAssets = Textures.CreateScope(Textures.MapAssets, true);
             _prefetchAssets.Request(scene.Select(coverage.Grow(512), boundaries).Assets);
             _prefetchTerrain = Terrain.Acquire(Keys(1).Except(terrain.Keys), true);
         }
@@ -306,13 +306,12 @@ public partial class MapSceneView : Node2D
     }
     private void DrawWater()
     {
-        Presented?.Assets.BindRedraw(_water);
         WaterDraws++;
         if (Presented is not { } frame) return;
         foreach (var s in frame.Region.Water)
         {
             string id = MapAnimationClock.Asset(frame.Region.Scene.Clips[s.ClipId], frame.Region.Scene.Season, AnimationTime(), s.Phase);
-            if (frame.Assets.TryGetReady(id, out var texture)) _water.DrawTexture(texture, new(s.X, s.Y));
+            if (frame.Assets.TryGetReady(id, _water, out var texture)) _water.DrawTexture(texture, new(s.X, s.Y));
         }
     }
     private readonly List<(string Asset, Vector2 Position, MapObjectTarget Target)> _hitSprites = [];
@@ -338,7 +337,7 @@ public partial class MapSceneView : Node2D
             if (Targets is SpecialDeploymentTargets { PreviewFacilityId: int type })
             {
                 _previewSprites = BuildingVisuals.ConstructionPreview(frame.Region.Scene.Map,type);
-                _previewAssets = Textures.CreateScope(Textures.MapAssets,owner:this);
+                _previewAssets = Textures.CreateScope(Textures.MapAssets);
                 _previewAssets.Request(_previewSprites.Select(s=>s.AssetId));
             }
             _drawnTargets = Targets;
@@ -381,7 +380,7 @@ public partial class MapSceneView : Node2D
         if (Targets?.Waypoint is { } via)
         {
             string season = frame.Region.Scene.Season is "spring" or "summer" ? "spring-summer" : "autumn-winter";
-            if (_ui.TryGetReady($"target-waypoint-{season}-{_waypointFrame}", out var flag))
+            if (_ui.TryGetReadyResource($"target-waypoint-{season}-{_waypointFrame}", out var flag))
             {
                 var p = RoutePreviewGeometry.Waypoint(frame.Region.Scene.Map, via, flag.GetWidth(), flag.GetHeight());
                 waypointOverlay = (via.X + via.Y, () => Add(flag, new(p.X, p.Y)));
@@ -389,7 +388,7 @@ public partial class MapSceneView : Node2D
         }
         frame.Region.Objects(AnimationTime(), (id, position, building, blend, highlightable) =>
         {
-            if (!frame.Assets.TryGetReady(id, out var texture)) return;
+            if (!frame.Assets.TryGetReadyResource(id, out var texture)) return;
             if (!frame.ViewportBounds.Intersects(new Rect2(position, texture.GetSize()))) return;
             if (building is {} target && blend == MapBlendMode.Alpha) _hitSprites.Add((id, position, target));
             bool candidate = building is {} mapObject && (CommandTargets?.Objects.Contains(new(mapObject.Id,mapObject.IsUnit)) == true || mapObject is { IsUnit: false } targetBuilding &&
@@ -413,13 +412,13 @@ public partial class MapSceneView : Node2D
                 {
                     var p = RoutePreviewGeometry.Glow(frame.Region.Scene.Map, route.Route[i]);
                     string role = $"target-route-{RoutePreviewGeometry.Frame(AnimationTime(), i)}";
-                    if (_ui.TryGetReady(role, out var glow)) Add(glow, new(p.X, p.Y), _routeMaterial);
+                    if (_ui.TryGetReadyResource(role, out var glow)) Add(glow, new(p.X, p.Y), _routeMaterial);
                 }
 
             }
         }, waypointOverlay, (id, position) =>
         {
-            if (frame.Assets.TryGetReady(id, out var texture)) Add(texture, position, _outlineMaterial);
+            if (frame.Assets.TryGetReadyResource(id, out var texture)) Add(texture, position, _outlineMaterial);
         }, frame.ViewportBounds);
         if (Targets is { } selection)
         {
@@ -427,7 +426,7 @@ public partial class MapSceneView : Node2D
             {
                 if (!selection.Candidates.TryGetValue(target, out var kind)) return;
                 string role = $"target-marker-{(kind == MilitaryMarker.Attack ? "attack" : "enter")}-{_markerFrame}";
-                if (_ui.TryGetReady(role, out var texture)) Add(texture, position);
+                if (_ui.TryGetReadyResource(role, out var texture)) Add(texture, position);
             }
             foreach (var building in frame.Region.Buildings)
             {
@@ -437,7 +436,7 @@ public partial class MapSceneView : Node2D
             }
             foreach (var unit in frame.Region.Units) Marker(new(unit.Id, true), new(unit.AnchorX - 16, unit.AnchorY - 48));
         }
-        if (PersonnelTargets is { Kind: "move" } movement && _ui.TryGetReady($"target-marker-enter-{_markerFrame}", out var arrow))
+        if (PersonnelTargets is { Kind: "move" } movement && _ui.TryGetReadyResource($"target-marker-enter-{_markerFrame}", out var arrow))
             foreach (var building in frame.Region.Buildings.Where(b => movement.Targets.Contains(b.Id)))
             {
                 var offset = Textures.BuildingTargetOffsets[building.FixedType];
@@ -452,7 +451,7 @@ public partial class MapSceneView : Node2D
                 CommandTargetMarker.Hostile => "hostile", CommandTargetMarker.Friendly => "friendly",
                 _ => throw new InvalidOperationException("Unknown command target marker.")
             };
-            if (_ui.TryGetReady($"target-marker-{role}-{_markerFrame}", out var commandArrow))
+            if (_ui.TryGetReadyResource($"target-marker-{role}-{_markerFrame}", out var commandArrow))
             {
                 bool directional = commandSelection.Marker is CommandTargetMarker.Hostile or CommandTargetMarker.Friendly;
                 foreach (var building in frame.Region.Buildings.Where(b => commandSelection.Objects.Contains(new(b.Id,false))))
@@ -482,7 +481,7 @@ public partial class MapSceneView : Node2D
             void Preview(Vector2 position, float opacity)
             {
                 foreach (var sprite in _previewSprites)
-                    if (_previewAssets!.TryGetReady(sprite.AssetId,out var texture))
+                    if (_previewAssets!.TryGetReadyResource(sprite.AssetId, out var texture))
                         _objects.Add(texture,position+new Vector2(sprite.X,sprite.Y),null,new Color(1,1,1,opacity));
             }
         }

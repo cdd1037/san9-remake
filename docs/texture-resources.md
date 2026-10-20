@@ -47,7 +47,7 @@ python research/scripts/verify_texture_library.py --package local/generated/cont
 
 ## 所有权与预算
 
-`TextureScope.Assets`只提供资源元数据，枚举不会加载纹理；`Request`／`RequestPrefixes`显式申请，索引器只读取已申请的纹理视图，未申请时直接报错。申请不代表加载完成，就绪状态由`IsReady`／`TryGetReady`查询；`BindingCount`表示绑定数量。页面装配声明皮肤资源族，动态资源在内容绑定时申请，绘制回调不发起申请；图标先按元数据选尺寸，再申请对应角色。自定义绘制通过`Get(role, canvas)`读取已申请纹理并登记实际绘制节点，资源就绪或失败后只通知登记的节点重绘，不从创建作用域的HUD递归推断消费者。接收整组裸纹理的滚动条通过`BindRedraw`登记轨道与滑块节点；节点离开场景树或作用域释放时解除登记。
+`TextureScope.Assets`只提供资源元数据，枚举不会加载纹理；`Request`／`RequestPrefixes`显式申请，读取只允许已申请的纹理视图，未申请时直接报错。申请不代表加载完成，纯就绪查询使用`IsReady`／`AreReady`；`BindingCount`表示绑定数量。页面装配声明皮肤资源族，动态资源在内容绑定时申请，绘制回调不发起申请；图标先按元数据选尺寸，再申请对应角色。自定义绘制通过`Get(role, canvas)`或`TryGetReady(role, canvas, out texture)`读取已申请纹理并登记实际绘制节点（后者在未就绪时也登记），资源就绪或失败后只通知登记的节点重绘，不从创建作用域的HUD递归推断消费者。创建作用域不登记任何绘制节点；内部资源装配使用`GetResource`／`TryGetReadyResource`，适用于原生控件、精灵与系统光标，不代替自定义绘制绑定。接收整组裸纹理的滚动条通过`BindRedraw`登记轨道与滑块节点；节点离开场景树或作用域释放时解除登记。
 
 `Main` 装配会话级 `TextureService`。`TextureScope` 是显示资源租约与逻辑区域视图，使用 `Texture2D` 接口；多个角色和窗口共享同一物理 GPU 纹理。窗口只申请实际使用的角色。窗口关闭或重建时移除旧控件并释放作用域；旧绘制引用经过两帧退役后解绑、释放，避免仍在使用的原生绘制命令引用已释放纹理。
 
@@ -73,7 +73,7 @@ python research/scripts/verify_texture_library.py --package local/generated/cont
 
 头像解码后释放 Godot `Image`，上传后释放解码数组；GPU 缓存项不持有图片像素。淘汰后再次需要时重新解码。未就绪头像显示固定尺寸占位，错误显示错误占位。当前选择通过 `ResourceSelection` 独占请求，旧请求完成不回填新选择，关闭页面后不再持有头像。
 
-窗口图片未就绪时仅保留逻辑区域尺寸，区域视图不绑定底图、不绘制像素；就绪后绑定真实底图并通知所属控件树重绘。不得使用引擎的 `PlaceholderTexture2D` 作为加载画面，该类型[不适合实际渲染](https://docs.godotengine.org/en/stable/classes/class_placeholdertexture2d.html)。头像仍由控件显式绘制灰色／错误占位。全图隐藏时销毁其按钮并释放窗口作用域；重开时重新取得租约。HUD 和地图标注共享物理资源。透明拾取只保存必要的位掩码：HUD 与全图按钮用非零 Alpha，建筑用 Alpha≥128；不为拾取保留整张 RGBA。
+窗口图片未就绪时仅保留逻辑区域尺寸，区域视图不绑定底图、不绘制像素；就绪后绑定真实底图并通知登记的实际绘制节点重绘。不得使用引擎的 `PlaceholderTexture2D` 作为加载画面，该类型[不适合实际渲染](https://docs.godotengine.org/en/stable/classes/class_placeholdertexture2d.html)。头像仍由控件显式绘制灰色／错误占位。全图隐藏时销毁其按钮并释放窗口作用域；重开时重新取得租约。HUD 和地图标注共享物理资源。透明拾取只保存必要的位掩码：HUD 与全图按钮用非零 Alpha，建筑用 Alpha≥128；不为拾取保留整张 RGBA。
 
 悬停高亮由每个对象的 shader 执行原有颜色／Alpha 变换，保持桥、疆界、建筑、动画、云和选择标记顺序。滚动条直接从三段纹理绘制，不从 GPU 回读合成新纹理。区域平铺使用显式区域绘制，不依赖图集整页重复。
 

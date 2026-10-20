@@ -41,7 +41,7 @@ public partial class BattlePresentationView
             {
                 if (_duelPortraits.ContainsKey(person)) continue;
                 string role = $"information-person-{person}";
-                var scope = Textures.CreatePortraitScope(role, PortraitView.Bust, this);
+                var scope = Textures.CreatePortraitScope(role, PortraitView.Bust);
                 scope.Request([role]); _portraits.Add(scope); _duelPortraits.Add(person, scope);
             }
         }
@@ -154,7 +154,7 @@ public partial class BattlePresentationView
             var origin = SceneOffset + new Vector2(panel.Position.X, panel.Position.Y);
             var portrait = panel.Portrait;
             // Original order: the bust is behind the native frame, including its transparent margins.
-            layer.DrawTextureRect(_duelPortraits[fighter.Id][$"information-person-{fighter.Id}"],
+            layer.DrawTextureRect(_duelPortraits[fighter.Id].Get($"information-person-{fighter.Id}", layer),
                 new(origin + new Vector2(portrait.X, portrait.Y), new(portrait.Width, portrait.Height)), false);
             layer.DrawTexture(_assets.Get(panel.Asset, layer), origin);
             void Text(string text, DuelUiRect rect, int size, Color color) => GameTextPresenter.DrawAtGlyphCell(layer, font, text,

@@ -80,7 +80,7 @@ public partial class InformationPanel : Control
         _textures?.Dispose(); _textures = null;
         Visible = State.IsOpen;
         if (!Visible) return;
-        _textures = Service.CreateScope(owner: this);
+        _textures = Service.CreateScope();
         if (State.IsMenu) _textures.RequestPrefixes("information-menu-");
         else if (State.Category is InformationCategory.Records or InformationCategory.Chronicle) _textures.RequestPrefixes("progress-record-", "detail-", "catalog-scroll-", "message-", "text-icon-");
         else if (State.IsDetail) _textures.RequestPrefixes("detail-", "formation-", "roster-", "catalog-scroll-", "message-");

@@ -71,6 +71,14 @@ public sealed partial class GameSession
                     catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
                     ending = selection.Selection;
                     break;
+                case ForceControlOperation control:
+                    if (request.ControllerId != "player" || !Enum.IsDefined(control.Kind))
+                        return Rejected(SessionRejection.InvalidRequest);
+                    if (candidate.Snapshot.Simulation.Boundary != SimulationBoundary.Stable || candidate.Snapshot.Simulation.ActiveControl != 0 || originalAi.Continuation is not null)
+                        return Rejected(SessionRejection.NotStable);
+                    try { candidate.SetForceControl(control.ForceId, control.Kind); }
+                    catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
+                    break;
                 case PkSettingsOperation pk:
                     if (request.ControllerId != "player") return Rejected(SessionRejection.InvalidRequest);
                     if (candidate.Snapshot.Simulation.Boundary != SimulationBoundary.Stable)
@@ -127,7 +135,7 @@ public sealed partial class GameSession
             var snapshot = candidate.Snapshot;
             var view = input.View.ForWorld(snapshot);
             var history = ChronicleHistory.Append(input.History, ChronicleHistory.Read(input.View, view, events, input.Definition.Content.Terminal));
-            var strategicContext = Presentation.StrategicContext.Prepare(view, input.StrategicContext);
+            var strategicContext = Presentation.StrategicContext.Prepare(view, view.PlayerForceId == input.View.PlayerForceId ? input.StrategicContext : StrategicContextState.Empty);
             var publishedEvents = events.ToImmutableArray();
             var commit = new OperationCommit(candidate, originalAi.Reconcile(snapshot), aiReports.ToImmutableArray(),
                 ending, strategicContext, history, completed, note);

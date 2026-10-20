@@ -7,9 +7,9 @@ namespace San9.Application;
 
 public static class SessionProtocol
 {
-    public const string RulesVersion = "san9-core-g10-v161";
-    public const int SaveFormatVersion = 119;
-    public const int LogFormatVersion = 126;
+    public const string RulesVersion = "san9-core-g10-v162";
+    public const int SaveFormatVersion = 120;
+    public const int LogFormatVersion = 127;
 }
 
 /// <summary>Non-authoritative load diagnostics; never included in saves or deterministic hashes.</summary>
@@ -27,7 +27,9 @@ public sealed record RulesVersionWarning(string SavedVersion, string CurrentVers
 [JsonDerivedType(typeof(ChronicleOperation), "chronicle-note")]
 [JsonDerivedType(typeof(EndingOperation), "ending")]
 [JsonDerivedType(typeof(PkSettingsOperation), "pk-settings")]
+[JsonDerivedType(typeof(ForceControlOperation), "force-control")]
 public abstract record SessionOperation;
+public sealed record ForceControlOperation(int ForceId, ControllerKind Kind) : SessionOperation;
 public sealed record PkSettingsOperation(bool OtherForceOrdersVisible,
     bool OtherForceTacticsVisible, bool BattleDeathsEnabled) : SessionOperation;
 public sealed record CommandOperation(GameCommand Command) : SessionOperation;
@@ -57,5 +59,6 @@ public sealed record SessionSnapshot(WorldSnapshot World, ImmutableArray<Session
     [JsonRequired] public EndingSelection? Ending { get; init; }
     [JsonRequired] public Presentation.StrategicContextState StrategicContext { get; init; } = Presentation.StrategicContextState.Empty;
     [JsonRequired] public ControllerKind PlayerForceController { get; init; } = ControllerKind.Player;
+    [JsonRequired] public int PerspectiveForceId { get; init; }
     [JsonRequired] public AI.OriginalAiState OriginalAi { get; init; } = new();
 }

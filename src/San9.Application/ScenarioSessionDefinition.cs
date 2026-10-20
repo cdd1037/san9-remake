@@ -51,7 +51,7 @@ internal sealed class ScenarioSessionDefinition
         Content.Officers.Select(o => o.CreateState(Content.Year)), Content.Units, Content.Information.Corps,
         Content.Information.TreasureStates, Content.Information.Relations,
         Content.Forces.Where(f => !f.IsDormant).OrderBy(f => f.Id == Content.PlayerForceId ? 0 : 1).ThenBy(f => f.Id)
-            .Select(f => new ControlSeat(f.Id == Content.PlayerForceId ? "player" : $"ai:{f.Id}", f.Id,
+            .Select(f => new ControlSeat(f.Id == Content.PlayerForceId && playerForceController == ControllerKind.Player ? "player" : $"ai:{f.Id}", f.Id,
                 f.Id == Content.PlayerForceId ? playerForceController : ControllerKind.Automatic)), computerDamageBonusPercent, Content.Alliance,
         Content.AttackRequests.Select(r => new AttackRequestState(r.RequestedForceId, r.RequesterForceId, r.TargetSettlementId,
             Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)), Content.AnnualAppearancesEnabled, Content.NaturalDeathsEnabled, Content.FreeOfficerMigrationEnabled, battleDeathsEnabled, Content.OfficeRequestsEnabled, Content.ConsumedEventKeys, Content.ForceConsolidationEnabled, Content.ForceEmergenceEnabled, Content.CityIndependenceEnabled, Content.ImperialCourtEnded, Content.ThreeVisitsStarted, Content.FoodExchangeRate, Content.SettlementDefectionsEnabled, Content.UnitDefectionsEnabled);

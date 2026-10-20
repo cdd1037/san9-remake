@@ -159,7 +159,7 @@ public partial class SessionUiHost : Node
         _sessionUi.AddChild(overlayHost);
         _sessionUi.AddChild(Hud);
         _sessionUi.MoveChild(overlayHost, _sessionUi.GetChildCount() - 1);
-        var debug = new DebugPanel { World = World };
+        var debug = new DebugPanel { World = World, Host = this };
         _sessionUi.AddChild(debug);
         World.IsInspectionBlocked = p => IsSwitching || (debug.Visible && debug.GetRect().HasPoint(p));
         World.IsInputBlocked = p => IsSwitching || Hud.Overview.IsOpen ||

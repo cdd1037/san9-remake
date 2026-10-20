@@ -61,7 +61,7 @@ public sealed class AiProductionBaselineTests
         var command = new DevelopCommand(Guid.NewGuid(), content.PlayerForceId, 0,
             new(content.PlayerForceId, 1, [2], DomesticActivity.Commerce));
         var a = player.Execute(new("player"), command);
-        var b = automatic.Execute(new("player"), command);
+        var b = automatic.Execute(new("ai:1"), command);
         Assert.True(a.Submission.Accepted);
         Assert.Equal(a.Submission, b.Submission);
         EventAssert.Equal(a.Events, b.Events);
@@ -71,6 +71,6 @@ public sealed class AiProductionBaselineTests
         StateAssert.Equal(automatic.Capture(), restored.Capture());
         Assert.Equal(ControllerKind.Automatic, restored.PlayerForceController);
         Assert.Throws<ArgumentException>(() => GameSession.Restore(content,
-            automatic.Capture() with { PlayerForceController = ControllerKind.Player }));
+            automatic.Capture() with { PerspectiveForceId = 999 }));
     }
 }

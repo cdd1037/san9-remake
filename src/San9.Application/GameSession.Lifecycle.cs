@@ -9,7 +9,7 @@ namespace San9.Application;
 
 public sealed partial class GameSession
 {
-    private GameSession(ScenarioSessionDefinition definition, SimulationEngine simulation)
+    private GameSession(ScenarioSessionDefinition definition, SimulationEngine simulation, int? perspectiveForceId = null)
     {
         _definition = definition;
         _simulation = simulation;
@@ -17,7 +17,7 @@ public sealed partial class GameSession
         _originalAi = OriginalAiState.Create(definition.Content);
         _initialEvents = simulation.InitialEvents;
         _snapshotSource = new(definition.Content, definition.Rules);
-        _view = _snapshotSource.Project(simulation.Snapshot);
+        _view = _snapshotSource.Project(simulation.Snapshot, perspectiveForceId);
         _initialView = _view;
         _strategicContext = StrategicContextState.Empty with { Clock = simulation.Snapshot.Clock.IsXunBoundary ? simulation.Snapshot.Clock : null };
         _readOnlyRecords = _records.AsReadOnly();
@@ -88,7 +88,7 @@ public sealed partial class GameSession
         Func<WorldState, SimulationEngine>? factory)
     {
         var simulation = (factory ?? owned.Rules.CreateEngine)(world);
-        var session = new GameSession(owned, simulation);
+        var session = new GameSession(owned, simulation, snapshot.PerspectiveForceId);
         session._records.AddRange(snapshot.Records);
         session._chronicle.AddRange(snapshot.Chronicle);
         session.History = snapshot.History;

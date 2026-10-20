@@ -34,13 +34,14 @@ internal static class SessionValidation
                 origin.Clock.DayNumber < initialClock.DayNumber + 30 || origin.Clock.DayNumber > snapshot.World.Clock.DayNumber)
                 throw new ArgumentException("Invalid runtime force provenance.");
         }
-        var expectedControls = definition.Content.Forces.OrderBy(f => f.Id == definition.Content.PlayerForceId ? 0 : 1).ThenBy(f => f.Id)
-            .Select(f => new ControlSeat(f.Id == definition.Content.PlayerForceId ? "player" : $"ai:{f.Id}", f.Id,
-                f.Id == definition.Content.PlayerForceId ? snapshot.PlayerForceController : ControllerKind.Automatic))
-            .Concat(generated.Select(f => new ControlSeat($"ai:{f.Id}", f.Id, ControllerKind.Automatic)))
-            .Where(c => snapshot.World.Forces.Any(f => f.Id == c.ForceId && !f.IsDormant && !f.IsEliminated));
-        if (snapshot.World.Simulation.Started != initialClock ||
-            !snapshot.World.Simulation.Controls.SequenceEqual(expectedControls))
+        var controls = snapshot.World.Simulation.Controls;
+        var players = controls.Where(c => c.Kind == ControllerKind.Player).ToArray();
+        if (snapshot.World.Simulation.Started != initialClock || players.Length > 1 ||
+            !snapshot.World.Forces.Any(f => f.Id == snapshot.PerspectiveForceId && !f.IsDormant && !f.IsBarbarian) ||
+            players.Any(c => c.ForceId != snapshot.PerspectiveForceId) ||
+            controls.Any(c => c.ControllerId != (c.Kind == ControllerKind.Player ? "player" : $"ai:{c.ForceId}") ||
+                c.Kind == ControllerKind.Player && snapshot.World.Forces.Single(f => f.Id == c.ForceId).IsBarbarian) ||
+            !controls.Select(c => c.ForceId).Order().SequenceEqual(snapshot.World.Forces.Where(f => !f.IsDormant && !f.IsEliminated).Select(f => f.Id).Order()))
             throw new ArgumentException("Scenario date or control configuration mismatch.");
         var content = definition.Content;
         bool ContextPlace(int? id) => id is null || snapshot.World.Settlements.Any(s => s.Id == id) || content.RegionNameKeys.ContainsKey(id.Value);
@@ -147,7 +148,7 @@ internal static class SessionValidation
         {
             var clock = new GameClock(note.Year, note.Month, note.Day);
             if (clock.DayNumber < previousDay || clock.DayNumber > snapshot.World.Clock.DayNumber ||
-                note.ForceId != content.PlayerForceId || string.IsNullOrWhiteSpace(note.Text) ||
+                !snapshot.World.Forces.Any(f => f.Id == note.ForceId) || string.IsNullOrWhiteSpace(note.Text) ||
                 note.Text.Length > 240 || note.Text != note.Text.Trim())
                 throw new ArgumentException("Invalid player chronicle.");
             previousDay = clock.DayNumber;

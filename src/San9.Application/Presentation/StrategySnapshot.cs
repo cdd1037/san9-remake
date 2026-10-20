@@ -103,7 +103,7 @@ internal sealed class StrategySnapshotSource
     }
     public SettlementInitialState? Settlement(int id) => _settlements.GetValueOrDefault(id);
     public IReadOnlyList<string> SettlementIcons(int id) => _settlementIcons.GetValueOrDefault(id) ?? [];
-    public StrategySnapshot Project(WorldSnapshot world) => new(this, world);
+    public StrategySnapshot Project(WorldSnapshot world, int? perspectiveForceId = null) => new(this, world, perspectiveForceId);
 }
 
 public sealed class StrategySnapshot
@@ -163,11 +163,11 @@ public sealed class StrategySnapshot
         return estimate;
     }
     public StrategySnapshot(ScenarioInitialState definition, WorldSnapshot world)
-        : this(new StrategySnapshotSource(definition, new ScenarioRules(definition)), world)
+        : this(new StrategySnapshotSource(definition, new ScenarioRules(definition)), world, definition.PlayerForceId)
     {
     }
 
-    internal StrategySnapshot(StrategySnapshotSource source, WorldSnapshot world)
+    internal StrategySnapshot(StrategySnapshotSource source, WorldSnapshot world, int? perspectiveForceId = null)
     {
         _source = source;
         military = source.Military;
@@ -175,7 +175,7 @@ public sealed class StrategySnapshot
         Information = source.Information;
         FacilityNameSuffixKeys = source.FacilityNameSuffixKeys;
         World = world;
-        PlayerForceId = source.PlayerForceId;
+        PlayerForceId = perspectiveForceId ?? world.Simulation.Controls.FirstOrDefault(c => c.Kind == ControllerKind.Player)?.ForceId ?? source.PlayerForceId;
         TacticCourses = source.TacticCourses;
         ProvinceNameKeys = source.ProvinceNameKeys;
         CityConnections = source.CityConnections; CityProvinceIds = source.CityProvinceIds;
@@ -275,7 +275,7 @@ public sealed class StrategySnapshot
     public MapCell? PlaceCell(int id) => Settlements.FirstOrDefault(p=>p.Id==id) is { } place ? new(place.X,place.Y) :
         _source.PlacePositions.TryGetValue(id,out var position) ? MapCoordinates.Cell(position) : null;
     /// <summary>Projects a world from the same scenario, reusing definitions and this view when the world is unchanged.</summary>
-    public StrategySnapshot ForWorld(WorldSnapshot world) => ReferenceEquals(World, world) ? this : _source.Project(world);
+    public StrategySnapshot ForWorld(WorldSnapshot world) => ReferenceEquals(World, world) ? this : _source.Project(world, world.Simulation.Controls.FirstOrDefault(c => c.Kind == ControllerKind.Player)?.ForceId ?? PlayerForceId);
     public int? EmperorId { get; }
     public int? EmperorCityId { get; }
     public bool ImperialCourtEnded => World.Simulation.ImperialCourtEnded;

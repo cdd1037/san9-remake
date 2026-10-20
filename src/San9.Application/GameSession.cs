@@ -23,6 +23,7 @@ public sealed partial class GameSession
     private bool _executing;
     internal bool IsExecuting => _executing;
     private EndingSelection? _ending;
+    /// <summary>Initial controller configuration, used to reconstruct command logs.</summary>
     public ControllerKind PlayerForceController { get; private set; } = ControllerKind.Player;
     private OriginalAiState _originalAi;
     public OriginalAiState OriginalAi => _originalAi;
@@ -39,7 +40,7 @@ public sealed partial class GameSession
     public ImmutableArray<ChronicleFact> History { get; private set; } = [];
     public WorldSnapshot Snapshot => _simulation.Snapshot;
     public StrategySnapshot InitialView => _initialView;
-    public StrategySnapshot View => _view.World.Revision == Snapshot.Revision ? _view : _view = _snapshotSource.Project(Snapshot);
+    public StrategySnapshot View => _view.World.Revision == Snapshot.Revision ? _view : _view = _snapshotSource.Project(Snapshot, _view.PlayerForceId);
 
     public SessionRequest Request(SessionOperation operation, string controllerId = "player", Guid? id = null)
     {
@@ -89,6 +90,13 @@ public sealed partial class GameSession
             ? failure.ToString() : result.Rejection.ToString());
         return new(result.Events, result.Snapshot);
     }
+
+    public bool CanChangeForceControl => !_executing && Snapshot.Simulation.Boundary == SimulationBoundary.Stable &&
+        Snapshot.Simulation.ActiveControl == 0 && _originalAi.Continuation is null;
+
+    public SessionResult HandOverForce(int forceId) => Apply(Request(new ForceControlOperation(forceId, ControllerKind.Automatic)));
+
+    public SessionResult TakeOverForce(int forceId) => Apply(Request(new ForceControlOperation(forceId, ControllerKind.Player)));
 
     public void AddChronicleNote(string text)
     {

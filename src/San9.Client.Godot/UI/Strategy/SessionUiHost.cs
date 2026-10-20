@@ -19,6 +19,7 @@ public partial class SessionUiHost : Node
     public TextureService Textures { get; init; } = null!;
     public ClientContentPackage Content { get; init; } = null!;
     public ScenarioInitialState Definition { get; init; } = null!;
+    public ClientDataPaths DataPaths { get; init; } = null!;
     public SlotSaveStore SaveStore { get; init; } = null!;
     public SceneMusicPlayer Music { get; init; } = null!;
     public GameSession InitialSession { get; init; } = null!;
@@ -53,7 +54,7 @@ public partial class SessionUiHost : Node
         AddChild(_autoSaveNotice);
         _transition = new() { ZIndex = 100, MouseFilter = Control.MouseFilterEnum.Stop };
         AddChild(_transition);
-        _settings = new(new UserSettingsStore(ProjectSettings.GlobalizePath(UserSettingsStore.UserDataPath)));
+        _settings = new(new UserSettingsStore(DataPaths.Settings));
         try { _settings.Load(); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Text.DecoderFallbackException or InvalidDataException) { }
         Music.SetEnabled(_settings.Current.MusicEnabled);
@@ -177,7 +178,7 @@ public partial class SessionUiHost : Node
     }
 
     public void RequestQuickLoad() => Hud.SystemMenu.RequestLoad(() =>
-        San9.Application.Persistence.SaveService.Load(ProjectSettings.GlobalizePath(QuickSaveShortcuts.SavePath), Definition));
+        San9.Application.Persistence.SaveService.Load(DataPaths.QuickSave, Definition));
 
     private async void SavePendingCheckpoint()
     {

@@ -4,7 +4,7 @@
 
 `San9.Application.Profiles.PlayerProfile` 是不可变快照，`Empty` 为空档案，`Complete(id)` 返回包含新增事实的快照，重复完成返回原快照。`CompletedMilestones` 支持查询完成资格。构造时复制输入并去重；标识必须非空白，按 Ordinal 区分大小写，不自动裁剪或改写。标识由后续内容定义提供，建议采用命名空间形式；不绑定固定人物编号，不预置通关或教学枚举。
 
-`San9.Client.Godot.Profiles.PlayerProfileStore` 提供显式同步 `Load/Save`，仅依赖 .NET 文件 API。正式装配时将 `user://profile.json` 经 Godot `ProjectSettings.GlobalizePath` 转为绝对路径。模型不依赖 Godot；设置与档案只共享临时文件替换写入机制，不共享业务状态。
+`San9.Client.Godot.Profiles.PlayerProfileStore` 提供显式同步 `Load/Save`，仅依赖 .NET 文件 API。正式装配时使用 `ClientDataPaths.Profile` 提供的 `profile.json` 绝对路径，根目录遵循[用户数据目录](user-settings.md#用户数据目录)。模型不依赖 Godot；设置与档案只共享临时文件替换写入机制，不共享业务状态。
 
 文件使用 UTF-8、版本 1，包含必填的 `version` 和 `completedMilestones` 字符串数组。保存按 Ordinal 排序，未知完成项原样保留；不保存可推导的解锁布尔值。缺文件返回空档案但不写文件；损坏、未知版本、非法标识及权限错误报告给调用方，不自动覆盖。
 

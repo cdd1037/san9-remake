@@ -7,7 +7,7 @@ namespace San9.Client.Godot.Persistence;
 /// <summary>Global shortcuts and feedback; scene resources outlive the session being replaced.</summary>
 public partial class QuickSaveShortcuts : Label
 {
-    public const string SavePath = "user://saves/quick.save.json";
+    public string SavePath { get; init; } = null!;
     public Func<GameSession> CurrentSession { get; init; } = null!;
     public Func<bool> CanSave { get; init; } = null!;
     public Func<bool> IsBlocked { get; init; } = () => false;
@@ -42,13 +42,12 @@ public partial class QuickSaveShortcuts : Label
         try
         {
             if (IsBlocked()) return;
-            string path = ProjectSettings.GlobalizePath(SavePath);
             if (save)
             {
                 if (!CanSave()) { Notify("当前不能快速存档，请结束交互并返回战略面。"); return; }
                 var session = savingSession = CurrentSession();
                 var captured = SaveService.Capture(session);
-                await Task.Run(() => SaveService.Write(path, captured));
+                await Task.Run(() => SaveService.Write(SavePath, captured));
                 if (_exiting || !ReferenceEquals(session, CurrentSession())) return;
                 session.MarkSaved(captured.Session.NextOperationSequence);
                 Notify("快速存档完成（F2 读取）");

@@ -9,7 +9,6 @@ namespace San9.Client.Godot.Settings;
 public sealed class UserSettingsStore
 {
     public const int FormatVersion = 1;
-    public const string UserDataPath = "user://user-settings.json";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

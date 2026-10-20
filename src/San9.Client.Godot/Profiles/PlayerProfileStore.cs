@@ -10,7 +10,6 @@ namespace San9.Client.Godot.Profiles;
 public sealed class PlayerProfileStore
 {
     public const int FormatVersion = 1;
-    public const string UserDataPath = "user://profile.json";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

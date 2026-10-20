@@ -75,7 +75,9 @@ public partial class Main : Node
                 return San9.Application.GameSession.Start(initial, seed, options.ComputerDamageBonusPercent, enableXunStartCheckpoints: true);
             }
             var session = CreateNewSession();
-            var saveStore = new Persistence.SlotSaveStore(ProjectSettings.GlobalizePath(Persistence.SlotSaveStore.UserDirectory), initial);
+            var dataPaths = new Persistence.ClientDataPaths(OS.HasFeature("template"), OS.GetName(),
+                OS.GetExecutablePath(), ProjectSettings.GlobalizePath("user://"));
+            var saveStore = new Persistence.SlotSaveStore(dataPaths.SaveSlots, initial);
             var music = new SceneMusicPlayer { ContentRoot = content.ContentRoot, Tracks = content.Presentation.Sounds };
             AddChild(music);
             world.Session = session;
@@ -86,13 +88,14 @@ public partial class Main : Node
             var sessions = new SessionUiHost
             {
                 World = world, Textures = textures, Content = content, Definition = initial,
-                SaveStore = saveStore, Music = music, InitialSession = session,
+                DataPaths = dataPaths, SaveStore = saveStore, Music = music, InitialSession = session,
                 CreateNewSession = CreateNewSession
             };
             ui.AddChild(sessions);
             if (!options.RequiresWorldVerification)
                 ui.AddChild(new Persistence.QuickSaveShortcuts
                 {
+                    SavePath = dataPaths.QuickSave,
                     CurrentSession = () => sessions.Session, CanSave = () => sessions.CanSave,
                     IsBlocked = () => sessions.IsBlocked, LoadRequested = sessions.RequestQuickLoad
                 });

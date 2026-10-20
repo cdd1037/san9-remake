@@ -14,7 +14,7 @@ internal sealed class AutomaticResponseException(AutomaticResponseFailure failur
 /// <summary>Mandatory choices consume pending decisions independently of turn work.</summary>
 internal static class AutomaticResponseRunner
 {
-    internal static void Run(SimulationEngine engine, List<DomainEvent> events, List<WorldSnapshot>? frames = null)
+    internal static void Run(SimulationEngine engine, List<DomainEvent> events)
     {
         while (engine.GetPendingResponse() is { Owner.Kind: ControllerKind.Automatic } response)
         {
@@ -22,7 +22,7 @@ internal static class AutomaticResponseRunner
             try
             {
                 var command = Choose(engine, response);
-                result = engine.Execute(new(response.Owner.ControllerId), command, frames is not null);
+                result = engine.Execute(new(response.Owner.ControllerId), command);
             }
             catch (Exception error) when (error is InvalidOperationException or ArgumentException)
             {
@@ -32,12 +32,6 @@ internal static class AutomaticResponseRunner
             if (!result.Submission.Accepted) Fail(response, "response-rejected", result.Submission.Rejection);
             if (engine.GetPendingResponse() == response) Fail(response, "response-no-progress");
             events.AddRange(result.Events);
-            if (frames is not null)
-                foreach (var frame in result.PresentationFrames)
-                {
-                    if (frames.Count > 0 && frames[^1].Clock == frame.Clock) frames[^1] = frame;
-                    else frames.Add(frame);
-                }
         }
     }
 

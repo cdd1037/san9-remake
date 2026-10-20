@@ -14,7 +14,7 @@ public sealed partial class GameSession
         if (_executing) throw new InvalidOperationException("Session is executing.");
         var input = CaptureOperationInput();
         _executing = true;
-        return new(this, request, Task.Run(() => CalculateOperation(input, request, capturePresentation: false)));
+        return new(this, request, Task.Run(() => CalculateOperation(input, request)));
     }
 
     public sealed class PendingSessionOperation

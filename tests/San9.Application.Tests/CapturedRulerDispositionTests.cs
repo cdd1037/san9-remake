@@ -238,26 +238,19 @@ public sealed class CapturedRulerDispositionTests
         var session = GameSession.Start(definition, 190);
         session.BeginRecording();
         var saved = SaveService.Encode(session);
-        var result = session.AdvanceForPresentation();
-        Assert.Equal(SessionDisposition.Accepted, result.Result.Disposition);
+        var result = session.Apply(session.Request(new AdvanceOperation()));
+        Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         Assert.Equal(new GameClock(190, 1, 11), session.Snapshot.Clock);
         Assert.Null(session.GetPendingResponse());
-        Assert.Single(result.Result.Events.OfType<CapturedRulerDispositionRequestedEvent>());
-        Assert.Equal(execute ? 1 : 0, result.Result.Events.OfType<ExecutionSuccessionRequestedEvent>().Count());
-        Assert.Equal(execute ? 1 : 0, result.Result.Events.OfType<PrisonerExecutedEvent>().Count());
-        Assert.Equal(execute ? 0 : 1, result.Result.Events.OfType<PrisonerReleasedEvent>().Count());
+        Assert.Single(result.Events.OfType<CapturedRulerDispositionRequestedEvent>());
+        Assert.Equal(execute ? 1 : 0, result.Events.OfType<ExecutionSuccessionRequestedEvent>().Count());
+        Assert.Equal(execute ? 1 : 0, result.Events.OfType<PrisonerExecutedEvent>().Count());
+        Assert.Equal(execute ? 0 : 1, result.Events.OfType<PrisonerReleasedEvent>().Count());
         Assert.Equal(execute ? 8 : 7, session.Snapshot.Forces.Single(f => f.Id == 3).LeaderId);
         Assert.DoesNotContain(session.Snapshot.Simulation.RandomStreams, r => r.Name == "captured-ruler-disposition");
-        Assert.Equal(10, result.Result.Events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.UnitAndBuildingEvents));
-        Assert.Equal(10, result.Frames.Count);
-        Assert.All(result.Frames, f => Assert.NotEqual(SimulationBoundary.AwaitingDecision, f.World.Simulation.Boundary));
-        Assert.Equal(session.Snapshot.Clock, result.Frames[^1].World.Clock);
-        var finalPerson = session.Snapshot.Officers.Single(p => p.Id == 7);
-        var displayedPerson = result.Frames[^1].World.Officers.Single(p => p.Id == 7);
-        Assert.Equal((finalPerson.Status, finalPerson.OwnerId, finalPerson.SettlementId),
-            (displayedPerson.Status, displayedPerson.OwnerId, displayedPerson.SettlementId));
+        Assert.Equal(10, result.Events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.UnitAndBuildingEvents));
         var restored = SaveService.Decode(saved, definition);
-        EventAssert.Equal(result.Result.Events, restored.AdvanceXun().Events);
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
         var recording = session.EndRecording();
         Assert.Single(recording.Operations);
@@ -278,8 +271,13 @@ public sealed class CapturedRulerDispositionTests
         List<DomainEvent> dailyEvents = [.. daily.Apply(daily.Request(new PrepareAdvanceOperation())).Events];
         for (int i = 0; i < 10; i++)
         {
-            var day = daily.Apply(daily.Request(new AdvanceDayOperation()));
+            var pending = daily.StartOperation(daily.Request(new AdvanceDayOperation()));
+            Assert.True(SpinWait.SpinUntil(() => pending.IsCompleted, TimeSpan.FromSeconds(10)));
+            var prepared = pending.PreparedView;
+            Assert.NotEqual(SimulationBoundary.AwaitingDecision, prepared.World.Simulation.Boundary);
+            var day = pending.Complete();
             Assert.Equal(SessionDisposition.Accepted, day.Disposition);
+            Assert.Same(prepared, daily.View);
             Assert.Equal(new GameClock(190, 1, i + 2), daily.Snapshot.Clock);
             dailyEvents.AddRange(day.Events);
         }

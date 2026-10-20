@@ -80,6 +80,9 @@ public sealed class DailyTaskDecisionTests
         Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
         Assert.Throws<InvalidOperationException>(() => session.Capture());
         Assert.Null(session.TakeXunStartCheckpoint());
+        var waiting = session.Snapshot;
+        Assert.Equal(SessionRejection.NotStable, session.Apply(session.Request(new AdvanceDayOperation())).Rejection);
+        Assert.Same(waiting, session.Snapshot);
         for (int answer = 0; answer < 2; answer++)
         {
             var pending = session.Snapshot.Simulation.PendingDailyTask!;
@@ -151,23 +154,6 @@ public sealed class DailyTaskDecisionTests
         Assert.Equal("player", pending.Owner.ControllerId);
         Assert.Equal(ControllerKind.Player, pending.Owner.Kind);
         Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
-    }
-
-    [Fact]
-    public void PresentationStopsAtUnansweredDailyDecision()
-    {
-        var session = GameSession.Start(Content(), 42, Engine);
-        Assert.True(session.Execute(new("player"), new StartTaskCommand(Guid.NewGuid(), 1, 0,
-            "decision-fixture", 1, 1)).Submission.Accepted);
-        var advance = session.AdvanceForPresentation();
-        Assert.Equal(SessionDisposition.Accepted, advance.Result.Disposition);
-        Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
-        Assert.Equal(new[] { 2, 3, 3 }, advance.Frames.Select(f => f.Day));
-        Assert.Equal(SimulationBoundary.AwaitingDecision, advance.Frames[^1].World.Simulation.Boundary);
-        Assert.DoesNotContain(advance.Result.Events, e => e is XunAdvancedEvent);
-        var before = session.Snapshot;
-        Assert.Empty(session.AdvanceForPresentation().Frames);
-        StateAssert.Equal(before, session.Snapshot);
     }
 
     [Fact]

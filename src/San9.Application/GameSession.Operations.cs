@@ -18,29 +18,27 @@ public sealed partial class GameSession
         ImmutableArray<ChronicleFact> History, SessionRecord[] Records, ChronicleEntry? Note);
 
     internal sealed record PreparedOperation(SessionResult Result, StrategySnapshot View,
-        OperationCommit? Commit = null, IReadOnlyList<WorldSnapshot>? Frames = null);
+        OperationCommit? Commit = null);
 
     private OperationInput CaptureOperationInput() => new(_simulation, _definition, View,
         NextOperationSequence, _originalAi, _ending, _strategicContext, History);
 
-    private SessionResult Apply(SessionRequest request, bool capturePresentation, out IReadOnlyList<WorldSnapshot> presentationFrames)
+    public SessionResult Apply(SessionRequest request)
     {
-        presentationFrames = [];
         if (_executing) return Rejected(SessionRejection.NotStable);
         var input = CaptureOperationInput();
         _executing = true;
         PreparedOperation prepared;
-        try { prepared = CalculateOperation(input, request, capturePresentation); }
+        try { prepared = CalculateOperation(input, request); }
         catch
         {
             _executing = false;
             throw;
         }
-        presentationFrames = prepared.Frames ?? [];
         return PublishOperation(request, prepared);
     }
 
-    private static PreparedOperation CalculateOperation(OperationInput input, SessionRequest request, bool capturePresentation)
+    private static PreparedOperation CalculateOperation(OperationInput input, SessionRequest request)
     {
         PreparedOperation Rejected(SessionRejection reason, CommandRejection command = CommandRejection.None,
             DevelopmentOutcome? development = null) =>
@@ -62,7 +60,6 @@ public sealed partial class GameSession
             var originalAi = input.OriginalAi;
             List<OriginalAiWorkReport> aiReports = [];
             List<DomainEvent> events = [];
-            List<WorldSnapshot> frames = [];
             DevelopmentOutcome? development = null;
             ChronicleEntry? note = null;
             var ending = input.Ending;
@@ -105,9 +102,8 @@ public sealed partial class GameSession
                     }
                     if (request.Operation is AdvanceOperation && candidate.Snapshot.Simulation.Boundary == SimulationBoundary.Stable)
                     {
-                        var advance = candidate.AdvanceXun(capturePresentation);
+                        var advance = candidate.AdvanceXun();
                         events.AddRange(advance.Events);
-                        frames.AddRange(advance.PresentationFrames);
                     }
                     break;
                 case AdvanceDayOperation:
@@ -123,7 +119,7 @@ public sealed partial class GameSession
                 default:
                     return Rejected(SessionRejection.InvalidRequest);
             }
-            AutomaticResponseRunner.Run(candidate, events, capturePresentation ? frames : null);
+            AutomaticResponseRunner.Run(candidate, events);
             originalAi = AutomaticTurnRunner.Resume(candidate, events, input.Definition, originalAi, aiReports);
             var completed = events.OfType<DevelopmentCompletedEvent>().Select(e =>
                 new SessionRecord(e.Clock, e.Command.ForceId, e.Command.SettlementId, e.Command.OfficerIds[0],
@@ -136,7 +132,7 @@ public sealed partial class GameSession
             var commit = new OperationCommit(candidate, originalAi.Reconcile(snapshot), aiReports.ToImmutableArray(),
                 ending, strategicContext, history, completed, note);
             return new(new(SessionDisposition.Accepted, SessionRejection.None, publishedEvents, snapshot, Development: development),
-                view, commit, frames);
+                view, commit);
         }
         catch (AutomaticResponseException failure)
         {

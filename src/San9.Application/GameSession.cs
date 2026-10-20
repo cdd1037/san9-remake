@@ -49,14 +49,6 @@ public sealed partial class GameSession
 
     private Guid NextId() => SimulationIdentity.Request(NextOperationSequence);
 
-    public SessionResult Apply(SessionRequest request) => Apply(request, false, out _);
-
-    public PresentedAdvance AdvanceForPresentation()
-    {
-        var result = Apply(Request(new AdvanceOperation()), true, out var frames);
-        return new(result, frames.Select(_snapshotSource.Project).ToImmutableArray());
-    }
-
     private SessionResult Rejected(SessionRejection reason, CommandRejection command = CommandRejection.None, DevelopmentOutcome? development = null) =>
         new(SessionDisposition.Rejected, reason, [], Snapshot, command, development);
 
@@ -106,5 +98,3 @@ public sealed partial class GameSession
 }
 
 public sealed record SessionRecord(GameClock Clock, int ForceId, int SettlementId, int OfficerId, DomesticActivity Activity, int Increment, int Cost);
-
-public sealed record PresentedAdvance(SessionResult Result, IReadOnlyList<StrategySnapshot> Frames);

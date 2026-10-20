@@ -72,6 +72,8 @@ Headless 默认不运行。修改 CLI 参数解析、退出码、文件产物、
 
 后续开发默认复用现有夹具与覆盖，只为新增规则、独有边界或实际缺陷补最小回归；不逐项把实现细节写成测试，不为每个功能重复保存／回放、确定性或公共失败矩阵。验证按本次风险选择必要入口，通过即交付，不以增加测试数量作为完成标准。
 
+整旬表现采样接口退出后，删除仅约束该接口的`PresentedAdvanceTests`：整旬事务失败回滚保留在`IncrementalAdvanceTests.FailedBatchDiscardsEarlierDaysAndSessionChanges`，跨季／跨年与逐日一致性复用该类已有用例，终局拒绝由`EndingSessionTests`覆盖。待答暂停与禁止继续推进并入`DailyTaskDecisionTests.IncrementalAnswersResumeOnlyCurrentDayAndPreserveReplay`；电脑自动答复后的表现投影改由`CapturedRulerDispositionTests`通过后台逐日入口检查。采样数量和样本合并断言随接口删除，正式演出仍由客户端逐日测试覆盖。
+
 单挑领域测试保留触发、随机短路、逐刀守恒、超出原版名单数量、后果与继任边界；`DuelContestTests`不再重复整场结算或逐刀做JSON往返，真实事件协议与确定性由`DuelSessionTests`的录像回放显式比对事件承担。该会话往返只跑显式继任选择，自动／显式选择矩阵留在`DuelCombatIntegrationTests`，电脑自动响应仍有独立会话入口。选项和自定义单挑特性共用一次保存／命令日志／录像验证。演出保留体力、替补、粒子和对白边界，将体力等待并入逐刀场景、对白局部动画并入暂停／跳过场景，稳定旗帜与粒子复用已有重复计划检查；不追加全套播放排列。
 
 世界事件演出测试聚焦发生时身份、自动／待答输出归属、重复播放抑制及记录正文复用，不逐项固定装饰文案排列或消息总数。地图喊话完成状态并入已有延迟、主动关闭、资源等待和自然结束场景；真实内容包绑定样本独立求值，不把互斥结果拼成领域事件时间线。

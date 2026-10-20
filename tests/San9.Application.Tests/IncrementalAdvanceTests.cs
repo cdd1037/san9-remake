@@ -150,6 +150,19 @@ public sealed class IncrementalAdvanceTests
     }
 
     [Fact]
+    public void FailedBatchDiscardsEarlierDaysAndSessionChanges()
+    {
+        var session = GameSession.Start(G01ScenarioTests.Fixture(), 190, world => new(world, new FailingRules()));
+        session.BeginRecording();
+        var before = session.Capture();
+        var result = session.Apply(session.Request(new AdvanceOperation()));
+        Assert.Equal(SessionRejection.NotStable, result.Rejection);
+        Assert.Empty(result.Events);
+        StateAssert.Equal(before, session.Capture());
+        Assert.Empty(session.CaptureRecording().Operations);
+    }
+
+    [Fact]
     public void FailedDayKeepsLastPublishedDayAndReleasesOperationGuard()
     {
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 190, world => new(world, new FailingRules()));

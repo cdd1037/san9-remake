@@ -2,7 +2,7 @@
 
 - 状态：已确认
 - 负责人：项目开发者
-- 最后更新：2026-10-12
+- 最后更新：2026-10-20（移除未使用的整旬表现采样接口）
 - 关联证据：[RE-SAN9PK-0069](../../research/findings/RE-SAN9PK-0069.md)、[RE-SAN9PK-0071](../../research/findings/RE-SAN9PK-0071.md)、[RE-SAN9PK-0083](../../research/findings/RE-SAN9PK-0083.md)、[RE-SAN9PK-0102](../../research/findings/RE-SAN9PK-0102.md)、[RE-SAN9PK-0123](../../research/findings/RE-SAN9PK-0123.md)、[RE-SAN9PK-0142](../../research/findings/RE-SAN9PK-0142.md)、[RE-SAN9PK-0145](../../research/findings/RE-SAN9PK-0145.md)
 - 关联决策：[DEC-PROJECT-0001](../decisions/DEC-PROJECT-0001-layered-architecture.md)、[DEC-PROJECT-0002](../decisions/DEC-PROJECT-0002-selective-inheritance.md)、[DEC-SIM-0001](../decisions/DEC-SIM-0001-determinism-and-saves.md)
 - 继承方式：关系保留、领域模型现代化
@@ -90,11 +90,11 @@
 
 每日提交不可变快照，上一日不被后续计算改写。日内选择沿已有任务／战斗游标续算，只完成当日剩余阶段；同日再次遇到选择仍暂停，之后由调用方显式启动下一日。旬末日结及选择全部完成，才执行新旬准备；准备阶段的季度等选择同样必须回答。整旬入口保留连续推进及原有答复续旬语义。
 
-Application每次后台工作拥有隔离候选会话，只计算一个操作；主线程仍读取上一已提交会话。后台完成后由发起线程显式发布状态、表现投影、事件和操作记录，`Changed`也在该线程触发；没有共享可变世界和跨线程引擎UI调用。失败丢弃本步候选，保留之前已提交的日状态；同一会话不允许重叠操作。窗口销毁不会让后台工作回调场景树。
+Application每次后台工作使用隔离引擎分支，只计算一个操作；主线程仍读取上一已提交会话。后台完成后由发起线程通过统一发布入口提交状态、表现投影、事件和操作记录，`Changed`也在该线程触发；没有共享可变世界和跨线程引擎UI调用。失败丢弃本步候选，保留之前已提交的日状态；同一会话不允许重叠操作。窗口销毁不会让后台工作回调场景树。
 
 确认后立即启动旬决策，与进入动画重叠；动画到时结束，AI未完成则等待计算，主线程继续处理帧。两者完成后每次仅预计算下一日，按表现节奏发布；静止允许已发出的计算结束，但不发布、不启动后续日。选择只在对应状态发布后出现，不预计算其后果。待答及结果消息已接入；发布答复后保留呈现阶段，消息读完才继续，见客户端待答与结果续行约定。详见[客户端往返流程](BEH-UI-0001-initial-strategy-screen.md#战略面与进行面往返2026-09-26)。
 
-验证：`IncrementalAdvanceTests`覆盖后台隔离、线程归属、跨季／跨年、逐日与整旬世界／事件一致、失败回滚及录像重放；`DailyTaskDecisionTests`覆盖同日多选、旬末选择与不重复日结；`TurnPresentationTests`覆盖转场、暂停和连续旬。整旬可选样本接口仍用于离线诊断，玩家不再使用预先算完整旬再回放的路径。
+验证：`IncrementalAdvanceTests`覆盖后台隔离、线程归属、跨季／跨年、逐日与整旬世界／事件一致、失败回滚及录像重放；`DailyTaskDecisionTests`覆盖同日多选、旬末选择与不重复日结；`TurnPresentationTests`覆盖转场、暂停和连续旬。整旬入口仅返回最终状态和领域事件，不收集每日表现样本；未被生产调用的整旬表现采样接口已移除。客户端保留当前与下一已计算操作的投影，按逐日及交互边界演出，不预先算完整旬再回放，也不按渲染帧重新投影世界。
 
 ## AI-05 自动待决续行
 

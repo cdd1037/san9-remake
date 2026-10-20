@@ -369,7 +369,7 @@ public sealed class OriginalAiActionsTests
     {
         var draws = new List<int>();
         var h = new Harness(draw: maximum => { draws.Add(maximum); return 0; });
-        h.State = h.State with { Forces = h.State.Forces.Select(f => f.ForceId == 1 ? f with { Group = OriginalAiGroup.ReducedAttempts } : f).ToImmutableArray() };
+        h.State = h.State with { Forces = h.State.Forces.Select(f => f.ForceId == 1 ? f with { Group = OriginalAiGroup.ReducedActivity } : f).ToImmutableArray() };
         Assert.Equal(OriginalAiWorkEnd.ProbabilityFailed, h.Run(OriginalAiWork.Burn).End);
         Assert.Equal([100], draws);
         Assert.Empty(h.Commands);

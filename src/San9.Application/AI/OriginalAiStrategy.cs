@@ -47,9 +47,9 @@ internal static class OriginalAiStrategy
                     chosen[f.Id] = OriginalAiGroup.Favored;
                 var remaining = ordinary.Where(f => chosen[f.Id] == OriginalAiGroup.Unassigned).OrderByDescending(Troops).ToArray();
                 for (int i = 0; i < remaining.Length; i++)
-                    chosen[remaining[i].Id] = i < remaining.Length / 2 ? OriginalAiGroup.Favored : OriginalAiGroup.ReducedAttempts;
-                if (!chosen.Values.Contains(OriginalAiGroup.ReducedAttempts) && ordinary.OrderBy(Troops).FirstOrDefault() is { } weakest)
-                    chosen[weakest.Id] = OriginalAiGroup.ReducedAttempts;
+                    chosen[remaining[i].Id] = i < remaining.Length / 2 ? OriginalAiGroup.Favored : OriginalAiGroup.ReducedActivity;
+                if (!chosen.Values.Contains(OriginalAiGroup.ReducedActivity) && ordinary.OrderBy(Troops).FirstOrDefault() is { } weakest)
+                    chosen[weakest.Id] = OriginalAiGroup.ReducedActivity;
             }
             groups = groups.Select(f => chosen.TryGetValue(f.ForceId, out var group) ? f with { Group = group } : f).ToImmutableArray();
         }

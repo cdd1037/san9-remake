@@ -229,8 +229,8 @@ public sealed class OriginalAiCycleTests
     [Theory]
     [InlineData(false, OriginalAiGroup.Unassigned, 2)]
     [InlineData(true, OriginalAiGroup.Unassigned, 3)]
-    [InlineData(false, OriginalAiGroup.ReducedAttempts, 1)]
-    [InlineData(true, OriginalAiGroup.ReducedAttempts, 2)]
+    [InlineData(false, OriginalAiGroup.ReducedActivity, 1)]
+    [InlineData(true, OriginalAiGroup.ReducedActivity, 2)]
     public void AttemptsKeepDifficultyAndGroupIndependent(bool advanced, OriginalAiGroup group, int expected)
     {
         Assert.Equal(expected, OriginalAiWorkGate.Attempts(new(0, 0, 3, true, true), advanced, group));

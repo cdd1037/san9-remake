@@ -31,6 +31,30 @@ internal sealed partial class OriginalAiMilitary
                     { HostileBuilding: false }).ToArray();
     }
 
+    private long AttackUsableStrength(SettlementState[] sources, SettlementState target, OriginalAiGroup group)
+    {
+        Dictionary<int, long>? enemyReserves = null;
+        if (group == OriginalAiGroup.Favored && sources.Any(Fortified))
+        {
+            var opponents = World.Forces.Where(f => OriginalAiStrategy.IsOpponent(World, Owner, f.Id))
+                .Select(f => f.Id).ToHashSet();
+            // Share one scan across sources, but rebuild for each plan's current world and excluded target.
+            enemyReserves = World.Settlements.Where(s => s.Id != target.Id &&
+                !s.IsDormant && !s.IsDestroyed && s.Durability > 0 && s.Facility?.BuilderUnitId is null &&
+                s.OwnerId is int owner && opponents.Contains(owner) &&
+                (!rules.TryPlace(s, out var place) || place.FacilityTypeId is not int type || !Policy.RouteObstacleFacilityIds.Contains(type)))
+                .GroupBy(s => City(s.Id)).ToDictionary(g => g.Key, g => g.Max(s => (long)s.Soldiers) / 2);
+        }
+        return sources.Sum(source =>
+        {
+            long reserve = Reserve(source);
+            if (enemyReserves is not null && Fortified(source))
+                reserve = Math.Max(reserve, Geography.NearbyCities(City(source.Id))
+                    .Max(city => enemyReserves.GetValueOrDefault(city)));
+            return Math.Max(0L, source.Soldiers - reserve);
+        });
+    }
+
     private bool Strength(SettlementState target, SettlementState[] sources, OriginalAiGroup group)
     {
         if (!sources.Any(s => World.Units.Any(u => Departed(u) && ProjectedOrder(u)?.Kind == MilitaryOrderKind.AttackSettlement && ProjectedOrder(u)?.SettlementId == s.Id)) &&
@@ -39,12 +63,12 @@ internal sealed partial class OriginalAiMilitary
                     common.MemberForceIds.Contains(Owner) && common.MemberForceIds.Contains(u.OwnerId) ||
                     World.Simulation.AttackRequests.Any(r => r.RequestedForceId == u.OwnerId && r.TargetSettlementId == target.Id && r.RequesterForceId == Owner))))
             return true;
-        long soldiers = sources.Sum(s => (long)s.Soldiers), usable = sources.Sum(s => Math.Max(0L, s.Soldiers - Reserve(s))), defense = Defense(target);
+        long soldiers = sources.Sum(s => (long)s.Soldiers), usable = AttackUsableStrength(sources, target, group), defense = Defense(target);
         if (World.Simulation.Alliance is { } alliance && alliance.MemberForceIds.Contains(Owner) && alliance.TargetForceId == target.OwnerId)
             return usable > defense * 75 / 100;
         if (Force.LeaderId is int ruler && Policy.AggressiveRulerIds.Contains(ruler)) return usable > defense;
         if (group == OriginalAiGroup.Favored) return usable > defense * 150 / 100;
-        return usable > defense * 125 / 100 || group == OriginalAiGroup.ReducedAttempts && soldiers >= 70000 &&
+        return usable > defense * 125 / 100 || group == OriginalAiGroup.ReducedActivity && soldiers >= 70000 &&
             random.Percent((World.Officers.FirstOrDefault(p => p.Id == Force.LeaderId)?.Ambition ?? 0) + 5);
     }
 
@@ -223,7 +247,7 @@ internal sealed partial class OriginalAiMilitary
                 var facilities = candidate.Site.FacilityIds.Select(id => rules.Facilities[id]).Where(f => f.Buildable &&
                     f.ConstructionCost <= Corps.Treasury.Money && (f.RequiredTacticId is not int required ||
                         TacticAvailability.HasForMembers(required, people, Force, World.Treasures, Treasures))).ToArray();
-                bool preferred = group == OriginalAiGroup.ReducedAttempts && random.Percent(33);
+                bool preferred = group == OriginalAiGroup.ReducedActivity && random.Percent(33);
                 var horizontal = facilities.Where(f => f.Footprint.Width > f.Footprint.Height || f.Footprint == new Footprint(3, 3)).ToArray();
                 var shape = preferred ? horizontal.Length > 0 ? horizontal : facilities.Where(f =>
                     f.Footprint.Height > f.Footprint.Width || f.Footprint == new Footprint(3, 3)).ToArray() : [];

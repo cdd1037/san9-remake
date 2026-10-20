@@ -67,7 +67,11 @@ public sealed class OriginalAiMilitaryTests
             });
             State = OriginalAiState.Create(content) with { Corps = [new(1, OriginalAiMode.TargetForce, 2, null)] };
         }
-        internal OriginalAiWorkReport Run(OriginalAiWork work, int limit = 20) => Military.Run(work, limit, State, State.Corps[0]);
+        internal OriginalAiWorkReport Run(OriginalAiWork work, int limit = 20, OriginalAiGroup group = OriginalAiGroup.Unassigned)
+        {
+            var state = State with { Forces = State.Forces.Select(f => f.ForceId == 1 ? f with { Group = group } : f).ToImmutableArray() };
+            return Military.Run(work, limit, state, state.Corps[0]);
+        }
     }
 
     [Theory]
@@ -299,6 +303,211 @@ public sealed class OriginalAiMilitaryTests
             Assert.All(h.Commands.Cast<DeployUnitCommand>(), c => Assert.Equal(2, c.Order.SettlementId));
         }
         else Assert.Empty(h.Commands);
+    }
+
+    private static ScenarioInitialState AttackReserveFixture(uint enemySoldiers = 60000)
+    {
+        var content = Fixture();
+        return content with
+        {
+            Settlements = content.Settlements.Select(s => s with { Soldiers = s.Id == 1 ? 60000u : 20000u })
+                .Append(content.Settlements[1] with { Id = 3, X = 19, Soldiers = enemySoldiers, Kind = SettlementKind.Facility }).ToArray(),
+            RegionCityIds = new(content.RegionCityIds) { [3] = 2 },
+            RegionNameKeys = new(content.RegionNameKeys) { [3] = "region.3" },
+            Military = content.Military! with { Places = content.Military.Places.Add(new(3, new(97, 7), new(1, 1))) }
+        };
+    }
+
+    [Theory]
+    [InlineData(OriginalAiGroup.Favored, true, false, 59999u, true)]
+    [InlineData(OriginalAiGroup.Favored, true, false, 60000u, false)]
+    [InlineData(OriginalAiGroup.Favored, false, true, 60000u, false)]
+    [InlineData(OriginalAiGroup.Favored, false, false, 60000u, true)]
+    [InlineData(OriginalAiGroup.Unassigned, true, false, 60000u, true)]
+    [InlineData(OriginalAiGroup.ReducedActivity, true, false, 60000u, true)]
+    public void FavoredAttackReservesHalfTheLargestRelatedEnemyGarrisonOnlyForFortifiedSources(
+        OriginalAiGroup group, bool city, bool fortified, uint enemySoldiers, bool expected)
+    {
+        var content = AttackReserveFixture(enemySoldiers);
+        if (!city)
+            content = content with
+            {
+                Settlements = content.Settlements.Select(s => s.Id == 1 ? s with { Soldiers = 0, Morale = 0 } : s)
+                    .Append(content.Settlements[0] with { Id = 4, Y = 2, Kind = SettlementKind.Facility }).ToArray(),
+                Officers = content.Officers.Select(p => p.State.OwnerId == 1 ? p with { State = p.State with { SettlementId = 4 } } : p).ToArray(),
+                RegionCityIds = new(content.RegionCityIds) { [4] = 1 },
+                RegionNameKeys = new(content.RegionNameKeys) { [4] = "region.4" },
+                Military = content.Military! with
+                {
+                    Facilities = [new(700, 1000, 100, new(1, 1), 0, true, true, true, 500000, null, null, null, [])],
+                    Places = content.Military.Places.Add(new(4, new(7, 12), new(1, 1)))
+                        .Select(p => p with { FacilityTypeId = 700 }).ToImmutableArray()
+                },
+                OriginalAi = content.OriginalAi with { Military = content.OriginalAi.Military with { FortifiedFacilityIds = fortified ? [700] : [] } }
+            };
+        var h = new Harness(content);
+        Assert.Equal(expected ? 1 : 0, h.Run(OriginalAiWork.Attack, 1, group).Submitted);
+        if (expected)
+        {
+            var command = Assert.IsType<DeployUnitCommand>(Assert.Single(h.Commands));
+            Assert.Equal(2, command.Order.SettlementId);
+            // The estimate accepts or rejects a plan; it does not change allocation's existing reserve.
+            Assert.Equal(20000u, command.Soldiers);
+        }
+        else Assert.Empty(h.Commands);
+    }
+
+    [Theory]
+    [InlineData("same-city", false)]
+    [InlineData("neighbor-city", false)]
+    [InlineData("distant-city", true)]
+    [InlineData("friendly", true)]
+    [InlineData("unoccupied", true)]
+    [InlineData("non-hostile", true)]
+    [InlineData("other-enemy", false)]
+    [InlineData("barbarian", true)]
+    [InlineData("dormant", true)]
+    [InlineData("zero-durability", true)]
+    [InlineData("allied", true)]
+    [InlineData("attack-request", true)]
+    [InlineData("obstacle", true)]
+    public void FavoredAttackReserveUsesOnlyRelatedEligibleEnemyBuildings(string relation, bool expected)
+    {
+        var content = AttackReserveFixture();
+        content = content with
+        {
+            RegionCityIds = new(content.RegionCityIds) { [3] = relation == "same-city" ? 1 : relation == "distant-city" ? 4 : 2 },
+            Settlements = content.Settlements.Select(s => s.Id != 3 ? s : s with
+            {
+                OwnerId = relation == "friendly" ? 1 : relation == "unoccupied" ? null : 2,
+                IsDormant = relation == "dormant"
+            }).ToArray(),
+            Military = content.Military! with
+            {
+                Facilities = [new(700, 1000, 100, new(1, 1), 0, true, true, true, 500000, null, null, null, []),
+                    new(701, 1000, 100, new(1, 1), 0, true, true, true, 500000, null, null, null, [])],
+                Places = content.Military.Places.Select(p => p with { FacilityTypeId = p.Id == 3 ? 701 : 700 }).ToImmutableArray()
+            },
+            OriginalAi = content.OriginalAi with { Military = content.OriginalAi.Military with
+                { RouteObstacleFacilityIds = relation == "obstacle" ? [701] : [] } }
+        };
+        // Keep the target hostile while changing the third building's ownership eligibility.
+        if (relation is "non-hostile" or "other-enemy" or "barbarian" or "allied" or "attack-request")
+            content = content with
+            {
+                Forces = content.Forces.Append(content.Forces[1] with { Id = 3, LeaderId = 101, IsBarbarian = relation == "barbarian" }).ToArray(),
+                Officers = content.Officers.Append(new("third-ruler", content.Officers[^1].State with { Id = 101, OwnerId = 3, SettlementId = 3 })).ToArray(),
+                Settlements = content.Settlements.Select(s => s.Id == 3 ? s with { OwnerId = 3 } : s).ToArray(),
+                Information = content.Information with { Relations = [new(1, 2, 0), new(1, 3, relation == "non-hostile" ? 80 : 0)],
+                    Corps = content.Information.Corps.Append(new(3, 3, 101, new(1000, 1000)) { IsRoot = true }).ToArray() }
+            };
+        if (relation == "distant-city")
+            content = content with
+            {
+                Settlements = content.Settlements.Append(content.Settlements[0] with { Id = 4, X = 17, Y = 2, Soldiers = 0, Morale = 0 }).ToArray(),
+                RegionCityIds = new(content.RegionCityIds) { [4] = 4 },
+                RegionNameKeys = new(content.RegionNameKeys) { [4] = "region.4" },
+                Military = content.Military! with { Places = content.Military.Places.Add(new(4, new(87, 12), new(1, 1)) { FacilityTypeId = 700 }) }
+            };
+        var h = new Harness(content, world => world with
+        {
+            // Against the alliance target the threshold is 75%; keep this case sensitive to the reserve.
+            Settlements = world.Settlements.Select(s => s.Id == 1 && relation == "allied" ? s with { Soldiers = 45000 } :
+                s.Id != 3 ? s : relation switch
+            {
+                "zero-durability" => s with { Durability = 0 },
+                _ => s
+            }).ToImmutableArray(),
+            Simulation = world.Simulation with
+            {
+                Alliance = relation == "allied" ? new(2, 1, [1, 3], 10) : null,
+                AttackRequests = relation == "attack-request" ? [new(1, 3, 2, 2, 10)] : []
+            }
+        });
+        Assert.Equal(expected ? 1 : 0, h.Run(OriginalAiWork.Attack, 1, OriginalAiGroup.Favored).Submitted);
+    }
+
+    [Fact]
+    public void FavoredAttackReserveExcludesBuildingsUnderConstruction()
+    {
+        var content = AttackReserveFixture();
+        content = content with { Military = content.Military! with
+        {
+            Facilities = [new(701, 1000, 100, new(1, 1), 0, true, true, true, 500000, null, null, null, [])],
+            Formations = content.Military.Formations.Add(new(600, 10, 0, 30000, 5, new(1, 1), TravelMode.Land)),
+            ConstructionFormations = new(600, null),
+            ConstructionSites = [new(3, new(97, 7), [701])],
+            Places = content.Military.Places.Select(p => p with { FacilityTypeId = 701 }).ToImmutableArray()
+        } };
+        var h = new Harness(content, world =>
+        {
+            var enemy = EnemyArmy(world);
+            return enemy with
+            {
+                Settlements = enemy.Settlements.Select(s => s.Id == 3 ? s with
+                    { CanHostPersons = false, Durability = 50, MaxDurability = 100, SoldierCapacity = 500000, ConsumesFood = true,
+                        Facility = new(701, new(97, 7), 900) } : s).ToImmutableArray(),
+                Units = enemy.Units.Select(u => u with
+                {
+                    HasEnteredDailyCycle = true,
+                    FormationId = 600,
+                    Order = new(MilitaryOrderKind.Construct, null, null) { Construction = new(3, 701, new(97, 7), 100) }
+                }).ToImmutableArray()
+            };
+        });
+        Assert.Equal(1, h.Run(OriginalAiWork.Attack, 1, OriginalAiGroup.Favored).Submitted);
+    }
+
+    [Fact]
+    public void FavoredAttackReserveExcludesTheAttackTarget()
+    {
+        var content = Fixture();
+        content = content with { Settlements = content.Settlements.Select(s => s with { Soldiers = s.Id == 1 ? 100001u : 60000u }).ToArray() };
+        var h = new Harness(content);
+        Assert.Equal(1, h.Run(OriginalAiWork.Attack, 1, OriginalAiGroup.Favored).Submitted);
+        Assert.Equal(2, Assert.IsType<DeployUnitCommand>(Assert.Single(h.Commands)).Order.SettlementId);
+    }
+
+    [Fact]
+    public void FavoredAttackReserveDoesNotAddEnemyGarrisonsToLargerIncomingPressure()
+    {
+        var content = AttackReserveFixture(20000);
+        content = content with { Settlements = content.Settlements.Select(s => s.Id == 1 ? s with { Soldiers = 50001 } : s).ToArray() };
+        var h = new Harness(content, w =>
+        {
+            var enemy = EnemyArmy(w);
+            return enemy with { Units = enemy.Units.Select(u => u with { Soldiers = 30000, HasEnteredDailyCycle = true }).ToImmutableArray() };
+        });
+        Assert.Equal(1, h.Run(OriginalAiWork.Attack, 1, OriginalAiGroup.Favored).Submitted);
+    }
+
+    [Fact]
+    public void FavoredAttackStrengthReserveDoesNotRestrictActualAllocation()
+    {
+        var content = AttackReserveFixture(30000);
+        content = content with { Settlements = content.Settlements.Select(s => s.Id == 1 ? s with { Soldiers = 20000 } :
+            s.Id == 2 ? s with { Soldiers = 1000 } : s).ToArray() };
+        var h = new Harness(content);
+        Assert.Equal(1, h.Run(OriginalAiWork.Attack, 1, OriginalAiGroup.Favored).Submitted);
+        var command = Assert.IsType<DeployUnitCommand>(Assert.Single(h.Commands));
+        Assert.Equal(2, command.Order.SettlementId);
+        Assert.Equal(10000u, command.Soldiers);
+        Assert.Equal(10000u, h.Engine.Snapshot.Settlements.Single(s => s.Id == 1).Soldiers);
+    }
+
+    [Fact]
+    public void FavoredAttackReserveTakesTheMaximumGarrisonRatherThanTheirSum()
+    {
+        var content = AttackReserveFixture(40000);
+        content = content with
+        {
+            Settlements = content.Settlements.Append(content.Settlements[^1] with { Id = 4, Y = 2 }).ToArray(),
+            RegionCityIds = new(content.RegionCityIds) { [4] = 2 },
+            RegionNameKeys = new(content.RegionNameKeys) { [4] = "region.4" },
+            Military = content.Military! with { Places = content.Military.Places.Add(new(4, new(97, 12), new(1, 1))) }
+        };
+        var h = new Harness(content);
+        Assert.Equal(1, h.Run(OriginalAiWork.Attack, 1, OriginalAiGroup.Favored).Submitted);
     }
 
     [Fact]

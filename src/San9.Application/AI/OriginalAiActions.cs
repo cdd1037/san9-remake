@@ -98,7 +98,7 @@ internal sealed partial class OriginalAiActions(SimulationEngine engine, Scenari
         OriginalAiWorkReport Report(OriginalAiWorkEnd end) => new(corpsId, work, end, used, accepted)
             { Rejected = rejected, EmptyPlans = empty, PathQueries = pathQueries, PathSearches = diagnostics.Queries,
                 PathExpanded = diagnostics.Expanded, PathEndpointExpanded = diagnostics.EndpointExpanded };
-        bool reduced = state.Forces.Single(f => f.ForceId == Owner).Group == OriginalAiGroup.ReducedAttempts;
+        bool reduced = state.Forces.Single(f => f.ForceId == Owner).Group == OriginalAiGroup.ReducedActivity;
         bool schemes = work is >= OriginalAiWork.FalseReport and <= OriginalAiWork.Gossip;
         if (reduced && (schemes || work == OriginalAiWork.RequestAttack) && random.Percent(50))
             return Report(OriginalAiWorkEnd.ProbabilityFailed);

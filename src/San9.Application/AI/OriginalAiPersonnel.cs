@@ -162,7 +162,7 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
             case OriginalAiWork.RecruitLocal:
             case OriginalAiWork.RecruitEnemy:
                 var ownGroup = state.Forces.Single(f => f.ForceId == Owner).Group;
-                if (work != OriginalAiWork.Search && ownGroup == OriginalAiGroup.ReducedAttempts && random.Percent(50))
+                if (work != OriginalAiWork.Search && ownGroup == OriginalAiGroup.ReducedActivity && random.Percent(50))
                     return Report(OriginalAiWorkEnd.ProbabilityFailed);
                 var strategy = state.Corps.Single(c => c.CorpsId == corpsId);
                 int? opponent = strategy.TargetForceId ?? World.Settlements.FirstOrDefault(s => s.Id == strategy.TargetSettlementId)?.OwnerId;

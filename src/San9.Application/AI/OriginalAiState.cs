@@ -6,7 +6,14 @@ using San9.Core.Simulation;
 
 namespace San9.Application.AI;
 
-public enum OriginalAiGroup { Unassigned, Favored, ReducedAttempts }
+public enum OriginalAiGroup
+{
+    Unassigned,
+    /// <summary>战略优待组。</summary>
+    Favored,
+    /// <summary>行动收敛组。</summary>
+    ReducedActivity
+}
 public sealed record OriginalAiForceState(int ForceId, long SchedulingKey, OriginalAiGroup Group);
 public sealed record OriginalAiCorpsState(int CorpsId, OriginalAiMode Mode, int? TargetForceId, int? TargetSettlementId);
 public sealed record OriginalAiState
@@ -110,7 +117,7 @@ internal static class OriginalAiWorkGate
 
     internal static int Attempts(OriginalAiWorkRule rule, bool advanced, OriginalAiGroup group)
     {
-        int coefficient = (advanced ? 3 : 2) - (group == OriginalAiGroup.ReducedAttempts ? 1 : 0);
+        int coefficient = (advanced ? 3 : 2) - (group == OriginalAiGroup.ReducedActivity ? 1 : 0);
         return (int)Math.Clamp((coefficient * (long)rule.MaximumAttempts + 1) / 3, 1, rule.MaximumAttempts);
     }
 }

@@ -327,7 +327,7 @@ public sealed class OriginalAiPersonnelTests
         var content = Fixture();
         int calls = 0;
         var h = new Harness(content, maximum => { Assert.Equal(100, maximum); return calls++ == 0 ? first : second; });
-        var state = h.State with { Forces = h.State.Forces.Select(f => f with { Group = f.ForceId == 1 ? OriginalAiGroup.ReducedAttempts : OriginalAiGroup.Favored }).ToImmutableArray() };
+        var state = h.State with { Forces = h.State.Forces.Select(f => f with { Group = f.ForceId == 1 ? OriginalAiGroup.ReducedActivity : OriginalAiGroup.Favored }).ToImmutableArray() };
         var report = h.Run(OriginalAiWork.RecruitEnemy, 1, state: state);
         Assert.Equal(expectedDraws, calls);
         Assert.Equal(first < 50 || second < 75 ? OriginalAiWorkEnd.ProbabilityFailed : OriginalAiWorkEnd.NoCandidates, report.End);

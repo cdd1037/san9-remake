@@ -24,6 +24,28 @@ public sealed class HeadlessHostTests : IDisposable
     private SessionSnapshot ReadSession(string name) => StrictJson.Deserialize<SaveEnvelope>(File.ReadAllBytes(FilePath(name))).Session;
 
     [Fact]
+    public void DefaultRunDoesNotWriteAutomaticSavesAndOnlyExplicitSaveWritesAFile()
+    {
+        var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "no-auto-save", 190, 1, 1, 1,
+            [new(1, "force", 1, 50)], [new(1, "city", 1, 0, 0, 0, 100, 100, 0, [])], [], [])
+        { Information = new([], [], [], [new(1, 1, null, new(1000, 1000)) { IsRoot = true }], []) };
+        File.WriteAllBytes(FilePath("scenario.json"), CanonicalJson.Encode(definition));
+        var session = GameSession.Start(definition, 42);
+        session.BeginRecording();
+        for (int i = 0; i < 6; i++) session.AdvanceXun();
+        CommandLogService.Write(FilePath("commands.jsonl"), session);
+        var result = Run("run", "--scenario", FilePath("scenario.json"), "--log", FilePath("commands.jsonl"), "--report", FilePath("report.json"));
+        Assert.Equal(0, result.Code);
+        Assert.Equal(new[] { "commands.jsonl", "report.attempts.jsonl", "report.events.jsonl", "report.json", "scenario.json" },
+            Directory.GetFiles(_directory, "*", SearchOption.AllDirectories).Select(Path.GetFileName).Order().ToArray());
+        result = Run("run", "--scenario", FilePath("scenario.json"), "--log", FilePath("commands.jsonl"),
+            "--report", FilePath("report.json"), "--save", FilePath("explicit.save.json"));
+        Assert.Equal(0, result.Code);
+        Assert.Single(Directory.GetFiles(_directory, "*.save.json", SearchOption.AllDirectories));
+        Assert.Equal(60, ReadSession("explicit.save.json").World.Clock.DayNumber - new GameClock(190, 1, 1).DayNumber);
+    }
+
+    [Fact]
     public void RecordingReplayUsesOperationsWithoutComparingRecordedEvents()
     {
         Assert.Equal(0, Run("verify", "--fixture", "--xuns", "1", "--output", _directory).Code);

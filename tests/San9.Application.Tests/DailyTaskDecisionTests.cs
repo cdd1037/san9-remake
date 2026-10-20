@@ -53,7 +53,8 @@ public sealed class DailyTaskDecisionTests
     {
         var content = Content();
         SimulationEngine Factory(WorldState world) => new(world, new Rules(phase));
-        var session = GameSession.Start(content, 42, Factory);
+        var session = GameSession.Start(content, 42, Factory, enableXunStartCheckpoints: true);
+        Assert.NotNull(session.TakeXunStartCheckpoint());
         session.BeginRecording();
         List<DomainEvent> events = [];
         SessionResult Run(SessionOperation operation, Guid? id = null)
@@ -78,6 +79,7 @@ public sealed class DailyTaskDecisionTests
         Assert.Equal(decisionDay, session.Snapshot.Clock.Day);
         Assert.Equal(SimulationBoundary.AwaitingDecision, session.Snapshot.Simulation.Boundary);
         Assert.Throws<InvalidOperationException>(() => session.Capture());
+        Assert.Null(session.TakeXunStartCheckpoint());
         for (int answer = 0; answer < 2; answer++)
         {
             var pending = session.Snapshot.Simulation.PendingDailyTask!;
@@ -86,6 +88,7 @@ public sealed class DailyTaskDecisionTests
             var result = Run(new CommandOperation(response), response.CommandId);
             Assert.DoesNotContain(result.Events, e => e is StageCompletedEvent { Stage: ResolutionStage.BeforeDailyCommands });
             Assert.Equal(decisionDay + (answer == 1 && phase == TaskResolutionPhase.DailyCommands ? 1 : 0), session.Snapshot.Clock.Day);
+            if (answer == 0) Assert.Null(session.TakeXunStartCheckpoint());
         }
         if (phase == TaskResolutionPhase.DailyCommands)
         {
@@ -94,6 +97,8 @@ public sealed class DailyTaskDecisionTests
             while (session.Snapshot.Simulation.Boundary == SimulationBoundary.Advancing) Run(new AdvanceDayOperation());
         }
         Assert.Equal(11, session.Snapshot.Clock.Day);
+        Assert.Equal(session.Capture(), session.TakeXunStartCheckpoint());
+        Assert.Null(session.TakeXunStartCheckpoint());
         Assert.Equal(90, session.Snapshot.Forces[0].BaseTrust);
         Assert.Single(events.OfType<XunAdvancedEvent>());
         Assert.Equal(10, events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));

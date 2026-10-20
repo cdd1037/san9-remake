@@ -13,6 +13,7 @@ public partial class QuickSaveShortcuts : Label
     public Func<bool> IsBlocked { get; init; } = () => false;
     public Action LoadRequested { get; init; } = null!;
     private bool _pending;
+    private bool _exiting;
     private double _remaining;
 
     public override void _Ready()
@@ -35,8 +36,9 @@ public partial class QuickSaveShortcuts : Label
         Callable.From(() => Execute(save)).CallDeferred();
     }
 
-    private void Execute(bool save)
+    private async void Execute(bool save)
     {
+        GameSession? savingSession = null;
         try
         {
             if (IsBlocked()) return;
@@ -44,7 +46,11 @@ public partial class QuickSaveShortcuts : Label
             if (save)
             {
                 if (!CanSave()) { Notify("当前不能快速存档，请结束交互并返回战略面。"); return; }
-                SaveService.Write(path, CurrentSession());
+                var session = savingSession = CurrentSession();
+                var captured = SaveService.Capture(session);
+                await Task.Run(() => SaveService.Write(path, captured));
+                if (_exiting || !ReferenceEquals(session, CurrentSession())) return;
+                session.MarkSaved(captured.Session.NextOperationSequence);
                 Notify("快速存档完成（F2 读取）");
             }
             else
@@ -55,11 +61,14 @@ public partial class QuickSaveShortcuts : Label
         }
         catch (SaveException error)
         {
-            Notify($"快速存档失败：{SaveFailureMessages.Describe(error)}");
+            if (!_exiting && (savingSession is null || ReferenceEquals(savingSession, CurrentSession())))
+                Notify($"快速存档失败：{SaveFailureMessages.Describe(error)}");
             GD.PushWarning(error.ToString());
         }
         finally { _pending = false; }
     }
+
+    public override void _ExitTree() => _exiting = true;
 
     private void Notify(string message)
     {

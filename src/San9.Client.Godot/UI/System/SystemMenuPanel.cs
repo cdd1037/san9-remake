@@ -85,7 +85,7 @@ public partial class SystemMenuPanel : Control
     private void Request(SaveSlotRequest request)
     {
         if (request.Mode == SaveLoadMode.Save) Save(request);
-        else if (request.AutoSaveId is { } id) RequestLoad(() => Store.LoadAutoSave(id));
+        else if (request.AutoSaveSlot is { } slot) RequestLoad(() => Store.LoadAutoSave(slot));
         else RequestLoad(() => Store.Load(request.Slot));
     }
     public void RequestLoad(Func<GameSession> read)
@@ -152,10 +152,9 @@ public partial class SystemMenuPanel : Control
         ShowBusy("正在储存…");
         try
         {
-            // Capture on the main thread; the worker only owns immutable bytes and disk I/O.
-            long sequence = Session.NextOperationSequence;
-            byte[] bytes = SlotSaveStore.Encode(Session, CreateSummary(request.Note));
-            await Task.Run(() => Store.Write(request.Slot, bytes), token);
+            var document = SlotSaveStore.Capture(Session, CreateSummary(request.Note));
+            long sequence = document.Save.Session.NextOperationSequence;
+            await Store.WriteAsync(request.Slot, document);
             if (token.IsCancellationRequested) return;
             Session.MarkSaved(sequence);
             saved = true;

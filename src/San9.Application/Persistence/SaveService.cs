@@ -78,12 +78,20 @@ public static class SaveService
     public static void Write(string path, GameSession session) => Write(path, session, null);
     internal static void Write(string path, GameSession session, Action? beforeReplace)
     {
-        long sequence = session.NextOperationSequence;
-        byte[] bytes = Encode(session);
+        var save = Capture(session);
+        WriteEnvelope(path, save, beforeReplace);
+        session.MarkSaved(save.Session.NextOperationSequence);
+    }
+
+    /// <summary>Encodes and writes an already captured snapshot without accessing a live session.</summary>
+    public static void Write(string path, SaveEnvelope save) => WriteEnvelope(path, save, null);
+
+    private static void WriteEnvelope(string path, SaveEnvelope save, Action? beforeReplace)
+    {
+        byte[] bytes = CanonicalJson.Encode(save);
         try
         {
             AtomicFile.Write(path, bytes, beforeReplace);
-            session.MarkSaved(sequence);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         { throw new SaveException(SaveFailure.IoFailure, "Could not atomically write save.", error); }

@@ -15,6 +15,83 @@ namespace San9.Application.Tests;
 public sealed class PersistenceTests : IDisposable
 {
     [Fact]
+    public void SessionsDoNotPrepareAutomaticCheckpointsUnlessTheClientOptsIn()
+    {
+        var session = GameSession.Start(Fixture(), 190);
+        Assert.Null(session.TakeXunStartCheckpoint());
+        session.AdvanceXun();
+        Assert.Null(session.TakeXunStartCheckpoint());
+        session.EnableXunStartCheckpoints();
+        Assert.Null(session.TakeXunStartCheckpoint());
+        session.AddChronicleNote("orders after enabling");
+        Assert.Null(session.TakeXunStartCheckpoint());
+        session.AdvanceXun();
+        Assert.NotNull(session.TakeXunStartCheckpoint());
+    }
+
+    [Fact]
+    public void XunCheckpointsArePreOrderClaimedOnceAndNotRecreatedByLoading()
+    {
+        var definition = Fixture();
+        var session = GameSession.Start(definition, 190, enableXunStartCheckpoints: true);
+        var initial = Assert.IsType<SessionSnapshot>(session.TakeXunStartCheckpoint());
+        Assert.Null(session.TakeXunStartCheckpoint());
+        session.AddChronicleNote("initial orders");
+        Assert.Empty(initial.Chronicle);
+        Assert.Null(session.TakeXunStartCheckpoint());
+        var saved = SaveService.Capture(session);
+        var loaded = SaveService.Load(saved, definition);
+        var restored = GameSession.Restore(definition, saved.Session);
+        Assert.Null(loaded.TakeXunStartCheckpoint());
+        Assert.Null(restored.TakeXunStartCheckpoint());
+        Assert.DoesNotContain("xunStartCheckpoint", Encoding.UTF8.GetString(SaveService.Encode(session)));
+        loaded.EnableXunStartCheckpoints();
+        Assert.Null(loaded.TakeXunStartCheckpoint());
+        loaded.AdvanceXun();
+        var next = Assert.IsType<SessionSnapshot>(loaded.TakeXunStartCheckpoint());
+        Assert.Equal(saved.Session.World.Clock.DayNumber + 10, next.World.Clock.DayNumber);
+        Assert.Null(loaded.TakeXunStartCheckpoint());
+        loaded.RetryXunStartCheckpoint(next);
+        Assert.Same(next, loaded.TakeXunStartCheckpoint());
+        loaded.AdvanceXun();
+        loaded.RetryXunStartCheckpoint(next);
+        Assert.Equal(next.World.Clock.DayNumber + 10, loaded.TakeXunStartCheckpoint()!.World.Clock.DayNumber);
+    }
+
+    [Fact]
+    public void BackgroundXunCheckpointAppearsOnlyAfterSuccessfulOwnerPublication()
+    {
+        var session = GameSession.Start(Fixture(), 190, enableXunStartCheckpoints: true);
+        _ = session.TakeXunStartCheckpoint();
+        var pending = session.StartOperation(session.Request(new AdvanceOperation()));
+        Assert.Null(session.TakeXunStartCheckpoint());
+        Assert.True(SpinWait.SpinUntil(() => pending.IsCompleted, TimeSpan.FromSeconds(10)));
+        Assert.Null(session.TakeXunStartCheckpoint());
+        Assert.Equal(SessionDisposition.Accepted, pending.Complete().Disposition);
+        var checkpoint = Assert.IsType<SessionSnapshot>(session.TakeXunStartCheckpoint());
+        Assert.Same(session.Snapshot, checkpoint.World);
+        session.AddChronicleNote("after publication");
+        Assert.Empty(checkpoint.Chronicle);
+        Assert.Null(session.TakeXunStartCheckpoint());
+        var rejected = session.Apply(session.Request(new AdvanceOperation()) with { Sequence = -1 });
+        Assert.Equal(SessionDisposition.Rejected, rejected.Disposition);
+        Assert.Null(session.TakeXunStartCheckpoint());
+    }
+
+    [Fact]
+    public async Task CapturedQuickSaveCanBeEncodedAndWrittenWithoutTheLiveSession()
+    {
+        var session = GameSession.Start(Fixture(), 190);
+        var captured = SaveService.Capture(session);
+        session.AddChronicleNote("after quick capture");
+        string path = FilePath("background-quick.json");
+        await Task.Run(() => SaveService.Write(path, captured));
+        session.MarkSaved(captured.Session.NextOperationSequence);
+        Assert.True(session.HasUnsavedChanges);
+        Assert.Empty(SaveService.Read(path, Fixture()).Chronicle);
+    }
+
+    [Fact]
     public void UnsavedChangesTrackCommittedOperationsButNotQueriesOrRejectedRequests()
     {
         var session = GameSession.Start(Fixture(), 190);
@@ -613,7 +690,8 @@ public sealed class PersistenceTests : IDisposable
     public void TerminalSessionRoundTripsWithoutRestartingSimulation()
     {
         var definition = Fixture();
-        var terminal = GameSession.Start(definition, 190, w => new(w, new TerminalRules()));
+        var terminal = GameSession.Start(definition, 190, w => new(w, new TerminalRules()), enableXunStartCheckpoints: true);
+        Assert.Null(terminal.TakeXunStartCheckpoint());
         SaveService.Write(FilePath("terminal.json"), terminal);
         var restored = SaveService.Read(FilePath("terminal.json"), definition);
         StateAssert.Equal(terminal.Capture(), restored.Capture());

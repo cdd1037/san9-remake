@@ -38,7 +38,6 @@ public partial class SessionUiHost : Node
     private SceneTransitionOverlay _transition = null!;
     private SceneReplacementTransition? _replacement;
     private bool _bound;
-    private SessionReplacementKind _pendingKind;
     private AutoSaveQueue _autoSaves = null!;
     private readonly CancellationTokenSource _lifetime = new();
     private Label _autoSaveNotice = null!;
@@ -66,8 +65,8 @@ public partial class SessionUiHost : Node
     public void Activate(GameSession next, SessionReplacementKind kind)
     {
         if (IsSwitching) return;
+        next.EnableXunStartCheckpoints();
         _pending = next;
-        _pendingKind = kind;
         if (_sessionUi is not null) _sessionUi.ProcessMode = ProcessModeEnum.Disabled;
         _bound = false;
         if (_sessionUi is not null && kind == SessionReplacementKind.NewGame)
@@ -141,7 +140,7 @@ public partial class SessionUiHost : Node
         {
             CommandPresentation = Content.Presentation, ContentRoot = Content.ContentRoot,
             SaveStore = SaveStore,
-            XunStarted = SaveXunStart,
+            StrategyReady = SavePendingCheckpoint,
             SaveSummary = note => SaveSlotSummaryFactory.Create(Session, Definition, Content.Text, note),
             ActivateSession = next => Activate(next, SessionReplacementKind.Load),
             StartNewGame = () => Callable.From(() => Activate(CreateNewSession(), SessionReplacementKind.NewGame)).CallDeferred(),
@@ -171,7 +170,7 @@ public partial class SessionUiHost : Node
         World.CanIssueOrders = () => !IsSwitching && Hud.CanIssueOrders;
         _pending = null;
         _autoSaveNotice.Hide();
-        if (_pendingKind is SessionReplacementKind.Startup or SessionReplacementKind.NewGame) SaveXunStart();
+        SavePendingCheckpoint();
         _replacement?.RevealPreparedScene();
         if (!Session.RulesVersionWarnings.IsEmpty)
             Hud.SystemMenu.ShowLoadWarning(string.Join("\n", Session.RulesVersionWarnings.Select(w => w.Message)));
@@ -180,16 +179,15 @@ public partial class SessionUiHost : Node
     public void RequestQuickLoad() => Hud.SystemMenu.RequestLoad(() =>
         San9.Application.Persistence.SaveService.Load(ProjectSettings.GlobalizePath(QuickSaveShortcuts.SavePath), Definition));
 
-    private async void SaveXunStart()
+    private async void SavePendingCheckpoint()
     {
         var session = Session;
         var token = _lifetime.Token;
-        long sequence = session.NextOperationSequence;
         try
         {
-            await _autoSaves.Enqueue(session, SaveSlotSummaryFactory.Create(session, Definition, Content.Text, "旬开始自动存档"));
-            if (token.IsCancellationRequested || !ReferenceEquals(session, Session)) return;
-            session.MarkSaved(sequence);
+            long? sequence = await _autoSaves.Enqueue(session, view => SaveSlotSummaryFactory.Create(view, Definition, Content.Text, "旬开始自动存档"));
+            if (sequence is null || token.IsCancellationRequested || !ReferenceEquals(session, Session)) return;
+            session.MarkSaved(sequence.Value);
         }
         catch (San9.Application.Persistence.SaveException error)
         {

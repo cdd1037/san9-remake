@@ -81,10 +81,11 @@ public sealed class SaveLoadBrowserTests
         Assert.Equal(new(SaveLoadMode.Save, 1, "替换"), browser.Confirm("替换"));
     }
     [Fact]
-    public void AutomaticPageHasFiveRowsLoadsCapturedIdentityAndCannotBeManuallyOverwritten()
+    public void AutomaticPageHasFiveRowsLoadsFixedPositionAndCannotBeManuallyOverwritten()
     {
         var browser = new SaveLoadBrowser();
-        browser.SetAutoSaves([new(12, new(Saved, null)), new(11, new(null, new SaveException(SaveFailure.InvalidFormat, "broken")))]);
+        const int selected = 2;
+        browser.SetAutoSaves([new(selected, new(Saved, null)), new(1, new(null, new SaveException(SaveFailure.InvalidFormat, "broken")))]);
         browser.Open(SaveLoadMode.Load);
         Assert.Equal(9, browser.PageCount);
         Assert.True(browser.ChangePage(8));
@@ -94,10 +95,7 @@ public sealed class SaveLoadBrowserTests
         Assert.False(browser.Select(43));
         Assert.True(browser.Select(41));
         var request = browser.Confirm("")!;
-        Assert.Equal(12, request.AutoSaveId);
-        // A subsequent catalog refresh must not redirect an already-created load request.
-        browser.SetAutoSaves([new(13, new(Saved, null)), new(12, new(Saved, null))]);
-        Assert.Equal(12, request.AutoSaveId);
+        Assert.Equal(selected, request.AutoSaveSlot);
         browser.Open(SaveLoadMode.Save);
         Assert.Equal(8, browser.Page);
         Assert.False(browser.Select(41));
@@ -105,7 +103,7 @@ public sealed class SaveLoadBrowserTests
         Assert.Null(browser.Confirm("不能覆盖"));
         Assert.True(browser.ChangePage(7));
         Assert.True(browser.Select(40));
-        Assert.Null(browser.Confirm("手动档")!.AutoSaveId);
+        Assert.Null(browser.Confirm("手动档")!.AutoSaveSlot);
     }
 
 }

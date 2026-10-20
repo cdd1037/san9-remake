@@ -6,7 +6,7 @@ public enum SaveLoadMode { Save, Load }
 public sealed record SaveSlotSummary(string Ruler, string? PortraitRole, string StartDate, string Scenario,
     string CurrentDate, DateTimeOffset SavedAt, int Players, bool? Historical, string Difficulty, string Note);
 
-public sealed record SaveSlotRequest(SaveLoadMode Mode, int Slot, string Note, long? AutoSaveId = null);
+public sealed record SaveSlotRequest(SaveLoadMode Mode, int Slot, string Note, int? AutoSaveSlot = null);
 
 /// <summary>Owns navigation and a pending selection. Confirmation never writes a save or alters a session.</summary>
 public sealed class SaveLoadBrowser
@@ -70,6 +70,6 @@ public sealed class SaveLoadBrowser
         if (!IsOpen || PendingSlot is not int slot) return null;
         PendingSlot = null;
         return new(Mode, slot, Mode == SaveLoadMode.Save ? note : Entry(slot)?.Note ?? "",
-            slot > SlotCount ? _autoSaves[slot - SlotCount - 1].Id : null);
+            slot > SlotCount ? _autoSaves[slot - SlotCount - 1].Slot : null);
     }
 }

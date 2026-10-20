@@ -1,6 +1,7 @@
 using System.Text.Json;
 using San9.Application;
 using San9.Application.Persistence;
+using San9.Application.Presentation;
 using San9.Content.Scenarios;
 using San9.Core.Simulation;
 
@@ -9,7 +10,7 @@ namespace San9.Client.Godot.Persistence;
 public sealed record SlotSaveHeader(int Version, int SaveVersion, string RulesVersion, SaveSlotSummary Summary, SaveSlotFlag Flag);
 public sealed record SlotSaveDocument(SlotSaveHeader Header, SaveEnvelope Save);
 public sealed record SaveSlotFlag(int Color, int Glyph);
-public sealed record AutoSaveEntry(long Id, SaveSlotListing Listing);
+public sealed record AutoSaveEntry(int Slot, SaveSlotListing Listing);
 public sealed record SaveSlotListing(SaveSlotSummary? Summary, SaveException? Error, SaveSlotFlag? Flag = null);
 
 /// <summary>One atomic JSON file: independently readable header first, authoritative save second.</summary>
@@ -18,17 +19,21 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
     private const int FormatVersion = 4;
     public const string UserDirectory = "user://saves/slots";
     public const int AutoSaveCount = 5;
-    public string AutoSavePathFor(long id)
+    private readonly BackgroundSaveQueue _writes = new();
+    public string AutoSavePathFor(int slot)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(id, 1);
-        return Path.Combine(directory, $"auto-{id:D20}.save.json");
+        ArgumentOutOfRangeException.ThrowIfLessThan(slot, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(slot, AutoSaveCount);
+        return Path.Combine(directory, $"auto-{slot:D2}.save.json");
     }
-    private long[] AutoSaveIds() => Directory.Exists(directory)
-        ? Directory.EnumerateFiles(directory, "auto-*.save.json")
-            .Select(path => Path.GetFileName(path)[5..^10])
-            .Select(name => long.TryParse(name, out long id) ? id : 0)
-            .Where(id => id > 0).OrderDescending().ToArray()
-        : [];
+
+    public static int AutoSaveSlotFor(SessionSnapshot checkpoint)
+    {
+        long elapsed = checkpoint.World.Clock.DayNumber - checkpoint.World.Simulation.Started.DayNumber;
+        if (elapsed < 0 || !checkpoint.World.Clock.IsXunBoundary || checkpoint.World.Simulation.Boundary != SimulationBoundary.Stable)
+            throw new SaveException(SaveFailure.NotStable, "Automatic saves require a stable xun-start checkpoint.");
+        return (int)(elapsed / 10 % AutoSaveCount) + 1;
+    }
     public string PathFor(int slot)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(slot, 1);
@@ -49,46 +54,49 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
         }
         return entries;
     }
-    public static byte[] Encode(GameSession session, SaveSlotSummary summary)
+    public static SlotSaveDocument Capture(GameSession session, SaveSlotSummary summary)
+        => Capture(SaveService.Capture(session), summary, session.View);
+
+    private static SlotSaveDocument Capture(SaveEnvelope save, SaveSlotSummary summary, StrategySnapshot view)
     {
-        var save = SaveService.Capture(session);
-        var force = session.View.Forces.Single(f => f.Id == session.View.PlayerForceId);
+        var force = view.Forces.Single(f => f.Id == view.PlayerForceId);
         var header = new SlotSaveHeader(FormatVersion, SessionProtocol.SaveFormatVersion, SessionProtocol.RulesVersion,
             summary, new(force.ColorCode, force.FlagGlyph));
-        // Canonical order places "header" before "save", allowing a bounded prefix read.
-        return CanonicalJson.Encode(new SlotSaveDocument(header, save));
+        return new(header, save);
     }
-    public void Write(int slot, byte[] bytes)
-        => WriteFile(PathFor(slot), bytes);
-    public void WriteAutoSave(byte[] bytes)
+
+    public SlotSaveDocument CaptureAutoSave(SessionSnapshot checkpoint, Func<StrategySnapshot, SaveSlotSummary> summary)
     {
-        try
-        {
-            var ids = AutoSaveIds();
-            long id = checked(ids.FirstOrDefault() + 1);
-            WriteFile(AutoSavePathFor(id), bytes);
-            // Publish the new file before pruning: a failed write keeps all previous saves.
-            foreach (long expired in ids.Skip(AutoSaveCount - 1)) File.Delete(AutoSavePathFor(expired));
-        }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
-        { throw new SaveException(SaveFailure.IoFailure, "Could not retain automatic saves.", error); }
+        var view = new StrategySnapshot(definition, checkpoint.World);
+        return Capture(new(SessionProtocol.SaveFormatVersion, SessionProtocol.RulesVersion, checkpoint), summary(view), view);
     }
+
+    public static byte[] Encode(GameSession session, SaveSlotSummary summary) => Encode(Capture(session, summary));
+    // Canonical order places "header" before "save", allowing a bounded prefix read.
+    public static byte[] Encode(SlotSaveDocument document) => CanonicalJson.Encode(document);
+    public void Write(int slot, byte[] bytes) => WriteFile(PathFor(slot), bytes);
+    public Task WriteAsync(int slot, SlotSaveDocument document) => _writes.Enqueue(() => Write(slot, Encode(document)));
+
+    public Task WriteAutoSaveAsync(SlotSaveDocument document)
+    {
+        int slot = AutoSaveSlotFor(document.Save.Session);
+        return _writes.Enqueue(() => WriteFile(AutoSavePathFor(slot), Encode(document)));
+    }
+
     public IReadOnlyList<AutoSaveEntry> ReadAutoSaveCatalog()
     {
-        try
+        var entries = new List<AutoSaveEntry>();
+        for (int slot = 1; slot <= AutoSaveCount; slot++)
         {
-            return AutoSaveIds().Take(AutoSaveCount).Select(id =>
+            try
             {
-                try
-                {
-                    var header = ReadFile(AutoSavePathFor(id), ReadPreview);
-                    return new AutoSaveEntry(id, new(header.Summary, null, header.Flag));
-                }
-                catch (SaveException error) { return new AutoSaveEntry(id, new(null, error)); }
-            }).ToArray();
+                var header = ReadFile(AutoSavePathFor(slot), ReadPreview);
+                entries.Add(new(slot, new(header.Summary, null, header.Flag)));
+            }
+            catch (SaveException error) when (error.InnerException is FileNotFoundException or DirectoryNotFoundException) { }
+            catch (SaveException error) { entries.Add(new(slot, new(null, error))); }
         }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
-        { throw new SaveException(SaveFailure.IoFailure, "Could not list automatic saves.", error); }
+        return entries.OrderByDescending(e => e.Listing.Summary?.SavedAt).ThenBy(e => e.Slot).ToArray();
     }
     private static void WriteFile(string path, byte[] bytes)
     {
@@ -97,7 +105,7 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
         { throw new SaveException(SaveFailure.IoFailure, "Could not atomically write slot save.", error); }
     }
     public GameSession Load(int slot) => LoadFile(PathFor(slot));
-    public GameSession LoadAutoSave(long id) => LoadFile(AutoSavePathFor(id));
+    public GameSession LoadAutoSave(int slot) => LoadFile(AutoSavePathFor(slot));
     private GameSession LoadFile(string path) => ReadFile(path, stream =>
     {
         var document = StrictJson.Deserialize<SlotSaveDocument>(stream);
@@ -150,7 +158,7 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
     {
         try
         {
-            using var stream = File.OpenRead(path);
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
             return read(stream);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)

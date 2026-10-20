@@ -19,7 +19,7 @@ public sealed class TurnPresentationTests
         var turn = new TurnPresentation(session)
         {
             StrategyTitleStarted = () => titles++,
-            XunStarted = () => { Assert.True(session.Snapshot.Simulation.CanPersist); xunStarts++; },
+            StrategyReady = () => { Assert.True(session.Snapshot.Simulation.CanPersist); xunStarts++; },
             PresentSeasonChange = _ => { seasons++; return true; }
         };
         Assert.False(turn.UsesExecutionMusic);
@@ -76,7 +76,7 @@ public sealed class TurnPresentationTests
             turn.Update(100);
             Assert.Equal(1, titles);
             Assert.Equal(1, xunStarts);
-            var rebound = new TurnPresentation(session) { XunStarted = () => xunStarts++ };
+            var rebound = new TurnPresentation(session) { StrategyReady = () => xunStarts++ };
             rebound.Update(100);
             Assert.Equal(1, xunStarts);
         }

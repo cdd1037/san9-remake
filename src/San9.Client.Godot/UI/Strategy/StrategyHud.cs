@@ -41,7 +41,7 @@ public partial class StrategyHud : Control
     public StrategyOverview Overview { get; } = new();
     public InformationPanel Information { get; private set; } = null!;
     public SystemMenuPanel SystemMenu { get; private set; } = null!;
-    public Action? XunStarted { get; init; }
+    public Action? StrategyReady { get; init; }
     public Persistence.SlotSaveStore SaveStore { get; init; } = null!;
     public Func<string, Persistence.SaveSlotSummary> SaveSummary { get; init; } = null!;
     public Action<San9.Application.GameSession> ActivateSession { get; init; } = null!;
@@ -95,7 +95,7 @@ public partial class StrategyHud : Control
         if (_built) return;
         Turn = new(Session)
         {
-            XunStarted = XunStarted,
+            StrategyReady = StrategyReady,
             ExecutionTitleStarted = () => _sceneSounds.Play(CommandPresentation.MapAudio!.ExecutionTitleSound, SoundEnabled),
             StrategyTitleStarted = () =>
             {

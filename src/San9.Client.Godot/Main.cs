@@ -72,7 +72,7 @@ public partial class Main : Node
                 ulong seed = options.RequiresWorldVerification ? 190UL
                     : System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(
                         System.Security.Cryptography.RandomNumberGenerator.GetBytes(sizeof(ulong)));
-                return San9.Application.GameSession.Start(initial, seed, options.ComputerDamageBonusPercent);
+                return San9.Application.GameSession.Start(initial, seed, options.ComputerDamageBonusPercent, enableXunStartCheckpoints: true);
             }
             var session = CreateNewSession();
             var saveStore = new Persistence.SlotSaveStore(ProjectSettings.GlobalizePath(Persistence.SlotSaveStore.UserDirectory), initial);

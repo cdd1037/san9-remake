@@ -95,10 +95,49 @@ public sealed class IncrementalAdvanceTests
         finally { release.Set(); }
         Assert.True(SpinWait.SpinUntil(() => pending.IsCompleted, TimeSpan.FromSeconds(10)));
         Assert.Same(before, session.Snapshot);
+        var preparedView = pending.PreparedView;
         Assert.Equal(SessionDisposition.Accepted, pending.Complete().Disposition);
+        Assert.Same(preparedView, session.View);
         Assert.Equal(1, notifications);
         Assert.Equal(1, factoryCalls);
         Assert.Throws<InvalidOperationException>(() => pending.Complete());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void UnexpectedCalculationFailurePreservesStateAndAllowsTheNextOperation(bool background)
+    {
+        bool fail = false;
+        var rules = new BlockingRules(() =>
+        {
+            if (fail) throw new TimeoutException("Injected calculation failure");
+        });
+        var session = GameSession.Start(G01ScenarioTests.Fixture(), 190, world => new(world, rules));
+        session.BeginRecording();
+        session.MarkSaved(session.NextOperationSequence);
+        var before = session.Capture();
+        int notifications = 0;
+        session.Changed += () => notifications++;
+        var request = session.Request(new AdvanceOperation());
+        fail = true;
+        if (background)
+        {
+            var pending = session.StartOperation(request);
+            Assert.True(SpinWait.SpinUntil(() => pending.IsCompleted, TimeSpan.FromSeconds(10)));
+            Assert.Throws<TimeoutException>(() => pending.Complete());
+        }
+        else Assert.Throws<TimeoutException>(() => session.Apply(request));
+        Assert.Same(before, session.Capture());
+        Assert.False(session.HasUnsavedChanges);
+        Assert.Equal(0, notifications);
+        Assert.Empty(session.CaptureRecording().Operations);
+        fail = false;
+        var result = background ? Apply(session, new AdvanceOperation()) : session.Apply(request);
+        Assert.Equal(SessionDisposition.Accepted, result.Disposition);
+        Assert.Equal(1, notifications);
+        Assert.True(session.HasUnsavedChanges);
+        Assert.Single(session.CaptureRecording().Operations);
     }
 
     private sealed class FailingRules : SimulationRules

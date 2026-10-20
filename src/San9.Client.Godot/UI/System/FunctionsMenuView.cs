@@ -1,6 +1,7 @@
 using Godot;
 using San9.Client.Godot.Persistence;
 using San9.Content.Text;
+using San9.Core.Domain;
 
 namespace San9.Client.Godot;
 
@@ -14,6 +15,8 @@ public partial class FunctionsMenuView : HudDropdown
     public Action OpenEnvironment { get; init; } = null!;
     public Action OpenPkSettings { get; init; } = null!;
     public Action OpenExit { get; init; } = null!;
+    public Action<WorldEditorKind> OpenEditor { get; init; } = null!;
+    public Func<WorldEditorKind, bool> CanEdit { get; init; } = null!;
     protected override Vector2 MenuSize => new(120, 296);
     protected override bool AlignRight => true;
     public override void _Ready()
@@ -32,6 +35,11 @@ public partial class FunctionsMenuView : HudDropdown
                 "environment" => OpenEnvironment,
                 "pk" => OpenPkSettings,
                 "exit" => OpenExit,
+                "edit-officers" when CanEdit(WorldEditorKind.Officers) => () => OpenEditor(WorldEditorKind.Officers),
+                "edit-corps" when CanEdit(WorldEditorKind.Corps) => () => OpenEditor(WorldEditorKind.Corps),
+                "edit-cities" when CanEdit(WorldEditorKind.Cities) => () => OpenEditor(WorldEditorKind.Cities),
+                "edit-facilities" when CanEdit(WorldEditorKind.Facilities) => () => OpenEditor(WorldEditorKind.Facilities),
+                "edit-obstacles" when CanEdit(WorldEditorKind.Obstacles) => () => OpenEditor(WorldEditorKind.Obstacles),
                 _ => null
             };
             var button = new InformationMenuButton { Title = entries[i].Title, Textures = Textures,

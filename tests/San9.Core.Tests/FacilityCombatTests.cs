@@ -35,7 +35,8 @@ public sealed class FacilityCombatTests
         });
         var state = WorldState.Create(new(190, 1, 1), 42,
             [new(1, 100) { LeaderId = 11 }, new(2, 100) { LeaderId = 22 }],
-            [new(1, 1, 10000, 100, 100, effect == TacticEffect.Inspire ? 79 : 100, 0, 0, 100, 0, 100) { ConfusionDaysRemaining = confusion },
+            [new(1, 1, 10000, 100, 100, effect == TacticEffect.Inspire ? 79 : 100, 0, 0, 100, 0, 100)
+                { ConfusionDaysRemaining = confusion, EnabledTacticIds = enabled ? [9000] : [] },
                 new(2, 2, 10000, 100, 100, 100, 0, 0, 100, 0, 100),
                 ..(area ? new SettlementState[] { new(3, 2, 1, 100, 100, 100, 0, 0, 100, 0, 100) } : [])],
             [new(11, 1, 1, new(200, 200, 100, 100), false) { Status = OfficerStatus.Ruler, IsCommander = true, Injury = injury, TacticCooldown = cooldown },

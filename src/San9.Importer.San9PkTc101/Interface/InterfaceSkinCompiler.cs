@@ -5,7 +5,7 @@ using San9.Content.Interface;
 
 namespace San9.Importer.San9PkTc101.Interface;
 
-public static class InterfaceSkinCompiler
+public static partial class InterfaceSkinCompiler
 {
     public static InterfaceSkin Compile(byte[] exe, string dataDirectory, Func<string, byte[]> read, Func<string,string,PngImage,ImageAsset> save)
     {
@@ -363,6 +363,8 @@ public static class InterfaceSkinCompiler
         Extra("progress-record-side", 52, bindings[52] - 200, true);
         foreach (var (part, resource) in new[] { ("top-left", 323), ("top", 324), ("top-right", 325), ("left", 326), ("center", 327), ("right", 328), ("bottom-left", 329), ("bottom", 330), ("bottom-right", 331) })
             Extra("progress-record-" + part, resource, bindings[resource] - 200, true);
+        // RE-0199: CEdit* dialogs use the common framed background through resource 1296.
+        CompileEditors(bindings, dataDirectory, read, save, assets, ui);
         Extra("information-background", 337, 40);
         Extra("information-summary", 381, 46);
         foreach (var (part, resource) in new[] { ("bottom", 338), ("left", 339), ("right", 340), ("top", 341), ("bottom-left", 342), ("top-left", 343), ("bottom-right", 344), ("top-right", 345), ("ornament", 346) })

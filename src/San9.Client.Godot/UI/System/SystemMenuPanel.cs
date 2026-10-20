@@ -3,6 +3,9 @@ using San9.Client.Godot.Persistence;
 using San9.Application;
 using San9.Application.Persistence;
 using San9.Content.Text;
+using San9.Application.Presentation;
+using San9.Core.Domain;
+using San9.Core.Simulation;
 
 namespace San9.Client.Godot;
 
@@ -14,6 +17,8 @@ public partial class SystemMenuPanel : Control
     public TextCatalog Texts { get; init; } = null!;
     public SlotSaveStore Store { get; init; } = null!;
     public GameSession Session { get; init; } = null!;
+    public MapWorld World { get; init; } = null!;
+    public San9.Content.Interface.InterfaceSkin Skin { get; init; } = null!;
     public IReadOnlyDictionary<string, string> ExitMessages { get; init; } = null!;
     public Func<string, SaveSlotSummary> CreateSummary { get; init; } = null!;
     public Action<GameSession> ActivateSession { get; init; } = null!;
@@ -43,7 +48,16 @@ public partial class SystemMenuPanel : Control
         _textures.RequestPrefixes("information-menu-", "save-load-", "message-");
         Show();
         ReplacePage(new FunctionsMenuView { AnchorControl = MenuAnchor, Textures = _textures, Texts = Texts, Open = Open,
-            OpenEnvironment = OpenEnvironment, OpenPkSettings = OpenPkSettings, OpenExit = OpenExit, Closed = Close });
+            OpenEnvironment = OpenEnvironment, OpenPkSettings = OpenPkSettings, OpenExit = OpenExit, Closed = Close,
+            OpenEditor = OpenEditor, CanEdit = kind => Session.CanEditWorld && WorldEditing.Candidates(Session.Snapshot, kind).Count > 0 });
+    }
+    private void OpenEditor(WorldEditorKind kind)
+    {
+        _textures!.RequestPrefixes("save-load-", "dialog-", "deployment-number-", "environment-", "editor-",
+            "information-", "catalog-", "detail-", "roster-", "scroll-", "message-", "text-icon-", "overview-");
+        ReplacePage(new WorldEditorView { Textures = _textures, Service = Service, Skin = Skin, Texts = Texts, Draft = new WorldEditorDraft(Session, kind, Texts),
+            MapPreview = id => World.CreateInformationPreview(id, Texts),
+            Apply = edit => Session.Apply(Session.Request(edit)), Closed = Close });
     }
     private void OpenEnvironment()
     {
@@ -210,6 +224,7 @@ public partial class SystemMenuPanel : Control
     {
         if (!IsVisibleInTree()) return;
         if (_busy) { GetViewport().SetInputAsHandled(); return; }
+        if (_page is WorldEditorView) return;
         if (_page is SettingsView settingsPage && input is InputEventMouseButton { ButtonIndex: MouseButton.Right } right)
         {
             GetViewport().SetInputAsHandled();

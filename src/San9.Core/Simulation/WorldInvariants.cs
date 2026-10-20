@@ -40,6 +40,9 @@ internal static class WorldInvariants
         }
         foreach (var settlement in state.AllSettlements.Values)
         {
+            if (settlement.EnabledTacticIds.IsDefault || settlement.EnabledTacticIds.Any(id => id < 0) ||
+                settlement.EnabledTacticIds.Distinct().Count() != settlement.EnabledTacticIds.Length)
+                throw new ArgumentException("Invalid settlement tactics.");
             if (settlement.CombatTargetUnitId is int contact && (contact < 0 || !state.Units.ContainsKey(contact) || settlement.IsDestroyed || settlement.IsDormant))
                 throw new ArgumentException("Invalid settlement combat contact.");
             if (settlement.Facility is { } facility && (settlement.Kind != San9.Core.Domain.SettlementKind.Facility ||

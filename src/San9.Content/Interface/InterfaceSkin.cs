@@ -5,7 +5,7 @@ namespace San9.Content.Interface;
 public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dictionary<string,string> Roles, Dictionary<string,string> Colors,
     Dictionary<string, CursorDefinition> Cursors)
 {
-    public const int CurrentSchemaVersion = 55;
+    public const int CurrentSchemaVersion = 57;
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<int, TargetMarkerOffset> BuildingTargetOffsets { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired]
@@ -59,7 +59,7 @@ public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dicti
         .Concat(TargetSelectionSkin.RequiredRoles).Concat(CommandMenuSkin.RequiredRoles).Concat(DeploymentSkin.RequiredRoles).Append("hover-divider").Concat(OfficerDetailSkin.RequiredRoles).Append("information-background")
         .Concat(new[] { "strategy", "execution" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => $"turn-title-{p}-{f}")))
         .Concat(new[] { "yes", "no" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => $"dialog-{p}-{f}")))
-        .Append("dialog-frame").Concat(SaveLoadSkin.RequiredRoles).Concat(MapSpeechSkin.RequiredRoles)
+        .Append("dialog-frame").Concat(SaveLoadSkin.RequiredRoles).Concat(MapSpeechSkin.RequiredRoles).Concat(WorldEditorSkin.RequiredRoles)
         .Concat(new[] { "left", "middle", "right" }.Select(p => "environment-label-" + p))
         .Concat(new[] { "left", "middle", "right" }.SelectMany(p => Enumerable.Range(0, 4).Select(f => "environment-choice-" + p + (f == 0 ? "" : "-" + f))))
         .Concat(new[] { "top-left", "top", "top-right", "left", "right", "bottom-left", "bottom", "bottom-right" }.Select(p => "narration-image-frame-" + p))

@@ -22,6 +22,7 @@ public sealed partial class GameSession
     public long NextOperationSequence { get; private set; }
     private bool _executing;
     internal bool IsExecuting => _executing;
+    public bool CanEditWorld => !_executing && Snapshot.Simulation.Boundary == SimulationBoundary.Stable && _originalAi.Continuation is null;
     private EndingSelection? _ending;
     /// <summary>Initial controller configuration, used to reconstruct command logs.</summary>
     public ControllerKind PlayerForceController { get; private set; } = ControllerKind.Player;

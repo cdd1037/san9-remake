@@ -7,9 +7,9 @@ namespace San9.Application;
 
 public static class SessionProtocol
 {
-    public const string RulesVersion = "san9-core-g10-v165";
-    public const int SaveFormatVersion = 121;
-    public const int LogFormatVersion = 128;
+    public const string RulesVersion = "san9-core-g10-v166";
+    public const int SaveFormatVersion = 122;
+    public const int LogFormatVersion = 129;
 }
 
 /// <summary>Non-authoritative load diagnostics; never included in saves or deterministic hashes.</summary>
@@ -29,7 +29,9 @@ public sealed record RulesVersionWarning(string SavedVersion, string CurrentVers
 [JsonDerivedType(typeof(PkSettingsOperation), "pk-settings")]
 [JsonDerivedType(typeof(ForceControlOperation), "force-control")]
 [JsonDerivedType(typeof(HandOverAllForcesOperation), "hand-over-all-forces")]
+[JsonDerivedType(typeof(WorldEditOperation), "world-edit")]
 public abstract record SessionOperation;
+public sealed record WorldEditOperation(WorldEditorKind Kind, ImmutableArray<WorldEdit> Edits) : SessionOperation;
 public sealed record ForceControlOperation(int ForceId, ControllerKind Kind) : SessionOperation;
 public sealed record HandOverAllForcesOperation : SessionOperation;
 public sealed record PkSettingsOperation(bool OtherForceOrdersVisible,

@@ -1,5 +1,7 @@
 # 行为规格目录
 
+- [BEH-EDITOR-0001：局内世界编辑器](BEH-EDITOR-0001-world-editors.md)（已确认）
+
 - [BEH-PROFILE-0001：跨局玩家进度基础](BEH-PROFILE-0001-player-progress.md)（已确认）
 
 本目录保存可供实现与测试直接使用的 `BEH-*` 文档。

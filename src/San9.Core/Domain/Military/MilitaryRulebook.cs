@@ -373,7 +373,7 @@ public sealed partial class MilitaryRulebook
 
     public BattlefieldPlace Place(SettlementState settlement)
     {
-        if (settlement.Facility is not { } instance) return Places[settlement.Id];
+        if (settlement.Facility is not { } instance) return Places[settlement.Id] with { EnabledTacticIds = settlement.EnabledTacticIds };
         var type = Facilities[instance.TypeId];
         return new(settlement.Id, instance.Position, type.Footprint)
         {
@@ -385,7 +385,12 @@ public sealed partial class MilitaryRulebook
 
     public bool TryPlace(SettlementState settlement, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out BattlefieldPlace? place)
     {
-        if (settlement.Facility is null) return Places.TryGetValue(settlement.Id, out place);
+        if (settlement.Facility is null)
+        {
+            if (!Places.TryGetValue(settlement.Id, out place)) return false;
+            place = place with { EnabledTacticIds = settlement.EnabledTacticIds };
+            return true;
+        }
         if (!Facilities.ContainsKey(settlement.Facility.TypeId)) { place = null; return false; }
         place = Place(settlement);
         return true;

@@ -20,6 +20,7 @@ public partial class InformationMapView : FixedPage, IInformationPage
     public Action<int> Activated { get; init; } = null!;
     public Action ShowList { get; init; } = null!;
     public Action Closed { get; init; } = null!;
+    public Action? Confirmed { get; init; }
     public string Title { get; init; } = "";
     public string HintText { get; init; } = "";
     public string CloseTitle { get; init; } = "关闭";
@@ -77,7 +78,13 @@ public partial class InformationMapView : FixedPage, IInformationPage
             Label(fields[i].Label,p+new Vector2(2,0),new(80,24));
             _values.Add(Label("",p+new Vector2(88,0),new(SummaryWidths[column]-92,24),16,HorizontalAlignment.Right));
         }
-        Button("一览",new(Selection is null ? 612 : 528,680),ShowList,true); Button(CloseTitle,new(808,696),Closed,false);
+        Button("一览",new(Selection is null && Confirmed is null ? 612 : 528,680),ShowList,true); Button(CloseTitle,new(808,696),Closed,false);
+        if (Confirmed is not null)
+        {
+            var confirm = new InformationActionButton { Title = "决定", SkinPrefix = "catalog-accept-", FontSize = 24,
+                TextRole = GameButtonTextRole.ConfirmYes, Textures = Textures, Position = new(720,696), Size = new(80,48) };
+            confirm.Pressed += Confirmed; AddChild(confirm);
+        }
         if (Selection is not null)
         {
             _confirmSelection = new InformationActionButton { Title = "决定", SkinPrefix = "catalog-accept-", FontSize = 24,
@@ -233,7 +240,8 @@ public partial class InformationMapView : FixedPage, IInformationPage
         DrawTexture(Textures.Get("information-frame-bottom-left", this),new(8,544));DrawTexture(Textures.Get("information-frame-bottom-right", this),new(728,544));
         Strip("information-title",new(16,8),264);
         DrawTexture(Textures.Get("information-frame-ornament", this),new(0,8));
-        Strip("information-footer",new(Selection is null ? 732 : 644,680),Selection is null ? 260 : 348);
+        bool paired = Selection is not null || Confirmed is not null;
+        Strip("information-footer",new(paired ? 644 : 732,680),paired ? 348 : 260);
         DrawTexture(Textures.Get("overview-terrain", this), Origin);
         DrawTexture(Textures.Get("information-summary", this),SummaryOrigin);
     }

@@ -191,6 +191,8 @@ public partial class StrategyHud : Control
         OverlayHost.AddChild(Information);
         SystemMenu = new SystemMenuPanel
         {
+            World = World,
+            Skin = Skin,
             Service = Textures,
             MenuAnchor = _functionsButton,
             Texts = Texts,

@@ -36,6 +36,7 @@ public sealed record SettlementState(int Id, int? OwnerId, uint Soldiers, int Du
     int Morale, int PublicOrder, int Commerce, int MaxCommerce, int Cultivation, int MaxCultivation,
     bool CommerceUsed = false, bool CultivationUsed = false)
 {
+    [JsonRequired] public System.Collections.Immutable.ImmutableArray<int> EnabledTacticIds { get; init; } = [];
     [JsonRequired] public bool IsDormant { get; init; }
     [JsonRequired] public FacilityInstance? Facility { get; init; }
     [JsonRequired] public bool IsDestroyed { get; init; }

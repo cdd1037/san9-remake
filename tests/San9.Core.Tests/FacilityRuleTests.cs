@@ -28,7 +28,7 @@ public sealed class FacilityRuleTests
         { Facilities = [Rule with { Tactics = new(10, 3, true, [7000]) }],
             Tactics = [new(7000, 3, TacticEffect.Martial, 1, 9, 0, true, false, [])] };
         var rules = new MilitaryRulebook(definition);
-        Assert.Equal(7000, rules.FacilityTactic(new(1, 1, 100, 100, 100, 100, 0, 0, 100, 0, 100))!.Id);
+        Assert.Equal(7000, rules.FacilityTactic(new(1, 1, 100, 100, 100, 100, 0, 0, 100, 0, 100) { EnabledTacticIds = [7000] })!.Id);
         Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with
             { Places = [definition.Places[0] with { EnabledTacticIds = [7001] }] }));
         Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with

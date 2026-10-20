@@ -26,7 +26,7 @@ public sealed class FacilityAttackTests
     [Fact]
     public void InnateAndEnabledCapabilitiesCombineWithoutDuplicatingRange()
     {
-        var enabled = Rules(true, new(false, 2)).FacilityAttack(Home());
+        var enabled = Rules(true, new(false, 2)).FacilityAttack(Home() with { EnabledTacticIds = [9500, 9501] });
         Assert.True(enabled.UsesRockfallPower);
         Assert.Equal(3, enabled.Attack!.Range);
         var innate = Rules(false, new(false, 2)).FacilityAttack(Home());
@@ -50,7 +50,7 @@ public sealed class FacilityAttackTests
         var rules = Rules(enabled);
         var state = WorldState.Create(new(190, 1, 1), 42,
             [new(1, 100) { LeaderId = 11 }, new(2, 100) { LeaderId = 22 }],
-            [Home(), new(9001, 2, 10000, 100, 100, 100, 0, 0, 100, 0, 100)],
+            [Home() with { EnabledTacticIds = enabled ? [9500, 9501] : [] }, new(9001, 2, 10000, 100, 100, 100, 0, 0, 100, 0, 100)],
             [new(11, 1, 9000, new(80, 80, 80, 80), false) { Status = OfficerStatus.Ruler },
                 new(21, 2, null, new(80, 80, 80, 80), false) { UnitId = 7001 },
                 new(22, 2, 9001, new(80, 80, 80, 80), false) { Status = OfficerStatus.Ruler }],

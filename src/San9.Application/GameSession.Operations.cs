@@ -65,6 +65,13 @@ public sealed partial class GameSession
             var ending = input.Ending;
             switch (request.Operation)
             {
+                case WorldEditOperation edit:
+                    if (request.ControllerId != "player") return Rejected(SessionRejection.InvalidRequest);
+                    if (candidate.Snapshot.Simulation.Boundary != SimulationBoundary.Stable || originalAi.Continuation is not null)
+                        return Rejected(SessionRejection.NotStable);
+                    try { events.AddRange(candidate.EditWorld(edit.Kind, edit.Edits)); }
+                    catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
+                    break;
                 case EndingOperation selection:
                     if (request.ControllerId != "player" || ending is not null) return Rejected(SessionRejection.InvalidRequest);
                     try { _ = EndingSession.Resolve(input.Definition, candidate.Snapshot, selection.Selection); }

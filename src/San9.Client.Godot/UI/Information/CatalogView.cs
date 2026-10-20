@@ -29,6 +29,7 @@ public partial class CatalogView : FixedPage, IInformationPage
     public Func<IReadOnlySet<int>, bool>? CanConfirmSelection { get; init; }
     private bool SelectionAccepted => Selection is { Selected.Count: > 0 } && (CanConfirmSelection?.Invoke(Selection.Selected) ?? true);
     public Action<IReadOnlySet<int>>? ConfirmSelection { get; init; }
+    private bool HasPairedActions => Selection is not null || Confirmed is not null;
     private int SelectionWidth => Selection is null ? 0 : 40;
     private InformationActionButton? _confirmSelection;
     private CatalogBulkButton? _selectAll, _clearSelection;
@@ -115,7 +116,7 @@ public partial class CatalogView : FixedPage, IInformationPage
         {
             var map = new InformationActionButton { Title = "地图", MapToggle = true,
                 TextRole = GameButtonTextRole.MapMode, Textures = Textures,
-                Position = new(_body.End.X - 352, _body.End.Y - 64), Size = new(108, 32) };
+                Position = new(_body.End.X - (HasPairedActions ? 440 : 352), _body.End.Y - 64), Size = new(108, 32) };
             map.Pressed += ShowMap; AddChild(map);
         }
         IconButton("information-action-close", new(_body.End.X - 40, _body.Position.Y + 32), () => Closed?.Invoke());
@@ -459,7 +460,7 @@ public partial class CatalogView : FixedPage, IInformationPage
         DrawTexture(Textures.Get("information-frame-bottom-right", this),new(right-240,bottom-216));
         Strip("information-title",new(x-40,y-16),264);
         DrawTexture(Textures.Get("information-frame-ornament", this),new(x-56,y-16));
-        Strip("information-footer",new(right-(Selection is null ? 236 : 324),bottom-64),Selection is null ? 260 : 348);
+        Strip("information-footer",new(right-(HasPairedActions ? 324 : 236),bottom-64),HasPairedActions ? 348 : 260);
         var tabs = new Rect2(x+40,y+64,TabStripFollowsPage ? Pages[_page].Columns.Sum(c => c.Width) : _body.Size.X-80,Pages.Count>7?80:48);
         Tile("catalog-tabs-top",new(tabs.Position+new Vector2(12,0),new(tabs.Size.X-24,8)));
         Tile("catalog-tabs-bottom",new(tabs.Position+new Vector2(12,tabs.Size.Y-8),new(tabs.Size.X-24,8)));

@@ -71,6 +71,8 @@ public sealed partial class SimulationEngine
             rules.Military is null || !rules.Military.Tactics.TryGetValue(c.Value, out var tactic) || tactic.Category is not (>= 0 and <= 8)))
             throw new ArgumentException("Invalid tactic study course.");
         var initial = world.BeginMutation(rules.Abilities, rules.Economy);
+        if (initial.AllSettlements.Values.Any(s => s.EnabledTacticIds.Any(id => rules.Military is null || !rules.Military.Tactics.ContainsKey(id))))
+            throw new ArgumentException("Unknown settlement tactic reference.");
         initial.RebuildForceTrust();
         PoliticalEvents.ValidateRules(initial, rules);
         EmperorTransfer.ValidateRules(initial, rules);

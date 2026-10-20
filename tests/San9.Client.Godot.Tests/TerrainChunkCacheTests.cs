@@ -104,6 +104,26 @@ public sealed class TerrainChunkCacheTests
         Assert.False(lease.IsReady);
     }
     [Fact]
+    public void PrefetchReservesBudgetAcrossTheBatchAndDemandCanExceedIt()
+    {
+        using var gate = new ManualResetEventSlim();
+        const long chunkBytes = (long)TerrainRenderer.ChunkSize * TerrainRenderer.ChunkSize * 3;
+        using var cache = new TerrainChunkCache<Gpu>(_ => new(1), _ => { }, budget: chunkBytes,
+            render: (_, token) => { gate.Wait(token); return Pixel(); });
+        var renderer = Renderer();
+        var first = new TerrainChunkKey(renderer, 0, 0);
+        var second = new TerrainChunkKey(renderer, 1, 0);
+        using var prefetch = cache.Acquire([first, second], prefetch: true);
+        cache.Pump(() => false);
+        Assert.Equal(chunkBytes, cache.PendingBytes);
+        using var demand = cache.Acquire([second]);
+        cache.Pump(() => false);
+        Assert.Equal(2 * chunkBytes, cache.PendingBytes);
+        gate.Set();
+        Until(cache, () => prefetch.IsReady && demand.IsReady);
+        Assert.Equal(0, cache.PendingBytes);
+    }
+    [Fact]
     public void TwoViewsShareOneRenderAndClosingPreviewPreservesMainLease()
     {
         int renders = 0, uploads = 0; var released = new List<Gpu>();

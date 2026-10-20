@@ -28,10 +28,11 @@ public sealed class TerrainChunkCache<T>(Func<PngImage, T> upload, Action<T> rel
     private readonly BackgroundWorkQueue<PngImage> _workers = new();
     private readonly object _timingGate = new();
     public const long UploadQueueBudget = 32L * 1024 * 1024;
+    private const long ChunkReservationBytes = (long)TerrainRenderer.ChunkSize * TerrainRenderer.ChunkSize * 3;
     private long _requestSequence;
     private bool _disposed;
     public long Bytes => _cache.Bytes;
-    public long PendingBytes => (_requests.Values.Count(r => r.Work is not null) + _retired.Count) * 512L * 512 * 3;
+    public long PendingBytes => (_requests.Values.Count(r => r.Work is not null) + _retired.Count) * ChunkReservationBytes;
     public double RenderMilliseconds { get; private set; }
     public double UploadMilliseconds { get; private set; }
     public Lease Acquire(IEnumerable<TerrainChunkKey> keys, bool prefetch = false)
@@ -61,15 +62,18 @@ public sealed class TerrainChunkCache<T>(Func<PngImage, T> upload, Action<T> rel
     public void Pump(Func<bool> canUpload)
     {
         if (_disposed) return;
-        foreach (var r in _retired.Where(r => r.Work!.IsCompleted).ToArray())
-        { _ = r.Work!.Exception; r.Work = null; r.Cancellation.Dispose(); _retired.Remove(r); }
-        foreach (var r in _requests.Values.OrderBy(r => r.Prefetch).ThenBy(r => r.Sequence).ToArray())
+        _retired.RemoveAll(r =>
+        {
+            if (!r.Work!.IsCompleted) return false;
+            _ = r.Work.Exception; r.Work = null; r.Cancellation.Dispose();
+            return true;
+        });
+        foreach (var r in _requests.Values.Where(r => r.Work is { IsCompleted: true }).OrderBy(r => r.Prefetch).ThenBy(r => r.Sequence).ToArray())
         {
             if (!canUpload()) break;
-            if (r.Work is not { IsCompleted: true }) continue;
             try
             {
-                var pixels = r.Work.GetAwaiter().GetResult();
+                var pixels = r.Work!.GetAwaiter().GetResult();
                 var timer = Stopwatch.StartNew();
                 _cache.Add(r.Key, upload(pixels), (long)pixels.Width * pixels.Height * pixels.Channels);
                 UploadMilliseconds += timer.Elapsed.TotalMilliseconds;
@@ -79,11 +83,13 @@ public sealed class TerrainChunkCache<T>(Func<PngImage, T> upload, Action<T> rel
             finally { r.Work = null; }
         }
 
-        foreach (var r in _requests.Values.OrderBy(r => r.Prefetch).ThenBy(r => r.Sequence))
+        // Scheduling only adds reservations; workers cannot change owner-thread accounting.
+        long pendingBytes = PendingBytes, residentBytes = Bytes;
+        foreach (var r in _requests.Values.Where(r => r.Work is null && r.Error is null && !_cache.Contains(r.Key)).OrderBy(r => r.Prefetch).ThenBy(r => r.Sequence))
         {
-            if (PendingBytes + 512L * 512 * 3 > UploadQueueBudget) break;
-            if (r.Work is not null || r.Error is not null || _cache.Contains(r.Key)) continue;
-            if (r.Prefetch && Bytes + PendingBytes + 512L * 512 * 3 > budget) continue;
+            if (pendingBytes + ChunkReservationBytes > UploadQueueBudget) break;
+            if (r.Prefetch && residentBytes + pendingBytes + ChunkReservationBytes > budget) continue;
+            pendingBytes += ChunkReservationBytes;
             r.Work = _workers.Enqueue(() =>
             {
                 var timer = Stopwatch.StartNew();

@@ -32,6 +32,7 @@ public sealed class ResourceBudget<TKey, TValue>(long budget, Action<TValue> rel
     public void Trim()
     {
         long bytes = Bytes;
+        if (bytes <= Budget) return;
         foreach (var pair in _entries.Where(p => p.Value.Pins == 0).OrderBy(p => p.Value.Use).ToArray())
         {
             if (bytes <= Budget) break;

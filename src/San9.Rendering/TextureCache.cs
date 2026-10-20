@@ -78,15 +78,18 @@ public sealed class TextureCache<T> : IDisposable where T : class
     public void Pump(double milliseconds = 2)
     {
         if (_disposed) return;
-        foreach (var r in _retired.Where(r => r.Task!.IsCompleted).ToArray())
-        { _ = r.Task!.Exception; r.Task = null; r.Reserved = 0; r.Cancellation.Dispose(); _retired.Remove(r); }
-        var watch = Stopwatch.StartNew();
-        foreach (var r in _requests.Values.OrderBy(r => r.Prefetch).ThenBy(r => r.Sequence).ToArray())
+        _retired.RemoveAll(r =>
         {
-            if (r.Task is not { IsCompleted: true }) continue;
+            if (!r.Task!.IsCompleted) return false;
+            _ = r.Task.Exception; r.Task = null; r.Reserved = 0; r.Cancellation.Dispose();
+            return true;
+        });
+        var watch = Stopwatch.StartNew();
+        foreach (var r in _requests.Values.Where(r => r.Task is { IsCompleted: true }).OrderBy(r => r.Prefetch).ThenBy(r => r.Sequence).ToArray())
+        {
             try
             {
-                var pixels = r.Task.GetAwaiter().GetResult();
+                var pixels = r.Task!.GetAwaiter().GetResult();
                 if (pixels.Width != r.File.Width || pixels.Height != r.File.Height || pixels.Channels != r.File.Channels)
                     throw new InvalidDataException($"Decoded texture size differs from reservation: {r.File.Path}");
                 var upload = Stopwatch.StartNew();
@@ -100,12 +103,15 @@ public sealed class TextureCache<T> : IDisposable where T : class
             finally { r.Task = null; r.Reserved = 0; }
             if (watch.Elapsed.TotalMilliseconds >= milliseconds) break;
         }
+        // Scheduling only adds reservations; workers cannot change owner-thread accounting.
+        long pendingBytes = PendingBytes, residentBytes = Bytes;
         foreach (var r in _requests.Values.Where(r => r.Task is null && r.Error is null && !r.Skipped && !_resources.Contains(r.File)).OrderBy(r => r.Prefetch).ThenBy(r => r.Sequence))
         {
             long bytes = checked((long)r.File.Width * r.File.Height * r.File.Channels);
-            if (r.Prefetch && Bytes + PendingBytes + bytes > _resources.Budget) { r.Skipped = true; continue; }
-            if (PendingBytes != 0 && PendingBytes + bytes > UploadQueueBudget) continue;
+            if (r.Prefetch && residentBytes + pendingBytes + bytes > _resources.Budget) { r.Skipped = true; continue; }
+            if (pendingBytes != 0 && pendingBytes + bytes > UploadQueueBudget) continue;
             r.Reserved = bytes;
+            pendingBytes += bytes;
             r.Task = _workers.Enqueue(() =>
             {
                 var timer = Stopwatch.StartNew();

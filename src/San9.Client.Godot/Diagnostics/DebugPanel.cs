@@ -1,18 +1,12 @@
 using Godot;
-using San9.Application;
-using San9.Core.Domain;
-using San9.Core.Simulation;
 
 namespace San9.Client.Godot.Diagnostics;
 
 public partial class DebugPanel : PanelContainer
 {
     public MapWorld World { get; init; } = null!;
-    private Label _debugStatus = null!, _debugClock = null!;
+    private Label _debugStatus = null!;
     private OptionButton _season = null!;
-    public GameSession Session { get; init; } = null!;
-    public Func<bool> CanIssueOrders { get; init; } = () => true;
-    public San9.Application.Presentation.StrategySelection Selection { get; init; } = null!;
     public override void _UnhandledKeyInput(InputEvent input)
     {
         if (input is InputEventKey { Pressed: true, Echo: false, Keycode: Key.F3 })
@@ -32,24 +26,9 @@ public partial class DebugPanel : PanelContainer
             ContentMarginRight = 12, ContentMarginTop = 10, ContentMarginBottom = 10 };
         AddThemeStyleboxOverride("panel", style);
         var box = new VBoxContainer(); AddChild(box);
-        box.AddChild(new Label { Text = "调试 · F3 关闭（内政操作改变当前运行状态）" });
+        box.AddChild(new Label { Text = "调试 · F3 关闭" });
         _debugStatus = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new(400, 40) }; box.AddChild(_debugStatus);
         _season = new OptionButton(); foreach (string s in new[] { "跟随日期", "春季预览", "夏季预览", "秋季预览", "冬季预览" }) _season.AddItem(s);
         _season.ItemSelected += i => World.PreviewSeason(new string?[] { null, "spring", "summer", "autumn", "winter" }[i]); box.AddChild(_season);
-        _debugClock = new Label { Text = "选择己方城市后可执行单人内政" }; box.AddChild(_debugClock);
-        foreach (var activity in new[] { DomesticActivity.Commerce, DomesticActivity.Cultivation })
-        {
-            var button = new Button { Text = activity == DomesticActivity.Commerce ? "商业（单人）" : "开垦（单人）" }; box.AddChild(button);
-            button.Pressed += () =>
-            {
-                if (!CanIssueOrders()) { _debugClock.Text = "当前阶段不能下令"; return; }
-                if (Selection.BuildingId is not int city) { _debugClock.Text="请先选择城市"; return; }
-                var officer=Session.View.Officers.Where(o => o.SettlementId==city && o.OwnerId==Session.View.PlayerForceId && o.IsAvailable)
-                    .OrderByDescending(o => o.Abilities.Politics).ThenBy(o => o.Id).FirstOrDefault();
-                if(officer is null) { _debugClock.Text="没有可行动武将"; return; }
-                var result=Session.Develop(new(Session.View.PlayerForceId,city,[officer.Id],activity));
-                _debugClock.Text=result.Accepted ? $"增加 {result.Increment}，支出 {result.Cost}" : $"拒绝：{result.Rejection}";
-            };
-        }
     }
 }

@@ -170,7 +170,7 @@ internal sealed partial class OriginalAiMilitary
             {
                 var candidates = Places.Where(s => s.Id != target.Place.Id && Near(s.Id, target.Place.Id) && s.Soldiers > 1000 &&
                     People(s.Id).Length > 0 && !consumedRelief.Contains((s.Id, target.Place.Id)))
-                    .Select(s => (Place: s, Basic: Basic([People(s.Id)[0]], true))).Where(c => c.Basic is not null)
+                    .Select(s => (Place: s, Basic: Basic([Commanders(People(s.Id))[0]], true))).Where(c => c.Basic is not null)
                     .Select(c => (c.Place, Route: RouteFrom(c.Place, c.Basic!.Value.Land, c.Basic.Value.Naval,
                         new(MilitaryOrderKind.Return, null, target.Place.Id))))
                     .Where(c => c.Route is { Obstacle: false, HostileBuilding: false }).OrderBy(c => c.Route!.CellCount).ToArray();
@@ -179,7 +179,7 @@ internal sealed partial class OriginalAiMilitary
                     long usable = candidate.Place.Soldiers - Math.Max(Fortified(candidate.Place) ? 10000 : 0, PressureNear(candidate.Place.Id, 20));
                     consumedRelief.Add((candidate.Place.Id, target.Place.Id));
                     if (usable <= 0) continue;
-                    var person = People(candidate.Place.Id)[0];
+                    var person = Commanders(People(candidate.Place.Id))[0];
                     uint amount = (uint)Math.Min(usable, Math.Min(10000, Capacity(person)));
                     Send(Deployment(candidate.Place, [person], amount, new(MilitaryOrderKind.Return, null, target.Place.Id), target.Place, null, true, true));
                     chosen = true; break;
@@ -212,11 +212,13 @@ internal sealed partial class OriginalAiMilitary
         bool Front(SettlementState s) => Related(s.Id).Any(p => p.OwnerId != Owner && p.OwnerId is int id &&
             !World.Forces.Single(f => f.Id == id).IsBarbarian);
         var geography = Geography;
-        var budgets = Places.ToDictionary(s => s.Id, TransportBudget);
+        var receivers = World.Settlements.Where(s => s.OwnerId == Owner && !s.IsDormant && !s.IsDestroyed &&
+            s.Durability > 0 && s.CanHostPersons && s.Facility?.BuilderUnitId is null).ToArray();
+        var budgets = receivers.ToDictionary(s => s.Id, TransportBudget);
         var sources = WorkSources.Where(s => budgets[s.Id] > 0 && (!Front(s) || !geography.Priority(s.Id, Owner)) && s.Morale >= 70 &&
             People(s.Id).Length > 0 && (s.Kind != SettlementKind.City || budgets[s.Id] >= 10000))
             .OrderByDescending(s => budgets[s.Id]).Select(s => s.Id).ToArray();
-        var targets = Places.Where(s => budgets[s.Id] > 0 && Front(s) && geography.Priority(s.Id, Owner) &&
+        var targets = receivers.Where(s => budgets[s.Id] > 0 && Front(s) && geography.Priority(s.Id, Owner) &&
             (s.Kind == SettlementKind.City || World.Officers.Any(p => p.SettlementId == s.Id && p.IsServing)))
             .OrderBy(s => budgets[s.Id]).Select(s => s.Id).ToList();
         foreach (int home in sources)

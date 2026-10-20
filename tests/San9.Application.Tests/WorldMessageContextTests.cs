@@ -88,7 +88,7 @@ public sealed class WorldMessageContextTests
         var context = new WorldMessageContext(definition, world, texts);
 
         Assert.DoesNotContain(definition.Forces, f => f.Id == forceId);
-        Assert.Equal("刘备", context.Query("force.name", [values["force.0"]]).Text);
+        Assert.Equal("关羽", context.Query("force.name", [values["force.0"]]).Text);
         Assert.Equal("将结束[preset=green-outline]关羽[/preset]军的战略面，\n您确定吗？",
             context.Produce("messages.6082", values, _ => throw new InvalidOperationException()).BbCode);
 

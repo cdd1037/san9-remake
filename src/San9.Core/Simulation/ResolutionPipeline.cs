@@ -373,6 +373,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
     internal static bool TaskReferencesValid(WorldMutation world, PersistentTask task) =>
         world.Forces.ContainsKey(task.ForceId) &&
         world.Officers.TryGetValue(task.OfficerId, out var officer) && officer.IsServing && officer.OwnerId == task.ForceId &&
-        officer.SettlementId == task.OriginSettlementId && world.Settlements.TryGetValue(task.OriginSettlementId, out var target) &&
+        officer.SettlementId is int home && (task.Journey is not null || home == task.OriginSettlementId) &&
+        world.Settlements.TryGetValue(home, out var target) &&
         target.OwnerId == task.ForceId && target.CanHostPersons && target.Durability > 0;
 }

@@ -5,7 +5,7 @@ namespace San9.Core.Simulation;
 internal static class SearchEventResources
 {
     internal static ResourceAccount Account(WorldMutation world, PersistentTask task) =>
-        ResourceAccounts.Resolve(world, task.ForceId, world.Settlements[task.OriginSettlementId].CorpsId);
+        ResourceAccounts.Resolve(world, task.ForceId, PersonnelLocations.TaskHome(world, task).CorpsId);
 
     internal static bool HasFunds(WorldMutation world, PersistentTask task, uint minimumExclusive, uint maximumCost)
     {

@@ -18,14 +18,17 @@ internal static class GovernanceMaintenance
             ResourceAccounts.Change(world, new(ResourceOwnerKind.Corps, corps.Id), resource, -amount, $"{reason}-corps-dissolved", null, events);
             ResourceAccounts.Change(world, ResourceAccounts.Resolve(world, corps.OwnerId, null), resource, amount, $"{reason}-corps-dissolved", null, events);
         }
-        world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Select(t =>
-            t.Journey?.ReturnLeg is { } leg && leg.CorpsId == corps.Id
-                ? t with { Journey = t.Journey with { ReturnLeg = leg with { CorpsId = root } } } : t).ToImmutableArray() });
+        RedirectReturns(world, corps.Id, root);
         world.RemoveCorps(corps.Id);
         var previousLeader = world.Officers[corps.LeaderId!.Value];
         if (previousLeader.Status == OfficerStatus.Governor) world.Replace(previousLeader with { Status = OfficerStatus.Serving });
         events.Add(new CorpsDissolvedEvent(world.Clock, corps.OwnerId, corps.Id, root ?? -1));
     }
+
+    internal static void RedirectReturns(WorldMutation world, int source, int? destination) =>
+        world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Select(t =>
+            t.Journey?.ReturnLeg is { } leg && leg.CorpsId == source
+                ? t with { Journey = t.Journey with { ReturnLeg = leg with { CorpsId = destination } } } : t).ToImmutableArray() });
 
 
     internal static bool CanRemove(WorldMutation world, int personId)

@@ -899,8 +899,10 @@ public sealed class OriginalAiMilitaryTests
         Assert.Equal(900, Assert.IsType<DeployUnitCommand>(Assert.Single(h.Commands)).Order.UnitId);
     }
 
-    [Fact]
-    public void ReliefCanDefendAnotherCorpsWithoutBorrowingItsSourceTroops()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(12)]
+    public void ReliefCanDefendAnotherCorpsWithoutBorrowingItsSourceTroops(int ruler)
     {
         var content = Fixture();
         content = content with
@@ -908,8 +910,11 @@ public sealed class OriginalAiMilitaryTests
             Settlements = content.Settlements.Select(s => s.Id == 1 ? s with { Soldiers = 15000 } : s)
                 .Append(content.Settlements[0] with { Id = 3, X = 7, CorpsId = 3, Soldiers = 1000 }).ToArray(),
             Officers = content.Officers.Select(p => p.State.Id == 2 ? p with { State = p.State with
-                { SettlementId = 3, Status = OfficerStatus.Governor } } : p).ToArray(),
-            Information = content.Information with { Corps = content.Information.Corps.Append(new(3, 1, 2, new(1000, 1000))).ToArray() },
+                { SettlementId = 3, Status = OfficerStatus.Governor } } : p.State.OwnerId == 1 ? p with
+                { State = p.State with { Status = p.State.Id == ruler ? OfficerStatus.Ruler : OfficerStatus.Serving } } : p).ToArray(),
+            Forces = content.Forces.Select(f => f.Id == 1 ? f with { LeaderId = ruler } : f).ToArray(),
+            Information = content.Information with { Corps = content.Information.Corps.Select(c => c.Id == 1 ? c with { LeaderId = ruler } : c)
+                .Append(new(3, 1, 2, new(1000, 1000))).ToArray() },
             CityConnections = content.CityConnections.Add(new(1, 3)).Add(new(3, 1)),
             RegionCityIds = new(content.RegionCityIds) { [3] = 3 },
             RegionNameKeys = new(content.RegionNameKeys) { [3] = "region.3" },
@@ -927,6 +932,7 @@ public sealed class OriginalAiMilitaryTests
         Assert.Equal(3, command.Order.SettlementId);
         Assert.Equal(MilitaryOrderKind.Return, command.Order.Kind);
         Assert.Equal(5000u, command.Soldiers);
+        Assert.Equal(new[] { ruler }, command.OfficerIds);
         Assert.DoesNotContain(2, command.OfficerIds);
         Assert.Equal(1000u, h.Engine.Snapshot.Settlements.Single(s => s.Id == 3).Soldiers);
     }
@@ -1354,17 +1360,24 @@ public sealed class OriginalAiMilitaryTests
     }
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
-    public void TransportUsesReadyRearSourceAndTheLeastAbleOfficer(int state)
+    [InlineData(0, false)]
+    [InlineData(0, true)]
+    [InlineData(1, false)]
+    [InlineData(1, true)]
+    [InlineData(2, false)]
+    [InlineData(2, true)]
+    public void TransportUsesReadyRearSourceAndTheLeastAbleOfficer(int state, bool crossCorps)
     {
         var content = Fixture();
         content = content with
         {
-            Settlements = content.Settlements.Append(content.Settlements[0] with { Id = 3, X = 3, Soldiers = 30000 }).ToArray(),
-            Officers = content.Officers.Select(p => p.State.Id is 2 or 3 ? p with { State = p.State with { SettlementId = 3,
-                BaseAbilities = p.State.Id == 3 ? new(10, 10, 10, 10) : p.State.BaseAbilities } } : p).ToArray(),
+            Settlements = content.Settlements.Select(s => s.Id == 1 ? s with { CorpsId = crossCorps ? 3 : s.CorpsId } : s)
+                .Append(content.Settlements[0] with { Id = 3, X = 3, Soldiers = 30000 }).ToArray(),
+            Officers = content.Officers.Select(p => p.State.Id is 1 or 2 or 3 ? p with { State = p.State with { SettlementId = 3,
+                BaseAbilities = p.State.Id == 3 ? new(10, 10, 10, 10) : p.State.BaseAbilities } } :
+                p.State.Id == 4 && crossCorps ? p with { State = p.State with { Status = OfficerStatus.Governor } } : p).ToArray(),
+            Information = content.Information with { Corps = crossCorps ? content.Information.Corps
+                .Append(new(3, 1, 4, new(10000, 10000))).ToArray() : content.Information.Corps },
             CityConnections = [new(1, 2), new(2, 1), new(3, 1)],
             RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 3 },
             RegionNameKeys = new() { [1] = "region.1", [2] = "region.2", [3] = "region.3" },

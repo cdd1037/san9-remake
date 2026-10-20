@@ -46,15 +46,7 @@ internal static class CityIndependence
                     ReturnOrDetach(world, person.Id, place, rules, events);
                 int force = ForceCreation.Found(world, id, commander, present.Where(p => marked.Contains(p.Id)).ToArray(),
                     ForceCreationKind.CityIndependence, rules, events);
-                // A journey's service attachment is not physical presence. Losing that service place
-                // settles its existing route through the shared return rule, without joining the rebels.
-                foreach (var person in world.Officers.Values.Where(p => p.IsServing && p.OwnerId == owner && p.SettlementId == id)
-                    .OrderBy(p => p.Id).ToArray())
-                {
-                    var cause = ReturnContext(world, owner);
-                    PersonnelReturns.Repatriate(world, person.Id, id, cause, rules.Personnel, events, afterDailyCommands: false);
-                    AdvanceSequence(world);
-                }
+                SettlementTasks.LocationChanged(world, id, Reason, rules, events);
                 events.Add(new CityIndependenceEvent(world.Clock, id, owner, force, commander.Id, marked.Order().ToImmutableArray()));
                 changed = true;
             }

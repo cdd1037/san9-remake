@@ -2,8 +2,11 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
+public enum UnitTerminationReason { Defeated, ForceEliminated }
+
 public sealed record UnitTerminatedEvent(GameClock Clock, int UnitId, BattleSource? Winner, long UnrecoveredSoldiers) : DomainEvent
 {
+    [System.Text.Json.Serialization.JsonRequired] public UnitTerminationReason Reason { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public required BattleObjectContext Target { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public BattleObjectContext? Source { get; init; }
 }
@@ -49,6 +52,32 @@ internal static class UnitTerminationService
                 recovered += population;
             }
         }
+        Remove(world, defeated, winner, "unit-defeated", events);
+        if (repairCorps && defeated.CorpsId is int corps && GovernanceMaintenance.RepairCorps(world, corps, governance, events) != CommandRejection.None)
+            throw new InvalidOperationException("Battle transaction cannot settle the defeated corps.");
+        events.Add(new UnitTerminatedEvent(world.Clock, unitId, winner, pool - recovered)
+        {
+            Target = target ?? BattleObjectContext.Capture(defeated),
+            Source = winner is { } source ? BattleObjectContext.Capture(world, source) : null
+        });
+    }
+
+    internal static void Demobilize(WorldMutation world, int unitId, int? cityId, List<DomainEvent> events)
+    {
+        if (!world.Units.TryGetValue(unitId, out var unit) || world.Officers.Values.Any(p => p.UnitId == unitId))
+            throw new InvalidOperationException("Demobilization requires resolved personnel and a live unit.");
+        long pool = (long)unit.Soldiers + unit.Wounded;
+        if (cityId is int city) Demobilization.Return(world, city, pool, "force-eliminated", unitId, events);
+        Remove(world, unit, null, "force-eliminated", events);
+        events.Add(new UnitTerminatedEvent(world.Clock, unitId, null, cityId is null ? pool : 0)
+        {
+            Target = BattleObjectContext.Capture(unit), Source = null, Reason = UnitTerminationReason.ForceEliminated
+        });
+    }
+
+    private static void Remove(WorldMutation world, UnitState defeated, BattleSource? winner, string reason, List<DomainEvent> events)
+    {
+        int unitId = defeated.Id;
         foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
         {
             uint cargo = resource == ResourceKind.Money ? defeated.CargoMoney : defeated.CargoFood;
@@ -58,20 +87,13 @@ internal static class UnitTerminationService
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unitId), resource, "defeated-cargo", winner?.Id,
                 -(long)cargo, -(long)cargo, events);
         }
-        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unitId), ResourceKind.Soldiers, "unit-defeated", winner?.Id,
+        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unitId), ResourceKind.Soldiers, reason, winner?.Id,
             -(long)defeated.Soldiers, -(long)defeated.Soldiers, events);
-        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unitId), ResourceKind.Wounded, "unit-defeated", winner?.Id,
+        ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unitId), ResourceKind.Wounded, reason, winner?.Id,
             -(long)defeated.Wounded, -(long)defeated.Wounded, events);
         FacilityConstruction.Cancel(world, unitId, events);
         world.RemoveUnit(unitId);
         MilitaryPolicies.RemoveTarget(world, unitId, false, events);
-        if (repairCorps && defeated.CorpsId is int corps && GovernanceMaintenance.RepairCorps(world, corps, governance, events) != CommandRejection.None)
-            throw new InvalidOperationException("Battle transaction cannot settle the defeated corps.");
-        events.Add(new UnitTerminatedEvent(world.Clock, unitId, winner, pool - recovered)
-        {
-            Target = target ?? BattleObjectContext.Capture(defeated),
-            Source = winner is { } source ? BattleObjectContext.Capture(world, source) : null
-        });
     }
 
     private static uint Wounded(WorldMutation world, SettlementState home, long requested, int unitId, List<DomainEvent> events)

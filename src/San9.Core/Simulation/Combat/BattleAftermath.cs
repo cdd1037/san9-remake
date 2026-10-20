@@ -78,8 +78,10 @@ internal static class BattleAftermath
         var settlement = world.Settlements[id];
         if (!MilitaryCombat.Defeated(settlement))
             throw new InvalidOperationException("Settlement has not fallen.");
-        if (!winner.Exists(world) || !MilitaryDiplomacy.CanFight(world, winner.Owner(world), settlement.OwnerId)) throw new InvalidOperationException("Invalid settlement captor.");
         var definition = rules.Military!.Place(settlement);
+        if (!winner.Exists(world) || !(MilitaryDiplomacy.CanFight(world, winner.Owner(world), settlement.OwnerId) ||
+            winner.Owner(world) == settlement.OwnerId && definition.FacilityTypeId is int type && rules.Military.Facilities[type].IsWork))
+            throw new InvalidOperationException("Invalid settlement captor.");
         AttackRequests.Fulfill(world, winner.Owner(world), id, events);
         if (!settlement.CanHostPersons)
         {
@@ -116,7 +118,7 @@ internal static class BattleAftermath
                 -(long)settlement.Wounded, -(long)settlement.Wounded, events);
         }
         ResolvePeople(world, world.SettlementMembers(id).Where(p => !world.IsTraveling(p.Id)), rules.Military.BuildingArea(definition),
-            null, winner, id, rules, events);
+            null, winner, id, rules, events, !cleared && settlement.Durability > 0);
         if (settlement.OwnerId is int owner)
         {
             BattleTreasury.Transfer(world, owner, settlement.CorpsId, BattleTreasury.Weight(settlement), winner, id,
@@ -129,12 +131,7 @@ internal static class BattleAftermath
             IsDestroyed = destroyed, Soldiers = cleared ? 0 : settlement.Soldiers, Wounded = cleared ? 0 : settlement.Wounded,
             Morale = cleared ? 0 : settlement.Morale, Durability = destroyed ? 0 :
                 Math.Max(settlement.Durability, Math.Max(1, settlement.MaxDurability / 4)) });
-        foreach (var task in world.Simulation.Tasks.Where(t => t.OriginSettlementId == id || t.Journey?.DestinationPlaceId == id)
-            .OrderBy(t => t.Sequence).ThenBy(t => t.Id).ToArray())
-        {
-            TaskCancellation.Apply(world, task, "settlement-captured", events);
-            if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
-        }
+        SettlementTasks.LocationChanged(world, id, "settlement-captured", rules, events);
         winner.Reward(world, 0, 10);
         if (abandoned)
             foreach (var unit in world.Units.Values.Where(u => u.OwnerId == winner.Owner(world) && u.CorpsId == winner.Corps(world) &&
@@ -146,7 +143,8 @@ internal static class BattleAftermath
     }
 
     private static void ResolvePeople(WorldMutation world, IEnumerable<OfficerState> people,
-        MapOccupancy from, UnitState? defeatedUnit, BattleSource? winner, int? fallbackPlace, SimulationRules rules, List<DomainEvent> events)
+        MapOccupancy from, UnitState? defeatedUnit, BattleSource? winner, int? fallbackPlace, SimulationRules rules, List<DomainEvent> events,
+        bool canRecoverInPlace = false)
     {
         var military = rules.Military!;
         foreach (var original in people.OrderBy(p => p.Id).ToArray())
@@ -156,6 +154,13 @@ internal static class BattleAftermath
             bool hasRetreatCity = BattleRetreat.Destination(world, original, from.Position, excluded, military, citiesOnly: true) is not null;
             if (original.IsServing && winner is { } captor)
             {
+                if (defeatedUnit is null && fallbackPlace is int lost && world.Settlements[lost].Kind == SettlementKind.City &&
+                    original.OwnerId is int defender && world.Forces[defender].IsBarbarian)
+                {
+                    OfficerDeath.Remove(world, original.Id, OfficerDeathCause.NoRetreat, rules.Personnel, events, world.CurrentDateCommandsConsumed);
+                    OfficerDeath.SettleTreasures(world, original.Id, null, events);
+                    continue;
+                }
                 int nearby = BattleRetreat.CaptureParticipants(world,
                     new(defeatedUnit?.Id ?? fallbackPlace!.Value, defeatedUnit is null), captor.Owner(world), from, military);
                 bool mount = world.HasEscapeMount(original.Id, rules.Treasures);
@@ -171,14 +176,21 @@ internal static class BattleAftermath
                 var person = world.Officers[original.Id];
                 if (winner is { } recipient)
                 {
-                    if (person.Status == OfficerStatus.Captive && (defeatedUnit is not null || person.OwnerId == recipient.Owner(world)))
+                    if (person.Status == OfficerStatus.Captive)
                     {
-                        if (retreat is int home) BattlePersonnel.Escape(world, person.Id, home, rules.Personnel, events, from.Position, military);
+                        bool ruler = person.OwnerId is int force && world.Forces[force].LeaderId == person.Id;
+                        int? root = world.Corps.Values.SingleOrDefault(c => c.OwnerId == person.OwnerId && c.IsRoot)?.Id;
+                        if (canRecoverInPlace && person.OwnerId == recipient.Owner(world) &&
+                            (!ruler || (recipient.Corps(world) ?? root) == root))
+                        {
+                            world.Replace(person with { Status = ruler ? OfficerStatus.Ruler : OfficerStatus.Serving,
+                                UnitId = null, SettlementId = fallbackPlace, RegionId = null, OfficeId = null,
+                                IsCommander = false, Acted = true, TacticCooldown = 0, StatusStartYear = world.Clock.Year });
+                            events.Add(new PrisonerRecoveredEvent(world.Clock, person.Id, person.OwnerId!.Value, fallbackPlace!.Value));
+                        }
+                        else if (retreat is int home) BattlePersonnel.Escape(world, person.Id, home, rules.Personnel, events, from.Position, military);
                         else BattlePersonnel.Displace(world, person.Id, from.Position, rules.Personnel, military, events);
                     }
-                    else if (person.Status == OfficerStatus.Captive)
-                        world.Replace(person with { UnitId = recipient.IsSettlement ? null : recipient.Id,
-                            SettlementId = recipient.IsSettlement ? recipient.Id : null, RegionId = null, IsCommander = false });
                     else Detach(world, person, fallbackPlace, events);
                 }
                 else if (retreat is int home && person.OwnerId is not null && (person.IsServing || person.Status == OfficerStatus.Captive))
@@ -211,17 +223,21 @@ internal static class BattleAftermath
                 ruler.OwnerId != force.Id || !ruler.IsServing && ruler.Status != OfficerStatus.Captive)
             {
                 var successor = rules.Governance.SelectSuccessor(serving, force.LeaderId ?? serving[0].Id, world.AbilitiesFor(serving)) ?? serving[0];
-                world.Replace(world.Forces[force.Id] with { LeaderId = successor.Id, AdviserId = force.AdviserId == successor.Id ? null : world.Forces[force.Id].AdviserId });
-                world.Replace(successor with { Status = OfficerStatus.Ruler, OfficeId = null });
-                events.Add(new ForceLeaderChangedEvent(world.Clock, force.Id, force.LeaderId, successor.Id));
+                RulerSuccession.Appoint(world, force.Id, force.LeaderId, successor.Id, events);
             }
         }
-        foreach (var corps in world.Corps.Values.OrderBy(c => c.Id).ToArray())
+        foreach (var original in world.Corps.Values.OrderByDescending(c => c.IsRoot).ThenBy(c => c.Id).ToArray())
         {
+            if (!world.Corps.TryGetValue(original.Id, out var corps)) continue;
             var people = world.Officers.Values.Where(p => p.OwnerId == corps.OwnerId && p.IsServing && PersonnelLocations.Corps(world, p) == corps.Id).ToArray();
             if (corps.IsRoot)
             {
                 if (world.Forces[corps.OwnerId].LeaderId is int ruler) world.Replace(corps with { LeaderId = ruler });
+                if (people.Length == 0 || !world.Settlements.Values.Any(s => s.CorpsId == corps.Id && s.Kind == SettlementKind.City && !s.IsDestroyed))
+                {
+                    var child = world.Corps.Values.Where(c => c.OwnerId == corps.OwnerId && !c.IsRoot).OrderBy(c => c.Id).FirstOrDefault();
+                    if (child is not null) GovernanceMaintenance.DissolveForced(world, child.Id, reason, events);
+                }
                 continue;
             }
             if (people.Length > 0 && world.Settlements.Values.Any(s => s.CorpsId == corps.Id && s.Kind == SettlementKind.City))
@@ -232,6 +248,7 @@ internal static class BattleAftermath
             }
             GovernanceMaintenance.DissolveForced(world, corps.Id, reason, events);
         }
+        UnitServicePlaces.Repair(world, rules);
     }
 
     private static bool EliminateIfDefeated(WorldMutation world, int forceId, SimulationRules rules,
@@ -239,50 +256,8 @@ internal static class BattleAftermath
     {
         if (world.Forces[forceId].IsEliminated) return true;
         if (ForceLifecycle.HasCity(world, forceId) && world.Officers.Values.Any(p => p.OwnerId == forceId && p.IsServing)) return false;
-        Eliminate(world, forceId, rules, events, afterDailyCommands, victorForceId);
+        ForceElimination.Apply(world, forceId, rules, events, afterDailyCommands, victorForceId);
         return true;
     }
 
-    private static void Eliminate(WorldMutation world, int forceId, SimulationRules rules, List<DomainEvent> events, bool afterDailyCommands, int? victorForceId)
-    {
-        var force = world.Forces[forceId];
-        if (victorForceId is int victor)
-            AllianceDiplomacy.CompleteSubjugation(world, forceId, victor, AllianceVictoryCause.ForceDefeated, events);
-        ForceTransfer.CancelTasks(world, forceId, rules, "force-eliminated", events, afterDailyCommands);
-        foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId).OrderBy(p => p.Id).ToArray())
-        {
-            if (force.IsBarbarian && person.Status != OfficerStatus.Captive)
-            {
-                OfficerDeath.Remove(world, person.Id, OfficerDeathCause.ForceEliminated, rules.Personnel, events, afterDailyCommands);
-                OfficerDeath.SettleTreasures(world, person.Id, null, events);
-                continue;
-            }
-            if (person.IsServing && person.UnitId is int fieldUnit)
-            {
-                BattlePersonnel.Displace(world, person.Id, world.Units[fieldUnit].Position, rules.Personnel, rules.Military!, events);
-                continue;
-            }
-            PersonnelTransitions.CancelMissions(world, person.Id, "force-eliminated", events, rules.Personnel, afterDailyCommands);
-            var p = world.Officers[person.Id];
-            world.Replace(p with { OwnerId = null, Status = p.Status == OfficerStatus.Captive ? OfficerStatus.Captive : OfficerStatus.Free,
-                UnitId = p.Status == OfficerStatus.Captive ? p.UnitId : null, OfficeId = null, IsCommander = false, Acted = true,
-                StatusStartYear = p.Status == OfficerStatus.Captive ? p.StatusStartYear : world.Clock.Year });
-        }
-        foreach (var unit in world.Units.Values.Where(u => u.OwnerId == forceId).ToArray())
-        {
-            // Remaining occupants are prisoners; the shared defeat path releases and places them
-            // by their own allegiance before deleting the detention unit.
-            TerminateUnit(world, unit.Id, null, rules, events);
-        }
-        foreach (var settlement in world.Settlements.Values.Where(s => s.OwnerId == forceId).ToArray())
-            world.Replace(settlement with { OwnerId = null, CorpsId = null });
-        foreach (var corps in world.Corps.Values.Where(c => c.OwnerId == forceId).ToArray())
-        {
-            foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
-                    ResourceAccounts.Change(world, new(ResourceOwnerKind.Corps, corps.Id), resource,
-                        -(long)ResourceAccounts.Balance(world, new(ResourceOwnerKind.Corps, corps.Id), resource), "force-eliminated", null, events);
-            world.RemoveCorps(corps.Id);
-        }
-        ForceLifecycle.Retire(world, forceId, events);
-    }
 }

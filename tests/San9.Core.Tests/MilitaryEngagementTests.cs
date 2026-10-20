@@ -7,7 +7,7 @@ namespace San9.Core.Tests;
 public sealed class MilitaryEngagementTests
 {
     private static MilitaryOrder Attack(int id) => new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id };
-    private static (WorldState World, MilitaryRulebook Military) Create(int buildingWidth = 1, int scale = 1)
+    private static (WorldState World, MilitaryRulebook Military) Create(int buildingWidth = 1, int scale = 1, bool defendingMember = false)
     {
         var combat = new CombatProfile(10, 10, 10, 10, 50);
         var military = new MilitaryRulebook(new(20, 3, [.. Enumerable.Repeat(0, 60)], [new(0, 1, null)],
@@ -20,7 +20,8 @@ public sealed class MilitaryEngagementTests
             [new(1, 100), new(2, 100), new(3, 100)],
             [new(1, 1, 10000, 100, 100, 100, 100, 0, 100, 0, 100),
              new(2, 2, 10000, 100, 100, 100, 100, 0, 100, 0, 100)],
-            [new(11, 1, 1, new(70, 70, 70, 70), false)],
+            [new(11, 1, 1, new(70, 70, 70, 70), false),
+                .. defendingMember ? new OfficerState[] { new(22, 2, 2, new(70, 70, 70, 70), false) } : []],
             units: [new(1, 1, new(32, 7), 10000) { FormationId = 1, Morale = 90 },
                     new(2, 2, new(36, 7), 10000) { FormationId = 1, Morale = 90, Order = Attack(1) },
                     new(3, 2, new(35, 7), 10000) { FormationId = 1, Morale = 90, Order = Attack(1) }],
@@ -206,7 +207,8 @@ public sealed class MilitaryEngagementTests
     [Fact]
     public void WaitingUnitCanStillBeAttackedAndRetaliate()
     {
-        var (world, military) = Create();
+        // Keep both forces alive to isolate departure waiting from force retirement.
+        var (world, military) = Create(defendingMember: true);
         var m = world.BeginMutation();
         m.Replace(m.Units[1] with { Order = new(MilitaryOrderKind.AttackSettlement, null, 2) });
         m.Replace(m.Units[1] with { DepartureDaysRemaining = 2 });

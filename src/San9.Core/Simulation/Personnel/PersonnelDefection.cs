@@ -42,12 +42,12 @@ internal static class PersonnelDefection
             var unit = world.Units[target.UnitId!.Value];
             var followers = world.Officers.Values.Where(p => p.IsServing && p.OwnerId == unit.OwnerId && p.UnitId == unit.Id)
                 .OrderBy(p => p.Id).Where(p => p.Id == target.Id || Follows(world, p, task.ForceId)).Select(p => p.Id).ToArray();
-            UnitAffiliation.Transfer(world, unit, task.ForceId, task.OriginSettlementId, followers,
+            UnitAffiliation.Transfer(world, unit, task.ForceId, PersonnelLocations.TaskHome(world, task).Id, followers,
                 task.Journey!.DestinationPlaceId, true, rules, events);
         }
         else if (!transfersPlace)
         {
-            PersonnelTransitions.Recruit(world, target.Id, task.ForceId, task.OriginSettlementId, events, places, true);
+            PersonnelTransitions.Recruit(world, target.Id, task.ForceId, PersonnelLocations.TaskHome(world, task).Id, events, places, true);
         }
         else
         {

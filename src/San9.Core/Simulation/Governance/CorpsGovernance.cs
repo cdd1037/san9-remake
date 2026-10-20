@@ -154,6 +154,7 @@ internal static class CorpsGovernance
             ResourceAccounts.Report(world, new(ResourceOwnerKind.Corps, source.Id), resource, "corps-dissolved", root.Id, -amount, -amount, events);
             ResourceAccounts.Report(world, ResourceAccounts.Resolve(world, force.Id, null), resource, "corps-dissolved", source.Id, amount, amount, events);
         }
+        GovernanceMaintenance.RedirectReturns(world, source.Id, root.Id);
         world.RemoveCorps(source.Id);
         events.Add(new CorpsDissolvedEvent(world.Clock, force.Id, source.Id, root.Id));
         return CommandRejection.None;

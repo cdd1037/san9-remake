@@ -60,7 +60,7 @@ public sealed class UnitCatalogTests
         var hash = world;
         InformationTable Read(int page) => UnitCatalog.Read(view, rules, texts, page);
         Assert.Equal(["所属", "战力", "陆上", "水上", "命令"], Read(0).Pages);
-        Assert.Equal(["officer.1队", "force.1", "officer.1", "city.1", "1", "1"], Assert.Single(Read(0).Rows).Cells.Select(c => c.Text));
+        Assert.Equal(["officer.1队", "officer.1", "officer.1", "city.1", "1", "1"], Assert.Single(Read(0).Rows).Cells.Select(c => c.Text));
         Assert.Equal(["officer.1队", "32000", "123", "50", "一般", "land", "water"], Assert.Single(Read(1).Rows).Cells.Select(c => c.Text));
         // Leadership 90, morale 50 and 32,000 troops give base power 179 after integer truncation.
         Assert.Equal(["officer.1队", "157", "214", "6", "262", "10"], Assert.Single(Read(2).Rows).Cells.Select(c => c.Text));

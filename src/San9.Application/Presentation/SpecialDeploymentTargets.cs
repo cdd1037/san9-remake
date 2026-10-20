@@ -10,7 +10,7 @@ public sealed class SpecialDeploymentTargets : MilitaryTargets
     public int? PreviewFacilityId => IsConstruction ? Draft.FacilityId : null;
     private readonly Dictionary<MapCell, MilitaryTarget> _sites;
     public SpecialDeploymentTargets(SpecialDeploymentDraft draft)
-        : base(draft.View, draft.Rules, draft.Force.Id, draft.Home.CorpsId, draft.Home.Id, null, locations: Locations(draft),
+        : base(draft.View, draft.Rules, draft.Force.Id, draft.Home.Id, null, locations: Locations(draft),
             showInfluence: draft.Kind != SpecialDeploymentKind.Construction)
     {
         Draft = draft;

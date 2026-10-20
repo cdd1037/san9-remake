@@ -39,7 +39,7 @@ public abstract class MilitaryTargets
         public bool Reachable => Error is null;
     }
 
-    protected MilitaryTargets(StrategySnapshot view, MilitaryRulebook rules, int ownerId, int? corpsId,
+    protected MilitaryTargets(StrategySnapshot view, MilitaryRulebook rules, int ownerId,
         int? homeId, int? movingUnitId, UnitCommandKind? commandKind = null,
         IReadOnlyDictionary<MilitaryTarget, MapOccupancy>? locations = null, bool showInfluence = true)
     {
@@ -55,13 +55,11 @@ public abstract class MilitaryTargets
         var query = movingUnitId is null ? null : new MilitaryOrderQuery(world, rules);
         var candidates = new Dictionary<MilitaryTarget, MilitaryMarker>();
         var clear = new HashSet<MapCell>();
-        int? Affiliation(int? owner, int? corps) => corps ?? world.Corps.FirstOrDefault(c => c.OwnerId == owner && c.IsRoot)?.Id;
-        bool SameAffiliation(int? owner, int? corps) => owner == ownerId &&
-            Affiliation(owner, corps) == Affiliation(ownerId, corpsId);
         foreach (var place in world.Settlements.Where(s => s.Id != homeId && !s.IsDestroyed && !s.IsDormant && rules.TryPlace(s, out _)))
         {
-            bool sameForce = SameAffiliation(place.OwnerId, place.CorpsId);
-            var marker = sameForce && place.CanHostPersons ? MilitaryMarker.Enter : MilitaryMarker.Attack;
+            bool work = rules.Place(place).FacilityTypeId is int type && rules.Facilities[type].IsWork;
+            if (place.OwnerId == ownerId && !work && !place.CanHostPersons) continue;
+            var marker = place.OwnerId == ownerId && !work ? MilitaryMarker.Enter : MilitaryMarker.Attack;
             if (commandKind is { } kind)
             {
                 marker = kind == UnitCommandKind.Attack ? MilitaryMarker.Attack : MilitaryMarker.Enter;
@@ -74,7 +72,7 @@ public abstract class MilitaryTargets
             clear.UnionWith(rules.GeographicFootprint(place));
         }
         foreach (var unit in world.Units.Where(u => !u.IsEmbedded && !u.IsPersonnel && u.Soldiers > 0 && u.FormationId is not null &&
-            u.Id != movingUnitId && !SameAffiliation(u.OwnerId, u.CorpsId)))
+            u.Id != movingUnitId && u.OwnerId != ownerId))
         {
             if (commandKind is UnitCommandKind.March or UnitCommandKind.Transport || query is not null &&
                 !query.CanAssign(movingUnitId!.Value, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = unit.Id })) continue;

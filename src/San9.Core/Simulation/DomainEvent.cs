@@ -56,6 +56,7 @@ public sealed record OfficerCapturedEvent(GameClock Clock, int OfficerId, int Ca
 [System.Text.Json.Serialization.JsonDerivedType(typeof(FacilityDestroyedEvent), "facility-destroyed")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(FacilityDemolishedEvent), "facility-demolished")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(FacilityConstructionChangedEvent), "facility-construction-changed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(SettlementNeutralizedEvent), "settlement-neutralized")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ForceEliminatedEvent), "force-eliminated")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ForceLeaderChangedEvent), "force-leader-changed")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerCapturedEvent), "officer-captured")]

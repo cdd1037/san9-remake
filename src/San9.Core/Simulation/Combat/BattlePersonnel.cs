@@ -42,6 +42,13 @@ internal static class BattlePersonnel
     {
         var person = world.Officers[officerId];
         int? originPlace = person.UnitId is null ? person.SettlementId ?? person.RegionId : military.RegionAt(origin);
+        DisplaceAtPlace(world, officerId, originPlace, places, events);
+    }
+
+    internal static void DisplaceAtPlace(WorldMutation world, int officerId, int? originPlace, PersonnelRulebook places,
+        List<DomainEvent> events)
+    {
+        var person = world.Officers[officerId];
         bool dead = person.OwnerId is int owner && world.Forces[owner].IsBarbarian;
         if (dead)
         {

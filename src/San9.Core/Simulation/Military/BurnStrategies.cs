@@ -123,7 +123,7 @@ internal sealed class BurnRule(SimulationRules rules) : TaskRule
         ? Math.Max(0, route.Days - 1) : -1;
 
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&
-        BurnStrategies.Eligible(world, task.ForceId, task.OriginSettlementId, task.Journey!.Burn!.TargetSettlementId, rules);
+        BurnStrategies.Eligible(world, task.ForceId, PersonnelLocations.TaskHome(world, task).Id, task.Journey!.Burn!.TargetSettlementId, rules);
     internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events) =>
         BurnStrategies.Resolve(world, task, rules, events);
 }

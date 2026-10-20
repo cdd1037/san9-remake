@@ -64,7 +64,7 @@ public sealed class AdministrativeInformationTests
         var (session,text,_) = Fixture();
         var catalog = new AdministrativeCatalog(session.View,text);
         Assert.Contains(catalog.Read(InformationCategory.Regions,0,force:5,corps:10).Rows,r => r.Key.Id == 50);
-        Assert.Equal("force",catalog.Cell(InformationCategory.Regions,50,"force").Text);
+        Assert.Equal("person1",catalog.Cell(InformationCategory.Regions,50,"force").Text);
         Assert.Equal("person1",catalog.Cell(InformationCategory.Regions,50,"corps-name").Text);
         Assert.Equal("0",catalog.Cell(InformationCategory.Regions,50,"serving").Text);
         Assert.Equal("1",catalog.Cell(InformationCategory.Regions,50,"free").Text);
@@ -263,11 +263,11 @@ public sealed class AdministrativeInformationTests
     }
     [Theory]
     [InlineData(0, "")]
-    [InlineData(1, "force")]
-    [InlineData(2, "force‧force")]
-    [InlineData(3, "force‧force‧force")]
-    [InlineData(4, "force‧force及其他2势力")]
-    [InlineData(5, "force‧force及其他3势力")]
+    [InlineData(1, "person1")]
+    [InlineData(2, "person1‧person1")]
+    [InlineData(3, "person1‧person1‧person1")]
+    [InlineData(4, "person1‧person1及其他2势力")]
+    [InlineData(5, "person1‧person1及其他3势力")]
     public void RankHoldersListThreeButSummarizeFourOrMore(int count, string expected)
     {
         var (session, text, definition) = Fixture();

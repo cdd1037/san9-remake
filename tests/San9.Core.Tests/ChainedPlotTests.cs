@@ -132,14 +132,24 @@ public sealed class ChainedPlotTests
     }
 
     [Fact]
-    public void SuccessorCorpsAndTreasuryBecomeDirectAndOldGovernorIsDemoted()
+    public void SuccessorCorpsMergesIntoTheExistingRootAndOldGovernorIsDemoted()
     {
         var state = World(true); var world = state.BeginMutation(Rules().Abilities);
         var rootTreasury100 = ResourceAccounts.Root(world, 1).Treasury; world.RemoveCorps(ResourceAccounts.Root(world, 1).Id); world.AddCorps(new(100, 1, 11, rootTreasury100) { IsRoot = true }); world.AddCorps(new(200, 1, 18, new(300, 400)) { ControlMode = CorpsControlMode.Automatic });
         world.Replace(world.Settlements[1] with { CorpsId = 100 }); world.Replace(world.Settlements[2] with { CorpsId = 200 });
         world.Replace(world.Officers[12] with { SettlementId = 2 }); world.Replace(world.Officers[18] with { Status = OfficerStatus.Governor });
-        ChainedPlot.Apply(world, Rules(), []); state.Commit(world);
+        world.AddUnit(new(500, 1, new(7, 2), 100) { CorpsId = 100, ServicePlaceId = 1 });
+        world.AddUnit(new(501, 1, new(12, 2), 100) { CorpsId = 200, ServicePlaceId = 2 });
+        List<DomainEvent> events = [];
+        ChainedPlot.Apply(world, Rules(), events); state.Commit(world);
         var corps = Assert.Single(world.Corps.Values, c => c.OwnerId == 1); Assert.Equal(12, corps.LeaderId); Assert.True(corps.IsRoot);
+        Assert.Equal(100, corps.Id);
+        Assert.Equal(12, world.Forces[1].LeaderId);
+        Assert.All(world.Settlements.Values.Where(s => s.OwnerId == 1), s => Assert.Equal(100, s.CorpsId));
+        Assert.All(world.Units.Values.Where(u => u.OwnerId == 1), u => Assert.Equal(100, u.CorpsId));
+        Assert.Equal((1, 2), (world.Units[500].ServicePlaceId, world.Units[501].ServicePlaceId));
+        var merged = Assert.Single(events.OfType<CorpsDissolvedEvent>());
+        Assert.Equal((200, 100), (merged.CorpsId, merged.DestinationCorpsId));
         Assert.Equal(CorpsControlMode.Direct, corps.ControlMode); Assert.Equal(OfficerStatus.Serving, world.Officers[18].Status);
         Assert.Equal((10300u, 10400u), (world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Food));
     }

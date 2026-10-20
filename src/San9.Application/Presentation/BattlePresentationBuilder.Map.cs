@@ -17,6 +17,9 @@ internal sealed partial class BattlePresentationBuilder
             case UnitTerminatedEvent terminated:
                 _mapChanges.Add(new(_impact, _index, terminated.UnitId, null, _mapDialogue));
                 break;
+            case SettlementNeutralizedEvent neutralized:
+                _mapChanges.Add(new(_impact, _index, null, Project(neutralized.SettlementId), _mapDialogue));
+                break;
             case SettlementCapturedEvent captured:
                 var dialogue = _messages.LastOrDefault(c => c.Id == Identity("capture"));
                 if (dialogue is not null) _mapDialogue = dialogue.Id;

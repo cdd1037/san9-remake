@@ -35,7 +35,7 @@ public static class UnitCatalog
             if (page == 0)
             {
                 var group = view.World.Corps.FirstOrDefault(c => c.Id == unit.CorpsId);
-                var home = view.Settlements.FirstOrDefault(s => s.Id == unit.ServicePlaceId);
+                var home = ServicePlace(view, unit);
                 cells = [name, Force(unit.OwnerId), Person(group?.LeaderId), home?.ResolveName(texts) ?? "无",
                     members.Count(o => o.IsServing && o.OwnerId == unit.OwnerId), members.Count(o => o.Status == OfficerStatus.Captive)];
             }
@@ -57,6 +57,15 @@ public static class UnitCatalog
             return new InformationRow(new(InformationCategory.Units, unit.Id), cells);
         }).ToArray();
         return new("部队一览", Pages.Select(p => p.Title).ToArray(), Pages[page].Columns.Select(c => c.Title).ToArray(), rows);
+    }
+
+    internal static SettlementView? ServicePlace(StrategySnapshot view, UnitState unit)
+    {
+        int? root = view.World.Corps.SingleOrDefault(c => c.OwnerId == unit.OwnerId && c.IsRoot)?.Id;
+        return view.World.Settlements.FirstOrDefault(s => s.Id == unit.ServicePlaceId && s.OwnerId == unit.OwnerId &&
+            (s.CorpsId ?? root) == (unit.CorpsId ?? root) && !s.IsDormant && !s.IsDestroyed && s.CanHostPersons &&
+            s.Durability > 0 && s.Facility?.BuilderUnitId is null) is { } place
+                ? view.Settlements.FirstOrDefault(s => s.Id == place.Id) : null;
     }
 
     internal static string Condition(UnitCondition condition) => condition switch

@@ -41,12 +41,7 @@ internal static class FacilityDemolition
         var traveling = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
         foreach (var person in world.Officers.Values.Where(p => p.SettlementId == facility.Id && !traveling.Contains(p.Id)).OrderBy(p => p.Id).ToArray())
             world.Replace(person with { SettlementId = cityId, IsCommander = false });
-        foreach (var task in world.Simulation.Tasks.Where(t => t.OriginSettlementId == facility.Id || t.Journey?.DestinationPlaceId == facility.Id)
-            .OrderBy(t => t.Sequence).ThenBy(t => t.Id).ToArray())
-        {
-            TaskCancellation.Apply(world, task, "facility-demolished", events);
-            if (task.Journey is not null) PersonnelReturns.Start(world, task, rules.Personnel, events, false);
-        }
+        SettlementTasks.LocationChanged(world, facility.Id, "facility-demolished", rules, events);
         foreach (var unit in world.Units.Values.Where(u => u.Order?.SettlementId == facility.Id).OrderBy(u => u.Id).ToArray())
         {
             world.Replace(unit with { Order = null, AwaitingPostAction = unit.Order!.IsAttack });

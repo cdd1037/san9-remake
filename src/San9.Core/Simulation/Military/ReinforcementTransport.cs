@@ -6,7 +6,7 @@ namespace San9.Core.Simulation;
 internal static class ReinforcementTransport
 {
     internal static int? Corps(IWorldQuery world, PersistentTask task) =>
-        world.Settlements.TryGetValue(task.OriginSettlementId, out var home) &&
+        world.Officers[task.OfficerId].SettlementId is int place && world.Settlements.TryGetValue(place, out var home) &&
         !home.IsDestroyed && home.OwnerId == task.ForceId ? home.CorpsId : null;
 
     internal static int MixMorale(uint soldiers, int morale, uint incoming, int incomingMorale) =>

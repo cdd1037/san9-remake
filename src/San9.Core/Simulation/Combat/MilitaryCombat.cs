@@ -39,7 +39,9 @@ internal static class MilitaryCombat
                 unit.FormationId is not null && rules.Formation(unit).Combat is not null && rules.CanAttackTarget(formation.Attack, Area(unit, rules), false);
         return order.Kind == MilitaryOrderKind.AttackSettlement && order.SettlementId is int place &&
             world.Settlements.TryGetValue(place, out var settlement) && !settlement.IsDestroyed && settlement.Facility?.BuilderUnitId is null &&
-            MilitaryDiplomacy.CanFight(world, owner, settlement.OwnerId) && rules.TryPlace(settlement, out var definition) && definition.Combat is not null &&
+            rules.TryPlace(settlement, out var definition) && definition.Combat is not null &&
+            (MilitaryDiplomacy.CanFight(world, owner, settlement.OwnerId) || settlement.OwnerId == owner &&
+                definition.FacilityTypeId is int type && rules.Facilities[type].IsWork) &&
             rules.CanAttackTarget(formation.Attack, rules.BuildingArea(definition), true);
     }
 

@@ -187,7 +187,8 @@ internal static class MilitaryPolicies
             world.Replace(unit with { Order = main ? null : unit.Order,
                 AwaitingPostAction = unit.AwaitingPostAction || main && unit.Order!.IsAttack,
                 EngagementTargetId = temporary ? null : unit.EngagementTargetId,
-                ContactTarget = contact ? null : unit.ContactTarget });
+                ContactTarget = contact ? null : unit.ContactTarget,
+                Waypoint = main ? null : unit.Waypoint, Lookahead = null, MovementRemainder = 0 });
             if (main) events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, null, "target-removed"));
             if (temporary) events.Add(new UnitEngagementChangedEvent(world.Clock, unit.Id, null, "target-removed"));
         }

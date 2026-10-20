@@ -18,4 +18,7 @@ internal static class PersonnelLocations
 
     internal static int? ServicePlace(WorldMutation world, OfficerState person) => person.UnitId is int unit
         ? world.Units[unit].ServicePlaceId : person.SettlementId;
+
+    internal static SettlementState TaskHome(IWorldQuery world, PersistentTask task) =>
+        world.Settlements[world.Officers[task.OfficerId].SettlementId!.Value];
 }

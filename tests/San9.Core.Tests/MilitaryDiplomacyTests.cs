@@ -8,6 +8,39 @@ namespace San9.Core.Tests;
 public sealed class MilitaryDiplomacyTests
 {
     private static readonly CombatProfile Combat = new(10, 10, 10, 10, 50);
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FriendlyWorksCanBeExplicitlyAttackedWithoutMakingOrdinaryFriendlyFacilitiesAttackable(bool work)
+    {
+        var state = WorldState.Create(new(190, 1, 1), 42, [new(1, 100) { LeaderId = 11 }],
+            [new(1, 1, 10000, 100, 100, 50, 500, 0, 100, 0, 100),
+             new(2, 1, 10000, 100, 100, 50, 500, 0, 100, 0, 100)
+                { CanHostPersons = !work, Kind = SettlementKind.Facility, Durability = 1 }],
+            [new(11, 1, 1, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler },
+             new(12, 1, null, new(70, 70, 70, 70), false) { UnitId = 0 }],
+            units: [new(0, 1, new(47, 10), 10000) { FormationId = 0, Morale = 90, ServicePlaceId = 1,
+                MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(12, BattleRank.Front) }],
+            controls: [new("player", 1, ControllerKind.Player)],
+            corps: [new(1, 1, 11, new(1000, 1000)) { IsRoot = true }]);
+        var rules = Military(work);
+        var engine = new SimulationEngine(state, EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
+        var order = new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, 2);
+        Assert.Equal(work, new MilitaryOrderQuery(engine.Snapshot, rules).CanAssign(0, order));
+        var before = engine.Snapshot;
+        var result = engine.Execute(new("player"), new OrderUnitCommand(Guid.NewGuid(), 1, 0, 0, order));
+        Assert.Equal(work, result.Submission.Accepted);
+        if (!work) { StateAssert.Equal(before, engine.Snapshot); return; }
+        Assert.Equal(AttackWarning.None, engine.GetAttackWarning(1, order));
+        var mutation = state.BeginMutation();
+        List<DomainEvent> events = [];
+        MilitaryCombat.AdvanceDay(mutation, new() { Military = rules }, events);
+        Assert.Contains(events.OfType<BattleDamageEvent>(), e => e.SettlementId == 2);
+        Assert.Equal(2, Assert.Single(events.OfType<FacilityDestroyedEvent>()).SettlementId);
+        Assert.True(mutation.Settlements[2].IsDestroyed);
+        Assert.Empty(events.OfType<WarDeclaredEvent>());
+    }
     [Fact]
     public void EnemyFacilityUsesOneScaledExtentForAvoidanceAndCollision()
     {

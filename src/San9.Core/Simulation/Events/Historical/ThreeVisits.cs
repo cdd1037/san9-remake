@@ -65,7 +65,7 @@ internal static class ThreeVisits
             Consume(world, definition.FirstVisitKey, EventTrigger.Search);
         else
         {
-            PersonnelTransitions.Recruit(world, definition.RecruitId, task.ForceId, task.OriginSettlementId, events, personnel, true,
+            PersonnelTransitions.Recruit(world, definition.RecruitId, task.ForceId, PersonnelLocations.TaskHome(world, task).Id, events, personnel, true,
                 definition.RecruitmentLoyalty);
             PersonnelReturns.Start(world, task, personnel, events, true, definition.RecruitId);
             var force = world.Forces[task.ForceId];

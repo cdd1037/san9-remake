@@ -632,7 +632,7 @@ public sealed class MilitaryCombatTests
     }
 
     [Fact]
-    public void TravelingOfficerIsRepatriatedInsteadOfCapturedWithAdministrativeHome()
+    public void TravelingOfficerContinuesHisSearchInsteadOfBeingCapturedWithAdministrativeHome()
     {
         var baseline = World().CreateSnapshot();
         var world = WorldState.Create(baseline.Clock, 42, baseline.Forces,
@@ -647,7 +647,9 @@ public sealed class MilitaryCombatTests
         var geography = new PersonnelRulebook([new(1, new(2, 7)), new(2, new(37, 7)), new(3, new(37, 2))]);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, geography, TreasureRulebook.Empty, military: Rules());
         var result = engine.AdvanceXun();
-        Assert.Contains(result.Events, e => e is TaskCancelledEvent cancelled && cancelled.TaskId == taskId);
+        Assert.DoesNotContain(result.Events, e => e is TaskCancelledEvent cancelled && cancelled.TaskId == taskId);
+        Assert.Contains(result.Events, e => e is TaskCompletedEvent completed && completed.TaskId == taskId);
+        Assert.Contains(result.Events, e => e is SearchResolvedEvent { OfficerId: 22 });
         Assert.DoesNotContain(result.Events, e => e is OfficerCapturedEvent { OfficerId: 22 });
         var ruler = engine.Snapshot.Officers.Single(p => p.Id == 22);
         Assert.Equal(OfficerStatus.Ruler, ruler.Status);

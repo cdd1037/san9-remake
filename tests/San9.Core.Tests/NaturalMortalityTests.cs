@@ -157,18 +157,29 @@ public sealed class NaturalMortalityTests
         mutation.Replace(mutation.Settlements[20] with { CorpsId = 200 });
         mutation.Replace(mutation.Officers[11] with { Status = OfficerStatus.Governor, OfficeId = 5 });
         mutation.Replace(mutation.Officers[12].WithLoyalty(1, 90));
+        mutation.SetSimulation(mutation.Simulation with
+        {
+            NextSequence = 1,
+            Tasks = [new(Guid.NewGuid(), PersonnelReturns.Kind, "system", 1, 12, 10, mutation.Clock, mutation.Clock.NextDay(), 0, 0)
+            {
+                Journey = new(10, null, null) { Route = new(new(0, 0), new(1, 0), false),
+                    ReturnLeg = new(20, 1, false) { CorpsId = 200 } }
+            }]
+        });
         var events = new List<DomainEvent>();
         OfficerDeath.Resolve(mutation, 1, OfficerDeathCause.Natural, rules, events, afterDailyCommands: false);
         world.Commit(mutation);
         var snapshot = world.CreateSnapshot();
-        Assert.Equal(200, Assert.Single(snapshot.Corps, c => c.OwnerId == 1).Id);
+        Assert.Equal(100, Assert.Single(snapshot.Corps, c => c.OwnerId == 1).Id);
         Assert.True(Assert.Single(snapshot.Corps, c => c.OwnerId == 1).IsRoot);
         Assert.Equal(CorpsControlMode.Direct, Assert.Single(snapshot.Corps, c => c.OwnerId == 1).ControlMode);
-        Assert.All(snapshot.Settlements.Where(s => s.OwnerId == 1), s => Assert.Equal(200, s.CorpsId));
+        Assert.All(snapshot.Settlements.Where(s => s.OwnerId == 1), s => Assert.Equal(100, s.CorpsId));
         Assert.Equal(1300u, snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
         Assert.Equal(1400u, snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Food);
         Assert.Equal(75, snapshot.Officers.Single(p => p.Id == 12).Loyalty);
         Assert.Null(snapshot.Officers.Single(p => p.Id == 11).OfficeId);
         Assert.Equal(11, Assert.Single(snapshot.Treasures).HolderId);
+        Assert.Equal(100, Assert.Single(snapshot.Simulation.Tasks).Journey!.ReturnLeg!.CorpsId);
+        Assert.Equal(2, Assert.Single(snapshot.Corps, c => c.OwnerId == 2).Id);
     }
 }

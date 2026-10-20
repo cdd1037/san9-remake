@@ -58,6 +58,26 @@ public sealed class CapturedRulerDispositionTests
         var completed = session.Apply(request);
         var other = restored.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, completed.Disposition);
+        if (action == CapturedRulerAction.Execute)
+        {
+            int successor = session.Snapshot.Forces.Single(f => f.Id == 2).LeaderId!.Value;
+            string nameKey = definition.Officers.Single(o => o.State.Id == successor).NameKey;
+            var texts = MissionScenario.Texts(session.View);
+            var hover = San9.Application.Presentation.MapHoverInfo.Resolve(session.View, texts, 2,
+                San9.Application.Presentation.MapInformationContext.Strategy)!;
+            Assert.Equal(texts.Resolve(nameKey), hover.Rows.Single(r => r.Label == "势力").Value);
+            var detail = San9.Application.Presentation.AdministrativeDetails.Read(session.View, texts,
+                new(San9.Application.Presentation.InformationCategory.Forces, 2));
+            Assert.Equal(texts.Resolve(nameKey), detail.Name);
+            Assert.Equal(detail.LeaderName, detail.Name);
+            var loaded = SaveService.Decode(SaveService.Encode(session), definition);
+            Assert.Equal(detail.Name, San9.Application.Presentation.AdministrativeDetails.Read(loaded.View, texts,
+                new(San9.Application.Presentation.InformationCategory.Forces, 2)).Name);
+            Assert.Equal(detail.Name, new San9.Application.Presentation.AdministrativeCatalog(loaded.View, texts)
+                .Read(San9.Application.Presentation.InformationCategory.Forces, 0, force: 2).Rows.Single().Cells[0].Text);
+            Assert.Equal(texts.Resolve(nameKey), San9.Application.Presentation.MapHoverInfo.Resolve(loaded.View, texts, 2,
+                San9.Application.Presentation.MapInformationContext.Strategy)!.Rows.Single(r => r.Label == "势力").Value);
+        }
         EventAssert.Equal(completed.Events, other.Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Null(session.GetCapturedRulerPrompt());
@@ -203,6 +223,7 @@ public sealed class CapturedRulerDispositionTests
         var original = Fixture();
         var definition = original with { Officers = original.Officers.Where(p => p.State.OwnerId != 2 || p.State.Id == 4).ToArray() };
         var session = GameSession.Start(definition, 190);
+        session.BeginRecording();
         session.AdvanceXun();
         Assert.NotNull(session.GetCapturedRulerPrompt());
         var result = session.Execute(new("player"), new ChooseCapturedRulerDispositionCommand(Guid.NewGuid(), 1,
@@ -212,9 +233,13 @@ public sealed class CapturedRulerDispositionTests
         Assert.Null(session.GetCapturedRulerPrompt());
         Assert.Null(session.GetExecutionSuccessionPrompt());
         Assert.Single(result.Events.OfType<ForceEliminatedEvent>());
+        var neutral = Assert.Single(result.Events.OfType<SettlementNeutralizedEvent>());
+        Assert.Equal(0u, neutral.Result.Soldiers + neutral.Result.Wounded);
         Assert.Single(result.Events.OfType<SimulationEndedEvent>());
         Assert.DoesNotContain(result.Events, e => e is StageCompletedEvent or XunAdvancedEvent);
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
     private static ScenarioInitialState ComputerFixture(bool execute)
     {

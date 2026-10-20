@@ -21,8 +21,7 @@ internal static class PersonnelReturns
         if (person is null) return arrival;
         return unit.ServicePlaceId is int id && world.Settlements.TryGetValue(id, out var source) &&
             source.OwnerId == unit.OwnerId && source.CanHostPersons && !source.IsDestroyed && source.Durability > 0 &&
-            source.Facility?.BuilderUnitId is null && military.TryPlace(source, out _) ? source :
-            BattleRetreat.Destination(world, person, unit.Position, null, military, preferredCorps: unit.CorpsId) ?? arrival;
+            source.Facility?.BuilderUnitId is null && military.TryPlace(source, out _) ? source : arrival;
     }
 
     internal static void FromTransport(WorldMutation world, int personId, UnitState unit, int arrivalId,

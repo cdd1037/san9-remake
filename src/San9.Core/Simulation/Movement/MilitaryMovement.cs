@@ -303,7 +303,16 @@ internal static class MilitaryMovement
         var home = world.Settlements[destinationId];
         var returnHome = unit.EffectiveOrder?.Kind == MilitaryOrderKind.Transport && unit.ServicePlaceId != home.Id
             ? PersonnelReturns.TransportDestination(world, unit, home, military) : home;
-        if (!CanAbsorb(world, unit, home, returnHome))
+        int root = ResourceAccounts.Root(world, unit.OwnerId).Id;
+        int sourceCorps = unit.CorpsId ?? root, previousCorps = home.CorpsId ?? root;
+        bool transfer = returnHome.Id == home.Id && sourceCorps != previousCorps &&
+            unit.CommanderId is int commander && world.Officers.TryGetValue(commander, out var leader) &&
+            leader.UnitId == unit.Id && leader.Status == OfficerStatus.Ruler;
+        var followers = transfer ? world.Units.Values.Where(u => u.Id != unit.Id && u.OwnerId == unit.OwnerId &&
+            u.ServicePlaceId == home.Id && (u.IsEmbedded || u.IsPersonnel || u.EffectiveOrder is not null ||
+                u.EffectiveOrderClass == UnitOrderClass.Military)).ToArray() : [];
+        var affected = new[] { sourceCorps, previousCorps }.Concat(followers.Select(u => u.CorpsId ?? root)).Distinct().ToArray();
+        if (!CanAbsorb(world, unit, home, returnHome, transfer, followers.Select(u => u.Id).ToHashSet(), affected))
         {
             events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, unit.Order, "absorption-blocked"));
             return;
@@ -319,7 +328,10 @@ internal static class MilitaryMovement
             events.Add(new UnitOrderChangedEvent(world.Clock, unit.Id, unit.Order, "absorption-no-demobilization-city"));
             return;
         }
-        world.Replace(home with { Soldiers = total, Morale = morale, Wounded = home.Wounded + wounded });
+        home = home with { Soldiers = total, Morale = morale, Wounded = home.Wounded + wounded,
+            CorpsId = transfer ? sourceCorps : home.CorpsId };
+        world.Replace(home);
+        foreach (var follower in followers) world.Replace(follower with { CorpsId = sourceCorps });
         if (cityId is int city) Demobilization.Return(world, city, overflow, "unit-absorbed-demobilized", unit.Id, events);
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Settlement, home.Id), ResourceKind.Wounded, "unit-absorbed", unit.Id, wounded, wounded, events);
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Wounded, "unit-absorbed", home.Id, -(long)unit.Wounded, -(long)unit.Wounded, events);
@@ -338,7 +350,7 @@ internal static class MilitaryMovement
         }
         world.RemoveUnit(unit.Id);
         MilitaryPolicies.RemoveTarget(world, unit.Id, false, events);
-        if (unit.CorpsId is int previous && previous != home.CorpsId)
+        foreach (int previous in affected)
         {
             if (GovernanceMaintenance.RepairCorps(world, previous, governance, events) != CommandRejection.None)
                 throw new InvalidOperationException("Validated unit absorption could not settle previous corps.");
@@ -348,18 +360,29 @@ internal static class MilitaryMovement
                 Result = world.Settlements[home.Id] });
     }
 
-    private static bool CanAbsorb(WorldMutation world, UnitState unit, SettlementState home, SettlementState returnHome)
+    private static bool CanAbsorb(WorldMutation world, UnitState unit, SettlementState home, SettlementState returnHome,
+        bool transfer, IReadOnlySet<int> followers, IReadOnlyList<int> affected)
     {
-        if (unit.CorpsId is not int previous || previous == home.CorpsId || world.Corps[previous].IsRoot)
-            return true;
-        bool survivingMembers = world.Officers.Values.Any(p => p.IsServing && p.OwnerId == unit.OwnerId &&
-            (p.UnitId == unit.Id ? returnHome.CorpsId == previous : PersonnelLocations.Corps(world, p) == previous));
-        if (survivingMembers && world.Settlements.Values.Any(s => s.CorpsId == previous && s.Kind == SettlementKind.City)) return true;
-        var force = world.Forces[unit.OwnerId];
-        bool forceReceivesCargo = ResourceAccounts.Resolve(world, unit.OwnerId, home.CorpsId).Id == ResourceAccounts.Root(world, unit.OwnerId).Id;
-        uint money = forceReceivesCargo ? ResourceAccounts.Project(ResourceAccounts.Root(world, force.Id).Treasury.Money, unit.CargoMoney) : ResourceAccounts.Root(world, force.Id).Treasury.Money;
-        uint food = forceReceivesCargo ? ResourceAccounts.Project(ResourceAccounts.Root(world, force.Id).Treasury.Food, unit.CargoFood) : ResourceAccounts.Root(world, force.Id).Treasury.Food;
-        return (ulong)money + world.Corps[previous].Treasury.Money <= uint.MaxValue && (ulong)food + world.Corps[previous].Treasury.Food <= uint.MaxValue;
+        var root = ResourceAccounts.Root(world, unit.OwnerId);
+        int source = unit.CorpsId ?? root.Id;
+        int PlaceCorps(SettlementState place) => transfer && place.Id == home.Id ? source : place.CorpsId ?? root.Id;
+        int? PersonCorps(OfficerState person) => person.UnitId == unit.Id ? PlaceCorps(returnHome) :
+            person.UnitId is int id && followers.Contains(id) ? source :
+            person.SettlementId == home.Id ? PlaceCorps(home) : PersonnelLocations.Corps(world, person) ?? root.Id;
+        bool rootReceivesCargo = PlaceCorps(home) == root.Id;
+        ulong money = rootReceivesCargo ? ResourceAccounts.Project(root.Treasury.Money, unit.CargoMoney) : root.Treasury.Money;
+        ulong food = rootReceivesCargo ? ResourceAccounts.Project(root.Treasury.Food, unit.CargoFood) : root.Treasury.Food;
+        foreach (int id in affected.Where(id => id != root.Id))
+        {
+            bool people = world.Officers.Values.Any(p => p.IsServing && p.OwnerId == unit.OwnerId && PersonCorps(p) == id);
+            bool cities = world.Settlements.Values.Any(s => s.Kind == SettlementKind.City && PlaceCorps(s) == id);
+            if (people && cities) continue;
+            var corps = world.Corps[id];
+            if (corps.LeaderId == world.Forces[unit.OwnerId].LeaderId) return false;
+            money += corps.Treasury.Money;
+            food += corps.Treasury.Food;
+        }
+        return money <= uint.MaxValue && food <= uint.MaxValue;
     }
 
     internal static IEnumerable<MapOccupancy> Occupancy(WorldMutation world, MilitaryRulebook rules, int? movingUnit, int? entry)

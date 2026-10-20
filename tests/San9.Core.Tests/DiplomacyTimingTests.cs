@@ -130,7 +130,7 @@ public sealed class DiplomacyTimingTests
         EventAssert.Equal(events, Advance(restored).Events);
         StateAssert.Equal(engine.Snapshot, restored.Snapshot);
         Assert.Equal(2, Assert.Single(events.OfType<ForceEliminatedEvent>()).ForceId);
-        var returning = Assert.Single(engine.Snapshot.Simulation.Tasks);
+        var returning = Assert.Single(engine.Snapshot.Simulation.Tasks, t => t.OfficerId == 12);
         Assert.Equal(PersonnelReturns.Kind, returning.Kind);
         Assert.False(returning.Journey!.ReturnLeg!.AfterDailyCommands);
         Assert.True(returning.Journey.ReturnLeg.DiplomaticEnvoy);
@@ -139,7 +139,12 @@ public sealed class DiplomacyTimingTests
         restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
         var completion = Advance(engine).Events;
         EventAssert.Equal(completion, Advance(restored).Events);
-        Assert.Equal(new GameClock(191, 1, 10), Assert.Single(completion.OfType<PersonnelReturnedEvent>()).Clock);
+        Assert.Equal(new GameClock(191, 1, 10), Assert.Single(completion.OfType<PersonnelReturnedEvent>(), e => e.OfficerId == 12).Clock);
+        // The defeated force also held officer 13; neutralization now releases that prisoner.
+        Assert.Equal(13, Assert.Single(engine.Snapshot.Simulation.Tasks).OfficerId);
+        var released = Advance(engine).Events;
+        EventAssert.Equal(released, Advance(restored).Events);
+        Assert.Equal(new GameClock(191, 1, 20), Assert.Single(released.OfType<PersonnelReturnedEvent>(), e => e.OfficerId == 13).Clock);
         Assert.Empty(engine.Snapshot.Simulation.Tasks);
     }
 

@@ -11,6 +11,18 @@ namespace San9.Application.Tests;
 public sealed class BattlePresentationTests
 {
     [Fact]
+    public void EliminationDemobilizationRemovesTheArmyWithoutACombatDefeatReport()
+    {
+        var (session, texts, content, occurrence) = Fixture();
+        DomainEvent[] facts = [new UnitTerminatedEvent(session.Snapshot.Clock, occurrence.Source.Id, null, 0)
+            { Target = occurrence.Source, Source = null, Reason = UnitTerminationReason.ForceEliminated }];
+        var plan = BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content);
+        Assert.Equal(occurrence.Source.Id, Assert.Single(plan.MapChanges).RemovedUnitId);
+        Assert.Empty(plan.Records);
+        Assert.Empty(plan.Messages);
+    }
+
+    [Fact]
     public void DefeatRemovesAtImpactAndAdditionalCaptivesDoNotExtendTheDay()
     {
         var (session, texts, content, occurrence) = Fixture();

@@ -92,7 +92,7 @@ internal static class CommunitySearch
     private static uint Cost(uint multiplier, int ceiling, int ability) => (uint)Math.Min(uint.MaxValue, (long)multiplier * Math.Max(0L, (long)ceiling - ability));
     internal static uint VolunteerSoldiers(WorldMutation world, PersistentTask task, CivicSearchEventDefinition definition)
     {
-        var home = world.Settlements[task.OriginSettlementId];
+        var home = PersonnelLocations.TaskHome(world, task);
         return (uint)Math.Min((long)home.SoldierCapacity - home.Soldiers,
             (long)definition.SoldierMultiplier * world.Abilities(world.Officers[task.OfficerId]).Leadership);
     }
@@ -121,7 +121,7 @@ internal static class CommunitySearch
                     case CivicSearchKind.Volunteers:
                         if (choice == CommunitySearchChoice.Accept)
                         {
-                            var home = world.Settlements[task.OriginSettlementId];
+                            var home = PersonnelLocations.TaskHome(world, task);
                             soldiers = VolunteerSoldiers(world, task, civic);
                             world.Replace(home with { Soldiers = home.Soldiers + soldiers });
                         }

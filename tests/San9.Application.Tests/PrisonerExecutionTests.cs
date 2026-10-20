@@ -181,7 +181,7 @@ public sealed class PrisonerExecutionTests
     }
 
     [Fact]
-    public void SelectedChildCorpsBecomesPrimaryAndRemainsLoadable()
+    public void SelectedChildCorpsMergesIntoTheOriginalRootAndRemainsLoadable()
     {
         var original = Fixture(playerRuler: true);
         var definition = original with
@@ -198,10 +198,10 @@ public sealed class PrisonerExecutionTests
         Assert.True(session.Execute(new("ai:2"), new ExecutePrisonerCommand(Guid.NewGuid(), 2, 0, 1)).Submission.Accepted);
         Assert.True(session.Execute(new("player"), new ChooseExecutionSuccessorCommand(Guid.NewGuid(), 1, 1, 1, 3)).Submission.Accepted);
         var root = Assert.Single(session.Snapshot.Corps, c => c.OwnerId == 1);
-        Assert.Equal(20, root.Id);
+        Assert.Equal(10, root.Id);
         Assert.True(root.IsRoot);
         Assert.Equal(3, root.LeaderId);
-        Assert.All(session.Snapshot.Settlements.Where(s => s.OwnerId == 1), s => Assert.Equal(20, s.CorpsId));
+        Assert.All(session.Snapshot.Settlements.Where(s => s.OwnerId == 1), s => Assert.Equal(10, s.CorpsId));
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         StateAssert.Equal(session.Capture(), restored.Capture());
         var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));

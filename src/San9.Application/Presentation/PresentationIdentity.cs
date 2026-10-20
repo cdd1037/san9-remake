@@ -24,6 +24,8 @@ internal sealed class PresentationIdentity(StrategySnapshot before, StrategySnap
         {
             case FacilityConstructionChangedEvent { Result: { } result }:
                 SetSettlement(result); break;
+            case SettlementNeutralizedEvent neutralized:
+                SetSettlement(neutralized.Result); break;
             case SettlementCapturedEvent captured:
                 SetSettlement(captured.Result); break;
             case FacilityDestroyedEvent destroyed:

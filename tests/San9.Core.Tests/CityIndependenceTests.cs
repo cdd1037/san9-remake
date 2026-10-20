@@ -57,8 +57,12 @@ public sealed class CityIndependenceTests
         Assert.Equal(oldCity.Morale, world.Settlements[1].Morale);
         Assert.Equal(oldCity.Wounded, world.Settlements[1].Wounded);
         Assert.Equal(2 * EconomyMath.Revenue(oldCity) + 3000, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 3).Treasury.Money);
-        Assert.Equal(1000u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
-        Assert.Equal(500u, world.Corps[11].Treasury!.Money);
+        // The surviving child owns the old force's only remaining city, so it is merged into the empty root.
+        Assert.Equal(1500u, world.Corps[10].Treasury.Money);
+        Assert.Equal(2700u, world.Corps[10].Treasury.Food);
+        Assert.False(world.Corps.ContainsKey(11));
+        Assert.Equal(10, world.Settlements[2].CorpsId);
+        Assert.Contains(events.OfType<CorpsDissolvedEvent>(), e => e.CorpsId == 11 && e.DestinationCorpsId == 10);
         Assert.Equal(2, world.Officers[12].SettlementId);
         Assert.Equal(1, world.Officers[12].OwnerId);
         Assert.Equal(255, world.Officers[12].Loyalty);
@@ -191,22 +195,23 @@ public sealed class CityIndependenceTests
     }
 
     [Fact]
-    public void TravelingServiceOfficerIsNotMarkedAndReturnsToSurvivingForce()
+    public void TravelingServiceOfficerIsNotMarkedAndContinuesToHisValidDestination()
     {
         var state = World();
         var world = Due(state);
         world.Replace(world.Officers[12].WithLoyalty(1, 0));
-        var task = new PersistentTask(Guid.Parse("11111111-2222-3333-4444-555555555555"), PersonnelMissions.SearchKind,
-            "player", 1, 12, 1, world.Clock, world.Clock.Advance(), 0, 0)
-        { Journey = new(3, null, null) { Route = new(new(30, 0), new(90, 0), false) } };
-        world.SetSimulation(world.Simulation with { Tasks = [task], NextSequence = 1 });
+        Assert.Equal(CommandRejection.None, PersonnelMissions.StartMove(world, new("player"),
+            new(Guid.NewGuid(), 1, 0, [12], 2), Rules(false).Personnel, null, []));
+        world.SetSimulation(world.Simulation with { NextSequence = 1 });
+        var task = Assert.Single(world.Simulation.Tasks);
         List<DomainEvent> events = [];
         CityIndependence.Apply(world, Rules(false), events);
         Assert.Equal(new[] { 10, 11 }, Assert.Single(events.OfType<CityIndependenceEvent>()).MemberIds);
         Assert.Equal(1, world.Officers[12].OwnerId);
         Assert.Equal(2, world.Officers[12].SettlementId);
-        Assert.Equal(PersonnelReturns.Kind, Assert.Single(world.Simulation.Tasks).Kind);
-        Assert.Contains(events.OfType<TaskCancelledEvent>(), e => e.TaskId == task.Id);
+        Assert.Equal(task, Assert.Single(world.Simulation.Tasks));
+        Assert.DoesNotContain(events.OfType<TaskCancelledEvent>(), e => e.TaskId == task.Id);
+        WorldInvariants.Validate(world);
         state.Commit(world);
     }
 

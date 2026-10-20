@@ -1,4 +1,5 @@
 using San9.Tests;
+using San9.Application.Persistence;
 using System.Collections.Immutable;
 using San9.Application.Presentation;
 using San9.Content.Scenarios;
@@ -53,6 +54,43 @@ public sealed class DeploymentArrivalTests
             arrival = session.AdvanceXun().Events.OfType<UnitAbsorbedEvent>().SingleOrDefault(e => e.UnitId == unit.Id);
         Assert.NotNull(arrival);
         Assert.Equal((long)estimate.Days!.Value, arrival.Clock.DayNumber - before.Clock.DayNumber);
+    }
+
+    [Fact]
+    public void CrossCorpsRulerMarchTransfersTheDestinationAndReplaysThroughOldCorpsDissolution()
+    {
+        var definition = Fixture();
+        definition = definition with
+        {
+            Forces = definition.Forces.Select(f => f with { LeaderId = 1 }).ToArray(),
+            Settlements = definition.Settlements.Select(s => s with { CorpsId = s.Id }).ToArray(),
+            Officers = [new("ruler", new(1, 1, 1, new(70, 70, 70, 70), false) { Status = OfficerStatus.Ruler }),
+                new("governor", new(2, 1, 2, new(60, 60, 60, 60), false) { Status = OfficerStatus.Governor })],
+            Information = definition.Information with { Corps = [
+                new(1, 1, 1, new(10000, 10000)) { IsRoot = true },
+                new(2, 1, 2, new(2000, 3000)) { ControlMode = CorpsControlMode.Automatic }] }
+        };
+        var session = GameSession.Start(definition, 42);
+        session.BeginRecording();
+        var draft = new DeploymentDraft(session.View, 1); Assert.True(draft.SetMembers([1]));
+        var targets = new DeploymentTargets(draft);
+        Assert.Equal(MilitaryMarker.Enter, targets.Candidates[new(2, false)]);
+        Assert.True(targets.Select(new(2, false))); Assert.True(targets.BeginPolicies());
+        Assert.Equal(ArrivalEstimateStatus.Known, targets.EstimateArrival().Status);
+        Assert.True(session.Execute(new("player"), targets.CreateCommand(Guid.NewGuid(),
+            session.Snapshot.Simulation.NextSequence)).Submission.Accepted);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        for (int i = 0; i < 10 && session.Snapshot.Units.Count != 0; i++)
+            EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
+        Assert.Empty(session.Snapshot.Units);
+        Assert.Equal(1, session.Snapshot.Settlements.Single(s => s.Id == 2).CorpsId);
+        Assert.DoesNotContain(session.Snapshot.Corps, c => c.Id == 2);
+        Assert.Equal(2, session.Snapshot.Officers.Single(p => p.Id == 1).SettlementId);
+        Assert.Equal(OfficerStatus.Serving, session.Snapshot.Officers.Single(p => p.Id == 2).Status);
+        StateAssert.Equal(session.Capture(), restored.Capture());
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
+        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
+        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

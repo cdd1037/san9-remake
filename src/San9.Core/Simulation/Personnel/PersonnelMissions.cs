@@ -230,7 +230,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
 
     private static bool Direct(WorldMutation world, PersistentTask task) =>
         world.Simulation.Controls.Any(c => c.ForceId == task.ForceId && c.Kind == ControllerKind.Player) &&
-        (world.Settlements[task.OriginSettlementId].CorpsId is not int corpsId || world.Corps[corpsId].ControlMode == CorpsControlMode.Direct);
+        (PersonnelLocations.TaskHome(world, task).CorpsId is not int corpsId || world.Corps[corpsId].ControlMode == CorpsControlMode.Direct);
 
     internal override int? DecisionRecipient(WorldMutation world, PersistentTask task) =>
         task.SearchEncounter is not null ? task.ForceId : null;
@@ -386,7 +386,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
         var journey = task.Journey!;
         if (kind == PersonnelMissions.MoveKind)
         {
-            int? oldCorpsId = world.Settlements[task.OriginSettlementId].CorpsId;
+            int? oldCorpsId = PersonnelLocations.Corps(world, world.Officers[task.OfficerId]);
             PersonnelTransitions.Move(world, task.OfficerId, journey.DestinationPlaceId, events, rules, true);
             if (oldCorpsId is int corpsId && world.Settlements[journey.DestinationPlaceId].CorpsId != corpsId)
             {
@@ -445,7 +445,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
             (int)(world.NextRandom("personnel-search-recruitment") % 100) < recruitThreshold;
         if (recruited)
         {
-            PersonnelTransitions.Recruit(world, target.Id, task.ForceId, task.OriginSettlementId, events, rules, true);
+            PersonnelTransitions.Recruit(world, target.Id, task.ForceId, PersonnelLocations.TaskHome(world, task).Id, events, rules, true);
             PersonnelReturns.Start(world, task, rules, events, true, target.Id);
         }
         else
@@ -461,7 +461,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
     private void ResolveOtherSearchResults(WorldMutation world, PersistentTask task, long politicsScore, List<DomainEvent> events)
     {
         int destination = task.Journey!.DestinationPlaceId;
-        int? corpsId = world.Settlements[task.OriginSettlementId].CorpsId;
+        int? corpsId = PersonnelLocations.TaskHome(world, task).CorpsId;
         if (Direct(world, task))
         {
             var items = world.Treasures.Values.Where(t => t.Discovery == TreasureDiscovery.Buried && t.HolderId is null &&

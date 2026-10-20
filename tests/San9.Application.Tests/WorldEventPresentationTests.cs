@@ -62,7 +62,7 @@ public sealed class WorldEventPresentationTests
         DomainEvent[] facts = [new ForcesConsolidatedEvent(before.World.Clock, 2, 3, 10, 10, 20, 20)];
         var first = ExecutionPublication.Read(before, after, session.Messages(texts), texts, content, facts);
         var speeches = first.Messages.Where(m => m.WaitForMapSpeech).ToArray();
-        Assert.Equal(new[] { "enemy", "third" }, speeches.Select(m => m.Speaker!.ForceName));
+        Assert.Equal(new[] { "enemy-ruler", "third-ruler" }, speeches.Select(m => m.Speaker!.ForceName));
         var repeated = ExecutionPublication.Read(before, after, session.Messages(texts), texts, content, facts);
         Assert.Equal(first.Messages, repeated.Messages); Assert.Equal(first.Records, repeated.Records);
         Assert.Single(first.Records);
@@ -98,7 +98,7 @@ public sealed class WorldEventPresentationTests
         var output = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts);
         Assert.Equal(new[] { "execution-start", "execution-last-words", "execution-result", "ruler-death", "successor-declaration", "force-eliminated" },
             output.Messages.Select(m => m.Message.Key));
-        Assert.Equal("enemy", output.Messages[1].Speaker!.ForceName);
+        Assert.Equal("enemy-ruler", output.Messages[1].Speaker!.ForceName);
         Assert.Equal(21, output.Messages[3].IllustrationPersonId); Assert.True(output.Messages[3].IllustrationDeceased);
         Assert.Equal("force-eliminated-music", output.Messages[^1].BackgroundMusicRole);
         Assert.False(output.Messages[^1].BackgroundMusicLoop);

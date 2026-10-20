@@ -90,14 +90,16 @@ internal sealed class StrategySnapshotSource
     public OfficerInitialState Officer(int id) => _officers[id];
     public (string NameKey, int ColorCode, int FlagGlyph) Force(ForceState force)
     {
+        string? rulerName = !force.IsBarbarian && force.LeaderId is int ruler && _officers.TryGetValue(ruler, out var person)
+            ? person.NameKey : null;
         int? titleGlyph = force.CountryTitleId is int title ? Information.CountryTitles.Single(t => t.Id == title).FlagGlyph : null;
         if (force.Origin is { } origin)
         {
             int glyph = force.LeaderId is int leader ? _officers[leader].FlagGlyph : -1;
-            return (_officers[origin.FounderId].NameKey, force.ColorCode, titleGlyph ?? glyph);
+            return (rulerName ?? _officers[origin.FounderId].NameKey, force.ColorCode, titleGlyph ?? glyph);
         }
         var initial = _forces[force.Id];
-        return (initial.NameKey, force.ColorCode, titleGlyph ?? initial.FlagGlyph);
+        return (rulerName ?? initial.NameKey, force.ColorCode, titleGlyph ?? initial.FlagGlyph);
     }
     public SettlementInitialState? Settlement(int id) => _settlements.GetValueOrDefault(id);
     public IReadOnlyList<string> SettlementIcons(int id) => _settlementIcons.GetValueOrDefault(id) ?? [];

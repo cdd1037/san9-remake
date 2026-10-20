@@ -21,14 +21,15 @@ public sealed class EconomicOutlookTests
                 new(16, 5, 1000, 100, 100, 50, 800, 0, 100, 0, 100) { CorpsId = 11 }],
             Units = [new(20, 5, new(0, 0), 1000), new(21, 6, new(0, 0), 90000)],
             Officers = [new(1, 5, null, new(50, 50, 50, 50), false) { UnitId = 20, OfficeId = 1 },
-                new(2, 5, 16, new(50, 50, 50, 50), false) { OfficeId = 2 }]
+                new(2, 5, 16, new(50, 50, 50, 50), false) { OfficeId = 2 },
+                new(3, 5, 16, new(50, 50, 50, 50), false)]
         };
         var salaries = new Dictionary<int, int> { [1] = 7, [2] = 3 };
         var root = EconomicOutlook.Read(world, salaries, 5, 10);
         var branch = EconomicOutlook.Read(world, salaries, 5, 11);
         var force = EconomicOutlook.Read(world, salaries, 5);
         Assert.Equal(7, root.Money.Expenditure);
-        Assert.Equal(3, branch.Money.Expenditure);
+        Assert.Equal(4, branch.Money.Expenditure); // Includes the returning transport's officer.
         Assert.Equal(40, root.Food.Expenditure);
         Assert.Equal(50, branch.Food.Expenditure);
         Assert.Equal(root.Money.Forecast + branch.Money.Forecast, force.Money.Forecast);

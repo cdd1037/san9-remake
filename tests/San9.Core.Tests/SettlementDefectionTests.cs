@@ -7,6 +7,72 @@ namespace San9.Core.Tests;
 
 public sealed class SettlementDefectionTests
 {
+    [Fact]
+    public void ServiceRepairKeepsAValidHomeAndDoesNotBindAnUnassignedAuthoredUnit()
+    {
+        var world = World();
+        world.AddUnit(new(200, 1, new(302, 2), 1000) { CorpsId = 10, ServicePlaceId = 10 });
+        world.AddUnit(new(201, 1, new(302, 2), 1000) { CorpsId = 10 });
+        UnitServicePlaces.Repair(world, Rules());
+        Assert.Equal(10, world.Units[200].ServicePlaceId);
+        Assert.Null(world.Units[201].ServicePlaceId);
+    }
+
+    [Fact]
+    public void PortDefectionRehomesAnIndependentConstructionUnitWithoutChangingItsAllegianceOrOrder()
+    {
+        var world = World();
+        var order = new MilitaryOrder(MilitaryOrderKind.Construct, null, null)
+            { Construction = new(99, 1, new(352, 2), 1) };
+        world.Replace(world.Officers[1] with { SettlementId = null, UnitId = 200, IsCommander = false });
+        world.AddUnit(new(200, 1, new(302, 2), 1000) { FormationId = 1, CorpsId = 10, ServicePlaceId = 10,
+            CommanderId = 1, Order = order, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(1, BattleRank.Front) });
+        var events = Apply(world);
+        Assert.Equal(2, world.Settlements[10].OwnerId);
+        Assert.Equal(3, world.Units[200].ServicePlaceId);
+        Assert.Equal((1, 10), (world.Units[200].OwnerId, world.Units[200].CorpsId));
+        Assert.Equal(order, world.Units[200].Order);
+        Assert.Equal(1, world.Officers[1].OwnerId);
+        Assert.Single(events.OfType<SettlementDefectedEvent>());
+    }
+
+    [Theory]
+    [InlineData(false, 3)]
+    [InlineData(true, 10)]
+    public void LostServicePlaceUsesTheNearestSameCorpsPlaceOrItsTransportDestination(bool transport, int expected)
+    {
+        var world = World();
+        world.AddCorps(new(30, 1, null, new(0, 0)));
+        world.AddSettlement(Place(50, 1) with { CorpsId = 30, Facility = new(1, new(301, 2), null) });
+        world.AddUnit(new(200, 1, new(302, 2), 1000) { CorpsId = 10, ServicePlaceId = 2, FormationId = 1,
+            Order = transport ? new(MilitaryOrderKind.Transport, null, 10) : null });
+        UnitServicePlaces.Repair(world, Rules());
+        Assert.Equal(expected, world.Units[200].ServicePlaceId);
+        Assert.Equal(10, world.Units[200].CorpsId);
+    }
+
+    [Theory]
+    [InlineData("destroyed")]
+    [InlineData("uninhabitable")]
+    [InlineData("unfinished")]
+    [InlineData("no-home")]
+    public void ServicePlaceRepairExcludesUnavailablePlacesAndPreservesTheHistoricalReferenceWithoutACandidate(string unavailable)
+    {
+        var world = World();
+        world.Replace(world.Settlements[10] with { OwnerId = 2, CorpsId = 20 });
+        var home = world.Settlements[3];
+        world.Replace(unavailable switch
+        {
+            "destroyed" => home with { IsDestroyed = true },
+            "uninhabitable" => home with { CanHostPersons = false },
+            "unfinished" => home with { Facility = new(1, new(302, 2), 999) },
+            _ => home with { CorpsId = 30 }
+        });
+        world.AddUnit(new(200, 1, new(302, 2), 1000) { CorpsId = 10, ServicePlaceId = 10 });
+        UnitServicePlaces.Repair(world, Rules());
+        Assert.Equal(10, world.Units[200].ServicePlaceId);
+    }
+
     [Theory]
     [InlineData(false, 3)]
     [InlineData(true, 2)]

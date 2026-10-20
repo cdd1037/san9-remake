@@ -27,7 +27,7 @@ public sealed class UnitCommandTargets : MilitaryTargets
         : this(view, SourceUnit(view, unitId, kind), kind) { }
 
     private UnitCommandTargets(StrategySnapshot view, UnitState unit, UnitCommandKind kind)
-        : base(view, view.MilitaryRules!, unit.OwnerId, unit.CorpsId, null, unit.Id, kind)
+        : base(view, view.MilitaryRules!, unit.OwnerId, null, unit.Id, kind)
     {
         Unit = unit; Kind = kind; Policies = unit.Policies;
         var current = unit.Order;

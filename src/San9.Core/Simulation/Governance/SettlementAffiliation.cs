@@ -24,7 +24,8 @@ internal static class SettlementAffiliation
         int? root = world.Corps.Values.SingleOrDefault(c => c.OwnerId == recipient && c.IsRoot)?.Id;
         BattleTreasury.TransferTo(world, owner, place.CorpsId, BattleTreasury.Weight(place),
             ResourceAccounts.Resolve(world, recipient, root), place.Id, Reason, events);
-        world.Replace(place with { OwnerId = recipient, CorpsId = root });
+        int publicOrder = CityBattleEffects.CapturedPublicOrder(world, place, recipient, events);
+        world.Replace(place with { OwnerId = recipient, CorpsId = root, PublicOrder = publicOrder });
         foreach (var unit in world.Units.Values.Where(u => u.IsEmbedded && u.ServicePlaceId == place.Id && u.OwnerId == owner).ToArray())
             world.Replace(unit with { OwnerId = recipient, CorpsId = root, Order = null, EngagementTargetId = null });
         foreach (int id in followers.Order())
@@ -32,7 +33,7 @@ internal static class SettlementAffiliation
             int loyalty = 75 + (50 - PersonnelRulebook.AffinityDistance(world.Officers[id], leader)) / 2;
             PersonnelTransitions.TransferAllegiance(world, id, recipient, loyalty, place.Id, Reason, rules.Personnel, events, false);
         }
-        foreach (var person in world.Officers.Values.Where(p => p.IsServing && p.OwnerId == owner && p.SettlementId == place.Id)
+        foreach (var person in world.Officers.Values.Where(p => p.IsServing && p.OwnerId == owner && p.SettlementId == place.Id && !world.IsTraveling(p.Id))
             .OrderBy(p => p.Id).ToArray())
         {
             var cause = ReturnContext(world, owner);
@@ -41,14 +42,7 @@ internal static class SettlementAffiliation
             AdvanceSequence(world);
         }
         DisplacePrisoners(world, place.Id, owner, rules, events);
-        foreach (var task in world.Simulation.Tasks.Where(t => t.OriginSettlementId == place.Id && t.ForceId != recipient ||
-            t.Journey is { } journey && journey.DestinationPlaceId == place.Id && t.ForceId != recipient)
-            .OrderBy(t => t.Sequence).ThenBy(t => t.Id).ToArray())
-        {
-            if (!world.Simulation.Tasks.Any(t => t.Id == task.Id)) continue;
-            TaskCancellation.Apply(world, task, Reason, events);
-            if (task.Journey is not null) PersonnelReturns.Start(world, task, rules.Personnel, events, false);
-        }
+        SettlementTasks.LocationChanged(world, place.Id, Reason, rules, events);
         events.Add(new SettlementTransferredEvent(world.Clock, place.Id, owner, recipient));
         BattleAftermath.Reconcile(world, new HashSet<int> { owner }, rules, events, false, Reason);
         ForceTransfer.ClearFriendlyOrders(world, Reason, events);

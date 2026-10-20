@@ -5,7 +5,7 @@ using San9.Core.Simulation;
 namespace San9.Application.Presentation;
 
 public sealed class DeploymentTargets(DeploymentDraft draft)
-    : MilitaryTargets(draft.View, draft.Rules, draft.Force.Id, draft.Home.CorpsId, draft.Home.Id, null)
+    : MilitaryTargets(draft.View, draft.Rules, draft.Force.Id, draft.Home.Id, null)
 {
     public DeploymentDraft Draft { get; } = draft;
     protected override bool CanProceed => Draft.CanProceed;

@@ -11,6 +11,35 @@ namespace San9.Application.Tests;
 public sealed class CapturePresentationTests
 {
     [Fact]
+    public void ForceLossNeutralizationUsesOccurrenceStateWithoutPlayingAnOccupationScene()
+    {
+        var (definition, before, texts, capture) = Fixture();
+        var neutral = before.World.Settlements.Single(s => s.Id == 2) with
+            { OwnerId = null, CorpsId = null, Soldiers = 0, Wounded = 0, Morale = 0 };
+        DomainEvent[] facts = [new SettlementNeutralizedEvent(before.World.Clock, 2, 2) { Result = neutral },
+            new ForceEliminatedEvent(before.World.Clock, 2, false)];
+        // Later events have already changed the authoritative snapshot again.
+        var after = before.ForWorld(before.World with { Settlements = before.World.Settlements.Select(s =>
+            s.Id == 2 ? s with { OwnerId = 1, Soldiers = 999 } : s).ToImmutableArray() });
+        var plan = BattlePresentationPlan.Create(before, after, facts, new(definition, before.World, texts), texts,
+            new([], null) { Capture = capture });
+        var change = Assert.Single(plan.MapChanges);
+        Assert.Equal(0, change.FactIndex);
+        Assert.Empty(plan.Messages);
+        Assert.Empty(plan.Records);
+        var frame = new BattleMapFrame(before, plan.MapChanges, plan.Values);
+        Assert.Null(frame.Settlements[2].OwnerId);
+        Assert.Equal(0u, frame.Settlements[2].Soldiers);
+        Assert.Equal(0, frame.Settlements[2].Morale);
+        var identity = new PresentationIdentity(before, after);
+        identity.Apply(facts[0]);
+        Assert.Null(identity.View.Settlements.Single(s => s.Id == 2).OwnerId);
+        var restored = System.Text.Json.JsonSerializer.Deserialize<DomainEvent>(
+            System.Text.Json.JsonSerializer.Serialize(facts[0]));
+        Assert.Equal(neutral, Assert.IsType<SettlementNeutralizedEvent>(restored).Result);
+    }
+
+    [Fact]
     public void AuthoredCaptureChoicesUseDeterministicPresentationRandomness()
     {
         var (definition, before, texts, content) = Fixture();

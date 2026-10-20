@@ -29,7 +29,7 @@ G04已交付子军团直属人事权限、统一提交复验，以及登用负�
 
 ## 重制行为
 
-重制版使用显式的 `AutomaticPermission`、`DirectCorpsOwnership`、`PersonnelAllocation`、`DefectionCandidate`、`IndependenceCandidate` 和 `TerritorialTransition`。自动规划只能读取当前军团直属且 `CanHostPersons=true` 的对象，并产生待提交命令；提交器重新验证人物、建筑可驻留能力、行动占用和归属。障碍物不得因直属当前军团或人员配额字段异常而进入调动目的地。
+重制版使用显式的 `AutomaticPermission`、`DirectCorpsOwnership`、`PersonnelAllocation`、`DefectionCandidate`、`IndependenceCandidate` 和 `TerritorialTransition`。本规格的人事自动规划只能读取当前军团直属且 `CanHostPersons=true` 的对象，并产生待提交命令；提交器重新验证人物、建筑可驻留能力、行动占用和归属。军事输送的跨军团接收范围见[原作AI工作规则](../original-ai/behavior.md#b25)。障碍物不得因直属当前军团或人员配额字段异常而进入调动目的地。
 
 主记录与子军团的权限由数据配置表达，但默认语义保留：子军团允许登用和调动，普通自动外交归主记录。人员调动按建筑的目标配置与现有人数形成盈余/短缺，不引入“按兵力比例摊派武将”的规则。
 

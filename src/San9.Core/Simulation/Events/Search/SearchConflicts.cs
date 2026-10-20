@@ -168,7 +168,7 @@ internal static class SearchConflicts
                 {
                     trust = d.TrustReward;
                     if (favored) money = mediation.FavoredMoneyReward;
-                    var home = world.Settlements[task.OriginSettlementId];
+                    var home = PersonnelLocations.TaskHome(world, task);
                     soldiers = (uint)Math.Min(home.SoldierCapacity - home.Soldiers,
                         (long)(favored ? mediation.FavoredSoldierMultiplier : mediation.SoldierMultiplier) * abilities.War);
                     world.Replace(home with { Soldiers = home.Soldiers + soldiers });

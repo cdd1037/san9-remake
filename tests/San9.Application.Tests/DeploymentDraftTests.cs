@@ -104,7 +104,7 @@ public sealed class DeploymentDraftTests
         Assert.Throws<ArgumentException>(() => new UnitCommandTargets(view, 7, UnitCommandKind.Attack));
     }
 
-    private static StrategySnapshot View(Func<San9.Core.Simulation.WorldSnapshot, San9.Core.Simulation.WorldSnapshot>? change = null)
+    private static StrategySnapshot View(Func<San9.Core.Simulation.WorldSnapshot, San9.Core.Simulation.WorldSnapshot>? change = null, bool work = false)
     {
         var definition = G01ScenarioTests.Fixture();
         var world = GameSession.Start(definition, 1).Snapshot;
@@ -118,8 +118,14 @@ public sealed class DeploymentDraftTests
             Military = new(4, 4, Enumerable.Repeat(0, 16).ToImmutableArray(), [new(0, 1, 1)],
                 [formation,formation with { Id=900,MovementBudget=100 },formation with { Id=200,RequiredTacticId=5000,DeploymentCost=100 },
                  formation with { Id=700,TravelMode=TravelMode.Water }],
-                [new(1, MapCoordinates.Center(new(1, 1)), new(1, 1)), new(2, MapCoordinates.Center(new(2, 2)), new(1, 1))])
+                [new(1, MapCoordinates.Center(new(1, 1)), new(1, 1)) { FacilityTypeId = work ? 9001 : null },
+                 new(2, MapCoordinates.Center(new(2, 2)), new(1, 1))
+                    { FacilityTypeId = work ? 9000 : null }])
             {
+                Facilities = work ? [
+                    new(9001, 0, 100, new(1, 1), 0, false, false, true, 100000, null, null, null, []),
+                    new(9000, 0, 100, new(1, 1), 0, false, false, false, 100000, null, null, null, [])
+                        { IsWork = true, Combat = new(10, 10, 10, 10, 50) }] : [],
                 DefaultDeploymentFormationId = 900,
                 BasicNavalFormationId = 700,
                 Tactics = [new(5000, 5, TacticEffect.FormationTechnology, 0, 0, 0, false, false, [200]), new(6000, 0, TacticEffect.Martial, 10, 1, 0, true, false, [100, 900])]
@@ -256,6 +262,41 @@ public sealed class DeploymentDraftTests
     {
         var view = View(world => world with { Settlements = world.Settlements.Select(s => s.Id == 2 ? s with { OwnerId = 1, CorpsId = null } : s).ToArray() });
         Assert.Equal(MilitaryMarker.Enter, new DeploymentTargets(new(view, 1)).Candidates[new(2, false)]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FriendlyWorkAttackMarkerUsesTheWorkRuleRatherThanHostingCapability(bool canHost)
+    {
+        var view = View(world => world with { Settlements = world.Settlements.Select(s => s.Id == 2
+            ? s with { OwnerId = 1, CorpsId = null, CanHostPersons = canHost } : s).ToArray() }, work: true);
+        var draft = new DeploymentDraft(view, 1); draft.SetMembers([1]); draft.SetSoldiers(123);
+        var targets = new DeploymentTargets(draft);
+        Assert.Equal(MilitaryMarker.Attack, targets.Candidates[new(2, false)]);
+        Assert.True(targets.Select(new(2, false))); Assert.True(targets.BeginPolicies());
+        Assert.True(targets.Reachable);
+        Assert.Equal(MilitaryOrderKind.AttackSettlement, targets.CreateCommand(Guid.NewGuid(), 0).Order.Kind);
+    }
+
+    [Theory]
+    [InlineData(null, 99)]
+    [InlineData(99, null)]
+    public void DeploymentEntersFriendlyFacilitiesAcrossCorpsAndNeverTargetsFriendlyFieldUnits(int? sourceCorps, int? targetCorps)
+    {
+        var view = View(world => world with
+        {
+            Corps = world.Corps.Append(new(99, 1, 2, new(10000, 10000))).ToArray(),
+            Settlements = world.Settlements.Select(s => s with { OwnerId = 1, CorpsId = s.Id == 1 ? sourceCorps : targetCorps }).ToArray(),
+            Units = [new(8, 1, MapCoordinates.Center(new(3, 0)), 100) { FormationId = 900, CorpsId = targetCorps }]
+        });
+        var draft = new DeploymentDraft(view, 1); Assert.True(draft.SetMembers([1])); draft.SetSoldiers(123);
+        var targets = new DeploymentTargets(draft);
+        Assert.Equal(MilitaryMarker.Enter, targets.Candidates[new(2, false)]);
+        Assert.DoesNotContain(new MilitaryTarget(8, true), targets.Candidates.Keys);
+        Assert.True(targets.Select(new(2, false))); Assert.True(targets.BeginPolicies());
+        Assert.Equal(San9.Core.Simulation.ArrivalEstimateStatus.Known, targets.EstimateArrival().Status);
+        Assert.Equal(MilitaryOrderKind.Return, targets.CreateCommand(Guid.NewGuid(), 0).Order.Kind);
     }
 
     [Fact]

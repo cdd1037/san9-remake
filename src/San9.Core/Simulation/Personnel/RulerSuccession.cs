@@ -30,7 +30,7 @@ internal static class RulerSuccession
     }
 
     // Leadership and administrative succession are shared; historical events can own a different loyalty policy.
-    internal static void Appoint(WorldMutation world, int forceId, int previousId, int successorId, List<DomainEvent> events)
+    internal static void Appoint(WorldMutation world, int forceId, int? previousId, int successorId, List<DomainEvent> events)
     {
         var successor = world.Officers[successorId];
         if (!successor.IsServing || successor.OwnerId != forceId || successorId == previousId)
@@ -46,25 +46,10 @@ internal static class RulerSuccession
                 world.Replace(world.Officers[corpsLeader] with { Status = OfficerStatus.Serving });
             var root = world.Corps.Values.SingleOrDefault(c => c.OwnerId == forceId && c.IsRoot);
             if (root is not null && root.Id != id)
-            {
-                foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
-                {
-                    long amount = ResourceAccounts.Balance(world, new(ResourceOwnerKind.Corps, root.Id), resource);
-                    ResourceAccounts.Change(world, new(ResourceOwnerKind.Corps, root.Id), resource, -amount, "ruler-succession", previousId, events);
-                    ResourceAccounts.Change(world, new(ResourceOwnerKind.Corps, id), resource, amount, "ruler-succession", previousId, events);
-                }
-            }
-            world.Replace(world.Corps[id] with { LeaderId = successorId, IsRoot = true, ControlMode = CorpsControlMode.Direct, Delegation = new GeneralDelegation() });
-            if (root is not null && root.Id != id)
-            {
-                foreach (var place in world.Settlements.Values.Where(s => s.CorpsId == root.Id).ToArray()) world.Replace(place with { CorpsId = id });
-                foreach (var unit in world.Units.Values.Where(u => u.CorpsId == root.Id).ToArray()) world.Replace(unit with { CorpsId = id });
-                world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Select(t =>
-                    t.Journey?.ReturnLeg is { } leg && leg.CorpsId == root.Id
-                        ? t with { Journey = t.Journey with { ReturnLeg = leg with { CorpsId = id } } } : t).ToImmutableArray() });
-                world.RemoveCorps(root.Id);
-                events.Add(new CorpsDissolvedEvent(world.Clock, forceId, root.Id, id));
-            }
+                GovernanceMaintenance.DissolveForced(world, id, "ruler-succession", events);
+            int destination = root?.Id ?? id;
+            world.Replace(world.Corps[destination] with { LeaderId = successorId, IsRoot = true,
+                ControlMode = CorpsControlMode.Direct, Delegation = new GeneralDelegation() });
         }
         events.Add(new ForceLeaderChangedEvent(world.Clock, forceId, previousId, successorId));
     }

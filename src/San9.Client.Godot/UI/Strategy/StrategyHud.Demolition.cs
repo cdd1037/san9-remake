@@ -23,7 +23,7 @@ public partial class StrategyHud
         _demolition.SetRichMessage(_demolitionDraft.Confirmation(Session.Messages(Texts), definition).BbCode);
         _demolition.Confirmed += SubmitDemolition;
         _demolition.Dismissed += CloseDemolition;
-        OverlayHost.AddChild(_demolition);
+        OverlayHost.AddWorkflow(_demolition);
         _demolition.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         _demolition.FocusDefaultButton();
     }

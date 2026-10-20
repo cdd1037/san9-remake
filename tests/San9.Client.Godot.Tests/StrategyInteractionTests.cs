@@ -3,6 +3,55 @@ namespace San9.Client.Godot.Tests;
 public sealed class StrategyInteractionTests
 {
     [Fact]
+    public void HiddenWorkflowRetainsRestrictionsUntilLastOwnerCloses()
+    {
+        var locks = new InteractionLocks();
+        var first = locks.Acquire(InteractionBlock.Orders);
+        var second = locks.Acquire(InteractionBlock.Orders);
+        StrategyInteraction Read() => StrategyInteraction.Resolve(true, TurnScreen.Strategy, true,
+            MilitaryCommandStage.None, false, false, locks.Blocked);
+        Assert.True(Read().CanNavigate);
+        Assert.False(Read().CanIssueOrders);
+        Assert.False(Read().CanSave);
+        Assert.False(Read().CanAdvance);
+        first.Dispose(); first.Dispose();
+        Assert.False(Read().CanIssueOrders);
+        second.Dispose();
+        Assert.True(Read().CanIssueOrders);
+        Assert.True(Read().CanSave);
+        Assert.True(Read().CanAdvance);
+    }
+
+    [Fact]
+    public void DecisionAndNarrationHaveIndependentPlaybackLifetimes()
+    {
+        var locks = new InteractionLocks();
+        var decision = locks.Acquire(InteractionBlock.Continuation);
+        var narration = locks.Acquire(InteractionBlock.Continuation | InteractionBlock.Playback);
+        StrategyInteraction Read(bool queued = false) => StrategyInteraction.Resolve(true, TurnScreen.Playing, false,
+            MilitaryCommandStage.None, false, false, locks.Blocked, narrationQueued: queued);
+        Assert.False(Read().CanPlay);
+        narration.Dispose();
+        Assert.True(Read().CanPlay);
+        Assert.False(Read().CanContinue);
+        decision.Dispose();
+        Assert.False(Read(true).CanContinue);
+        Assert.True(Read().CanContinue);
+    }
+
+    [Fact]
+    public void ModalAndNavigationRestrictionsHaveSeparateCapabilities()
+    {
+        var modal = StrategyInteraction.Resolve(true, TurnScreen.Strategy, true, MilitaryCommandStage.None, false, true);
+        Assert.False(modal.CanSave);
+        Assert.False(modal.CanAdvance);
+        var popup = StrategyInteraction.Resolve(true, TurnScreen.Strategy, true, MilitaryCommandStage.None, false, false,
+            navigationBlocked: true);
+        Assert.False(popup.CanNavigate);
+        Assert.True(popup.CanUseMap);
+    }
+
+    [Fact]
     public void DailyPublicationKeepsMapInformationWithoutEnablingInput()
     {
         var playing = StrategyInteraction.Resolve(true, TurnScreen.Playing, false, MilitaryCommandStage.None, false, false);

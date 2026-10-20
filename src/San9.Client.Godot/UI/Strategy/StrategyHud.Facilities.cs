@@ -17,7 +17,7 @@ public partial class StrategyHud
         _textures.RequestPrefixes("deployment-","detail-","catalog-","information-","narration-","dialog-");
         _facilityCommand = new() { Draft = new(Session,id,kind), Texts = Texts, Service = Textures, Textures = _textures,
             Closed = CloseFacilityCommand, Submit = SubmitFacilityCommand };
-        OverlayHost.AddChild(_facilityCommand);
+        OverlayHost.AddWorkflow(_facilityCommand);
     }
     private void CloseFacilityCommand()
     {

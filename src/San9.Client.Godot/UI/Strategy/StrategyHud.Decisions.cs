@@ -94,7 +94,7 @@ public partial class StrategyHud
                 SkipIntroduction = draft.Diplomacy is { } diplomacy && !_diplomacyNarrated.Add(diplomacy.TaskId),
                 BeginMusic = role => Music.Begin(role, loop: true)
             };
-            OverlayHost.AddChild(_decision);
+            OverlayHost.AddWorkflow(_decision, InteractionBlock.Orders | InteractionBlock.Continuation);
         }
         catch (Exception error)
         {

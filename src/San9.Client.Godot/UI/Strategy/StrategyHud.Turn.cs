@@ -8,9 +8,8 @@ namespace San9.Client.Godot;
 public partial class StrategyHud
 {
     public TurnPresentation Turn { get; private set; } = null!;
-    public bool CanIssueOrders => Interaction.CanIssueOrders && !SidebarMoving && _patrol is null && _facilityCommand is null && _demolition is null && _appointment is null && _personnel is null && _mission is null && _corpsCommand is null && _narration is null;
-    public bool CanQuickSave => _built && Turn.Screen == TurnScreen.Strategy && CanIssueOrders &&
-        !_flow.IsActive && !_notice.Visible && !OverlayHost.HasModal;
+    public bool CanIssueOrders => Interaction.CanIssueOrders;
+    public bool CanQuickSave => Interaction.CanSave;
     private readonly List<Control> _strategicHeader = [];
     private TextureButton _advanceButton = null!, _informationButton = null!;
     private GameDialog _turnDialog = null!;
@@ -101,7 +100,7 @@ public partial class StrategyHud
 
     private void RequestAdvance()
     {
-        if (_flow.IsActive || _patrol is not null || _facilityCommand is not null || _demolition is not null || _appointment is not null || _personnel is not null || _mission is not null || _corpsCommand is not null || _narration is not null) return;
+        if (!Interaction.CanAdvance) return;
         if (!Turn.Request()) return;
         _turnConfirmation = Session.Messages(Texts).Produce("messages.6082",
             new Dictionary<string, MessageBinding>
@@ -216,7 +215,7 @@ public partial class StrategyHud
     {
         foreach (var control in _strategicHeader) control.Visible = Turn.IsStrategy && !SelectingTargets;
         _year.Visible = _date.Visible = _season.Visible = !SelectingTargets;
-        _advanceButton.Disabled = !Turn.CanAdvance;
+        _advanceButton.Disabled = !Interaction.CanAdvance;
         _informationButton.Disabled = !CanIssueOrders;
         _functionsButton.Disabled = !CanIssueOrders;
         _minimap!.MouseFilter = Turn.CanBrowseMap ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;

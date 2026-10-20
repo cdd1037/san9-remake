@@ -102,9 +102,9 @@ public partial class StrategyHud : Control
                 if (CommandPresentation.Progress is { } progress) _sceneSounds.Play(progress.StrategyTitleSound, SoundEnabled);
             },
             CanContinue = publication => _executionPublication == publication &&
-                _decision is null && _narration is null && _pendingNarrations.Count == 0,
+                Interaction.CanContinue,
             PresentSeasonChange = PresentSeasonChange,
-            CanPlayDay = () => _narration is null && _textures.IsReady && _speechTextures.IsReady && _battleView.Prepare(Turn.Day) && ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady && _executionPanels.IsExpanded,
+            CanPlayDay = () => Interaction.CanPlay && _textures.IsReady && _speechTextures.IsReady && _battleView.Prepare(Turn.Day) && ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady && _executionPanels.IsExpanded,
             PresentDay = PresentBattleDay,
             RetryPresentation = () => _battleView.RetryResources(),
             CreateDay = (before, after, events) => new(before, after, events, new MapDayPlan(World.Package!, before, events),
@@ -306,9 +306,11 @@ public partial class StrategyHud : Control
 
     private StrategyInteraction Interaction => StrategyInteraction.Resolve(_built, Turn?.Screen,
         Turn?.CanAdvance == true, _commandTargets is not null ? CommandTargetStage : _personnel is null ? _flow?.Stage ?? MilitaryCommandStage.None : PersonnelStage, Overview.IsOpen,
-        OverlayHost.IsInsideTree() && OverlayHost.HasModal || _notice?.Visible == true);
+        OverlayHost.IsInsideTree() && OverlayHost.HasModal || _notice?.Visible == true,
+        OverlayHost.Workflows.Blocked, SidebarMoving, _battleView?.IsSceneActive == true || HasMapPopup,
+        _pendingNarrations.Count != 0);
     private bool IsMapInteractionBlocked => !Interaction.CanUseMap;
-    public bool CanNavigateMap => Interaction.CanNavigate && _battleView?.IsSceneActive != true && !HasMapPopup;
+    public bool CanNavigateMap => Interaction.CanNavigate;
     private bool HasMapPopup => _commandMenu?.Visible == true || _mapContext?.Visible == true;
 
     // Navigation passes through passive artwork; object clicks retain the artwork hit masks.

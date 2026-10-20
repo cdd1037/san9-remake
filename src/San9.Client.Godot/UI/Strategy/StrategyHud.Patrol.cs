@@ -19,7 +19,7 @@ public partial class StrategyHud
         _textures.RequestPrefixes("deployment-","detail-","catalog-","information-","narration-","dialog-");
         _patrol = new() { Draft = new(Session.View,id), Session = Session, Texts = Texts, Service = Textures, Textures = _textures,
             Closed = ClosePatrol, Submit = SubmitPatrol };
-        OverlayHost.AddChild(_patrol);
+        OverlayHost.AddWorkflow(_patrol);
     }
     private void ClosePatrol()
     {

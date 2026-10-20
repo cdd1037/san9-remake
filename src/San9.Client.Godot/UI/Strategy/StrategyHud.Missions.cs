@@ -16,7 +16,7 @@ public partial class StrategyHud
         _missionAdviceSelection = null;
         _mission = new() { Draft = new(Session,id,kind), Session = Session, Texts = Texts, Service = Textures, Textures = _textures, Skin = Skin,
             World = World, Closed = CloseMission, Submit = SubmitMission, SelectionChanged = ShowMissionAdvice, ChooseMap = BeginCommandTargets };
-        OverlayHost.AddChild(_mission);
+        OverlayHost.AddWorkflow(_mission);
     }
     private void CloseMission()
     {
@@ -48,7 +48,7 @@ public partial class StrategyHud
         _textures.RequestPrefixes("deployment-", "detail-", "catalog-", "information-", "dialog-", "decision-");
         _corpsCommand = new() { Draft = new(Session), Session = Session, Texts = Texts, Service = Textures, Textures = _textures, Skin = Skin,
             Closed = CloseCorpsManagement, Submit = SubmitCorpsManagement, ChooseMap = BeginCommandTargets };
-        OverlayHost.AddChild(_corpsCommand);
+        OverlayHost.AddWorkflow(_corpsCommand);
     }
     private void CloseCorpsManagement()
     {

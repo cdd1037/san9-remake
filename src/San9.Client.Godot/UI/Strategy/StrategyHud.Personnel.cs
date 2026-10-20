@@ -23,7 +23,7 @@ public partial class StrategyHud
         _personnelAdviceSelection = null;
         _personnel = new() { Draft = new(Session,id,kind), Texts = Texts, Service = Textures, Textures = _textures,
             Closed = ClosePersonnel, Submit = SubmitPersonnel, ChooseMap = BeginPersonnelTargets, SelectionChanged = ShowPersonnelAdvice };
-        OverlayHost.AddChild(_personnel);
+        OverlayHost.AddWorkflow(_personnel);
         ShowPersonnelAdvice();
     }
     private void ClosePersonnel()
@@ -75,7 +75,7 @@ public partial class StrategyHud
         _narration = new() { Messages = sequence, View = before, Texts = Texts, Service = Textures, Textures = _textures,
             ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, ReadMessageSpeed = () => ReadSettings().MessageSpeed, InitialSoundRole = initialSound,
             Closed = () => CloseNarration() };
-        OverlayHost.AddChild(_narration);
+        OverlayHost.AddWorkflow(_narration, InteractionBlock.Orders | InteractionBlock.Continuation | InteractionBlock.Playback);
     }
     private void SubmitPersonnel()
     {

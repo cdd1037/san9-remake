@@ -28,7 +28,7 @@ public partial class StrategyHud
         if (kind == "rank") _textures.RequestPrefixes("text-icon-arrow-");
         _appointment = new() { Draft = new(Session, sourceId, kind), Texts = Texts, Service = Textures, Textures = _textures,
             Closed = CloseAppointment, Submit = SubmitAppointment };
-        OverlayHost.AddChild(_appointment);
+        OverlayHost.AddWorkflow(_appointment);
     }
     private void CloseAppointment()
     {

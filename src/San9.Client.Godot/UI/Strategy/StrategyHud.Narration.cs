@@ -29,7 +29,7 @@ public partial class StrategyHud
             IsMapSpeechComplete = speech => _mapSpeech.IsComplete(speech.Id),
             DismissMapSpeech = speech => _mapSpeech.Dismiss(speech.Id),
             Closed = () => CloseNarration(completed) };
-        OverlayHost.AddChild(_narration);
+        OverlayHost.AddWorkflow(_narration, InteractionBlock.Orders | InteractionBlock.Continuation | InteractionBlock.Playback);
     }
 
     private void CloseNarration(Action? completed = null)

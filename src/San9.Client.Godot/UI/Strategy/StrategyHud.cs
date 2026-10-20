@@ -45,6 +45,7 @@ public partial class StrategyHud : Control
     public Persistence.SlotSaveStore SaveStore { get; init; } = null!;
     public Func<string, Persistence.SaveSlotSummary> SaveSummary { get; init; } = null!;
     public Action<San9.Application.GameSession> ActivateSession { get; init; } = null!;
+    public Action ControlDelegated { get; init; } = null!;
     public bool SoundEnabled => ReadSettings().SoundEnabled;
     public Func<Settings.UserSettings> ReadSettings { get; init; } = () => Settings.UserSettings.Default;
     public Action<Settings.UserSettings> ApplySettings { get; init; } = _ => { };
@@ -198,6 +199,7 @@ public partial class StrategyHud : Control
             CreateSummary = SaveSummary,
             ExitMessages = CommandPresentation.ExitMenu,
             ActivateSession = ActivateSession,
+            ControlDelegated = ControlDelegated,
             ReadSettings = ReadSettings,
             ApplySettings = ApplyUserSettings
         };

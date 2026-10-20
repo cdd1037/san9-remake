@@ -20,6 +20,7 @@ public sealed class TurnPresentationTests
         Assert.Equal(SessionDisposition.Accepted, session.TakeOverForce(2).Disposition);
         var turn = new TurnPresentation(session);
         var clock = session.Snapshot.Clock;
+        Assert.False(turn.ContinueAutomaticControls());
         Assert.True(turn.Request());
         turn.Confirm(); Ready(turn); turn.Update(2);
         Assert.Equal(TurnScreen.Returning, turn.Screen);
@@ -34,14 +35,19 @@ public sealed class TurnPresentationTests
     }
 
     [Fact]
-    public void ObserverContinuesAcrossXunsUntilAStopAndDoesNotRetainIdleStopRequests()
+    public void DelegationContinuesWithoutAnotherConfirmationUntilAnObserverStop()
     {
         var session = Session();
         Assert.Equal(SessionDisposition.Accepted, session.HandOverForce(5).Disposition);
         var turn = new TurnPresentation(session);
+        turn.Update(10);
+        Assert.Equal(TurnScreen.Strategy, turn.Screen);
         turn.StopAtStrategyBoundary();
         long started = session.Snapshot.Clock.DayNumber;
-        Enter(turn);
+        Assert.True(turn.ContinueAutomaticControls());
+        Assert.False(turn.ContinueAutomaticControls());
+        Ready(turn); turn.Update(2); Ready(turn);
+        Assert.Equal(TurnScreen.Playing, turn.Screen);
         for (int i = 0; i < 40 && session.Snapshot.Clock.DayNumber < started + 11; i++)
         { Ready(turn); turn.Update(2); }
         Assert.True(session.Snapshot.Clock.DayNumber >= started + 11);

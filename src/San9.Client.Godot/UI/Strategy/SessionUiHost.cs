@@ -10,7 +10,7 @@ using San9.Rendering;
 
 namespace San9.Client.Godot;
 
-public enum SessionReplacementKind { Startup, Load, NewGame }
+public enum SessionReplacementKind { Startup, Load, NewGame, ControlDelegation }
 
 /// <summary>Owns session UI replacement while retaining its last complete presentation.</summary>
 public partial class SessionUiHost : Node
@@ -34,6 +34,7 @@ public partial class SessionUiHost : Node
     private GameSession? _session;
     private Node? _sessionUi;
     private GameSession? _pending;
+    private SessionReplacementKind _pendingKind;
     private UserSettingsSession _settings = null!;
     private WindowDisplay _windowDisplay = null!;
     private SceneTransitionOverlay _transition = null!;
@@ -68,6 +69,7 @@ public partial class SessionUiHost : Node
         if (IsSwitching) return;
         next.EnableXunStartCheckpoints();
         _pending = next;
+        _pendingKind = kind;
         if (_sessionUi is not null) _sessionUi.ProcessMode = ProcessModeEnum.Disabled;
         _bound = false;
         if (_sessionUi is not null && kind == SessionReplacementKind.NewGame)
@@ -144,6 +146,7 @@ public partial class SessionUiHost : Node
             StrategyReady = SavePendingCheckpoint,
             SaveSummary = note => SaveSlotSummaryFactory.Create(Session, Definition, Content.Text, note),
             ActivateSession = next => Activate(next, SessionReplacementKind.Load),
+            ControlDelegated = () => Activate(Session, SessionReplacementKind.ControlDelegation),
             StartNewGame = () => Callable.From(() => Activate(CreateNewSession(), SessionReplacementKind.NewGame)).CallDeferred(),
             Music = Music, OverlayHost = overlayHost,
             ReadSettings = () => _settings.Current,
@@ -174,6 +177,8 @@ public partial class SessionUiHost : Node
         _replacement?.RevealPreparedScene();
         if (!Session.RulesVersionWarnings.IsEmpty)
             Hud.SystemMenu.ShowLoadWarning(string.Join("\n", Session.RulesVersionWarnings.Select(w => w.Message)));
+        if (_pendingKind == SessionReplacementKind.ControlDelegation)
+            Hud.Turn.ContinueAutomaticControls();
     }
 
     public void RequestQuickLoad() => Hud.SystemMenu.RequestLoad(() =>

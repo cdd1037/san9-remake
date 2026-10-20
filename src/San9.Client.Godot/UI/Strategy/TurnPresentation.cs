@@ -95,6 +95,19 @@ public sealed class TurnPresentation(GameSession session)
             return;
         }
         if (Screen != TurnScreen.Confirmation) return;
+        BeginAdvance();
+    }
+
+    public bool ContinueAutomaticControls()
+    {
+        if (!CanAdvance || session.View.PlayerForceId is not null) return false;
+        Error = null;
+        BeginAdvance();
+        return true;
+    }
+
+    private void BeginAdvance()
+    {
         Screen = TurnScreen.Entering;
         _advancing = true;
         Display = session.View;

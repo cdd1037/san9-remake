@@ -17,6 +17,7 @@ public partial class SystemMenuPanel : Control
     public IReadOnlyDictionary<string, string> ExitMessages { get; init; } = null!;
     public Func<string, SaveSlotSummary> CreateSummary { get; init; } = null!;
     public Action<GameSession> ActivateSession { get; init; } = null!;
+    public Action ControlDelegated { get; init; } = null!;
     public Func<Settings.UserSettings> ReadSettings { get; init; } = null!;
     public Action<Settings.UserSettings> ApplySettings { get; init; } = null!;
     public SaveLoadBrowser Browser { get; } = new();

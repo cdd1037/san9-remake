@@ -71,6 +71,6 @@ public partial class SystemMenuPanel
         // Rebuild selection and HUD only after the input callback releases the current page.
         _busy = true;
         var token = _lifetime.Token;
-        Callable.From(() => { if (!token.IsCancellationRequested) ActivateSession(Session); }).CallDeferred();
+        Callable.From(() => { if (!token.IsCancellationRequested) ControlDelegated(); }).CallDeferred();
     }
 }

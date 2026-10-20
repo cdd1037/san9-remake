@@ -5,6 +5,16 @@ namespace San9.Importer.San9PkTc101.Tests;
 public sealed class AudioAssetCompilerTests
 {
     [Fact]
+    public void ConstructionSoundsSeparateFortsFromBothOrientationsOfObstacles()
+    {
+        var sounds = MapAudioCompiler.ConstructionSounds("SE21", "SE22");
+        foreach (int facility in new[] { 6, 7, 8, 9 })
+            Assert.Equal("SE21", sounds[facility]);
+        foreach (int facility in new[] { 10, 11, 12, 13, 14, 15, 16 })
+            Assert.Equal("SE22", sounds[facility]);
+    }
+
+    [Fact]
     public void SharedPlaybackRolesReferenceOnePhysicalEffect()
     {
         var sources = CommandPresentationCompiler.SoundSources;

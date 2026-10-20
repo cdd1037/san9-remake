@@ -7,6 +7,10 @@ namespace San9.Importer.San9PkTc101.Interface;
 
 internal static class MapAudioCompiler
 {
+    // RE-0186: grouped categories 7..10 are source definitions 10..16 (obstacles).
+    internal static Dictionary<int, string> ConstructionSounds(string construction, string fortification) =>
+        Enumerable.Range(0, 17).ToDictionary(i => i, i => i >= 10 ? fortification : construction);
+
     internal static int[] ActionVariants(int first)
     {
         if (first < 0) return [];
@@ -51,7 +55,7 @@ internal static class MapAudioCompiler
         string construction = Sound("map-construction", 21), fortification = Sound("map-fortification-construction", 22);
         var definition = new MapAudioDefinition(Sound("execution-title", 11),
             MusicSources.Take(4).Select(s => s.Role).ToArray(), MusicSources.Skip(4).Take(4).Select(s => s.Role).ToArray(),
-            [0, 1, 2], bodies, Enumerable.Range(0, 17).ToDictionary(i => i, i => i is >= 7 and <= 10 ? fortification : construction),
+            [0, 1, 2], bodies, ConstructionSounds(construction, fortification),
             Enumerable.Range(159, 3).Select(i => Sound($"map-battle-ambience-{i - 159}", i)).ToArray())
         {
             ExecutionMusic = new("execution-battle", "execution-battle-ranked", "execution-march", "execution-march-ranked", "execution-domestic"),

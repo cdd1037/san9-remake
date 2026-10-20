@@ -42,7 +42,7 @@ public static class ForceCapabilityCatalog
         var view = session.View;
         var force = view.World.Forces.Single(f => f.Id == forceId);
         var members = view.World.Officers.Where(o => o.OwnerId == forceId && o.IsServing && !o.IsDormant && o.IsVisible).ToArray();
-        var treasures = new TreasureRulebook(view.Information.Treasures.Select(t => t.ToRule()));
+        var treasures = view.Rules.Treasures;
         string Person(int id) => texts.Resolve(view.Officers.Single(o => o.Id == id).NameKey);
         bool HasTactic(int id) => TacticAvailability.HasForMembers(id, members, force, view.World.Treasures, treasures);
         string Tactic(int? id) => id is int key ? texts.Resolve(view.Information.Tactics.Single(t => t.Id == key).NameKey) : "—";
@@ -50,8 +50,7 @@ public static class ForceCapabilityCatalog
         IEnumerable<InformationRow> rows;
         if (category == InformationCategory.Offices)
         {
-            var rules = new GovernanceRulebook(view.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
-                { RequiredRankId = o.RequiredRankId, Salary = o.Salary }), view.Information.Ranks.ToDictionary(r => r.Id, r => r.Precedence));
+            var rules = view.Rules.Governance;
             rows = view.Information.Offices.Where(o => rules.CanAppoint(force.RankId, rules.Offices[o.Id]))
                 .Select(o => pageIndex == 1
                     ? Row(o.Id, texts.Resolve(o.NameKey), o.DescriptionKey is { } key ? texts.Resolve(key) : "")

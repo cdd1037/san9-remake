@@ -14,6 +14,8 @@
 
 采用 Godot 4.7.1 Mono 与 .NET 10。`Core` 不引用 Godot；`Content` 定义内容结构；`Application` 组织用例；Godot 客户端只能提交命令和读取快照。导入器不成为游戏运行时依赖。
 
+运行时定义由 Application 的 `ScenarioSessionDefinition` 持有，`ScenarioRules` 在剧本会话建立时统一编译规则，模拟、AI、查询、草稿、消息上下文和结局投影复用这些规则；世界快照和预览只替换状态，不重新构建规则。
+
 ## 备选方案
 
 - Godot 节点驱动规则：初期直接，但长期难以无头验证和复用。

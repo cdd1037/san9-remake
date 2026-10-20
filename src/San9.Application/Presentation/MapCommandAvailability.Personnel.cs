@@ -24,8 +24,7 @@ internal sealed partial class MapCommandAvailability
                 p.IsServing && p.OwnerId == Owner && p.Id != Force.LeaderId && p.Status != OfficerStatus.Ruler))));
     public IEnumerable<int> AppointmentOffices()
     {
-        var rules = new GovernanceRulebook(view.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
-            { RequiredRankId = o.RequiredRankId }), view.Information.Ranks.ToDictionary(r => r.Id, r => r.Precedence));
+        var rules = view.Rules.Governance;
         return rules.Offices.Values.Where(o => rules.CanAppoint(Force.RankId, o) &&
             !Subordinates().Any(p => p.OfficeId == o.OfficeId && !Stationed(p))).Select(o => o.OfficeId);
     }

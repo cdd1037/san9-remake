@@ -43,7 +43,7 @@ internal sealed partial class MapCommandAvailability
     {
         var actors = view.World.Officers.Where(p => people.TryGetValue(p.Id, out var officer) && officer.IsAvailable &&
             p.OwnerId == Owner && p.SettlementId == home.Id).ToArray();
-        var treasures = new TreasureRulebook(view.Information.Treasures.Select(t => t.ToRule()));
+        var treasures = view.Rules.Treasures;
         return BuildableTypes().Select(type => type.Cost(type.CostReductionTacticId is int tactic ?
             actors.Count(p => TacticAvailability.HasForMembers(tactic, [p], Force, view.World.Treasures, treasures)) : 0)).DefaultIfEmpty(int.MaxValue).Min();
     }

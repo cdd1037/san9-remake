@@ -67,7 +67,7 @@ public sealed partial class GameSession
             {
                 case EndingOperation selection:
                     if (request.ControllerId != "player" || ending is not null) return Rejected(SessionRejection.InvalidRequest);
-                    try { _ = EndingSession.Resolve(input.Definition.Content, candidate.Snapshot, selection.Selection); }
+                    try { _ = EndingSession.Resolve(input.Definition, candidate.Snapshot, selection.Selection); }
                     catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
                     ending = selection.Selection;
                     break;

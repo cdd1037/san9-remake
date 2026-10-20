@@ -33,7 +33,7 @@ public static class OfficerCatalog
         var units = view.World.Units.ToDictionary(u => u.Id);
         var commands = page == 2 ? new OfficerCommands(view, texts) : null;
         var treasuresByHolder = view.World.Treasures.Where(t => t.Discovered).ToLookup(t => t.HolderId);
-        var treasureRules = new TreasureRulebook(view.Information.Treasures.Select(t => t.ToRule()));
+        var treasureRules = view.Rules.Treasures;
         string Person(int? id) => id is int key && officers.TryGetValue(key, out var p) ? texts.Resolve(p.NameKey) : "";
         string Place(int? id) => id is int key ? view.Settlements.FirstOrDefault(s => s.Id == key)?.ResolveName(texts)
             ?? (view.RegionNameKeys.TryGetValue(key, out var name) ? texts.Resolve(name) : "") : "";

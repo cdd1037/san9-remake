@@ -80,7 +80,7 @@ internal static class SessionValidation
                 (content.Terminal?.EndYear is not int endYear || snapshot.World.Clock.Year < endYear))
                 throw new ArgumentException("Year-limit result does not match the campaign.");
         }
-        if (snapshot.Ending is not null) _ = EndingSession.Resolve(content, snapshot.World, snapshot.Ending);
+        if (snapshot.Ending is not null) _ = EndingSession.Resolve(definition, snapshot.World, snapshot.Ending);
         static void Same(IEnumerable<int> a, IEnumerable<int> b)
         {
             if (!a.Order().SequenceEqual(b.Order())) throw new ArgumentException("Scenario identity set mismatch.");

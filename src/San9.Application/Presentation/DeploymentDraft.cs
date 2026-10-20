@@ -40,8 +40,8 @@ public sealed class DeploymentDraft
         View = view; Rules = view.MilitaryRules!;
         Home = view.World.Settlements.Single(s => s.Id == settlementId);
         Force = view.World.Forces.Single(f => f.Id == Home.OwnerId);
-        var governance = new GovernanceRulebook(view.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)));
-        _treasures = new(view.Information.Treasures.Select(t => t.ToRule()));
+        var governance = view.Rules.Governance;
+        _treasures = view.Rules.Treasures;
         var abilities = view.Officers.ToDictionary(o => o.Id, o => o.Abilities);
         var candidates = view.Officers.Where(o => o.IsAvailable && o.OwnerId == Force.Id && o.SettlementId == Home.Id).Select(o => o.Id).ToHashSet();
         Candidates = governance.OrderCommanders(view.World.Officers.Where(o => candidates.Contains(o.Id)), abilities).Select(o => o.Id).ToImmutableArray();

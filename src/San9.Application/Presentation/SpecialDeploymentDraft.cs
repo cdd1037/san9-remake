@@ -43,8 +43,8 @@ public sealed class SpecialDeploymentDraft
         var pair = (kind == SpecialDeploymentKind.Construction ? Rules.ConstructionFormations : Rules.TransportFormations)
             ?? throw new InvalidOperationException("Missing fixed deployment formations.");
         FormationId = pair.LandFormationId; NavalFormationId = pair.NavalFormationId;
-        _treasures = new(view.Information.Treasures.Select(t => t.ToRule()));
-        var governance = new GovernanceRulebook(view.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)));
+        _treasures = view.Rules.Treasures;
+        var governance = view.Rules.Governance;
         var eligible = view.Officers.Where(o => o.IsAvailable && o.OwnerId == Force.Id && o.SettlementId == home).Select(o => o.Id).ToHashSet();
         Candidates = governance.OrderCommanders(view.World.Officers.Where(o => eligible.Contains(o.Id)),
             view.Officers.ToDictionary(o => o.Id, o => o.Abilities)).Select(o => o.Id).ToImmutableArray();

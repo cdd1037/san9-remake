@@ -52,12 +52,13 @@ public sealed class OriginalAiMilitaryTests
         internal Harness(ScenarioInitialState content, Func<WorldSnapshot, WorldSnapshot>? change = null, Func<int, int>? draw = null, bool reject = false,
             Func<GameCommand, bool>? rejectCommand = null)
         {
-            var world = new ScenarioSessionDefinition(content).CreateWorld(190).CreateSnapshot();
+            var definition = new ScenarioSessionDefinition(content);
+            var world = definition.CreateWorld(190).CreateSnapshot();
             world = world with { Simulation = world.Simulation with { Boundary = SimulationBoundary.Stable } };
             Engine = GameSession.EngineFactory(content)(WorldState.Restore(change?.Invoke(world) ?? world));
             var context = new CommandContext("player");
-            var rules = new MilitaryRulebook(content.Military!);
-            Military = new(Engine, content, rules, new(content, rules), 1, context, new OriginalAiRandom(draw ?? (_ => 0)), command =>
+            var rules = definition.Rules.Military!;
+            Military = new(Engine, content, rules, definition.Rules, new(content, rules), 1, context, new OriginalAiRandom(draw ?? (_ => 0)), command =>
             {
                 Commands.Add(command);
                 if (reject || rejectCommand?.Invoke(command) == true) return false;

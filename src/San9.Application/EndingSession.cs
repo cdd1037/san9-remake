@@ -6,22 +6,19 @@ namespace San9.Application;
 
 internal static class EndingSession
 {
-    internal static EndingSnapshot? Create(ScenarioInitialState content, WorldSnapshot world)
+    internal static EndingSnapshot? Create(ScenarioSessionDefinition definition, WorldSnapshot world)
     {
+        var content = definition.Content;
         if (world.Simulation.Boundary != SimulationBoundary.Terminal || content.Ending is null) return null;
         var terminal = TerminalEvaluation.Evaluate(world, content.Terminal);
         if (terminal.Route != TerminalRoute.PlayerVictoryEnding || terminal.WinningForceId is not int winner) return null;
-        var treasures = new TreasureRulebook(content.Information.Treasures.Select(t => t.ToRule()));
-        var governance = new GovernanceRulebook(content.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
-            { AbilityBonuses = o.AbilityBonuses, Salary = o.Salary, RequiredRankId = o.RequiredRankId }),
-            content.Information.Ranks.ToDictionary(r => r.Id, r => r.Precedence));
-        return EndingSnapshotFactory.Create(world, winner, content.Ending, new(treasures, governance), treasures);
+        return EndingSnapshotFactory.Create(world, winner, content.Ending, definition.Rules.Abilities, definition.Rules.Treasures);
     }
 
-    internal static EndingResult Resolve(ScenarioInitialState content, WorldSnapshot world, EndingSelection selection)
+    internal static EndingResult Resolve(ScenarioSessionDefinition definition, WorldSnapshot world, EndingSelection selection)
     {
         ArgumentNullException.ThrowIfNull(selection);
-        var snapshot = Create(content, world) ?? throw new ArgumentException("No player victory ending is available.");
+        var snapshot = Create(definition, world) ?? throw new ArgumentException("No player victory ending is available.");
         return EndingResolution.Resolve(snapshot, selection.Officeholders, selection.Policy);
     }
 }

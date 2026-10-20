@@ -7,18 +7,15 @@ namespace San9.Application.AI;
 
 /// <summary>One military work owns its candidates and forecasts. Only public commands change the world.</summary>
 internal sealed partial class OriginalAiMilitary(SimulationEngine engine, ScenarioInitialState content,
-    MilitaryRulebook rules, OriginalAiGeographyContext geographyContext, int corpsId, CommandContext context, OriginalAiRandom random, Func<GameCommand, bool> submit)
+    MilitaryRulebook rules, ScenarioRules scenarioRules, OriginalAiGeographyContext geographyContext, int corpsId, CommandContext context, OriginalAiRandom random, Func<GameCommand, bool> submit)
 {
     private WorldSnapshot World => engine.Snapshot;
     private CorpsState Corps { get { Refresh(); return currentCorps ??= World.Corps.Single(c => c.Id == corpsId); } }
     private int Owner => Corps.OwnerId;
     private ForceState Force { get { Refresh(); return currentForce ??= World.Forces.Single(f => f.Id == Owner); } }
     private OriginalAiMilitaryDefinition Policy => content.OriginalAi.Military;
-    private GovernanceRulebook? governanceCache;
-    private GovernanceRulebook Governance => governanceCache ??= new(content.Information.Offices.Select(o =>
-        new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)));
-    private TreasureRulebook? treasureCache;
-    private TreasureRulebook Treasures => treasureCache ??= new(content.Information.Treasures.Select(t => t.ToRule()));
+    private GovernanceRulebook Governance => scenarioRules.Governance;
+    private TreasureRulebook Treasures => scenarioRules.Treasures;
     private WorldSnapshot? projected;
     private ImmutableDictionary<int, OfficerAbilities>? abilities;
     private CorpsState? currentCorps;

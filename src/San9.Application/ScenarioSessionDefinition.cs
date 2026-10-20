@@ -20,7 +20,7 @@ internal sealed class ScenarioSessionDefinition
             FacilityNameSuffixKeys = new(definition.FacilityNameSuffixKeys), RegionNameKeys = new(definition.RegionNameKeys), RegionCityIds = new(definition.RegionCityIds),
             ProvinceNameKeys = new(definition.ProvinceNameKeys), CityProvinceIds = new(definition.CityProvinceIds)
         };
-        MilitaryRules = Content.Military is { } military ? new MilitaryRulebook(military) : null;
+        Rules = new(Content);
     }
 
     internal ScenarioInitialState Content { get; }
@@ -42,7 +42,8 @@ internal sealed class ScenarioSessionDefinition
                 .OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray()
         };
     }
-    internal MilitaryRulebook? MilitaryRules { get; }
+    internal ScenarioRules Rules { get; }
+    internal MilitaryRulebook? MilitaryRules => Rules.Military;
     internal WorldState CreateWorld(ulong seed, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false,
         ControllerKind playerForceController = ControllerKind.Player) => WorldState.Create(new(Content.Year, Content.Month, Content.Day), seed,
         Forces(),

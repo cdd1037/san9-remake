@@ -44,8 +44,7 @@ internal sealed partial class BattlePresentationBuilder
         WorldMessageContext OccurrenceContext() => context.ForWorld(occurrenceWorld with { Officers = people.Values.ToImmutableArray() })
             .AtOccurrence(started.Clock, source, target);
         var occurrenceContext = OccurrenceContext();
-        var abilities = new OfficerAbilityRules(new(before.Information.Treasures.Select(t => t.ToRule())),
-            new(before.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority) { AbilityBonuses = o.AbilityBonuses })));
+        var abilities = before.Rules.Abilities;
         DuelFighterView Fighter(int id, int hp = 100) => new(id, people[id].IsFemale,
             abilities.Evaluate(people[id], occurrenceWorld.Treasures).War, people[id].Injury, hp);
         var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision, Identity("duel")));

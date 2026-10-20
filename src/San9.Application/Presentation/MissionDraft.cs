@@ -58,7 +58,7 @@ public sealed class MissionDraft
         inspiration = new(() =>
         {
             var force = View.World.Forces.Single(f => f.Id == View.PlayerForceId);
-            var treasures = new TreasureRulebook(View.Information.Treasures.Select(t => t.ToRule()));
+            var treasures = View.Rules.Treasures;
             var tactics = session.MilitaryRules?.Tactics.Values.Where(t => t.Effect == TacticEffect.Inspire).Select(t => t.Id).ToHashSet() ?? [];
             return View.World.Officers.Where(p => p.OwnerId == force.Id &&
                 tactics.Overlaps(TacticAvailability.ForOfficer(p,force,View.World.Treasures,treasures).Keys))

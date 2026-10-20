@@ -43,17 +43,16 @@ internal sealed class StrategySnapshotSource
     private readonly IReadOnlyDictionary<int, SettlementInitialState> _settlements;
     private readonly IReadOnlyDictionary<int, IReadOnlyList<string>> _settlementIcons;
 
-    public StrategySnapshotSource(ScenarioInitialState definition, MilitaryRulebook? military)
+    public StrategySnapshotSource(ScenarioInitialState definition, ScenarioRules rules)
     {
-        Military = military;
+        Rules = rules;
+        Military = rules.Military;
         ImperialCourt = definition.ImperialCourt;
         PlayerForceId = definition.PlayerForceId;
         FacilityNameSuffixKeys = new System.Collections.ObjectModel.ReadOnlyDictionary<int, string>(new Dictionary<int, string>(definition.FacilityNameSuffixKeys));
         Information = new(definition.Information);
-        Treasures = new(definition.Information.Treasures.Select(t => t.ToRule()));
-        Abilities = new(Treasures,
-            new GovernanceRulebook(definition.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
-                { AbilityBonuses = o.AbilityBonuses })));
+        Treasures = rules.Treasures;
+        Abilities = rules.Abilities;
         TacticCourses = Array.AsReadOnly(definition.TacticCourses.ToArray());
         PlacePositions = definition.Settlements.Select(s => new PersonPlace(s.Id,s.Position)).Concat(definition.UnbuiltPlaces)
             .ToDictionary(p=>p.Id,p=>p.Position);
@@ -72,6 +71,7 @@ internal sealed class StrategySnapshotSource
             settlement => (IReadOnlyList<string>)Array.AsReadOnly(settlement.Icons.ToArray()));
     }
 
+    internal ScenarioRules Rules { get; }
     public int PlayerForceId { get; }
     public InformationCatalog Information { get; }
     internal OfficerAbilityRules Abilities { get; }
@@ -109,6 +109,7 @@ internal sealed class StrategySnapshotSource
 public sealed class StrategySnapshot
 {
     private readonly StrategySnapshotSource _source;
+    internal ScenarioRules Rules => _source.Rules;
     // Pending encounters can introduce people before they enter the visible officer catalog.
     internal DecisionPerson DecisionPerson(int id)
     {
@@ -162,7 +163,7 @@ public sealed class StrategySnapshot
         return estimate;
     }
     public StrategySnapshot(ScenarioInitialState definition, WorldSnapshot world)
-        : this(new StrategySnapshotSource(definition, definition.Military is { } military ? new(military) : null), world)
+        : this(new StrategySnapshotSource(definition, new ScenarioRules(definition)), world)
     {
     }
 

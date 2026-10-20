@@ -11,6 +11,7 @@ public sealed record ProducedMessage(string Key, GameClock Clock, string BbCode)
 public sealed class WorldMessageContext
 {
     private readonly ScenarioInitialState _definition;
+    private readonly StrategySnapshotSource _source;
     private readonly WorldSnapshot _world;
     private readonly TextCatalog _texts;
     private readonly Dictionary<int, OfficerState> _people;
@@ -24,33 +25,37 @@ public sealed class WorldMessageContext
 
     public WorldMessageContext(ScenarioInitialState definition, WorldSnapshot world, TextCatalog texts,
         IEnumerable<BattleObjectContext>? capturedObjects = null)
+        : this(definition, new StrategySnapshotSource(definition, new ScenarioRules(definition)), world, texts, capturedObjects) { }
+
+    internal WorldMessageContext(ScenarioInitialState definition, StrategySnapshotSource source, WorldSnapshot world,
+        TextCatalog texts, IEnumerable<BattleObjectContext>? capturedObjects = null)
     {
+        _source = source;
         _definition = definition; _world = world; _texts = texts;
         _people = world.Officers.ToDictionary(p => p.Id);
         _forces = world.Forces.ToDictionary(f => f.Id);
         _places = world.Settlements.ToDictionary(s => s.Id);
         _units = world.Units.ToDictionary(u => u.Id);
         _personDefinitions = definition.Officers.ToDictionary(p => p.State.Id);
-        _abilities = new(new(definition.Information.Treasures.Select(t => t.ToRule())),
-            new(definition.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
-                { AbilityBonuses = o.AbilityBonuses })));
-        _view = new(() => new StrategySnapshot(definition, world));
+        _abilities = source.Abilities;
+        _view = new(() => source.Project(world));
         _capturedUnits = (capturedObjects ?? []).Where(o => !o.IsSettlement).ToDictionary(o => o.Id);
     }
 
     // An occurrence changes the displayed date and captured battle objects, not world records or rules.
     private WorldMessageContext(WorldMessageContext source, GameClock clock, BattleObjectContext[] objects)
     {
+        _source = source._source;
         _definition = source._definition; _world = source._world with { Clock = clock }; _texts = source._texts;
         _people = source._people; _forces = source._forces; _places = source._places; _units = source._units;
         _personDefinitions = source._personDefinitions; _abilities = source._abilities;
-        _view = new(() => new StrategySnapshot(_definition, _world));
+        _view = new(() => _source.Project(_world));
         _capturedUnits = objects.Where(o => !o.IsSettlement).ToDictionary(o => o.Id);
     }
 
     public WorldMessageContext AtOccurrence(GameClock clock, params BattleObjectContext[] objects) =>
         new(this, clock, objects);
-    public WorldMessageContext ForWorld(WorldSnapshot world) => new(_definition, world, _texts);
+    public WorldMessageContext ForWorld(WorldSnapshot world) => new(_definition, _source, world, _texts);
     public CommandSpeaker Speaker(int id) => new(PersonName(id),_people[id].OwnerId is int owner
         ? _texts.Resolve(_view.Value.Forces.Single(f=>f.Id==owner).NameKey) : null);
 
@@ -67,7 +72,7 @@ public sealed class WorldMessageContext
     {
         if (!_definition.Information.CountryTitles.Any(t=>t.Id==titleId) || !_forces.ContainsKey(forceId))
             throw new ArgumentException("Unknown country title preview.");
-        return new(_definition,_world with { Forces=_world.Forces.Select(f=>f.Id==forceId ? f with { CountryTitleId=titleId } : f).ToArray() },_texts);
+        return new(_definition,_source,_world with { Forces=_world.Forces.Select(f=>f.Id==forceId ? f with { CountryTitleId=titleId } : f).ToArray() },_texts);
     }
 
     public MessageBinding Query(string name, IReadOnlyList<MessageBinding> args)

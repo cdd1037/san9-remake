@@ -8,8 +8,8 @@ namespace San9.Application;
 
 public sealed partial class GameSession
 {
-    public WorldMessageContext Messages(San9.Content.Text.TextCatalog texts) => new(_definition.Content, Snapshot, texts);
-    public WorldMessageContext Messages(San9.Content.Text.TextCatalog texts, WorldSnapshot snapshot) => new(_definition.Content, snapshot, texts);
+    public WorldMessageContext Messages(San9.Content.Text.TextCatalog texts) => new(_definition.Content, _snapshotSource, Snapshot, texts);
+    public WorldMessageContext Messages(San9.Content.Text.TextCatalog texts, WorldSnapshot snapshot) => new(_definition.Content, _snapshotSource, snapshot, texts);
     public CountryTitlePrompt? GetCountryTitlePrompt() => _simulation.GetCountryTitlePrompt();
     public EmperorTransferPrompt? GetEmperorTransferPrompt() => _simulation.GetEmperorTransferPrompt();
     public OfficeRequestPrompt? GetOfficeRequestPrompt() => _simulation.GetOfficeRequestPrompt();
@@ -30,8 +30,8 @@ public sealed partial class GameSession
     public BeastSearchPrompt? GetBeastSearchPrompt() => _simulation.GetBeastSearchPrompt();
     public TerminalResult GetTerminalResult() => Snapshot.Simulation.Boundary == SimulationBoundary.Terminal
         ? TerminalEvaluation.Evaluate(Snapshot, _definition.Content.Terminal) : new(TerminalRoute.Continue, null, null);
-    public EndingSnapshot? GetEndingPrompt() => _ending is null ? EndingSession.Create(_definition.Content, Snapshot) : null;
-    public EndingResult? Ending => _ending is null ? null : EndingSession.Resolve(_definition.Content, Snapshot, _ending);
+    public EndingSnapshot? GetEndingPrompt() => _ending is null ? EndingSession.Create(_definition, Snapshot) : null;
+    public EndingResult? Ending => _ending is null ? null : EndingSession.Resolve(_definition, Snapshot, _ending);
     public TacticStudyPrompt? GetTacticStudyPrompt() => _simulation.GetTacticStudyPrompt();
 
     public SnipingSuccessionPrompt? GetSnipingSuccessionPrompt() => _simulation.GetSnipingSuccessionPrompt();

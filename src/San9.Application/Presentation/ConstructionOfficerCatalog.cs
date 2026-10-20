@@ -26,7 +26,7 @@ public static class ConstructionOfficerCatalog
             .Rows.ToDictionary(row => row.Key.Id);
         var people = draft.View.World.Officers.ToDictionary(o => o.Id);
         var holdings = draft.View.World.Treasures.ToLookup(t => t.HolderId);
-        var treasures = new TreasureRulebook(draft.View.Information.Treasures.Select(t => t.ToRule()));
+        var treasures = draft.View.Rules.Treasures;
         var availability = draft.Candidates.ToDictionary(id => id,
             id => TacticAvailability.ForOfficer(people[id], draft.Force, holdings[id], treasures));
         TacticSource Sources(int id, TacticEffect effect) => draft.Rules.Tactics.Values.Where(t => t.Effect == effect)

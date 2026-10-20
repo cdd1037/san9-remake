@@ -25,10 +25,10 @@ public static class RecordingService
 
     public static RecordingReplay Replay(string path, ScenarioInitialState definition, Action<RulesVersionWarning>? reportWarning = null,
         bool verifyEvents = false) =>
-        Replay(File.ReadAllBytes(path), definition, GameSession.EngineFactory(definition), reportWarning, verifyEvents);
+        Replay(File.ReadAllBytes(path), definition, null, reportWarning, verifyEvents);
 
     internal static RecordingReplay Replay(ReadOnlyMemory<byte> bytes, ScenarioInitialState definition,
-        Func<WorldState, SimulationEngine> factory, Action<RulesVersionWarning>? reportWarning = null, bool verifyEvents = false)
+        Func<WorldState, SimulationEngine>? factory, Action<RulesVersionWarning>? reportWarning = null, bool verifyEvents = false)
     {
         RecordingEnvelope envelope;
         try

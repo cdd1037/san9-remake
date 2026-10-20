@@ -16,13 +16,10 @@ public static class SaveService
     public static GameSession Load(string path, ScenarioInitialState definition) => Load(ReadBytes(path), definition);
 
     public static GameSession Load(ReadOnlyMemory<byte> bytes, ScenarioInitialState definition)
-    {
-        var factory = GameSession.EngineFactory(definition);
-        return Decode(bytes, definition, factory, playerLoad: true);
-    }
+        => Decode(bytes, definition, null, playerLoad: true);
 
     public static GameSession Load(SaveEnvelope envelope, ScenarioInitialState definition)
-        => Restore(envelope, definition, GameSession.EngineFactory(definition), playerLoad: true);
+        => Restore(envelope, definition, null, playerLoad: true);
 
     public static byte[] Encode(GameSession session) => CanonicalJson.Encode(Capture(session));
 
@@ -44,14 +41,14 @@ public static class SaveService
         return new SaveEnvelope(SessionProtocol.SaveFormatVersion, SessionProtocol.RulesVersion, snapshot);
     }
 
-    public static GameSession Decode(ReadOnlyMemory<byte> bytes, ScenarioInitialState definition) => Decode(bytes, definition, GameSession.EngineFactory(definition));
+    public static GameSession Decode(ReadOnlyMemory<byte> bytes, ScenarioInitialState definition) => Decode(bytes, definition, null);
 
-    internal static GameSession Decode(ReadOnlyMemory<byte> bytes, ScenarioInitialState definition, Func<WorldState, SimulationEngine> factory,
+    internal static GameSession Decode(ReadOnlyMemory<byte> bytes, ScenarioInitialState definition, Func<WorldState, SimulationEngine>? factory,
         bool playerLoad = false)
         => Restore(ReadEnvelope(bytes), definition, factory, playerLoad);
 
     private static GameSession Restore(SaveEnvelope envelope, ScenarioInitialState definition,
-        Func<WorldState, SimulationEngine> factory, bool playerLoad)
+        Func<WorldState, SimulationEngine>? factory, bool playerLoad)
     {
         if (envelope.FormatVersion != SessionProtocol.SaveFormatVersion)
             throw new SaveException(SaveFailure.UnsupportedVersion, "Unsupported save version.");
@@ -98,8 +95,8 @@ public static class SaveService
     }
 
     /// <summary>Exact restoration for checkpoints and diagnostics; player-facing loading must use Load.</summary>
-    public static GameSession Read(string path, ScenarioInitialState definition) => Read(path, definition, GameSession.EngineFactory(definition));
-    internal static GameSession Read(string path, ScenarioInitialState definition, Func<WorldState, SimulationEngine> factory)
+    public static GameSession Read(string path, ScenarioInitialState definition) => Read(path, definition, null);
+    internal static GameSession Read(string path, ScenarioInitialState definition, Func<WorldState, SimulationEngine>? factory)
         => Decode(ReadBytes(path), definition, factory);
 
     private static byte[] ReadBytes(string path)

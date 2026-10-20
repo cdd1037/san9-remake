@@ -23,8 +23,7 @@ public sealed class OfficeAppointmentPlan
         definitions = view.Information.Offices.ToDictionary(o => o.Id);
         available = offices.OrderByDescending(id => definitions[id].GovernorPriority).ThenBy(id => id).ToImmutableArray();
         assignments = people.ToDictionary(p => p.Key, p => p.Value.OfficeId);
-        abilities = new(new(view.Information.Treasures.Select(t => t.ToRule())),
-            new(definitions.Values.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority) { AbilityBonuses = o.AbilityBonuses })));
+        abilities = view.Rules.Abilities;
     }
     private OfficeAppointmentPlan(OfficeAppointmentPlan source)
     {

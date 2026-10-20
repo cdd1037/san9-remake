@@ -59,7 +59,7 @@ public static class PersonnelPresentation
         int actor = draft.RepresentativeId!.Value, target = draft.TargetId!.Value;
         if (draft.Kind is "move" or "summon")
         {
-            var rules = new GovernanceRulebook(draft.View.Information.Offices.Select(o => new GovernorOfficeRule(o.Id,o.CommandCapacity,o.GovernorPriority)));
+            var rules = draft.View.Rules.Governance;
             actor = rules.SelectCommander(draft.View.World.Officers.Where(p => draft.Members.Contains(p.Id)),
                 draft.View.Officers.ToDictionary(o => o.Id,o => o.Abilities))!.Id;
         }

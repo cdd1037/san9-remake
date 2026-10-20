@@ -9,10 +9,7 @@ internal static class UnitServicePlaces
         foreach (var unit in world.Units.Values.Where(u => !u.IsEmbedded && u.ServicePlaceId is not null).OrderBy(u => u.Id).ToArray())
         {
             int? root = world.Corps.Values.SingleOrDefault(c => c.OwnerId == unit.OwnerId && c.IsRoot)?.Id;
-            int? corps = unit.CorpsId ?? root;
-            bool Eligible(SettlementState place) => place.OwnerId == unit.OwnerId && (place.CorpsId ?? root) == corps &&
-                !place.IsDormant && !place.IsDestroyed && place.CanHostPersons && place.Durability > 0 &&
-                place.Facility?.BuilderUnitId is null;
+            bool Eligible(SettlementState place) => UnitServicePlaceRules.IsEligible(unit, place, root);
             if (unit.ServicePlaceId is int home && world.Settlements.TryGetValue(home, out var current) && Eligible(current))
                 continue;
             SettlementState? destination = unit.EffectiveOrder is { Kind: MilitaryOrderKind.Transport, SettlementId: int target } &&

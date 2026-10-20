@@ -62,9 +62,8 @@ public static class UnitCatalog
     internal static SettlementView? ServicePlace(StrategySnapshot view, UnitState unit)
     {
         int? root = view.World.Corps.SingleOrDefault(c => c.OwnerId == unit.OwnerId && c.IsRoot)?.Id;
-        return view.World.Settlements.FirstOrDefault(s => s.Id == unit.ServicePlaceId && s.OwnerId == unit.OwnerId &&
-            (s.CorpsId ?? root) == (unit.CorpsId ?? root) && !s.IsDormant && !s.IsDestroyed && s.CanHostPersons &&
-            s.Durability > 0 && s.Facility?.BuilderUnitId is null) is { } place
+        return view.World.Settlements.FirstOrDefault(s => s.Id == unit.ServicePlaceId &&
+            UnitServicePlaceRules.IsEligible(unit, s, root)) is { } place
                 ? view.Settlements.FirstOrDefault(s => s.Id == place.Id) : null;
     }
 

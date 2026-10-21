@@ -34,7 +34,7 @@ public sealed record PngImage(int Width, int Height, int Channels, byte[] Pixels
         using var compressed = new MemoryStream();
         while (pos < data.Length)
         {
-            if (pos + 12 > data.Length) throw new InvalidDataException("Truncated PNG chunk.");
+            if (data.Length - pos < 12) throw new InvalidDataException("Truncated PNG chunk.");
             int length = BinaryPrimitives.ReadInt32BigEndian(data.AsSpan(pos));
             if (length < 0 || (long)pos + length + 12 > data.Length) throw new InvalidDataException("Invalid PNG chunk length.");
             string type = Encoding.ASCII.GetString(data, pos + 4, 4);
@@ -47,10 +47,14 @@ public sealed record PngImage(int Width, int Height, int Channels, byte[] Pixels
                     throw new InvalidDataException("Unsupported PNG header.");
                 w = BinaryPrimitives.ReadInt32BigEndian(payload); h = BinaryPrimitives.ReadInt32BigEndian(payload[4..]);
                 channels = payload[9] switch { 0 => 1, 2 => 3, 6 => 4, _ => throw new InvalidDataException("Unsupported PNG color type.") };
-                if (w is <= 0 or > 16384 || h is <= 0 or > 16384 || (long)w * h * channels > 400_000_000) throw new InvalidDataException("PNG too large.");
+                ValidateDimensions(w, h, channels);
             }
             else if (type == "IDAT") compressed.Write(payload);
-            else if (type == "IEND") { ended = true; pos += length + 12; break; }
+            else if (type == "IEND")
+            {
+                if (length != 0) throw new InvalidDataException("Invalid PNG end chunk.");
+                ended = true; pos += length + 12; break;
+            }
             else throw new InvalidDataException($"Unsupported PNG chunk: {type}");
             pos += length + 12;
         }
@@ -69,8 +73,16 @@ public sealed record PngImage(int Width, int Height, int Channels, byte[] Pixels
 
     private void Validate()
     {
-        if (Width <= 0 || Height <= 0 || Channels is not (1 or 3 or 4) || (long)Width * Height * Channels != Pixels.Length)
+        ValidateDimensions(Width, Height, Channels);
+        if ((long)Width * Height * Channels != Pixels.Length)
             throw new InvalidDataException("Invalid image buffer.");
+    }
+
+    internal static void ValidateDimensions(int width, int height, int channels)
+    {
+        if (width is <= 0 or > 16384 || height is <= 0 or > 16384 || channels is not (1 or 3 or 4) ||
+            (long)width * height * channels > 400_000_000)
+            throw new InvalidDataException("Invalid package image dimensions.");
     }
     private static void Chunk(Stream stream, string type, byte[] payload)
     {

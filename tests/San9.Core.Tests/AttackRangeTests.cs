@@ -17,7 +17,7 @@ public sealed class AttackRangeTests
             [new(7000, movementBudget, 0, 100000, 1, new(1, 1), TravelMode.Land)
                 { Combat = combat, CaptureRanks = [BattleRank.Front],
                     Attack = new(1, false) { ElevationBonusPerLevel = restricted ? 0 : 5, MaximumElevationBonus = restricted ? 0 : 10,
-                        RequiresWaterContact = restricted }, Tactics = new(100, 0, 2, [0], []) },
+                        RequiresWaterContact = restricted }, Tactics = new(100, 2, [0], []) },
                 new(7001, 1, 0, 100000, 1, new(1, 1), TravelMode.Land)
                 { Combat = combat, Attack = new(1, false), CaptureRanks = [BattleRank.Front] }],
             [new(1, new(2, 2), new(1, 1)) { FacilityTypeId = 8000, Combat = combat },

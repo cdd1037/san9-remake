@@ -92,7 +92,7 @@ internal static class FacilityCombat
             var targets = TacticSupport.Targets(world, source, selected, military);
             if (targets.Length == 0) return;
             var supportActor = TacticActor(world, settlementId);
-            if (supportActor is null || !PassesOpportunity(world, profile, counter)) return;
+            if (supportActor is null || !PassesOpportunity(world, profile, military, counter)) return;
             TacticSupport.Resolve(world, source, supportActor, selected, targets,
                 IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackSettlement, null, settlementId)), military, events);
             return;
@@ -104,7 +104,7 @@ internal static class FacilityCombat
         var tactic = selected.Effect == TacticEffect.TrapSelection ? military.TrapAt(unit.Position) : selected;
         if (tactic is null) return;
         var actor = TacticActor(world, settlementId);
-        if (actor is null || !PassesOpportunity(world, profile, counter)) return;
+        if (actor is null || !PassesOpportunity(world, profile, military, counter)) return;
         int proficiency = actor.TacticProficiencies[tactic.Category!.Value];
         int effect;
         bool doubled = false;
@@ -148,9 +148,9 @@ internal static class FacilityCombat
         if (captured is int capturedId) BattleAftermath.ResolveSettlementDefeat(world, capturedId, source, rules, events);
     }
 
-    // Garrison defensive opportunities use the common 50% entrance before their authored base chance.
-    private static bool PassesOpportunity(WorldMutation world, FacilityTactics profile, bool counter) =>
-        (!counter || TacticCombat.Roll(world, "military-tactic-counter", 50)) &&
+    // Garrison defensive opportunities use the global entrance before their authored base chance.
+    private static bool PassesOpportunity(WorldMutation world, FacilityTactics profile, MilitaryRulebook military, bool counter) =>
+        (!counter || TacticCombat.Roll(world, "military-tactic-counter", military.DefensiveTacticChance)) &&
         TacticCombat.Roll(world, "military-facility-tactic-opportunity", profile.OpportunityChance);
 
     private static OfficerState? TacticActor(WorldMutation world, int settlementId)

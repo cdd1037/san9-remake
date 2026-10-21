@@ -111,7 +111,7 @@ public sealed class UnitCatalogTests
         definition = definition with
         {
             Military = new(4, 4, Enumerable.Repeat(0, 16).ToImmutableArray(), [new(0, 1, null)],
-                [new(100, 5, 0, 100000, 5, new(1, 1), TravelMode.Land) { Tactics = new(15, 0, 2, [], []) }], [])
+                [new(100, 5, 0, 100000, 5, new(1, 1), TravelMode.Land) { Tactics = new(15, 2, [], []) }], [])
                 { Tactics = [new(2, 0, TacticEffect.Martial, 10, 9, 0, true, false, [100])] },
             Information = definition.Information with { Tactics = [new(2, "tactic")] }
         };

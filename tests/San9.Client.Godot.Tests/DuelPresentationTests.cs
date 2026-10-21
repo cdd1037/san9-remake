@@ -269,7 +269,7 @@ public sealed class DuelPresentationTests
                 new(2, 2, new(7, 2), 10000) { FormationId = 1, CommanderId = 22, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(22, BattleRank.Front).Add(23, BattleRank.Rear) }],
             Military = new(4, 1, [0, 0, 0, 0], [new(0, 1, null)],
                 [new(1, 5, 0, 100000, 3, new(1, 1), TravelMode.Land) { Combat = combat, Attack = new(1, false),
-                    CaptureRanks = [BattleRank.Front, BattleRank.Front, BattleRank.Rear], Tactics = new(0, 0, 2, [], []) }],
+                    CaptureRanks = [BattleRank.Front, BattleRank.Front, BattleRank.Rear], Tactics = new(0, 2, [], []) }],
                 [new(1, new(2, 2), new(1, 1)) { Combat = combat }, new(2, new(17, 2), new(1, 1)) { Combat = combat }]),
             Information = new([], [], [], [new CorpsState(1, 1, 11, new(0, 10000)) { IsRoot = true }, new CorpsState(2, 2, 22, new(0, 10000)) { IsRoot = true }], [])
         };

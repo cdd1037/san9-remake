@@ -19,7 +19,7 @@ public sealed class IntelligenceTacticTests
         int power = effect switch { TacticEffect.Heal => 19, TacticEffect.Sorcery => 14, TacticEffect.Illusion => 13, TacticEffect.Taunt => 0, _ => 10 };
         var rules = new MilitaryRulebook(new(6, 1, [0, 0, 0, 0, 0, 0], [new(0, 1, null)],
             [new(100, 5, 0, 100000, 1, new(1, 1), TravelMode.Land) { Combat = combat, Attack = new(1, false),
-                CaptureRanks = [BattleRank.Front], Tactics = new(100, 0, 2, [], []) },
+                CaptureRanks = [BattleRank.Front], Tactics = new(100, 2, [], []) },
              new(200, 5, 0, 100000, 1, new(1, 1), TravelMode.Land) { Combat = combat, CaptureRanks = [BattleRank.Middle],
                 Tactics = null, BypassesPassiveCounters = bypass, ConfusionResistanceChance = formationResistance }],
             [new(1, new(2, 2), new(1, 1)) { Combat = combat }, new(2, new(17, 2), new(1, 1)) { Combat = combat },

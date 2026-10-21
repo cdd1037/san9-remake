@@ -26,7 +26,7 @@ public sealed class DuelContestTests
 
     internal static MilitaryRulebook Rules(bool doubles = false, bool water = false) => new(new(4, 1, [0, 0, 0, 0], [new(0, 1, 1)],
         [new(1, 5, 0, 100000, 100, new(1, 1), water ? TravelMode.Water : TravelMode.Land)
-            { DoublesDuelChance = doubles, Tactics = new(0, 0, 2, [], []) }], []));
+            { DoublesDuelChance = doubles, Tactics = new(0, 2, [], []) }], []));
 
     private static ulong SeedForTrigger(int roll) => TestSeeds.ForNamedRoll("duel-trigger", roll);
 

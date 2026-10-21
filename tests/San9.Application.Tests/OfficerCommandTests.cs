@@ -20,7 +20,7 @@ public sealed class OfficerCommandTests
         definition = basis with
         {
             Military = new(4, 4, Enumerable.Repeat(0, 16).ToImmutableArray(), [new(0, 1, null)],
-                [new(900, 5, 0, 100000, 5, new(1, 1), TravelMode.Land) { Tactics = new(15, 0, 2, [], []) }], [])
+                [new(900, 5, 0, 100000, 5, new(1, 1), TravelMode.Land) { Tactics = new(15, 2, [], []) }], [])
             {
                 Tactics = [new(0, 0, TacticEffect.Martial, 10, 9, 0, true, false, [900]),
                     new(2, 0, TacticEffect.Martial, 10, 9, 0, true, false, [900])]
@@ -216,7 +216,7 @@ public sealed class OfficerCommandTests
         if (mode == "naval") military = military with
         {
             TerrainIds = Enumerable.Repeat(1, 16).ToImmutableArray(), Terrains = [new(1, 1, 1) { IsWater = true }],
-            Formations = [.. military.Formations, new(901, 5, 0, 100000, 5, new(1, 1), TravelMode.Water) { Tactics = new(10, 0, 2, [], [3]) }],
+            Formations = [.. military.Formations, new(901, 5, 0, 100000, 5, new(1, 1), TravelMode.Water) { Tactics = new(10, 2, [], [3]) }],
             Tactics = [.. military.Tactics, new(3, 4, TacticEffect.Martial, 10, 9, 0, false, true, [901])]
         };
         if (mode == "naval") world = world with { Units = world.Units.Select(u => u with { NavalFormationId = 901 }).ToArray() };

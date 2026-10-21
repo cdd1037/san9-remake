@@ -50,12 +50,12 @@ public sealed class SnipingSessionTests
             Military = new(100, 3, [.. Enumerable.Repeat(0, 300)], [new(0, 1, 1)],
                 [new(100, 5, 0, 100000, 2, new(1, 1), TravelMode.Land)
                     { Combat = combat, Attack = new(10, false), SnipingChanceBonus = 100,
-                        CaptureRanks = [BattleRank.Front, BattleRank.Middle], Tactics = new(100, 100, 2, [3], []) }],
+                        CaptureRanks = [BattleRank.Front, BattleRank.Middle], Tactics = new(100, 2, [3], []) }],
                 [new(1, new(2, 7), new(1, 1)) { Combat = combat, FacilityTypeId = 8000, Attack = new(10, false) },
                     new(2, new(107, 7), new(1, 1)) { Combat = combat, FacilityTypeId = 8000, Attack = new(10, false) },
                     new(3, new(497, 7), new(1, 1)) { Combat = combat, FacilityTypeId = 8000 }])
             {
-                BattleDeathsAllowed = true, DuelCapturesAllowed = false, Tactics = [tactic], Geography = new(5, []),
+                DefensiveTacticChance = facility || assault ? 50 : 100, BattleDeathsAllowed = true, DuelCapturesAllowed = false, Tactics = [tactic], Geography = new(5, []),
                 Facilities = [new(8000, 0, 100, new(1, 1), 0, false, true, true, 100000, null, null, null, [])
                     { Combat = combat, Attack = new(10, false), Tactics = new(100, 3, false, [9000]) }]
             }

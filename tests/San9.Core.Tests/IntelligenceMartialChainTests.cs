@@ -18,7 +18,7 @@ public sealed class IntelligenceMartialChainTests
         var rules = new MilitaryRulebook(new(6, 1, [0, 0, 0, 0, 0, 0], [new(0, contact ? 100 : 1, contact ? 100 : 1)],
             [new(100, 5, 0, 200000, 3, new(1, 1), TravelMode.Land)
                 { Combat = combat, Attack = new(10, false), CaptureRanks = [BattleRank.Front, BattleRank.Middle, BattleRank.Rear],
-                    Tactics = new(100, 0, 4, [0], []) },
+                    Tactics = new(100, 4, [0], []) },
              new(200, 5, 0, 200000, 1, new(1, 1), TravelMode.Land)
                 { Combat = combat, CaptureRanks = [BattleRank.Middle] }],
             [new(1, new(2, 2), new(1, 1)) { Combat = combat }, new(2, new(17, 2), new(1, 1)) { Combat = combat }])

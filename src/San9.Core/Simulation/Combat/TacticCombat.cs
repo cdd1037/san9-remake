@@ -40,7 +40,8 @@ internal static class TacticCombat
             !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), MilitaryCombat.UnitRange(world, unit, target, military))) return null;
         if (!world.ServingUnitMembers(sourceId).Any(p => p.OwnerId == unit.OwnerId &&
             p.Injury == 0 && p.TacticCooldown == 0 && !p.Acted)) return null;
-        if (counter && !Roll(world, "military-tactic-counter", profile.CounterChance)) return null;
+        if (counter && (unit.Condition is not (UnitCondition.Normal or UnitCondition.HighSpirits) ||
+            !Roll(world, "military-tactic-counter", military.DefensiveTacticChance))) return null;
         int cityBonus = formation.TravelMode == TravelMode.Land && military.HasCityInfluence(unit.OwnerId, unit.Position, world.Settlements.Values)
             ? military.CityInfluence!.LandTacticBonus : 0;
         return Roll(world, "military-tactic-opportunity", Math.Min(100, profile.OpportunityChance + cityBonus +

@@ -169,6 +169,29 @@ public sealed class OriginalAiPersonnelTests
         Assert.Null(h.Engine.Snapshot.Officers.Single(p => p.Id == 3).OfficeId);
     }
 
+    [Theory]
+    [InlineData(0, true)]
+    [InlineData(8, false)]
+    public void SpecialOfficesFollowPeerageEvenAfterRulerActs(int rankId, bool canAppoint)
+    {
+        var content = Fixture();
+        content = content with
+        {
+            Forces = content.Forces.Select(f => f.Id == 1 ? f with { RankId = rankId } : f).ToArray(),
+            Information = content.Information with
+            {
+                Ranks = [new(0, "rank.emperor", 30000, 0, 0, 8), new(8, "rank.none", 10000, 0, 0, 0)],
+                Offices = [new(901, "office.special", 20000, 10)
+                    { GovernorPriority = 4, RequiredRankId = 0, FillBeforeOrdinaryOffices = true, AbilityBonuses = new(5, 5, 5, 5) }]
+            },
+            Officers = content.Officers.Select(o => o.State.Id == 1 ? o with { State = o.State with { Acted = true } } : o).ToArray()
+        };
+        var h = new Harness(content);
+        h.Run(OriginalAiWork.Offices);
+        Assert.Equal(canAppoint, h.Engine.Snapshot.Officers.Any(p => p.OwnerId == 1 && p.OfficeId == 901));
+        Assert.True(h.Engine.Snapshot.Officers.Single(p => p.Id == 1).Acted);
+    }
+
     [Fact]
     public void RewardUsesHighLoyaltyFirstAndPreservesTwoThousandRootFunds()
     {

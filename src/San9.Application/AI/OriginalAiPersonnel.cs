@@ -259,9 +259,8 @@ internal sealed class OriginalAiPersonnel(SimulationEngine engine, ScenarioIniti
                 offices.Remove(office);
             }
         }
-        if (Available(ruler))
-            Fill(offices.Where(o => o.Special),
-                people.OrderByDescending(p => Ability(p).Leadership + Ability(p).Intelligence + SeniorityScore(p)), _ => true);
+        Fill(offices.Where(o => o.Special),
+            people.OrderByDescending(p => Ability(p).Leadership + Ability(p).Intelligence + SeniorityScore(p)), _ => true);
         Fill(offices.OrderByDescending(o => o.HasBonus ? -1 : o.Priority).TakeWhile(o => !o.HasBonus),
             people.OrderByDescending(p => Ability(p).Leadership + SeniorityScore(p)), p => Ability(p).Leadership >= 60);
         long payroll = OriginalAiProjection.SalaryDemand(World, Corps, content.Information.Offices.ToDictionary(o => o.Id, o => o.Salary));

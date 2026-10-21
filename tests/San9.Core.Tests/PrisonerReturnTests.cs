@@ -150,8 +150,10 @@ public sealed class PrisonerReturnTests
         StateAssert.Equal(before, engine.Snapshot);
     }
 
-    [Fact]
-    public void FreeReturnAdviceStillRespectsPlayerChoiceAndAdviserAvailability()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FreeReturnAdviceStillRespectsPlayerChoiceAndAdviserAvailability(bool playerTarget)
     {
         var snapshot = new SimulationEngine(World(), Rules()).Snapshot;
         snapshot = snapshot with { Relations = [new(1, 2, 100)] };
@@ -161,7 +163,8 @@ public sealed class PrisonerReturnTests
         {
             Forces = snapshot.Forces.Select(f => f.Id == 1 ? f with { AdviserId = null } : f).ToArray(),
             Officers = snapshot.Officers.Select(p => p.Id == 14 ? p with { Status = OfficerStatus.Serving } : p).ToArray(),
-            Simulation = snapshot.Simulation with { Controls = [new("first", 1, ControllerKind.Player), new("ai:2", 2, ControllerKind.Automatic)] }
+            Simulation = snapshot.Simulation with { Controls = [new("first", 1, ControllerKind.Player),
+                new("second", 2, playerTarget ? ControllerKind.Player : ControllerKind.Automatic)] }
         };
         engine = new(WorldState.Restore(snapshot), Rules());
         Assert.Equal(AdviserOpinion.NoAdviser, engine.GetPrisonerReturnAdvice(1, 12, 2, 13).Opinion);

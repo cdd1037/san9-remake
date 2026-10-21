@@ -197,8 +197,8 @@ internal sealed partial class OriginalAiActions(SimulationEngine engine, Scenari
                 AdviserOpinion.Favorable => 100,
                 AdviserOpinion.Unfavorable => 0,
                 AdviserOpinion.Uncertain when work is OriginalAiWork.Gift or OriginalAiWork.RequestAttack or OriginalAiWork.ReturnPrisoner => 50,
-                AdviserOpinion.Unavailable when work == OriginalAiWork.RequestAttack && preview.Advice.AdviserId is not null => 50,
-                AdviserOpinion.Unavailable when work == OriginalAiWork.ReturnPrisoner && preview.Advice.AdviserId is not null => Math.Min(random.Next(Best(World.Officers.Single(p => p.Id == target.Id)) + 20), 100),
+                AdviserOpinion.Unavailable when work == OriginalAiWork.RequestAttack => 50,
+                AdviserOpinion.Unavailable when work == OriginalAiWork.ReturnPrisoner => Math.Min(random.Next(Best(World.Officers.Single(p => p.Id == target.Id)) + 20), 100),
                 _ => threshold
             };
             int minimum = work is OriginalAiWork.Gift or OriginalAiWork.Surrender ? 33 :

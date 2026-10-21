@@ -18,6 +18,23 @@ public sealed class SlotSaveStoreTests : IDisposable
         DateTimeOffset.UnixEpoch, 1, null, "标准", note);
 
     [Fact]
+    public void CurrentDirectorySlotCanBeWrittenAndReplaced()
+    {
+        var store = new SlotSaveStore("", Definition);
+        int slot = Random.Shared.Next(100000, int.MaxValue);
+        string path = store.PathFor(slot);
+        try
+        {
+            var session = GameSession.Start(Definition, 1);
+            store.Write(slot, SlotSaveStore.Encode(session, Summary("first")));
+            session.AdvanceXun();
+            store.Write(slot, SlotSaveStore.Encode(session, Summary("replacement")));
+            Assert.Equal(session.Snapshot.Clock, store.Load(slot).Snapshot.Clock);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
     public void SummaryUsesAuthoredTitleInsteadOfInferringItFromTheYearOrScenarioId()
     {
         var definition = Definition;

@@ -2,6 +2,7 @@ using San9.Tests;
 using San9.Application.AI;
 using System.Collections.Immutable;
 using San9.Application.Persistence;
+using San9.Application.Presentation;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -324,8 +325,12 @@ public sealed class MilitarySessionTests
         var before = session.Capture();
         Assert.Equal(AdviserOpinion.NoAdviser, session.GetUnitStrategyAdvice(1, 1, strategy, 10).Opinion);
         StateAssert.Equal(before, session.Capture());
+        long RankedSoldiers() => StrategyOverview.Rankings(session.View).Single(c => c.Metric == ForceRankingMetric.Soldiers)
+            .Leaders.Single(e => e.Force.Id == 1).Value;
+        long soldiersBeforeDeparture = RankedSoldiers();
         session.BeginRecording();
         Assert.True(session.Execute(new("player"), new UnitStrategyCommand(Guid.NewGuid(), 1, 0, 1, strategy, 10)).Submission.Accepted);
+        Assert.Equal(soldiersBeforeDeparture, RankedSoldiers());
         session.AdvanceXun();
         Assert.Equal("unit-strategy", Assert.Single(session.Snapshot.Simulation.Tasks).Kind);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);

@@ -29,6 +29,7 @@ public sealed class StrategyOverview
         var settlements = snapshot.Settlements.Where(s => s.OwnerId is not null).ToLookup(s => s.OwnerId!.Value);
         var officers = snapshot.Officers.Where(o => o.IsServing && o.OwnerId is not null).ToLookup(o => o.OwnerId!.Value);
         var units = snapshot.World.Units.ToLookup(u => u.OwnerId);
+        var reinforcements = snapshot.World.Simulation.Tasks.Where(t => t.Reinforcements is not null).ToLookup(t => t.ForceId);
         var forces = snapshot.Forces.Where(f => !f.IsEliminated && (!f.IsBarbarian || f.Id == snapshot.PlayerForceId)).ToArray();
         return Array.AsReadOnly(Enum.GetValues<ForceRankingMetric>().Select(metric =>
         {
@@ -37,7 +38,8 @@ public sealed class StrategyOverview
                 ForceRankingMetric.Trust => force.Trust,
                 ForceRankingMetric.Cities => settlements[force.Id].Count(s => s.Kind == San9.Core.Domain.SettlementKind.City),
                 ForceRankingMetric.Officers => officers[force.Id].LongCount(),
-                ForceRankingMetric.Soldiers => settlements[force.Id].Sum(s => (long)s.Soldiers) + units[force.Id].Sum(u => (long)u.Soldiers),
+                ForceRankingMetric.Soldiers => settlements[force.Id].Sum(s => (long)s.Soldiers) + units[force.Id].Sum(u => (long)u.Soldiers) +
+                    reinforcements[force.Id].Sum(t => (long)t.Reinforcements!.Soldiers),
                 _ => throw new ArgumentOutOfRangeException(nameof(metric))
             };
             int rank = 0; long? previous = null;

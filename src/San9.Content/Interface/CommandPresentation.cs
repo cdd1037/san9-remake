@@ -115,7 +115,7 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
             string[] roles = ["actor", "ruler", "adviser", "target-person", "target-ruler", "target-adviser", "target-force", "enemy-force", "second-force", "place", "home", "force", "soldier", "defender", "corps", "year", "month", "previous-holder", "treasure"];
             var results = kinds.Where(k => k != "seize").SelectMany(k => new[] { k+"-success",k+"-failure" })
                 .Concat(["seize-person", "seize-item", "seize-failure"]);
-            if (!Missions.ContainsKey("diplomacy-unpredictable") || kinds.Select(k => k + "-start").Concat(new[] { "strategy", "gift", "request", "return", "surrender" }
+            if (!Missions.ContainsKey("diplomacy-unpredictable") || !Missions.ContainsKey("request-uncertain") || kinds.Select(k => k + "-start").Concat(new[] { "strategy", "gift", "request", "return", "surrender" }
                     .SelectMany(k => new[] { k + "-favorable", k + "-unfavorable" })).Concat(results).Except(Missions.Keys).Any() ||
                 Missions.Values.Any(m => m.Bindings.Values.Except(roles).Any() || m.Speaker is string speaker && !roles.Contains(speaker)))
                 throw new InvalidDataException("Incomplete mission presentation.");

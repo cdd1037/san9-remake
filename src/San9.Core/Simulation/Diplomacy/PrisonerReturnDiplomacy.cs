@@ -24,7 +24,7 @@ internal static class PrisonerReturnDiplomacy
         var rejection = Eligibility(world, force, actor, target, prisoner, rules);
         if (rejection != CommandRejection.None) return new(rejection, null, AdviserOpinion.Unavailable);
         if (Player(world, target)) return AdviserJudgment.Unpredictable(world, force);
-        bool available = PrisonerCompensation.Quote(world, force, actor, target, prisoner, rules.Treasures).Kind != CompensationKind.Refuse;
+        bool available = CanNegotiate(world, force, actor, target, prisoner, rules);
         return AdviserJudgment.Evaluate(world, force, ConditionalRandomPurpose.PrisonerReturn, actor, target, prisoner, available ? 100 : 0);
     }
     internal static bool Player(WorldMutation world, int force) => world.Simulation.Controls.Any(c =>
@@ -87,13 +87,22 @@ internal static class PrisonerReturnDiplomacy
     internal static bool Accept(WorldMutation world, PersistentTask task, SimulationRules rules)
     {
         var mission = task.PrisonerReturn!;
-        var offer = mission.Offer!;
-        uint value = PrisonerCompensation.Value(world, task.ForceId, task.OfficerId, mission.TargetForceId, mission.PrisonerId);
+        return Accept(world, task.ForceId, task.OfficerId, mission.TargetForceId, mission.PrisonerId, mission.Offer!, rules);
+    }
+
+    internal static bool CanNegotiate(WorldMutation world, int force, int actor, int target, int prisoner, SimulationRules rules) =>
+        Accept(world, force, actor, target, prisoner,
+            PrisonerCompensation.Quote(world, force, actor, target, prisoner, rules.Treasures), rules);
+
+    private static bool Accept(WorldMutation world, int force, int actor, int target, int prisoner,
+        CompensationOffer offer, SimulationRules rules)
+    {
+        uint value = PrisonerCompensation.Value(world, force, actor, target, prisoner);
         return offer.Kind switch
         {
             CompensationKind.Free or CompensationKind.Prisoner => true,
             CompensationKind.Money => DiplomacyMath.AcceptPrisonerRansom(offer.Money, value,
-                ResourceAccounts.Root(world, task.ForceId).Treasury.Money, SalaryReserve(world, task.ForceId, rules)),
+                ResourceAccounts.Root(world, force).Treasury.Money, SalaryReserve(world, force, rules)),
             CompensationKind.Treasure => DiplomacyMath.AcceptPrisonerTreasure(rules.Treasures.Items[offer.TreasureId!.Value].LoyaltyBonus, value),
             _ => false
         };

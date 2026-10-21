@@ -127,6 +127,29 @@ public sealed class PrisonerReturnTests
         Assert.DoesNotContain(result.Events, e => e is ResourceChangedEvent resource && resource.Reason == "prisoner-compensation");
     }
 
+    [Theory]
+    [InlineData(0u, false)]
+    [InlineData(1u, false)]
+    [InlineData(2u, true)]
+    public void PlanningAndAdviceRespectTheRequestersBudgetAfterARansomCanBeQuoted(uint extraMoney, bool expected)
+    {
+        var snapshot = new SimulationEngine(World(), Rules()).Snapshot;
+        var value = DiplomacyMath.PrisonerCompensation(snapshot.Officers.Single(p => p.Id == 13).BaseAbilities, 50, 50);
+        snapshot = snapshot with
+        {
+            Corps = snapshot.Corps.Select(c => c.OwnerId == 1 ? c with { Treasury = c.Treasury with { Money = value * 2 + extraMoney } } : c).ToArray(),
+            Simulation = snapshot.Simulation with { Controls = [new("first", 1, ControllerKind.Player), new("ai:2", 2, ControllerKind.Automatic)] }
+        };
+        var engine = new SimulationEngine(WorldState.Restore(snapshot), Rules());
+        var before = engine.Snapshot;
+        var command = new ReturnPrisonerCommand(Guid.NewGuid(), 1, 0, 12, 2, 13);
+        var preview = engine.GetMissionDecision(new("first"), command);
+        Assert.Equal(CommandRejection.None, preview.Advice.Rejection);
+        Assert.Equal(expected ? 100 : 0, preview.Threshold);
+        Assert.Equal(expected ? AdviserOpinion.Favorable : AdviserOpinion.Unfavorable, preview.Advice.Opinion);
+        StateAssert.Equal(before, engine.Snapshot);
+    }
+
     [Fact]
     public void FreeReturnAdviceStillRespectsPlayerChoiceAndAdviserAvailability()
     {

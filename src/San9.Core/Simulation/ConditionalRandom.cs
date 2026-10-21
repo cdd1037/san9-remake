@@ -1,6 +1,6 @@
 namespace San9.Core.Simulation;
 
-internal enum ConditionalRandomPurpose { Recruitment, SearchDiscovery, FalseReport, Disorder, Inspire, Reinforcement, Alienate, Burn, Seize, Gossip, Gift, PrisonerReturn, AttackRequest, Surrender }
+internal enum ConditionalRandomPurpose { Recruitment, SearchDiscovery, FalseReport, Disorder, Inspire, Reinforcement, Alienate, Burn, Seize, Gossip, Gift, PrisonerReturn, AttackRequest, Surrender, AttackRequestAdviceMistake }
 
 /// <summary>Fixed-condition draws do not consume or depend on the current run's streams.</summary>
 internal static class ConditionalRandom
@@ -35,6 +35,7 @@ internal static class ConditionalRandom
         ConditionalRandomPurpose.PrisonerReturn => "diplomacy-prisoner-return-advice",
         ConditionalRandomPurpose.Gift => "diplomacy-gift-submission",
         ConditionalRandomPurpose.AttackRequest => "diplomacy-attack-request-submission",
+        ConditionalRandomPurpose.AttackRequestAdviceMistake => "diplomacy-attack-request-advice-mistake",
         ConditionalRandomPurpose.Surrender => "diplomacy-surrender-submission",
         _ => throw new ArgumentOutOfRangeException(nameof(purpose))
     };

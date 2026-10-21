@@ -25,6 +25,50 @@ public sealed class AttackRequestDiplomacyTests
         controls: [new("first", 1, ControllerKind.Player), new("second", 2, automatic ? ControllerKind.Automatic : ControllerKind.Player),
             new("third", 3, ControllerKind.Automatic)], relations: [new(1, 2, relation), new(1, 3, 0), new(2, 3, 0)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }]);
 
+    [Theory]
+    [InlineData(100, AdviserOpinion.Favorable)]
+    [InlineData(60, AdviserOpinion.Uncertain)]
+    [InlineData(40, AdviserOpinion.Unfavorable)]
+    public void AdviserSeparatesFreeAcceptanceCounterofferAndRefusal(int relation, AdviserOpinion expected)
+    {
+        var basis = new SimulationEngine(World(relation), Rules()).Snapshot;
+        var world = basis with
+        {
+            Forces = basis.Forces.Select(f => f.Id == 1 ? f with { AdviserId = 12 } : f).ToArray(),
+            Officers = basis.Officers.Select(p => p.Id == 12 ? p with
+                { Status = OfficerStatus.Strategist, BaseAbilities = new(100, 100, 100, 100) } :
+                p.Id == 21 ? p with { Righteousness = 6 } : p).ToArray(),
+            Simulation = basis.Simulation with { Controls = [new("first", 1, ControllerKind.Player),
+                new("second", 2, ControllerKind.Automatic), new("third", 3, ControllerKind.Automatic)] }
+        };
+        var engine = new SimulationEngine(WorldState.Restore(world), Rules());
+        var before = engine.Snapshot;
+        Assert.Equal(expected, engine.GetAttackRequestAdvice(1, 12, 2, 3).Opinion);
+        StateAssert.Equal(before, engine.Snapshot);
+    }
+
+    [Theory]
+    [InlineData(100, false, 49, AdviserOpinion.Uncertain)]
+    [InlineData(100, false, 50, AdviserOpinion.Unfavorable)]
+    [InlineData(0, true, 49, AdviserOpinion.Favorable)]
+    [InlineData(0, true, 50, AdviserOpinion.Unfavorable)]
+    [InlineData(0, false, 49, AdviserOpinion.Favorable)]
+    [InlineData(0, false, 50, AdviserOpinion.Uncertain)]
+    public void MistakenNegotiationAdviceCanChooseEitherOtherCategory(int freeThreshold, bool payment,
+        int mistakeRoll, AdviserOpinion expected)
+    {
+        var snapshot = new SimulationEngine(World(), Rules()).Snapshot;
+        snapshot = snapshot with
+        {
+            Forces = snapshot.Forces.Select(f => f.Id == 1 ? f with { AdviserId = 12 } : f).ToArray(),
+            Officers = snapshot.Officers.Select(p => p.Id == 12 ? p with
+                { Status = OfficerStatus.Strategist, BaseAbilities = new(70, 70, 70, 70) } : p).ToArray()
+        };
+        var world = WorldState.Restore(snapshot).BeginMutation();
+        Assert.Equal(expected, AdviserJudgment.EvaluateNegotiation(world, 1, 90, mistakeRoll,
+            freeThreshold, 0, payment).Opinion);
+    }
+
     private static SimulationEngine Arrive(bool automatic = false, int relation = 80, bool exchange = false)
     {
         var engine = new SimulationEngine(World(relation, automatic, exchange), Rules());

@@ -51,7 +51,8 @@ public static class DiplomacyPlanner
                 {
                     if (spend is not null && !spend()) return wait;
                     var command = new RequestAttackCommand(commandId, force.Id, sequence, actor.Id, target.Id, place.Id);
-                    if (engine.GetAttackRequestAdvice(force.Id, actor.Id, target.Id, place.Id).Opinion == AdviserOpinion.Favorable &&
+                    if (engine.GetAttackRequestAdvice(force.Id, actor.Id, target.Id, place.Id).Opinion is
+                        (AdviserOpinion.Favorable or AdviserOpinion.Uncertain) &&
                         engine.GetPreparationEligibility(context, command) == CommandRejection.None) return command;
                 }
             if (world.Corps.Single(c => c.OwnerId == force.Id && c.IsRoot).Treasury.Money < 20000) continue;

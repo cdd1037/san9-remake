@@ -28,6 +28,7 @@ internal static class MissionPresentationCompiler
         Add("gift-favorable",7353,"adviser",advice);
         Add("gift-unfavorable",7357,"adviser",advice);
         Add("request-favorable",7341,"adviser",[.. advice,("force.0","target-force")]);
+        Add("request-uncertain",7325,"adviser",advice);
         Add("request-unfavorable",7345,"adviser",[.. advice,("force.0","target-force")]);
         Add("return-favorable",7325,"adviser",advice);
         Add("return-unfavorable",7349,"adviser",[.. advice,("force.0","target-force")]);

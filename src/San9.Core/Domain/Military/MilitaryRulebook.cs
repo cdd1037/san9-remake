@@ -51,7 +51,7 @@ public sealed record OrdinaryAttack(int Range, bool DamagesWalls)
     [JsonRequired] public bool RangedSiege { get; init; }
 }
 
-public sealed record FormationTactics(int OpportunityChance, int CounterChance, int LinkMultiplier,
+public sealed record FormationTactics(int OpportunityChance, int LinkMultiplier,
     ImmutableArray<int> FavoredCategories, ImmutableArray<int> AutomaticTactics);
 
 public sealed record CombatProfile(int AgainstUnits, int AgainstGarrison, int AgainstWalls, int Defense, int WoundedPercent)
@@ -84,6 +84,7 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
     [JsonRequired] public int? BasicNavalFormationId { get; init; }
     [JsonRequired] public int? DefaultDeploymentFormationId { get; init; }
     [JsonRequired] public int? UnformedFormationId { get; init; }
+    [JsonRequired] public int DefensiveTacticChance { get; init; }
     [JsonRequired] public bool BattleDeathsAllowed { get; init; } = true;
     [JsonRequired] public bool DuelCapturesAllowed { get; init; } = true;
     [JsonRequired] public int PolicyRadius { get; init; } = 50;
@@ -105,10 +106,14 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
 public sealed partial class MilitaryRulebook
 {
     public const uint WoundedCapacity = 50000;
+    public int DefensiveTacticChance { get; }
     public bool BattleDeathsAllowed { get; }
     public bool DuelCapturesAllowed { get; }
     public MilitaryRulebook(MilitaryDefinition definition)
     {
+        if (definition.DefensiveTacticChance is < 0 or > 100)
+            throw new ArgumentException("Invalid defensive tactic chance.");
+        DefensiveTacticChance = definition.DefensiveTacticChance;
         BattleDeathsAllowed = definition.BattleDeathsAllowed;
         DuelCapturesAllowed = definition.DuelCapturesAllowed;
         ArgumentOutOfRangeException.ThrowIfNegative(definition.PolicyRadius);
@@ -190,7 +195,7 @@ public sealed partial class MilitaryRulebook
         trapTerrains = definition.TrapTerrains.ToImmutableDictionary(t => t.TerrainId);
         higherGroundTrap = definition.HigherGroundTrap;
         foreach (var formation in Formations.Values)
-            if (formation.Tactics is { } tactics && (tactics.OpportunityChance is < 0 or > 100 || tactics.CounterChance is < 0 or > 100 ||
+            if (formation.Tactics is { } tactics && (tactics.OpportunityChance is < 0 or > 100 ||
                 tactics.LinkMultiplier <= 0 || tactics.FavoredCategories.IsDefault || tactics.AutomaticTactics.IsDefault ||
                 tactics.FavoredCategories.Any(c => c is < 0 or > 8) ||
                 tactics.FavoredCategories.Distinct().Count() != tactics.FavoredCategories.Length ||

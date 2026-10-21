@@ -14,7 +14,7 @@ public sealed class TacticRescueTests
         var military = new MilitaryRulebook(new(100, 3, [.. Enumerable.Repeat(0, 300)], [new(0, 1, 1)],
             [new(100, 5, 0, 100000, 1, new(1, 1), TravelMode.Land)
                 { Combat = new(10, 10, 0, 1000, 50), Attack = new(10, false), CaptureRanks = [BattleRank.Front],
-                    PreventsTacticRescue = protectedFormation, Tactics = new(100, 0, 2, [0], []) }],
+                    PreventsTacticRescue = protectedFormation, Tactics = new(100, 2, [0], []) }],
             [new(1, new(2, 7), new(1, 1)), new(2, new(497, 7), new(1, 1)), new(3, new(402, 7), new(1, 1))])
             { Tactics = [tactic], Geography = new(5, []) });
         var world = WorldState.Create(new(190, 1, 1), 42,

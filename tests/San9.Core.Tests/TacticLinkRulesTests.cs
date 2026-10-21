@@ -6,7 +6,7 @@ public sealed class TacticLinkRulesTests
 {
     private static readonly OfficerState First = new(9001, null, 1, new(1, 1, 1, 1), false);
     private static readonly OfficerState Second = new(9002, null, 1, new(1, 1, 1, 1), false);
-    private static readonly FormationTactics Ordinary = new(15, 0, 2, [], []);
+    private static readonly FormationTactics Ordinary = new(15, 2, [], []);
 
     [Fact]
     public void RelationshipIsSymmetricButPartnerTraitIsDirectional()

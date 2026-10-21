@@ -9,7 +9,7 @@ public sealed class SnipingContinuationTests
     [Fact]
     public void CounterFinishesOnceAndUsesCurrentCommanderProtection()
     {
-        var (original, rules, _) = TacticSnipingTests.Create(counterChance: 100);
+        var (original, rules, _) = TacticSnipingTests.Create(defensiveChance: 100);
         var initial = original.CreateSnapshot();
         var people = initial.Officers.Select(p => p.Id switch {
             11 => p with { BaseAbilities = new(70, 70, 70, 70), LearnedTactics = [], EquippedTacticId = null },

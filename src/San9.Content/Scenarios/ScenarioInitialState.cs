@@ -44,7 +44,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 139;
+    public const int CurrentSchemaVersion = 140;
     [JsonRequired] public OriginalAiDefinition OriginalAi { get; init; } = OriginalAiDefinition.Default;
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public San9.Core.Domain.FoodMarketDefinition? FoodMarket { get; init; }

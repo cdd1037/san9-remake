@@ -98,12 +98,13 @@ public sealed class TacticCombatTests
         var rules = new MilitaryRulebook(new(4, 1, [0, 0, 0, 0], [new(0, 1, 1)],
             [new(100, 5, 0, 100000, 2, new(1, 1), mode) { Combat = combat, Attack = new(1, false),
                 AutomaticTacticLearningId = waterLearning ? 9020 : null,
-                CaptureRanks = [BattleRank.Front, BattleRank.Front], Tactics = new(opportunityChance, 0, linkMultiplier, [0], water ? [9000] : []) },
+                CaptureRanks = [BattleRank.Front, BattleRank.Front], Tactics = new(opportunityChance, linkMultiplier, [0], water ? [9000] : []) },
              new(200, 5, 0, 100000, 1, new(1, 1), mode) { Combat = combat, CaptureRanks = [BattleRank.Middle],
                 MartialTacticVulnerabilities = vulnerableCategory is int weak ? [weak] : [],
-                Attack = counter ? new(1, false) : null, Tactics = counter ? new(opportunityChance, 100, 2, [0], []) : null }],
+                Attack = counter ? new(1, false) : null, Tactics = counter ? new(opportunityChance, 2, [0], []) : null }],
             [new(1, new(2, 2), new(1, 1)) { Combat = combat }, new(2, new(17, 2), new(1, 1)) { Combat = combat }])
         {
+            DefensiveTacticChance = counter ? 100 : 0,
             LinkRules = links ?? TacticLinkRules.Empty,
             CityInfluence = influence,
             Tactics = [new(9000, 0, TacticEffect.Martial, power, 9, 0, !water, allowedFacility, [100, 200]),
@@ -306,7 +307,7 @@ public sealed class TacticCombatTests
     }
 
     [Fact]
-    public void DefenderOpportunityUsesItsExplicitCounterProfile()
+    public void DefenderOpportunityUsesGlobalCounterChance()
     {
         var events = Engine(counter: true).AdvanceXun().Events.OfType<TacticActivatedEvent>().ToArray();
         Assert.Contains(events, e => e.SourceId == 0);

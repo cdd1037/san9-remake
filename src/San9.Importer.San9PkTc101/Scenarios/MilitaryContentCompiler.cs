@@ -57,7 +57,7 @@ public static class MilitaryContentCompiler
                         .Select((minimum, index) => new SoldierFootprint(minimum, new(index + 5, index + 5))).ToImmutableArray() : [],
                     IsCommon = f.Id is >= 0 and <= 11 or >= 20 and <= 23,
                     Tactics = f.Id is 13 or 14 or 24 or 25 or 27 ? null : new(Mode(f.Id) == TravelMode.Water ? 10 : 15,
-                        f.Id is 1 or 8 ? 50 : 0, f.Id == 2 ? 3 : 2,
+                        f.Id == 2 ? 3 : 2,
                         Enumerable.Range(0, 4).Where(category => Favored(f.Id, category)).ToImmutableArray(),
                         Mode(f.Id) == TravelMode.Water ? tactics.Where(t => t.Id is >= 31 and <= 34 && t.SupportsArrayType(f.Id))
                             .Select(t => t.Id).ToImmutableArray() : []),
@@ -103,6 +103,7 @@ public static class MilitaryContentCompiler
             TerritoryExits = squares.Select(s => PersonnelGeographyCompiler.TerritoryExits(s.SquareFlags)).ToImmutableArray(),
             ConstructionSites = ConstructionContentCompiler.Sites(squares, buildings,
                 settlements.Select(s => s.Id).Concat(zones.Where(z => z.XCoordinate is not null && z.YCoordinate is not null).Select(z => z.Id + 50)).ToHashSet()),
+            DefensiveTacticChance = 50,
             Tactics = CompileTactics(tactics),
             Elevations = squares.Select(s => s.OffsetValue ?? -1).ToImmutableArray(),
             TrapTerrains = terrains.Select(t => TrapTerrain(t.Id)).ToImmutableArray(),

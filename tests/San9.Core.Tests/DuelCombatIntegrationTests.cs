@@ -15,15 +15,15 @@ public sealed class DuelCombatIntegrationTests
         return seed;
     }
 
-    private static SimulationEngine Engine(bool deaths = false, int opportunity = 0, int counterChance = 0, bool counterOnly = false, bool laterBattle = false, int cooldown = 0)
+    private static SimulationEngine Engine(bool deaths = false, int opportunity = 0, int defensiveChance = 0, bool counterOnly = false, bool laterBattle = false, int cooldown = 0)
     {
         var combat = new CombatProfile(0, 0, 0, 1000, 50);
         var military = new MilitaryRulebook(new(4, 1, [0, 0, 0, 0], [new(0, 1, null)],
             [new(1, 5, 0, 100000, 3, new(1, 1), TravelMode.Land)
-                { CaptureRanks = [BattleRank.Front, BattleRank.Front, BattleRank.Rear], Combat = combat, Attack = new(1, false), Tactics = new(opportunity, counterChance, 2, [], []) }],
+                { CaptureRanks = [BattleRank.Front, BattleRank.Front, BattleRank.Rear], Combat = combat, Attack = new(1, false), Tactics = new(opportunity, 2, [], []) }],
             [new(1, new(2, 2), new(1, 1)) { Combat = combat }, new(2, new(17, 2), new(1, 1)) { Combat = combat }])
         {
-            BattleDeathsAllowed = true, DuelCapturesAllowed = false,
+            DefensiveTacticChance = defensiveChance, BattleDeathsAllowed = true, DuelCapturesAllowed = false,
             Tactics = [new(9000, 7, TacticEffect.CounterConfusion, 0, 0, 0, false, false, [])]
         });
         var people = new[]
@@ -82,9 +82,9 @@ public sealed class DuelCombatIntegrationTests
     [Theory]
     [InlineData(0, false)]
     [InlineData(100, true)]
-    public void CounterOpportunityGateAlsoControlsCounterDuel(int counterChance, bool expected)
+    public void CounterOpportunityGateAlsoControlsCounterDuel(int defensiveChance, bool expected)
     {
-        var engine = Engine(counterChance: counterChance, counterOnly: true);
+        var engine = Engine(defensiveChance: defensiveChance, counterOnly: true);
         var result = engine.AdvanceXun();
         var duels = result.Events.OfType<DuelStartedEvent>().ToArray();
         Assert.Equal(expected, duels.Length > 0);

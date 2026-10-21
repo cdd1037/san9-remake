@@ -12,7 +12,7 @@ public sealed class FacilityCombatTests
     private static SimulationEngine Engine(TacticEffect effect = TacticEffect.Martial, bool attacking = false,
         int injury = 0, int cooldown = 0, bool requiresEnabled = false, bool enabled = true, uint targetSoldiers = 10000,
         int confusion = 0, Action<MilitaryRulebook>? captureRules = null, bool area = false, int? vulnerableCategory = null,
-        int opportunity = 100)
+        int opportunity = 100, int defensiveChance = 50)
     {
         bool support = effect is TacticEffect.Heal or TacticEffect.Inspire;
         var profile = new CombatProfile(0, 0, 0, 1000, 50);
@@ -27,6 +27,7 @@ public sealed class FacilityCombatTests
             Facilities = [new(8000, 0, 100, new(1, 1), 0, false, true, true, 100000, null, null, null, [])
                 { Combat = profile, Attack = new(1, false), Tactics = new(opportunity, 3, requiresEnabled, [9000]) },
                 new(8001, 0, 100, new(1, 1), 0, false, true, true, 100000, null, null, null, []) { Combat = profile }],
+            DefensiveTacticChance = defensiveChance,
             Tactics = [new(9000, effect == TacticEffect.Martial ? 3 : 7, effect, effect == TacticEffect.Martial ? 1 : effect == TacticEffect.Taunt ? 0 : 10,
                 15, 0, true, true, []) { EffectRadius = support || area ? 3 : 0 },
                 new(9100, 7, TacticEffect.Trap, 10, 9, 0, false, false, [])],
@@ -58,13 +59,16 @@ public sealed class FacilityCombatTests
     private static AdvanceXunResult Advance(SimulationEngine engine) { engine.EndControl(Player); return engine.AdvanceXun(); }
 
     [Theory]
-    [InlineData(true, 49, true)]
-    [InlineData(true, 50, false)]
-    [InlineData(false, 50, true)]
-    public void DefensiveTacticUsesIndependentCounterEntranceBeforeBaseOpportunity(bool counter, int roll, bool fires)
+    [InlineData(true, 50, 49, true)]
+    [InlineData(true, 50, 50, false)]
+    [InlineData(false, 50, 50, true)]
+    [InlineData(true, 0, 0, false)]
+    [InlineData(true, 100, 99, true)]
+    [InlineData(false, 0, 0, true)]
+    public void DefensiveTacticUsesIndependentCounterEntranceBeforeBaseOpportunity(bool counter, int chance, int roll, bool fires)
     {
         MilitaryRulebook military = null!;
-        var engine = Engine(captureRules: rules => military = rules, opportunity: 50);
+        var engine = Engine(captureRules: rules => military = rules, opportunity: 50, defensiveChance: chance);
         var m = WorldState.Restore(engine.Snapshot).BeginMutation();
         ulong state = TestSeeds.StateForRoll(roll);
         ulong baseState = TestSeeds.StateForRoll(0);
@@ -75,7 +79,7 @@ public sealed class FacilityCombatTests
             new() { Military = military }, events, counter);
         Assert.Equal(fires, events.OfType<TacticActivatedEvent>().Any());
         Assert.Equal(fires ? 3 : 0, m.Officers[11].TacticCooldown);
-        Assert.Equal(!counter, m.Simulation.RandomStreams.Single(r => r.Name == "military-tactic-counter").State == state);
+        Assert.Equal(counter && chance is > 0 and < 100, m.Simulation.RandomStreams.Single(r => r.Name == "military-tactic-counter").State != state);
         Assert.Equal(!fires, m.Simulation.RandomStreams.Single(r => r.Name == "military-facility-tactic-opportunity").State == baseState);
     }
 

@@ -151,9 +151,9 @@ public sealed class SettlementContextMenuTests
                 Formations = [new(731, "base"), new(732, "advanced"), new(733, "ship") { DescriptionKey = "ship-description" }]
             },
             Military = new(4, 4, Enumerable.Repeat(0, 16).ToImmutableArray(), [new(0, 1, 1)],
-                [Formation(731, TravelMode.Land) with { MovementBudget = 61, Tactics = new(15, 0, 3, [1, 2], []),
+                [Formation(731, TravelMode.Land) with { MovementBudget = 61, Tactics = new(15, 3, [1, 2], []),
                     DoublesCapture = true, DoublesDuelChance = true, SnipingChanceBonus = 30 }, Formation(732, TravelMode.Land, 901), Formation(733, TravelMode.Water, 902) with {
-                    MovementBudget = 61, Tactics = new(10, 0, 2, [], [908, 907]) }],
+                    MovementBudget = 61, Tactics = new(10, 2, [], [908, 907]) }],
                 basis.Settlements.Select(s => new BattlefieldPlace(s.Id, MapCoordinates.Center(new(s.X, s.Y)), new(1, 1))).ToImmutableArray()) {
                 Elevations = Enumerable.Repeat(0, 16).ToImmutableArray(),
                 TrapTerrains = [new(0, 905, true)], HigherGroundTrap = new(906, 1),

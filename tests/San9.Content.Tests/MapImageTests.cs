@@ -80,6 +80,41 @@ public sealed class MapImageTests
         Assert.Throws<InvalidDataException>(() => PngImage.Decode(bytes[..^5]));
     }
     [Theory]
+    [InlineData(16385, 1)]
+    [InlineData(1, 16385)]
+    public void EncoderRejectsDimensionsThatThePackageDecoderCannotRead(int width, int height)
+    {
+        Assert.Throws<InvalidDataException>(() => new PngImage(width, height, 1, new byte[width * height]).Encode());
+    }
+
+    [Fact]
+    public void CatalogRejectsImagesAboveTheDecodedByteBudget()
+    {
+        var asset = new ImageAsset("oversized", "large.png", 16384, 16384, 4);
+        Assert.Throws<InvalidDataException>(() => asset.Validate());
+    }
+
+    [Fact]
+    public void EndChunkCannotCarryDataEvenWithAValidChecksum()
+    {
+        byte[] encoded = new PngImage(1, 1, 1, [42]).Encode();
+        byte[] malformed = new byte[encoded.Length + 1];
+        encoded.AsSpan(0, encoded.Length - 12).CopyTo(malformed);
+        int offset = encoded.Length - 12;
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(malformed.AsSpan(offset), 1);
+        "IEND"u8.CopyTo(malformed.AsSpan(offset + 4));
+        malformed[offset + 8] = 1;
+        uint crc = uint.MaxValue;
+        foreach (byte value in malformed.AsSpan(offset + 4, 5))
+        {
+            crc ^= value;
+            for (int bit = 0; bit < 8; bit++) crc = (crc >> 1) ^ ((crc & 1) == 0 ? 0 : 0xedb88320u);
+        }
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(malformed.AsSpan(offset + 9), ~crc);
+        Assert.Throws<InvalidDataException>(() => PngImage.Decode(malformed));
+    }
+
+    [Theory]
     [InlineData("../outside.png")]
     [InlineData("../../outside.png")]
     [InlineData("C:/outside.png")]

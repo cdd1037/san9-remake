@@ -15,9 +15,9 @@ public sealed record ImageAsset(string Id, ImageFile File, int X, int Y, int Wid
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(Id) || File is null || Width <= 0 || Height <= 0 || X < 0 || Y < 0 || (long)X + Width > File.Width || (long)Y + Height > File.Height ||
-            File.Width is <= 0 or > 16384 || File.Height is <= 0 or > 16384 || File.Channels is not (1 or 3 or 4) ||
             string.IsNullOrWhiteSpace(File.Path))
             throw new InvalidDataException($"Invalid image region: {Id}");
+        PngImage.ValidateDimensions(File.Width, File.Height, File.Channels);
     }
 }
 

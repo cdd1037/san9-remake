@@ -552,6 +552,28 @@ public sealed class HeadlessHostTests : IDisposable
         Assert.Equal("usage", result.Report.GetProperty("firstFailure").GetProperty("code").GetString());
     }
 
+    [Theory]
+    [InlineData("report.json")]
+    [InlineData("divergence.json")]
+    [InlineData("initial.save.json")]
+    [InlineData("checkpoint.save.json")]
+    [InlineData("continuous.save.json")]
+    [InlineData("restored.save.json")]
+    [InlineData("commands.jsonl")]
+    [InlineData("events.jsonl")]
+    [InlineData("checkpoints.json")]
+    [InlineData("verification.recording.json")]
+    public void VerificationRejectsOutputCollisionsBeforeReadingOrOverwritingTheScenario(string name)
+    {
+        byte[] original = "scenario input must remain intact"u8.ToArray();
+        File.WriteAllBytes(FilePath(name), original);
+        var result = Run("verify", "--scenario", FilePath(name), "--output", Path.Combine(_directory, "."));
+        Assert.Equal(2, result.Code);
+        Assert.Equal("usage", result.Report.GetProperty("firstFailure").GetProperty("code").GetString());
+        Assert.Equal(original, File.ReadAllBytes(FilePath(name)));
+        Assert.Single(Directory.GetFiles(_directory));
+    }
+
     private static (int Code, JsonElement Report) Run(params string[] args)
     {
         using var output = new StringWriter();

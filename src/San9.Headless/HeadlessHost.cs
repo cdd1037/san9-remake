@@ -489,19 +489,29 @@ public sealed class HeadlessHost
         }
         if (values.ContainsKey("fixture") == values.ContainsKey("scenario")) throw new UsageException("Select exactly one scenario source.");
         if (values.ContainsKey("load") && values.ContainsKey("restore")) throw new UsageException("Select player load or exact restoration, not both.");
-        if (args[0] != "verify") ValidatePaths(values);
+        ValidatePaths(args[0], values);
         return values;
     }
 
-    private static void ValidatePaths(Dictionary<string, string> options)
+    private static void ValidatePaths(string mode, Dictionary<string, string> options)
     {
         var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         var outputs = new Dictionary<string, string>(comparer);
-        string report = Path.GetFullPath(Required(options, "report"));
-        outputs.Add(report, "report");
-        if (!outputs.TryAdd(Path.ChangeExtension(report, ".events.jsonl"), "events") ||
-            !outputs.TryAdd(Path.ChangeExtension(report, ".attempts.jsonl"), "attempts"))
-            throw new UsageException("Report path conflicts with a diagnostic output.");
+        if (mode == "verify")
+        {
+            string directory = Path.GetFullPath(Required(options, "output"));
+            foreach (string file in new[] { "report.json", "divergence.json", "initial.save.json", "checkpoint.save.json",
+                "continuous.save.json", "restored.save.json", "commands.jsonl", "events.jsonl", "checkpoints.json", "verification.recording.json" })
+                outputs.Add(Path.Combine(directory, file), file);
+        }
+        else
+        {
+            string report = Path.GetFullPath(Required(options, "report"));
+            outputs.Add(report, "report");
+            if (!outputs.TryAdd(Path.ChangeExtension(report, ".events.jsonl"), "events") ||
+                !outputs.TryAdd(Path.ChangeExtension(report, ".attempts.jsonl"), "attempts"))
+                throw new UsageException("Report path conflicts with a diagnostic output.");
+        }
         if (options.TryGetValue("save", out var save) && !outputs.TryAdd(Path.GetFullPath(save), "save"))
             throw new UsageException("Output paths must be distinct.");
         if (options.TryGetValue("record", out var record) && !outputs.TryAdd(Path.GetFullPath(record), "record"))

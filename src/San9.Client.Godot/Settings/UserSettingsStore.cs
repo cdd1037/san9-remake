@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using San9.Client.Godot.Persistence;
+using San9.Application.Persistence;
 
 namespace San9.Client.Godot.Settings;
 
@@ -53,7 +53,7 @@ public sealed class UserSettingsStore
             Settings = settings,
         };
         byte[] bytes = Utf8.GetBytes(JsonSerializer.Serialize(document, JsonOptions) + "\n");
-        AtomicUserFile.Write(_path, bytes);
+        AtomicFile.Write(_path, bytes);
     }
 
     private sealed class SettingsDocument

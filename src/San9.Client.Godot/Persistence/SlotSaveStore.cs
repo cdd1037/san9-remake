@@ -100,7 +100,7 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
     }
     private static void WriteFile(string path, byte[] bytes)
     {
-        try { AtomicUserFile.Write(path, bytes); }
+        try { AtomicFile.Write(path, bytes); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         { throw new SaveException(SaveFailure.IoFailure, "Could not atomically write slot save.", error); }
     }

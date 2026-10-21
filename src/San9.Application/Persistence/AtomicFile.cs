@@ -1,8 +1,10 @@
 namespace San9.Application.Persistence;
 
-internal static class AtomicFile
+public static class AtomicFile
 {
-    internal static void Write(string path, ReadOnlySpan<byte> bytes, Action? beforeReplace = null)
+    public static void Write(string path, ReadOnlySpan<byte> bytes) => Write(path, bytes, null);
+
+    internal static void Write(string path, ReadOnlySpan<byte> bytes, Action? beforeReplace)
     {
         string target = Path.GetFullPath(path);
         string directory = Path.GetDirectoryName(target)!;

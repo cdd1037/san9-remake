@@ -35,7 +35,7 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
     {
         get
         {
-            if (Condition == UnitCondition.Disguised) return ServicePlaceId is int home ? new(MilitaryOrderKind.Return, null, home) : null;
+            if (HasForcedReturn) return ServicePlaceId is int home ? new(MilitaryOrderKind.Return, null, home) : null;
             var command = CommandOrder;
             if (ContactTarget is not { } contact || command is { IsAttack: true } &&
                 (contact.IsSettlement ? command.SettlementId == contact.Id : command.UnitId == contact.Id)) return command;
@@ -47,7 +47,10 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
         ? new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = target } : Order;
 
     [JsonIgnore] public WorldPosition? ActiveWaypoint =>
-        EngagementTargetId is null && ContactTarget is null && Condition != UnitCondition.Disguised ? Waypoint : null;
+        EngagementTargetId is null && ContactTarget is null && !HasForcedReturn ? Waypoint : null;
+
+    [JsonIgnore] public bool HasForcedReturn => Condition is UnitCondition.Disguised or UnitCondition.Routed;
+    [JsonIgnore] public bool CanReceiveOrders => Condition is not (UnitCondition.Disguised or UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed);
 
     /// <summary>Projects a newly assigned command without carrying the previous command's navigation or contacts.</summary>
     public UnitState WithMilitaryOrder(MilitaryOrder order, UnitPolicies policies, WorldPosition? waypoint) => this with
@@ -86,6 +89,5 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
         (FormationId is not null || EngagementTargetId is null && !AwaitingPostAction && CommanderId is null) &&
         MemberRanks is not null && MemberRanks.All(p => p.Key >= 0 && Enum.IsDefined(p.Value)) &&
         (Order is null || FormationId is not null && Order.IsValid) &&
-        (MovementRemainder == 0 || FormationId is not null && EffectiveOrder is not null && Condition != UnitCondition.Confused &&
-            !(Condition == UnitCondition.Routed && EffectiveOrder.Kind == MilitaryOrderKind.Construct));
+        (MovementRemainder == 0 || FormationId is not null && EffectiveOrder is not null && Condition != UnitCondition.Confused);
 }

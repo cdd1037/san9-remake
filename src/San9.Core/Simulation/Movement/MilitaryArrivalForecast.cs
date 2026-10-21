@@ -93,8 +93,7 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
                 if (unit.EffectiveOrder != previousOrder) return new(ArrivalEstimateStatus.Incomplete);
             }
             bool preparing = unit.DepartureDaysRemaining > 0;
-            bool immobilized = unit.Condition == UnitCondition.Confused ||
-                unit.Condition == UnitCondition.Routed && unit.EffectiveOrder!.Kind == MilitaryOrderKind.Construct;
+            bool immobilized = unit.Condition == UnitCondition.Confused;
             if (!preparing && !constructionPreview && !Valid(world, unit)) return new(ArrivalEstimateStatus.NotApplicable);
             if (immobilized) unit = unit with { MovementRemainder = 0 };
             world.SetForecastUnit(unit);

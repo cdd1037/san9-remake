@@ -189,22 +189,14 @@ internal static class UnitStrategies
                 morale = Math.Min(100, morale + 20);
                 foreach (var member in members) world.Replace(member with { TacticCooldown = 0 });
             }
-            days = Math.Max(target.ConditionDaysRemaining, days);
+            var next = MilitaryConditions.Apply(target, condition, days) with { Morale = morale };
+            days = next.ConditionDaysRemaining;
             if (condition == UnitCondition.Disguised) FacilityConstruction.Cancel(world, target.Id, events);
-            world.Replace(target with { Condition = condition, ConditionDaysRemaining = days, Morale = morale,
-                HighSpiritsMoralePenaltyPending = condition == UnitCondition.HighSpirits,
-                Order = condition == UnitCondition.Disguised ? null : target.Order,
-                AwaitingPostAction = condition == UnitCondition.Disguised
-                    ? rules.Military!.Purpose(target.FormationId!.Value) == UnitPurpose.Combat
-                    : target.AwaitingPostAction,
-                EngagementTargetId = condition == UnitCondition.Disguised ? null : target.EngagementTargetId });
-            if (condition == UnitCondition.Disguised)
-            {
-                UnitOrderChanges.Report(world, target.Id, null, "false-report", events);
-                if (target.EngagementTargetId is not null) events.Add(new UnitEngagementChangedEvent(world.Clock, target.Id, null, "false-report"));
-            }
+            world.Replace(next);
+            if (condition == UnitCondition.Disguised && target.EngagementTargetId is not null)
+                events.Add(new UnitEngagementChangedEvent(world.Clock, target.Id, null, "false-report"));
             events.Add(new BattleConditionChangedEvent(world.Clock, target.Id, false, condition, days)
-            { SourceForceId = task.ForceId, Target = BattleObjectContext.Capture(target) });
+            { SourceForceId = task.ForceId, Target = BattleObjectContext.Capture(target), PreviousCondition = target.Condition });
             BattleLearning.Passive(world, members, TacticEffect.CounterConfusion, rules.Military!, events);
             var actor = world.Officers[task.OfficerId];
             OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Intelligence, "strategy-intelligence-growth", events);

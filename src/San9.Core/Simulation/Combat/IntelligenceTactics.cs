@@ -195,8 +195,11 @@ internal static class IntelligenceTactics
         if (tactic.Effect == TacticEffect.Defection)
         {
             int days = (int)Math.Min(5, quality + executed / 15 + executed);
-            world.Replace(unit with { Condition = UnitCondition.NoFormation, ConditionDaysRemaining = days, HighSpiritsMoralePenaltyPending = false });
-            events.Add(new BattleConditionChangedEvent(world.Clock, id, false, UnitCondition.NoFormation, days));
+            var next = MilitaryConditions.Apply(unit, UnitCondition.NoFormation, days);
+            world.Replace(next);
+            if (next.Condition != unit.Condition)
+                events.Add(new BattleConditionChangedEvent(world.Clock, id, false, UnitCondition.NoFormation, next.ConditionDaysRemaining)
+                { PreviousCondition = unit.Condition });
         }
         else MilitaryConditions.Confuse(world, target, tactic.Effect == TacticEffect.Illusion ? (int)Math.Min(5, quality + executed / 15) :
             TacticMath.ConfusionDays(proficiency, intelligence, effect), events);

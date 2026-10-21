@@ -13,6 +13,10 @@ public sealed record BattleConditionChangedEvent(GameClock Clock, int ObjectId, 
 
 internal static class MilitaryConditions
 {
+    internal static UnitState Apply(UnitState unit, UnitCondition condition, int days) => unit.Condition == condition ? unit :
+        unit with { Condition = condition, ConditionDaysRemaining = Math.Max(unit.ConditionDaysRemaining, days),
+            HighSpiritsMoralePenaltyPending = condition == UnitCondition.HighSpirits };
+
     internal static UnitState Tick(UnitState unit)
     {
         if (unit.ConditionDaysRemaining == 0 && unit.Condition is not (UnitCondition.Disguised or UnitCondition.NoFormation or
@@ -54,8 +58,10 @@ internal static class MilitaryConditions
         if (target.UnitId is int id)
         {
             var unit = world.Units[id];
-            if (unit.Condition == UnitCondition.Confused) days = Math.Max(days, unit.ConditionDaysRemaining);
-            world.Replace(unit with { Condition = UnitCondition.Confused, ConditionDaysRemaining = days, HighSpiritsMoralePenaltyPending = false });
+            var next = Apply(unit, UnitCondition.Confused, days);
+            if (next == unit) return;
+            days = next.ConditionDaysRemaining;
+            world.Replace(next);
         }
         else
         {

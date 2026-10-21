@@ -14,7 +14,7 @@ internal static class MilitaryContacts
 
     internal static UnitState AfterMovement(IWorldQuery world, UnitState unit, MapOccupancy? collision, MilitaryRulebook rules)
     {
-        if (rules.Purpose(unit.FormationId!.Value) != UnitPurpose.Combat || unit.Condition == UnitCondition.Disguised) return unit;
+        if (rules.Purpose(unit.FormationId!.Value) != UnitPurpose.Combat || unit.HasForcedReturn) return unit;
         bool InRange(MilitaryOrder order) => MilitaryCombat.ValidTarget(world, unit.OwnerId, order, rules.Formation(unit), rules) &&
             MilitaryCombat.Area(unit, rules).IntersectsExpanded(MilitaryCombat.TargetArea(world, order, rules),
                 MilitaryCombat.UnitRange(world, unit, order, rules));

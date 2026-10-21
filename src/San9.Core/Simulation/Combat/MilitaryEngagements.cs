@@ -8,13 +8,11 @@ internal static class MilitaryEngagements
     internal static EngagementRelations Build(IWorldQuery world, MilitaryRulebook military)
     {
         Dictionary<BattleSource, BattleSource> targets = [];
-        Dictionary<BattleSource, int> incoming = [];
         HashSet<BattleSource> engaged = [];
         Dictionary<BattleSource, BattleSource> contacts = [];
         void Add(BattleSource source, BattleSource target)
         {
             targets.Add(source, target);
-            incoming[target] = incoming.GetValueOrDefault(target) + 1;
             if (source.Area(world, military).IntersectsExpanded(target.Area(world, military), MapCoordinates.UnitsPerCell))
             {
                 contacts.Add(source, target);
@@ -31,7 +29,7 @@ internal static class MilitaryEngagements
         var opponents = contacts.Where(p => engaged.Contains(p.Key)).ToDictionary();
         foreach (var (source, target) in contacts.OrderBy(p => p.Key.IsSettlement).ThenBy(p => p.Key.Id))
             opponents.TryAdd(target, source);
-        return new(targets, incoming, opponents);
+        return new(targets, opponents);
     }
 
     // Movement consumes state retained from the previous combat phase. Only this pre-combat phase expires it.
@@ -155,13 +153,14 @@ internal static class MilitaryEngagements
 }
 
 /// <summary>A derived view owned by one mutation; queries never modify it or enumerate the world.</summary>
-internal sealed class EngagementRelations(Dictionary<BattleSource, BattleSource> targets, Dictionary<BattleSource, int> incoming,
-    Dictionary<BattleSource, BattleSource> opponents)
+internal sealed class EngagementRelations(Dictionary<BattleSource, BattleSource> targets, Dictionary<BattleSource, BattleSource> opponents)
 {
+    private readonly ILookup<BattleSource, BattleSource> attackers = targets.ToLookup(pair => pair.Value, pair => pair.Key);
+    internal IEnumerable<BattleSource> Attackers(BattleSource subject) => attackers[subject];
     internal IEnumerable<BattleSource> Participants => opponents.Keys;
     internal BattleSource Opponent(BattleSource participant) => opponents[participant];
     internal BattleSource? Target(BattleSource source) => targets.TryGetValue(source, out var target) ? target : null;
-    internal int IncomingCount(BattleSource subject) => incoming.GetValueOrDefault(subject);
+    internal int IncomingCount(BattleSource subject) => attackers[subject].Count();
     internal bool Engaged(BattleSource subject) => opponents.ContainsKey(subject);
     internal int Intensity(BattleSource subject, BattleSource opponent) =>
         IncomingCount(subject) + (Target(opponent) == subject ? 0 : 1);

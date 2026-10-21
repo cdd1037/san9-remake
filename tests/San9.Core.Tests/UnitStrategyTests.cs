@@ -86,7 +86,7 @@ public sealed class UnitStrategyTests
     }
 
     [Fact]
-    public void FalseReportClearsAttackAndKeepsLongerExistingDurationUntilExpiry()
+    public void FalseReportPreservesOrderAndKeepsLongerExistingDurationUntilExpiry()
     {
         var rules = Rules();
         var world = World(distance: 30);
@@ -99,7 +99,7 @@ public sealed class UnitStrategyTests
         var effect = Assert.Single(facts.OfType<BattleConditionChangedEvent>(), e => e.Condition == UnitCondition.Disguised);
         Assert.Equal(1, effect.SourceForceId);
         Assert.Equal(BattleObjectContext.Capture(target), effect.Target);
-        Assert.Null(state.Units[5].Order);
+        Assert.Equal(target.Order, state.Units[5].Order);
         Assert.Equal(24, state.Units[5].ConditionDaysRemaining);
         Assert.Equal(UnitCondition.Disguised, state.Units[5].Condition);
         for (int day = 0; day < 24; day++) MilitaryConditions.Tick(state, []);
@@ -454,21 +454,23 @@ public sealed class UnitStrategyTests
     }
 
     [Fact]
-    public void FalseReportForcesMovementHomeUntilExpiryAndPreservesNewOrders()
+    public void FalseReportForcesMovementHomeUntilExpiryAndResumesStoredOrder()
     {
         var rules = Rules();
         var world = World(distance: 30);
         var setup = world.BeginMutation();
-        setup.Replace(setup.Units[5] with { ServicePlaceId = 2,
-            Order = new(MilitaryOrderKind.Move, new(20, 2), null) });
+        setup.Replace(setup.Units[5] with { ServicePlaceId = 2 });
+        setup.AssignMilitaryOrder(5, new(MilitaryOrderKind.Move, new(20, 2), null), new(), new(25, 2));
         world.Commit(setup);
         var task = Submit(world, rules, UnitStrategyKind.FalseReport, 0);
         var state = world.BeginMutation(rules.Abilities);
         state.SetSimulation(state.Simulation with { Tasks = state.Simulation.Tasks.Remove(task) });
         UnitStrategies.Resolve(state, task, rules, []);
-        Assert.Null(state.Units[5].Order);
+        Assert.Equal(MilitaryOrderKind.Move, state.Units[5].Order!.Kind);
+        Assert.Equal(new WorldPosition(25, 2), state.Units[5].Waypoint);
+        Assert.Null(state.Units[5].ActiveWaypoint);
         Assert.Equal(2, state.Units[5].EffectiveOrder!.SettlementId);
-        Assert.Equal(CommandRejection.None, MilitaryMovement.Order(state,
+        Assert.Equal(CommandRejection.InvalidTask, MilitaryMovement.Order(state,
             new(Guid.NewGuid(), 2, 0, 5, new(MilitaryOrderKind.Move, new(20, 2), null)), rules.Military, []));
         var before = state.Units[5].Position;
         MilitaryMovement.AdvanceDay(state, rules.Military, rules.Governance, rules.Personnel, []);
@@ -477,6 +479,7 @@ public sealed class UnitStrategyTests
         state.Replace(state.Units[5] with { ConditionDaysRemaining = 1 });
         MilitaryConditions.Tick(state, []);
         Assert.Equal(MilitaryOrderKind.Move, state.Units[5].EffectiveOrder!.Kind);
+        Assert.Equal(new WorldPosition(25, 2), state.Units[5].ActiveWaypoint);
         before = state.Units[5].Position;
         MilitaryMovement.AdvanceDay(state, rules.Military, rules.Governance, rules.Personnel, []);
         Assert.True(state.Units[5].Position.X < before.X);

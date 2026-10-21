@@ -214,7 +214,7 @@ internal static class MilitaryMovement
         if (rules is null) return CommandRejection.UnsupportedCommand;
         if (!world.Units.TryGetValue(command.UnitId, out var unit) || unit.IsEmbedded || unit.IsPersonnel || unit.Soldiers == 0 || unit.OwnerId != command.IssuerId ||
             unit.FormationId is not int id || !rules.Formations.TryGetValue(id, out var formation)) return CommandRejection.InvalidTask;
-        if (!ValidOrder(world, unit.OwnerId, command.Order, formation, rules, unit.NavalFormationId, unit.Soldiers)) return CommandRejection.InvalidTask;
+        if (!unit.CanReceiveOrders || !ValidOrder(world, unit.OwnerId, command.Order, formation, rules, unit.NavalFormationId, unit.Soldiers)) return CommandRejection.InvalidTask;
         if (command.Order.Kind == MilitaryOrderKind.Construct) return CommandRejection.InvalidTask;
         var policies = command.Policies ?? unit.Policies;
         var travel = rules.Travel(unit);

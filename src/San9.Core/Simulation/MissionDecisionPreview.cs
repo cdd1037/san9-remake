@@ -28,7 +28,7 @@ public sealed partial class SimulationEngine
             RequestAttackCommand c => new(GetAttackRequestAdvice(c.IssuerId, c.OfficerId, c.TargetForceId, c.TargetSettlementId),
                 AttackRequestDiplomacy.FreeThreshold(world, c.IssuerId, c.OfficerId, c.TargetForceId, c.TargetSettlementId, _rules)),
             ReturnPrisonerCommand c => new(GetPrisonerReturnAdvice(c.IssuerId, c.OfficerId, c.TargetForceId, c.PrisonerId),
-                PrisonerCompensation.Quote(world, c.IssuerId, c.OfficerId, c.TargetForceId, c.PrisonerId, _rules.Treasures).Kind == CompensationKind.Refuse ? 0 : 100),
+                PrisonerReturnDiplomacy.CanNegotiate(world, c.IssuerId, c.OfficerId, c.TargetForceId, c.PrisonerId, _rules) ? 100 : 0),
             DemandSurrenderCommand c => new(GetSurrenderAdvice(c.IssuerId, c.OfficerId, c.TargetForceId),
                 SurrenderDiplomacy.Threshold(world, c.IssuerId, c.OfficerId, c.TargetForceId, _rules)),
             _ => throw new ArgumentException("Command has no mission decision.", nameof(command))

@@ -14,20 +14,23 @@ public sealed class MissionCommandTests
     [Theory]
     [InlineData("burn")]
     [InlineData("gift")]
+    [InlineData("request")]
     public void PreparationAndDepartureDialogueDoNotPublishExecutionRecords(string kind)
     {
         var content = MissionScenario.Create();
         content = content with
         {
             Forces = content.Forces.Select(f => f.Id == 1 ? f with { AdviserId = 2 } : f).ToArray(),
-            Officers = content.Officers.Select(p => p.State.Id == 2 ? p with { State = p.State with { Status = OfficerStatus.Strategist } } : p).ToArray()
+            Officers = content.Officers.Select(p => p.State.Id == 2 ? p with { State = p.State with
+                { Status = OfficerStatus.Strategist, BaseAbilities = kind == "request" ? new(100, 100, 100, 100) : p.State.BaseAbilities } } : p).ToArray()
         };
         var session = GameSession.Start(content,42);
         var draft = new MissionDraft(session,1,kind);
         Assert.True(draft.SetActor(2));
         Assert.True(draft.SetTarget(2));
+        if (kind == "request") Assert.True(draft.SetTarget(3,true));
         string prefix = draft.IsDiplomacy ? kind : "strategy";
-        string[] roles = [prefix + "-favorable",prefix + "-unfavorable",kind + "-start"];
+        string[] roles = [prefix + "-favorable",prefix + "-unfavorable",kind + "-start", "request-uncertain"];
         var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion,[]) { Messages = roles.ToDictionary(
             role => role,role => new MessageDefinition([new MessageLiteral(role)])) };
         var messages = roles.ToDictionary(role => role,
@@ -35,6 +38,11 @@ public sealed class MissionCommandTests
         var context = session.Messages(texts);
 
         var advice = Assert.Single(MissionPresentation.Advice(draft,messages,context,texts));
+        if (kind == "request")
+        {
+            Assert.Equal(AdviserOpinion.Uncertain, draft.Advice!.Opinion);
+            Assert.Equal("request-uncertain", advice.Message.Key);
+        }
         Assert.Equal(2,advice.SpeakerId);
         Assert.Null(advice.MapSpeech);
 

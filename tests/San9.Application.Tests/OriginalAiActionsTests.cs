@@ -226,18 +226,115 @@ public sealed class OriginalAiActionsTests
         var content = Fixture();
         content = content with { Officers = content.Officers.Select(p => p.State.Id == 1 ? p with { State = p.State with { BaseAbilities = new(115, 115, 115, 115) } } : p).ToArray() };
         var h = new Harness(content, change: w => w with { Relations = [new(1, 2, 100), new(1, 3, 100), new(2, 3, 0)],
-            Simulation = w.Simulation with { Alliance = new(3, 1, [1, 2], 10) } });
+            Simulation = w.Simulation with { Alliance = new(3, 2, [1, 2], 10) } });
         Assert.Equal(1, h.Run(OriginalAiWork.Gift).Submitted);
         Assert.Equal(2, Assert.IsType<GiftCommand>(Assert.Single(h.Commands)).TargetForceId);
     }
 
     [Fact]
-    public void ReturnPrisonerUsesSpecializedPoliticsAndRealRecoveryTask()
+    public void BarbarianCannotInitiateAutomaticGifts()
+    {
+        var h = new Harness(change: w => w with
+        {
+            Forces = w.Forces.Select(f => f.Id == 1 ? f with { IsBarbarian = true } : f).ToArray(),
+            Relations = [new(1, 2, 40), new(1, 3, 80), new(2, 3, 20)]
+        });
+        var before = h.Engine.Snapshot;
+        Assert.Equal(0, h.Run(OriginalAiWork.Gift).Attempts);
+        Assert.Empty(h.Commands);
+        StateAssert.Equal(before, h.Engine.Snapshot);
+    }
+
+    [Fact]
+    public void AutomaticGiftDoesNotTargetBarbarians()
+    {
+        var h = new Harness(change: w => w with
+        {
+            Forces = w.Forces.Select(f => f.Id == 2 ? f with { IsBarbarian = true } : f).ToArray(),
+            Relations = [new(1, 2, 40), new(1, 3, 80), new(2, 3, 20)]
+        });
+        Assert.Equal(0, h.Run(OriginalAiWork.Gift).Attempts);
+        Assert.Empty(h.Commands);
+    }
+
+    [Theory]
+    [InlineData(3999u, 0u, 0L, 0L, null, 0u)]
+    [InlineData(4000u, 0u, 0L, 0L, GiftKind.Money, 1000u)]
+    [InlineData(21999u, 0u, 0L, 0L, GiftKind.Money, 9999u)]
+    [InlineData(22000u, 0u, 0L, 0L, GiftKind.Money, 10000u)]
+    [InlineData(100000u, 0u, 0L, 0L, GiftKind.Money, 10000u)]
+    [InlineData(26000u, 0u, 10000L, 0L, GiftKind.Money, 7000u)]
+    [InlineData(0u, 29999u, 0L, 0L, null, 0u)]
+    [InlineData(0u, 30000u, 0L, 0L, GiftKind.Food, 10000u)]
+    [InlineData(3998u, 30000u, 0L, 0L, GiftKind.Food, 10000u)]
+    [InlineData(4000u, 30000u, 0L, 0L, GiftKind.Money, 1000u)]
+    [InlineData(0u, 30003u, 0L, 3L, null, 0u)]
+    [InlineData(0u, 30004u, 0L, 3L, GiftKind.Food, 10000u)]
+    public void AutomaticGiftPreservesReservesAndChoosesOneAffordableResource(uint money, uint food,
+        long salary, long rations, GiftKind? kind, uint amount)
+    {
+        var input = new OriginalDomesticInputs(1, money, food, salary, rations, false, [],
+            ImmutableDictionary<int, OfficerAbilities>.Empty);
+        var offer = OriginalAiActions.Gift(input);
+        if (kind is null) Assert.Null(offer);
+        else Assert.Equal(new GiftOffer(kind.Value, amount, null), offer);
+    }
+
+    [Fact]
+    public void GiftDoesNotReachAForceBehindAnotherRealm()
+    {
+        var h = new Harness(change: w => w with { Relations = [new(1, 2, 80), new(1, 3, 40), new(2, 3, 20)] });
+        h.State = h.State with { DiplomaticOrder = [3, 1, 2] };
+        var before = h.Engine.Snapshot;
+        Assert.Equal(0, h.Run(OriginalAiWork.Gift).Attempts);
+        Assert.Empty(h.Commands);
+        StateAssert.Equal(before, h.Engine.Snapshot);
+    }
+
+    [Theory]
+    [InlineData(20, true)]
+    [InlineData(59, true)]
+    [InlineData(60, false)]
+    [InlineData(100, false)]
+    public void AllianceLeaderDoesNotKeepSendingGiftsToFriendlyMembers(int relation, bool expected)
+    {
+        var h = new Harness(change: w => w with
+        {
+            Relations = [new(1, 2, relation), new(1, 3, 80), new(2, 3, 20)],
+            Simulation = w.Simulation with { Alliance = new(3, 1, [1, 2], 10) }
+        });
+        Assert.Equal(expected ? 1 : 0, h.Run(OriginalAiWork.Gift).Submitted);
+        Assert.Equal(expected ? 1 : 0, h.Commands.Count);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AllianceTargetCannotInitiateGiftsEvenToOtherwiseEligibleNeighbors(bool sourceIsTarget)
+    {
+        var h = new Harness(change: w => w with
+        {
+            Relations = [new(1, 2, 40), new(1, 3, 80), new(2, 3, 20)],
+            Simulation = w.Simulation with { Alliance = sourceIsTarget ? new(1, 2, [2, 3], 10) : new(2, 1, [1, 3], 10) }
+        });
+        var before = h.Engine.Snapshot;
+        Assert.Equal(0, h.Run(OriginalAiWork.Gift).Attempts);
+        Assert.Empty(h.Commands);
+        StateAssert.Equal(before, h.Engine.Snapshot);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReturnPrisonerUsesSpecializedPoliticsAndRealRecoveryTask(bool playerHolder)
     {
         var content = Fixture();
         content = content with { Officers = [.. content.Officers, Person(30, 1, 2, 90, OfficerStatus.Captive)] };
         int draws = 0;
-        var h = new Harness(content, draw: maximum => { draws++; return maximum - 1; });
+        var h = new Harness(content, change: w => w with { Simulation = w.Simulation with
+            { Controls = w.Simulation.Controls.Select(c => c.ForceId == 2 && playerHolder
+                ? c with { Kind = ControllerKind.Player } : c).ToImmutableArray() } },
+            draw: maximum => { draws++; return maximum - 1; });
         Assert.Equal(1, h.Run(OriginalAiWork.ReturnPrisoner).Submitted);
         Assert.Equal(0, draws); // No adviser uses actual public feasibility, not the unknown-opinion draw.
         Assert.Equal(30, Assert.IsType<ReturnPrisonerCommand>(Assert.Single(h.Commands)).PrisonerId);
@@ -426,13 +523,177 @@ public sealed class OriginalAiActionsTests
     }
 
     [Fact]
+    public void SurrenderDoesNotConsumeAttemptsForANonAdjacentRealm()
+    {
+        var h = new Harness(change: w => w with { Relations = [new(1, 2, 80), new(1, 3, 0), new(2, 3, 20)] });
+        h.State = h.State with { DiplomaticOrder = [1, 2, 3] };
+        Assert.Equal(0, h.Run(OriginalAiWork.Surrender).Attempts);
+        Assert.Empty(h.Commands);
+    }
+
+    [Fact]
+    public void ReturnPrisonerCanRecoverPeopleHeldByBarbariansWithoutAdjacency()
+    {
+        var content = Fixture();
+        content = content with { Officers = [.. content.Officers, Person(30, 1, 3, 90, OfficerStatus.Captive)] };
+        var h = new Harness(content, change: w => w with
+            { Forces = w.Forces.Select(f => f.Id == 3 ? f with { IsBarbarian = true } : f).ToArray() });
+        Assert.Equal(1, h.Run(OriginalAiWork.ReturnPrisoner).Submitted);
+        var command = Assert.IsType<ReturnPrisonerCommand>(Assert.Single(h.Commands));
+        Assert.Equal(3, command.TargetForceId);
+        Assert.Equal(30, command.PrisonerId);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AttackRequestRangeFollowsTheRequestedRulerInsteadOfAnyOwnedCity(bool rulerNearby)
+    {
+        var content = Fixture();
+        content = content with
+        {
+            Settlements = [.. content.Settlements, content.Settlements[2] with { Id = 4, X = 3, NameKey = "near" }],
+            Officers = content.Officers.Select(p => p.State.Id == 3 && rulerNearby
+                ? p with { State = p.State with { SettlementId = 4 } } : p).ToArray(),
+            RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 3, [4] = 1 },
+            RegionNameKeys = new() { [1] = "one", [2] = "two", [3] = "three", [4] = "near" },
+            Military = content.Military! with { Places = content.Military.Places.Add(new(4, new(17, 7), new(1, 1))) },
+            OriginalAi = content.OriginalAi with { WorkRules = content.OriginalAi.WorkRules.SetItem(OriginalAiWork.RequestAttack,
+                content.OriginalAi.WorkRules[OriginalAiWork.RequestAttack] with { MaximumGeometricDays = 1 }) }
+        };
+        var h = new Harness(content);
+        Assert.Equal(rulerNearby ? 1 : 0, h.Run(OriginalAiWork.RequestAttack).Submitted);
+        Assert.Equal(rulerNearby ? 1 : 0, h.Commands.Count);
+    }
+
+    [Fact]
+    public void AttackRequestCanAskABarbarianForceToAttackAnOrdinaryRealm()
+    {
+        var h = new Harness(change: w => w with
+            { Forces = w.Forces.Select(f => f.Id == 3 ? f with { IsBarbarian = true } : f).ToArray() });
+        Assert.Equal(1, h.Run(OriginalAiWork.RequestAttack).Submitted);
+        Assert.Equal(3, Assert.IsType<RequestAttackCommand>(Assert.Single(h.Commands)).TargetForceId);
+    }
+
+    [Fact]
+    public void AttackRequestComparesBuildingThresholdsWithinThePreferredRequestedForce()
+    {
+        var content = Fixture();
+        content = content with
+        {
+            Settlements = [.. content.Settlements.Select(s => s.Id == 2 ? s with { X = 9 } : s),
+                content.Settlements[0] with { Id = 4, X = 6, NameKey = "near-envoy" },
+                content.Settlements[1] with { Id = 5, X = 2, NameKey = "other-target" }],
+            Officers = content.Officers.Select(p => p.State.Id == 12
+                ? p with { State = p.State with { SettlementId = 4 } } : p).ToArray(),
+            RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 3, [4] = 1, [5] = 5 },
+            RegionNameKeys = new() { [1] = "one", [2] = "two", [3] = "three", [4] = "near-envoy", [5] = "other-target" },
+            CityConnections = [.. content.CityConnections, new(5, 3), new(3, 5)],
+            Military = content.Military! with
+            {
+                Places = content.Military.Places.SetItem(1, new(2, new(47, 7), new(1, 1)))
+                    .Add(new(4, new(32, 7), new(1, 1))).Add(new(5, new(12, 7), new(1, 1))),
+                RegionIds = content.Military.RegionIds.SetItem(22, 2)
+            },
+            Information = content.Information with { Relations = [new(1, 2, 0), new(1, 3, 100), new(2, 3, 20)] }
+        };
+        var h = new Harness(content);
+        var first = h.Engine.GetMissionDecision(new("player"), new RequestAttackCommand(Guid.NewGuid(), 1, 0, 12, 3, 2));
+        var second = h.Engine.GetMissionDecision(new("player"), new RequestAttackCommand(Guid.NewGuid(), 1, 0, 1, 3, 5));
+        Assert.True(second.Threshold > first.Threshold);
+        Assert.Equal(1, h.Run(OriginalAiWork.RequestAttack).Submitted);
+        var command = Assert.IsType<RequestAttackCommand>(Assert.Single(h.Commands));
+        Assert.Equal(5, command.TargetSettlementId);
+        Assert.Equal(1, command.OfficerId);
+    }
+
+    [Fact]
+    public void AttackRequestExcludesFacilitiesWithoutAnAuthoredDiplomacyRole()
+    {
+        var content = Fixture();
+        content = content with
+        {
+            Settlements = content.Settlements.Select(s => s.Id == 2 ? s with
+                { Kind = SettlementKind.Facility } : s).ToArray(),
+            RegionCityIds = new() { [1] = 1, [2] = 3, [3] = 3 },
+            CityConnections = [new(1, 3), new(3, 1)],
+            Military = content.Military! with
+            {
+                Facilities = [new(9000, 0, 500, new(1, 1), 0, false, true, true, 500000, null, null, null, []) { IsHarbor = true }],
+                Places = content.Military.Places.Select(p => p with { FacilityTypeId = 9000 }).ToImmutableArray()
+            }
+        };
+        var h = new Harness(content);
+        Assert.Equal(0, h.Run(OriginalAiWork.RequestAttack).Attempts);
+        Assert.Empty(h.Commands);
+    }
+
+    [Fact]
+    public void AttackRequestRequiresTheAttackTargetToBeTheSourcesStrategicOpponent()
+    {
+        var h = new Harness(change: w => w with { Relations = [new(1, 2, 60), new(1, 3, 100), new(2, 3, 20)] });
+        Assert.Equal(0, h.Run(OriginalAiWork.RequestAttack).Attempts);
+        Assert.Empty(h.Commands);
+    }
+
+    [Fact]
+    public void AttackRequestCanCoordinateOnTheRequestedForcesFrontAwayFromTheSource()
+    {
+        var content = Fixture();
+        content = content with
+        {
+            Settlements = [.. content.Settlements.Select(s => s.Id == 2 ? s with { Soldiers = 9999 } : s),
+                content.Settlements[1] with { Id = 5, X = 21, NameKey = "far-front" }],
+            RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 3, [5] = 5 },
+            RegionNameKeys = new() { [1] = "one", [2] = "two", [3] = "three", [5] = "far-front" },
+            CityConnections = [.. content.CityConnections, new(3, 5), new(5, 3)],
+            Military = content.Military! with
+            {
+                Width = 26,
+                TerrainIds = Enumerable.Repeat(0, 78).ToImmutableArray(),
+                RegionIds = Enumerable.Range(0, 78).Select(i => (int?)(i % 26 < 6 ? 1 : i % 26 < 12 ? 2 : i % 26 < 18 ? 3 : 5)).ToImmutableArray(),
+                TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 78).ToImmutableArray(),
+                Places = content.Military.Places.Add(new(5, new(107, 7), new(1, 1)))
+            },
+            Information = content.Information with { Relations = [new(1, 2, 0), new(1, 3, 100), new(2, 3, 20)] }
+        };
+        var h = new Harness(content);
+        var geography = new OriginalAiGeography(content, new(content.Military!), h.Engine.Snapshot);
+        Assert.DoesNotContain(geography.Neighbors(5), p => p.OwnerId == 1);
+        Assert.Contains(geography.Neighbors(5), p => p.OwnerId == 3);
+        Assert.Equal(1, h.Run(OriginalAiWork.RequestAttack).Submitted);
+        Assert.Equal(5, Assert.IsType<RequestAttackCommand>(Assert.Single(h.Commands)).TargetSettlementId);
+    }
+
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 1)]
+    public void AttackRequestToPlayerDistinguishesMissingAdviserFromUnpredictableOpinion(bool hasAdviser, int submitted)
+    {
+        var h = new Harness(change: w => w with
+        {
+            Relations = [new(1, 2, 0), new(1, 3, 60), new(2, 3, 20)],
+            Forces = w.Forces.Select(f => f.Id == 1 ? f with { AdviserId = hasAdviser ? 11 : null } : f).ToArray(),
+            Officers = w.Officers.Select(p => p.Id == 11 && hasAdviser ? p with { Status = OfficerStatus.Strategist } : p).ToArray(),
+            Simulation = w.Simulation with { Controls = w.Simulation.Controls.Select(c => c.ForceId == 3
+                ? c with { Kind = ControllerKind.Player } : c).ToImmutableArray() }
+        });
+        Assert.Equal(submitted, h.Run(OriginalAiWork.RequestAttack).Submitted);
+    }
+
+    [Fact]
     public void AttackRequestToPlayerDoesNotUseFreeAcceptanceThresholdAsCandidateGate()
     {
         var content = Fixture();
         content = content with { Information = content.Information with
             { Relations = [new(1, 2, 0), new(1, 3, 60), new(2, 3, 20)] } };
-        var h = new Harness(content, w => w with { Simulation = w.Simulation with
-            { Controls = w.Simulation.Controls.Select(c => c.ForceId == 3 ? c with { Kind = ControllerKind.Player } : c).ToImmutableArray() } });
+        var h = new Harness(content, w => w with
+        {
+            Forces = w.Forces.Select(f => f.Id == 1 ? f with { AdviserId = 11 } : f).ToArray(),
+            Officers = w.Officers.Select(p => p.Id == 11 ? p with { Status = OfficerStatus.Strategist } : p).ToArray(),
+            Simulation = w.Simulation with
+                { Controls = w.Simulation.Controls.Select(c => c.ForceId == 3 ? c with { Kind = ControllerKind.Player } : c).ToImmutableArray() }
+        });
         var preview = h.Engine.GetMissionDecision(new("player"), new RequestAttackCommand(Guid.NewGuid(), 1, 0, 11, 3, 2));
         Assert.Equal(CommandRejection.None, preview.Advice.Rejection);
         Assert.Equal(AdviserOpinion.Unavailable, preview.Advice.Opinion);

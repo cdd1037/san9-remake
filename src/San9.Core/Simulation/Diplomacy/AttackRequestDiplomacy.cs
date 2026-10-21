@@ -130,9 +130,13 @@ internal static class AttackRequestDiplomacy
         var rejection = Eligibility(world, force, actor, target, place, rules);
         if (rejection != CommandRejection.None) return new(rejection, null, AdviserOpinion.Unavailable);
         if (PrisonerReturnDiplomacy.Player(world, target)) return AdviserJudgment.Unpredictable(world, force);
-        int threshold = PaymentQuote(world, force, actor, target, place, rules).Kind != CompensationKind.Refuse ? 100 :
-            Math.Max(FreeThreshold(world, force, actor, target, place, rules), PrisonerThreshold(world, force, actor, target, place, rules));
-        return AdviserJudgment.Evaluate(world, force, ConditionalRandomPurpose.AttackRequest, actor, target, place, threshold);
+        int roll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.AttackRequest,
+            world.Clock, actor, target, place);
+        int mistakeRoll = ConditionalRandom.Percentile(world.Simulation.InitialSeed, ConditionalRandomPurpose.AttackRequestAdviceMistake,
+            world.Clock, actor, target, place);
+        return AdviserJudgment.EvaluateNegotiation(world, force, roll, mistakeRoll,
+            FreeThreshold(world, force, actor, target, place, rules), PrisonerThreshold(world, force, actor, target, place, rules),
+            PaymentQuote(world, force, actor, target, place, rules).Kind != CompensationKind.Refuse);
     }
 
     internal static CommandRejection Start(WorldMutation world, CommandContext context, RequestAttackCommand command, SimulationRules rules, List<DomainEvent> events)

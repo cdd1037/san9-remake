@@ -33,4 +33,21 @@ internal static class AdviserJudgment
         bool favorable = (roll < threshold) == (roll < accuracy);
         return new(CommandRejection.None, adviserId, favorable ? AdviserOpinion.Favorable : AdviserOpinion.Unfavorable);
     }
+
+    internal static CommandAdvice EvaluateNegotiation(WorldMutation world, int forceId, int roll, int mistakeRoll,
+        int freeThreshold, int exchangeThreshold, bool hasPayment)
+    {
+        if (world.Forces[forceId].AdviserId is not int adviserId)
+            return new(CommandRejection.None, null, AdviserOpinion.NoAdviser);
+        var outcome = roll < freeThreshold ? AdviserOpinion.Favorable :
+            roll < exchangeThreshold || hasPayment ? AdviserOpinion.Uncertain : AdviserOpinion.Unfavorable;
+        if (roll >= AdviserAccuracy.Percent(world.Abilities(world.Officers[adviserId]).Intelligence))
+            outcome = outcome switch
+            {
+                AdviserOpinion.Favorable => mistakeRoll < 50 ? AdviserOpinion.Uncertain : AdviserOpinion.Unfavorable,
+                AdviserOpinion.Uncertain => mistakeRoll < 50 ? AdviserOpinion.Favorable : AdviserOpinion.Unfavorable,
+                _ => mistakeRoll < 50 ? AdviserOpinion.Favorable : AdviserOpinion.Uncertain
+            };
+        return new(CommandRejection.None, adviserId, outcome);
+    }
 }

@@ -88,7 +88,7 @@ internal sealed partial class OriginalAiActions(SimulationEngine engine, Scenari
         OriginalAiWork.Seize or OriginalAiWork.Gossip or OriginalAiWork.Gift or OriginalAiWork.RequestAttack or
         OriginalAiWork.ReturnPrisoner or OriginalAiWork.Surrender;
     private sealed record Target(int Id, int? Second = null);
-    private sealed record Pair(OfficerState Actor, GameCommand Command);
+    private sealed record Pair(OfficerState Actor, GameCommand Command, int Threshold);
 
     internal OriginalAiWorkReport Run(OriginalAiWork work, int limit, OriginalAiState state, OriginalAiCorpsState strategy)
     {
@@ -132,29 +132,37 @@ internal sealed partial class OriginalAiActions(SimulationEngine engine, Scenari
             var offer = work == OriginalAiWork.Gift ? Gift(Domestic()) : null;
             if (work == OriginalAiWork.Gift && offer is null) return Report(OriginalAiWorkEnd.ReserveReached);
             Pair? selected = null;
-            foreach (var target in work == OriginalAiWork.Gift ? targets.Take(1).ToArray() : targets.ToArray())
+            if (work == OriginalAiWork.RequestAttack)
             {
-                selected = SelectPair(work, target, actors, rule, offer);
-                if (selected is null) continue;
-                // Consume a selected pair once, before relief validation or public submission.
-                actors.RemoveAll(p => p.Id == selected.Actor.Id);
-                if (work == OriginalAiWork.RequestAttack)
-                    targets.RemoveAll(t => t.Id == target.Id || t.Second == target.Second);
-                else if (work != OriginalAiWork.Gossip)
-                    targets.Remove(target);
-                if (work == OriginalAiWork.Reinforce)
+                selected = SelectRequestPair(targets, actors, rule);
+                if (selected is not null)
                 {
-                    // Work 28 consumes the pair before the final garrison check, then retries
-                    // within this attempt with every actor from a failed source removed.
-                    if (!RetainsRelief(selected.Actor))
+                    actors.RemoveAll(p => p.Id == selected.Actor.Id);
+                    var request = (RequestAttackCommand)selected.Command;
+                    targets.RemoveAll(t => t.Id == request.TargetForceId || t.Second == request.TargetSettlementId);
+                }
+            }
+            else
+            {
+                foreach (var target in work == OriginalAiWork.Gift ? targets.Take(1).ToArray() : targets.ToArray())
+                {
+                    selected = SelectPair(work, target, actors, rule, offer);
+                    if (selected is null) continue;
+                    // Consume a selected pair once, before relief validation or public submission.
+                    actors.RemoveAll(p => p.Id == selected.Actor.Id);
+                    if (work != OriginalAiWork.Gossip)
+                        targets.Remove(target);
+                    if (work == OriginalAiWork.Reinforce && !RetainsRelief(selected.Actor))
                     {
+                        // Work 28 consumes the pair before the final garrison check, then retries
+                        // within this attempt with every actor from a failed source removed.
                         int? source = selected.Actor.SettlementId;
                         actors.RemoveAll(p => p.SettlementId == source);
                         selected = null;
                         continue;
                     }
+                    break;
                 }
-                break;
             }
             if (selected is null)
             {
@@ -189,14 +197,14 @@ internal sealed partial class OriginalAiActions(SimulationEngine engine, Scenari
                 AdviserOpinion.Favorable => 100,
                 AdviserOpinion.Unfavorable => 0,
                 AdviserOpinion.Uncertain when work is OriginalAiWork.Gift or OriginalAiWork.RequestAttack or OriginalAiWork.ReturnPrisoner => 50,
-                AdviserOpinion.Unavailable when work == OriginalAiWork.RequestAttack => 50,
-                AdviserOpinion.Unavailable when work == OriginalAiWork.ReturnPrisoner => Math.Min(random.Next(Best(World.Officers.Single(p => p.Id == target.Id)) + 20), 100),
+                AdviserOpinion.Unavailable when work == OriginalAiWork.RequestAttack && preview.Advice.AdviserId is not null => 50,
+                AdviserOpinion.Unavailable when work == OriginalAiWork.ReturnPrisoner && preview.Advice.AdviserId is not null => Math.Min(random.Next(Best(World.Officers.Single(p => p.Id == target.Id)) + 20), 100),
                 _ => threshold
             };
             int minimum = work is OriginalAiWork.Gift or OriginalAiWork.Surrender ? 33 :
                 work is OriginalAiWork.FalseReport or OriginalAiWork.Confuse ? 15 : 20;
             if (score < minimum) continue;
-            var pair = new Pair(actor, command);
+            var pair = new Pair(actor, command, threshold);
             // B16: preserve distance order, checking the actual envoy, before consuming a combination.
             if (work == OriginalAiWork.RequestAttack) return pair;
             int rank = work == OriginalAiWork.ReturnPrisoner
@@ -208,6 +216,21 @@ internal sealed partial class OriginalAiActions(SimulationEngine engine, Scenari
             }
         }
         return best;
+    }
+
+    private Pair? SelectRequestPair(List<Target> targets, List<OfficerState> actors, OriginalAiWorkRule rule)
+    {
+        foreach (var force in targets.GroupBy(t => t.Id))
+        {
+            Pair? best = null;
+            foreach (var target in force)
+            {
+                var pair = SelectPair(OriginalAiWork.RequestAttack, target, actors, rule, null);
+                if (pair is not null && (best is null || pair.Threshold > best.Threshold)) best = pair;
+            }
+            if (best is not null) return best;
+        }
+        return null;
     }
 
     private int Best(OfficerState p) { var a = Ability(p); return Math.Max(Math.Max(a.War, a.Leadership), Math.Max(a.Intelligence, a.Politics)); }

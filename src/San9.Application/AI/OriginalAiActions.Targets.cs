@@ -56,26 +56,29 @@ internal sealed partial class OriginalAiActions
                 return OriginalAiStrategy.IsOpponent(World, Owner, other) && Serving(other)
                     ? [new(first, other), new(other, first)] : [new(first, other)];
             case OriginalAiWork.Gift:
-                return forces.Where(f => !f.IsBarbarian && Rank(f.Id) > Rank(Owner) &&
-                        World.Simulation.Alliance?.TargetForceId != f.Id &&
-                        (World.Simulation.Alliance?.MemberForceIds.Contains(Owner) == true || Relation(Owner, f.Id) is >= 20 and < 60))
+                var alliance = World.Simulation.Alliance;
+                if (World.Forces.Single(f => f.Id == Owner).IsBarbarian || alliance?.TargetForceId == Owner) return [];
+                return forces.Where(f => !f.IsBarbarian && Adjacent(Owner, f.Id) && Rank(f.Id) > Rank(Owner) &&
+                        alliance?.TargetForceId != f.Id &&
+                        (alliance?.LeaderForceId == f.Id && alliance.MemberForceIds.Contains(Owner) ||
+                            Relation(Owner, f.Id) is >= 20 and < 60))
                     .OrderByDescending(f => Rank(f.Id)).Select(f => new Target(f.Id)).ToArray();
             case OriginalAiWork.Surrender:
-                return forces.Where(f => !f.IsBarbarian && Rank(f.Id) < Rank(Owner) && Relation(Owner, f.Id) < 40)
+                return forces.Where(f => !f.IsBarbarian && Adjacent(Owner, f.Id) && Rank(f.Id) < Rank(Owner) && Relation(Owner, f.Id) < 40)
                     .OrderBy(f => Rank(f.Id)).Select(f => new Target(f.Id)).ToArray();
             case OriginalAiWork.ReturnPrisoner:
                 return World.Officers.Where(p => !p.IsDormant && p.Status == OfficerStatus.Captive && p.OwnerId == Owner)
-                    .Select(p => (Person: p, Holder: Holder(p))).Where(p => p.Holder is int h && forces.Any(f => f.Id == h && !f.IsBarbarian))
+                    .Select(p => (Person: p, Holder: Holder(p))).Where(p => p.Holder is int h && forces.Any(f => f.Id == h))
                     .OrderByDescending(p => 460L * Best(p.Person) + Sum(p.Person)).Select(p => new Target(p.Person.Id, p.Holder)).ToArray();
             case OriginalAiWork.RequestAttack:
-                if (opponent is not int attack) return [];
-                return forces.Where(f => !f.IsBarbarian && f.Id != attack && Relation(Owner, f.Id) >= 40 &&
+                if (opponent is not int attack || !OriginalAiStrategy.IsOpponent(World, Owner, attack)) return [];
+                return forces.Where(f => f.Id != attack && Relation(Owner, f.Id) >= 40 &&
                         OriginalAiStrategy.IsOpponent(World, f.Id, attack) &&
                         !World.Simulation.AttackRequests.Any(r => r.Connects(Owner, f.Id) || r.RequestedForceId == f.Id && r.RemainingXun > 3) &&
                         World.Corps.Where(c => c.OwnerId == f.Id && c.IsRoot).Any(c => c.Treasury.Food >= 2000))
                     .OrderByDescending(f => Relation(f.Id, Owner) - Relation(f.Id, attack))
-                    .SelectMany(f => World.Settlements.Where(s => Normal(s) && s.OwnerId == attack && s.Soldiers >= 10000 &&
-                            Geography.Neighbors(s.Id).Any(n => n.OwnerId == Owner) && Geography.Neighbors(s.Id).Any(n => n.OwnerId == f.Id))
+                    .SelectMany(f => World.Settlements.Where(s => Normal(s) && BuildingPriority(s) > 0 && s.OwnerId == attack && s.Soldiers >= 10000 &&
+                            Geography.Neighbors(s.Id).Any(n => n.OwnerId == f.Id))
                         .OrderByDescending(BuildingPriority).Select(s => new Target(f.Id, s.Id))).ToArray();
             default: throw new ArgumentOutOfRangeException(nameof(work));
         }
@@ -119,7 +122,7 @@ internal sealed partial class OriginalAiActions
     {
         if (work == OriginalAiWork.Alienate || work is OriginalAiWork.Gift or OriginalAiWork.ReturnPrisoner or OriginalAiWork.Surrender) return true;
         if (work == OriginalAiWork.RequestAttack)
-            return World.Settlements.Any(s => s.OwnerId == target.Id && s.Kind == SettlementKind.City && InRange(actor, PlacePosition(s.Id), rule));
+            return InRange(actor, RulerPosition(target.Id), rule);
         if (work == OriginalAiWork.Gossip) return true;
         int? region = work is OriginalAiWork.Burn or OriginalAiWork.Seize ? target.Id :
             World.Units.FirstOrDefault(u => u.Id == target.Id) is { } unit ? military?.RegionAt(unit.Position) : null;
@@ -131,7 +134,7 @@ internal sealed partial class OriginalAiActions
         if (work == OriginalAiWork.Gossip)
             return InRange(actor, RulerPosition(target.Id), rule) || InRange(actor, RulerPosition(target.Second!.Value), rule);
         if (work == OriginalAiWork.RequestAttack)
-            return World.Settlements.Any(s => s.OwnerId == target.Id && s.Kind == SettlementKind.City && InRange(actor, PlacePosition(s.Id), rule));
+            return InRange(actor, RulerPosition(target.Id), rule);
         var position = work is OriginalAiWork.Burn or OriginalAiWork.Seize ? PlacePosition(target.Id) :
             World.Units.FirstOrDefault(u => u.Id == target.Id)?.Position;
         return InRange(actor, position, rule);

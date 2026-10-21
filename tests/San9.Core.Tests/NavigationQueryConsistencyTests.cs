@@ -243,7 +243,6 @@ public sealed class NavigationQueryConsistencyTests
     [Theory]
     [InlineData(UnitCondition.HighSpirits)]
     [InlineData(UnitCondition.NoFormation)]
-    [InlineData(UnitCondition.Routed)]
     public void ConditionExpiryClearsOldLookaheadInForecastAndFormalMovement(UnitCondition condition)
     {
         var rules = new MilitaryRulebook(new(50, 30, new int[1500].ToImmutableArray(), [new(0, 10, null)],
@@ -270,7 +269,7 @@ public sealed class NavigationQueryConsistencyTests
     }
 
     [Fact]
-    public void ExpiringConditionDoesNotForecastArrivalAtTheDiscardedContact()
+    public void ExpiringConditionPreservesContactDuringForecastAndExecution()
     {
         var rules = new MilitaryRulebook(new(50, 30, new int[1500].ToImmutableArray(), [new(0, 10, null)],
             [new(0, 100, 0, 100000, 1, new(4, 4), TravelMode.Land)
@@ -286,8 +285,9 @@ public sealed class NavigationQueryConsistencyTests
         Assert.Equal(new(ArrivalEstimateStatus.Incomplete), new MilitaryArrivalForecast(state.CreateSnapshot(), rules).Estimate(0));
         var world = state.BeginMutation();
         MilitaryConditions.Tick(world, []);
-        Assert.Null(world.Units[0].ContactTarget);
-        Assert.Equal(unit.Order, world.Units[0].EffectiveOrder);
+        Assert.Equal(unit.ContactTarget, world.Units[0].ContactTarget);
+        Assert.Equal(1, world.Units[0].EffectiveOrder!.UnitId);
+        Assert.Equal(unit.Order, world.Units[0].Order);
     }
 
     [Fact]

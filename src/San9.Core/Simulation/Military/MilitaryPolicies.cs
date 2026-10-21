@@ -113,7 +113,7 @@ internal static class MilitaryPolicies
         foreach (int id in world.Units.Keys.Order().ToArray())
         {
             var unit = world.Units[id];
-            if (unit.FormationId is null) continue;
+            if (unit.FormationId is null || unit.HasForcedReturn) continue;
             var formation = rules.Formation(unit);
             if (unit.ContactTarget is { } contact && !MilitaryContacts.Valid(world, unit, contact, rules))
             {

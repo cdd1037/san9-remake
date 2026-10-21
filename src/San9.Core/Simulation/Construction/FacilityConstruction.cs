@@ -125,7 +125,7 @@ internal static class FacilityConstruction
                 UnitOrderChanges.Report(world, id, nextOrder, "construction-target-invalid", events, previousOrder: unit.Order);
                 continue;
             }
-            if (unit.Condition is UnitCondition.Confused or UnitCondition.Routed) continue;
+            if (unit.Condition == UnitCondition.Confused) continue;
             var leader = world.Officers[plan.LeaderId];
             var formation = military.Formation(unit);
             var target = military.FacilityArea(plan.Position, type.Id);

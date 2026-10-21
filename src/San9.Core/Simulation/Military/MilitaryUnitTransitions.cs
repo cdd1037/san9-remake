@@ -7,7 +7,9 @@ internal static class MilitaryUnitTransitions
 {
     internal static UnitState Apply(UnitState previous, UnitState value, bool assignsNavigation = false)
     {
-        if (assignsNavigation || previous.CommandOrder != value.CommandOrder || previous.OwnerId != value.OwnerId || previous.Condition != value.Condition)
+        if (previous.Condition != value.Condition && value.HasForcedReturn)
+            value = value with { EngagementTargetId = null, ContactTarget = null, ActiveEngagement = false, Lookahead = null };
+        if (assignsNavigation || previous.CommandOrder != value.CommandOrder || previous.OwnerId != value.OwnerId)
             value = value with { ContactTarget = null, Lookahead = null };
         if (value.EffectiveOrder is null || previous.EffectiveOrder != value.EffectiveOrder || previous.OwnerId != value.OwnerId ||
             previous.FormationId != value.FormationId || previous.NavalFormationId != value.NavalFormationId ||
@@ -16,7 +18,6 @@ internal static class MilitaryUnitTransitions
         if ((!assignsNavigation && previous.Order != value.Order) || previous.OwnerId != value.OwnerId)
             value = value with { Waypoint = null, DepartureDaysRemaining = 0 };
         if (value.EffectiveOrder is null || value.Condition == UnitCondition.Confused ||
-            value.Condition == UnitCondition.Routed && value.EffectiveOrder.Kind == MilitaryOrderKind.Construct ||
             previous.FormationId != value.FormationId || previous.NavalFormationId != value.NavalFormationId || previous.OwnerId != value.OwnerId)
             value = value with { MovementRemainder = 0 };
         return value;

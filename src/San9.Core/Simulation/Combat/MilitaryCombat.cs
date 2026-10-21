@@ -169,6 +169,7 @@ internal static class MilitaryCombat
                     if (!FinishOpportunities(world, rules, events, xunStarted ?? world.Clock, CaptureDay, id, targetId,
                         affectedForces.Order().ToImmutableArray())) return;
                 }
+                BattleRouting.CompleteExchange(world, new(id, false), new(targetId, false), rules, events);
             }
             else
             {
@@ -205,6 +206,7 @@ internal static class MilitaryCombat
                 if (retaliated) FacilityCombat.TryTactic(world, settlement.Id,
                     new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id }, rules, events, counter: true);
                 if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, CaptureAssault(false))) return;
+                BattleRouting.CompleteExchange(world, new(id, false), new(settlement.Id, true), rules, events);
                 CityBattleEffects.CompleteAttack(world, id, settlement.Id, settlement.OwnerId, events);
             }
             GovernanceLifecycle.Reconcile(world, affectedForces, rules, events, world.CurrentDateCommandsConsumed);
@@ -261,6 +263,7 @@ internal static class MilitaryCombat
             new(pending.AttackingUnitId, false), new(pending.DefendingUnitId, false), pending.AffectedForces, !pending.Counter))) return;
         if (!pending.Counter && !FinishOpportunities(world, rules, events, pending.XunStarted, () => pending.Day,
             pending.AttackingUnitId, pending.DefendingUnitId, pending.AffectedForces, counterOnly: true)) return;
+        BattleRouting.CompleteExchange(world, new(pending.AttackingUnitId, false), new(pending.DefendingUnitId, false), rules, events);
         GovernanceLifecycle.Reconcile(world, pending.AffectedForces.ToHashSet(), rules, events, world.CurrentDateCommandsConsumed);
         ResolutionPipeline.CheckConquest(world, events);
         AdvanceDay(world, rules, events, pending.XunStarted, pending.Day);
@@ -289,6 +292,7 @@ internal static class MilitaryCombat
                 new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = exchange.Source.Id }, rules, events, counter: true);
             if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, exchange with { CounterPending = false })) return;
         }
+        BattleRouting.CompleteExchange(world, exchange.Source, exchange.Target, rules, events);
         if (exchange.Target.IsSettlement)
             CityBattleEffects.CompleteAttack(world, exchange.Source.Id, exchange.Target.Id, exchange.PreviousSettlementOwnerId, events);
         GovernanceLifecycle.Reconcile(world, exchange.AffectedForces.ToHashSet(), rules, events, world.CurrentDateCommandsConsumed);

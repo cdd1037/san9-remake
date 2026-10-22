@@ -24,12 +24,13 @@ public partial class InformationPanel : Control
     private TextureScope? _textures;
     private Control? _page;
     private bool _dirty;
+    private long _displayedSequence = -1;
     public InformationMenuButton? HoverMenuButton => (_page as InformationMenuView)?.HoverButton;
     public override void _Ready()
     {
         Name = "InformationPanel"; Size = new(1024, 768); ZIndex = 20;
         MouseFilter = MouseFilterEnum.Stop; Visible = false;
-        _query = new(Session, Texts, Chronicle); Session.Changed += OnChanged; RecordsLog.Changed += OnChanged;
+        _query = new(Session, Texts, Chronicle); RecordsLog.Changed += OnChanged;
     }
     private void OnChanged() => _dirty = true;
     public void OpenMenu() { State.OpenMenu(); Rebuild(); }
@@ -47,8 +48,9 @@ public partial class InformationPanel : Control
     public void Back() { State.Back(); Rebuild(); }
     public override void _Process(double delta)
     {
-        if (!_dirty || !State.IsOpen) return;
+        if (!State.IsOpen || !_dirty && _displayedSequence == Session.NextOperationSequence) return;
         _dirty = false;
+        _displayedSequence = Session.NextOperationSequence;
         if (!ReconcileDetail()) { Rebuild(); return; }
         if (_page is IInformationPage page) page.RefreshData();
     }
@@ -75,6 +77,7 @@ public partial class InformationPanel : Control
     private void Rebuild()
     {
         _dirty = false;
+        _displayedSequence = Session.NextOperationSequence;
         ReconcileDetail();
         if (_page is not null) { RemoveChild(_page); _page.QueueFree(); _page = null; }
         _textures?.Dispose(); _textures = null;
@@ -94,5 +97,5 @@ public partial class InformationPanel : Control
                 RecordsLog = RecordsLog, ChangeReportMode = ChangeReportMode, Rebuild = Rebuild, Back = Back }.Create();
         AddChild(_page);
     }
-    public override void _ExitTree() { Session.Changed -= OnChanged; RecordsLog.Changed -= OnChanged; _textures?.Dispose(); }
+    public override void _ExitTree() { RecordsLog.Changed -= OnChanged; _textures?.Dispose(); }
 }

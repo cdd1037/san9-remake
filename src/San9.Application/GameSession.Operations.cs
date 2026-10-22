@@ -110,6 +110,11 @@ public sealed partial class GameSession
                     events.AddRange(command.Events);
                     break;
                 case EndControlOperation:
+                    var controlState = candidate.Snapshot.Simulation;
+                    if (controlState.Boundary != SimulationBoundary.Stable ||
+                        controlState.ActiveControl >= controlState.Controls.Length ||
+                        controlState.Controls[controlState.ActiveControl].ControllerId != request.ControllerId)
+                        return Rejected(SessionRejection.NotStable);
                     originalAi = AutomaticTurnRunner.EndControl(candidate, new(request.ControllerId), events, input.Definition, originalAi, aiReports, terrainRoutes);
                     break;
                 case PrepareAdvanceOperation:
@@ -134,6 +139,10 @@ public sealed partial class GameSession
                     break;
                 case AdvanceDayOperation:
                     if (request.ControllerId != "player") return Rejected(SessionRejection.InvalidRequest);
+                    var dayState = candidate.Snapshot.Simulation;
+                    if (dayState.Boundary != (dayState.DailyAdvanceStarted is null ? SimulationBoundary.Stable : SimulationBoundary.Advancing) ||
+                        dayState.ActiveControl != dayState.Controls.Length)
+                        return Rejected(SessionRejection.NotStable);
                     events.AddRange(candidate.AdvanceDay().Events);
                     break;
                 case ChronicleOperation chronicle:
@@ -170,7 +179,6 @@ public sealed partial class GameSession
             var rejected = Rejected(SessionRejection.AutomaticResponseFailed);
             return rejected with { Result = rejected.Result with { AutomaticResponseFailure = failure.Failure } };
         }
-        catch (InvalidOperationException) { return Rejected(SessionRejection.NotStable); }
     }
 
     // Both synchronous and background operations commit here, exactly once on the owner thread.
@@ -199,7 +207,6 @@ public sealed partial class GameSession
         if (prepared.Commit is not null)
         {
             PrepareXunStartCheckpoint();
-            Changed?.Invoke();
         }
         return prepared.Result;
     }

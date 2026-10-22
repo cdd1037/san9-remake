@@ -736,8 +736,7 @@ public sealed class OriginalAiPersonnelTests
         var session = GameSession.Start(content, 190, world => new SimulationEngine(world, rules), playerForceController: ControllerKind.Automatic);
         var before = session.Capture();
         var request = session.Request(new AdvanceOperation());
-        var result = session.Apply(request);
-        Assert.Equal(SessionDisposition.Rejected, result.Disposition);
+        Assert.Throws<InvalidOperationException>(() => session.Apply(request));
         Assert.True(rules.SawCreatedCorps);
         StateAssert.Equal(before, session.Capture());
         Assert.Empty(session.LastOriginalAiWork);

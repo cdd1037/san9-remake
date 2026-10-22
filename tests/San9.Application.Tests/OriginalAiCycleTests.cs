@@ -88,7 +88,7 @@ public sealed class OriginalAiCycleTests
             playerForceController: ControllerKind.Automatic);
         var before = session.Capture();
         var request = session.Request(new AdvanceOperation());
-        Assert.Equal(SessionDisposition.Rejected, session.Apply(request).Disposition);
+        Assert.Throws<InvalidOperationException>(() => session.Apply(request));
         StateAssert.Equal(before, session.Capture());
         Assert.Empty(session.LastOriginalAiWork);
         Assert.Equal(before.NextOperationSequence, session.Request(new AdvanceOperation()).Sequence);

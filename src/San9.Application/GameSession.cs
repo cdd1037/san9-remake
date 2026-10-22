@@ -32,7 +32,6 @@ public sealed partial class GameSession
     private ImmutableDictionary<int, StrategicContextState> _strategicContexts = ImmutableDictionary<int, StrategicContextState>.Empty;
     public StrategicContextState StrategicContext => View.PlayerForceId is int force
         ? _strategicContexts.GetValueOrDefault(force, StrategicContextState.Empty) : StrategicContextState.Empty;
-    public event Action? Changed;
 
     public string InitialDate { get; }
     internal MilitaryRulebook? MilitaryRules => _definition.MilitaryRules;

@@ -50,7 +50,7 @@ public sealed class IncrementalAdvanceTests
     }
 
     [Fact]
-    public void WorkerIsIsolatedAndOnlyOwnerPublicationRaisesChanged()
+    public void WorkerIsIsolatedAndOnlyOwnerPublicationAdvancesSequence()
     {
         int owner = Environment.CurrentManagedThreadId, workerThread = owner;
         using var entered = new ManualResetEventSlim();
@@ -72,8 +72,6 @@ public sealed class IncrementalAdvanceTests
             return new(world, rules);
         });
         var before = session.Snapshot;
-        int notifications = 0;
-        session.Changed += () => { Assert.Equal(owner, Environment.CurrentManagedThreadId); notifications++; };
         block = true;
         var pending = session.StartOperation(session.Request(new AdvanceOperation()));
         try
@@ -83,7 +81,7 @@ public sealed class IncrementalAdvanceTests
             Assert.False(pending.IsCompleted);
             Assert.Same(before, session.Snapshot);
             Assert.Same(before, session.View.World);
-            Assert.Equal(0, notifications);
+            Assert.Equal(0, session.NextOperationSequence);
             Assert.Throws<InvalidOperationException>(() => session.StartOperation(session.Request(new AdvanceDayOperation())));
             Assert.Equal(SessionRejection.NotStable, session.Apply(session.Request(new AdvanceOperation())).Rejection);
             Assert.Throws<InvalidOperationException>(() => session.Capture());
@@ -94,7 +92,7 @@ public sealed class IncrementalAdvanceTests
         var preparedView = pending.PreparedView;
         Assert.Equal(SessionDisposition.Accepted, pending.Complete().Disposition);
         Assert.Same(preparedView, session.View);
-        Assert.Equal(1, notifications);
+        Assert.Equal(1, session.NextOperationSequence);
         Assert.Equal(1, factoryCalls);
         Assert.Throws<InvalidOperationException>(() => pending.Complete());
     }
@@ -112,8 +110,6 @@ public sealed class IncrementalAdvanceTests
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 190, world => new(world, rules));
         session.MarkSaved(session.NextOperationSequence);
         var before = session.Capture();
-        int notifications = 0;
-        session.Changed += () => notifications++;
         var request = session.Request(new AdvanceOperation());
         fail = true;
         if (background)
@@ -125,11 +121,11 @@ public sealed class IncrementalAdvanceTests
         else Assert.Throws<TimeoutException>(() => session.Apply(request));
         Assert.Same(before, session.Capture());
         Assert.False(session.HasUnsavedChanges);
-        Assert.Equal(0, notifications);
+        Assert.Equal(0, session.NextOperationSequence);
         fail = false;
         var result = background ? Apply(session, new AdvanceOperation()) : session.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
-        Assert.Equal(1, notifications);
+        Assert.Equal(1, session.NextOperationSequence);
         Assert.True(session.HasUnsavedChanges);
     }
 
@@ -147,9 +143,8 @@ public sealed class IncrementalAdvanceTests
     {
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 190, world => new(world, new FailingRules()));
         var before = session.Capture();
-        var result = session.Apply(session.Request(new AdvanceOperation()));
-        Assert.Equal(SessionRejection.NotStable, result.Rejection);
-        Assert.Empty(result.Events);
+        var error = Assert.Throws<InvalidOperationException>(() => session.Apply(session.Request(new AdvanceOperation())));
+        Assert.Equal("day failed", error.Message);
         StateAssert.Equal(before, session.Capture());
     }
 
@@ -165,7 +160,7 @@ public sealed class IncrementalAdvanceTests
         {
             var pending = session.StartOperation(session.Request(new AdvanceDayOperation()));
             Assert.True(SpinWait.SpinUntil(() => pending.IsCompleted, TimeSpan.FromSeconds(10)));
-            Assert.Equal(SessionDisposition.Rejected, pending.Complete().Disposition);
+            Assert.Equal("day failed", Assert.Throws<InvalidOperationException>(() => pending.Complete()).Message);
             Assert.Same(previous, session.Snapshot);
             Assert.Equal(sequence, session.NextOperationSequence);
         }

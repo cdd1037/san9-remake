@@ -113,9 +113,9 @@ public partial class StrategyHud : Control
                     World.Package!.Buildings.ToDictionary(b => b.Id, b => b.FixedType), World.Package,
                     ReadSettings().TacticScenesEnabled, ReadSettings().DuelScenesEnabled))
             {
-                CanPresentAttack = attack => World.Display?.Presented is { } frame &&
-                    MapDayPlan.IsAttackVisible(attack, frame.ViewportBounds.Position.X, frame.ViewportBounds.Position.Y,
-                        frame.ViewportBounds.Size.X, frame.ViewportBounds.Size.Y)
+                Viewport = () => World.Display?.Presented is { } frame
+                    ? new MapPresentationBounds(frame.ViewportBounds.Position.X, frame.ViewportBounds.Position.Y,
+                        frame.ViewportBounds.Size.X, frame.ViewportBounds.Size.Y) : null
             }
         };
         var p = Scenario;

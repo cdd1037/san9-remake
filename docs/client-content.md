@@ -50,7 +50,7 @@ P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字
 
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 129，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 179，地图 [MapPackage](../src/San9.Content/Maps/MapPackage.cs) 为 15，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 51，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 44。会话规则、存档及命令日志版本以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准；录像已延期并撤下。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 142，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 213，地图 [MapPackage](../src/San9.Content/Maps/MapPackage.cs) 为 17，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 60，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 51。会话规则、存档及命令日志版本以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准；录像已延期并撤下。
 
 组合包178新增特殊国号／最高爵位来源身体、逐帧交锋／反应位移、末段移动与残影、局部粒子及其分组散布／透明度样式、船只尾波和受击水花、目标体型对应的损失音效。客户端只消费内容声明，不读取原作编号或研究库。190年运行包已原位重转并完整校验，复用未变共享纹理；旧组合包须运行`import-client`，无需重转纹理。自动化与真实包核对通过，画面和试听由用户验收。
 
@@ -112,6 +112,8 @@ P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字
 - 当前支持范围和缺失内容仍须如实标明。此约定不代表已完成全部 PK 内容导入，也不改变已选定的原作版本基线。后续 Mod 同样转换为统一契约，源格式差异留在导入阶段。
 
 TC101剧本导入以源坐标识别地域配置：双坐标均为无效哨兵的槽不生成地域、名称文本或城市归属映射；单轴无效或越界坐标直接报错。有效但尚未建造的地域完整保留，稳定ID不重排。人物和宝物引用由转换后的契约校验，不能通过丢弃引用对象掩盖错误。
+
+2026-10-22普通攻击时序：地图运行schema17、完整纹理转换版本51新增必填攻击启动时间对、齐射间隔及动作日阻塞属性。已有纹理按上文`import-textures --rebuild map`原位重建地图单元；其他单元及原包级转换版本保留。地图实例、剧本和音频引用未变，无需重转剧本；旧共享地图定义因缺少字段明确拒绝。190年包已引用更新后的共享地图并通过`verify-client`（31625逻辑图片／6047物理文件）。行为与实现边界见[普通攻击时序](../specs/behavior/BEH-RENDER-0003-map-ambient-animation.md#旬推进中的移动与攻击)。
 
 ## 接入前的数据核对
 

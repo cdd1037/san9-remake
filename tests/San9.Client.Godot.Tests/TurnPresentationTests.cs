@@ -326,6 +326,54 @@ public sealed class TurnPresentationTests
     }
 
     [Fact]
+    public void ConsecutiveAnnouncementsGateTheirOwnFeedbackAndSpeechKeepsItsIndependentDelay()
+    {
+        var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "turn", 190, 1, 1, 5,
+            [new(5, "player", 5, 100)], [new(15, "city", 5, 0, 0, 0, 100, 100, 0, [])], [], [])
+        { Officers = [new("actor", new San9.Core.Domain.OfficerState(7, 5, 15, new(50, 50, 50, 50), false))],
+          Information = new([], [], [], [new San9.Core.Domain.CorpsState(5, 5, null, new(100, 100)) { IsRoot = true }], []) };
+        var session = GameSession.Start(definition, 1);
+        string[] roles = ["support", "announcement", "action", "hit"];
+        var texts = new San9.Content.Text.TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new() { ["actor"] = "actor" })
+        { Messages = roles.ToDictionary(r => r, r => new San9.Content.Text.MessageDefinition([new San9.Content.Text.MessageLiteral(r)])) };
+        var messages = roles.ToDictionary(r => r, r => new San9.Content.Interface.DecisionMessageDefinition(r, [], "actor"));
+        var content = new San9.Content.Interface.CommandPresentation([], null)
+        { Battle = new(messages, new() { [99] = new(messages, null, null) { Support = true } }, "hit", "block") };
+        var source = new BattleObjectContext(10, false, 5, 7, new(12, 12), 15, false);
+        var occurrence = new TacticOccurrence(source, source with { Id = 11 }, null, null,
+            San9.Core.Domain.UnitCondition.Normal, null, null, null, false);
+        var fact = new TacticActivatedEvent(session.Snapshot.Clock, 10, false, 11, false, 99, [new(7, 99)], false, 10)
+        { Occurrence = occurrence };
+        DomainEvent[] facts = [fact, fact];
+        var plan = San9.Application.Presentation.BattlePresentationPlan.Create(session.View, session.View, facts,
+            session.Messages(texts), texts, content);
+        var day = new TurnDayPresentation(session.View, session.View, facts, battle: plan);
+        day.Advance(100);
+        Assert.Single(day.ReadyRecords);
+        Assert.Empty(day.ReadyMapSpeeches);
+        day.CompleteDialogue(Assert.Single(day.PendingDialogues).Id);
+        var firstSpeeches = day.ReadyMapSpeeches;
+        Assert.Equal(new[] { "action", "hit" }, firstSpeeches.Select(c => c.Message.Message.Key));
+        Assert.Equal(2, day.ReadyRecords.Count);
+        Assert.False(day.IsComplete);
+        day.CompleteDialogue(Assert.Single(day.PendingDialogues).Id);
+        Assert.True(day.IsComplete);
+        Assert.Equal(4, day.ReadyMapSpeeches.Count);
+
+        var playback = new MapSpeechPlayback();
+        foreach (var cue in firstSpeeches) playback.Publish(cue.Message.MapSpeech!);
+        playback.Advance(.99, _ => true);
+        Assert.True(playback.Entries[0].Visible);
+        Assert.False(playback.Entries[1].Visible);
+        playback.Advance(.01, _ => true);
+        Assert.True(playback.Entries[1].Visible);
+        playback.Advance(4, _ => true);
+        Assert.Single(playback.Entries);
+        playback.Advance(1, _ => true);
+        Assert.Empty(playback.Entries);
+    }
+
+    [Fact]
     public void PreparedPresentationSurvivesPauseAndResourceRetryAndReportsBeforeWorldPublication()
     {
         var session = Session(); bool ready = false, fail = false; int retries = 0, calls = 0;
@@ -451,24 +499,6 @@ public sealed class TurnPresentationTests
     }
 
     [Fact]
-    public void StartedVolleyFinishesDuringPauseAndDoesNotRestartOnResume()
-    {
-        var turn=new TurnPresentation(Session()) { CreateDay = (before, after, events) => new(before, after, events, duration: 3) }; Enter(turn); turn.Update(.4);
-        var day=turn.Day!;
-        var attack=new San9.Rendering.MapAttackMotion(1,false,2,false,0,0,100,0,1,
-            San9.Rendering.UnitVisualAction.Ranged,San9.Content.Maps.MapProjectileKind.Arrow);
-        var art=new San9.Content.Maps.MapProjectile(["arrow"],64,false,0,0);
-        Assert.Empty(San9.Rendering.MapProjectiles.Sample(attack,art,day.CombatMilliseconds));
-        turn.Update(.5);
-        Assert.Single(San9.Rendering.MapProjectiles.Sample(attack,art,day.CombatMilliseconds));
-        turn.TogglePause(); turn.Update(2);
-        Assert.Equal(.9,day.Elapsed,8);
-        Assert.Empty(San9.Rendering.MapProjectiles.Sample(attack,art,day.CombatMilliseconds));
-        turn.TogglePause(); turn.Update(.1);
-        Assert.Empty(San9.Rendering.MapProjectiles.Sample(attack,art,day.CombatMilliseconds));
-    }
-
-    [Fact]
     public void PauseRunsVisualLifetimesWithoutAdvancingOrStartingFutureCombat()
     {
         var turn = new TurnPresentation(Session()) { CreateDay = (before, after, events) => new(before, after, events, duration: 2.8) }; Enter(turn); turn.Update(.36);
@@ -476,17 +506,17 @@ public sealed class TurnPresentationTests
         turn.TogglePause(); turn.Update(2);
         Assert.Equal(.36,day.Elapsed,8);
         Assert.Equal(2.36,day.VisualElapsed,8);
-        Assert.True(day.CombatMilliseconds < 0);
+        Assert.True(day.Elapsed < TurnDayPresentation.DayDuration);
         Assert.Equal(2180,day.VisualAge(180),6);
-        turn.TogglePause(); turn.Update(.54);
-        Assert.Equal(0,day.CombatMilliseconds,6);
-        Assert.Equal(90,day.VisualAge(810),6);
+        turn.TogglePause(); turn.Update(.64);
+        Assert.Equal(0,day.VisualAge(1000),6);
+        Assert.Equal(190,day.VisualAge(810),6);
         turn.TogglePause(); turn.Update(.5);
-        Assert.Equal(.9,day.Elapsed,8);
-        Assert.Equal(500,day.CombatMilliseconds,6);
+        Assert.Equal(1,day.Elapsed,8);
+        Assert.Equal(500,day.VisualAge(1000),6);
         turn.CanPlayDay = () => false;
         turn.Update(10);
-        Assert.Equal(500,day.CombatMilliseconds,6);
+        Assert.Equal(500,day.VisualAge(1000),6);
     }
 
     [Fact]

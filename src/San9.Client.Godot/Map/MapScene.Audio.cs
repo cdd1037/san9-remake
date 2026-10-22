@@ -26,10 +26,11 @@ internal sealed partial class MapScene
                 {
                     var sprite = sampled.Animations.First(s => s.IsBody);
                     var clip = Clips[sprite.ClipId];
-                    pulse = (long)Math.Floor(Math.Max(0, Day!.CombatMilliseconds) / (clip.FrameMilliseconds * clip.Frames.Length));
+                    pulse = (long)Math.Floor(Math.Max(0, sampled.AttackMilliseconds ?? 0) / (clip.FrameMilliseconds * clip.Frames.Length));
                 }
                 int variation = pulse is long tick ? (int)(UnitVisuals.Seed(unit.Id, 0, (int)tick) % (uint)roles.Length) : unit.Id % roles.Length;
-                yield return new($"unit:{unit.Id}", roles[variation], sampled.AnchorX, sampled.AnchorY)
+                string identity = pulse is null ? $"unit:{unit.Id}" : $"unit:{unit.Id}:attack:{sampled.AttackId}";
+                yield return new(identity, roles[variation], sampled.AnchorX, sampled.AnchorY)
                     { Pulse = pulse, Kind = pulse is null ? MapSoundKind.Movement : MapSoundKind.Action };
             }
             if (state.IsEngaged)
@@ -41,24 +42,26 @@ internal sealed partial class MapScene
             var anchor = Anchor(building);
             if (place.IsUnderConstruction && place.FacilityTypeId is int type)
                 yield return new($"construction:{building.Id}", audio.ConstructionSounds[type], anchor.X, anchor.Y) { Kind = MapSoundKind.Construction };
-            bool engaged = Day?.CombatMilliseconds >= 0 ? Day.After.IsSettlementEngaged(place.Id) : State.IsSettlementEngaged(place.Id);
+            bool engaged = Day?.Elapsed >= TurnDayPresentation.DayDuration ? Day.After.IsSettlementEngaged(place.Id) : State.IsSettlementEngaged(place.Id);
             if (engaged)
                 yield return new($"battle-place:{building.Id}", audio.BattleAmbience[0], anchor.X, anchor.Y) { Kind = MapSoundKind.BattleAmbience };
         }
-        if (Day is not { CombatMilliseconds: >= 0 } day) yield break;
+        if (Day is not { } day) yield break;
         foreach (var attack in _attacks.Where(a => a.SourceIsSettlement && day.IsAttackPresented(a)))
         {
             if (attack.Projectile == San9.Content.Maps.MapProjectileKind.Arrow)
             {
                 int count = attack.Origins.Length > 0 ? attack.Origins.Length : 8;
-                long pulse = Math.Min(count - 1, (long)(day.CombatMilliseconds / 200));
+                int pulse = Enumerable.Range(0, count).Where(i => day.PresentedShots(attack).Contains(i) &&
+                    MapProjectiles.LaunchTime(attack, i) <= day.AttackMilliseconds(attack)).DefaultIfEmpty(-1).Max();
+                if (pulse < 0) continue;
                 var origin = attack.Origins.Length > 0 ? attack.Origins[pulse] : new MapMotionPoint(attack.FromX, attack.FromY);
                 int variation = (int)(UnitVisuals.Seed(attack.SourceId, attack.TargetId, (int)pulse) % (uint)audio.FacilityArrowSounds.Length);
-                yield return new($"arrows:{attack.SourceId}:{attack.TargetIsSettlement}:{attack.TargetId}", audio.FacilityArrowSounds[variation], origin.X, origin.Y) { Pulse = pulse };
+                yield return new($"arrows:{attack.SourceId}:{attack.TargetIsSettlement}:{attack.TargetId}:{attack.FactIndex}", audio.FacilityArrowSounds[variation], origin.X, origin.Y) { Pulse = pulse };
             }
-            else if (attack.Projectile == San9.Content.Maps.MapProjectileKind.Rockfall && day.CombatMilliseconds >= MapProjectiles.Duration(attack))
+            else if (attack.Projectile == San9.Content.Maps.MapProjectileKind.Rockfall && day.AttackMilliseconds(attack) >= MapProjectiles.Duration(attack))
                 for (int i = 0; i < audio.RockfallImpactSounds.Length; i++)
-                    yield return new($"rockfall:{attack.SourceId}:{attack.TargetIsSettlement}:{attack.TargetId}:{i}", audio.RockfallImpactSounds[i], attack.ToX, attack.ToY) { Pulse = 0 };
+                    yield return new($"rockfall:{attack.SourceId}:{attack.TargetIsSettlement}:{attack.TargetId}:{attack.FactIndex}:{i}", audio.RockfallImpactSounds[i], attack.ToX, attack.ToY) { Pulse = 0 };
         }
     }
 }

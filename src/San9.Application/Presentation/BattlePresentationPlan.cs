@@ -10,12 +10,19 @@ using San9.Rendering;
 namespace San9.Application.Presentation;
 
 public enum BattleMessageChannel { MapSpeech, Dialogue, DuelDialogue }
+public sealed record BattleAttackPhase(double Time, int FirstFactIndex, int LastFactIndex, string? AfterDialogueId);
 public sealed record BattleMessageCue(string Id, double Time, CommandMessage Message,
     BattleMessageChannel Channel = BattleMessageChannel.MapSpeech)
 {
     public string? SceneId { get; init; }
+    public int FactIndex { get; init; }
+    public string? AfterDialogueId { get; init; }
 }
-public sealed record BattleRecordCue(double Time, MapMessageRecord Record, string? SoundRole = null);
+public sealed record BattleRecordCue(double Time, MapMessageRecord Record, string? SoundRole = null)
+{
+    public int FactIndex { get; init; }
+    public string? AfterDialogueId { get; init; }
+}
 public sealed record BattleVisualCue(string Id, double Start, double End, BattleObjectContext Source,
     BattleObjectContext Target, int TacticId, int ActorId, bool Blocked, bool Doubled,
     uint SoldierLoss, int DurabilityLoss, int MoraleLoss, BattleSprite? Effect, BattleZoomDefinition? Zoom)
@@ -25,6 +32,8 @@ public sealed record BattleVisualCue(string Id, double Start, double End, Battle
     public double? FadeOutStart { get; init; }
     public double? EntranceStart { get; init; }
     public int MoraleGain { get; init; }
+    public int FactIndex { get; init; }
+    public string? AfterDialogueId { get; init; }
     public BattleZoomPlayback? Playback { get; init; }
     public BattleOfficerPlayback? Officers { get; init; }
     public ImmutableArray<BattleSceneLayer> Backdrop { get; init; } = [];
@@ -36,12 +45,21 @@ public sealed record BattleValueCue(double Time, int TargetId, bool IsSettlement
 }
 public sealed record BattleMapChangeCue(double Time, int FactIndex, int? RemovedUnitId, SettlementView? Settlement,
     string? AfterDialogueId = null);
-public sealed record BattleMapEffectCue(string Id, double Start, BattleObjectContext Target, BattleSprite Sprite);
-public sealed record BattleMapNumberCue(string Id, double Start, BattleObjectContext Target, long Amount);
+public sealed record BattleMapEffectCue(string Id, double Start, BattleObjectContext Target, BattleSprite Sprite)
+{
+    public int FactIndex { get; init; }
+    public string? AfterDialogueId { get; init; }
+}
+public sealed record BattleMapNumberCue(string Id, double Start, BattleObjectContext Target, long Amount)
+{
+    public int FactIndex { get; init; }
+    public string? AfterDialogueId { get; init; }
+}
 
 /// <summary>Occurrence ordered, immutable presentation. Text choices and identities are fixed before playback.</summary>
 public sealed class BattlePresentationPlan
 {
+    public IReadOnlyList<BattleAttackPhase> Attacks { get; }
     public IReadOnlyList<DuelSceneCue> Duels { get; }
     public IReadOnlyList<BattleMessageCue> Messages { get; }
     public IReadOnlyList<BattleRecordCue> Records { get; }
@@ -55,8 +73,9 @@ public sealed class BattlePresentationPlan
     public BattleMapNumberDefinition? NumberDefinition { get; }
     internal BattlePresentationPlan(List<BattleMessageCue> messages, List<BattleRecordCue> records, List<BattleVisualCue> visuals, List<BattleValueCue> values,
         List<BattleMapEffectCue> effects, List<BattleMapNumberCue> numbers, BattleMapNumberDefinition? numberDefinition, HashSet<string> feedback, double duration, List<DuelSceneCue> duels,
-        List<BattleMapChangeCue> mapChanges)
+        List<BattleMapChangeCue> mapChanges, List<BattleAttackPhase> attacks)
     {
+        Attacks = attacks.AsReadOnly();
         Duels = duels.AsReadOnly();
         Messages = messages.AsReadOnly(); Records = records.AsReadOnly(); Visuals = visuals.AsReadOnly(); Values = values.AsReadOnly();
         MapEffects = effects.AsReadOnly(); MapNumbers = numbers.AsReadOnly(); NumberDefinition = numberDefinition;

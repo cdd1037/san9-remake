@@ -195,7 +195,7 @@ public partial class StrategyHud
             if (message.MapSpeech is { } speech) PresentMapSpeech(speech);
             if (message.SoundRole is { } sound) _sceneSounds.Play(sound, SoundEnabled);
         }
-        foreach (var cue in plan.Records.Where(c => c.Time <= day.Elapsed))
+        foreach (var cue in day.ReadyRecords)
         {
             if (!_battleMessagesPlayed.Add(cue.Record.Id)) continue;
             PresentMapRecord(cue.Record);

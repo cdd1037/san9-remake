@@ -24,10 +24,25 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
     private readonly Dictionary<(int Id, bool IsSettlement), UnitCondition> _conditions = [];
     private readonly PresentationIdentity _identities = new(before, after);
     private double _cursor = 1, _impact = 1.5, _mapAvailable;
+    private readonly List<BattleAttackPhase> _attacks = [];
+    private bool _attackPhaseOpen;
     private int _index;
 
     private int _feedbackIndex = -1;
     private IReadOnlyList<FeedbackBatch> _feedback = [];
+
+    private string? DialogueBefore(double time) => _messages
+        .Where(c => c.Channel != BattleMessageChannel.MapSpeech && c.Time <= time)
+        .OrderBy(c => c.Time).LastOrDefault()?.Id;
+
+    private void AddMessageCue(BattleMessageCue cue) => _messages.Add(cue with { FactIndex = _index, AfterDialogueId = DialogueBefore(cue.Time) });
+    private void AddRecordCue(BattleRecordCue cue) => _records.Add(cue with { FactIndex = _index, AfterDialogueId = DialogueBefore(cue.Time) });
+
+    private double LastCueTime() => _visuals.Select(c => c.End).Concat(_records.Select(c => c.Time))
+        .Concat(_messages.Select(c => c.Time)).Concat(_stateValues.Select(c => c.Time)).Concat(_mapChanges.Select(c => c.Time))
+        .Concat(_duels.Select(c => c.End))
+        .Concat(_mapEffects.Select(c => c.Start + c.Sprite.Columns * c.Sprite.FrameMilliseconds / 1000.0))
+        .Concat(_mapNumbers.Select(c => c.Start + BattleMapNumberPlayback.Duration(content.Battle!.MapNumbers!))).DefaultIfEmpty(0).Max();
 
     private IEnumerable<FeedbackBatch> Feedback(params FeedbackKind[] kinds)
     {
@@ -60,12 +75,12 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
 
     private bool PublishFeedback(double time, params FeedbackKind[] kinds)
     {
-        int count = _messages.Count + _records.Count;
+        int count = _messages.Count;
         foreach (var (id, message) in FeedbackMessages(kinds))
-            _messages.Add(new(id, time, message,
+            AddMessageCue(new(id, time, message,
                 message.MapSpeech is null ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech));
-        foreach (var record in FeedbackRecords(kinds)) _records.Add(new(time, record));
-        return _messages.Count + _records.Count > count;
+        foreach (var record in FeedbackRecords(kinds)) AddRecordCue(new(time, record));
+        return _messages.Count > count;
     }
 
     private void Capture(BattleObjectContext source, BattleObjectContext target)
@@ -85,7 +100,11 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             _conditions[(place.Id, true)] = place.ConfusionDaysRemaining > 0 ? UnitCondition.Confused : UnitCondition.Normal;
         for (_index = 0; _index < events.Count; _index++)
         {
+            if (events[_index] is not BattleDamageEvent { TacticId: null }) _attackPhaseOpen = false;
             int firstValue = _stateValues.Count;
+            int firstVisual = _visuals.Count, firstEffect = _mapEffects.Count, firstNumber = _mapNumbers.Count;
+            int firstChange = _mapChanges.Count;
+            int firstDuel = _duels.Count;
             switch (events[_index])
             {
                 case DuelStartedEvent duel: PresentDuel(duel); break;
@@ -107,16 +126,22 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
                 case TacticActivatedEvent or IntelligenceEffectResolvedEvent: PresentTactic(events[_index]); break;
             }
             for (int i = firstValue; i < _stateValues.Count; i++)
-                _stateValues[i] = _stateValues[i] with { FactIndex = _index, AfterDialogueId = _mapDialogue };
+                _stateValues[i] = _stateValues[i] with { FactIndex = _index, AfterDialogueId = DialogueBefore(_stateValues[i].Time) ?? _mapDialogue };
+            for (int i = firstVisual; i < _visuals.Count; i++)
+                _visuals[i] = _visuals[i] with { FactIndex = _index, AfterDialogueId = DialogueBefore(_visuals[i].EntranceStart ?? _visuals[i].Start) };
+            for (int i = firstEffect; i < _mapEffects.Count; i++)
+                _mapEffects[i] = _mapEffects[i] with { FactIndex = _index, AfterDialogueId = DialogueBefore(_mapEffects[i].Start) };
+            for (int i = firstNumber; i < _mapNumbers.Count; i++)
+                _mapNumbers[i] = _mapNumbers[i] with { FactIndex = _index, AfterDialogueId = DialogueBefore(_mapNumbers[i].Start) };
+            for (int i = firstDuel; i < _duels.Count; i++) _duels[i] = _duels[i] with { FactIndex = _index };
             _identities.Apply(events[_index]);
             PresentMapChange(events[_index]);
+            for (int i = firstChange; i < _mapChanges.Count; i++)
+                _mapChanges[i] = _mapChanges[i] with { AfterDialogueId = DialogueBefore(_mapChanges[i].Time) ?? _mapChanges[i].AfterDialogueId };
         }
-        double finalCue = _visuals.Select(c => c.End).Concat(_records.Select(c => c.Time))
-            .Concat(_messages.Select(c => c.Time)).Concat(_stateValues.Select(c => c.Time)).Concat(_mapChanges.Select(c => c.Time))
-            .Concat(_mapEffects.Select(c => c.Start + c.Sprite.Columns * c.Sprite.FrameMilliseconds / 1000.0))
-            .Concat(_mapNumbers.Select(c => c.Start + BattleMapNumberPlayback.Duration(content.Battle!.MapNumbers!))).DefaultIfEmpty(0).Max();
+        double finalCue = LastCueTime();
         return new BattlePresentationPlan(_messages, _records, _visuals, _stateValues, _mapEffects, _mapNumbers, content.Battle?.MapNumbers, _presented,
-            _duels.Count == 0 && _messages.Count == 0 && _records.Count == 0 && _visuals.Count == 0 && _mapEffects.Count == 0 && _mapNumbers.Count == 0 && _mapChanges.Count == 0 ? 0 : Math.Max(_cursor, finalCue), _duels, _mapChanges);
+            _duels.Count == 0 && _messages.Count == 0 && _records.Count == 0 && _visuals.Count == 0 && _mapEffects.Count == 0 && _mapNumbers.Count == 0 && _mapChanges.Count == 0 ? finalCue : Math.Max(_cursor, finalCue), _duels, _mapChanges, _attacks);
     }
 
     private bool Player(int? force) => before.World.Simulation.Controls.Any(c => c.ForceId == force && c.Kind == ControllerKind.Player);
@@ -166,7 +191,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
         var produced = ProgressMessageProducer.Produce(battle.Messages[role], context.AtOccurrence(clock,
             source.Id == target.Id && source.IsSettlement == target.IsSettlement ? [source] : [source, target]), texts, values, n => (int)(random.NextUInt64() % (ulong)n));
         var id = Identity(role);
-        _records.Add(new(_impact + 0.2, new(id, produced.Message, Location(target),
+        AddRecordCue(new(_impact + 0.2, new(id, produced.Message, Location(target),
             MapRecordColors.Resolve(before, after, colorForce)), produced.SoundRole));
     }
 
@@ -175,7 +200,17 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
         var damageTarget = damage.Target ?? TargetContext(damage.TargetUnitId ?? damage.SettlementId!.Value, damage.SettlementId is not null);
         var damageSource = damage.Source ?? TargetContext(damage.AttackerId, damage.AttackerIsSettlement);
         if (damageSource is not null && damageTarget is not null) Capture(damageSource, damageTarget);
-        double time = damage.TacticId is null ? MapTime(1.5) : _impact;
+        if (damage.TacticId is null)
+        {
+            if (!_attackPhaseOpen)
+            {
+                _cursor = MapTime(Math.Max(_cursor, LastCueTime()));
+                _attacks.Add(new(_cursor, _index, _index, DialogueBefore(_cursor)));
+                _attackPhaseOpen = true;
+            }
+            else _attacks[^1] = _attacks[^1] with { LastFactIndex = _index };
+        }
+        double time = damage.TacticId is null ? _cursor : _impact;
         _impact = time;
         _stateValues.Add(new(time, damage.TargetUnitId ?? damage.SettlementId!.Value,
             damage.SettlementId is not null, -(long)damage.SoldierLoss, -damage.MoraleLoss, -damage.DurabilityLoss));
@@ -233,7 +268,6 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
     {
         var messages = FeedbackMessages(FeedbackKind.Mission, FeedbackKind.Strategy).ToArray();
         var records = FeedbackRecords(FeedbackKind.Mission, FeedbackKind.Strategy, FeedbackKind.Progress).ToArray();
-        if (messages.Length == 0 && records.Length == 0) return;
         int? burning = fact is BurnResolvedEvent { Success: true } burn ? burn.TargetSettlementId : null;
         int? seizing = fact is SeizeResolvedEvent { Outcome: not SeizeOutcomeKind.Failure } seize ? seize.TargetSettlementId : null;
         if (messages.Length > 0 && (burning ?? seizing) is int building && content.Battle?.BuildingEffects.TryGetValue(burning is null ? "seize" : "burn", out var effects) == true)
@@ -244,23 +278,22 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             {
                 var obj = new BattleObjectContext(building, true, place.OwnerId, null, null, building, true);
                 for (int frame = 0; frame < sprites.Length; frame++)
-                    _visuals.Add(new(Identity($"mission-effect-{frame}"), _cursor + 0.3, _cursor + 0.3 + sprites[frame].Columns * sprites[frame].FrameMilliseconds / 1000.0, obj, obj, -1, 0, false, false, 0, 0, 0, sprites[frame], null));
+                    _visuals.Add(new(Identity($"mission-effect-{frame}"), _cursor, _cursor + sprites[frame].Columns * sprites[frame].FrameMilliseconds / 1000.0, obj, obj, -1, 0, false, false, 0, 0, 0, sprites[frame], null));
             }
         }
         foreach (var (feedbackId, message) in messages)
         {
-            double time = _cursor + (message.MapSpeech?.DelaySeconds ?? 2);
             var id = message.MapSpeech?.Id ?? feedbackId;
             var fixedMessage = message with
             {
-                MapSpeech = message.MapSpeech is { } speech ? speech with { Id = id, DelaySeconds = 0 } : null
+                MapSpeech = message.MapSpeech is { } speech ? speech with { Id = id } : null
             };
-            _messages.Add(new(id, time, fixedMessage,
+            AddMessageCue(new(id, _cursor, fixedMessage,
                 fixedMessage.MapSpeech is null ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech));
         }
         foreach (var record in records)
-            _records.Add(new(_cursor + 2, record));
-        _cursor = Math.Max(_cursor + 6, _visuals.Select(v => v.End).DefaultIfEmpty(0).Max());
+            AddRecordCue(new(_cursor, record));
+        _cursor = Math.Max(_cursor, _visuals.Select(v => v.End).DefaultIfEmpty(_cursor).Max());
     }
 
     private void PresentAftermath()
@@ -271,17 +304,17 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
 
     private void PresentOutcome()
     {
-        if (PublishFeedback(_cursor, FeedbackKind.Outcome)) _cursor += 1;
+        PublishFeedback(_cursor, FeedbackKind.Outcome);
     }
 
     private void PresentFeedback()
     {
-        if (PublishFeedback(_cursor, FeedbackKind.Progress, FeedbackKind.Personnel)) _cursor += 1;
+        PublishFeedback(_cursor, FeedbackKind.Progress, FeedbackKind.Personnel);
     }
 
     private void PresentMapNotification()
     {
-        if (PublishFeedback(_cursor, FeedbackKind.Report, FeedbackKind.Progress, FeedbackKind.MapSpeech)) _cursor += 1;
+        PublishFeedback(_cursor, FeedbackKind.Report, FeedbackKind.Progress, FeedbackKind.MapSpeech);
     }
 
     private void PresentHealing(TacticHealingEvent healing)
@@ -290,13 +323,13 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             content.Battle is not { } battle || !battle.Tactics.TryGetValue(healTactic, out var healDefinition) || !Visible(heal)) return;
         Capture(heal.Source, heal.Target);
         var sprite = healDefinition.MapEffect;
-        _visuals.Add(new(Identity("healing"), _impact - (sprite?.Columns * sprite?.FrameMilliseconds ?? 0) / 1000.0, _impact + 1.5, heal.Source, heal.Target, healTactic,
+        _visuals.Add(new(Identity("healing"), _impact - (sprite?.Columns * sprite?.FrameMilliseconds ?? 0) / 1000.0, _impact, heal.Source, heal.Target, healTactic,
             healing.ActorId ?? Soldier, false, false, 0, 0, 0, sprite, null)
         { SoldierGain = healing.RecoveredSoldiers });
         _stateValues.Add(new(_impact, healing.TargetUnitId, false, healing.RecoveredSoldiers, 0, 0));
         Number(heal.Target, healing.RecoveredSoldiers, _impact, "map-healing");
         if (healing.RecoveredSoldiers > 0) Outcome("healed", healing.Clock, heal, healing.RecoveredSoldiers, heal.Source.ForceId);
-        _cursor = Math.Max(_cursor, _impact + 1.5);
+        _cursor = Math.Max(_cursor, _impact);
     }
 
     private void PresentTactic(DomainEvent fact)
@@ -343,9 +376,9 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision, $"battle:{_index}:{role}:{_messages.Count + _records.Count}"));
             var produced = ProgressMessageProducer.Produce(message, occurrenceContext, texts, values, n => (int)(random.NextUInt64() % (ulong)n));
             var id = Identity($"{role}:{_messages.Count + _records.Count}");
-            _records.Add(new(time, new(id, produced.Message, Location(location), MapRecordColors.Resolve(before, after, colorForce), importance), produced.SoundRole));
+            AddRecordCue(new(time, new(id, produced.Message, Location(location), MapRecordColors.Resolve(before, after, colorForce), importance), produced.SoundRole));
         }
-        void Add(string role, DecisionMessageDefinition message, double time, BattleMessageChannel channel, bool atSource = false)
+        void Add(string role, DecisionMessageDefinition message, double time, BattleMessageChannel channel, bool atSource = false, double delay = 0)
         {
             var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision, $"battle:{_index}:{role}:{_messages.Count + _records.Count}"));
             var produced = ProgressMessageProducer.Produce(message, occurrenceContext, texts, values, n => (int)(random.NextUInt64() % (ulong)n));
@@ -355,9 +388,9 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
                 produced = produced with
                 {
                     MapSpeech = new(id, produced.Message, speaker,
-                    texts.Resolve(before.MessageSpeaker(speaker).NameKey), Location(obj), obj.IsSettlement ? null : obj.Id, color)
+                    texts.Resolve(before.MessageSpeaker(speaker).NameKey), Location(obj), obj.IsSettlement ? null : obj.Id, color, DelaySeconds: delay)
                 };
-            _messages.Add(new(id, time, produced, channel));
+            AddMessageCue(new(id, time, produced, channel));
         }
         double Prelude()
         {
@@ -379,7 +412,6 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             if (fact is TacticActivatedEvent && !definition.Support)
             {
                 AddRecord("activation-other", battle.Messages["activation-other"], _cursor, source, null, MapReportImportance.Detailed);
-                _cursor += 1;
             }
             return;
         }
@@ -481,8 +513,8 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             {
                 _impact = preludeEnd + (definition.MapEffect?.Columns * definition.MapEffect?.FrameMilliseconds ?? 0) / 1000.0;
                 if (definition.EffectAtSource && definition.MapEffect is { } sprite) _visuals.Add(new(Identity("support"), preludeEnd, _impact, source, source, tacticId, actor, false, false, 0, 0, 0, sprite, null));
-                Add("hit", definition.Messages["hit"], _cursor + 1, BattleMessageChannel.MapSpeech, true);
-                _cursor = Math.Max(_cursor + 6, _impact);
+                Add("hit", definition.Messages["hit"], _cursor, BattleMessageChannel.MapSpeech, true, delay: 1);
+                _cursor = Math.Max(_cursor, _impact);
             }
             else _cursor = preludeEnd;
         }
@@ -494,6 +526,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
                 Add("announcement", definition.Messages["announcement"], _cursor, BattleMessageChannel.Dialogue, true);
                 Add("action", definition.Messages["action"], _cursor, BattleMessageChannel.MapSpeech, true);
                 _cursor = Prelude();
+                _impact = _cursor;
             }
             string role = effect >= 10 ? "hit" : effect > 0 ? "reduced" : "failed";
             values["responder"] = ProgressMessageProducer.Person((effect == 0 ? occurrence.IntelligenceOfficerId : occurrence.ResistanceOfficerId) ?? Soldier);
@@ -502,18 +535,18 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
                 if (definition.UnitedResponse && occurrence.TargetCondition == UnitCondition.HighSpirits) role = "united";
                 else if (definition.CounterResponse is { } counterRole && occurrence.CounterOfficerId is int counter)
                 { role = counterRole; values["responder"] = ProgressMessageProducer.Person(counter); }
-                else if (occurrence.DefensiveFormation && definition.FormationResponse) Add("defensive", definition.Messages["defensive"], _cursor + 1, BattleMessageChannel.MapSpeech);
+                else if (occurrence.DefensiveFormation && definition.FormationResponse) Add("defensive", definition.Messages["defensive"], _cursor, BattleMessageChannel.MapSpeech, delay: 1);
             }
             if (effect > 0 && definition.MapEffect is { } sprite)
             {
                 _impact = _cursor + sprite.Columns * sprite.FrameMilliseconds / 1000.0;
                 var hit = events.Skip(_index + 1).TakeWhile(e => e is not IntelligenceEffectResolvedEvent and not TacticActivatedEvent)
                     .OfType<BattleDamageEvent>().FirstOrDefault(e => e.TacticId == tacticId);
-                _visuals.Add(new(Identity("effect"), _cursor, _impact + 1.5,
+                _visuals.Add(new(Identity("effect"), _cursor, _impact,
                     source, target, tacticId, actor, false, false, hit?.SoldierLoss ?? 0, hit?.DurabilityLoss ?? 0, hit?.MoraleLoss ?? 0, sprite, null));
             }
-            Add(role, definition.Messages[role], _cursor + 1, BattleMessageChannel.MapSpeech);
-            _cursor = Math.Max(_cursor + 6, _impact + 1.5);
+            Add(role, definition.Messages[role], _cursor, BattleMessageChannel.MapSpeech, delay: 1);
+            _cursor = Math.Max(_cursor, _impact);
         }
     }
 }

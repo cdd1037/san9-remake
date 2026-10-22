@@ -6,6 +6,14 @@ namespace San9.Rendering;
 /// <summary>Owns the display positions, waiting queues and timers of one unit's members.</summary>
 public sealed class UnitMotionPlayback
 {
+    public sealed record Attack(string Id, UnitVisualAction Action, int Direction, double Start, double Duration, double Delay);
+    public Attack? BodyAttack { get; private set; }
+    public void PlayAttack(Attack attack)
+    {
+        if (BodyAttack?.Id == attack.Id || BodyAttack is { } previous && previous.Start > attack.Start) return;
+        BodyAttack = attack;
+        Revision++;
+    }
     private sealed class Member(MapUnitMember definition, double interval, uint frame, double time)
     {
         public readonly MapUnitMember Definition = definition;
@@ -53,6 +61,7 @@ public sealed class UnitMotionPlayback
             _soldiers = _soldiers,
             Revision = Revision
         };
+        copy.BodyAttack = BodyAttack;
         foreach (var (key, member) in _members) copy._members.Add(key, member.Copy());
         copy._trails.AddRange(_trails);
         return copy;

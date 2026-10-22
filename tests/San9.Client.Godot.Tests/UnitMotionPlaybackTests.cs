@@ -7,6 +7,28 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class UnitMotionPlaybackTests
 {
+    [Fact]
+    public void NonblockingBodyActionSurvivesDayPublicationAndKeepsItsOwnStartupClock()
+    {
+        var playback = new UnitMotionPlayback();
+        Advance(playback, 1000);
+        playback.PlayAttack(new("first", UnitVisualAction.Melee, 3, 1000, 1200, 200));
+        var next = playback.Copy();
+        next.Begin(State, Catalog, 1000, 1000, false);
+        next.Advance(1100, 1100, true, _ => State, Catalog, Clips, t => t);
+        Assert.Null(UnitVisuals.Resolve(State, Catalog, Clips, next).AttackMilliseconds);
+        next.Advance(1500, 1500, true, _ => State, Catalog, Clips, t => t);
+        var body = UnitVisuals.Resolve(State, Catalog, Clips, next);
+        Assert.Equal(UnitVisualAction.Melee, body.Action);
+        Assert.Equal(3, body.Direction);
+        Assert.Equal(300, body.AttackMilliseconds);
+        Assert.Equal("first", body.AttackId);
+        next.PlayAttack(new("first", UnitVisualAction.Melee, 3, 1500, 1200, 200));
+        Assert.Equal(300, UnitVisuals.Resolve(State, Catalog, Clips, next).AttackMilliseconds);
+        next.Advance(2200, 2200, true, _ => State, Catalog, Clips, t => t);
+        Assert.Null(UnitVisuals.Resolve(State, Catalog, Clips, next).AttackMilliseconds);
+        Assert.Equal(1000, playback.VisualTime);
+    }
     private static UnitVisualState March(double time) => State with
     {
         Soldiers = 1001, IsMoving = time < 1000,

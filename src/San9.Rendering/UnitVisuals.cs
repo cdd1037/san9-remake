@@ -5,6 +5,8 @@ namespace San9.Rendering;
 
 public sealed record UnitVisual(int Id, double CellX, double Depth, MapAnimatedSprite[] Animations)
 {
+    public double? AttackMilliseconds { get; init; }
+    public string? AttackId { get; init; }
     public UnitVisualAction Action { get; init; }
     public int Direction { get; init; }
     public uint Soldiers { get; init; }
@@ -82,6 +84,12 @@ public static class UnitVisuals
             playback = new();
             playback.Begin(state, catalog, 0, 0, false);
         }
+        double? attackAge = null;
+        if (playback.BodyAttack is { } attack && playback.VisualTime >= attack.Start + attack.Delay && playback.VisualTime < attack.Start + attack.Duration)
+        {
+            state = state with { Action = attack.Action, Direction = attack.Direction };
+            attackAge = playback.VisualTime - attack.Start - attack.Delay;
+        }
         (double X, double Y, double GroundY, int Direction) Pose(MapUnitMember m)
         {
             var point = playback.Position(m);
@@ -150,6 +158,8 @@ public static class UnitVisuals
         }
         return new(state.Id, state.CellX, state.CellX + state.CellY, animations.ToArray())
         {
+            AttackMilliseconds = attackAge,
+            AttackId = attackAge is null ? null : playback.BodyAttack!.Id,
             Action = state.Action,
             Direction = state.Direction,
             Soldiers = state.Soldiers,

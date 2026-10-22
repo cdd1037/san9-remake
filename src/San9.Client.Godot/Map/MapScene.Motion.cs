@@ -31,13 +31,13 @@ internal sealed partial class MapScene
     // Captures immutable motion inputs, never the scene or its retained history.
     private Func<int, double, UnitVisualState?> StateSampler()
     {
-        var states = _unitStates; var motions = _motions; var attacks = _attacks;
+        var states = _unitStates; var motions = _motions;
         var snapshot = State; var map = Map; var day = Day;
-        return (id, time) => SampleState(id, time, states, motions, attacks, snapshot, map, day);
+        return (id, time) => SampleState(id, time, states, motions, snapshot, map, day);
     }
     private static UnitVisualState? SampleState(int id, double milliseconds,
         Dictionary<int, UnitVisualState> states, Dictionary<int, MapUnitMotion> motions,
-        MapAttackMotion[] attacks, San9.Application.Presentation.StrategySnapshot snapshot,
+        San9.Application.Presentation.StrategySnapshot snapshot,
         MapPackage map, TurnDayPresentation? day)
     {
         if (!states.TryGetValue(id, out var state)) return null;
@@ -68,16 +68,14 @@ internal sealed partial class MapScene
                 Action = moving ? UnitVisualAction.Moving : UnitVisualAction.Idle
             };
         }
-        if (day is not null && milliseconds >= TurnDayPresentation.MovementMilliseconds)
+        if (day is not null && milliseconds >= MapMovementCadence.DayMilliseconds)
         {
             state = state with { IsEngaged = day.After.IsUnitEngaged(id) };
-            if (attacks.FirstOrDefault(a => !a.SourceIsSettlement && a.SourceId == id && day.IsAttackActive(a)) is { } attack)
-                state = state with { Direction = attack.Direction, Action = attack.Action };
         }
         if (day?.Battle is { } battle)
         {
             var changes = battle.Values.Where(v => !v.IsSettlement && v.TargetId == id && v.Time * 1000 <= milliseconds &&
-                day.IsDialogueComplete(v.AfterDialogueId)).ToArray();
+                day.IsFactReady(v.FactIndex) && day.IsDialogueComplete(v.AfterDialogueId)).ToArray();
             uint soldiers = state.Soldiers, lastLiving = soldiers;
             foreach (var change in changes)
             {
@@ -127,14 +125,23 @@ internal sealed partial class MapScene
     }
     public double PlaybackMilliseconds => MotionVisualTime;
     private double _playbackTime = -1, _playbackVisualTime = -1;
+    private long _playbackPresentationRevision = -1;
     private void AdvanceUnitPlayback()
     {
         double time = MotionTime, visualTime = MotionVisualTime;
-        if (_playbackTime == time && _playbackVisualTime == visualTime) return;
+        long revision = Day?.PresentationRevision ?? 0;
+        if (_playbackTime == time && _playbackVisualTime == visualTime && _playbackPresentationRevision == revision) return;
+        if (_playbackPresentationRevision != revision) _sampleTime = -1;
+        if (Day is { } day)
+            foreach (var attack in _attacks.Where(day.IsBodyPresented).GroupBy(a => a.SourceId).Select(g => g.MaxBy(a => a.FactIndex)!))
+                if (_unitPlayback.TryGetValue(attack.SourceId, out var playback))
+                    playback.PlayAttack(new($"{day.Before.World.Revision}:{attack.FactIndex}", attack.Action, attack.Direction,
+                        _visualStart + day.AttackVisualStart(attack), day.Plan!.BodyDuration(attack) * 1000, attack.BodyDelayMilliseconds));
         foreach (var (id, playback) in _unitPlayback)
             playback.Advance(time, visualTime, Day is not { Elapsed: 0 }, t => HistoryState(id, t) ?? _unitStates[id],
                 Map.Units, Clips, EmissionTime);
         _playbackTime = time; _playbackVisualTime = visualTime;
+        _playbackPresentationRevision = revision;
     }
     public Rect2 MotionBounds(UnitVisual unit)
     {
@@ -183,10 +190,13 @@ internal sealed partial class MapScene
                 foreach (string frame in Clips[impact.ClipId].Frames) yield return frame;
         }
     }
-    private IEnumerable<MapAttackMotion> VisibleAttacks(Rect2 bounds) => _attacks.Where(a => a.Projectile != MapProjectileKind.None &&
-        new Rect2((float)Math.Min(a.FromX, a.ToX), (float)Math.Min(a.FromY, a.ToY),
-            (float)Math.Abs(a.ToX - a.FromX) + 1, (float)Math.Abs(a.ToY - a.FromY) + 1).Grow(256).Intersects(bounds));
+    private IEnumerable<MapAttackMotion> VisibleAttacks(Rect2 bounds)
+    {
+        var viewport = new MapPresentationBounds(bounds.Position.X, bounds.Position.Y, bounds.Size.X, bounds.Size.Y);
+        return _attacks.Where(a => a.Projectile != MapProjectileKind.None &&
+            Enumerable.Range(0, MapProjectiles.ShotCount(a)).Any(i => MapProjectiles.IsVisible(a, i, viewport)));
+    }
     public IEnumerable<MapProjectileSprite> Projectiles(Rect2 bounds) => Day is null ? [] : VisibleAttacks(bounds)
         .Where(Day.IsAttackPresented)
-        .SelectMany(a => MapProjectiles.Sample(a, Map.Units.Projectiles[a.Projectile], Day.CombatMilliseconds, Clips));
+        .SelectMany(a => MapProjectiles.Sample(a, Map.Units.Projectiles[a.Projectile], Day.AttackMilliseconds(a), Clips, Day.PresentedShots(a)));
 }

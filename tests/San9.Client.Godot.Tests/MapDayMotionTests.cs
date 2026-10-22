@@ -8,6 +8,26 @@ namespace San9.Client.Godot.Tests;
 public sealed class MapDayMotionTests
 {
     [Fact]
+    public void DelayedStoneAndPerShotVisibilityKeepTheirAuthoredLaunchTimes()
+    {
+        var stone = new MapAttackMotion(1, false, 2, false, 0, 0, 100, 0, 1, UnitVisualAction.Ranged, MapProjectileKind.Stone)
+            { ProjectileDelayMilliseconds = 700 };
+        var art = new MapProjectile(["stone"], 64, false, 0, 0);
+        Assert.Empty(MapProjectiles.Sample(stone, art, 699));
+        Assert.Single(MapProjectiles.Sample(stone, art, 700));
+        Assert.Equal(700 + 256, MapProjectiles.Duration(stone));
+        var arrows = stone with { SourceIsSettlement = true, Projectile = MapProjectileKind.Arrow, ProjectileDelayMilliseconds = 0,
+            Origins = [new(0, 0), new(1000, 1000)] };
+        var viewport = new MapPresentationBounds(0, 0, 20, 20);
+        Assert.True(MapProjectiles.IsVisible(arrows, 0, viewport));
+        Assert.False(MapProjectiles.IsVisible(arrows with { ToX = 1100, ToY = 1000 }, 1, viewport));
+        Assert.Empty(MapProjectiles.Sample(arrows, art, 199, shots: new HashSet<int> { 1 }));
+        var shot = Assert.Single(MapProjectiles.Sample(arrows, art, 200, shots: new HashSet<int> { 1 }));
+        Assert.Equal((1000, 1000), (shot.X, shot.Y));
+        Assert.True(MapProjectiles.IsVisible(stone with { FromX = -180, ToX = -170 }, 0, viewport));
+        Assert.False(viewport.ContainsBody(new(-180, 0)));
+    }
+    [Fact]
     public void EachDisplayPositionIsHeldUntilTheNextCallbackAndTheTenthArrivesAt900Milliseconds()
     {
         var motion = new MapUnitMotion([new(new(190, 1, 1), 42, new(0, 0), new(100, -100), 20, NavigationStatus.Arrived)

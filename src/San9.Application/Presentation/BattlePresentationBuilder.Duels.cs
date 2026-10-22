@@ -19,7 +19,7 @@ internal sealed partial class BattlePresentationBuilder
             texts, new Dictionary<string, MessageBinding> { ["actor"] = ProgressMessageProducer.Person(death.OfficerId) }, _ => 0);
         // The duel death line replaces only the generic casualty announcement.
         _ = FeedbackMessages(FeedbackKind.Casualty).ToArray();
-        _messages.Add(new(Identity("duel-death"), _cursor, message, BattleMessageChannel.Dialogue));
+        AddMessageCue(new(Identity("duel-death"), _cursor, message, BattleMessageChannel.Dialogue));
         PresentAftermath();
         _cursor += .5;
         if (PublishFeedback(_cursor, FeedbackKind.WorldEvent)) _cursor += .5;
@@ -118,7 +118,7 @@ internal sealed partial class BattlePresentationBuilder
             });
             leftPosition = leftTo ?? leftPosition; rightPosition = rightTo ?? rightPosition;
             leftOpacity = leftAlpha ?? leftOpacity; rightOpacity = rightAlpha ?? rightOpacity;
-            if (dialogue is not null) _messages.Add(new($"{id}:speech:{stages.Count}", time, dialogue, BattleMessageChannel.DuelDialogue) { SceneId = id });
+            if (dialogue is not null) AddMessageCue(new($"{id}:speech:{stages.Count}", time, dialogue, BattleMessageChannel.DuelDialogue) { SceneId = id });
             time += duration;
         }
         void Speech(string role, int actor, int opponent, DuelAction? la = null, DuelAction? ra = null, string? sound = null)
@@ -164,7 +164,7 @@ internal sealed partial class BattlePresentationBuilder
         }
         if (duelScenesEnabled)
         {
-            _messages.Add(new($"{id}:introduction", start, Message("introduction", left.Id, right.Id), BattleMessageChannel.Dialogue) { SceneId = id });
+            AddMessageCue(new($"{id}:introduction", start, Message("introduction", left.Id, right.Id), BattleMessageChannel.Dialogue) { SceneId = id });
             Add(DuelStageKind.Entry, 1, DuelAction.Idle, DuelAction.Idle, leftAlpha: 1);
             Welcome(true, false, "entry", left.Id, target.CommanderId ?? right.Id);
             Add(DuelStageKind.Entry, 1, DuelAction.Idle, DuelAction.Idle, rightAlpha: 1);
@@ -296,10 +296,10 @@ internal sealed partial class BattlePresentationBuilder
         }
         foreach (var (message, owner, role, index) in victories)
         {
-            _records.Add(new(time, new($"{id}:result:{index}:{role}", message.Message, Location(owner), MapRecordColors.Resolve(before, after, owner.ForceId))));
+            AddRecordCue(new(time, new($"{id}:result:{index}:{role}", message.Message, Location(owner), MapRecordColors.Resolve(before, after, owner.ForceId))));
         }
         if (victories.Count > 0)
-            _messages.Add(new($"{id}:result", time, victories[^1].Message, BattleMessageChannel.Dialogue));
+            AddMessageCue(new($"{id}:result", time, victories[^1].Message, BattleMessageChannel.Dialogue));
         _cursor = _impact = _mapAvailable = time + .5;
     }
 }

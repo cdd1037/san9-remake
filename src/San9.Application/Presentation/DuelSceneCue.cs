@@ -38,6 +38,7 @@ public sealed record DuelStage(double Start, double End, DuelStageKind Kind,
 public sealed record DuelSceneCue(string Id, double Start, double End, DuelPresentationDefinition Definition,
     string Backdrop, ImmutableArray<int> LeftRoster, ImmutableArray<int> RightRoster, ImmutableArray<DuelStage> Stages)
 {
+    public int FactIndex { get; init; }
     public ImmutableArray<DuelFlagView> Flags { get; init; } = [];
     public ImmutableArray<DuelParticleCue> Particles { get; init; } = [];
     public const double EffectFadeDuration = .2;

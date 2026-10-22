@@ -4,6 +4,13 @@ namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class MapUnitCompilerTests
 {
+    [Fact]
+    public void StoneRecipesKeepBodyStartupAndProjectileLaunchAsSeparateTimings()
+    {
+        Assert.Equal([0, 100, 200, 300, 400], MapUnitCompiler.CompileAttackTimings(13).Select(t => t.BodyDelayMilliseconds));
+        Assert.Equal([500, 600, 700, 800, 900], MapUnitCompiler.CompileAttackTimings(13).Select(t => t.ProjectileDelayMilliseconds));
+        Assert.Equal(new MapAttackTiming(0, 0), Assert.Single(MapUnitCompiler.CompileAttackTimings(19)));
+    }
     [Theory]
     [InlineData(16, 0x660e68, 0x660e48)]
     [InlineData(17, 0x660e08, 0x660de8)]

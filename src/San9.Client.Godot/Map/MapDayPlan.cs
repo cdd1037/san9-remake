@@ -12,12 +12,20 @@ public sealed class MapDayPlan
 {
     internal Dictionary<int, MapUnitMotion> Motions => _motions;
     public IReadOnlyList<MapAttackMotion> Attacks => _attacks;
-    private readonly Dictionary<MapAttackMotion, double> _attackDurations = [];
-    public double AttackDuration(MapAttackMotion attack) => _attackDurations[attack];
-    // Attack admission uses the presented camera, independent of resource prefetch coverage.
-    public static bool IsAttackVisible(MapAttackMotion attack, double x, double y, double width, double height) =>
-        attack.FromX >= x - 80 && attack.FromX < x + width + 80 &&
-        attack.FromY >= y - 80 && attack.FromY < y + height + 80;
+    private readonly Dictionary<MapAttackMotion, (double Duration, double Blocking)> _bodies = [];
+    public double BodyDuration(MapAttackMotion attack) => _bodies[attack].Duration;
+    public MapAttackAdmission Admit(MapAttackMotion attack, MapPresentationBounds viewport)
+    {
+        bool body = !attack.SourceIsSettlement && viewport.ContainsBody(attack.BodyPosition);
+        // Unit shots require an attached emitting body; facilities can emit across the viewport edge.
+        int[] shots = attack.Projectile == MapProjectileKind.None || !attack.SourceIsSettlement && !body ? [] :
+            Enumerable.Range(0, MapProjectiles.ShotCount(attack)).Where(i => MapProjectiles.IsVisible(attack, i, viewport)).ToArray();
+        double impact = attack.Projectile != MapProjectileKind.None && Map.Units.Projectiles[attack.Projectile].Impact is {} effect
+            ? Clips[effect.ClipId].Frames.Length * Clips[effect.ClipId].FrameMilliseconds / 1000.0 : 0;
+        double blocking = Math.Max(body ? _bodies[attack].Blocking : 0,
+            shots.Select(i => MapProjectiles.Duration(attack, i) / 1000 + impact).DefaultIfEmpty(0).Max());
+        return new(body, shots.ToHashSet(), blocking);
+    }
     private readonly MapPackage Map;
     private readonly StrategySnapshot State;
     private readonly IReadOnlyList<DomainEvent> _events;
@@ -69,12 +77,16 @@ public sealed class MapDayPlan
         _motions = _events.OfType<UnitMovedEvent>().Where(e => e.From != e.To).GroupBy(e => e.UnitId)
             .ToDictionary(g => g.Key, g => new MapUnitMotion(g));
         List<MapAttackMotion> attacks = [];
-        foreach (var hit in _events.OfType<BattleDamageEvent>().Where(e => e.TacticId is null && (e.SoldierLoss > 0 || e.DurabilityLoss > 0 || e.MoraleLoss > 0)))
+        foreach (var (fact, factIndex) in _events.Select((e, i) => (e, i)))
         {
+            if (fact is not BattleDamageEvent { TacticId: null } hit || hit.SoldierLoss == 0 && hit.DurabilityLoss == 0 && hit.MoraleLoss == 0) continue;
             bool targetSettlement = hit.SettlementId is not null;
             int targetId = hit.TargetUnitId ?? hit.SettlementId!.Value;
             if (Position(hit.AttackerId, hit.AttackerIsSettlement) is not {} from || Position(targetId, targetSettlement) is not {} to) continue;
             var source = Project(from.X, from.Y); var target = Project(to.X, to.Y);
+            var bodyPosition = source;
+            var timing = new MapAttackTiming(0, 0);
+            int spacing = 200;
             var kind = MapProjectileKind.None;
             MapMotionPoint[] path = [];
             MapMotionPoint[] origins = [];
@@ -112,6 +124,8 @@ public sealed class MapDayPlan
                 { action = UnitVisualAction.Ranged; }
                 var attack = UnitVisuals.Attack(body, action);
                 if (attack is null) continue;
+                timing = attack.Timings[UnitVisuals.Seed(unit.Id, targetId, unchecked((int)State.World.Revision)) % (uint)attack.Timings.Length];
+                spacing = attack.ShotSpacingMilliseconds;
                 kind = attack.Projectile;
                 if (kind != MapProjectileKind.None)
                 {
@@ -136,12 +150,14 @@ public sealed class MapDayPlan
             else continue;
             attacks.Add(new(hit.AttackerId, hit.AttackerIsSettlement, targetId, targetSettlement,
                 source.X, source.Y, target.X, target.Y, UnitVisuals.Direction(from, to), action, kind)
-            { Path = path, Origins = origins });
+            { Path = path, Origins = origins, FactIndex = factIndex, BodyPosition = bodyPosition,
+                BodyDelayMilliseconds = timing.BodyDelayMilliseconds, ProjectileDelayMilliseconds = timing.ProjectileDelayMilliseconds,
+                ShotSpacingMilliseconds = spacing });
         }
-        _attacks = attacks.DistinctBy(a => (a.SourceId, a.SourceIsSettlement, a.TargetId, a.TargetIsSettlement, a.Projectile)).ToArray();
+        _attacks = attacks.ToArray();
         foreach (var attack in _attacks)
         {
-            double duration = 0;
+            double duration = 0, blocking = 0;
             if (!attack.SourceIsSettlement && _units.TryGetValue(attack.SourceId, out var state))
             {
                 var layout = AttackLayout(state, Position(attack.SourceId, false)!.Value);
@@ -151,14 +167,14 @@ public sealed class MapDayPlan
                     var selected = UnitVisuals.SelectAction(body, attack.Action, state.Id, member);
                     if (selected is null) continue;
                     var clip = Clips[selected.DirectionClips[attack.Direction]];
-                    duration = Math.Max(duration, clip.Frames.Length * clip.FrameMilliseconds / 1000.0);
+                    double end = (attack.BodyDelayMilliseconds + clip.Frames.Length * clip.FrameMilliseconds) / 1000.0;
+                    duration = Math.Max(duration, end);
+                    if (selected.BlocksDayProgress) blocking = Math.Max(blocking, end);
                 }
             }
-            if (attack.Projectile != MapProjectileKind.None)
-                duration = Math.Max(duration, MapProjectiles.Duration(attack) / 1000 +
-                    (Map.Units.Projectiles[attack.Projectile].Impact is {} impact
-                        ? Clips[impact.ClipId].Frames.Length * Clips[impact.ClipId].FrameMilliseconds / 1000.0 : 0));
-            _attackDurations.Add(attack, duration);
+            _bodies.Add(attack, (duration, blocking));
         }
     }
 }
+
+public sealed record MapAttackAdmission(bool Body, IReadOnlySet<int> Shots, double BlockingDuration);

@@ -173,10 +173,14 @@ public sealed class BattlePresentationTests
         var tactic = damage with { TacticId = 99 };
         var hidden = tactic with { Source = occurrence.Source with { ForceId = 3 }, SoldierLoss = 700 };
         var plan = BattlePresentationPlan.Create(session.View, session.View, [damage, tactic, hidden], session.Messages(texts), texts, content);
+        Assert.Equal(1, plan.Values[0].Time);
+        Assert.Equal(0, Assert.Single(plan.Attacks).FirstFactIndex);
         var number = Assert.Single(plan.MapNumbers);
         Assert.Equal(-500, number.Amount);
         Assert.Equal(occurrence.Target, number.Target);
         Assert.Equal([-500L, -500L, -700L], plan.Values.Select(value => value.Soldiers));
+        var offscreen = BattlePresentationPlan.Create(session.View, session.View, [damage], session.Messages(texts), texts, content);
+        Assert.Equal(1, offscreen.Duration);
     }
 
     [Fact]
@@ -584,6 +588,8 @@ public sealed class BattlePresentationTests
         Assert.Equal("screen", plan.Visuals[0].Effect!.Sound);
         Assert.All(plan.Visuals.Skip(1), v => Assert.Null(v.Effect!.Sound));
         Assert.True(Assert.Single(plan.Messages, c => c.Message.Message.Key == "failed").Time >= plan.Visuals[^1].End);
+        Assert.Equal(plan.Visuals[^1].End, plan.Duration);
+        Assert.Equal(1, Assert.Single(plan.Messages, c => c.Message.Message.Key == "failed").Message.MapSpeech!.DelaySeconds);
         Assert.Empty(plan.Records);
     }
 
@@ -643,7 +649,10 @@ public sealed class BattlePresentationTests
         var dialogue = Assert.Single(plan.Messages, c => c.Channel == BattleMessageChannel.Dialogue);
         var effect = Assert.Single(plan.Visuals, c => !c.ScreenEffect);
         Assert.Equal(dialogue.Time + (support ? 0 : .64), effect.Start, 6);
-        Assert.True(plan.Duration >= effect.End);
+        Assert.Equal(effect.End, plan.Duration);
+        Assert.Equal(dialogue.Id, effect.AfterDialogueId);
+        var response = Assert.Single(plan.Messages, c => c.Message.Message.Key == "hit");
+        Assert.Equal(1, response.Message.MapSpeech!.DelaySeconds);
         if (support) Assert.Equal(effect.Start + 4 * frameMilliseconds / 1000.0, effect.End, 6);
         else
         {
@@ -667,6 +676,10 @@ public sealed class BattlePresentationTests
         Assert.Equal("activation-other", report.Message.Key);
         Assert.Equal(MapReportImportance.Detailed, report.Importance);
         Assert.Null(report.ForceColorCode);
+
+        var repeated = BattlePresentationPlan.Create(session.View, session.View, [fact, fact, fact], session.Messages(texts), texts, content);
+        Assert.Equal(plan.Duration, repeated.Duration);
+        Assert.All(repeated.Records, c => Assert.Equal(plan.Records[0].Time, c.Time));
     }
 
     [Theory]

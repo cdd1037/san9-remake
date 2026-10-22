@@ -25,7 +25,7 @@ internal sealed partial class MapScene
         var baseline = Animations.GetValueOrDefault(id, []);
         if (_combatBuildingAnimations is null) return baseline;
         var combat = _combatBuildingAnimations.GetValueOrDefault(id, []);
-        return preload ? baseline.Concat(combat).Distinct() : Day?.CombatMilliseconds >= 0 ? combat : baseline;
+        return preload ? baseline.Concat(combat).Distinct() : Day?.Elapsed >= TurnDayPresentation.DayDuration ? combat : baseline;
     }
     public IReadOnlyDictionary<string, MapAnimationClip> Clips { get; }
     public IReadOnlySet<string> HighlightableBuildingAssets { get; }
@@ -172,8 +172,7 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
             foreach (var sprite in unit.Animations)
             {
                 double clock = time;
-                if (sprite.IsBody && unit.Action is UnitVisualAction.Melee or UnitVisualAction.Ranged &&
-                    Scene.Day is { CombatMilliseconds: >= 0 } combat) clock = combat.CombatMilliseconds;
+                if (sprite.IsBody && unit.AttackMilliseconds is { } attackTime) clock = attackTime;
                 Animated(sprite, new(unit.Id, true), clock, sprite.IsBody);
             }
         if (objectOverlay is {} overlay) draws.Add((16 * overlay.Depth + 128 + 30000, overlay.Draw));

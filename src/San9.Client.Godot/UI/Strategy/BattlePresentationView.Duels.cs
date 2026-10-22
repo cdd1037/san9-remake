@@ -49,7 +49,7 @@ public partial class BattlePresentationView
 
     private void UpdateDuel(BattlePresentationPlan plan, double time)
     {
-        _duel = plan.Duels.FirstOrDefault(c => time >= c.Start && time < c.End);
+        _duel = plan.Duels.FirstOrDefault(c => _day!.IsFactReady(c.FactIndex) && time >= c.Start && time < c.End);
         var stage = _duel?.Sample(time);
         _duelSpeechLayout = null;
         _duelText.Visible = stage?.Dialogue is not null;

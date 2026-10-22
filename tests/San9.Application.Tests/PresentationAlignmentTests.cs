@@ -153,6 +153,40 @@ public sealed class PresentationAlignmentTests
         Assert.Equal(MapReportImportance.Detailed, output.Records[1].Importance);
         Assert.Null(output.Records[1].ForceColorCode);
         Assert.DoesNotContain(output.Records, r => r.Message.Key.StartsWith("loyalty", StringComparison.Ordinal));
+
+        var plan = BattlePresentationPlan.Create(before, before, facts, session.Messages(texts), texts, content);
+        Assert.Empty(plan.Messages);
+        Assert.Empty(plan.Visuals);
+        Assert.Equal(output.Records, plan.Records.Select(c => c.Record));
+        Assert.All(plan.Records, c => Assert.Equal(plan.Records[0].Time, c.Time));
+        Assert.Equal(plan.Records[0].Time, plan.Duration);
+    }
+
+    [Fact]
+    public void ThirdPartyReinforcementsPublishRecordsWithoutSerialReadingDelays()
+    {
+        var (session, texts, content) = Fixture(); var before = session.View;
+        var fact = new UnitStrategyResolvedEvent(before.World.Clock, 31, 20, UnitStrategyKind.Reinforce, 100, 0, true,
+            new(new(67, 12), 2, 23, 2, UnitCondition.Normal, false, false))
+        {
+            Audience = new(3, 2, new(2, 2, null), 23, 1000, 1000, 70, 100, 90),
+            DeliveredSoldiers = 3000
+        };
+        BattlePresentationPlan Plan(int count) => BattlePresentationPlan.Create(before, before,
+            Enumerable.Repeat<DomainEvent>(fact, count).ToArray(), session.Messages(texts), texts, content);
+        var one = Plan(1); var three = Plan(3);
+        Assert.Empty(three.Messages); Assert.Empty(three.Visuals);
+        Assert.Equal(3, three.Records.Count);
+        Assert.All(three.Records, c =>
+        {
+            Assert.Equal("rescue-other-result", c.Record.Message.Key);
+            Assert.Equal(MapReportImportance.Detailed, c.Record.Importance);
+            Assert.Equal(one.Records[0].Time, c.Time);
+        });
+        Assert.Equal(one.Duration, three.Duration);
+        var remaining = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content,
+            [fact, fact, fact], presentedFeedback: three.PresentedFeedback);
+        Assert.Empty(remaining.Records);
     }
 
     [Fact]

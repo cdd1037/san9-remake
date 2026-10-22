@@ -29,6 +29,22 @@ public sealed class MapUnitAttackContractTests
         Reject(Body with { MeleeAttack = Body.MeleeAttack! with { VolleySize = 0 } });
         Reject(Body with { MeleeAttack = Body.MeleeAttack! with { Projectile = MapProjectileKind.None } });
         Reject(Body with { MeleeAttack = Body.MeleeAttack! with { Projectile = MapProjectileKind.Stone } });
+        Reject(Body with { MeleeAttack = Body.MeleeAttack! with { Timings = [] } });
+        Reject(Body with { MeleeAttack = Body.MeleeAttack! with { Timings = [new(-1, 500)] } });
+        Reject(Body with { MeleeAttack = Body.MeleeAttack! with { ShotSpacingMilliseconds = -1 } });
+    }
+
+    [Theory]
+    [InlineData("timings")]
+    [InlineData("shotSpacingMilliseconds")]
+    [InlineData("blocksDayProgress")]
+    public void TimingAndBlockingAreRequiredContentInsteadOfRuntimeBodyIdRules(string field)
+    {
+        var node = JsonSerializer.SerializeToNode(Body, PackageFiles.JsonOptions)!;
+        var recipe = node["meleeAttack"]!.AsObject();
+        if (field == "blocksDayProgress") recipe["actions"]![0]!.AsObject().Remove(field);
+        else recipe.Remove(field);
+        Assert.Throws<JsonException>(() => node.Deserialize<MapUnitBody>(PackageFiles.JsonOptions));
     }
 
     [Theory]

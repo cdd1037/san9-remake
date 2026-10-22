@@ -122,8 +122,10 @@ public partial class BattlePresentationView : Control
         if (!ReferenceEquals(_day, day)) Prepare(day);
         if (day?.Battle is not { } plan || !ResourcesReady || _assets?.Error is not null || _flags?.Error is not null || _portraits.Any(p => p.Error is not null)) return;
         double time = day.Elapsed;
+        var visuals = plan.Visuals.Where(c => day.IsFactReady(c.FactIndex) && day.IsDialogueComplete(c.AfterDialogueId));
+        var mapEffects = plan.MapEffects.Where(c => day.IsFactReady(c.FactIndex) && day.IsDialogueComplete(c.AfterDialogueId));
         UpdateDuel(plan, time);
-        var entrance = plan.Visuals.FirstOrDefault(c => c.EntranceStart is { } start && time >= start && time < c.End);
+        var entrance = visuals.FirstOrDefault(c => c.EntranceStart is { } start && time >= start && time < c.End);
         double entranceElapsed = entrance is null ? 0 : time - entrance.EntranceStart!.Value;
         _entering = entrance is not null && time < entrance!.Start;
         _transition.Sample(entrance is null ? 0 : BattleSceneTransition.Opacity(entranceElapsed));
@@ -136,7 +138,7 @@ public partial class BattlePresentationView : Control
             MapAudioGain = BattleSceneTransition.OutgoingGain(age);
             SceneAudioGain = BattleSceneTransition.IncomingGain(age);
         }
-        foreach (var cue in plan.Visuals.Where(c => time >= c.Start && time < c.End))
+        foreach (var cue in visuals.Where(c => time >= c.Start && time < c.End))
         {
             if (_started.Add(cue.Id))
             {
@@ -152,9 +154,9 @@ public partial class BattlePresentationView : Control
                     if (time >= cue.Start + playback.Sounds[i].Time && _sounds.Add((cue.Id, i)))
                         PlaySound?.Invoke(playback.Sounds[i].Role);
         }
-        _zoom = plan.Visuals.FirstOrDefault(c => c.Zoom is not null && time >= c.Start && time < c.End);
+        _zoom = visuals.FirstOrDefault(c => c.Zoom is not null && time >= c.Start && time < c.End);
         if (!IsSceneActive)
-            foreach (var cue in plan.MapEffects.Where(c => time >= c.Start && time < c.Start + c.Sprite.Columns * c.Sprite.FrameMilliseconds / 1000.0))
+            foreach (var cue in mapEffects.Where(c => time >= c.Start && time < c.Start + c.Sprite.Columns * c.Sprite.FrameMilliseconds / 1000.0))
                 if (_started.Add(cue.Id) && cue.Sprite.Sound is { } role) PlayMapSound?.Invoke(role, Project(cue.Target));
         if (_zoom is { } current && SoundEnabled())
         {
@@ -191,13 +193,13 @@ public partial class BattlePresentationView : Control
             sprite.Material = asset.Additive ? _additive : null;
             sprite.ZIndex = 0;
         }
-        foreach (var cue in plan.Visuals.Where(c => c.Effect is not null && time >= c.Start && time < c.End))
+        foreach (var cue in visuals.Where(c => c.Effect is not null && time >= c.Start && time < c.End))
             if (cue.FadeOutStart is not null || time - cue.Start < cue.Effect!.Columns * cue.Effect.FrameMilliseconds / 1000.0)
                 Effect(cue.Effect!, time - cue.Start, cue.ScreenEffect ? new(_zoom is null ? GetViewportRect().Size.X / 2 : 512, 0) : Project(cue.Target),
                     cue.FadeOutStart is { } fadeStart ? BattleEffectFade.Opacity(time - fadeStart) : 1,
                     sceneCoordinates: cue.ScreenEffect && _zoom is not null);
         if (!IsSceneActive)
-            foreach (var cue in plan.MapEffects.Where(c => time >= c.Start && time < c.Start + c.Sprite.Columns * c.Sprite.FrameMilliseconds / 1000.0))
+            foreach (var cue in mapEffects.Where(c => time >= c.Start && time < c.Start + c.Sprite.Columns * c.Sprite.FrameMilliseconds / 1000.0))
                 Effect(cue.Sprite, time - cue.Start, Project(cue.Target), sceneCoordinates: false);
         if (_zoom is { } active)
         {
@@ -273,7 +275,7 @@ public partial class BattlePresentationView : Control
         if (_day?.Battle is { } plan)
         {
             var feedbackFont = GetThemeFont("font");
-            foreach (var feedback in plan.Visuals.Where(c => c.Zoom is null && c.MoraleGain > 0 && _day.Elapsed >= c.Start + 0.8 && _day.Elapsed < c.End))
+            foreach (var feedback in plan.Visuals.Where(c => _day.IsFactReady(c.FactIndex) && _day.IsDialogueComplete(c.AfterDialogueId) && c.Zoom is null && c.MoraleGain > 0 && _day.Elapsed >= c.Start + 0.8 && _day.Elapsed < c.End))
             {
                 string text = CommandText.Resolve(Texts, "battle.morale-change", $"+{feedback.MoraleGain}");
                 if (text.Length > 0) DrawString(feedbackFont, Project(feedback.Target) + new Vector2(-28, -52), text, fontSize: 24,
@@ -307,7 +309,7 @@ public partial class BattlePresentationView : Control
     {
         if (_day?.Battle is not { } plan || _assets is null || !ResourcesReady) return;
         if (!IsSceneActive && plan.NumberDefinition is { } numbers)
-            foreach (var numberCue in plan.MapNumbers)
+            foreach (var numberCue in plan.MapNumbers.Where(c => _day.IsFactReady(c.FactIndex) && _day.IsDialogueComplete(c.AfterDialogueId)))
             {
                 if (BattleMapNumberPlayback.Sample(numbers, numberCue.Amount, _day.Elapsed - numberCue.Start) is not { } frame) continue;
                 var point = Project(numberCue.Target) + new Vector2((float)frame.X, (float)frame.Y);

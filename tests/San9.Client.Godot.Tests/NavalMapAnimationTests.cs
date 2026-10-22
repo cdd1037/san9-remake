@@ -77,7 +77,8 @@ public sealed class NavalMapAnimationTests
         var body = Assert.Single(visual.Animations, a => a.IsBody);
         Assert.All(attack.Origins, p => Assert.Equal(new MapMotionPoint(body.X + 64, body.Y + 64), p));
         double bodyDuration = body.ClipId == "long" ? 4 : .1;
-        Assert.Equal(Math.Max(bodyDuration, MapProjectiles.Duration(attack) / 1000), plan.AttackDuration(attack), 8);
+        Assert.Equal(bodyDuration, plan.BodyDuration(attack), 8);
+        Assert.Equal(MapProjectiles.Duration(attack) / 1000, plan.Admit(attack, new(-100000, -100000, 200000, 200000)).BlockingDuration, 8);
         for (int i = 0; i < 5; i++)
         {
             var arrow = MapProjectiles.Sample(attack, catalog.Projectiles[MapProjectileKind.Arrow], i * 200).Last();

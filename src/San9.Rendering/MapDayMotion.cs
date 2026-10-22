@@ -43,6 +43,11 @@ public sealed class MapUnitMotion
 public sealed record MapAttackMotion(int SourceId, bool SourceIsSettlement, int TargetId, bool TargetIsSettlement,
     double FromX, double FromY, double ToX, double ToY, int Direction, UnitVisualAction Action, MapProjectileKind Projectile)
 {
+    public int FactIndex { get; init; }
+    public MapMotionPoint BodyPosition { get; init; }
+    public int BodyDelayMilliseconds { get; init; }
+    public int ProjectileDelayMilliseconds { get; init; }
+    public int ShotSpacingMilliseconds { get; init; } = 200;
     public MapMotionPoint[] Path { get; init; } = [];
     public MapMotionPoint[] Origins { get; init; } = [];
 }
@@ -55,14 +60,13 @@ public sealed record MapProjectileSprite(string AssetId, double X, double Y)
 public static class MapProjectiles
 {
     public const int VisualDepth = 50000;
-    private const int ShotSpacingMilliseconds = 200;
     private const int MinimumFlightMilliseconds = 256;
     private const int BallisticMillisecondsPerPixel = 2;
     private const int GroundMillisecondsPerPixel = 4;
 
     private readonly record struct Flight(MapMotionPoint Origin, MapMotionPoint Target, double Duration, double Height);
 
-    private static int ShotCount(MapAttackMotion attack) => attack.Origins.Length > 0 ? attack.Origins.Length :
+    public static int ShotCount(MapAttackMotion attack) => attack.Origins.Length > 0 ? attack.Origins.Length :
         attack.Projectile == MapProjectileKind.Arrow ? (attack.SourceIsSettlement ? 8 : 5) : 1;
 
     private static int Scatter(MapAttackMotion attack, int shot, int channel, int radius) =>
@@ -87,16 +91,17 @@ public static class MapProjectiles
     }
 
     public static IEnumerable<MapProjectileSprite> Sample(MapAttackMotion attack, MapProjectile art, double milliseconds,
-        IReadOnlyDictionary<string, MapAnimationClip>? clips = null)
+        IReadOnlyDictionary<string, MapAnimationClip>? clips = null, IReadOnlySet<int>? shots = null)
     {
         for (int i = 0; i < ShotCount(attack); i++)
         {
-            double elapsed = milliseconds - i * ShotSpacingMilliseconds;
+            if (shots is not null && !shots.Contains(i)) continue;
+            double elapsed = milliseconds - LaunchTime(attack, i);
             if (elapsed < 0) continue;
             var flight = PrepareFlight(attack, i);
             double dx = flight.Target.X - flight.Origin.X, dy = flight.Target.Y - flight.Origin.Y;
             double t = elapsed / flight.Duration;
-            if (milliseconds >= flight.Duration + i * ShotSpacingMilliseconds)
+            if (elapsed >= flight.Duration)
             {
                 if (art.Impact is {} impact && clips is not null)
                 {
@@ -126,6 +131,30 @@ public static class MapProjectiles
     public static double Duration(MapAttackMotion attack)
     {
         return Enumerable.Range(0, ShotCount(attack))
-            .Max(i => PrepareFlight(attack, i).Duration + i * ShotSpacingMilliseconds);
+            .Max(i => Duration(attack, i));
     }
+    public static double LaunchTime(MapAttackMotion attack, int shot) =>
+        attack.ProjectileDelayMilliseconds + shot * attack.ShotSpacingMilliseconds;
+    public static double Duration(MapAttackMotion attack, int shot) => LaunchTime(attack, shot) + PrepareFlight(attack, shot).Duration;
+    public static bool IsVisible(MapAttackMotion attack, int shot, MapPresentationBounds viewport)
+    {
+        var flight = PrepareFlight(attack, shot);
+        double left = Math.Min(flight.Origin.X, flight.Target.X), right = Math.Max(flight.Origin.X, flight.Target.X);
+        double top = Math.Min(flight.Origin.Y, flight.Target.Y) - flight.Height;
+        double bottom = Math.Max(flight.Origin.Y, flight.Target.Y);
+        if (attack.Path.Length > 0)
+        {
+            left = Math.Min(left, attack.Path.Min(p => p.X)); right = Math.Max(right, attack.Path.Max(p => p.X));
+            top = Math.Min(top, attack.Path.Min(p => p.Y)); bottom = Math.Max(bottom, attack.Path.Max(p => p.Y));
+        }
+        return viewport.Intersects(left, top, right, bottom, 192, 96);
+    }
+}
+
+public readonly record struct MapPresentationBounds(double X, double Y, double Width, double Height)
+{
+    public bool ContainsBody(MapMotionPoint point) => point.X >= X - 80 && point.X < X + Width + 80 &&
+        point.Y >= Y - 80 && point.Y < Y + Height + 80;
+    public bool Intersects(double left, double top, double right, double bottom, double horizontal, double vertical) =>
+        left < X + Width + horizontal && right >= X - horizontal && top < Y + Height + vertical && bottom >= Y - vertical;
 }

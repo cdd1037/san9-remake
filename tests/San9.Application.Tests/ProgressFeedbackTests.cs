@@ -79,6 +79,7 @@ public sealed class ProgressFeedbackTests
         { Units = before.World.Units.Select(u => u.Id == 10 ? u with { Position = new(92, 7) } : u).ToImmutableArray() });
         var plan = BattlePresentationPlan.Create(before, after, facts, session.Messages(texts), texts, content);
         Assert.Equal(new[] { "secret-contact", "ability-grown", "unit-recovered", "policy-pursue-ordered" }, plan.Records.Select(r => r.Record.Message.Key));
+        Assert.Equal(plan.Records[0].Time, plan.Records[1].Time);
         Assert.Equal(MapCoordinates.Cell(new(27, 7)), plan.Records[0].Record.Location);
         Assert.All(plan.Records.Skip(1), r => Assert.Equal(MapCoordinates.Cell(new(32, 7)), r.Record.Location));
         Assert.Single(plan.Messages, m => m.Message.MapSpeech is not null);

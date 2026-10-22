@@ -16,8 +16,16 @@ public sealed record MapUnitBody(string Id, string[] DirectionClips, int AnchorX
     [JsonRequired] public MapUnitParticle[] Engagement { get; init; } = [];
 }
 public sealed record MapUnitParticle(string ClipId, int X, int Y, int DepthOffset);
-public sealed record MapUnitAction(string[] DirectionClips);
-public sealed record MapUnitAttack(MapUnitAction[] Actions, MapProjectileKind Projectile, int VolleySize);
+public sealed record MapUnitAction(string[] DirectionClips)
+{
+    [JsonRequired] public bool BlocksDayProgress { get; init; }
+}
+public sealed record MapAttackTiming(int BodyDelayMilliseconds, int ProjectileDelayMilliseconds);
+public sealed record MapUnitAttack(MapUnitAction[] Actions, MapProjectileKind Projectile, int VolleySize)
+{
+    [JsonRequired] public MapAttackTiming[] Timings { get; init; } = [new(0, 0)];
+    [JsonRequired] public int ShotSpacingMilliseconds { get; init; } = 200;
+}
 public sealed record MapUnitFlagPlacement(int X, int Y, int DepthOffset);
 public enum MapProjectileKind { None, Arrow, Stone, Rockfall }
 public sealed record MapProjectile(string[] Frames, int FrameMilliseconds, bool Directional, int AnchorX, int AnchorY)
@@ -49,7 +57,8 @@ public sealed record MapUnitCatalog(MapUnitBody[] Bodies, MapUnitFormation[] For
             Bodies.Any(b => string.IsNullOrWhiteSpace(b.Id) || b.DirectionClips.Length != 8 ||
                 b.DirectionClips.Any(c => !clips.ContainsKey(c)) ||
                 b.Flags.Length != 8 || b.Flags.Any(f => f is null || f.Any(flag => flag is null)) ||
-                b.Attacks.Any(a => a.Actions.Length == 0 || a.Actions.Any(v => v.DirectionClips.Length != 8 || v.DirectionClips.Any(c => !clips.ContainsKey(c))) ||
+                b.Attacks.Any(a => a.Timings.Length == 0 || a.Timings.Any(t => t.BodyDelayMilliseconds < 0 || t.ProjectileDelayMilliseconds < 0) ||
+                    a.ShotSpacingMilliseconds < 0 || a.Actions.Length == 0 || a.Actions.Any(v => v.DirectionClips.Length != 8 || v.DirectionClips.Any(c => !clips.ContainsKey(c))) ||
                     !Enum.IsDefined(a.Projectile) || a.Projectile == MapProjectileKind.None && a.VolleySize != 0 ||
                     a.Projectile != MapProjectileKind.None && (a.VolleySize <= 0 || !Projectiles.ContainsKey(a.Projectile))) ||
                 b.Wake is {} wake && !clips.ContainsKey(wake.ClipId) ||

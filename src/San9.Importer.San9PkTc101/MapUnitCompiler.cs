@@ -58,10 +58,14 @@ public static class MapUnitCompiler
                     string key = $"unit-action-{type}-{action}-{direction}";
                     return clips.Any(c => c.Id == key) ? key : Export(key, resource + direction, 100);
                 }).ToArray();
-                return new MapUnitAction(directions);
+                return new MapUnitAction(directions) { BlocksDayProgress = action == 7 };
             }).ToArray();
             return actions.Length == 0 ? null : new(actions,
-                type == 13 ? MapProjectileKind.Stone : MapProjectileKind.Arrow, type == 13 ? 1 : 5);
+                type == 13 ? MapProjectileKind.Stone : MapProjectileKind.Arrow, type == 13 ? 1 : 5)
+            {
+                Timings = CompileAttackTimings(type),
+                ShotSpacingMilliseconds = 200
+            };
         }
         var wakes = Enumerable.Range(0, 3).Select(i => new MapUnitEffect(Export($"unit-wake-{i}", 5643 + i, 125, 83),
             At(0x618b4c + i * 8), At(0x618b50 + i * 8))).ToArray();
@@ -137,6 +141,10 @@ public static class MapUnitCompiler
             }
         };
     }
+
+    internal static MapAttackTiming[] CompileAttackTimings(int body) => body == 13
+        ? Enumerable.Range(0, 5).Select(n => new MapAttackTiming(n * 100, (n + 5) * 100)).ToArray()
+        : [new(0, 0)];
 
     // Source-format tables are decoded here; consumers only receive complete projected layouts.
     internal static MapUnitFormation[] CompileFormations(Func<int, int> At, MapUnitBody[] bodies, string[] influenceClips)

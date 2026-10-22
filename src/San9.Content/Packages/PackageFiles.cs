@@ -29,6 +29,8 @@ public static class PackageFiles
     public static async Task<T> ReadAsync<T>(string path, CancellationToken token = default)
     {
         await using var stream = File.OpenRead(path);
-        return await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions, token) ?? throw new InvalidDataException("Empty content file.");
+        var value = await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions, token) ?? throw new InvalidDataException("Empty content file.");
+        ContentStructure.Validate(value);
+        return value;
     }
 }

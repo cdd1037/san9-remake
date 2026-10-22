@@ -92,6 +92,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     [JsonRequired] public InformationDefinitions Information { get; init; } = InformationDefinitions.Empty;
     public void Validate()
     {
+        San9.Content.Packages.ContentStructure.Validate(this);
         if (OriginalAi is null) throw new InvalidDataException("Missing original AI policy.");
         OriginalAi.Validate(Officers.Select(p => p.State.Id).ToHashSet(), Military);
         if (OriginalAi.Military is null) throw new InvalidDataException("Missing AI military policy.");

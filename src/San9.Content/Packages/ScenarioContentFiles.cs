@@ -50,11 +50,14 @@ public static class ScenarioContentFiles
             throw new InvalidDataException("Unsupported scenario content version; reconvert the package.");
         var manifest = document.Deserialize<ScenarioContentManifest>(PackageFiles.JsonOptions)
             ?? throw new InvalidDataException("Empty scenario manifest.");
+        ContentStructure.Validate(manifest);
         async Task<T> Read<T>(string relative)
         {
             await using var file = File.OpenRead(PackageFiles.Resolve(root, relative));
-            return await JsonSerializer.DeserializeAsync<T>(file, DataJsonOptions, token)
+            var value = await JsonSerializer.DeserializeAsync<T>(file, DataJsonOptions, token)
                 ?? throw new InvalidDataException($"Empty content file: {relative}");
+            ContentStructure.Validate(value);
+            return value;
         }
         var map = await Read<MapInstance>(manifest.Map);
         var scenario = await Read<ScenarioInitialState>(manifest.Scenario);

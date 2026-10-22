@@ -52,6 +52,22 @@ public sealed class HeadlessProcessTests : IDisposable
         Assert.Equal("usage", result.Report.GetProperty("firstFailure").GetProperty("code").GetString());
     }
 
+    [Fact]
+    public async Task NullScenarioCollectionElementReturnsContentFailure()
+    {
+        var content = new San9.Content.Scenarios.ScenarioInitialState(
+            San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion, "null-element", 190, 1, 1, 1,
+            [new(1, "force", 1, 50)], [new(1, "city", 1, 0, 0, 0, 100, 100, 0, [])], [], [])
+        { Information = new([], [], [], [new(1, 1, null, new(1000, 1000)) { IsRoot = true }], []) };
+        content.Validate();
+        var node = JsonSerializer.SerializeToNode(content, San9.Content.Packages.ScenarioContentFiles.DataJsonOptions)!;
+        node["officers"] = new JsonArray((JsonNode?)null);
+        await File.WriteAllTextAsync(FilePath("scenario.json"), node.ToJsonString(), new UTF8Encoding(false));
+        var result = await Run("verify", "--scenario", FilePath("scenario.json"), "--output", FilePath("output"));
+        Assert.Equal(3, result.Code);
+        Assert.Equal("content", result.Report.GetProperty("firstFailure").GetProperty("code").GetString());
+    }
+
     private static async Task<(int Code, JsonElement Report)> Run(params string[] args)
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);

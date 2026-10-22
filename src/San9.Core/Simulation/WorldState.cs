@@ -15,6 +15,9 @@ public sealed class WorldState
         ImmutableDictionary<(int FirstId, int SecondId), ForceRelation>.Empty;
     public long Revision { get; private set; }
     private WorldSnapshot? _snapshot;
+    private ActiveWorldRecords _activeRecords = new(
+        ImmutableDictionary<int, ForceState>.Empty, ImmutableDictionary<int, SettlementState>.Empty,
+        ImmutableDictionary<int, OfficerState>.Empty);
     // Published arrays depend only on their immutable collection root, not the world revision.
     private IReadOnlyList<ForceState>? _publishedForces;
     private IReadOnlyList<SettlementState>? _publishedSettlements;
@@ -63,6 +66,7 @@ public sealed class WorldState
             BattleDeathsEnabled = battleDeathsEnabled,
             AttackRequests = (attackRequests ?? []).OrderBy(r => r.RequestedForceId).ToImmutableArray(),
             NextUnitId = world._units.Count == 0 ? 0 : (long)world._units.Keys.Max() + 1 };
+        world._activeRecords = ActiveWorldRecords.Create(world._forces, world._settlements, world._officers);
         WorldInvariants.Validate(world.BeginMutation());
         return world;
     }
@@ -86,6 +90,7 @@ public sealed class WorldState
             Simulation = snapshot.Simulation,
             Revision = snapshot.Revision,
         };
+        world._activeRecords = ActiveWorldRecords.Create(world._forces, world._settlements, world._officers);
         WorldInvariants.Validate(world.BeginMutation());
         return world;
     }
@@ -98,6 +103,7 @@ public sealed class WorldState
         {
             _forces = _forces, _settlements = _settlements, _officers = _officers, _units = _units,
             _corps = _corps, _treasures = _treasures, _relations = _relations,
+            _activeRecords = _activeRecords,
             Simulation = Simulation, Revision = Revision, _snapshot = _snapshot,
             _publishedForces = _publishedForces,
             _publishedSettlements = _publishedSettlements,
@@ -123,7 +129,7 @@ public sealed class WorldState
     }
 
     internal WorldMutation BeginMutation(OfficerAbilityRules? abilities = null, EconomyRulebook? economy = null) => new(this, abilities ?? OfficerAbilityRules.Empty, economy ?? EconomyRulebook.Empty, Revision, Clock, Simulation, _forces, _settlements,
-        _officers, _units, _corps, _treasures, _relations);
+        _officers, _units, _corps, _treasures, _relations, _activeRecords);
 
     // Loading reconstructs derived totals without creating another gameplay transaction or revision.
     internal void RestoreDerivedTrust(WorldMutation mutation)
@@ -132,6 +138,7 @@ public sealed class WorldState
         if (!ReferenceEquals(_forces, mutation.AllForces))
         {
             _forces = mutation.AllForces;
+            _activeRecords = mutation.ActiveRecords;
             _publishedForces = null;
             _snapshot = null;
         }
@@ -156,6 +163,7 @@ public sealed class WorldState
         _corps = mutation.AllCorps;
         _treasures = mutation.AllTreasures;
         _relations = mutation.AllRelations;
+        _activeRecords = mutation.ActiveRecords;
         Clock = mutation.Clock;
         Simulation = mutation.Simulation;
         Revision++;

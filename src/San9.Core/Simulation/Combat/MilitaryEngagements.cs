@@ -5,6 +5,21 @@ namespace San9.Core.Simulation;
 /// <summary>Directed engagements derived from current orders, ownership and attack reach.</summary>
 internal static class MilitaryEngagements
 {
+    // Cache dependencies belong with the query. Settlements also block water contact and
+    // rockfall, so changes to non-attacking buildings can change another actor's target.
+    internal static bool SettlementChanged(SettlementState before, SettlementState after) =>
+        before.IsDormant != after.IsDormant || before.OwnerId != after.OwnerId ||
+        before.CanHostPersons != after.CanHostPersons || before.IsDestroyed != after.IsDestroyed ||
+        before.Facility != after.Facility || FacilityCombat.Active(before) != FacilityCombat.Active(after) ||
+        !before.EnabledTacticIds.SequenceEqual(after.EnabledTacticIds);
+
+    internal static bool UnitChanged(UnitState before, UnitState after, MilitaryRulebook rules) =>
+        before.OwnerId != after.OwnerId || before.Position != after.Position ||
+        before.FormationId != after.FormationId || before.NavalFormationId != after.NavalFormationId ||
+        before.IsEmbedded != after.IsEmbedded || before.IsPersonnel != after.IsPersonnel ||
+        before.EffectiveOrder != after.EffectiveOrder || MilitaryCombat.CanInitiate(before) != MilitaryCombat.CanInitiate(after) ||
+        before.FormationId is not null && after.FormationId is not null && rules.UnitFootprint(before) != rules.UnitFootprint(after);
+
     internal static EngagementRelations Build(IWorldQuery world, MilitaryRulebook military)
     {
         Dictionary<BattleSource, BattleSource> targets = [];

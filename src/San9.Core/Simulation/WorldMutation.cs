@@ -94,7 +94,8 @@ internal sealed partial class WorldMutation : IWorldQuery
         ImmutableDictionary<int, UnitState> units,
         ImmutableDictionary<int, CorpsState> corps,
         ImmutableDictionary<int, TreasureState> treasures,
-        ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> relations)
+        ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> relations,
+        ActiveWorldRecords activeRecords)
     {
         _owner = owner;
         _abilityRules = abilityRules;
@@ -109,7 +110,9 @@ internal sealed partial class WorldMutation : IWorldQuery
         AllCorps = corps;
         AllTreasures = treasures;
         AllRelations = relations;
-        RebuildActiveRecords();
+        Forces = activeRecords.Forces;
+        Settlements = activeRecords.Settlements;
+        Officers = activeRecords.Officers;
     }
 
     public GameClock Clock { get; private set; }
@@ -139,7 +142,8 @@ internal sealed partial class WorldMutation : IWorldQuery
     internal ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> AllRelations { get; private set; }
 
     // Complete registries own state. These derived indices expose only participating objects to rules.
-    // Rebuilt on activation changes; ordinary replacements update the relevant immutable index.
+    // Inherited from the committed world; both activation and ordinary changes update only their own index.
+    internal ActiveWorldRecords ActiveRecords => new(Forces, Settlements, Officers);
     internal ImmutableDictionary<int, ForceState> Forces { get; private set; } = ImmutableDictionary<int, ForceState>.Empty;
     internal ImmutableDictionary<int, SettlementState> Settlements { get; private set; } = ImmutableDictionary<int, SettlementState>.Empty;
     internal ImmutableDictionary<int, OfficerState> Officers { get; private set; } = ImmutableDictionary<int, OfficerState>.Empty;
@@ -151,11 +155,8 @@ internal sealed partial class WorldMutation : IWorldQuery
     private ImmutableDictionary<(int FirstId, int SecondId), ForceRelation>? _activeRelations;
     private bool IsDormantForce(int id) => AllForces.TryGetValue(id, out var force) && force.IsDormant;
 
-    private void RebuildActiveRecords()
+    private void InvalidateParticipationQueries()
     {
-        Forces = AllForces.RemoveRange(AllForces.Values.Where(f => f.IsDormant).Select(f => f.Id));
-        Settlements = AllSettlements.RemoveRange(AllSettlements.Values.Where(s => s.IsDormant).Select(s => s.Id));
-        Officers = AllOfficers.RemoveRange(AllOfficers.Values.Where(p => p.IsDormant).Select(p => p.Id));
         _activeCorps = null; _activeTreasures = null; _activeRelations = null;
         _engagements = null; _movementOccupancy = null;
         _unitMembers = null; _settlementMembers = null;
@@ -229,8 +230,8 @@ internal sealed partial class WorldMutation : IWorldQuery
         // Callers may hold a record from before another input changed. Its derived total is not an input.
         if (value.Trust != previous.Trust) value = value with { Trust = previous.Trust };
         AllForces = Replace(AllForces, value.Id, value);
-        if (activationChanged) RebuildActiveRecords();
-        else if (!value.IsDormant) Forces = Forces.SetItem(value.Id, value);
+        Forces = value.IsDormant ? Forces.Remove(value.Id) : Forces.SetItem(value.Id, value);
+        if (activationChanged) InvalidateParticipationQueries();
         if (activationChanged || previous.IsEliminated != value.IsEliminated ||
             previous.BaseTrust != value.BaseTrust || previous.LeaderId != value.LeaderId) RefreshForceTrust(value.Id);
     }
@@ -245,13 +246,10 @@ internal sealed partial class WorldMutation : IWorldQuery
         EmperorTransfer.Observe(this, _economy, previous, value);
         if (previous.IsDormant != value.IsDormant || previous.OwnerId != value.OwnerId || previous.CanHostPersons != value.CanHostPersons || previous.IsDestroyed != value.IsDestroyed)
             LeadershipChanged();
-        if (previous.OwnerId != value.OwnerId || previous.CanHostPersons != value.CanHostPersons || previous.IsDestroyed != value.IsDestroyed ||
-            previous.Facility != value.Facility || (previous.Soldiers > 0) != (value.Soldiers > 0) ||
-            (previous.Morale > 0) != (value.Morale > 0) || (previous.Durability > 0) != (value.Durability > 0) ||
-            (previous.ConfusionDaysRemaining == 0) != (value.ConfusionDaysRemaining == 0)) _engagements = null;
+        if (_engagements is not null && MilitaryEngagements.SettlementChanged(previous, value)) _engagements = null;
         AllSettlements = Replace(AllSettlements, value.Id, value);
-        if (previous.IsDormant != value.IsDormant) RebuildActiveRecords();
-        else if (!value.IsDormant) Settlements = Settlements.SetItem(value.Id, value);
+        Settlements = value.IsDormant ? Settlements.Remove(value.Id) : Settlements.SetItem(value.Id, value);
+        if (previous.IsDormant != value.IsDormant) InvalidateParticipationQueries();
         if (previous.OwnerId != value.OwnerId && value.Kind == SettlementKind.City && !value.IsDestroyed &&
             value.OwnerId is int owner && Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player))
             SetSimulation(Simulation with { ForceConsolidationPending = true });
@@ -293,8 +291,8 @@ internal sealed partial class WorldMutation : IWorldQuery
             previous.BaseAbilities.Leadership != value.BaseAbilities.Leadership) LeadershipChanged();
         AllOfficers = Replace(AllOfficers, value.Id, value);
         UpdateMember(previous, value);
-        if (previous.IsDormant != value.IsDormant) RebuildActiveRecords();
-        else if (!value.IsDormant) Officers = Officers.SetItem(value.Id, value);
+        Officers = value.IsDormant ? Officers.Remove(value.Id) : Officers.SetItem(value.Id, value);
+        if (previous.IsDormant != value.IsDormant) InvalidateParticipationQueries();
         if (courtChanged)
         {
             int? emperorOwner = ForceTrust.EmperorOwner(this, _economy);
@@ -325,12 +323,7 @@ internal sealed partial class WorldMutation : IWorldQuery
     private void StoreUnit(UnitState value)
     {
         var previous = Units[value.Id];
-        if (previous.OwnerId != value.OwnerId || previous.Position != value.Position || (previous.FormationId != value.FormationId || previous.NavalFormationId != value.NavalFormationId) ||
-            previous.IsEmbedded != value.IsEmbedded || previous.IsPersonnel != value.IsPersonnel ||
-            previous.Order != value.Order || previous.EngagementTargetId != value.EngagementTargetId || previous.ContactTarget != value.ContactTarget || previous.Condition != value.Condition ||
-            (previous.DepartureDaysRemaining == 0) != (value.DepartureDaysRemaining == 0) ||
-            ((previous.Soldiers > 0) != (value.Soldiers > 0) || _engagementRules is { } geometry &&
-                previous.FormationId is not null && value.FormationId is not null && geometry.UnitFootprint(previous) != geometry.UnitFootprint(value)) || (previous.Morale > 0) != (value.Morale > 0)) _engagements = null;
+        if (_engagements is not null && MilitaryEngagements.UnitChanged(previous, value, _engagementRules!)) _engagements = null;
         Units = Replace(Units, value.Id, value);
         _movementOccupancy?.Set(value);
     }
@@ -369,7 +362,8 @@ internal sealed partial class WorldMutation : IWorldQuery
         if (force.Origin is null || force.Id != checked(AllForces.Keys.DefaultIfEmpty(-1).Max() + 1))
             throw new ArgumentException("Invalid generated force identity or origin.");
         AllForces = AllForces.Add(force.Id, force);
-        RebuildActiveRecords();
+        if (!force.IsDormant) Forces = Forces.Add(force.Id, force);
+        InvalidateParticipationQueries();
         RefreshForceTrust(force.Id);
         _engagements = null;
     }

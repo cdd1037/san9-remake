@@ -6,6 +6,24 @@ namespace San9.Core.Tests;
 
 public sealed class FacilityAttackTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ChangingEnabledTacticsRefreshesWarmEngagements(bool enabled)
+    {
+        var rules = Rules(enabled);
+        var world = WorldState.Create(new(190, 1, 1), 42,
+            [new(1, 100), new(2, 100)], [Home() with { EnabledTacticIds = enabled ? [9501] : [] }], [],
+            units: [new(7001, 2, new(10, 2), 1000) { FormationId = 7000, Morale = 100 }],
+            corps: [new(1, 1, null, new(100, 100)) { IsRoot = true }, new(2, 2, null, new(100, 100)) { IsRoot = true }]);
+        var mutation = world.BeginMutation();
+        var source = new BattleSource(9000, true);
+        Assert.Equal(enabled, mutation.Engagements(rules).Target(source) is not null);
+        mutation.Replace(mutation.Settlements[9000] with { EnabledTacticIds = enabled ? [] : [9501] });
+        Assert.Equal(!enabled, mutation.Engagements(rules).Target(source) is not null);
+        Assert.Equal(MilitaryEngagements.Build(mutation, rules).Target(source), mutation.Engagements(rules).Target(source));
+    }
+
     private static MilitaryRulebook Rules(bool enabled, FacilityAttackModifier? innate = null)
     {
         var combat = new CombatProfile(10, 10, 0, 10, 50);

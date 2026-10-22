@@ -8,6 +8,19 @@ namespace San9.Client.Godot.Tests;
 public sealed class MapDayMotionTests
 {
     [Fact]
+    public void AuthoredVolleyTimingsDoNotWrapAtTheIntegerBoundary()
+    {
+        var attack = new MapAttackMotion(1, false, 2, false, 0, 0, 100, 0, 1, UnitVisualAction.Ranged, MapProjectileKind.Arrow)
+        { ProjectileDelayMilliseconds = int.MaxValue, ShotSpacingMilliseconds = int.MaxValue };
+        var art = new MapProjectile(["arrow"], 64, false, 0, 0);
+        Assert.Empty(MapProjectiles.Sample(attack, art, 0));
+        double launch = 3d * int.MaxValue;
+        Assert.Equal(launch, MapProjectiles.LaunchTime(attack, 2));
+        Assert.Single(MapProjectiles.Sample(attack, art, launch));
+        Assert.True(MapProjectiles.Duration(attack) > 5d * int.MaxValue);
+    }
+
+    [Fact]
     public void DelayedStoneAndPerShotVisibilityKeepTheirAuthoredLaunchTimes()
     {
         var stone = new MapAttackMotion(1, false, 2, false, 0, 0, 100, 0, 1, UnitVisualAction.Ranged, MapProjectileKind.Stone)

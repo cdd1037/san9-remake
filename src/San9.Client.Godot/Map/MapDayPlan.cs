@@ -18,13 +18,13 @@ public sealed class MapDayPlan
     {
         bool body = !attack.SourceIsSettlement && viewport.ContainsBody(attack.BodyPosition);
         // Unit shots require an attached emitting body; facilities can emit across the viewport edge.
-        int[] shots = attack.Projectile == MapProjectileKind.None || !attack.SourceIsSettlement && !body ? [] :
-            Enumerable.Range(0, MapProjectiles.ShotCount(attack)).Where(i => MapProjectiles.IsVisible(attack, i, viewport)).ToArray();
+        var shots = attack.Projectile == MapProjectileKind.None || !attack.SourceIsSettlement && !body ? [] :
+            Enumerable.Range(0, MapProjectiles.ShotCount(attack)).Where(i => MapProjectiles.IsVisible(attack, i, viewport)).ToHashSet();
         double impact = attack.Projectile != MapProjectileKind.None && Map.Units.Projectiles[attack.Projectile].Impact is {} effect
             ? Clips[effect.ClipId].Frames.Length * Clips[effect.ClipId].FrameMilliseconds / 1000.0 : 0;
         double blocking = Math.Max(body ? _bodies[attack].Blocking : 0,
             shots.Select(i => MapProjectiles.Duration(attack, i) / 1000 + impact).DefaultIfEmpty(0).Max());
-        return new(body, shots.ToHashSet(), blocking);
+        return new(body, shots, blocking);
     }
     private readonly MapPackage Map;
     private readonly StrategySnapshot State;
@@ -167,7 +167,7 @@ public sealed class MapDayPlan
                     var selected = UnitVisuals.SelectAction(body, attack.Action, state.Id, member);
                     if (selected is null) continue;
                     var clip = Clips[selected.DirectionClips[attack.Direction]];
-                    double end = (attack.BodyDelayMilliseconds + clip.Frames.Length * clip.FrameMilliseconds) / 1000.0;
+                    double end = (attack.BodyDelayMilliseconds + (double)clip.Frames.Length * clip.FrameMilliseconds) / 1000;
                     duration = Math.Max(duration, end);
                     if (selected.BlocksDayProgress) blocking = Math.Max(blocking, end);
                 }

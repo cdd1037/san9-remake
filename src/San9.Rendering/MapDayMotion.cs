@@ -134,7 +134,7 @@ public static class MapProjectiles
             .Max(i => Duration(attack, i));
     }
     public static double LaunchTime(MapAttackMotion attack, int shot) =>
-        attack.ProjectileDelayMilliseconds + shot * attack.ShotSpacingMilliseconds;
+        (double)attack.ProjectileDelayMilliseconds + (double)shot * attack.ShotSpacingMilliseconds;
     public static double Duration(MapAttackMotion attack, int shot) => LaunchTime(attack, shot) + PrepareFlight(attack, shot).Duration;
     public static bool IsVisible(MapAttackMotion attack, int shot, MapPresentationBounds viewport)
     {

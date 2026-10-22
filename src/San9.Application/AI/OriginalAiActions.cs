@@ -239,7 +239,7 @@ internal sealed partial class OriginalAiActions(SimulationEngine engine, Scenari
     {
         long money = Math.Min(10000, Math.Max(0, (input.Money - input.SalaryDemand - 2000) / 2));
         long food = Math.Min(10000, Math.Max(0, (input.Food - input.RationDemand * 3 / 2 - 10000) / 2));
-        if (money < 1000 && food < 10000) return null;
+        if (money < GiftOffer.MinimumMoney && food < GiftOffer.MinimumFood) return null;
         return money * 10 >= food ? new(GiftKind.Money, (uint)money, null) : new(GiftKind.Food, (uint)food, null);
     }
     private GameCommand Create(OriginalAiWork work, int actor, Target target, GiftOffer? offer) => Command((id, owner, sequence) => work switch

@@ -42,6 +42,7 @@ public sealed class ForceConsolidationTests
     {
         var world = World();
         var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Corps[1] with { Treasury = new(1000,100) });
         mutation.SetClock(new(190, 12, 21));
         world.Commit(mutation);
         var rules = new SimulationRules
@@ -52,7 +53,7 @@ public sealed class ForceConsolidationTests
         };
         var engine = new SimulationEngine(world, rules);
         Assert.True(engine.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 11, 2,
-            new(GiftKind.Money, 10, null))).Submission.Accepted);
+            new(GiftKind.Money, 1000, null))).Submission.Accepted);
         mutation = Pending(world);
         world.Commit(mutation);
         var restored = new SimulationEngine(WorldState.Restore(engine.CaptureStableState()), rules);
@@ -282,14 +283,18 @@ public sealed class ForceConsolidationTests
     public void MergeRefundsReservedGiftsAndCancelsBothDirectionsBeforeTreasuryTransfer()
     {
         var world = World();
+        var funded = world.BeginMutation();
+        foreach (var corps in funded.Corps.Values.Where(c => c.OwnerId is 2 or 3).ToArray())
+            funded.Replace(corps with { Treasury = corps.Treasury with { Money = 2000 } });
+        world.Commit(funded);
         var engine = new SimulationEngine(world, Rules());
         uint sourceMoney = engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money;
         uint targetMoney = engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 3).Treasury.Money;
         engine.EndControl(new("player"));
-        var outgoing = new GiftCommand(Guid.NewGuid(), 2, 0, 22, 1, new(GiftKind.Money, 100, null));
+        var outgoing = new GiftCommand(Guid.NewGuid(), 2, 0, 22, 1, new(GiftKind.Money, 1000, null));
         Assert.True(engine.Execute(new("ai:2"), outgoing).Submission.Accepted);
         engine.EndControl(new("ai:2"));
-        var incoming = new GiftCommand(Guid.NewGuid(), 3, 1, 32, 2, new(GiftKind.Money, 100, null));
+        var incoming = new GiftCommand(Guid.NewGuid(), 3, 1, 32, 2, new(GiftKind.Money, 1000, null));
         Assert.True(engine.Execute(new("ai:3"), incoming).Submission.Accepted);
         var mutation = Pending(world);
         List<DomainEvent> events = [];

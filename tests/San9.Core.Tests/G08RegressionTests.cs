@@ -100,7 +100,7 @@ public sealed class G08RegressionTests
         var world = World().BeginMutation();
         List<DomainEvent> events = [];
         Assert.Equal(CommandRejection.None, GiftDiplomacy.Start(world, new("first"),
-            new(Guid.NewGuid(), 1, 0, 11, 2, new(GiftKind.Money, 100, null)), rules, events));
+            new(Guid.NewGuid(), 1, 0, 11, 2, new(GiftKind.Money, 1000, null)), rules, events));
         var task = world.Simulation.Tasks.Single() with { ProgressDays = 1 };
         Assert.Equal(20, task.Due.DayNumber - task.Started.DayNumber);
         world.SetClock(world.Clock.NextDay());

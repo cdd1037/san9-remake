@@ -101,7 +101,7 @@ public sealed class GiftSessionTests
         var content = Content();
         content = content with { Information = content.Information with
             { TreasureStates = [new(9, 21, TreasureDiscovery.Discovered, null)] } };
-        uint amount = kind == GiftKind.Treasure ? 0u : 1000u;
+        uint amount = kind == GiftKind.Treasure ? 0u : GiftOffer.MinimumAmount(kind);
         var session = GameSession.Start(content, 42);
         session.EndControl(new("player"));
         Assert.True(session.Execute(new("ai:2"), new GiftCommand(Guid.NewGuid(), 2, 0, 22, 1,
@@ -254,10 +254,11 @@ public sealed class GiftSessionTests
     public void RefusalRefundHonorsSourceCapacityAndReportsOnlyOverflowAsSpent(GiftKind kind)
     {
         var content = Content();
+        uint amount = GiftOffer.MinimumAmount(kind);
         var session = GameSession.Start(content, 42);
         session.EndControl(new("player"));
         Assert.True(session.Execute(new("ai:2"), new GiftCommand(Guid.NewGuid(), 2, 0, 22, 1,
-            new(kind, 1000, null))).Submission.Accepted);
+            new(kind, amount, null))).Submission.Accepted);
         session.AdvanceXun();
         var saved = session.Snapshot;
         var engine = GameSession.EngineFactory(content)(WorldState.Restore(saved with
@@ -273,11 +274,11 @@ public sealed class GiftSessionTests
         Assert.False(gift.Accepted);
         Assert.Equal(0u, gift.Received);
         Assert.Equal(100u, gift.Refunded);
-        Assert.Equal(900u, gift.Spent);
+        Assert.Equal(amount-100u, gift.Spent);
         Assert.Equal(gift.Offer.Amount, gift.Received + gift.Refunded + gift.Spent);
         var refund = Assert.Single(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-refused");
         Assert.Equal(100, refund.Actual);
-        Assert.Equal(900, refund.SaturationLoss);
+        Assert.Equal((long)amount-100, refund.SaturationLoss);
         var world = WorldState.Restore(engine.Snapshot).BeginMutation();
         List<DomainEvent> cancelled = [];
         var returning = Assert.Single(world.Simulation.Tasks, t => t.OfficerId == 22);

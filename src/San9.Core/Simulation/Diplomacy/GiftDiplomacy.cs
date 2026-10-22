@@ -9,9 +9,20 @@ public sealed record GiftOffer(
     [property: JsonRequired] uint Amount,
     [property: JsonRequired] int? TreasureId)
 {
+    public const uint MinimumMoney = 1000;
+    public const uint MinimumFood = 10000;
+    public const uint MaximumAmount = 1000000;
+
+    public static uint MinimumAmount(GiftKind kind) => kind switch
+    {
+        GiftKind.Money => MinimumMoney,
+        GiftKind.Food => MinimumFood,
+        _ => throw new ArgumentException("A gift amount must select money or food.", nameof(kind))
+    };
+
     [JsonIgnore] public bool IsValid => Kind switch
     {
-        GiftKind.Money or GiftKind.Food => Amount is > 0 and <= 1000000 && TreasureId is null,
+        GiftKind.Money or GiftKind.Food => Amount >= MinimumAmount(Kind) && Amount <= MaximumAmount && TreasureId is null,
         GiftKind.Treasure => Amount == 0 && TreasureId is >= 0,
         _ => false
     };

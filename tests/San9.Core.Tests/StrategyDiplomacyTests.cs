@@ -8,6 +8,52 @@ namespace San9.Core.Tests;
 public sealed class StrategyDiplomacyTests
 {
     [Theory]
+    [InlineData(GiftKind.Money,1u,false)]
+    [InlineData(GiftKind.Money,999u,false)]
+    [InlineData(GiftKind.Money,1000u,true)]
+    [InlineData(GiftKind.Food,1u,false)]
+    [InlineData(GiftKind.Food,9999u,false)]
+    [InlineData(GiftKind.Food,10000u,true)]
+    public void GiftMinimumsApplyToQueriesAndDirectCommandsForEveryController(GiftKind kind, uint amount, bool accepted)
+    {
+        foreach (var controller in new[] { ControllerKind.Player, ControllerKind.Automatic })
+        {
+            var world = World();
+            var setup = world.BeginMutation();
+            setup.SetSimulation(setup.Simulation with { Controls = [new("player",1,controller)] });
+            world.Commit(setup);
+            var rules = Rules();
+            var engine = new SimulationEngine(world,rules);
+            var offer = new GiftOffer(kind,amount,null);
+            var command = new GiftCommand(Guid.NewGuid(),1,0,11,2,offer);
+            var before = engine.Snapshot;
+            var rejection = accepted ? CommandRejection.None : CommandRejection.InvalidTask;
+            Assert.Equal(accepted,offer.IsValid);
+            Assert.Equal(rejection,engine.GetPreparationEligibility(new("player"),command));
+            Assert.Equal(rejection,engine.GetMissionPreparation(new("player"),command).Rejection);
+            Assert.Equal(rejection,engine.Validate(new("player"),command).Rejection);
+            Assert.Equal(rejection,engine.GetGiftAdvice(1,11,2,offer).Rejection);
+            StateAssert.Equal(before,engine.Snapshot);
+            var result = engine.Execute(new("player"),command);
+            Assert.Equal(accepted,result.Submission.Accepted);
+            if (!accepted)
+            {
+                Assert.Empty(result.Events);
+                StateAssert.Equal(before,engine.Snapshot);
+            }
+            else
+            {
+                var task = Assert.Single(result.Snapshot.Simulation.Tasks);
+                Assert.Equal(offer,task.Gift!.Offer);
+                _ = new SimulationEngine(WorldState.Restore(result.Snapshot),rules);
+                var invalid = result.Snapshot with { Simulation = result.Snapshot.Simulation with
+                    { Tasks = [task with { Gift = task.Gift with { Offer = offer with { Amount = amount-1 } } }] } };
+                Assert.Throws<ArgumentException>(() => new SimulationEngine(WorldState.Restore(invalid),rules));
+            }
+        }
+    }
+
+    [Theory]
     [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)]
     public void BarbarianClassificationDoesNotReplaceAllianceProtection(int kind)
     {

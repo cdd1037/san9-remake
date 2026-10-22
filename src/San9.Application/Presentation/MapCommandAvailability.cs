@@ -1,5 +1,6 @@
 using San9.Content.Interface;
 using San9.Core.Domain;
+using San9.Core.Simulation;
 
 namespace San9.Application.Presentation;
 
@@ -64,7 +65,7 @@ internal sealed partial class MapCommandAvailability(StrategySnapshot view)
             "false-report" or "disorder" or "inspire" or "rescue" => UnitStrategy(home, command),
             "rumor" => OtherForces().Count() < 2 ? "no-rumor-forces" :
                 OtherForces().Any(f => view.World.Officers.Count(p => p.IsServing && !p.IsDormant && p.OwnerId == f.Id) > 1) ? null : "no-rumor-officers",
-            "gift" => !OtherForces().Any() ? "no-target-force" : Treasury().Money >= 1000 || Treasury().Food >= 10000 ||
+            "gift" => !OtherForces().Any() ? "no-target-force" : Treasury().Money >= GiftOffer.MinimumMoney || Treasury().Food >= GiftOffer.MinimumFood ||
                 view.World.Treasures.Any(t => t.Discovered && t.HolderId == Force.LeaderId) ? null : "no-gift-resources",
             "surrender" => OtherForces().Any(f => !f.IsBarbarian && Hostile(f.Id)) ? null : "no-target-force",
             "return" => view.World.Officers.Any(p => p.Status == OfficerStatus.Captive && p.OwnerId == Owner &&

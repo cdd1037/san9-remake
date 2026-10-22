@@ -23,7 +23,7 @@ public sealed class SurrenderDiplomacyTests
         engine.EndControl(new("first"));
         engine.EndControl(new("second"));
         Assert.True(engine.Execute(new("third"), new GiftCommand(Guid.NewGuid(), 3, 1, 31, 2,
-            new(GiftKind.Money, 100, null))).Submission.Accepted);
+            new(GiftKind.Money, 1000, null))).Submission.Accepted);
         engine.EndControl(new("third"));
         engine.AdvanceXun();
         var restored = new SimulationEngine(WorldState.Restore(engine.Snapshot), rules);
@@ -229,7 +229,7 @@ public sealed class SurrenderDiplomacyTests
         Assert.True(engine.Execute(new("first"), new DemandSurrenderCommand(Guid.NewGuid(), 1, 0, 12, 2)).Submission.Accepted);
         engine.EndControl(new("first"));
         var giftId = Guid.NewGuid();
-        Assert.True(engine.Execute(new("second"), new GiftCommand(giftId, 2, 1, 22, 3, new(GiftKind.Money, 500, null))).Submission.Accepted);
+        Assert.True(engine.Execute(new("second"), new GiftCommand(giftId, 2, 1, 22, 3, new(GiftKind.Money, 1000, null))).Submission.Accepted);
         engine.EndControl(new("second")); engine.EndControl(new("third")); engine.AdvanceXun();
         var task = engine.Snapshot.Simulation.Tasks.Single(t => t.Surrender is not null);
         long funds = engine.Snapshot.Corps.Where(c => c.OwnerId == 2)
@@ -237,7 +237,7 @@ public sealed class SurrenderDiplomacyTests
         var result = engine.Execute(new("second"), new RespondDailyTaskCommand(Guid.NewGuid(), 2, 2, task.Id, 0, true));
         Assert.Contains(result.Events, e => e is TaskCancelledEvent cancelled && cancelled.TaskId == giftId);
         Assert.DoesNotContain(result.Events, e => e is GiftResolvedEvent);
-        Assert.Equal(funds + 500, Assert.Single(result.Events.OfType<ForceSurrenderedEvent>()).MoneyRemoved);
+        Assert.Equal(funds + 1000, Assert.Single(result.Events.OfType<ForceSurrenderedEvent>()).MoneyRemoved);
         Assert.Empty(engine.Snapshot.Simulation.AttackRequests);
         Assert.Null(engine.Snapshot.Simulation.Alliance);
         Assert.DoesNotContain(result.Events.OfType<AttackRequestEndedEvent>(), e => e.Reason == AttackRequestEndReason.Broken);

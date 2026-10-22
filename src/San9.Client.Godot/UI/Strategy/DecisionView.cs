@@ -130,7 +130,7 @@ public partial class DecisionView : FixedPage
                 {
                     Textures = Textures,
                     Subject = "资金",
-                    State = new(option.Minimum, option.Maximum, option.Minimum),
+                    State = new(option.Minimum, option.Maximum, Draft.AmountDefault(option)),
                     Confirmed = amount => Answer(option, null, amount),
                     Closed = option.Input == DecisionInputKind.Investment ? () => Choose(option) : ShowChoices
                 }); return;

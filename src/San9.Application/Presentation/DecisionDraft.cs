@@ -90,6 +90,15 @@ public sealed class DecisionDraft
         { IllustrationRole = illustrationPerson is null ? illustration : null, IllustrationPersonId = illustrationPerson };
     }
 
+    public uint AmountDefault(DecisionOption option)
+    {
+        if (Diplomacy is not { Offer: null } data || Role is not ("attack-request" or "prisoner-return") ||
+            option.Role != "money" || option.Input != DecisionInputKind.Money || !Options.Contains(option)) return option.Minimum;
+        if (_session.Snapshot.Revision != Before.World.Revision) return option.Maximum;
+        return AdvisedAmount.Find(option.Minimum, option.Maximum, preferMinimum: false,
+            amount => _session.GetCounterofferAdvice(data.TaskId, new(CompensationKind.Money, amount, null, null))) ?? option.Maximum;
+    }
+
     public IReadOnlyList<CommandMessage> CounterofferAdvice(DecisionOption option, int? selected, uint amount)
     {
         if (Diplomacy is not { Offer: null } data || Role is not ("attack-request" or "prisoner-return") ||

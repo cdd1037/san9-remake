@@ -273,13 +273,14 @@ public sealed class CityIndependenceTests
         var initial = World().CreateSnapshot();
         var state = WorldState.Create(initial.Clock, 17, initial.Forces, initial.Settlements,
             initial.Officers.Select(p => p.Id == 12 ? p with { SettlementId = 2 } : p).Append(Person(21, 2, 3, 100)),
-            corps: initial.Corps, controls: initial.Simulation.Controls);
+            corps: initial.Corps.Select(c => c.OwnerId == 1 && c.IsRoot
+                ? c with { Treasury = c.Treasury with { Money = 2000 } } : c), controls: initial.Simulation.Controls);
         var engine = new SimulationEngine(state, Rules());
-        var outgoing = new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2, new(GiftKind.Money, 100, null));
+        var outgoing = new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2, new(GiftKind.Money, 1000, null));
         Assert.True(engine.Execute(new("player"), outgoing).Submission.Accepted);
         engine.EndControl(new("player"));
         uint incomingForceMoney = engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money;
-        var incoming = new GiftCommand(Guid.NewGuid(), 2, 1, 21, 1, new(GiftKind.Money, 100, null));
+        var incoming = new GiftCommand(Guid.NewGuid(), 2, 1, 21, 1, new(GiftKind.Money, 1000, null));
         Assert.True(engine.Execute(new("ai:2"), incoming).Submission.Accepted);
         var world = Due(state);
         world.Replace(world.Settlements[2] with { OwnerId = 2, CorpsId = 20 });

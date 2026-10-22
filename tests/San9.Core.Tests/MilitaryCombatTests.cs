@@ -299,7 +299,7 @@ public sealed class MilitaryCombatTests
         };
         var engine = new SimulationEngine(world, rules);
         Assert.True(engine.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2,
-            new(GiftKind.Money, 100, null))).Submission.Accepted);
+            new(GiftKind.Money, 1000, null))).Submission.Accepted);
         engine.EndControl(new("player"));
         engine.AdvanceXun();
         Assert.True(engine.Execute(new("player"), new OrderUnitCommand(Guid.NewGuid(), 1, 1, 0,

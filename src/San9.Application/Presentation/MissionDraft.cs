@@ -75,8 +75,8 @@ public sealed class MissionDraft
         if (Kind != "gift") return;
         var root = View.World.Corps.Single(c => c.OwnerId == View.RequirePlayerForce() && c.IsRoot);
         // Candidate and journey queries need an affordable offer, but do not select a gift for the player.
-        if (root.Treasury.Money > 0) availableGift = new(GiftKind.Money, 1, null);
-        else if (root.Treasury.Food > 0) availableGift = new(GiftKind.Food, 1, null);
+        if (root.Treasury.Money >= GiftOffer.MinimumMoney) availableGift = new(GiftKind.Money, GiftOffer.MinimumMoney, null);
+        else if (root.Treasury.Food >= GiftOffer.MinimumFood) availableGift = new(GiftKind.Food, GiftOffer.MinimumFood, null);
         else if (!Treasures.IsEmpty) availableGift = new(GiftKind.Treasure, 0, Treasures[0]);
     }
 
@@ -189,6 +189,22 @@ public sealed class MissionDraft
     {
         if (!CanPrepare || !offer.IsValid || offer.Kind == GiftKind.Treasure && !Treasures.Contains(offer.TreasureId!.Value)) return false;
         Gift = offer; return true;
+    }
+    public (uint Minimum, uint Maximum) GiftAmountRange(GiftKind kind)
+    {
+        if (Kind != "gift") throw new InvalidOperationException("The draft is not a gift preparation.");
+        uint minimum = GiftOffer.MinimumAmount(kind);
+        var treasury = View.World.Corps.Single(c => c.OwnerId == View.RequirePlayerForce() && c.IsRoot).Treasury;
+        return (minimum, Math.Min(GiftOffer.MaximumAmount, kind == GiftKind.Money ? treasury.Money : treasury.Food));
+    }
+    public BoundedNumberInput? GiftAmountInput(GiftKind kind)
+    {
+        var (minimum, maximum) = GiftAmountRange(kind);
+        if (!CanPrepare || maximum < minimum) return null;
+        uint initial = ActorId is int actor && TargetId is int target ?
+            AdvisedAmount.Find(minimum, maximum, preferMinimum: true,
+                amount => session.GetGiftAdvice(View.RequirePlayerForce(), actor, target, new(kind, amount, null))) ?? minimum : minimum;
+        return new(minimum, maximum, initial);
     }
     public bool SetPrisoner(int id)
     {

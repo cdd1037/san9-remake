@@ -19,7 +19,7 @@ public sealed class DiplomaticReturnPlannerTests
         var session = GameSession.Start(content, 42);
         var seat = session.Snapshot.Simulation.Controls[0];
         var first = new GiftCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 2, 2,
-            new(GiftKind.Money, 1, null));
+            new(GiftKind.Money, 1000, null));
         Assert.True(session.Execute(new(seat.ControllerId), first).Submission.Accepted);
         session.AdvanceXun();
         Assert.Contains(session.Snapshot.Simulation.Tasks, t => t.OfficerId == 2 && t.Journey?.ReturnLeg is not null);

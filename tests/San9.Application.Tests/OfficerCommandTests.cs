@@ -83,12 +83,12 @@ public sealed class OfficerCommandTests
     }
 
     [Theory]
-    [InlineData(GiftKind.Money, "资金500")]
-    [InlineData(GiftKind.Food, "兵粮500")]
+    [InlineData(GiftKind.Money, "资金1000")]
+    [InlineData(GiftKind.Food, "兵粮10000")]
     [InlineData(GiftKind.Treasure, "宝刀")]
     public void GiftsShowRecipientForceAndActualOffer(GiftKind kind, string expected)
     {
-        var task = Task("diplomacy-gift") with { Gift = new(2, new(kind, kind == GiftKind.Treasure ? 0u : 500u, kind == GiftKind.Treasure ? 9000 : null)) };
+        var task = Task("diplomacy-gift") with { Gift = new(2, new(kind, kind == GiftKind.Treasure ? 0u : GiftOffer.MinimumAmount(kind), kind == GiftKind.Treasure ? 9000 : null)) };
         Assert.Equal(new[] { "赠与", "丁", expected }, ReadTask(task).Take(3).Select(c => c.Text));
     }
 
@@ -168,10 +168,10 @@ public sealed class OfficerCommandTests
 
         var personnel = world with { Units = [world.Units[0], world.Units[1] with { IsPersonnel = true }] };
         Assert.Equal("＊＊＊＊＊", Read(personnel, 4)[2].Text);
-        var foreignTask = Task("diplomacy-gift") with { OfficerId = 4, ForceId = 2, Gift = new(1, new(GiftKind.Money, 999, null)) };
+        var foreignTask = Task("diplomacy-gift") with { OfficerId = 4, ForceId = 2, Gift = new(1, new(GiftKind.Money, 1000, null)) };
         var hidden = Read(initial with { Simulation = world.Simulation with { Tasks = [foreignTask] } }, 4);
         Assert.Equal("＊＊＊＊＊", hidden[2].Text);
-        Assert.DoesNotContain(hidden, c => c.Text.Contains("999"));
+        Assert.DoesNotContain(hidden, c => c.Text.Contains("1000"));
     }
 
     [Fact]

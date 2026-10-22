@@ -199,8 +199,10 @@ public partial class MissionCommandView : CommandPreparationView
     private void BuildGift(CommandWindow window, Vector2 at)
     {
         var root = Draft.View.World.Corps.Single(c => c.OwnerId == Draft.View.PlayerForceId && c.IsRoot);
-        window.ActionButton(CommandText.Resolve(Texts, "label.money"), "edit", new(0,216,104,40), () => Number(GiftKind.Money,root.Treasury.Money));
-        window.ActionButton(CommandText.Resolve(Texts, "label.food"), "edit", new(0,256,104,40), () => Number(GiftKind.Food,root.Treasury.Food));
+        var money = Draft.GiftAmountRange(GiftKind.Money);
+        window.ActionButton(CommandText.Resolve(Texts, "label.money"), "edit", new(0,216,104,40), () => Number(GiftKind.Money)).Disabled = money.Maximum < money.Minimum;
+        var food = Draft.GiftAmountRange(GiftKind.Food);
+        window.ActionButton(CommandText.Resolve(Texts, "label.food"), "edit", new(0,256,104,40), () => Number(GiftKind.Food)).Disabled = food.Maximum < food.Minimum;
         window.ActionButton(CommandText.Resolve(Texts, "label.treasure"), "edit", new(0,296,104,40), () => Select(InformationCategory.Treasures,Draft.Treasures,Draft.Gift?.TreasureId,
             id => { Draft.SetGift(new(GiftKind.Treasure,0,id)); Changed(); }));
         Value(Amount(GiftKind.Money,root.Treasury.Money),at+new Vector2(104,216),new(120,32));
@@ -209,11 +211,12 @@ public partial class MissionCommandView : CommandPreparationView
         string Amount(GiftKind kind, uint available) => Draft.Gift is { } gift && gift.Kind == kind ?
             CommandText.Resolve(Texts,"value.gift-amount",gift.Amount,available) : CommandText.Resolve(Texts,"value.gift-amount-empty",available);
     }
-    private void Number(GiftKind kind,uint maximum)
+    private void Number(GiftKind kind)
     {
-        if (maximum == 0) { Notice(kind == GiftKind.Money ? CommandText.Resolve(Texts, "failure.money") : CommandText.Resolve(Texts, "failure.food")); return; }
+        if (Draft.GiftAmountInput(kind) is not { } input)
+        { Notice(kind == GiftKind.Money ? CommandText.Resolve(Texts, "failure.money") : CommandText.Resolve(Texts, "failure.food")); return; }
         ReplaceChild(new NumberInputDialog { Textures = Textures, Subject = kind == GiftKind.Money ? CommandText.Resolve(Texts, "gift.money") : CommandText.Resolve(Texts, "gift.food"),
-            State = new(1,Math.Min(1000000,maximum),Draft.Gift is { } gift && gift.Kind == kind ? gift.Amount : 1),
+            State = input,
             Confirmed = value => { Draft.SetGift(new(kind,value,null)); Changed(); }, Closed = CloseChild });
     }
 }

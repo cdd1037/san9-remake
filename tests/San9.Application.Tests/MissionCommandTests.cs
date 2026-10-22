@@ -228,7 +228,8 @@ public sealed class MissionCommandTests
         Assert.False(draft.CanExecute);
         Assert.Throws<InvalidOperationException>(() => draft.CreateCommand());
         Assert.Same(before,session.Capture());
-        Assert.True(draft.SetGift(new(GiftKind.Food,1200,null)));
+        Assert.False(draft.SetGift(new(GiftKind.Food,9999,null)));
+        Assert.True(draft.SetGift(new(GiftKind.Food,10000,null)));
         Assert.True(draft.CanExecute);
         var command = Assert.IsType<GiftCommand>(draft.CreateCommand());
         Assert.Equal(GiftKind.Food,command.Offer.Kind);
@@ -237,6 +238,93 @@ public sealed class MissionCommandTests
         Assert.True(draft.SetGift(new(GiftKind.Money,draft.View.World.Corps.Single(c => c.OwnerId == 1).Treasury.Money+1,null)));
         Assert.False(draft.CanExecute);
         Assert.Equal(CommandRejection.InsufficientFunds,draft.Rejection);
+    }
+
+    [Theory]
+    [InlineData(GiftKind.Money,true)]
+    [InlineData(GiftKind.Food,true)]
+    [InlineData(GiftKind.Money,false)]
+    [InlineData(GiftKind.Food,false)]
+    public void GiftAmountDefaultsRecomputeWithoutChangingTheSelectedGift(GiftKind kind, bool hasAdviser)
+    {
+        var content = MissionScenario.Create();
+        content = content with
+        {
+            Forces = content.Forces.Select(f => f.Id == 1 ? f with { AdviserId = hasAdviser ? 2 : null } : f).ToArray(),
+            Officers = content.Officers.Select(p => p.State.Id == 2 && hasAdviser ? p with { State = p.State with
+                { Status = OfficerStatus.Strategist, BaseAbilities = new(90,90,100,90) } } : p).ToArray(),
+            Information = content.Information with { Corps = content.Information.Corps.Select(c => c.OwnerId == 1
+                ? c with { Treasury = new(1000000,1000000) } : c).ToArray() }
+        };
+        var session = GameSession.Start(content,42);
+        var before = session.Capture();
+        var draft = new MissionDraft(session,1,"gift");
+        uint minimum = kind == GiftKind.Money ? 1000u : 10000u;
+        uint maximum = 1000000;
+        Assert.Equal(minimum,draft.GiftAmountInput(kind)!.Value);
+        Assert.True(draft.SetActor(2));
+        Assert.True(draft.SetTarget(2));
+        var input = draft.GiftAmountInput(kind)!;
+        Assert.Equal(minimum,input.Minimum);
+        uint amount = input.Value;
+        Assert.InRange(amount,minimum,maximum);
+        if (hasAdviser)
+        {
+            Assert.Equal(AdviserOpinion.Favorable,session.GetGiftAdvice(1,2,2,new(kind,amount,null)).Opinion);
+            if (amount > minimum)
+                Assert.Equal(AdviserOpinion.Unfavorable,session.GetGiftAdvice(1,2,2,new(kind,amount-1,null)).Opinion);
+        }
+        else Assert.Equal(minimum,amount);
+        Assert.Equal(amount,draft.GiftAmountInput(kind)!.Value);
+        Assert.Null(draft.Gift);
+        Assert.False(draft.CanExecute);
+        uint manual = amount == maximum ? amount-1 : amount+1;
+        Assert.True(draft.SetGift(new(kind,manual,null)));
+        Assert.Equal(amount,draft.GiftAmountInput(kind)!.Value);
+        Assert.Equal(new GiftOffer(kind,manual,null),draft.Gift);
+        Assert.Same(before,session.Capture());
+    }
+
+    [Theory]
+    [InlineData(GiftKind.Money,999u,false)]
+    [InlineData(GiftKind.Money,1000u,true)]
+    [InlineData(GiftKind.Food,9999u,false)]
+    [InlineData(GiftKind.Food,10000u,true)]
+    public void GiftInputAndCandidatesRespectResourceSpecificMinimums(GiftKind kind, uint balance, bool available)
+    {
+        var content = MissionScenario.Create();
+        var session = GameSession.Start(content,42);
+        // Set the exact balance after opening economic settlement, which may charge salaries.
+        var opened = session.Capture();
+        session = GameSession.Restore(content,opened with { World = opened.World with
+        {
+            Corps = opened.World.Corps.Select(c => c.OwnerId == 1
+                ? c with { Treasury = kind == GiftKind.Money ? new(balance,0) : new(0,balance) } : c).ToImmutableArray()
+        } });
+        var before = session.Capture();
+        var draft = new MissionDraft(session,1,"gift");
+        uint minimum = kind == GiftKind.Money ? 1000u : 10000u;
+        Assert.False(draft.SetGift(new(kind,minimum-1,null)));
+        var range = draft.GiftAmountRange(kind);
+        Assert.Equal(available,range.Maximum >= range.Minimum);
+        var input = draft.GiftAmountInput(kind);
+        if (available)
+        {
+            Assert.NotNull(input);
+            Assert.Equal(minimum,input.Value);
+            Assert.Equal(minimum,input.Minimum);
+            Assert.Equal(balance,input.Maximum);
+            Assert.True(input.CanConfirm);
+            input.Clear();
+            Assert.False(input.CanConfirm);
+            Assert.NotEmpty(draft.Targets);
+        }
+        else
+        {
+            Assert.Null(input);
+            Assert.Empty(draft.Targets);
+        }
+        Assert.Same(before,session.Capture());
     }
 
     [Fact]

@@ -46,6 +46,9 @@ internal static class EventPresentationCompiler
         void Add(string role, int id, string? speaker = null, string? sound = null, string? image = null,
             params (string Slot, string Role)[] bindings) => messages.Add(role, M(id, speaker, sound, image, bindings));
         const string notice = "decision-announcement", up = "decision-increase", down = "decision-decrease", good = "decision-success";
+        Add("food-exhausted", 6260, bindings: [("force.0", "force")]);
+        Add("food-exhausted-record", 9905, bindings: [("force.0", "force")]);
+        Add("starvation-loss", 7113); Add("starvation-loss-record", 10028);
         Add("chained-prelude", 7520); Add("chained-coup", 7521); Add("chained-result", 9348, sound: notice);
         Add("chained-ruler-unavailable", 9349, sound: notice); Add("chained-conspirators-unavailable", 9350, sound: notice);
         Add("chained-court-unavailable", 9351, sound: notice, bindings: [("person.0", "emperor")]);

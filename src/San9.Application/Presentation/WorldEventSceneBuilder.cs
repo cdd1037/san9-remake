@@ -26,7 +26,7 @@ internal sealed partial class WorldEventSceneBuilder
 
     private readonly List<CommandMessage> messages = [];
     private readonly Dictionary<string, MessageBinding> values = [];
-    private ProducedMessage? record;
+    private readonly List<MapMessageRecord> records = [];
     private GameClock clock;
     private MapCell? location;
     private int? colorForce;
@@ -38,9 +38,8 @@ internal sealed partial class WorldEventSceneBuilder
     {
         var fact = events[index];
         if (!(PresentForces(fact) || PresentHistory(fact) || PresentCourt(fact) ||
-            PresentExploration(fact) || PresentAlliances(fact))) return new([], []);
-        return new(messages, record is null ? [] :
-            [new($"world-event:{before.World.Revision}:{index}:record", record, location, MapRecordColors.Resolve(before, after, colorForce))]);
+            PresentExploration(fact) || PresentAlliances(fact) || PresentFoodSupply(fact))) return new([], []);
+        return new(messages, records);
     }
 
     private int Pick(int count) => (int)(random.NextUInt64() % (ulong)count);
@@ -87,8 +86,14 @@ internal sealed partial class WorldEventSceneBuilder
                 before.Forces.Concat(after.Forces).FirstOrDefault(f => f.Id == colorForce)?.ColorCode)
             };
         messages.Add(message);
-        if (record) this.record = message.Message;
+        if (record) AddRecord(message.Message);
     }
+    private void AddRecord(ProducedMessage message, MapReportImportance importance = MapReportImportance.Summary) =>
+        records.Add(new($"world-event:{before.World.Revision}:{index}:record:{records.Count}", message, location,
+            MapRecordColors.Resolve(before, after, colorForce), importance));
+
+    private void Record(string role, MapReportImportance importance = MapReportImportance.Summary) =>
+        AddRecord(ProgressMessageProducer.Produce(content.Messages[role], occurrence.AtOccurrence(clock), texts, values, Pick).Message, importance);
     private void Founded(int force, int founder, int place, int? predecessor)
     {
         Person("actor", founder); Place(place); colorForce = force; location = PlaceLocation(place);

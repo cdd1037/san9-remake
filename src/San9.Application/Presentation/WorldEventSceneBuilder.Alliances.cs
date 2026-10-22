@@ -21,8 +21,7 @@ internal sealed partial class WorldEventSceneBuilder
                     AllianceEndReason.Expired => "alliance-expired",
                     _ => "alliance-insufficient"
                 });
-                record = ProgressMessageProducer.Produce(content.Messages["alliance-ended-record"],
-                    occurrence.AtOccurrence(clock), texts, values, Pick).Message;
+                Record("alliance-ended-record");
                 break;
             case AllianceVictoryEvent victory:
                 clock = victory.Clock; Force("target-force", victory.TargetForceId); Force("force", victory.VictorForceId);

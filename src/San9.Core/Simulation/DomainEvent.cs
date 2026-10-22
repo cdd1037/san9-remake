@@ -125,6 +125,7 @@ public sealed record OfficerCapturedEvent(GameClock Clock, int OfficerId, int Ca
 
 [System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerRewardedEvent), "officer-rewarded")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ResourceChangedEvent), "resource-changed")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(FoodExhaustedEvent), "food-exhausted")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(OfficerLoyaltyChangedEvent), "loyalty-changed")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(ForceTrustChangedEvent), "trust-changed")]
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]

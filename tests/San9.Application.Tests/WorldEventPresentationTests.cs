@@ -27,6 +27,56 @@ public sealed class WorldEventPresentationTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void FoodExhaustionRetainsNarrationAndGradedRecordsWithoutReportingUnpaidLossesOnAFullySuppliedDay(bool starved)
+    {
+        var (session, texts, content) = Fixture();
+        var before = session.View;
+        var clock = before.World.Clock;
+        DomainEvent[] facts = [new FoodExhaustedEvent(clock, 1, 1),
+            new DailyAttritionEvent(clock, new(ResourceOwnerKind.Corps, 1), 10, null, starved, !starved, 50, 25, 25, 70, 67)];
+        var output = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts);
+        Assert.Equal(starved ? new[] { "food-exhausted", "starvation-loss" } : ["food-exhausted"],
+            output.Messages.Select(m => m.Message.Key));
+        Assert.Equal(starved ? new[] { "food-exhausted-record", "starvation-loss-record" } : ["food-exhausted-record"],
+            output.Records.Select(r => r.Message.Key));
+        Assert.Equal(MapReportImportance.Summary, output.Records[0].Importance);
+        if (starved) Assert.Equal(MapReportImportance.Detailed, output.Records[1].Importance);
+        Assert.All(output.Messages, m =>
+        {
+            Assert.Null(m.Speaker); Assert.Null(m.MapSpeech); Assert.Null(m.FocusLocation);
+            Assert.Equal(clock, m.Message.Clock);
+        });
+        Assert.All(output.Records, r => Assert.Equal(before.PlaceCell(1), r.Location));
+        var repeated = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts,
+            presentedFeedback: output.FeedbackIds);
+        Assert.Empty(repeated.Messages); Assert.Empty(repeated.Records);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FoodExhaustionVisibilityFollowsTheRootForceEvenForDelegatedCorps(bool player)
+    {
+        var (session, texts, content) = Fixture();
+        int forceId = player ? 1 : 2;
+        int leader = player ? 2 : 22;
+        var before = session.View.ForWorld(session.Snapshot with
+        {
+            Corps = session.Snapshot.Corps.Append(new CorpsState(77, forceId, leader, new(100, 0))
+                { ControlMode = CorpsControlMode.Automatic }).ToImmutableArray()
+        });
+        var account = new ResourceAccount(ResourceOwnerKind.Corps, 77);
+        DomainEvent[] facts = [new FoodExhaustedEvent(before.World.Clock, forceId, 77),
+            new DailyAttritionEvent(before.World.Clock, account, 10, null, true, false, 50, 25, 25, 70, 67),
+            new DailyAttritionEvent(before.World.Clock, account, null, 1, true, false, 100, 50, 50, 70, 67)];
+        var output = ExecutionPublication.Read(before, before, session.Messages(texts, before.World), texts, content, facts);
+        Assert.Equal(player ? 2 : 0, output.Messages.Count);
+        Assert.Equal(player ? 2 : 0, output.Records.Count);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void FoundingCapturesItsOccurrenceIdentityEvenWhenTheFounderLaterChangesAllegiance(bool independent)
     {
         var (session, texts, content) = Fixture(); var before = session.View; var clock = before.World.Clock.NextDay();
@@ -258,6 +308,14 @@ public sealed class WorldEventPresentationTests
                 Assert.False(string.IsNullOrWhiteSpace(ChroniclePresentation.Render(item,
                     session.Messages(package.Text, occurrence.World), occurrence, package.Text, package.Presentation.Chronicle!).BbCode));
         }
+        int corpsId = before.World.Corps.Single(c => c.OwnerId == force && c.IsRoot).Id;
+        DomainEvent[] supplyFacts = [new FoodExhaustedEvent(clock, force, corpsId),
+            new DailyAttritionEvent(clock, new(ResourceOwnerKind.Corps, corpsId), null, place, true, false, 10, 5, 5, 70, 67)];
+        var supply = ExecutionPublication.Read(before, before, session.Messages(package.Text), package.Text, package.Presentation, supplyFacts);
+        Assert.Equal(2, supply.Messages.Count); Assert.Equal(2, supply.Records.Count);
+        Assert.All(supply.Messages.Select(m => m.Message).Concat(supply.Records.Select(r => r.Message)),
+            message => Assert.False(string.IsNullOrWhiteSpace(message.BbCode)));
+
         int enemyPlace = before.World.Settlements.First(p => p.OwnerId == otherForce && p.Kind == SettlementKind.City).Id;
         int thirdForce = before.World.Forces.First(f => f.Id != force && f.Id != otherForce && !f.IsDormant && !f.IsEliminated && f.LeaderId is not null).Id;
         var source = new BattleObjectContext(0, false, force, actor, null, place, false);

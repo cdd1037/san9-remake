@@ -20,6 +20,33 @@ public sealed class EconomyTests
             1,engine.Snapshot.Simulation.NextSequence,new(1,2,ids.ToImmutableArray(),activity)));
 
     [Theory]
+    [InlineData(0u, false)]
+    [InlineData(1u, true)]
+    [InlineData(2u, true)]
+    [InlineData(3u, false)]
+    public void FoodExhaustionReportsTheAccountTransitionAndCanRepeatAfterRefilling(uint food, bool exhausted)
+    {
+        var world = World(food: food).BeginMutation();
+        List<DomainEvent> events = [];
+        EconomicCycle.Apply(ResolutionStage.BeforeDailyCommands, world, EconomyRulebook.Empty, events);
+        var notices = events.OfType<FoodExhaustedEvent>().ToArray();
+        Assert.Equal(exhausted ? 1 : 0, notices.Length);
+        if (exhausted)
+        {
+            Assert.Equal(new FoodExhaustedEvent(world.Clock, 1, 2), notices[0]);
+            Assert.Equal(0u, world.Corps[2].Treasury.Food);
+        }
+        if (food > 2) return;
+        events.Clear();
+        EconomicCycle.Apply(ResolutionStage.BeforeDailyCommands, world, EconomyRulebook.Empty, events);
+        Assert.Empty(events.OfType<FoodExhaustedEvent>());
+        ResourceAccounts.Change(world, new(ResourceOwnerKind.Corps, 2), ResourceKind.Food, 2, "test-refill", null, events);
+        events.Clear();
+        EconomicCycle.Apply(ResolutionStage.BeforeDailyCommands, world, EconomyRulebook.Empty, events);
+        Assert.Equal(new FoodExhaustedEvent(world.Clock, 1, 2), Assert.Single(events.OfType<FoodExhaustedEvent>()));
+    }
+
+    [Theory]
     [InlineData(DomesticActivity.Patrol,4)]
     [InlineData(DomesticActivity.Commerce,7)]
     [InlineData(DomesticActivity.Cultivation,7)]

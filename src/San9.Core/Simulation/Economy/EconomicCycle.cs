@@ -2,6 +2,8 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
+public sealed record FoodExhaustedEvent(GameClock Clock, int ForceId, int CorpsId) : DomainEvent;
+
 internal static class EconomicCycle
 {
     internal static IReadOnlyList<DailyRationAccount> Apply(ResolutionStage stage, WorldMutation world, EconomyRulebook rules, List<DomainEvent> events)
@@ -102,8 +104,11 @@ internal static class EconomicCycle
         foreach (var pair in costs.OrderBy(p => p.Key.Kind).ThenBy(p => p.Key.Id))
         {
             if (pair.Value <= 0) continue;
-            bool shortage = ResourceAccounts.Balance(world, pair.Key, ResourceKind.Food) < pair.Value;
-            ResourceAccounts.Change(world, pair.Key, ResourceKind.Food, -pair.Value, "daily-rations", null, events);
+            uint before = ResourceAccounts.Balance(world, pair.Key, ResourceKind.Food);
+            bool shortage = before < pair.Value;
+            uint remaining = ResourceAccounts.Change(world, pair.Key, ResourceKind.Food, -pair.Value, "daily-rations", null, events);
+            if (before > 0 && remaining == 0)
+                events.Add(new FoodExhaustedEvent(world.Clock, world.Corps[pair.Key.Id].OwnerId, pair.Key.Id));
             accounts.Add(new(pair.Key, shortage));
         }
         return accounts;

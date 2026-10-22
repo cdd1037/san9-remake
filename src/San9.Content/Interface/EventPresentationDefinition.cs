@@ -40,7 +40,8 @@ public sealed record EventPresentationDefinition(Dictionary<string, DecisionMess
         "defection-follower", "abandoned-defection", "alliance-leader-defeated", "alliance-leader-died",
         "alliance-insufficient", "alliance-expired", "alliance-target-defeated", "alliance-target-died",
         "alliance-betrayed", "alliance-leader-betrayed", "alliance-member-left", "alliance-member-ended", "alliance-betrayal-trust", "alliance-betrayal-loyalty",
-        "melee-announcement", "sniping-announcement", "duel-announcement"];
+        "melee-announcement", "sniping-announcement", "duel-announcement",
+        "food-exhausted", "food-exhausted-record", "starvation-loss", "starvation-loss-record"];
 
     public void Validate(TextCatalog texts, IReadOnlyDictionary<string, string> sounds, IEnumerable<int> people)
     {

@@ -41,6 +41,8 @@ internal sealed partial class MapScene
         MapPackage map, TurnDayPresentation? day)
     {
         if (!states.TryGetValue(id, out var state)) return null;
+        // A prepared day can be visible while resources or UI are still blocking playback.
+        if (day is { Elapsed: 0 }) return state;
         state = state with
         {
             ReceivesPositionUpdates = day is not null && milliseconds >= 0 &&
@@ -130,7 +132,7 @@ internal sealed partial class MapScene
         double time = MotionTime, visualTime = MotionVisualTime;
         if (_playbackTime == time && _playbackVisualTime == visualTime) return;
         foreach (var (id, playback) in _unitPlayback)
-            playback.Advance(time, visualTime, t => HistoryState(id, t) ?? _unitStates[id],
+            playback.Advance(time, visualTime, Day is not { Elapsed: 0 }, t => HistoryState(id, t) ?? _unitStates[id],
                 Map.Units, Clips, EmissionTime);
         _playbackTime = time; _playbackVisualTime = visualTime;
     }

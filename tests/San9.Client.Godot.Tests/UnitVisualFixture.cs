@@ -37,7 +37,7 @@ internal static class UnitVisualFixture
             playback.Begin(history(-MapMovementCadence.StepMilliseconds), catalog, 0, 0,
                 history(0).IsMoving);
         double visualTime = visualAge?.Invoke(0) ?? milliseconds;
-        playback.Advance(milliseconds, visualTime, history, catalog, Clips,
+        playback.Advance(milliseconds, visualTime, true, history, catalog, Clips,
             t => visualAge is null ? t : visualTime - visualAge(t));
         return UnitVisuals.Resolve(state, catalog, Clips, playback, elevationAt);
     }

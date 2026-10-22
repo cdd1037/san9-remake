@@ -21,7 +21,7 @@ public sealed class UnitMotionPlaybackTests
         history ??= March;
         catalog ??= TrailCatalog;
         if (!playback.IsInitialized) playback.Begin(history(-100), catalog, 0, 0, history(0).IsMoving);
-        playback.Advance(time, visualTime ?? time, history, catalog, Clips, emission ?? (t => t));
+        playback.Advance(time, visualTime ?? time, true, history, catalog, Clips, emission ?? (t => t));
     }
 
     [Fact]

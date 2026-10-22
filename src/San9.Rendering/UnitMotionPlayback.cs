@@ -108,7 +108,7 @@ public sealed class UnitMotionPlayback
         IsInitialized = true;
     }
 
-    public void Advance(double time, double visualTime, Func<double, UnitVisualState> stateAt,
+    public void Advance(double time, double visualTime, bool motionEnabled, Func<double, UnitVisualState> stateAt,
         MapUnitCatalog catalog, IReadOnlyDictionary<string, MapAnimationClip> clips, Func<double, double> emissionTime)
     {
         if (time < _time || visualTime < _visualTime) throw new ArgumentOutOfRangeException(nameof(time));
@@ -128,14 +128,16 @@ public sealed class UnitMotionPlayback
         while (true)
         {
             double tick = _members.Count == 0 ? double.PositiveInfinity : _members.Values.Min(m => m.NextTick);
-            double positionTick = _nextPosition <= time ? emissionTime(_nextPosition) : double.PositiveInfinity;
+            // Preparation retains the first callback; deferred effects begin at the current visual time.
+            double positionTick = motionEnabled && _nextPosition <= time
+                ? Math.Max(_visualTime, emissionTime(_nextPosition)) : double.PositiveInfinity;
             double next = Math.Min(tick, positionTick);
             if (next > visualTime) break;
             double motionTime = tick <= positionTick ? AtMotionTime(next) : _nextPosition;
             var state = stateAt(motionTime);
             Reconcile(state, catalog, next);
             // Timer callbacks continue during pause; only position consumption and sway are gated.
-            bool advancing = Math.Abs(emissionTime(motionTime) - next) < .00001;
+            bool advancing = motionEnabled && Math.Abs(emissionTime(motionTime) - next) < .00001;
             foreach (var member in _members.Values.Where(m => m.NextTick <= next))
             {
                 AdvanceMember(member, state, advancing);

@@ -34,11 +34,31 @@ public sealed class MapFacingTests
         var after = GameSession.Start(afterDefinition, 1);
         var map = new MapPackage(15, "fixture", "facing", "spring", 4, 4, 13056, 6656,
             Enumerable.Repeat(new MapSquare(0, 1, 0, 0), 16).ToArray(), [], [], [], [], [], [], [], [], [], [], [],
-            new(UnitVisualFixture.Clips.Values.ToArray(), []), []) { Units = UnitVisualFixture.Catalog };
+            new(UnitVisualFixture.Clips.Values.ToArray(), []), []) { Units = UnitVisualFixture.TrailCatalog };
         var terrain = new TerrainRenderer(map, [], []);
         DomainEvent[] events = [new UnitMovedEvent(before.Snapshot.Clock, 10, from, to, 5, NavigationStatus.Moving)];
         var day = new TurnDayPresentation(before.View, after.View, events, new MapDayPlan(map, before.View, events));
-        var execution = new MapScene(map, terrain, "spring", before.View, new Dictionary<string, San9.Content.Images.ImageAsset>(), () => 0, day: day);
+        var assets = new Dictionary<string, San9.Content.Images.ImageAsset>();
+        var initial = new MapScene(map, terrain, "spring", before.View, assets, () => 0);
+        var baseline = initial.Sample(Assert.Single(initial.Units));
+        var execution = new MapScene(map, terrain, "spring", before.View, assets, () => 0, initial, day);
+        void AssertWaitingPose()
+        {
+            var waiting = execution.Sample(Assert.Single(execution.Units));
+            Assert.Equal((baseline.AnchorX, baseline.AnchorY, baseline.Direction, UnitVisualAction.Idle),
+                (waiting.AnchorX, waiting.AnchorY, waiting.Direction, waiting.Action));
+            Assert.Equal(baseline.Animations.Select(a => (a.ClipId, a.X, a.Y)),
+                waiting.Animations.Select(a => (a.ClipId, a.X, a.Y)));
+        }
+        AssertWaitingPose();
+        day.Advance(.35, paused: true);
+        execution = new MapScene(map, terrain, "spring", before.View, assets, () => 0, execution, day);
+        AssertWaitingPose();
+        day.Advance(.01);
+        var started = execution.Sample(Assert.Single(execution.Units));
+        Assert.True(started.AnchorX > baseline.AnchorX);
+        Assert.Equal(UnitVisualAction.Moving, started.Action);
+        Assert.Contains(started.Animations, a => a.ClipId == "influence");
         day.Advance(2);
         var final = execution.Sample(Assert.Single(execution.Units));
         Assert.Equal(2, final.Direction);

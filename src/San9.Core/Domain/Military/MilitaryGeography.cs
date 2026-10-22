@@ -69,6 +69,10 @@ public sealed partial class MilitaryRulebook
         var destination = MapCoordinates.Cell(target);
         var visited = GeographicCells(SettlementArea(source)).ToHashSet();
         if (visited.Contains(destination)) return [];
+        // Each propagation step moves at most one cell on either axis. Reject targets
+        // outside every seed's reach before building occupancy or traversing terrain.
+        if (!visited.Any(seed => Math.Max(Math.Abs((long)seed.X - destination.X),
+            Math.Abs((long)seed.Y - destination.Y)) <= profile.PropagationSteps)) return [];
         var predecessors = new Dictionary<MapCell, MapCell>();
         var occupied = settlements.Where(s => s.Id != source.Id && !s.IsDestroyed && TryPlace(s, out _))
             .Select(SettlementArea).ToArray();
@@ -101,6 +105,17 @@ public sealed partial class MilitaryRulebook
     }
 
     public int FacilityAttackRange(SettlementState source, WorldPosition target, IEnumerable<SettlementState> settlements) =>
-        RockfallCovers(source, target, settlements) ? Rockfall!.AttackRange :
-        AttackRange(FacilityAttack(source).Attack, SettlementArea(source), new(target, new(1, 1)), false);
+        FacilityAttackRange(source, target, settlements, FacilityAttack(source), SettlementArea(source));
+
+    internal int FacilityAttackRange(SettlementState source, WorldPosition target, IEnumerable<SettlementState> settlements,
+        FacilityAttackProfile profile, MapOccupancy area) =>
+        profile.UsesRockfallPower && RockfallCovers(source, target, settlements) ? Rockfall!.AttackRange :
+        AttackRange(profile.Attack, area, new(target, new(1, 1)), false);
+
+    internal int MaximumFacilityAttackRange(FacilityAttackProfile profile)
+    {
+        long ordinary = profile.Attack is { } attack ? (long)attack.Range + attack.MaximumElevationBonus : 0;
+        long rockfall = profile.UsesRockfallPower ? Rockfall?.AttackRange ?? 0 : 0;
+        return (int)Math.Min(int.MaxValue, Math.Max(ordinary, rockfall));
+    }
 }

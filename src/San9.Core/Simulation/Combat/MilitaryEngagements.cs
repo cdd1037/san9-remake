@@ -118,9 +118,11 @@ internal static class MilitaryEngagements
 
     private static UnitState? FindFacilityTarget(IWorldQuery world, SettlementState settlement, MilitaryRulebook military)
     {
-        if (!FacilityCombat.Active(settlement) || !military.TryPlace(settlement, out _) ||
-            military.FacilityAttack(settlement).Attack is null) return null;
+        if (!FacilityCombat.Active(settlement) || !military.TryPlace(settlement, out _)) return null;
+        var attack = military.FacilityAttack(settlement);
+        if (attack.Attack is null) return null;
         var area = new BattleSource(settlement.Id, true).Area(world, military);
+        int maximumRange = military.MaximumFacilityAttackRange(attack);
         bool work = MilitaryDiplomacy.Work(world, settlement.Id, military);
         UnitState? closest = null;
         long distance = long.MaxValue;
@@ -130,9 +132,13 @@ internal static class MilitaryEngagements
                 !work && !MilitaryDiplomacy.AutomaticEnemy(world, settlement.OwnerId!.Value, unit.OwnerId) ||
                 unit.FormationId is not int formation || military.Formation(unit).Combat is null) continue;
             var targetArea = MilitaryCombat.Area(unit, military);
+            // A conservative bound only; exact rockfall, elevation and water rules still
+            // decide reachable candidates, in the original selection order.
+            if (!targetArea.IntersectsExpanded(area, maximumRange)) continue;
             long candidateDistance = targetArea.DistanceTo(area);
             if (closest is not null && (candidateDistance > distance || candidateDistance == distance && unit.Id >= closest.Id) ||
-                !targetArea.IntersectsExpanded(area, MilitaryCombat.FacilityRange(world, settlement, unit, military))) continue;
+                !targetArea.IntersectsExpanded(area, military.FacilityAttackRange(settlement, unit.Position,
+                    world.Settlements.Values, attack, area))) continue;
             closest = unit;
             distance = candidateDistance;
         }

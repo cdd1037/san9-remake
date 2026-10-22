@@ -360,11 +360,23 @@ public sealed partial class MilitaryRulebook
         var place = Place(settlement);
         if (settlement.IsDestroyed || settlement.Facility?.BuilderUnitId is not null || place.Attack is null)
             return new(null, false);
-        var ids = place.EnabledTacticIds.Concat(place.FacilityTypeId is int type ? Facilities[type].TacticIds : []).Distinct();
-        var modifiers = ids.Select(id => Tactics[id].FacilityAttack)
-            .Append(place.FacilityTypeId is int fixedType ? Facilities[fixedType].InnateAttack : null).OfType<FacilityAttackModifier>().ToArray();
-        int bonus = modifiers.Select(m => m.RangeBonus).DefaultIfEmpty(0).Max();
-        return new(place.Attack with { Range = checked(place.Attack.Range + bonus) }, modifiers.Any(m => m.UsesRockfallPower));
+        int? bonus = null;
+        bool rockfall = false;
+        void Include(FacilityAttackModifier? modifier)
+        {
+            if (modifier is null) return;
+            bonus = bonus is int previous ? Math.Max(previous, modifier.RangeBonus) : modifier.RangeBonus;
+            rockfall |= modifier.UsesRockfallPower;
+        }
+        // Max and OR are idempotent: overlapping enabled/type tactics need no temporary set.
+        foreach (int id in place.EnabledTacticIds) Include(Tactics[id].FacilityAttack);
+        if (place.FacilityTypeId is int type)
+        {
+            foreach (int id in Facilities[type].TacticIds) Include(Tactics[id].FacilityAttack);
+            Include(Facilities[type].InnateAttack);
+        }
+        int range = checked(place.Attack.Range + (bonus ?? 0));
+        return new(range == place.Attack.Range ? place.Attack : place.Attack with { Range = range }, rockfall);
     }
 
     public bool IsHarbor(SettlementState settlement) => !settlement.IsDestroyed && TryPlace(settlement, out var place) &&

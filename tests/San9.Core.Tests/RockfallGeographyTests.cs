@@ -1,4 +1,5 @@
 using San9.Core.Domain;
+using San9.Core.Simulation;
 
 namespace San9.Core.Tests;
 
@@ -6,15 +7,17 @@ public sealed class RockfallGeographyTests
 {
     private static SettlementState Source() => new(9000, 1, 1000, 100, 100, 100, 0, 0, 100, 0, 100);
     private static MilitaryRulebook Rules(int width = 9, int height = 1, int[]? terrain = null,
-        int[]? elevations = null, MapCell[]? blocked = null, int footprint = 1) => new(new(width, height,
+        int[]? elevations = null, MapCell[]? blocked = null, int footprint = 1,
+        bool rockfall = true, int unitWidth = 1) => new(new(width, height,
         [.. terrain ?? new int[width * height]],
-        [new(0, 1, null), new(1, 1, null) { StopsRockfall = true }, new(2, null, 1) { IsWater = true }], [],
+        [new(0, 1, null), new(1, 1, null) { StopsRockfall = true }, new(2, null, 1) { IsWater = true }],
+        [new(7000, 1, 0, 10000, 1, new(unitWidth, 1), TravelMode.Land) { Combat = new(10, 10, 0, 10, 50) }],
         [new(9000, MapCoordinates.Center(new(1, height / 2)), new(footprint, 1))
             { Combat = new(10, 10, 0, 10, 50), Attack = new(10, false) { ElevationBonusPerLevel = 5, MaximumElevationBonus = 10 }, FacilityTypeId = 8000 }])
     {
         Geography = new(5, [.. blocked ?? []]), Rockfall = new(5, 25), Elevations = [.. elevations ?? new int[width * height]],
         Facilities = [new(8000, 0, 100, new(1, 1), 0, true, true, true, 100000, null, null, null, [])
-            { Combat = new(10, 10, 0, 10, 50), Attack = new(10, false), InnateAttack = new(true, 0) }]
+            { Combat = new(10, 10, 0, 10, 50), Attack = new(10, false), InnateAttack = new(rockfall, 0) }]
     });
 
     [Theory]
@@ -83,5 +86,23 @@ public sealed class RockfallGeographyTests
         var rules = Rules(elevations: [2, 2, 0, 0, 0, 0, 0, 0, 0]);
         Assert.Equal(25, rules.FacilityAttackRange(Source(), MapCoordinates.Center(new(6, 0)), [Source()]));
         Assert.Equal(20, rules.FacilityAttackRange(Source(), MapCoordinates.Center(new(7, 0)), [Source()]));
+    }
+
+    [Theory]
+    [InlineData(true, 6, 1, true)]
+    [InlineData(true, 7, 1, false)]
+    [InlineData(false, 5, 1, true)]
+    [InlineData(false, 6, 1, false)]
+    [InlineData(false, 6, 11, true)]
+    public void FacilitySelectionPreservesSpecialRangeElevationFootprintsAndIdentityTies(
+        bool rockfall, int targetCell, int unitWidth, bool reachable)
+    {
+        var rules = Rules(elevations: [2, 2, 0, 0, 0, 0, 0, 0, 0], rockfall: rockfall, unitWidth: unitWidth);
+        var target = new UnitState(3, 2, MapCoordinates.Center(new(targetCell, 0)), 1000) { FormationId = 7000 };
+        var world = WorldState.Create(new(190, 1, 1), 42, [new(1, 100), new(2, 100)], [Source()], [],
+            units: [target, target with { Id = 2 }],
+            corps: [new(1, 1, null, new(0, 0)) { IsRoot = true }, new(2, 2, null, new(0, 0)) { IsRoot = true }]);
+        var selected = MilitaryEngagements.FacilityTarget(world.BeginMutation(), Source(), rules);
+        Assert.Equal(reachable ? 2 : (int?)null, selected?.Id);
     }
 }

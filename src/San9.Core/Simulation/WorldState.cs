@@ -168,7 +168,7 @@ public sealed class WorldState
         if (_snapshot is not null && _snapshot.Revision == Revision) return _snapshot;
         var forces = _publishedForces ??= Array.AsReadOnly(_forces.Values.OrderBy(f => f.Id).Select(f => f with { AdditionalFormationIds = f.AdditionalFormationIds.Order().ToImmutableArray(), ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray() }).ToArray());
         var settlements = _publishedSettlements ??= Array.AsReadOnly(_settlements.Values.OrderBy(s => s.Id).ToArray());
-        var officers = _publishedOfficers ??= Array.AsReadOnly(_officers.Values.OrderBy(o => o.Id).Select(o => o with { LearnedTactics = o.LearnedTactics.Order().ToImmutableArray() }).ToArray());
+        var officers = _publishedOfficers ??= Array.AsReadOnly(_officers.Values.OrderBy(o => o.Id).ToArray());
         var corps = _publishedCorps ??= Array.AsReadOnly(_corps.Values.OrderBy(c => c.Id).ToArray());
         var relations = _publishedRelations ??= Array.AsReadOnly(_relations.Values.OrderBy(r => r.FirstId).ThenBy(r => r.SecondId).ToArray());
         var treasures = _publishedTreasures ??= Array.AsReadOnly(_treasures.Values.OrderBy(t => t.Id).ToArray());

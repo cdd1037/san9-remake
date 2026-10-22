@@ -193,7 +193,7 @@ public sealed class WorldEditorDraft
             {
                 int tacticId = tactic.Id;
                 Number<OfficerEdit>(_texts.Resolve(tactic.NameKey), 0, 1, p => p.LearnedTactics.Contains(tacticId) ? 1u : 0u,
-                    (p, v) => p with { LearnedTactics = Toggle(p.LearnedTactics, tacticId, v != 0) }, true);
+                    (p, v) => p with { LearnedTactics = v != 0 ? p.LearnedTactics.Add(tacticId) : p.LearnedTactics.Remove(tacticId) }, true);
             }
         }
         else if (_edits[id] is CorpsEdit)
@@ -245,7 +245,7 @@ public sealed class WorldEditorDraft
     private static bool Equal(WorldEdit first, WorldEdit second) => (first, second) switch
     {
         (OfficerEdit a, OfficerEdit b) => a with { Proficiencies = b.Proficiencies, MasteredCategories = b.MasteredCategories, LearnedTactics = b.LearnedTactics } == b &&
-            a.Proficiencies.SequenceEqual(b.Proficiencies) && a.MasteredCategories.Order().SequenceEqual(b.MasteredCategories.Order()) && a.LearnedTactics.Order().SequenceEqual(b.LearnedTactics.Order()),
+            a.Proficiencies.SequenceEqual(b.Proficiencies) && a.MasteredCategories.Order().SequenceEqual(b.MasteredCategories.Order()) && a.LearnedTactics.SetEquals(b.LearnedTactics),
         (SettlementEdit a, SettlementEdit b) => a with { EnabledTacticIds = b.EnabledTacticIds } == b && a.EnabledTacticIds.Order().SequenceEqual(b.EnabledTacticIds.Order()),
         _ => first == second
     };

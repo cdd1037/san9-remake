@@ -89,7 +89,7 @@ public sealed class ScholarReturnTests
             var (world, engine, _) = Create(ability, ability);
             var known = Definition.RewardTacticIds.Where((_, i) => (mask & (1 << i)) != 0).ToImmutableArray();
             var mutation = world.BeginMutation();
-            mutation.Replace(mutation.Officers[2] with { LearnedTactics = known }); world.Commit(mutation);
+            mutation.Replace(mutation.Officers[2] with { LearnedTactics = known.ToImmutableSortedSet() }); world.Commit(mutation);
             Begin(engine);
             var response = engine.Execute(new("player"), Answer(engine, true));
             int? expected = Definition.RewardTacticIds.Where(id => !known.Contains(id)).Select(id => (int?)id).FirstOrDefault();
@@ -97,7 +97,7 @@ public sealed class ScholarReturnTests
             var actor = engine.Snapshot.Officers.Single(p => p.Id == 2);
             Assert.Equal(ability >= 100 ? ability : 100, actor.BaseAbilities.Intelligence);
             Assert.Equal(expected is null && ability < 100 ? 100 : ability, actor.BaseAbilities.Politics);
-            Assert.Equal(known.Length + (expected is null ? 0 : 1), actor.LearnedTactics.Length);
+            Assert.Equal(known.Length + (expected is null ? 0 : 1), actor.LearnedTactics.Count);
         }
     }
 

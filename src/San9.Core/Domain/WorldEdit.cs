@@ -13,13 +13,13 @@ public abstract record WorldEdit(int Id);
 
 public sealed record OfficerEdit(int Id, OfficerAbilities Abilities, int Personality, int Righteousness,
     int Ambition, int Affinity, int Injury, int? Loyalty, ImmutableArray<int> Proficiencies,
-    ImmutableArray<int> MasteredCategories, ImmutableArray<int> LearnedTactics) : WorldEdit(Id)
+    ImmutableArray<int> MasteredCategories, ImmutableSortedSet<int> LearnedTactics) : WorldEdit(Id)
 {
     public OfficerState ApplyTo(OfficerState person)
     {
         var next = person with { BaseAbilities = Abilities, Personality = Personality, Righteousness = Righteousness,
             Ambition = Ambition, Affinity = Affinity, Injury = Injury, TacticProficiencies = Proficiencies,
-            MasteredCategories = MasteredCategories.Order().ToImmutableArray(), LearnedTactics = LearnedTactics.Order().ToImmutableArray(),
+            MasteredCategories = MasteredCategories.Order().ToImmutableArray(), LearnedTactics = LearnedTactics,
             EquippedTacticId = person.EquippedTacticId is int equipped && !LearnedTactics.Contains(equipped) ? null : person.EquippedTacticId };
         return person.OwnerId is int owner && Loyalty is int loyalty ? next.WithLoyalty(owner, loyalty) : next;
     }

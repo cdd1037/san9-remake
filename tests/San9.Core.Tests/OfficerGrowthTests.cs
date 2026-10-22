@@ -16,6 +16,20 @@ public sealed class OfficerGrowthTests
         return mutation;
     }
 
+    [Fact]
+    public void GrantsIgnoreLearningOrderAndDoNotRepeatLearningEvents()
+    {
+        var world = World();
+        List<DomainEvent> events = [];
+        var original = world.Officers[1];
+        foreach (int id in new[] { 30, 10, 20, 10 })
+            OfficerTacticGrowth.Grant(world, 1, id, events);
+
+        Assert.Equal(new[] { 10, 20, 30 }, world.Officers[1].LearnedTactics);
+        Assert.Equal(new[] { 30, 10, 20 }, events.OfType<TacticLearnedEvent>().Select(e => e.TacticId));
+        Assert.Empty(original.LearnedTactics);
+    }
+
     [Theory]
     [InlineData(52UL, 99, 100)]
     [InlineData(56UL, 99, 99)]

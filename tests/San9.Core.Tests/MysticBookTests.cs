@@ -1,4 +1,5 @@
 using San9.Tests;
+using System.Collections.Immutable;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -60,7 +61,7 @@ public sealed class MysticBookTests
             case "dead": world.Replace(world.Officers[3] with { Status = OfficerStatus.Dead }); break;
             case "free": world.Replace(world.Officers[3] with { Status = OfficerStatus.Free }); break;
             case "holder": world.Replace(world.Treasures[500] with { HolderId = 4 }); break;
-            case "all-known": world.Replace(world.Officers[2] with { LearnedTactics = Return.RewardTacticIds }); break;
+            case "all-known": world.Replace(world.Officers[2] with { LearnedTactics = Return.RewardTacticIds.ToImmutableSortedSet() }); break;
         }
         var random = new StableRandom(world.Simulation.RandomStreams.Single().State); if (draws) random.NextUInt64();
         Assert.Equal(expected, returning ? MysticBook.Prepare(world, task, Return) : MysticBook.Prepare(world, task, Offer));
@@ -104,7 +105,7 @@ public sealed class MysticBookTests
         }
         Assert.False(MysticBook.CanResolve(world, task, Rules, new MysticBookReturnEncounter(Return.Id)));
         world.Replace(world.Treasures[500] with { HolderId = 3 });
-        Assert.Equal(Return.RewardTacticIds.ToArray(), world.Officers[2].LearnedTactics.ToArray());
+        Assert.True(world.Officers[2].LearnedTactics.SetEquals(Return.RewardTacticIds));
         Assert.Empty(world.Simulation.ConsumedEventKeys);
     }
 

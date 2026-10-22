@@ -105,7 +105,7 @@ public sealed class EndingSnapshotTests
         {
             Forces = original.Forces.Select(f => f.Id == 8 ? f with { ProvidedTactics = [5, 9000] }
                 : f with { IsEliminated = true }).ToArray(),
-            Officers = original.Officers.Select(o => o with { LearnedTactics = Enumerable.Range(0, 18).ToImmutableArray() }).ToArray(),
+            Officers = original.Officers.Select(o => o with { LearnedTactics = Enumerable.Range(0, 18).ToImmutableSortedSet() }).ToArray(),
             Treasures = [new(901, 401, TreasureDiscovery.Discovered, null),
                 new(902, 402, TreasureDiscovery.Discovered, null), new(903, 403, TreasureDiscovery.Discovered, null),
                 new(904, 401, TreasureDiscovery.Discovered, null)]
@@ -124,7 +124,7 @@ public sealed class EndingSnapshotTests
         Assert.Equal(19, fiftyNine.Officers.Single(o => o.Id == 403).LearnedTacticCount);
         Assert.Equal(EndingOutcome.CommercialPower, EndingResolution.Resolve(fiftyNine, court, EndingPolicy.ContinentalExpansion).Outcome);
         Assert.Equal(20, sixty.Officers.Single(o => o.Id == 403).LearnedTacticCount);
-        Assert.All(world.Officers, o => Assert.Equal(18, o.LearnedTactics.Length));
+        Assert.All(world.Officers, o => Assert.Equal(18, o.LearnedTactics.Count));
     }
 
     [Fact]

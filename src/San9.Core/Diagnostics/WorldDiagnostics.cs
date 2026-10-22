@@ -79,8 +79,7 @@ public static class WorldDiagnostics
         .Select(f => f with { AdditionalFormationIds = f.AdditionalFormationIds.Order().ToImmutableArray(),
             ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray() }).ToImmutableArray();
 
-    private static ImmutableArray<OfficerState> NormalizeOfficers(IReadOnlyList<OfficerState> officers) => officers.OrderBy(o => o.Id)
-        .Select(o => o with { LearnedTactics = o.LearnedTactics.Order().ToImmutableArray() }).ToImmutableArray();
+    private static ImmutableArray<OfficerState> NormalizeOfficers(IReadOnlyList<OfficerState> officers) => officers.OrderBy(o => o.Id).ToImmutableArray();
 
     private static ImmutableArray<ForceRelation> NormalizeRelations(IReadOnlyList<ForceRelation> relations) =>
         relations.OrderBy(r => r.FirstId).ThenBy(r => r.SecondId).ToImmutableArray();

@@ -43,8 +43,8 @@ public sealed class SunMarriageTests
         Assert.Equal(95, world.Officers[22].LoyaltyTo(2)); Assert.Equal(0, world.Officers[22].TacticCooldown);
         Assert.Null(world.Forces[2].AdviserId); Assert.Equal(22, world.Treasures[7].HolderId);
         Assert.Equal(91, ForceRelations.Get(world, 1, 2).Value);
-        Assert.Equal(player ? new[] { 13, 1 } : [], world.Officers[11].LearnedTactics);
-        Assert.Equal(player ? new[] { 13, 1 } : [], world.Officers[22].LearnedTactics);
+        Assert.True(world.Officers[11].LearnedTactics.SetEquals(player ? new[] { 1, 13 } : []));
+        Assert.True(world.Officers[22].LearnedTactics.SetEquals(player ? new[] { 1, 13 } : []));
         Assert.Empty(world.Simulation.RandomStreams); state.Commit(world);
         world = state.BeginMutation(Rules().Abilities); SunMarriage.Apply(world, Rules(), events);
         Assert.Single(events.OfType<SunMarriageEvent>());

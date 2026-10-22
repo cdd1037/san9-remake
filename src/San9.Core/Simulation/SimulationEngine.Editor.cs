@@ -37,7 +37,7 @@ public sealed partial class SimulationEngine
                             p.Proficiencies.Where((v, i) => ChangedOutside(v, person.TacticProficiencies[i], 0, 1000)).Any() ||
                             p.MasteredCategories.IsDefault || p.MasteredCategories.Any(v => v is < 0 or > 8) ||
                             p.MasteredCategories.Distinct().Count() != p.MasteredCategories.Length ||
-                            p.LearnedTactics.IsDefault || p.LearnedTactics.Distinct().Count() != p.LearnedTactics.Length ||
+                            p.LearnedTactics is null ||
                             p.LearnedTactics.Any(id => !person.LearnedTactics.Contains(id) &&
                                 !WorldEditing.OfficerTactics(_rules.Military).Contains(id)))
                             throw new ArgumentException("Invalid officer edit.");

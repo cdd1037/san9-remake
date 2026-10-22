@@ -1610,7 +1610,7 @@ public sealed class OriginalAiMilitaryTests
         int[] ids = [7000, 7001, 7002];
         content = content with
         {
-            Officers = content.Officers.Select(p => p.State.OwnerId == 1 ? p with { State = p.State with { LearnedTactics = ids.ToImmutableArray() } } : p).ToArray(),
+            Officers = content.Officers.Select(p => p.State.OwnerId == 1 ? p with { State = p.State with { LearnedTactics = ids.ToImmutableSortedSet() } } : p).ToArray(),
             Military = content.Military! with { Tactics = new[] { TacticEffect.Sorcery, TacticEffect.Illusion, TacticEffect.Heal }
                 .Select((effect, i) => new TacticRule(ids[i], 7, effect, 1, 1, 0, true, false, [400])).ToImmutableArray() }
         };

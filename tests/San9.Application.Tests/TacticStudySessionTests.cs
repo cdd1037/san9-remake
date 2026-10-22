@@ -71,6 +71,9 @@ public sealed class TacticStudySessionTests
     public void MultipleOffersContinueInMemoryAndStudySavesAndReplaysAcrossQuarters()
     {
         var definition = Scenario();
+        // Learn a lower ID than the existing tactic, then continue across a save boundary.
+        definition = definition with { Officers = definition.Officers.Select(p => p.State.Id == 2
+            ? p with { State = p.State with { LearnedTactics = [9001] } } : p).ToArray() };
         var session = GameSession.Start(definition, 190);
         Assert.Null(session.GetTacticStudyPrompt());
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
@@ -105,7 +108,7 @@ public sealed class TacticStudySessionTests
                 StateAssert.Equal(session.Capture(), restored.Capture());
             }
         }
-        Assert.Empty(session.Snapshot.Officers.Single(o => o.Id == 2).LearnedTactics);
+        Assert.Equal(new[] { 9001 }, session.Snapshot.Officers.Single(o => o.Id == 2).LearnedTactics);
         var completion = session.AdvanceXun();
         EventAssert.Equal(completion.Events, restored.AdvanceXun().Events);
         Assert.Equal(2, completion.Events.OfType<TacticLearnedEvent>().Count());
@@ -113,7 +116,11 @@ public sealed class TacticStudySessionTests
         Assert.Null(session.GetTacticStudyPrompt());
         Assert.Empty(session.Snapshot.Simulation.Tasks);
         Assert.Equal(100, session.Snapshot.Officers.Single(o => o.Id == 2).TacticProficiencies[7]);
-        Assert.Contains(9000, session.Snapshot.Officers.Single(o => o.Id == 2).LearnedTactics);
+        Assert.Equal(new[] { 9000, 9001 }, session.Snapshot.Officers.Single(o => o.Id == 2).LearnedTactics);
+        byte[] saved = SaveService.Encode(session);
+        restored = SaveService.Decode(saved, definition);
+        Assert.Equal(saved, SaveService.Encode(restored));
+        EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
         Assert.DoesNotContain(session.Snapshot.Simulation.RandomStreams, s => s.Name.Contains("study") || s.Name.Contains("learn"));
         StateAssert.Equal(session.Capture(), restored.Capture());
     }

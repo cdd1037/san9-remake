@@ -75,6 +75,7 @@ internal static class BattlePresentationCompiler
             AttackSound = Sound(mode is 7 or 8 ? 84 : mode is 1 or 2 or 4 or 5 ? 80 : mode == 15 ? type is 13 or 14 ? 82 : 83 :
                 mode == 12 ? 77 : mode == 13 ? 81 : type is >= 9 and <= 12 ? 77 : type is 13 or 14 ? 78 : type is 15 or 16 ? 79 : 76)
         };
+        int ShipBody(int formation) => formation switch { 21 or 26 => 1, 22 => 2, 23 => 3, _ => 0 };
         BattleOfficerDisplay Officers(int type, int dx = 0, int dy = 0) => new(BodySprite(type, 0)!,
             Enumerable.Range(0, 5).Select(i => new BattlePoint(Int(0x6653A8 + type * 40 + i * 8) + dx,
                 Int(0x6653AC + type * 40 + i * 8) + dy)).ToArray(),
@@ -117,9 +118,8 @@ internal static class BattlePresentationCompiler
         {
             int mode = id <= 11 ? id : id - 19;
             int body = mode switch { <= 2 => 2, <= 5 => 7, <= 8 => 9, 9 => 11, 10 => 11, 11 => 12, _ => 13 };
-            int target = mode >= 12 ? 19 : 17;
             var sourceBody = SourceBody(body, mode);
-            var zoom = new BattleZoomDefinition(sourceBody, Body(target, mode, true),
+            var zoom = new BattleZoomDefinition(sourceBody, Body(17, mode, true),
                 ZoomSprite(139), ZoomSprite(140), Asset("g_zoomin", 141, 98), Asset("g_zoomin", 142, 99),
                 Dynamic(mode).Select(s => s with { FrameMilliseconds = 300 }).ToArray())
             {
@@ -145,8 +145,8 @@ internal static class BattlePresentationCompiler
                 DamageBands = [new(2501, 2), new(4500, 3), new(6500, 4), new(9000, 5), new(12500, 6), new(20000, 7), new(null, 8)],
                 Projectile = mode is 6 or 7 or 9 or 12 ? new(Asset("g_zoomin", 120, 77), 16, 64) :
                     mode is 8 or 10 or 11 or 13 ? new(Asset("g_zoomin", 121, 78), 16, mode == 11 ? 32 : 64) : null,
-                SourceFormations = new() { [21] = SourceBody(14, mode), [26] = SourceBody(14, mode), [22] = SourceBody(15, mode), [23] = SourceBody(16, mode) },
-                TargetFormations = new() { [21] = Body(20, mode, true), [26] = Body(20, mode, true), [22] = Body(21, mode, true), [23] = Body(22, mode, true) },
+                SourceFormations = Enumerable.Range(20, 7).ToDictionary(id => id, id => SourceBody(13 + ShipBody(id), mode)),
+                TargetFormations = Enumerable.Range(20, 7).ToDictionary(id => id, id => Body(19 + ShipBody(id), mode, true)),
                 FacilitySources = new[] { (0, 1), (1, 0), (2, 1), (3, 0), (4, 2), (5, 2), (6, 1) }
                     .ToDictionary(p => p.Item1, p => SourceBody(mode == 11 ? 12 : 10, mode, p.Item2)),
                 FacilityTargets = new[] { (0, 1), (1, 0), (2, 1), (3, 0), (4, 2), (5, 2), (6, 1) }

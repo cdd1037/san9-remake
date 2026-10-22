@@ -50,6 +50,7 @@ internal static class BattleFormationCompiler
             >= 12 when body == 13 => Staggered(152, 328, 48, 24, -56, 52, 7, 6),
             >= 12 when body == 14 => Staggered(152, 328, 72, 36, -44, 58, 5, 4),
             >= 12 when body == 15 => Lines(104, 328, 64, 32, 5, 1, 0, 0),
+            >= 12 when body == 16 => Lines(88, 304, 112, 56, 3, 1, 0, 0),
             _ => []
         };
     }

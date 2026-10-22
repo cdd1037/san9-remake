@@ -16,6 +16,10 @@ public sealed class BattleFormationCompilerTests
     [InlineData(12,13,13)]
     [InlineData(12,14,9)]
     [InlineData(12,15,5)]
+    [InlineData(12,16,3)]
+    [InlineData(13,16,3)]
+    [InlineData(14,16,3)]
+    [InlineData(15,16,3)]
     [InlineData(12,22,3)]
     public void NativeFormationFamiliesPreserveTheirMembership(int mode, int body, int count)
     {

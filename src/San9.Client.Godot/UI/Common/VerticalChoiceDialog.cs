@@ -33,7 +33,7 @@ public partial class VerticalChoiceDialog : FixedPage
                 Textures = Textures, SkinPrefix = "decision-choice", Title = RichOptions ? "" : option.Text,
                 RichTitle = RichOptions ? option.Text : null, Disabled = DisabledOptions.Contains(index),
                 TextStyle = (hovered, pressed, disabled) => GameTextStyles.InformationMenu(hovered, pressed, disabled)
-                    with { FontSize = hasPrompt ? 16 : 24 }
+                    with { FontSize = 24 }
             };
             button.Pressed += option.Choose; AddChild(button);
             return button;

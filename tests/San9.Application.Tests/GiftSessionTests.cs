@@ -50,8 +50,8 @@ public sealed class GiftSessionTests
     };
 
     [Theory]
-    [InlineData(GiftKind.Money, 20000u)]
-    [InlineData(GiftKind.Food, 200000u)]
+    [InlineData(GiftKind.Money, 10000u)]
+    [InlineData(GiftKind.Food, 100000u)]
     [InlineData(GiftKind.Treasure, 0u)]
     public void GiftPaysOnceTransfersToAiAndReturnsWithSaveAndReplay(GiftKind kind, uint amount)
     {
@@ -67,6 +67,13 @@ public sealed class GiftSessionTests
         Assert.Single(session.Snapshot.Simulation.Tasks);
         if (kind == GiftKind.Treasure) Assert.Equal(12, session.Snapshot.Treasures[0].HolderId);
         else Assert.Equal(before - amount, kind == GiftKind.Food ? session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Food : session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
+        // Fix the success roll: this case verifies payment and restoration, not acceptance probability.
+        var outbound = session.Capture();
+        session = GameSession.Restore(content, outbound with { World = outbound.World with
+        {
+            Simulation = outbound.World.Simulation with { Tasks = outbound.World.Simulation.Tasks.Select(t =>
+                t with { Journey = t.Journey! with { SuccessRoll = 0 } }).ToImmutableArray() }
+        } });
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         var result = session.AdvanceXun();
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
@@ -239,15 +246,20 @@ public sealed class GiftSessionTests
         content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f.IsRoot && f.OwnerId == 2 ? f with { Treasury = f.Treasury with { Money = 999950 } } : f).ToArray() } };
         var session = GameSession.Start(content, 42);
         Assert.True(session.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2,
-            new(GiftKind.Money, 20000, null))).Submission.Accepted);
+            new(GiftKind.Money, 10000, null))).Submission.Accepted);
         // Public capacity settlement is independent of automatic economics and residual searches.
-        var engine = GameSession.EngineFactory(content)(WorldState.Restore(session.Snapshot));
+        var outbound = session.Snapshot;
+        var engine = GameSession.EngineFactory(content)(WorldState.Restore(outbound with
+        {
+            Simulation = outbound.Simulation with { Tasks = outbound.Simulation.Tasks.Select(t =>
+                t with { Journey = t.Journey! with { SuccessRoll = 0 } }).ToImmutableArray() }
+        }));
         foreach (var seat in engine.Snapshot.Simulation.Controls) engine.EndControl(new(seat.ControllerId));
         uint room = 1000000 - engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money;
         var result = Assert.Single(engine.AdvanceXun().Events.OfType<GiftResolvedEvent>());
         Assert.True(result.Accepted);
         Assert.Equal(room, result.Received);
-        Assert.Equal(20000u, result.Received + result.Spent);
+        Assert.Equal(10000u, result.Received + result.Spent);
     }
 
     [Theory]

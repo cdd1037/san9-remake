@@ -75,7 +75,7 @@ public sealed class CorpsDelegationTests
         var engine = new SimulationEngine(World(), Rules());
         Assert.True(engine.Execute(new("first"), new SetCorpsDelegationCommand(Guid.NewGuid(), 1, 0, 20, Policy(kind))).Submission.Accepted);
         Assert.True(engine.Execute(new("first"), new GiftCommand(Guid.NewGuid(), 1, 1, 11, 2,
-            new(GiftKind.Money, 30000, null))).Submission.Accepted);
+            new(GiftKind.Money, 10000, null))).Submission.Accepted);
         foreach (var seat in engine.Snapshot.Simulation.Controls) engine.EndControl(new(seat.ControllerId));
         var result = engine.AdvanceXun();
         Assert.True(Assert.Single(result.Events.OfType<GiftResolvedEvent>()).Accepted);

@@ -237,10 +237,10 @@ internal sealed partial class OriginalAiActions(SimulationEngine engine, Scenari
     private int Sum(OfficerState p) { var a = Ability(p); return a.War + a.Leadership + a.Intelligence + a.Politics; }
     internal static GiftOffer? Gift(OriginalDomesticInputs input)
     {
-        long money = Math.Min(10000, Math.Max(0, (input.Money - input.SalaryDemand - 2000) / 2));
-        long food = Math.Min(10000, Math.Max(0, (input.Food - input.RationDemand * 3 / 2 - 10000) / 2));
+        long money = Math.Min(GiftOffer.MaximumMoney, Math.Max(0, (input.Money - input.SalaryDemand - 2000) / 2));
+        long food = Math.Min(GiftOffer.MaximumFood, Math.Max(0, (input.Food - input.RationDemand * 3 / 2 - 10000) / 2));
         if (money < GiftOffer.MinimumMoney && food < GiftOffer.MinimumFood) return null;
-        return money * 10 >= food ? new(GiftKind.Money, (uint)money, null) : new(GiftKind.Food, (uint)food, null);
+        return money >= food / 10 ? new(GiftKind.Money, (uint)money, null) : new(GiftKind.Food, (uint)food, null);
     }
     private GameCommand Create(OriginalAiWork work, int actor, Target target, GiftOffer? offer) => Command((id, owner, sequence) => work switch
     {

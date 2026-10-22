@@ -201,19 +201,33 @@ public sealed class OriginalAiActionsTests
         Assert.Equal(1, h.Run(work).Submitted);
     }
 
-    [Fact]
-    public void GiftForecastAndSubmissionUseSamePayloadAndRejectedTargetDoesNotSpendResources()
+    [Theory]
+    [InlineData(GiftKind.Money, 10000u)]
+    [InlineData(GiftKind.Food, 100000u)]
+    public void GiftForecastAndSubmissionUseSamePayloadAndRejectedTargetDoesNotSpendResources(GiftKind kind, uint amount)
     {
-        var content = Fixture() with { Information = Fixture().Information with { Relations = [new(1, 2, 40), new(1, 3, 80), new(2, 3, 20)] } };
+        var content = Fixture();
+        content = content with
+        {
+            Settlements = content.Settlements.Select(s => s.Id == 1 ? s with { Soldiers = 1000 } : s).ToArray(),
+            Information = content.Information with
+            {
+                Corps = content.Information.Corps.Select(c => c.Id == 1 ? c with
+                    { Treasury = kind == GiftKind.Money ? new(100000, 0) : new(0, 1000000) } : c).ToArray(),
+                Relations = [new(1, 2, 40), new(1, 3, 80), new(2, 3, 20)]
+            }
+        };
         var h = new Harness(content);
         var before = h.Engine.Snapshot;
         Assert.Equal(1, h.Run(OriginalAiWork.Gift).Submitted);
         var command = Assert.IsType<GiftCommand>(Assert.Single(h.Commands));
         Assert.Equal(2, command.TargetForceId);
-        Assert.Equal(new(GiftKind.Money, 10000, null), command.Offer);
-        Assert.Equal(DiplomacyMath.GiftMoneyThreshold(100, 40, 10000),
+        Assert.Equal(new(kind, amount, null), command.Offer);
+        Assert.Equal(kind == GiftKind.Money ? DiplomacyMath.GiftMoneyThreshold(100, 40, amount) :
+                DiplomacyMath.GiftFoodThreshold(100, 40, amount),
             GameSession.EngineFactory(content)(WorldState.Restore(before)).GetMissionDecision(new("player"), command).Threshold);
-        Assert.Equal(90000u, h.Engine.Snapshot.Corps.Single(c => c.Id == 1).Treasury.Money);
+        var treasury = h.Engine.Snapshot.Corps.Single(c => c.Id == 1).Treasury;
+        Assert.Equal(kind == GiftKind.Money ? 90000u : 900000u, kind == GiftKind.Money ? treasury.Money : treasury.Food);
         var rejected = new Harness(content, reject: true);
         var original = rejected.Engine.Snapshot;
         Assert.Equal(1, rejected.Run(OriginalAiWork.Gift).Rejected);
@@ -270,6 +284,14 @@ public sealed class OriginalAiActionsTests
     [InlineData(4000u, 30000u, 0L, 0L, GiftKind.Money, 1000u)]
     [InlineData(0u, 30003u, 0L, 3L, null, 0u)]
     [InlineData(0u, 30004u, 0L, 3L, GiftKind.Food, 10000u)]
+    [InlineData(0u, 100000u, 0L, 0L, GiftKind.Food, 45000u)]
+    [InlineData(0u, 209999u, 0L, 0L, GiftKind.Food, 99999u)]
+    [InlineData(0u, 210000u, 0L, 0L, GiftKind.Food, 100000u)]
+    [InlineData(0u, 1000000u, 0L, 0L, GiftKind.Food, 100000u)]
+    [InlineData(0u, 100000u, 0L, 20000L, GiftKind.Food, 30000u)]
+    [InlineData(4000u, 30018u, 0L, 0L, GiftKind.Money, 1000u)]
+    [InlineData(4000u, 30020u, 0L, 0L, GiftKind.Food, 10010u)]
+    [InlineData(22000u, 210000u, 0L, 0L, GiftKind.Money, 10000u)]
     public void AutomaticGiftPreservesReservesAndChoosesOneAffordableResource(uint money, uint food,
         long salary, long rations, GiftKind? kind, uint amount)
     {

@@ -195,7 +195,7 @@ public sealed class MissionDraft
         if (Kind != "gift") throw new InvalidOperationException("The draft is not a gift preparation.");
         uint minimum = GiftOffer.MinimumAmount(kind);
         var treasury = View.World.Corps.Single(c => c.OwnerId == View.RequirePlayerForce() && c.IsRoot).Treasury;
-        return (minimum, Math.Min(GiftOffer.MaximumAmount, kind == GiftKind.Money ? treasury.Money : treasury.Food));
+        return (minimum, Math.Min(GiftOffer.MaximumAmount(kind), kind == GiftKind.Money ? treasury.Money : treasury.Food));
     }
     public BoundedNumberInput? GiftAmountInput(GiftKind kind)
     {

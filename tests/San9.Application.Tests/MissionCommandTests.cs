@@ -252,20 +252,21 @@ public sealed class MissionCommandTests
         {
             Forces = content.Forces.Select(f => f.Id == 1 ? f with { AdviserId = hasAdviser ? 2 : null } : f).ToArray(),
             Officers = content.Officers.Select(p => p.State.Id == 2 && hasAdviser ? p with { State = p.State with
-                { Status = OfficerStatus.Strategist, BaseAbilities = new(90,90,100,90) } } : p).ToArray(),
-            Information = content.Information with { Corps = content.Information.Corps.Select(c => c.OwnerId == 1
+                { Status = OfficerStatus.Strategist, BaseAbilities = new(100,100,100,100) } } : p).ToArray(),
+            Information = content.Information with { Relations = [new(1,2,100)], Corps = content.Information.Corps.Select(c => c.OwnerId == 1
                 ? c with { Treasury = new(1000000,1000000) } : c).ToArray() }
         };
         var session = GameSession.Start(content,42);
         var before = session.Capture();
         var draft = new MissionDraft(session,1,"gift");
         uint minimum = kind == GiftKind.Money ? 1000u : 10000u;
-        uint maximum = 1000000;
+        uint maximum = kind == GiftKind.Money ? 10000u : 100000u;
         Assert.Equal(minimum,draft.GiftAmountInput(kind)!.Value);
         Assert.True(draft.SetActor(2));
         Assert.True(draft.SetTarget(2));
         var input = draft.GiftAmountInput(kind)!;
         Assert.Equal(minimum,input.Minimum);
+        Assert.Equal(maximum,input.Maximum);
         uint amount = input.Value;
         Assert.InRange(amount,minimum,maximum);
         if (hasAdviser)
@@ -288,9 +289,13 @@ public sealed class MissionCommandTests
     [Theory]
     [InlineData(GiftKind.Money,999u,false)]
     [InlineData(GiftKind.Money,1000u,true)]
+    [InlineData(GiftKind.Money,6000u,true)]
+    [InlineData(GiftKind.Money,1000000u,true)]
     [InlineData(GiftKind.Food,9999u,false)]
     [InlineData(GiftKind.Food,10000u,true)]
-    public void GiftInputAndCandidatesRespectResourceSpecificMinimums(GiftKind kind, uint balance, bool available)
+    [InlineData(GiftKind.Food,60000u,true)]
+    [InlineData(GiftKind.Food,1000000u,true)]
+    public void GiftInputAndCandidatesRespectResourceSpecificLimits(GiftKind kind, uint balance, bool available)
     {
         var content = MissionScenario.Create();
         var session = GameSession.Start(content,42);
@@ -304,7 +309,9 @@ public sealed class MissionCommandTests
         var before = session.Capture();
         var draft = new MissionDraft(session,1,"gift");
         uint minimum = kind == GiftKind.Money ? 1000u : 10000u;
+        uint maximum = kind == GiftKind.Money ? 10000u : 100000u;
         Assert.False(draft.SetGift(new(kind,minimum-1,null)));
+        Assert.False(draft.SetGift(new(kind,maximum+1,null)));
         var range = draft.GiftAmountRange(kind);
         Assert.Equal(available,range.Maximum >= range.Minimum);
         var input = draft.GiftAmountInput(kind);
@@ -313,7 +320,7 @@ public sealed class MissionCommandTests
             Assert.NotNull(input);
             Assert.Equal(minimum,input.Value);
             Assert.Equal(minimum,input.Minimum);
-            Assert.Equal(balance,input.Maximum);
+            Assert.Equal(Math.Min(balance,maximum),input.Maximum);
             Assert.True(input.CanConfirm);
             input.Clear();
             Assert.False(input.CanConfirm);

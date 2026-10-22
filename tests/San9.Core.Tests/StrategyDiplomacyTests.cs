@@ -11,15 +11,20 @@ public sealed class StrategyDiplomacyTests
     [InlineData(GiftKind.Money,1u,false)]
     [InlineData(GiftKind.Money,999u,false)]
     [InlineData(GiftKind.Money,1000u,true)]
+    [InlineData(GiftKind.Money,10000u,true)]
+    [InlineData(GiftKind.Money,10001u,false)]
     [InlineData(GiftKind.Food,1u,false)]
     [InlineData(GiftKind.Food,9999u,false)]
     [InlineData(GiftKind.Food,10000u,true)]
-    public void GiftMinimumsApplyToQueriesAndDirectCommandsForEveryController(GiftKind kind, uint amount, bool accepted)
+    [InlineData(GiftKind.Food,100000u,true)]
+    [InlineData(GiftKind.Food,100001u,false)]
+    public void GiftLimitsApplyToQueriesAndDirectCommandsForEveryController(GiftKind kind, uint amount, bool accepted)
     {
         foreach (var controller in new[] { ControllerKind.Player, ControllerKind.Automatic })
         {
             var world = World();
             var setup = world.BeginMutation();
+            setup.Replace(setup.Corps[1] with { Treasury = new(1000000,1000000) });
             setup.SetSimulation(setup.Simulation with { Controls = [new("player",1,controller)] });
             world.Commit(setup);
             var rules = Rules();
@@ -47,7 +52,8 @@ public sealed class StrategyDiplomacyTests
                 Assert.Equal(offer,task.Gift!.Offer);
                 _ = new SimulationEngine(WorldState.Restore(result.Snapshot),rules);
                 var invalid = result.Snapshot with { Simulation = result.Snapshot.Simulation with
-                    { Tasks = [task with { Gift = task.Gift with { Offer = offer with { Amount = amount-1 } } }] } };
+                    { Tasks = [task with { Gift = task.Gift with { Offer = offer with
+                        { Amount = amount == GiftOffer.MinimumAmount(kind) ? amount-1 : GiftOffer.MaximumAmount(kind)+1 } } }] } };
                 Assert.Throws<ArgumentException>(() => new SimulationEngine(WorldState.Restore(invalid),rules));
             }
         }

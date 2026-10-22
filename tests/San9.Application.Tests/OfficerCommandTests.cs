@@ -58,6 +58,16 @@ public sealed class OfficerCommandTests
     private CatalogCell[] ReadTask(PersistentTask task) => Read(initial with
         { Simulation = initial.Simulation with { Tasks = [task] } });
 
+    private ExecutionCommandRow ReadProgress(PersistentTask task, WorldSnapshot? world = null)
+    {
+        world ??= initial;
+        var view = new StrategySnapshot(definition, world with
+            { Simulation = world.Simulation with { Tasks = [task] } });
+        var row = Assert.Single(ExecutionCommands.Read(view, texts));
+        Assert.Equal(texts.Resolve(view.MessageSpeaker(task.OfficerId).NameKey), row.Officer);
+        return row;
+    }
+
     [Theory]
     [InlineData(false, "")]
     [InlineData(true, "完")]
@@ -70,16 +80,19 @@ public sealed class OfficerCommandTests
     }
 
     [Theory]
-    [InlineData("personnel-search", "探索", "乙城", "—")]
-    [InlineData("personnel-recruit", "登庸", "丁", "—")]
-    [InlineData("strategy-alienate", "离间", "丁", "—")]
-    [InlineData("personnel-move", "移动", "—", "乙城")]
-    [InlineData("personnel-return", "撤回", "—", "乙城")]
-    [InlineData("tactic-study", "修行", "—", "乙城")]
-    public void PersonnelObjectsAreNotAlwaysPersonsAndTargetsAreNotAlwaysDestinations(string kind, string order, string subject, string target)
+    [InlineData("personnel-search", "探索", "乙城", "—", "乙城")]
+    [InlineData("personnel-recruit", "登庸", "丁", "—", "丁")]
+    [InlineData("strategy-alienate", "离间", "丁", "—", "丁")]
+    [InlineData("personnel-move", "移动", "—", "乙城", "乙城")]
+    [InlineData("personnel-return", "撤回", "—", "乙城", "乙城")]
+    [InlineData("tactic-study", "修行", "—", "乙城", "乙城")]
+    public void PersonnelObjectsAreNotAlwaysPersonsAndTargetsAreNotAlwaysDestinations(string kind, string order,
+        string subject, string target, string progressTarget)
     {
         var cells = ReadTask(Task(kind));
         Assert.Equal(new[] { order, subject, target }, cells.Take(3).Select(c => c.Text));
+        var progress = ReadProgress(Task(kind));
+        Assert.Equal((order, progressTarget), (progress.Command, progress.Target));
     }
 
     [Theory]
@@ -90,6 +103,8 @@ public sealed class OfficerCommandTests
     {
         var task = Task("diplomacy-gift") with { Gift = new(2, new(kind, kind == GiftKind.Treasure ? 0u : GiftOffer.MinimumAmount(kind), kind == GiftKind.Treasure ? 9000 : null)) };
         Assert.Equal(new[] { "赠与", "丁", expected }, ReadTask(task).Take(3).Select(c => c.Text));
+        var progress = ReadProgress(task);
+        Assert.Equal(("赠与", "丁"), (progress.Command, progress.Target));
     }
 
     [Fact]
@@ -104,6 +119,36 @@ public sealed class OfficerCommandTests
         var gossip = Task("strategy-gossip");
         gossip = gossip with { Journey = gossip.Journey! with { Gossip = new(2, 1) } };
         Assert.Equal(new[] { "流言", "丁", "甲" }, ReadTask(gossip).Take(3).Select(c => c.Text));
+    }
+
+    [Theory]
+    [InlineData("diplomacy-attack-request", "请求", "丁")]
+    [InlineData("diplomacy-prisoner-return", "交还", "丁")]
+    [InlineData("diplomacy-surrender", "劝降", "丁")]
+    [InlineData("strategy-gossip", "流言", "甲")]
+    public void ProgressTargetsUseTheDiplomaticPartyExceptForGossip(string kind, string command, string target)
+    {
+        var task = Task(kind);
+        task = task with
+        {
+            AttackRequest = kind == "diplomacy-attack-request" ? new(2, 1) : null,
+            PrisonerReturn = kind == "diplomacy-prisoner-return" ? new(2, 5) : null,
+            Surrender = kind == "diplomacy-surrender" ? new(2) : null,
+            Journey = task.Journey! with { Gossip = kind == "strategy-gossip" ? new(2, 1) : null }
+        };
+        var row = ReadProgress(task);
+        Assert.Equal((command, target), (row.Command, row.Target));
+    }
+
+    [Fact]
+    public void ProgressNamesUseCurrentPeopleAndRulersWithoutDecorations()
+    {
+        texts.Entries["officer.1"] = "长姓名甲乙";
+        texts.Entries["officer.5"] = "新君主";
+        var task = Task("diplomacy-gift") with { Gift = new(2, new(GiftKind.Money, 1000, null)) };
+        var world = initial with { Forces = initial.Forces.Select(f => f.Id == 2 ? f with { LeaderId = 5 } : f).ToArray() };
+        var row = ReadProgress(task, world);
+        Assert.Equal(("长姓名甲乙", "新君主"), (row.Officer, row.Target));
     }
 
     private WorldSnapshot Deployed() => initial with
@@ -198,6 +243,9 @@ public sealed class OfficerCommandTests
         task = task with { Journey = task.Journey! with { UnitStrategy = new(kind, 20) } };
         var world = initial with { Units = [Deployed().Units[1]], Simulation = initial.Simulation with { Tasks = [task] } };
         Assert.Equal(new[] { expected, "—", "丁队" }, Read(world).Take(3).Select(c => c.Text));
+        var row = ReadProgress(task, world);
+        Assert.Equal((expected, "丁"), (row.Command, row.Target));
+        Assert.Equal("戊", ReadProgress(task, world with { Units = [world.Units[0] with { CommanderId = 5 }] }).Target);
     }
 
     [Theory]
@@ -296,5 +344,7 @@ public sealed class OfficerCommandTests
         task = task with { Journey = task.Journey! with
             { Burn = burn ? new(1) : null, Seize = burn ? null : new(1) } };
         Assert.Equal(new[] { expected, "—", "甲城" }, ReadTask(task).Take(3).Select(c => c.Text));
+        var row = ReadProgress(task);
+        Assert.Equal((expected, "甲城"), (row.Command, row.Target));
     }
 }

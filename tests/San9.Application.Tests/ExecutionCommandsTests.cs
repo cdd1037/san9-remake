@@ -45,7 +45,7 @@ public sealed class ExecutionCommandsTests
 
         var rows = ExecutionCommands.Read(view, texts);
         Assert.Equal(secondKind == ControllerKind.Player ? 2 : 1, rows.Count);
-        Assert.Equal((1, "交还", "officer.5", 7L, true),
+        Assert.Equal((1, "交还", "officer.4", 7L, true),
             (rows[0].OfficerId, rows[0].Command, rows[0].Target, rows[0].RemainingDays, rows[0].FinishesThisXun));
         if (secondKind == ControllerKind.Player)
             Assert.Equal((4, "探索", "city.1", 7L), (rows[1].OfficerId, rows[1].Command, rows[1].Target, rows[1].RemainingDays));

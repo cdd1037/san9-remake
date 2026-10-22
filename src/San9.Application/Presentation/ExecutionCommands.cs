@@ -18,10 +18,12 @@ public static class ExecutionCommands
         int daysInXun = 10 - (view.World.Clock.Day - 1) % 10;
         return view.World.Simulation.Tasks.Where(t => players.Contains(t.ForceId)).OrderBy(t => t.Sequence).Select(task =>
         {
-            var person = people[task.OfficerId]; var cells = commands.Read(person, task.ForceId);
-            long days = cells.Arrival.Number ?? Math.Max(0, task.Due.DayNumber - view.World.Clock.DayNumber);
-            return new ExecutionCommandRow(person.Id, texts.Resolve(view.MessageSpeaker(person.Id).NameKey), cells.Order.Text,
-                cells.Target.IsUnavailable ? cells.Object.Text : cells.Target.Text, days, days <= daysInXun);
+            var person = people[task.OfficerId];
+            var (order, target) = commands.ReadProgress(task);
+            long days = OfficerArrival.Read(view, person, task, task.ForceId).Number
+                ?? Math.Max(0, task.Due.DayNumber - view.World.Clock.DayNumber);
+            return new ExecutionCommandRow(person.Id, texts.Resolve(view.MessageSpeaker(person.Id).NameKey), order,
+                target, days, days <= daysInXun);
         }).ToArray();
     }
 }

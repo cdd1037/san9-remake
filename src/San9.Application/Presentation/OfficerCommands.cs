@@ -26,6 +26,45 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
         ? Region(region) + "周围" : $"({position.X},{position.Y})";
     private static CatalogCell Hidden(int width) => new(new string('＊', width), IsUnavailable: true);
 
+    // Progress rows select their own semantic target; the officer catalog has separate object and target columns.
+    public (string Order, string Target) ReadProgress(PersistentTask task)
+    {
+        var journey = task.Journey!;
+        string target = task.Kind switch
+        {
+            "personnel-search" => Region(journey.DestinationPlaceId),
+            "personnel-recruit" or "strategy-alienate" => Person(journey.TargetOfficerId),
+            "diplomacy-gift" => Force(task.Gift!.TargetForceId),
+            "diplomacy-attack-request" => Force(task.AttackRequest!.TargetForceId),
+            "diplomacy-prisoner-return" => Force(task.PrisonerReturn!.TargetForceId),
+            "diplomacy-surrender" => Force(task.Surrender!.TargetForceId),
+            "strategy-gossip" => Force(journey.Gossip!.SecondTargetForceId),
+            "strategy-burn" => Place(journey.Burn!.TargetSettlementId),
+            "strategy-seize" => Place(journey.Seize!.TargetSettlementId),
+            "unit-strategy" => units.TryGetValue(journey.UnitStrategy!.TargetUnitId, out var unit)
+                ? Person(unit.CommanderId) : "",
+            "personnel-move" or "personnel-return" or "tactic-study" => Place(journey.DestinationPlaceId),
+            _ => throw new InvalidOperationException($"Unknown officer journey kind '{task.Kind}'.")
+        };
+        return (JourneyOrder(task), target);
+    }
+
+    private static string JourneyOrder(PersistentTask task) => task.Kind switch
+    {
+        "personnel-move" => "移动", "personnel-search" => "探索", "personnel-recruit" => "登庸",
+        "personnel-return" => "撤回", "tactic-study" => "修行", "strategy-alienate" => "离间",
+        "strategy-burn" => "烧夷", "strategy-seize" => "夺取", "strategy-gossip" => "流言",
+        "diplomacy-gift" => "赠与", "diplomacy-attack-request" => "请求",
+        "diplomacy-prisoner-return" => "交还", "diplomacy-surrender" => "劝降",
+        "unit-strategy" => task.Journey!.UnitStrategy!.Strategy switch
+        {
+            UnitStrategyKind.FalseReport => "伪报", UnitStrategyKind.Disorder => "扰乱",
+            UnitStrategyKind.Inspire => "激励", UnitStrategyKind.Reinforce => "救援",
+            _ => throw new ArgumentOutOfRangeException(nameof(task))
+        },
+        _ => throw new InvalidOperationException($"Unknown officer journey kind '{task.Kind}'.")
+    };
+
     public (CatalogCell Order, CatalogCell Target) ReadUnit(UnitState unit, int? viewerForceId)
     {
         if (unit.OwnerId != viewerForceId && !view.World.Simulation.OtherForceOrdersVisible)
@@ -82,21 +121,7 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
         }
         else if (task?.Journey is { } journey)
         {
-            order = task.Kind switch
-            {
-                "personnel-move" => "移动", "personnel-search" => "探索", "personnel-recruit" => "登庸",
-                "personnel-return" => "撤回", "tactic-study" => "修行", "strategy-alienate" => "离间",
-                "strategy-burn" => "烧夷", "strategy-seize" => "夺取", "strategy-gossip" => "流言",
-                "diplomacy-gift" => "赠与", "diplomacy-attack-request" => "请求",
-                "diplomacy-prisoner-return" => "交还", "diplomacy-surrender" => "劝降",
-                "unit-strategy" => journey.UnitStrategy!.Strategy switch
-                {
-                    UnitStrategyKind.FalseReport => "伪报", UnitStrategyKind.Disorder => "扰乱",
-                    UnitStrategyKind.Inspire => "激励", UnitStrategyKind.Reinforce => "救援",
-                    _ => throw new ArgumentOutOfRangeException(nameof(task))
-                },
-                _ => throw new InvalidOperationException($"Unknown officer journey kind '{task.Kind}'.")
-            };
+            order = JourneyOrder(task);
             if (task.Kind == "personnel-search") subject = Region(journey.DestinationPlaceId);
             else if (task.Kind is "personnel-recruit" or "strategy-alienate") subject = Person(journey.TargetOfficerId);
             else if (journey.Gossip is { } gossip)

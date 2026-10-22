@@ -39,8 +39,14 @@ public partial class MissionCommandView : CommandPreparationView
     protected override void Build()
     {
         var bounds = Bounds; var at = bounds.Position;
+        string idle = Draft.ActorId is null ? CommandText.Resolve(Texts, "failure.no-actor") : Texts.Resolve(CommandMenuSkin.HintKey(Draft.Kind));
+        var message = new GameMessageBar { Textures = Textures, Text = idle };
         var window = new CommandWindow { Texts = Texts, Textures = Textures, Title = CommandText.Resolve(Texts, "title." + Draft.Kind), Position = at, Size = bounds.Size,
             CanAccept = Draft.CanExecute, Accepted = Submit, Closed = Closed,
+            HintChanged = Draft.IsDiplomacy ? hint => message.Text = hint ?? idle : null,
+            AcceptHint = Draft.IsDiplomacy ? DiplomacyAcceptHint() : null,
+            CancelHint = CommandText.Resolve(Texts, "hint.cancel"),
+            HelpHint = CommandText.Resolve(Texts, "hint.help"), CloseHint = CommandText.Resolve(Texts, "hint.close"),
             Help = () => Notice(Texts.Resolve(CommandMenuSkin.DescriptionKey(Draft.Kind))) };
         Body.AddChild(window);
         string source = CommandText.Resolve(Texts, "value.source", Draft.View.Settlements.Single(p => p.Id == Draft.Home.Id).ResolveName(Texts));
@@ -57,9 +63,11 @@ public partial class MissionCommandView : CommandPreparationView
         int actorY = Draft.Kind switch { "false-report" or "disorder" => 312, "inspire" or "rescue" => 320,
             "alienate" or "return" => 176, "seize" => 152, "burn" => 120, "rumor" => 160,
             "gift" => 88, _ => 128 };
-        window.ActionButton(Draft.Kind == "return" ? CommandText.Resolve(Texts, "label.prisoner") : Draft.TargetKind == MissionTargetKind.Unit ? CommandText.Resolve(Texts, "label.target-unit") : Draft.TargetKind == MissionTargetKind.Officer ? CommandText.Resolve(Texts, "label.target-officer") :
+        var targetButton = window.ActionButton(Draft.Kind == "return" ? CommandText.Resolve(Texts, "label.prisoner") : Draft.TargetKind == MissionTargetKind.Unit ? CommandText.Resolve(Texts, "label.target-unit") : Draft.TargetKind == MissionTargetKind.Officer ? CommandText.Resolve(Texts, "label.target-officer") :
             Draft.TargetKind == MissionTargetKind.Settlement ? CommandText.Resolve(Texts, "label.target-facility") : CommandText.Resolve(Texts, "label.recipient-force"), "edit", new(0,48,104,40),
             () => { if (Draft.Kind == "return") Select(InformationCategory.Officers, Draft.Prisoners, Draft.SecondaryId, id => { Draft.SetPrisoner(id); Changed(); }, officerTargets: true); else SelectTarget(false); });
+        if (Draft.IsDiplomacy)
+            window.BindHint(targetButton, CommandText.Resolve(Texts, Draft.Kind == "return" ? "hint.prisoner" : "hint.force"));
         if (Draft.Kind == "alienate")
         {
             Person(Draft.View, Draft.TargetId, at + new Vector2(104,48));
@@ -126,11 +134,15 @@ public partial class MissionCommandView : CommandPreparationView
             }
             if (Draft.Kind is "rumor" or "request")
             {
-                window.ActionButton(Draft.Kind == "rumor" ? CommandText.Resolve(Texts, "label.target-force") : CommandText.Resolve(Texts, "label.target-facility"), "edit", new(0,Draft.Kind == "rumor" ? 112 : 88,104,40), () => SelectTarget(true));
+                var secondaryButton = window.ActionButton(Draft.Kind == "rumor" ? CommandText.Resolve(Texts, "label.target-force") : CommandText.Resolve(Texts, "label.target-facility"), "edit", new(0,Draft.Kind == "rumor" ? 112 : 88,104,40), () => SelectTarget(true));
+                if (Draft.IsDiplomacy)
+                    window.BindHint(secondaryButton, CommandText.Resolve(Texts, Draft.TargetId is null ? "hint.force" : "hint.target-facility"));
                 Value(TargetName(Draft.SecondaryKind,Draft.SecondaryId),at+new Vector2(104,Draft.Kind == "rumor" ? 112 : 88),new(Draft.Kind == "rumor" ? 80 : 96,32));
             }
         }
-        window.ActionButton(CommandText.Resolve(Texts, "label.actor"), "edit", new(0,actorY,104,40), SelectActor);
+        var actorButton = window.ActionButton(CommandText.Resolve(Texts, "label.actor"), "edit", new(0,actorY,104,40), SelectActor);
+        if (Draft.IsDiplomacy)
+            window.BindHint(actorButton, Draft.Actors.IsEmpty ? idle : Texts.Resolve(CommandMenuSkin.OfficerSelectionHintKey));
         Person(Draft.View,Draft.ActorId,at+new Vector2(104,actorY));
         SpacedProperties(at+new Vector2(Draft.TargetKind == MissionTargetKind.Unit ? 360 : 312,actorY),
             Draft.Kind is "false-report" or "disorder" or "rumor" or "return" or "burn" or "seize" ? 80 : 48,
@@ -150,9 +162,19 @@ public partial class MissionCommandView : CommandPreparationView
             Caption(CommandText.Resolve(Texts,"label.request-period"),at+new Vector2(0,256),new(96,32));
             Value(CommandText.Resolve(Texts,"value.days",180),at+new Vector2(104,256),new(56,32));
         }
-        Body.AddChild(new GameMessageBar { Textures = Textures, Text = Draft.ActorId is null ? CommandText.Resolve(Texts, "failure.no-actor") :
-            Texts.Resolve(CommandMenuSkin.HintKey(Draft.Kind)) });
+        Body.AddChild(message);
     }
+    private string DiplomacyAcceptHint() => CommandText.Resolve(Texts, Draft.ActorId is null ? "failure.no-actor" :
+        Draft.Kind == "return" && Draft.SecondaryId is null ? "hint.choose-prisoner" :
+        Draft.TargetId is null ? "hint.force" :
+        Draft.Kind == "request" && Draft.SecondaryId is null ? "hint.target-facility" :
+        Draft.Kind == "gift" && Draft.Gift is null ? "hint.choose-gift" :
+        !Draft.CanExecute ? "failure.conditions" : Draft.Kind switch
+        {
+            "request" => "hint.decide-request-accept",
+            "return" => "hint.decide-return-accept",
+            _ => "hint.execute-" + Draft.Kind
+        });
     private string Ability(int? id, bool leadership = false) => Draft.View.Officers.SingleOrDefault(o => o.Id == id) is {} person ?
         (leadership ? person.Abilities.Leadership : person.Abilities.Intelligence).ToString() : "";
     private string Relation(int? id) => id is int force ? new AdministrativeCatalog(Draft.View,Texts).Cell(InformationCategory.Forces,force,"relation").Text : "";
@@ -200,11 +222,16 @@ public partial class MissionCommandView : CommandPreparationView
     {
         var root = Draft.View.World.Corps.Single(c => c.OwnerId == Draft.View.PlayerForceId && c.IsRoot);
         var money = Draft.GiftAmountRange(GiftKind.Money);
-        window.ActionButton(CommandText.Resolve(Texts, "label.money"), "edit", new(0,216,104,40), () => Number(GiftKind.Money)).Disabled = money.Maximum < money.Minimum;
+        var moneyButton = window.ActionButton(CommandText.Resolve(Texts, "label.money"), "edit", new(0,216,104,40), () => Number(GiftKind.Money));
+        moneyButton.Disabled = money.Maximum < money.Minimum;
+        window.BindHint(moneyButton, CommandText.Resolve(Texts, moneyButton.Disabled ? "failure.money" : "hint.money"));
         var food = Draft.GiftAmountRange(GiftKind.Food);
-        window.ActionButton(CommandText.Resolve(Texts, "label.food"), "edit", new(0,256,104,40), () => Number(GiftKind.Food)).Disabled = food.Maximum < food.Minimum;
-        window.ActionButton(CommandText.Resolve(Texts, "label.treasure"), "edit", new(0,296,104,40), () => Select(InformationCategory.Treasures,Draft.Treasures,Draft.Gift?.TreasureId,
+        var foodButton = window.ActionButton(CommandText.Resolve(Texts, "label.food"), "edit", new(0,256,104,40), () => Number(GiftKind.Food));
+        foodButton.Disabled = food.Maximum < food.Minimum;
+        window.BindHint(foodButton, CommandText.Resolve(Texts, foodButton.Disabled ? "failure.food" : "hint.food"));
+        var treasureButton = window.ActionButton(CommandText.Resolve(Texts, "label.treasure"), "edit", new(0,296,104,40), () => Select(InformationCategory.Treasures,Draft.Treasures,Draft.Gift?.TreasureId,
             id => { Draft.SetGift(new(GiftKind.Treasure,0,id)); Changed(); }));
+        window.BindHint(treasureButton, Draft.Treasures.IsEmpty ? Texts.Resolve(CommandMenuSkin.ReasonKey("no-treasure")) : CommandText.Resolve(Texts, "hint.treasure"));
         Value(Amount(GiftKind.Money,root.Treasury.Money),at+new Vector2(104,216),new(120,32));
         Value(Amount(GiftKind.Food,root.Treasury.Food),at+new Vector2(104,256),new(128,32));
         Value(Draft.Gift?.TreasureId is int item ? Texts.Resolve(Draft.View.Information.Treasures.Single(t => t.Id == item).NameKey) : "",at+new Vector2(104,296),new(112,32));

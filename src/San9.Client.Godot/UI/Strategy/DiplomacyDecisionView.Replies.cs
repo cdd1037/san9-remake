@@ -25,6 +25,7 @@ public partial class DiplomacyDecisionView
             AcceptTitle = Draft.Options.Single(o => o.Role == "accept").Title,
             CancelTitle = Draft.Options.Single(o => o.Role == "decline").Title,
             HintChanged = hint => message.SetMessage(hint ?? idle),
+            HelpHint = idle, CloseHint = idle,
             AcceptHint = Text("hint.reply-" + Draft.Role + "-accept"),
             CancelHint = Text("hint.reply-" + Draft.Role + "-decline")
         };

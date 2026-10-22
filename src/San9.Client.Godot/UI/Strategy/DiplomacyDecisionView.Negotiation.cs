@@ -26,6 +26,7 @@ public partial class DiplomacyDecisionView
             AcceptTitle = Text("action.promise"), CancelTitle = Text("action.refuse"),
             AcceptHint = Text("hint." + stage + "-" + kind + "-accept"),
             CancelHint = Text("hint." + stage + "-" + kind + "-decline"),
+            HelpHint = idle, CloseHint = idle,
             HintChanged = hint => message.SetMessage(hint ?? idle)
         };
         AddChild(window); AddChild(message);
@@ -83,7 +84,7 @@ public partial class DiplomacyDecisionView
                     new((attack ? 100 : 104) + (attack ? 108 : 104) * (i % 2), (attack ? 196 : 256) + 40 * (i / 2), 104, 40),
                     () => { if (option is not null) Choose(option); });
                 button.Disabled = option is null || role == "free" && !Counteroffer!.HasCondition;
-                window.BindHint(button, Text("hint.compensation-" + role));
+                window.BindHint(button, Text(option is null ? "hint.compensation-unavailable" : "hint.compensation-" + role));
             }
         }
         if (attack)

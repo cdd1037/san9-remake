@@ -16,6 +16,14 @@ public sealed class CommandTextSourcesTests
         Assert.Equal(CommandText.Parameters.Keys.Select(CommandText.Key).Order(), keys.Order());
     }
 
+    [Fact]
+    public void RefusingAnIncomingAttackRequestDoesNotDescribeCancellingAnOutgoingRequest()
+    {
+        var sources = CommandTextSources.Messages.ToDictionary(source => source.Role, source => source.Message);
+        Assert.Equal(8338, sources["hint.reply-request-decline"]);
+        Assert.NotEqual(sources["hint.decide-request-decline"], sources["hint.reply-request-decline"]);
+    }
+
     [Theory]
     [InlineData("%s: %3d / %-2d (%%)", "{0}: {1,3} / {2,-2} (%)")]
     [InlineData("unchanged", "unchanged")]

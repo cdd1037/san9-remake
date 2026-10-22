@@ -21,6 +21,8 @@ public partial class CommandWindow : Control
     public Action<string?>? HintChanged { get; init; }
     public string? AcceptHint { get; init; }
     public string? CancelHint { get; init; }
+    public string? HelpHint { get; init; }
+    public string? CloseHint { get; init; }
     private readonly GameTextPresenter _text = new();
     private ImageTexture? _background;
     private Vector2 _backgroundSize;
@@ -34,8 +36,8 @@ public partial class CommandWindow : Control
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
         AddChild(title);
         _text.Apply(title, new(24, new Color("f8f850"), GameTextEffect.Outline, new Color("5828c8")));
-        Icon("help", new(Size.X - 40, -56), Help);
-        Icon("close", new(Size.X - 8, -36), Closed, !CanClose);
+        BindHint(Icon("help", new(Size.X - 40, -56), Help), HelpHint);
+        BindHint(Icon("close", new(Size.X - 8, -36), Closed, !CanClose), CloseHint);
         var accept = ActionButton(AcceptTitle ?? CommandText.Resolve(Texts, "action.execute"), "accept", new(Size.X - (SmallFrame ? 26 : ActionRightInset) - 168, Size.Y + (SmallFrame ? 21 : 20), 80, 48), Accepted);
         accept.Disabled = !CanAccept;
         BindHint(accept, AcceptHint);
@@ -61,12 +63,12 @@ public partial class CommandWindow : Control
         button.Pressed += action; AddChild(button); return button;
     }
 
-    private void Icon(string role, Vector2 at, Action action, bool disabled = false)
+    private TextureButton Icon(string role, Vector2 at, Action action, bool disabled = false)
     {
         var button = new TextureButton { Position = at, TextureNormal = Textures.Get("deployment-" + role, this),
             TextureHover = Textures.Get("deployment-" + role + "-1", this), TexturePressed = Textures.Get("deployment-" + role + "-2", this),
             TextureDisabled = Textures.Get("deployment-" + role + "-3", this), Disabled = disabled };
-        button.Pressed += action; AddChild(button);
+        button.Pressed += action; AddChild(button); return button;
     }
 
     public override void _Process(double delta)

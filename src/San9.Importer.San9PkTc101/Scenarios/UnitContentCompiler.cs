@@ -13,6 +13,7 @@ public static class UnitContentCompiler
                 throw new InvalidDataException("Invalid active field unit.");
             return new UnitState(u.Id, owner, MapCoordinates.Center(new(x, y)), (uint)u.LoadedSoldierCount)
             {
+                Facing = WorldDirection.South, // TC101 initializes facing to 4; scenario records do not restore it.
                 CorpsId = u.ForceId, ServicePlaceId = u.HomeBaseId, FormationId = u.FormationId,
                 NavalFormationId = !u.HasRuntimeFlagBit(0) && !u.HasRuntimeFlagBit(1) && u.FormationId is int formation &&
                     MilitaryContentCompiler.Mode(formation) == TravelMode.Land ? formation switch { 13 => 24, 14 => 25, _ => MilitaryContentCompiler.BasicNavalFormationId } : null,

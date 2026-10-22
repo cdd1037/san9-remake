@@ -7,6 +7,23 @@ namespace San9.Core.Tests;
 
 public sealed class MilitaryMovementTests
 {
+    [Fact]
+    public void FacingTracksDailyNetMovementAndSurvivesStopsAndNewOrders()
+    {
+        var unit = new UnitState(1, 1, new(10, 10), 100) { Facing = WorldDirection.North };
+        var moved = MilitaryNavigation.Apply(unit, new(new(new(14, 13), 7, NavigationStatus.Moving)
+            { Steps = [unit.Position, new(14, 10), new(14, 13)] }));
+        Assert.Equal(WorldDirection.SouthEast, moved.Facing);
+        var stopped = MilitaryNavigation.Apply(moved, new(new(moved.Position, 0, NavigationStatus.Waiting)));
+        Assert.Equal(moved.Facing, stopped.Facing);
+        var roundTrip = MilitaryNavigation.Apply(stopped, new(new(stopped.Position, 2, NavigationStatus.Arrived)
+            { Steps = [stopped.Position, new(14, 14), stopped.Position] }));
+        Assert.Equal(moved.Facing, roundTrip.Facing);
+        var ordered = roundTrip.WithMilitaryOrder(new(MilitaryOrderKind.Move, new(2, 2), null), new(), null);
+        Assert.Equal(moved.Facing, ordered.Facing);
+        Assert.False((ordered with { Facing = (WorldDirection)8 }).IsValid);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

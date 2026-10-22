@@ -6,6 +6,34 @@ namespace San9.Core.Tests;
 public sealed class MapCoordinatesTests
 {
     [Theory]
+    [InlineData(0, -100, WorldDirection.North)]
+    [InlineData(100, -100, WorldDirection.NorthEast)]
+    [InlineData(100, 0, WorldDirection.East)]
+    [InlineData(100, 41, WorldDirection.East)]
+    [InlineData(100, 42, WorldDirection.SouthEast)]
+    [InlineData(100, 100, WorldDirection.SouthEast)]
+    [InlineData(41, 100, WorldDirection.South)]
+    [InlineData(42, 100, WorldDirection.SouthEast)]
+    [InlineData(0, 100, WorldDirection.South)]
+    [InlineData(-100, 100, WorldDirection.SouthWest)]
+    [InlineData(-100, 0, WorldDirection.West)]
+    [InlineData(-100, -100, WorldDirection.NorthWest)]
+    public void FacingUsesEightSectorsOfTheNetDisplacement(int dx, int dy, WorldDirection expected)
+    {
+        Assert.Equal(expected, WorldDirections.Between(new(100, 100), new(100 + dx, 100 + dy)));
+        Assert.Equal((WorldDirection)(((int)expected + 4) % 8),
+            WorldDirections.Between(new(100 + dx, 100 + dy), new(100, 100)));
+    }
+
+    [Fact]
+    public void FacingHandlesWideCoordinatesAndHasNoDirectionForZeroDisplacement()
+    {
+        Assert.Null(WorldDirections.Between(new(10, 20), new(10, 20)));
+        Assert.Equal(WorldDirection.NorthWest, WorldDirections.Between(new(int.MaxValue, int.MaxValue), new(0, 0)));
+        Assert.Equal(WorldDirection.East, WorldDirections.Between(new(int.MinValue, 0), new(int.MaxValue, 1)));
+    }
+
+    [Theory]
     [InlineData(0, 0, 2, 2)]
     [InlineData(184, 26, 922, 132)]
     [InlineData(199, 199, 997, 997)]

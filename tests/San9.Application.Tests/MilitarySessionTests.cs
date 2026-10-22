@@ -12,6 +12,32 @@ namespace San9.Application.Tests;
 public sealed class MilitarySessionTests
 {
     [Fact]
+    public void ActualFacingSurvivesStrategicReassignmentAndBothSaveRestorationModes()
+    {
+        var definition = Fixture();
+        var session = GameSession.Start(definition, 42);
+        Assert.True(session.Execute(new("player"), new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [1], 400, 7,
+            new(MilitaryOrderKind.Move, new(32, 7), null))).Submission.Accepted);
+        session.AdvanceXun();
+        var unit = Assert.Single(session.Snapshot.Units);
+        Assert.Equal(WorldDirection.East, unit.Facing);
+        Assert.True(session.Execute(new("player"), new OrderUnitCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, unit.Id, new(MilitaryOrderKind.Move, new(2, 12), null))).Submission.Accepted);
+        Assert.Equal(unit.Facing, Assert.Single(session.Snapshot.Units).Facing);
+        byte[] bytes = SaveService.Encode(session);
+        Assert.Equal(unit.Facing, Assert.Single(SaveService.Decode(bytes, definition).Snapshot.Units).Facing);
+        Assert.Equal(unit.Facing, Assert.Single(SaveService.Load(bytes, definition).Snapshot.Units).Facing);
+        var invalid = System.Text.Json.Nodes.JsonNode.Parse(bytes)!;
+        var savedUnit = invalid["session"]!["world"]!["units"]![0]!.AsObject();
+        savedUnit["facing"] = 8;
+        Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(
+            System.Text.Encoding.UTF8.GetBytes(invalid.ToJsonString()), definition)).Failure);
+        savedUnit.Remove("facing");
+        Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(
+            System.Text.Encoding.UTF8.GetBytes(invalid.ToJsonString()), definition)).Failure);
+    }
+
+    [Fact]
     public void SoldierGrowthAtMapEdgeSurvivesTheSaveCodecWithoutMovingTheCenter()
     {
         var basis = Fixture();

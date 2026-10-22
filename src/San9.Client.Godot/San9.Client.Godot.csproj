@@ -21,6 +21,7 @@
     <TrimmerRootAssembly Include="System.Collections.Immutable" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="San9.Client.Godot.Tests" />
     <ProjectReference Include="../San9.Application/San9.Application.csproj" />
     <ProjectReference Include="../San9.Core/San9.Core.csproj" />
     <ProjectReference Include="../San9.Rendering/San9.Rendering.csproj" />

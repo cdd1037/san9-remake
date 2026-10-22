@@ -75,6 +75,7 @@ public sealed class UnitContentCompilerTests
         Assert.Equal(3, unit.CorpsId);
         Assert.Equal(27, unit.ServicePlaceId);
         Assert.Equal(new WorldPosition(952, 902), unit.Position);
+        Assert.Equal(WorldDirection.South, unit.Facing);
     }
 
     [Theory]

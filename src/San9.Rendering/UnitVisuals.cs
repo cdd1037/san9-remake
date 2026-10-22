@@ -37,10 +37,8 @@ public static class UnitVisuals
 {
     public static int Direction(WorldPosition position, WorldPosition? target)
     {
-        if (target is not {} point || point == position) return 0;
-        double dx = (double)point.X - position.X, dy = (double)point.Y - position.Y;
         // Clockwise screen directions: northeast, east, southeast, south, southwest, west, northwest, north.
-        return ((int)Math.Round(Math.Atan2(dy, dx) * 4 / Math.PI) + 10) % 8;
+        return target is { } point ? (int)(WorldDirections.Between(position, point) ?? WorldDirection.North) : 0;
     }
 
     public static uint Seed(int unit, int member, int tick)

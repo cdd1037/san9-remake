@@ -8,6 +8,7 @@ public enum UnitCondition { Normal, Engaged, Trap, Disguised, NoFormation, Confu
 // Active field forces are separate from settlement garrisons. Movement rules are separate use cases.
 public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] WorldPosition Position, uint Soldiers)
 {
+    [JsonRequired] public WorldDirection Facing { get; init; } = WorldDirection.South;
     [JsonRequired] public System.Collections.Immutable.ImmutableDictionary<int, BattleRank> MemberRanks { get; init; } = System.Collections.Immutable.ImmutableDictionary<int, BattleRank>.Empty;
     [JsonRequired] public int? FormationId { get; init; }
     [JsonRequired] public int? NavalFormationId { get; init; }
@@ -77,7 +78,7 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
 
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsValid => Id >= 0 && OwnerId >= 0 && ServicePlaceId is not < 0 && Position.X >= 0 && Position.Y >= 0 && Soldiers > 0 &&
-        Enum.IsDefined(OrderClass) && Enum.IsDefined(Condition) && ConditionDaysRemaining >= 0 && FormationId is not < 0 && NavalFormationId is not < 0 && (NavalFormationId is null || FormationId is not null) && MovementRemainder >= 0 && Morale is >= 0 and <= 100 && Wounded <= MilitaryRulebook.WoundedCapacity &&
+        Enum.IsDefined(Facing) && Enum.IsDefined(OrderClass) && Enum.IsDefined(Condition) && ConditionDaysRemaining >= 0 && FormationId is not < 0 && NavalFormationId is not < 0 && (NavalFormationId is null || FormationId is not null) && MovementRemainder >= 0 && Morale is >= 0 and <= 100 && Wounded <= MilitaryRulebook.WoundedCapacity &&
         (!HighSpiritsMoralePenaltyPending || Condition == UnitCondition.HighSpirits) &&
         DepartureDaysRemaining is >= 0 and <= 9 &&
         (Waypoint is null || Waypoint.Value.X >= 0 && Waypoint.Value.Y >= 0 && Order is not null) &&

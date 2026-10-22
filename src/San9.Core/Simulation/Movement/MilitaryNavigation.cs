@@ -71,6 +71,7 @@ internal static class MilitaryNavigation
     internal static UnitState Apply(UnitState unit, UnitStep step) => unit with
     {
         Position = step.Position, MovementRemainder = step.Remainder,
+        Facing = WorldDirections.Between(unit.Position, step.Position) ?? unit.Facing,
         Lookahead = step.Navigation.Lookahead,
         Waypoint = step.WaypointReached ? null : unit.Waypoint
     };

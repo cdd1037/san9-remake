@@ -183,7 +183,7 @@ internal sealed partial class OriginalAiMilitary
         if (people.Length == 0 || Basic([people[0]]) is not { } pair || !rules.TryPlace(source, out var origin)) return null;
         var travel = rules.Travel(pair.Land, pair.Naval);
         paths++;
-        var path = travel.Map.FindRouteIntoRange(origin.Position, rules.SettlementArea(target), travel.Shape, travel.Mode, []);
+        var path = terrainRoutes.FindRouteIntoRange(travel.Map, origin.Position, rules.SettlementArea(target), travel.Shape, travel.Mode);
         if (!path.Reachable) return null;
         regions = path.Steps.Select(rules.RegionAt).OfType<int>().Distinct().ToImmutableArray();
         foreach (var step in path.Steps)

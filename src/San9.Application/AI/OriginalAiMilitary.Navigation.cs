@@ -32,15 +32,15 @@ internal sealed partial class OriginalAiMilitary
         if (u.Waypoint is { } waypoint)
         {
             paths++;
-            var first = travel.Map.FindRoute(start, waypoint, travel.Shape, travel.Mode, []);
+            var first = terrainRoutes.FindRoute(travel.Map, start, waypoint, travel.Shape, travel.Mode);
             if (!first.Reachable) return Remember(order);
             steps.AddRange(first.Steps);
             start = waypoint;
         }
         paths++;
         var last = order.Kind == MilitaryOrderKind.Move
-            ? travel.Map.FindRoute(start, destination.Value.Position, travel.Shape, travel.Mode, [])
-            : travel.Map.FindRouteIntoRange(start, destination.Value, travel.Shape, travel.Mode, []);
+            ? terrainRoutes.FindRoute(travel.Map, start, destination.Value.Position, travel.Shape, travel.Mode)
+            : terrainRoutes.FindRouteIntoRange(travel.Map, start, destination.Value, travel.Shape, travel.Mode);
         if (!last.Reachable) return Remember(order);
         steps.AddRange(last.Steps);
         foreach (var point in steps)

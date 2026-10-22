@@ -7,7 +7,8 @@ namespace San9.Application.AI;
 
 /// <summary>One military work owns its candidates and forecasts. Only public commands change the world.</summary>
 internal sealed partial class OriginalAiMilitary(SimulationEngine engine, ScenarioInitialState content,
-    MilitaryRulebook rules, ScenarioRules scenarioRules, OriginalAiGeographyContext geographyContext, int corpsId, CommandContext context, OriginalAiRandom random, Func<GameCommand, bool> submit)
+    MilitaryRulebook rules, ScenarioRules scenarioRules, OriginalAiGeographyContext geographyContext, OriginalAiTerrainRoutes terrainRoutes,
+    int corpsId, CommandContext context, OriginalAiRandom random, Func<GameCommand, bool> submit)
 {
     private WorldSnapshot World => engine.Snapshot;
     private CorpsState Corps { get { Refresh(); return currentCorps ??= World.Corps.Single(c => c.Id == corpsId); } }

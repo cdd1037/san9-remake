@@ -59,6 +59,7 @@ public sealed partial class GameSession
             var candidate = input.Simulation.Fork();
             var originalAi = input.OriginalAi;
             List<OriginalAiWorkReport> aiReports = [];
+            var terrainRoutes = new OriginalAiTerrainRoutes();
             List<DomainEvent> events = [];
             DevelopmentOutcome? development = null;
             ChronicleEntry? note = null;
@@ -109,7 +110,7 @@ public sealed partial class GameSession
                     events.AddRange(command.Events);
                     break;
                 case EndControlOperation:
-                    originalAi = AutomaticTurnRunner.EndControl(candidate, new(request.ControllerId), events, input.Definition, originalAi, aiReports);
+                    originalAi = AutomaticTurnRunner.EndControl(candidate, new(request.ControllerId), events, input.Definition, originalAi, aiReports, terrainRoutes);
                     break;
                 case PrepareAdvanceOperation:
                 case AdvanceOperation:
@@ -123,7 +124,7 @@ public sealed partial class GameSession
                         var seat = candidate.Snapshot.Simulation.Controls[candidate.Snapshot.Simulation.ActiveControl];
                         if (request.Operation is PrepareAdvanceOperation && closedPlayer && seat.Kind == ControllerKind.Player) break;
                         closedPlayer |= seat.Kind == ControllerKind.Player;
-                        originalAi = AutomaticTurnRunner.EndControl(candidate, new(seat.ControllerId), events, input.Definition, originalAi, aiReports);
+                        originalAi = AutomaticTurnRunner.EndControl(candidate, new(seat.ControllerId), events, input.Definition, originalAi, aiReports, terrainRoutes);
                     }
                     if (request.Operation is AdvanceOperation && candidate.Snapshot.Simulation.Boundary == SimulationBoundary.Stable)
                     {
@@ -146,7 +147,7 @@ public sealed partial class GameSession
                     return Rejected(SessionRejection.InvalidRequest);
             }
             AutomaticResponseRunner.Run(candidate, events);
-            originalAi = AutomaticTurnRunner.Resume(candidate, events, input.Definition, originalAi, aiReports);
+            originalAi = AutomaticTurnRunner.Resume(candidate, events, input.Definition, originalAi, aiReports, terrainRoutes);
             var completed = events.OfType<DevelopmentCompletedEvent>().Select(e =>
                 new SessionRecord(e.Clock, e.Command.ForceId, e.Command.SettlementId, e.Command.OfficerIds[0],
                     e.Command.Activity, e.Increment, e.Cost)).ToArray();

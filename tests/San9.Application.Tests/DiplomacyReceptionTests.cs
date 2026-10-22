@@ -65,6 +65,7 @@ public sealed class DiplomacyReceptionTests
         Assert.Equal(2, draft.Introduction[^1].SpeakerId);
         Assert.Equal(role + "-host-" + (roll == 0 ? "favorable" : "unfavorable"), draft.Introduction[^1].Message.BbCode);
         Assert.Equal(draft.Meeting, draft.Introduction[^1].Diplomacy);
+        Assert.True(draft.Introduction[^1].DiplomacyDialogue);
         StateAssert.Equal(before, session.Snapshot);
         var option = draft.Options.Single(o => o.Role == (roll == 0 ? "decline" : "accept"));
         var result = session.Execute(new(draft.ControllerId), option.CreateCommand(Guid.NewGuid(), session.Snapshot.Simulation.NextSequence, null, 0));

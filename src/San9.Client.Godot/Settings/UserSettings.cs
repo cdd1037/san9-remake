@@ -14,6 +14,7 @@ public sealed record UserSettings(
 {
     public bool DuelScenesEnabled { get; init; } = true;
     public bool TacticScenesEnabled { get; init; } = true;
+    public bool DiplomacyScenesEnabled { get; init; } = true;
     public bool FullscreenEnabled { get; init; }
     public bool MouseConfined { get; init; }
     public PlaybackSpeed PlaybackSpeed { get; init; } = PlaybackSpeed.Normal;

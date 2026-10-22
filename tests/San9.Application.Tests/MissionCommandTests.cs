@@ -46,8 +46,11 @@ public sealed class MissionCommandTests
         }
         Assert.Equal(2,advice.SpeakerId);
         Assert.Null(advice.MapSpeech);
+        Assert.False(advice.DiplomacyDialogue);
 
-        Assert.Single(MissionPresentation.Departure(draft,messages,context,texts));
+        var departure = Assert.Single(MissionPresentation.Departure(draft,messages,context,texts));
+        Assert.Equal(draft.ActorId, departure.SpeakerId);
+        Assert.False(departure.DiplomacyDialogue);
     }
 
     [Theory]
@@ -405,6 +408,8 @@ public sealed class MissionCommandTests
         Assert.NotEmpty(fresh.Messages);
         var meeting = new DiplomacyMeeting(command.CommandId, 2, 2);
         Assert.Null(fresh.Messages[0].Diplomacy);
+        Assert.All(fresh.Messages.Where(m => m.SoundRole != "result-sound"), message => Assert.True(message.DiplomacyDialogue));
+        Assert.False(fresh.Messages.Single(m => m.SoundRole == "result-sound").DiplomacyDialogue);
         Assert.All(fresh.Messages.Skip(1).Where(m => m.SoundRole != "result-sound"), message =>
         {
             Assert.Equal(meeting, message.Diplomacy);

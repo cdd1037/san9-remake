@@ -19,6 +19,7 @@ public partial class DecisionView : FixedPage
     public Func<Settings.MessageSpeed> ReadMessageSpeed { get; init; } = () => Settings.MessageSpeed.Normal;
     public bool SoundEnabled { get; init; }
     public bool SkipIntroduction { get; init; }
+    public bool DiplomacyScenesEnabled { get; init; } = true;
     public Func<string,bool,IDisposable>? BeginMusic { get; init; }
     private IDisposable? _music;
     private DiplomacyScene? _meeting;
@@ -37,7 +38,7 @@ public partial class DecisionView : FixedPage
     {
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
         _sequence = Draft.Before.World.Simulation.NextSequence;
-        if (Draft.Meeting is not null)
+        if (DiplomacyScenesEnabled && Draft.Meeting is not null)
         {
             _meeting = new() { Definition = Presentation.Diplomacy ?? throw new InvalidDataException("Missing diplomacy presentation."),
                 Service = Service, View = Draft.Before, Texts = Texts };
@@ -52,6 +53,7 @@ public partial class DecisionView : FixedPage
     }
     private void Narrate(IReadOnlyList<CommandMessage> messages, Action next, bool retainMeeting = true)
     {
+        messages = DiplomacyNarration.Filter(messages, DiplomacyScenesEnabled);
         if (messages.Count == 0) { next(); return; }
         Replace(new CommandNarration
         {
@@ -274,7 +276,7 @@ public partial class DecisionView : FixedPage
     }
     private void StartDiplomacyMusic()
     {
-        if (Draft.Diplomacy is not null && _music is null)
+        if (DiplomacyScenesEnabled && Draft.Diplomacy is not null && _music is null)
             _music = BeginMusic?.Invoke("diplomacy-music", true);
     }
     public override void _GuiInput(InputEvent input) => AcceptEvent();

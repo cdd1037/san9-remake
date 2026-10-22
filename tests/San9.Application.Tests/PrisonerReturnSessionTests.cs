@@ -38,6 +38,7 @@ public sealed class PrisonerReturnSessionTests
         Assert.Equal(accept, Assert.Single(result.Events.OfType<PrisonerReturnResolvedEvent>()).Accepted);
         if (!accept) Assert.Empty(result.Events.OfType<PrisonerRecoveredEvent>());
         Assert.Null(messages[1].SpeakerId);
+        Assert.False(messages[1].DiplomacyDialogue);
     }
 
     [Fact]
@@ -72,6 +73,7 @@ public sealed class PrisonerReturnSessionTests
         Assert.Equal(22, messages[1].SpeakerId);
         Assert.Equal("Accept terms", messages[1].Message.BbCode);
         Assert.Equal("Exchange recovered", messages[^1].Message.BbCode);
+        Assert.False(messages[^1].DiplomacyDialogue);
     }
 
     internal static (TextCatalog Texts, CommandPresentation Presentation) NegotiationText(StrategySnapshot view, string role = "prisoner-return")

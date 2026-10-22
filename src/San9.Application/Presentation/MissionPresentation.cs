@@ -312,9 +312,9 @@ public static class MissionPresentation
         var meeting = new DiplomacyMeeting(task.Id, host, task.OfficerId);
         bool farewell = e is GiftResolvedEvent { Accepted: true } or SurrenderResolvedEvent { Accepted: true } or
             AttackRequestResolvedEvent { Outcome: AttackRequestOutcome.Accepted } or PrisonerReturnResolvedEvent { Accepted: true };
-        return sequence.Select((m,index) => index == 0 ? m : m with
+        return sequence.Select((m,index) => index == 0 ? m with { DiplomacyDialogue = true } : m with
         {
-            Diplomacy = meeting, DiplomacyFarewell = farewell,
+            Diplomacy = meeting, DiplomacyFarewell = farewell, DiplomacyDialogue = true,
             BackgroundMusicRole = "diplomacy-music", BackgroundMusicLoop = true
         }).ToArray();
         bool ReceivingPlayer() => before.World.Simulation.Controls.Any(c => c.ForceId == values["target-force"].Entity!.Id && c.Kind == ControllerKind.Player);

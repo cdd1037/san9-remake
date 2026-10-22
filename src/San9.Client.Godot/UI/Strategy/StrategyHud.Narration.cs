@@ -9,7 +9,8 @@ public partial class StrategyHud
 
     private void OpenNarration(IReadOnlyList<CommandMessage> messages, StrategySnapshot view, Action? completed = null)
     {
-        if (messages.Count == 0) return;
+        messages = DiplomacyNarration.Filter(messages, ReadSettings().DiplomacyScenesEnabled);
+        if (messages.Count == 0) { completed?.Invoke(); ContinueNarrations(); return; }
         if (_narration is not null || _decision is not null)
         { _pendingNarrations.Enqueue((messages,view,completed)); return; }
         _textures.RequestPrefixes("narration-", "dialog-");

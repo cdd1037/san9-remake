@@ -7,10 +7,11 @@ namespace San9.Client.Godot;
 /// <summary>Edits local presentation and recorded world rules in one dialog.</summary>
 public partial class PkSettingsView : SettingsView
 {
-    private enum Setting { TacticScenes, DuelScenes, OtherOrders, OtherTactics, BattleDeaths }
+    private enum Setting { TacticScenes, DuelScenes, DiplomacyScenes, OtherOrders, OtherTactics, BattleDeaths }
     private static readonly (string Label, Setting? Value)[] Rows =
     [
         ("兵法演出", Setting.TacticScenes), ("单挑演出", Setting.DuelScenes),
+        ("外交演出", Setting.DiplomacyScenes),
         ("他势力部队的命令", Setting.OtherOrders), ("他势力部队的兵法", Setting.OtherTactics),
         ("武将的阵亡", Setting.BattleDeaths)
     ];
@@ -45,6 +46,7 @@ public partial class PkSettingsView : SettingsView
     {
         Setting.DuelScenes => _settingsDraft.DuelScenesEnabled,
         Setting.TacticScenes => _settingsDraft.TacticScenesEnabled,
+        Setting.DiplomacyScenes => _settingsDraft.DiplomacyScenesEnabled,
         Setting.OtherOrders => _worldDraft.OtherForceOrdersVisible,
         Setting.OtherTactics => _worldDraft.OtherForceTacticsVisible,
         Setting.BattleDeaths => _worldDraft.BattleDeathsEnabled,
@@ -54,6 +56,7 @@ public partial class PkSettingsView : SettingsView
     {
         if (setting == Setting.TacticScenes) _settingsDraft = _settingsDraft with { TacticScenesEnabled = value };
         else if (setting == Setting.DuelScenes) _settingsDraft = _settingsDraft with { DuelScenesEnabled = value };
+        else if (setting == Setting.DiplomacyScenes) _settingsDraft = _settingsDraft with { DiplomacyScenesEnabled = value };
         else _worldDraft = setting switch
         {
             Setting.OtherOrders => _worldDraft with { OtherForceOrdersVisible = value },

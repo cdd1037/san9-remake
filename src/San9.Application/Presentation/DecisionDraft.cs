@@ -73,7 +73,7 @@ public sealed class DecisionDraft
         }
         Introduction = introduction.Select((definition, index) =>
         {
-            var message = Produce(definition);
+            var message = Produce(definition) with { DiplomacyDialogue = diplomacy is not null };
             return index == 0 || Meeting is null ? message : message with { Diplomacy = Meeting };
         }).ToArray();
         if (Role is "prisoner-return" or "attack-request" && diplomacy?.Offer is { } openingOffer)
@@ -113,7 +113,8 @@ public sealed class DecisionDraft
     private CommandMessage NegotiationQuote(CompensationOffer offer, WorldMessageContext context)
     {
         DiplomacyNegotiationMessages.BindOffer(_values, offer);
-        return Produce(_presentation.Shared[DiplomacyNegotiationMessages.Quote(Role, offer)], context);
+        return Produce(_presentation.Shared[DiplomacyNegotiationMessages.Quote(Role, offer)], context)
+            with { DiplomacyDialogue = true };
     }
 
     public uint AmountDefault(DecisionOption option)
@@ -201,7 +202,7 @@ public sealed class DecisionDraft
                 e is PrisonerReturnResolvedEvent { Accepted: true } prisoner && prisoner.TaskId == Meeting.TaskId);
             for (int i = 0; i < messages.Count; i++)
                 if (messages[i].SpeakerId is not null)
-                    messages[i] = messages[i] with { Diplomacy = Meeting, DiplomacyFarewell = farewell };
+                    messages[i] = messages[i] with { Diplomacy = Meeting, DiplomacyFarewell = farewell, DiplomacyDialogue = true };
         }
         if (Role == "merchant-investment" && branch == "success" && events.OfType<MerchantInvestmentResolvedEvent>().FirstOrDefault(e => e.OfficerId == actorId) is { } investment)
         {

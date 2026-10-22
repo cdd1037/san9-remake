@@ -89,6 +89,7 @@ public partial class StrategyHud
                 ContentRoot = ContentRoot,
                 SoundEnabled = SoundEnabled,
                 ReadMessageSpeed = () => ReadSettings().MessageSpeed,
+                DiplomacyScenesEnabled = ReadSettings().DiplomacyScenesEnabled,
                 Submit = Turn.Respond,
                 Finished = CloseDecision,
                 Media = SceneMedia,

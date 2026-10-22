@@ -42,6 +42,7 @@ public sealed class DiplomacyNegotiationPresentationTests
             "diplomacy-counteroffer-favorable", "diplomacy-counteroffer-unfavorable" })
             presentation.Decisions.Shared[key] = new("adviser", [], "adviser", "advice");
         var draft = DecisionDraft.Read(session, texts, presentation)!;
+        Assert.All(draft.Introduction, message => Assert.True(message.DiplomacyDialogue));
         var before = session.Snapshot;
         var terms = new DiplomacyCounterofferDraft(draft);
         var money = draft.Options.Single(o => o.Role == "money");
@@ -60,6 +61,7 @@ public sealed class DiplomacyNegotiationPresentationTests
         {
             Assert.Equal(2, draft.Introduction[^1].SpeakerId);
             Assert.Equal(draft.Meeting, draft.Introduction[^1].Diplomacy);
+            Assert.True(draft.Introduction[^1].DiplomacyDialogue);
         }
         foreach (string kind in new[] { "prisoner", "money", "treasure" })
         {
@@ -79,6 +81,7 @@ public sealed class DiplomacyNegotiationPresentationTests
                 Assert.Equal("advice", message.SoundRole);
                 Assert.Null(message.Diplomacy);
                 Assert.False(message.DiplomacyFarewell);
+                Assert.False(message.DiplomacyDialogue);
             }
             else Assert.Empty(advice);
         }
@@ -91,6 +94,7 @@ public sealed class DiplomacyNegotiationPresentationTests
         var speeches = draft.Results("decline", result.Events, null, 0).Where(m => m.SpeakerId is not null).ToArray();
         Assert.Equal(new int?[] { 1, 22 }, speeches.Select(m => m.SpeakerId));
         Assert.All(speeches, m => Assert.Equal(draft.Meeting, m.Diplomacy));
+        Assert.All(speeches, m => Assert.True(m.DiplomacyDialogue));
     }
 
     [Theory]
@@ -207,6 +211,11 @@ public sealed class DiplomacyNegotiationPresentationTests
         var output = MissionPresentation.Results(before, texts, [fact], content: messages, context: session.Messages(texts, before.World));
         Assert.Equal(roles, output.Messages.Select(m => m.Message.BbCode));
         Assert.Equal(2, output.Messages[0].SpeakerId);
-        Assert.All(output.Messages, m => { Assert.Null(m.Diplomacy); Assert.Null(m.BackgroundMusicRole); });
+        Assert.All(output.Messages, m =>
+        {
+            Assert.Null(m.Diplomacy);
+            Assert.Null(m.BackgroundMusicRole);
+            Assert.False(m.DiplomacyDialogue);
+        });
     }
 }

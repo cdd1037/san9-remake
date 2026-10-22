@@ -25,6 +25,8 @@ public sealed record PersonnelPresentationDefinition(Dictionary<string, Decision
 public sealed record CommandPresentation(Dictionary<string, string> Sounds, PatrolPresentationDefinition? Patrol)
 {
     [System.Text.Json.Serialization.JsonRequired]
+    public DiplomacyPresentationDefinition? Diplomacy { get; init; }
+    [System.Text.Json.Serialization.JsonRequired]
     public BattlePresentationDefinition? Battle { get; init; }
     [System.Text.Json.Serialization.JsonRequired]
     public MapAudioDefinition? MapAudio { get; init; }
@@ -78,6 +80,9 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
     public static CommandPresentation Empty => new([], null);
     public void Validate(TextCatalog texts, IEnumerable<int> people, IEnumerable<int> settlements)
     {
+        if (Diplomacy is null && (Missions.ContainsKey("diplomacy-greeting") ||
+            Decisions.Events.Values.Any(d => d.Window == DecisionWindowKind.Diplomacy)))
+            throw new InvalidDataException("Missing diplomacy scene definition.");
         var personIds = people.ToHashSet();
         Decisions.Validate(texts, Sounds, personIds);
         Events?.Validate(texts, Sounds, personIds);
@@ -112,7 +117,8 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
         if (Missions.Count > 0)
         {
             string[] kinds = ["alienate", "burn", "seize", "rumor", "false-report", "disorder", "inspire", "rescue", "gift", "request", "return", "surrender"];
-            string[] roles = ["actor", "ruler", "adviser", "target-person", "target-ruler", "target-adviser", "target-force", "enemy-force", "second-force", "place", "home", "force", "soldier", "defender", "corps", "year", "month", "previous-holder", "treasure"];
+            string[] roles = ["actor", "ruler", "adviser", "target-person", "target-ruler", "target-adviser", "target-force", "enemy-force", "second-force", "place", "home", "force", "soldier", "defender", "corps", "year", "month", "previous-holder", "treasure",
+                "host", "requester-ruler", "requester-force", "other", "cost", "exchange-person", "exchange-treasure", "command-name"];
             var results = kinds.Where(k => k != "seize").SelectMany(k => new[] { k+"-success",k+"-failure" })
                 .Concat(["seize-person", "seize-item", "seize-failure"]);
             if (!Missions.ContainsKey("diplomacy-unpredictable") || !Missions.ContainsKey("request-uncertain") || kinds.Select(k => k + "-start").Concat(new[] { "strategy", "gift", "request", "return", "surrender" }
@@ -122,12 +128,15 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
             string[] extra = ["corps-created", "corps-changed", "diplomacy-arrival", "diplomacy-greeting", "diplomacy-welcome",
                 "gift-proposal", "surrender-proposal", "request-proposal", "request-unowned-proposal", "return-proposal", "diplomacy-host-adviser",
                 "gift-host-favorable", "gift-host-unfavorable", "surrender-host-favorable", "surrender-host-unfavorable",
-                "gift-accepted", "gift-refused", "surrender-accepted", "surrender-refused", "surrender-actor-accepted", "surrender-actor-refused", "surrender-eliminated",
+                "gift-accepted", "gift-refused", "gift-actor-accepted", "gift-actor-refused",
+                "request-already-agreed", "request-already-agreed-actor",
+                "surrender-accepted", "surrender-refused", "surrender-actor-accepted", "surrender-actor-refused", "surrender-eliminated",
                 "false-report-action", "disorder-action", "inspire-action", "rescue-action", "burn-action", "seize-action", "seize-person-action", "seize-person-reaction", "seize-item-action", "seize-item-reaction",
                 "strategy-reaction-united", "strategy-reaction-countered", "false-report-reaction-defensive", "disorder-reaction-defensive"];
             var reactions = new[] { "false-report", "disorder", "inspire", "rescue", "burn", "seize" }
                 .SelectMany(k => new[] { k+"-reaction-success", k+"-reaction-failure" });
-            if (extra.Concat(reactions).Except(Missions.Keys).Any() || !Decisions.People.ContainsKey("soldier") ||
+            var negotiation = new[] { "attack-request", "prisoner-return" }.SelectMany(DecisionPresentations.NegotiationMessageRoles);
+            if (extra.Concat(reactions).Concat(negotiation).Except(Missions.Keys).Any() || !Decisions.People.ContainsKey("soldier") ||
                 kinds.Any(k => string.IsNullOrWhiteSpace(Missions[k+"-start"].Sound)) ||
                 !Sounds.ContainsKey("diplomacy-music") || !Sounds.ContainsKey("force-eliminated-music"))
                 throw new InvalidDataException("Incomplete mission dialogue or departure sound.");

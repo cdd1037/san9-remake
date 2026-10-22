@@ -13,6 +13,7 @@ public sealed record DiplomaticDecisionData(Guid TaskId, int RequesterForceId, i
     CompensationOffer? Offer, uint PaymentBalance, int Relation)
 {
     public GiftOffer? Gift { get; init; }
+    public GiftReceiptPreview? GiftReceipt { get; init; }
 }
 
 /// <summary>One pending transaction and its retained presentation. Message variation never consumes simulation randomness.</summary>
@@ -30,6 +31,7 @@ public sealed class DecisionDraft
     public int? PersonId { get; }
     public DecisionPerson? SubjectPerson { get; }
     public DiplomaticDecisionData? Diplomacy { get; }
+    public DiplomacyMeeting? Meeting { get; }
     private readonly Dictionary<string, MessageBinding> _values;
     private readonly TextCatalog _texts;
     private readonly WorldMessageContext _context;
@@ -48,16 +50,34 @@ public sealed class DecisionDraft
         PersonId = person;
         SubjectPerson = person is int personId ? Before.DecisionPerson(personId) : null;
         Diplomacy = diplomacy;
+        Meeting = diplomacy is null ? null : new(diplomacy.TaskId, diplomacy.TargetForceId,
+            Before.World.Simulation.Tasks.Single(t => t.Id == diplomacy.TaskId).OfficerId);
         Prompt = Produce(Definition.Prompt).Message;
         var introduction = Definition.Introduction.ToList();
         if (diplomacy is not null)
         {
-            if (!Before.World.Simulation.Controls.Any(c => c.Kind == ControllerKind.Player && c.ForceId == diplomacy.TargetForceId))
+            bool receivingPlayer = Before.World.Simulation.Controls.Any(c => c.Kind == ControllerKind.Player && c.ForceId == diplomacy.TargetForceId);
+            if (!receivingPlayer)
                 introduction[0] = _presentation.Shared["diplomacy-foreign-arrival"];
             if (role == "attack-request" && !values.ContainsKey("enemy-force")) introduction[^1] = _presentation.Shared["diplomacy-unowned-target"];
-            if (role is "attack-request" or "prisoner-return" && values.ContainsKey("adviser")) introduction.Add(_presentation.Shared["diplomacy-adviser"]);
+            if (receivingPlayer && values.ContainsKey("adviser"))
+            {
+                if (role is "attack-request" or "prisoner-return") introduction.Add(_presentation.Shared["diplomacy-adviser"]);
+                else
+                {
+                    var advice = session.GetDiplomacyReceptionAdvice(diplomacy.TaskId);
+                    if (advice.Opinion is AdviserOpinion.Favorable or AdviserOpinion.Unfavorable)
+                        introduction.Add(_presentation.Shared[role + "-host-" + (advice.Opinion == AdviserOpinion.Favorable ? "favorable" : "unfavorable")]);
+                }
+            }
         }
-        Introduction = introduction.Select(Produce).ToArray();
+        Introduction = introduction.Select((definition, index) =>
+        {
+            var message = Produce(definition);
+            return index == 0 || Meeting is null ? message : message with { Diplomacy = Meeting };
+        }).ToArray();
+        if (Role is "prisoner-return" or "attack-request" && diplomacy?.Offer is { } openingOffer)
+            Introduction = [.. Introduction, NegotiationQuote(openingOffer, _context) with { Diplomacy = Meeting }];
         List<ProducedMessage> confirmations = [];
         if (session.GetAllianceParticipationPrompt() is { } alliance)
         {
@@ -90,6 +110,12 @@ public sealed class DecisionDraft
         { IllustrationRole = illustrationPerson is null ? illustration : null, IllustrationPersonId = illustrationPerson };
     }
 
+    private CommandMessage NegotiationQuote(CompensationOffer offer, WorldMessageContext context)
+    {
+        DiplomacyNegotiationMessages.BindOffer(_values, offer);
+        return Produce(_presentation.Shared[DiplomacyNegotiationMessages.Quote(Role, offer)], context);
+    }
+
     public uint AmountDefault(DecisionOption option)
     {
         if (Diplomacy is not { Offer: null } data || Role is not ("attack-request" or "prisoner-return") ||
@@ -102,7 +128,7 @@ public sealed class DecisionDraft
     public IReadOnlyList<CommandMessage> CounterofferAdvice(DecisionOption option, int? selected, uint amount)
     {
         if (Diplomacy is not { Offer: null } data || Role is not ("attack-request" or "prisoner-return") ||
-            option.Role == "decline" || option.CreateCommand(Guid.Empty, Before.World.Simulation.NextSequence, selected, amount)
+            option.Role is not ("prisoner" or "money" or "treasure") || option.CreateCommand(Guid.Empty, Before.World.Simulation.NextSequence, selected, amount)
                 is not RespondDailyTaskCommand { Offer: { } offer }) return [];
         var advice = _session.GetCounterofferAdvice(data.TaskId, offer);
         if (advice.AdviserId is not int adviser) return [];
@@ -152,6 +178,31 @@ public sealed class DecisionDraft
         var resultContext = _session.Messages(_texts);
         CommandMessage ResultMessage(DecisionMessageDefinition definition) => Produce(definition, resultContext);
         var messages = Definition.Results.TryGetValue(branch, out var sequence) ? sequence.Select(ResultMessage).ToList() : [];
+        var prisonerResult = events.OfType<PrisonerReturnResolvedEvent>().SingleOrDefault(e => e.TaskId == Diplomacy?.TaskId);
+        var attackResult = events.OfType<AttackRequestResolvedEvent>().SingleOrDefault(e => e.TaskId == Diplomacy?.TaskId);
+        (CompensationOffer Offer, bool Accepted)? negotiationResult = prisonerResult is { } p ? (p.Offer, p.Accepted) :
+            attackResult is { Offer: { } terms } a ? (terms, a.Outcome == AttackRequestOutcome.Accepted) : null;
+        if (Role is "prisoner-return" or "attack-request")
+        {
+            List<CommandMessage> negotiation = [];
+            if (events.OfType<CompensationQuotedEvent>().SingleOrDefault(e => e.TaskId == Diplomacy?.TaskId) is { } quote)
+                negotiation.Add(NegotiationQuote(quote.Offer, resultContext));
+            if (negotiationResult is { } answer)
+            {
+                negotiation.Add(ResultMessage(_presentation.Shared[DiplomacyNegotiationMessages.Reply(Role, answer.Offer, answer.Accepted)]));
+            }
+            messages.InsertRange(0, negotiation);
+        }
+        if (Meeting is not null)
+        {
+            bool farewell = events.Any(e => e is GiftResolvedEvent { Accepted: true } gift && gift.TaskId == Meeting.TaskId ||
+                e is SurrenderResolvedEvent { Accepted: true } surrender && surrender.TaskId == Meeting.TaskId ||
+                e is AttackRequestResolvedEvent { Outcome: AttackRequestOutcome.Accepted } request && request.TaskId == Meeting.TaskId ||
+                e is PrisonerReturnResolvedEvent { Accepted: true } prisoner && prisoner.TaskId == Meeting.TaskId);
+            for (int i = 0; i < messages.Count; i++)
+                if (messages[i].SpeakerId is not null)
+                    messages[i] = messages[i] with { Diplomacy = Meeting, DiplomacyFarewell = farewell };
+        }
         if (Role == "merchant-investment" && branch == "success" && events.OfType<MerchantInvestmentResolvedEvent>().FirstOrDefault(e => e.OfficerId == actorId) is { } investment)
         {
             var changes = events.OfType<ResourceChangedEvent>().Where(e => e.Account == investment.Account && e.Resource == investment.RewardResource).ToArray();
@@ -182,7 +233,7 @@ public sealed class DecisionDraft
             }
             else if (events.OfType<AllianceFormationFailedEvent>().Any()) messages.Add(Produce(_presentation.Shared["alliance-failed"]));
         }
-        if (Diplomacy?.Offer is { Kind: CompensationKind.Prisoner, PrisonerId: int exchange } && branch == "success")
+        if ((negotiationResult?.Offer ?? Diplomacy?.Offer) is { Kind: CompensationKind.Prisoner, PrisonerId: int exchange } && branch == "success")
         {
             _values["exchange-person"] = Person(exchange); messages.Add(Produce(_presentation.Shared["diplomacy-exchanged-prisoner"]));
         }
@@ -354,7 +405,8 @@ public sealed class DecisionDraft
             if (world.Forces.Single(f => f.Id == target).AdviserId is int adviser) values["adviser"] = Person(adviser);
             uint balance = world.Corps.Single(c => c.OwnerId == requester && c.IsRoot).Treasury.Money;
             int relation = world.Relations.SingleOrDefault(r => r.FirstId == Math.Min(requester, target) && r.SecondId == Math.Max(requester, target))?.Value ?? 0;
-            diplomacy = new(task, requester, target, place, prisoner, offer, balance, relation) { Gift = gift };
+            diplomacy = new(task, requester, target, place, prisoner, offer, balance, relation)
+                { Gift = gift, GiftReceipt = gift is null ? null : session.GetGiftReceiptPreview(task) };
             if (kind is "gift" or "surrender") { Daily(task, step); return; }
             if (place is int targetPlace && world.Settlements.Single(s => s.Id == targetPlace).OwnerId is int enemy) values["enemy-force"] = Force(enemy);
             if (offer is not null) { values["cost"] = new(offer.Money); Daily(task, step); return; }

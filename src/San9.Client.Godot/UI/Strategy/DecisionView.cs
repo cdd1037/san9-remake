@@ -10,7 +10,7 @@ namespace San9.Client.Godot;
 /// <summary>Owns one prompt's navigation. Closing a child never silently answers the encounter.</summary>
 public partial class DecisionView : FixedPage
 {
-    public DecisionDraft Draft { get; init; } = null!;
+    public DecisionDraft Draft { get; set; } = null!;
     public TextureScope Textures { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
@@ -19,8 +19,9 @@ public partial class DecisionView : FixedPage
     public Func<Settings.MessageSpeed> ReadMessageSpeed { get; init; } = () => Settings.MessageSpeed.Normal;
     public bool SoundEnabled { get; init; }
     public bool SkipIntroduction { get; init; }
-    public Func<string,IDisposable>? BeginMusic { get; init; }
+    public Func<string,bool,IDisposable>? BeginMusic { get; init; }
     private IDisposable? _music;
+    private DiplomacyScene? _meeting;
     public Func<GameCommand, string, bool> Submit { get; init; } = null!;
     public Action Finished { get; init; } = null!;
     public ISceneMedia Media { get; init; } = new SilentSceneMedia();
@@ -29,12 +30,19 @@ public partial class DecisionView : FixedPage
     private DecisionOption? _answer;
     private int? _selected;
     private uint _amount;
+    private DiplomacyCounterofferDraft? _counteroffer;
     private long _sequence;
     private readonly CancellationTokenSource _lifetime = new();
     public override void _Ready()
     {
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
         _sequence = Draft.Before.World.Simulation.NextSequence;
+        if (Draft.Meeting is not null)
+        {
+            _meeting = new() { Definition = Presentation.Diplomacy ?? throw new InvalidDataException("Missing diplomacy presentation."),
+                Service = Service, View = Draft.Before, Texts = Texts };
+            AddChild(_meeting);
+        }
         Narrate(SkipIntroduction ? [] : Draft.Introduction, ShowChoices);
     }
     private void Replace(Control? child)
@@ -42,7 +50,7 @@ public partial class DecisionView : FixedPage
         if (_child is not null) { RemoveChild(_child); _child.QueueFree(); }
         _child = child; if (child is not null) AddChild(child);
     }
-    private void Narrate(IReadOnlyList<CommandMessage> messages, Action next)
+    private void Narrate(IReadOnlyList<CommandMessage> messages, Action next, bool retainMeeting = true)
     {
         if (messages.Count == 0) { next(); return; }
         Replace(new CommandNarration
@@ -55,19 +63,35 @@ public partial class DecisionView : FixedPage
             Sounds = Presentation.Sounds,
             ContentRoot = ContentRoot,
             SoundEnabled = SoundEnabled, ReadMessageSpeed = ReadMessageSpeed,
+            MeetingScene = _meeting,
+            BeginMusic = BeginMusic,
+            RetainMeeting = retainMeeting,
+            MeetingClosed = () => { _music?.Dispose(); _music = null; },
             MessagePresented = message =>
             {
-                if (message.SpeakerId is not null) StartDiplomacyMusic();
+                if (message.Diplomacy is not null) StartDiplomacyMusic();
             },
             Closed = () => { Replace(null); next(); }
         });
     }
     private void ShowChoices()
     {
+        if (_meeting is { Active: false } && Draft.Meeting is { } meeting)
+            _meeting.Present(new(Draft.Prompt, null, null) { Diplomacy = meeting });
         StartDiplomacyMusic();
         Pending = false;
-        if (Draft.Diplomacy is not null)
-        { Replace(new DiplomacyDecisionView { Draft = Draft, Textures = Textures, Service = Service, Texts = Texts, Choose = Choose }); return; }
+        if (Draft.Diplomacy is { } diplomacy)
+        {
+            if (diplomacy.Offer is null && Draft.Role is "attack-request" or "prisoner-return")
+            {
+                if (_counteroffer?.TaskId != diplomacy.TaskId) _counteroffer = new(Draft);
+            }
+            else _counteroffer = null;
+            Replace(new DiplomacyDecisionView { Draft = Draft, Textures = Textures, Service = Service, Texts = Texts,
+                Choose = Choose, Counteroffer = _counteroffer,
+                ConfirmCounteroffer = () => SubmitAnswer(_counteroffer!.Option, _counteroffer.SelectedId, _counteroffer.Amount) });
+            return;
+        }
         if (Draft.Role == "tactic-study")
         {
             var dialog = new GameDialog { Textures = Textures }; dialog.SetRichMessage(Draft.Prompt.BbCode);
@@ -139,8 +163,10 @@ public partial class DecisionView : FixedPage
     }
     private void Select(DecisionOption option)
     {
-        var selection = new CatalogSelection(option.Candidates, [], 1);
+        var selection = new CatalogSelection(option.Candidates,
+            _counteroffer?.Option.Role == option.Role && _counteroffer.SelectedId is int selected ? [selected] : [], 1);
         bool person = option.Input is DecisionInputKind.Person or DecisionInputKind.Prisoner;
+        bool treasure = option.Input == DecisionInputKind.Treasure;
         CatalogRow[] Read(int page)
         {
             if (person)
@@ -148,6 +174,9 @@ public partial class DecisionView : FixedPage
                 var table = OfficerCatalog.Read(Draft.Before, Texts, page, null, null);
                 return table.Rows.Where(r => option.Candidates.Contains(r.Key.Id)).Select(r => new CatalogRow(r.Key.Id, r.Cells)).ToArray();
             }
+            if (treasure)
+                return TreasureCatalog.Read(Draft.Before, Texts).Rows.Where(r => option.Candidates.Contains(r.Key.Id))
+                    .Select(r => new CatalogRow(r.Key.Id, r.Cells)).ToArray();
             return option.Candidates.Select(id => new CatalogRow(id, [new CatalogCell(option.Input==DecisionInputKind.Country ?
                 Texts.Resolve(Draft.Before.Information.CountryTitles.Single(t=>t.Id==id).NameKey) : Texts.Resolve(Draft.Before.Information.Treasures.Single(t=>t.Id==id).NameKey))])).ToArray();
         }
@@ -157,7 +186,7 @@ public partial class DecisionView : FixedPage
             Service = Service,
             Title = option.Title,
             HintText = option.Input == DecisionInputKind.Country ? "请选择国号。" : Draft.Prompt.BbCode,
-            Pages = person ? OfficerCatalog.Pages : [new(option.Title, [new("name", option.Title, 12, CatalogAlignment.Left)])],
+            Pages = person ? OfficerCatalog.Pages : treasure ? TreasureCatalog.Pages : [new(option.Title, [new("name", option.Title, 12, CatalogAlignment.Left)])],
             ReadRows = Read,
             Selection = selection,
             Portrait = person ? id => $"information-person-{id}" : null,
@@ -186,21 +215,14 @@ public partial class DecisionView : FixedPage
     private void Answer(DecisionOption option, int? selected, uint amount)
     {
         if (Pending) return;
-        if (option.Role == "accept" && Draft.AcceptanceConfirmations.Count > 0)
-        { ConfirmAcceptance(0, option, selected, amount); return; }
-        var advice = Draft.CounterofferAdvice(option, selected, amount);
-        if (advice.Count > 0)
+        if (_counteroffer is not null && option.Role is "free" or "prisoner" or "money" or "treasure")
         {
-            Narrate(advice, () =>
-            {
-                var confirm = new GameDialog { Textures = Textures };
-                confirm.SetRichMessage("是否向对方提出该条件？");
-                confirm.Confirmed += () => SubmitAnswer(option, selected, amount);
-                confirm.Dismissed += ShowChoices;
-                Replace(confirm); confirm.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-            });
+            _counteroffer.Select(option.Role, selected, amount);
+            Narrate(Draft.CounterofferAdvice(option, selected, amount), ShowChoices);
             return;
         }
+        if (option.Role == "accept" && Draft.AcceptanceConfirmations.Count > 0)
+        { ConfirmAcceptance(0, option, selected, amount); return; }
         SubmitAnswer(option, selected, amount);
     }
     private void ConfirmAcceptance(int index, DecisionOption option, int? selected, uint amount)
@@ -216,14 +238,22 @@ public partial class DecisionView : FixedPage
         if (!Submit(command, Draft.ControllerId)) return;
         _answer = option; _selected = selected; _amount = amount; Pending = true; Replace(null);
     }
-    public void Complete(SessionResult result)
+    public void Complete(SessionResult result, DecisionDraft? continuation = null)
     {
         if (!Pending || _answer is null) return;
-        _music?.Dispose(); _music = null;
         var messages = Draft.Results(_answer.Role, result.Events, _selected, _amount);
         if (Draft.Role == "shanyang-gong" && _answer.Role == "accept")
             Narrate([Draft.MovieIntroduction()], () => PlayRestorationMovie(messages));
-        else Narrate(messages, FinishResult);
+        else Narrate(messages, () =>
+        {
+            if (Draft.Meeting is not null && continuation?.Meeting == Draft.Meeting)
+            {
+                Draft = continuation; _sequence = Draft.Before.World.Simulation.NextSequence;
+                _answer = null; _selected = null; _amount = 0;
+                Replace(null); ShowChoices();
+            }
+            else FinishResult();
+        }, retainMeeting: Draft.Meeting is not null && continuation?.Meeting == Draft.Meeting);
     }
     private async void PlayRestorationMovie(IReadOnlyList<CommandMessage> messages)
     {
@@ -235,11 +265,17 @@ public partial class DecisionView : FixedPage
         if (_lifetime.IsCancellationRequested) return;
         Narrate(messages, FinishResult);
     }
-    private void FinishResult() { _music?.Dispose(); _music = null; Pending = false; Finished(); }
+    private void FinishResult()
+    {
+        Replace(null);
+        if (_meeting is { Active: true } meeting) meeting.Finish(Finish);
+        else Finish();
+        void Finish() { _music?.Dispose(); _music = null; Pending = false; Finished(); }
+    }
     private void StartDiplomacyMusic()
     {
         if (Draft.Diplomacy is not null && _music is null)
-            _music = BeginMusic?.Invoke("diplomacy-music");
+            _music = BeginMusic?.Invoke("diplomacy-music", true);
     }
     public override void _GuiInput(InputEvent input) => AcceptEvent();
     public override void _ExitTree() { _music?.Dispose(); _music = null; _lifetime.Cancel(); _lifetime.Dispose(); }

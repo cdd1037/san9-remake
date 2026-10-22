@@ -54,6 +54,8 @@ public sealed partial class GameSession
         _simulation.GetPrisonerReturnAdvice(forceId, officerId, targetForceId, prisonerId);
     public CommandAdvice GetGiftAdvice(int forceId, int officerId, int targetForceId, GiftOffer offer) =>
         _simulation.GetGiftAdvice(forceId, officerId, targetForceId, offer);
+    public GiftReceiptPreview? GetGiftReceiptPreview(Guid taskId) => _simulation.GetGiftReceiptPreview(taskId);
+    public CommandAdvice GetDiplomacyReceptionAdvice(Guid taskId) => _simulation.GetDiplomacyReceptionAdvice(taskId);
     public AllianceFormationCandidates GetAllianceCandidates() => _simulation.GetAllianceCandidates();
     public AllianceParticipationPrompt? GetAllianceParticipationPrompt() => _simulation.GetAllianceParticipationPrompt();
     public AttackWarning GetAttackWarning(int forceId, MilitaryOrder order) => _simulation.GetAttackWarning(forceId, order);

@@ -1,6 +1,9 @@
 using San9.Tests;
 using San9.Application.Persistence;
+using San9.Application.Presentation;
+using San9.Content.Interface;
 using San9.Content.Scenarios;
+using San9.Content.Text;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -8,6 +11,99 @@ namespace San9.Application.Tests;
 
 public sealed class PrisonerReturnSessionTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void CaptorQuotePrecedesRequesterChoiceAndEnvoyAnswersBeforeResult(bool accept)
+    {
+        var session = GameSession.Start(Content(exchange: true), 42);
+        Assert.True(session.Execute(new("player"), new ReturnPrisonerCommand(Guid.NewGuid(), 1, 0, 12, 2, 13)).Submission.Accepted);
+        session.AdvanceXun();
+        var (texts, presentation) = NegotiationText(session.View);
+        var draft = DecisionDraft.Read(session, texts, presentation)!;
+        Assert.Equal(1, draft.ForceId);
+        var quote = draft.Introduction[^1];
+        Assert.Equal(21, quote.SpeakerId);
+        Assert.Equal("Return exchange", quote.Message.BbCode);
+        Assert.Equal(draft.Meeting, quote.Diplomacy);
+        var option = draft.Options.Single(o => o.Role == (accept ? "accept" : "decline"));
+        var command = Assert.IsType<RespondDailyTaskCommand>(option.CreateCommand(Guid.NewGuid(), session.Snapshot.Simulation.NextSequence, null, 0));
+        Assert.Equal(1, command.IssuerId);
+        var result = session.Execute(new(draft.ControllerId), command);
+        Assert.True(result.Submission.Accepted);
+        var messages = draft.Results(option.Role, result.Events, null, 0);
+        Assert.Equal(12, messages[0].SpeakerId);
+        Assert.Equal(accept ? "Accept terms" : "Decline terms", messages[0].Message.BbCode);
+        Assert.Equal(draft.Meeting, messages[0].Diplomacy);
+        Assert.Equal(accept, Assert.Single(result.Events.OfType<PrisonerReturnResolvedEvent>()).Accepted);
+        if (!accept) Assert.Empty(result.Events.OfType<PrisonerRecoveredEvent>());
+        Assert.Null(messages[1].SpeakerId);
+    }
+
+    [Fact]
+    public void PlayerCaptorQuoteAndAiEnvoyAnswerRetainTheirSpeakersAndExchangeResult()
+    {
+        var session = GameSession.Start(Content(exchange: true), 42);
+        session.EndControl(new("player"));
+        Assert.True(session.Execute(new("ai:2"), new ReturnPrisonerCommand(Guid.NewGuid(), 2, 0, 22, 1, 23)).Submission.Accepted);
+        session.AdvanceXun();
+        var (texts, presentation) = NegotiationText(session.View);
+        var draft = DecisionDraft.Read(session, texts, presentation)!;
+        var counteroffer = new DiplomacyCounterofferDraft(draft);
+        Assert.Equal(CompensationKind.Free, counteroffer.Offer.Kind);
+        var before = session.Snapshot;
+        counteroffer.Select("prisoner", 13);
+        Assert.Throws<ArgumentException>(() => counteroffer.Select("prisoner", 999));
+        Assert.Equal(13, counteroffer.SelectedId);
+        counteroffer.Select("money", amount: 500);
+        Assert.Equal(500u, counteroffer.Offer.Money);
+        counteroffer.Select("free");
+        Assert.False(counteroffer.HasCondition);
+        Assert.Null(counteroffer.SelectedId);
+        counteroffer.Select("prisoner", 13);
+        Assert.Same(before, session.Snapshot);
+        var option = counteroffer.Option;
+        var result = session.Execute(new(draft.ControllerId), option.CreateCommand(Guid.NewGuid(), session.Snapshot.Simulation.NextSequence,
+            counteroffer.SelectedId, counteroffer.Amount));
+        Assert.True(result.Submission.Accepted);
+        var messages = draft.Results(option.Role, result.Events, 13, 0);
+        Assert.Equal(11, messages[0].SpeakerId);
+        Assert.Equal("Return prisoner", messages[0].Message.BbCode);
+        Assert.Equal(22, messages[1].SpeakerId);
+        Assert.Equal("Accept terms", messages[1].Message.BbCode);
+        Assert.Equal("Exchange recovered", messages[^1].Message.BbCode);
+    }
+
+    internal static (TextCatalog Texts, CommandPresentation Presentation) NegotiationText(StrategySnapshot view, string role = "prisoner-return")
+    {
+        var texts = MissionScenario.Texts(view);
+        texts.Messages["intro"] = new([new MessageLiteral("Arrival")]);
+        texts.Messages["quote"] = new([new MessageLiteral("Return "),
+            new MessageValue(new("property", "person.name", Arguments: [new("binding", "person.2")]))]);
+        texts.Messages["accept"] = new([new MessageLiteral("Accept terms")]);
+        texts.Messages["decline"] = new([new MessageLiteral("Decline terms")]);
+        texts.Messages["money-quote"] = new([new MessageLiteral("Pay "), new MessageValue(new("binding", "number.0"))]);
+        texts.Messages["other-quote"] = new([new MessageLiteral("Quoted terms")]);
+        texts.Messages["result"] = new([new MessageLiteral("Result")]);
+        texts.Messages["exchange-result"] = new([new MessageLiteral("Exchange recovered")]);
+        var shared = DecisionPresentations.NegotiationMessageRoles(role).ToDictionary(key => key, key =>
+            key.EndsWith("quote-prisoner", StringComparison.Ordinal)
+                ? new DecisionMessageDefinition("quote", new() { ["person.2"] = "exchange-person" }, "host")
+                : key.EndsWith("quote-money", StringComparison.Ordinal)
+                    ? new DecisionMessageDefinition("money-quote", new() { ["number.0"] = "cost" }, "host")
+                    : key.Contains("-quote-", StringComparison.Ordinal) ? new DecisionMessageDefinition("other-quote", [], "host")
+                    : new DecisionMessageDefinition(key.EndsWith("decline", StringComparison.Ordinal) ? "decline" : "accept", [], "actor"));
+        shared["diplomacy-foreign-arrival"] = new("intro", []);
+        shared["diplomacy-exchanged-prisoner"] = new("exchange-result", []);
+        return (texts, CommandPresentation.Empty with { Decisions = new(new()
+        {
+            [role] = new(DecisionWindowKind.Diplomacy, new("intro", []), [new("intro", [])],
+                new() { ["success"] = [new("result", [])], ["failure"] = [new("result", [])] },
+                new() { ["accept"] = "Accept", ["decline"] = "Decline", ["free"] = "Free", ["money"] = "Money",
+                    ["prisoner"] = "Prisoner", ["treasure"] = "Treasure" })
+        }, []) { Shared = shared } });
+    }
+
     private static ScenarioInitialState Content(int relation = 0, bool exchange = false) => new(
         ScenarioInitialState.CurrentSchemaVersion, "prisoner-diplomacy", 190, 1, 1, 1,
         [new(1, "first", 1, 100) { LeaderId = 11, BaseTrust = 100 },

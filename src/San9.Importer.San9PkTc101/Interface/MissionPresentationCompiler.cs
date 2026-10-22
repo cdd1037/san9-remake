@@ -7,7 +7,7 @@ internal static class MissionPresentationCompiler
 {
     internal static Dictionary<string, DecisionMessageDefinition> Compile()
     {
-        Dictionary<string, DecisionMessageDefinition> messages = [];
+        var messages = DiplomacyConversationCompiler.Compile();
         void Add(string role,int source,string? speaker,params (string Slot,string Role)[] bindings) =>
             messages.Add(role,new($"messages.{source}",bindings.ToDictionary(p => p.Slot,p => p.Role),speaker));
         (string,string)[] pair = [("person.0","actor"),("person.1","ruler")];
@@ -55,6 +55,8 @@ internal static class MissionPresentationCompiler
         Add("gift-failure",6595,null,("force.0","force"),("force.1","target-force"));
         Add("request-success",6486,null,("force.0","target-force"),("building.0","place"));
         Add("request-failure",6488,null,("force.0","target-force"),("building.0","place"));
+        Add("request-already-agreed",7411,null,("person.0","actor"),("building.0","home"),("string.0","command-name"));
+        Add("request-already-agreed-actor",7408,"actor",("person.0","actor"),("building.0","place"),("force.0","target-force"));
         Add("return-success",6375,null,("person.0","target-person"));
         Add("return-failure",6558,null,("person.0","target-ruler"),("person.1","target-person"));
         Add("surrender-success",6640,null,("force.0","force"),("force.1","target-force"));
@@ -86,11 +88,6 @@ internal static class MissionPresentationCompiler
         Add("request-unowned-proposal",6411,"actor",("person.0","actor"),("person.1","target-ruler"),("building.0","place"));
         Add("return-proposal",6489,"actor",("person.0","actor"),("person.1","target-ruler"),("person.2","target-person"));
         Add("diplomacy-host-adviser",7329,"target-adviser",("person.0","target-adviser"),("person.1","target-ruler"));
-        foreach (var (role,yes,no) in new[] { ("gift",7361,7365),("surrender",7377,7381) })
-        {
-            Add(role+"-host-favorable",yes,"target-adviser",("person.0","target-adviser"),("person.1","target-ruler"));
-            Add(role+"-host-unfavorable",no,"target-adviser",("person.0","target-adviser"),("person.1","target-ruler"));
-        }
         foreach (var (role,yes,no) in new[] { ("gift",6568,6581),("surrender",6605,6618) })
         {
             foreach (var (suffix,key) in new[] { ("accepted",yes),("refused",no) })

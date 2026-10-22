@@ -19,6 +19,13 @@ public partial class CommandNarration : FixedPage
     public TextCatalog Texts { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;
+    public San9.Content.Interface.DiplomacyPresentationDefinition? DiplomacyPresentation { get; init; }
+    public DiplomacyScene? MeetingScene { get; init; }
+    public bool RetainMeeting { get; init; }
+    public Action? MeetingClosed { get; init; }
+    private DiplomacyScene? _ownedMeeting;
+    private DiplomacyScene? Meeting => MeetingScene ?? _ownedMeeting;
+    private bool _leavingMeeting;
     public IReadOnlyDictionary<string,string> Sounds { get; init; } = null!;
     public string ContentRoot { get; init; } = "";
     public bool SoundEnabled { get; init; } = true;
@@ -66,12 +73,34 @@ public partial class CommandNarration : FixedPage
     }
     private void Present()
     {
+        if (!RetainMeeting && Messages[_index].Diplomacy is null && Meeting is { Active: true } active)
+        {
+            _leavingMeeting = true;
+            if (_body is not null) _body.Visible = false;
+            active.Finish(() => { _leavingMeeting = false; MeetingClosed?.Invoke(); Present(); });
+            QueueRedraw(); return;
+        }
         if (_body is not null) { RemoveChild(_body); _body.QueueFree(); }
         _illustration?.Dispose(); _illustration=null; _imageFrameBounds=null;
         _portrait = null;
         _image = null; _imageElapsed = 0;
-        _body = new Control { MouseFilter = MouseFilterEnum.Ignore }; AddChild(_body);
         var entry = Messages[_index];
+        // Diplomacy anchors the shared portrait frame at y=480 rather than the ordinary y=260.
+        // Move its complete body so the portrait, labels, text and continuation keep one origin.
+        _body = new Control { MouseFilter = MouseFilterEnum.Ignore,
+            Position = HasPerson && entry.Diplomacy is not null ? new(0, 480 - 260) : Vector2.Zero };
+        AddChild(_body);
+        if (entry.Diplomacy is not null)
+        {
+            if (Meeting is null)
+            {
+                _ownedMeeting = new() { Definition = DiplomacyPresentation ?? throw new InvalidDataException("Missing diplomacy presentation."),
+                    Service = Service, View = View, Texts = Texts, ShowBehindParent = true };
+                AddChild(_ownedMeeting);
+            }
+            Meeting!.Present(entry);
+            _body.Visible = Meeting.IsReady;
+        }
         if (_musicRole != entry.BackgroundMusicRole || _musicLoop != entry.BackgroundMusicLoop)
         {
             _music?.Dispose(); _music = null; _musicRole = entry.BackgroundMusicRole; _musicLoop = entry.BackgroundMusicLoop;
@@ -167,6 +196,9 @@ public partial class CommandNarration : FixedPage
     private async void Next()
     {
         if (_moviePending) return;
+        if (_leavingMeeting) { Meeting?.SkipAnimation(); return; }
+        if (Meeting is { Active: true, IsReady: false } meeting)
+        { meeting.SkipAnimation(); return; }
         if(_illustration is { IsReady:false }) return;
         _pageTimer.Reset();
         if (IsMapSpeech) DismissMapSpeech?.Invoke(Messages[_index].MapSpeech!);
@@ -183,6 +215,16 @@ public partial class CommandNarration : FixedPage
             finally { _moviePending = false; }
             if (_lifetime.IsCancellationRequested) return;
         }
+        if (!RetainMeeting && Meeting is { Active: true } active &&
+            (_index + 1 == Messages.Count || Messages[_index + 1].Diplomacy != Messages[_index].Diplomacy))
+        {
+            _leavingMeeting = true; _body!.Visible = false; QueueRedraw();
+            active.Finish(() => { _leavingMeeting = false; MeetingClosed?.Invoke(); AdvanceMessage(); });
+        }
+        else AdvanceMessage();
+    }
+    private void AdvanceMessage()
+    {
         if (++_index == Messages.Count) { _index--; Closed(); return; }
         Present();
     }
@@ -207,6 +249,13 @@ public partial class CommandNarration : FixedPage
     }
     public override void _Process(double delta)
     {
+        if (_leavingMeeting) return;
+        if (Messages[_index].Diplomacy is not null && Meeting is { } meeting)
+        {
+            if (_body is not null) _body.Visible = meeting.IsReady;
+            QueueRedraw();
+            if (!meeting.IsReady) return;
+        }
         if (IsMapSpeech)
         {
             if (IsMapSpeechComplete?.Invoke(Messages[_index].MapSpeech!) == true) Next();
@@ -221,11 +270,11 @@ public partial class CommandNarration : FixedPage
         int frame = (int)(_elapsed / ContinuationFrameSeconds);
         if (frame != _frame) { _frame = frame; UpdateContinuation(); }
         if (_pageTimer.Advance(delta, ReadMessageSpeed(), IsVisibleInTree() && Textures.IsReady &&
-            _illustration is not { IsReady: false } && _portrait is not { IsResourceReady: false } && _musicRole is null)) Next();
+            _illustration is not { IsReady: false } && _portrait is not { IsResourceReady: false } && (_musicRole is null || _musicLoop))) Next();
     }
     public override void _Draw()
     {
-        if (IsMapSpeech) return;
+        if (IsMapSpeech || _leavingMeeting || _body is { Visible: false }) return;
         if (!HasPerson) DrawStyleBox(_resultFrame,_resultFrameBounds);
         if (_imageFrameBounds is { } image) DrawImageFrame(image);
     }

@@ -23,9 +23,19 @@ public sealed record DecisionPresentations(Dictionary<string, DecisionPresentati
     public Dictionary<string, DecisionMessageDefinition> Shared { get; init; } = [];
     public static DecisionPresentations Empty => new([], []);
 
+    public static IEnumerable<string> NegotiationMessageRoles(string role) =>
+        new[] { "quote-free", "quote-prisoner", "quote-money", "quote-treasure", "quote-refuse", "thanks", "accept", "decline", "refused" }
+            .Select(suffix => role + "-" + suffix);
+
     public void Validate(TextCatalog texts, IReadOnlyDictionary<string, string> sounds, IEnumerable<int> people)
     {
         var ids = people.ToHashSet();
+        foreach (string role in new[] { "prisoner-return", "attack-request" })
+            if (Events.ContainsKey(role) && NegotiationMessageRoles(role).Except(Shared.Keys).Any())
+                throw new InvalidDataException($"Incomplete negotiation messages: {role}.");
+        foreach (string role in new[] { "gift", "surrender" })
+            if (Events.ContainsKey(role) && new[] { role + "-host-favorable", role + "-host-unfavorable" }.Except(Shared.Keys).Any())
+                throw new InvalidDataException($"Incomplete reception messages: {role}.");
         if (People.Any(p => string.IsNullOrWhiteSpace(p.Key) || !ids.Contains(p.Value)))
             throw new InvalidDataException("Invalid decision speaker.");
         if (Subjects.Any(p => string.IsNullOrWhiteSpace(p.Key) || string.IsNullOrWhiteSpace(p.Value)))

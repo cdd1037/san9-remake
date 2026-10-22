@@ -87,7 +87,8 @@ public static class MissionPresentation
                 GiftResolvedEvent g => (null, g.TaskId, g.Clock, g.Accepted ? "gift-success" : "gift-failure"),
                 AttackRequestResolvedEvent a => (null, a.TaskId, a.Clock, a.Outcome switch
                 {
-                    AttackRequestOutcome.Accepted => "request-success", AttackRequestOutcome.Refused => "request-failure", _ => null
+                    AttackRequestOutcome.Accepted => "request-success", AttackRequestOutcome.Refused => "request-failure",
+                    AttackRequestOutcome.AlreadyAgreed => "request-already-agreed", _ => null
                 }),
                 PrisonerReturnResolvedEvent p => (null, p.TaskId, p.Clock, p.Accepted ? "return-success" : "return-failure"),
                 SurrenderResolvedEvent s => (null, s.TaskId, s.Clock, s.Accepted ? "surrender-success" : "surrender-failure"),
@@ -101,6 +102,8 @@ public static class MissionPresentation
             bool narrated = alreadyPresented?.Contains(task.Id) == true && e is not TaskCancelledEvent;
             var occurrence = context?.AtOccurrence(clock);
             var values = content is { Count: > 0 } && occurrence is not null ? ResultValues(e,task,before) : null;
+            if (values is not null && e is AttackRequestResolvedEvent { Outcome: AttackRequestOutcome.AlreadyAgreed })
+                values["command-name"] = new(0, CommandText.Resolve(texts, "title.request"));
             var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision, $"mission:{task.Id}:{clock.DayNumber}"));
             int Pick(int count) => (int)(random.NextUInt64() % (ulong)count);
             // Resolve the record first so dialogue suppression cannot change its random text selection.
@@ -155,7 +158,8 @@ public static class MissionPresentation
             records.Add(new(ResultIdentity(before, task, e, "record"), message, ResultLocation(e,before), MapRecordColors.Resolve(before, before, task.ForceId)));
             if (narrated || values is null || content is null || occurrence is null) continue;
             messages.AddRange(OutcomeDialogue(e, task, before, content, values, occurrence, texts, speakers, Pick));
-            if (original is { SoundRole: not null } or { IllustrationRole: not null })
+            if (original is { SoundRole: not null } or { IllustrationRole: not null } ||
+                original is not null && e is AttackRequestResolvedEvent { Outcome: AttackRequestOutcome.AlreadyAgreed })
                 messages.Add(original with { Message = message });
             if (e is SurrenderResolvedEvent { Accepted: true } surrender)
             {
@@ -212,6 +216,8 @@ public static class MissionPresentation
         if (before.World.Forces.Single(f => f.Id == task.ForceId).LeaderId is int leader)
             values["ruler"] = MessageBinding.Reference(MessageEntityKind.Person, leader);
         if (person is int targetPerson) values["target-person"] = MessageBinding.Reference(MessageEntityKind.Person,targetPerson);
+        if (e is AttackRequestResolvedEvent { Outcome: AttackRequestOutcome.AlreadyAgreed })
+            values["home"] = MessageBinding.Reference(MessageEntityKind.Settlement, task.OriginSettlementId);
         if (e is UnitStrategyResolvedEvent unitResult && unitResult.Target.ServicePlaceId is int home)
             values["home"] = MessageBinding.Reference(MessageEntityKind.Settlement,home);
         if (e is SeizeResolvedEvent seized)
@@ -268,16 +274,21 @@ public static class MissionPresentation
         switch (e)
         {
             case GiftResolvedEvent gift:
-                Diplomacy("gift",gift.Accepted); break;
+                Diplomacy("gift",gift.Accepted); Add("gift-actor-" + (gift.Accepted ? "accepted" : "refused")); break;
             case SurrenderResolvedEvent surrender:
                 Diplomacy("surrender",surrender.Accepted);
                 Add("surrender-actor-"+(surrender.Accepted ? "accepted" : "refused")); break;
-            case AttackRequestResolvedEvent:
+            case AttackRequestResolvedEvent request:
+                if (request.Outcome == AttackRequestOutcome.AlreadyAgreed)
+                { Add("request-already-agreed-actor"); return sequence; }
                 Meeting(); Add(values.ContainsKey("enemy-force") ? "request-proposal" : "request-unowned-proposal");
-                if (values.ContainsKey("target-adviser")) Add("diplomacy-host-adviser"); break;
-            case PrisonerReturnResolvedEvent:
+                if (ReceivingPlayer() && values.ContainsKey("target-adviser")) Add("diplomacy-host-adviser");
+                if (request.Offer is { } terms) Negotiation("attack-request", terms, request.Outcome == AttackRequestOutcome.Accepted);
+                break;
+            case PrisonerReturnResolvedEvent prisoner:
                 Meeting(); Add("return-proposal");
-                if (values.ContainsKey("target-adviser")) Add("diplomacy-host-adviser"); break;
+                if (ReceivingPlayer() && values.ContainsKey("target-adviser")) Add("diplomacy-host-adviser");
+                Negotiation("prisoner-return", prisoner.Offer, prisoner.Accepted); break;
             case UnitStrategyResolvedEvent unit:
                 string kind = StrategyRole(unit.Strategy);
                 Add(kind+"-action");
@@ -296,13 +307,34 @@ public static class MissionPresentation
             case SeizeResolvedEvent seize when seize.Outcome is SeizeOutcomeKind.Money or SeizeOutcomeKind.Failure:
                 Add("seize-action"); Add("seize-reaction-"+(seize.Outcome == SeizeOutcomeKind.Failure ? "failure" : "success")); break;
         }
-        return e is GiftResolvedEvent or SurrenderResolvedEvent or AttackRequestResolvedEvent or PrisonerReturnResolvedEvent
-            ? sequence.Select((m,index) => index == 0 ? m : m with { BackgroundMusicRole = "diplomacy-music", BackgroundMusicLoop = true }).ToArray() : sequence;
-        void Meeting() { Add("diplomacy-arrival"); Add("diplomacy-greeting"); Add("diplomacy-welcome"); }
+        if (e is not (GiftResolvedEvent or SurrenderResolvedEvent or AttackRequestResolvedEvent or PrisonerReturnResolvedEvent)) return sequence;
+        int host = values["target-force"].Entity!.Id;
+        var meeting = new DiplomacyMeeting(task.Id, host, task.OfficerId);
+        bool farewell = e is GiftResolvedEvent { Accepted: true } or SurrenderResolvedEvent { Accepted: true } or
+            AttackRequestResolvedEvent { Outcome: AttackRequestOutcome.Accepted } or PrisonerReturnResolvedEvent { Accepted: true };
+        return sequence.Select((m,index) => index == 0 ? m : m with
+        {
+            Diplomacy = meeting, DiplomacyFarewell = farewell,
+            BackgroundMusicRole = "diplomacy-music", BackgroundMusicLoop = true
+        }).ToArray();
+        bool ReceivingPlayer() => before.World.Simulation.Controls.Any(c => c.ForceId == values["target-force"].Entity!.Id && c.Kind == ControllerKind.Player);
+        void Meeting()
+        {
+            values["host"] = values["target-ruler"]; values["requester-ruler"] = values["ruler"];
+            values["requester-force"] = values["force"];
+            if (values.TryGetValue("target-adviser", out var adviser)) values["adviser"] = adviser;
+            Add("diplomacy-arrival"); Add("diplomacy-greeting"); Add("diplomacy-welcome");
+        }
+        void Negotiation(string role, CompensationOffer offer, bool accepted)
+        {
+            if (values.TryGetValue("target-person", out var person)) values["other"] = person;
+            DiplomacyNegotiationMessages.BindOffer(values, offer);
+            Add(DiplomacyNegotiationMessages.Quote(role, offer));
+            Add(DiplomacyNegotiationMessages.Reply(role, offer, accepted));
+        }
         void Diplomacy(string kind, bool accepted)
         {
             Meeting(); Add(kind+"-proposal");
-            if (values.ContainsKey("target-adviser")) Add(kind+"-host-"+(accepted ? "favorable" : "unfavorable"));
             Add(kind+"-"+(accepted ? "accepted" : "refused"));
         }
     }

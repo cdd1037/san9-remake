@@ -45,6 +45,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
             if (!Skin.Roles.ContainsKey($"catalog-facility-{facility.Id}"))
                 throw new InvalidDataException($"Missing facility illustration: {facility.Id}");
         Presentation.Validate(Text, Scenario.Officers.Select(o => o.State.Id), Scenario.Settlements.Select(s => s.Id));
+        Presentation.Diplomacy?.Validate(images);
         foreach (string illustration in Presentation.Events?.Messages.Values.Select(m => m.Illustration)
             .OfType<string>().Where(r => r != "actor") ?? [])
             if (!Skin.Roles.ContainsKey(illustration)) throw new InvalidDataException($"Missing event illustration: {illustration}.");

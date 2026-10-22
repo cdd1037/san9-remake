@@ -104,7 +104,8 @@ public static class TextureLibraryCompiler
                     // Health bars, bodies and additive particles have separate native modes.
                     // Zoom terrain, transitions, edges, facilities and both panels also use palette alpha.
                     bool paletteAlpha = name == "G_Ikki" && (b.Image < 9 || b.Image is >= 11 and <= 18) ||
-                        name == "G_ZoomIn" && (b.Image < 58 || b.Image is 141 or 142);
+                        name == "G_ZoomIn" && (b.Image < 58 || b.Image is 141 or 142) ||
+                        name == "G_Gaikou" && b.Image >= 19;
                     return new TextureVariant(b.Image, b.Palette,
                         save($"library/{id}/variant-{b.Palette:D3}/{b.Image:D4}",
                             TextureSourcePath.Image(name, b.Image, b.Palette, !opaque, paletteAlpha, recipe.Palette),

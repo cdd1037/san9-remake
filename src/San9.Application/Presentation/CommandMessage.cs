@@ -6,6 +6,9 @@ public sealed record CommandSpeaker(string Name, string? ForceName);
 public sealed record CommandMessage(ProducedMessage Message, int? SpeakerId, string? SoundRole)
 {
     public CommandSpeaker? Speaker { get; init; }
+    /// <summary>A staged meeting speech, with actor gesture and meeting dialogue placement; local advice remains ordinary dialogue.</summary>
+    public DiplomacyMeeting? Diplomacy { get; init; }
+    public bool DiplomacyFarewell { get; init; }
     public MapSpeechMessage? MapSpeech { get; init; }
     public string? IllustrationRole { get; init; }
     public int? IllustrationPersonId { get; init; }

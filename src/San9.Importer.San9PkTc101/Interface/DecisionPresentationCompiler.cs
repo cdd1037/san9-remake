@@ -45,6 +45,7 @@ internal static class DecisionPresentationCompiler
         shared["diplomacy-counteroffer-unfavorable"] = M(7337, "adviser", inputs: [("person.0", "adviser"), ("person.1", "host")]);
         shared["diplomacy-adviser"] = M(7329, "adviser", inputs: [("person.0", "adviser"), ("person.1", "host")]);
         shared["diplomacy-exchanged-prisoner"] = M(6375, sound: increase, inputs: [("person.0", "exchange-person")]);
+        foreach (var (role, message) in DiplomacyConversationCompiler.Compile()) shared.Add(role, message);
         shared["alliance-responsibility"] = M(6070, inputs: [("force.0", "target-force")]);
         shared["alliance-request-conflict"] = M(9418, inputs: [("force.0", "conflict-force"), ("force.1", "conflict-force")]);
         shared["alliance-contact-conflict"] = M(9419);
@@ -163,22 +164,19 @@ internal static class DecisionPresentationCompiler
             };
         Add("alliance", DecisionWindowKind.Confirmation, M(9390), [], yesNo, ("decline", [M(9394)]));
         foreach (var (role, prompt, proposal, accepted, refused) in new[]
-            { ("gift", 6087, 6559, 6568, 6581), ("surrender", 6092, 6596, 6605, 6618) })
+            { ("gift", 6098, 6559, 6568, 6581), ("surrender", 6101, 6596, 6605, 6618) })
         {
             Add(role, DecisionWindowKind.Diplomacy, M(prompt),
                 [M(6351, sound: "decision-announcement", inputs: [("person.0", "host"), ("person.1", "requester-ruler")]),
                  M(6352, "actor", inputs: [("person.1", "host"), ("person.2", "requester-ruler")]),
                  M(6361, "host", inputs: [("person.0", "host"), ("person.1", "actor"), ("force.0", "target-force"), ("force.1", "requester-force")]),
                  M(proposal, "actor", inputs: [("person.0", "actor"), ("person.1", "host"), ("person.2", "requester-ruler")])],
-                [("accept", role == "gift" ? "接受" : "投降"), ("decline", "拒绝")],
-                ("accept", [M(accepted, "host", inputs: [("person.0", "host"), ("person.1", "actor"), ("force.0", "target-force"), ("force.1", "requester-force")])]),
-                ("decline", [M(refused, "host", inputs: [("person.0", "host"), ("person.1", "actor"), ("force.0", "target-force"), ("force.1", "requester-force")])]));
+                [("accept", "允诺"), ("decline", "拒绝")],
+                ("accept", [M(accepted, "host", inputs: [("person.0", "host"), ("person.1", "actor"), ("force.0", "target-force"), ("force.1", "requester-force")]),
+                    role == "gift" ? shared["gift-actor-accepted"] : M(6631, "actor", inputs: [("person.0", "actor"), ("person.1", "host")])]),
+                ("decline", [M(refused, "host", inputs: [("person.0", "host"), ("person.1", "actor"), ("force.0", "target-force"), ("force.1", "requester-force")]),
+                    role == "gift" ? shared["gift-actor-refused"] : M(6635, "actor", inputs: [("person.0", "actor"), ("person.1", "host")])]));
         }
-        events["surrender"] = events["surrender"] with
-        {
-            Results = events["surrender"].Results.ToDictionary(p => p.Key, p => p.Value.Append(
-                M(p.Key == "accept" ? 6631 : 6635, "actor", inputs: [("person.0", "actor"), ("person.1", "host")])).ToArray())
-        };
         shared["alliance-formation-image"] = M(9391, image: "decision-alliance", inputs: [("force.0", "leader-force")]);
         shared["alliance-leader-declaration"] = M(9392, "other");
         shared["alliance-leader-trust"] = M(9393, inputs: [("force.0", "leader-force")]);

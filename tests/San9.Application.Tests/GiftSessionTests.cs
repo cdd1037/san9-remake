@@ -119,8 +119,10 @@ public sealed class GiftSessionTests
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var draft = DecisionDraftTests.DiplomacyDraft(session, "gift");
         Assert.Equal("gift", draft.Role);
+        Assert.Equal(new San9.Application.Presentation.DiplomacyMeeting(pending.RemainingTaskIds[0], 1, 22), draft.Meeting);
         Assert.Equal(pending.RemainingTaskIds[0], draft.Diplomacy!.TaskId);
         Assert.Equal(new GiftOffer(kind, amount, kind == GiftKind.Treasure ? 9 : null), draft.Diplomacy.Gift);
+        Assert.Equal(session.GetGiftReceiptPreview(draft.Diplomacy.TaskId), draft.Diplomacy.GiftReceipt);
         var response = draft.Options.Single(o => o.Role == (accept ? "accept" : "decline"))
             .CreateCommand(Guid.NewGuid(), session.Snapshot.Simulation.NextSequence, null, 0);
         var result = session.Execute(new(draft.ControllerId), response);
@@ -334,4 +336,31 @@ public sealed class GiftSessionTests
         Assert.All(session.Snapshot.Simulation.Tasks, t => Assert.NotNull(t.Journey!.ReturnLeg));
         Assert.DoesNotContain(session.AdvanceXun().Events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-cancelled");
     }
+    [Theory]
+    [InlineData(GiftKind.Money)]
+    [InlineData(GiftKind.Food)]
+    public void GiftReceiptPreviewPreservesPendingStateAndMatchesSaturatedSettlement(GiftKind kind)
+    {
+        var content = Content();
+        content = content with { Information = content.Information with { Corps = content.Information.Corps
+            .Select(c => c.OwnerId == 1 ? c with { Treasury = new(999900, 999900) } : c).ToArray() } };
+        var session = GameSession.Start(content, 42);
+        session.EndControl(new("player"));
+        var command = new GiftCommand(Guid.NewGuid(), 2, 0, 22, 1, new(kind, GiftOffer.MinimumAmount(kind), null));
+        Assert.True(session.Execute(new("ai:2"), command).Submission.Accepted);
+        session.AdvanceXun();
+        var before = session.Snapshot;
+        var preview = Assert.IsType<GiftReceiptPreview>(session.GetGiftReceiptPreview(command.CommandId));
+        Assert.Equal(preview, session.GetGiftReceiptPreview(command.CommandId));
+        StateAssert.Equal(before, session.Snapshot);
+        Assert.Equal(1000000u, kind == GiftKind.Money ? preview.MoneyAfter : preview.FoodAfter);
+        var pending = session.Snapshot.Simulation.Tasks.Single(t => t.Id == command.CommandId);
+        var result = session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, pending.Id, pending.ResolutionStep, true));
+        Assert.True(result.Submission.Accepted);
+        var receipt = Assert.Single(result.Events.OfType<GiftResolvedEvent>());
+        Assert.Equal(kind == GiftKind.Money ? preview.MoneyAfter - preview.MoneyBefore : preview.FoodAfter - preview.FoodBefore, receipt.Received);
+        Assert.InRange(receipt.Received, 1u, 999u);
+    }
+
 }

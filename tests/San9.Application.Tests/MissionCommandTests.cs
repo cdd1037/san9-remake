@@ -383,7 +383,7 @@ public sealed class MissionCommandTests
         Assert.True(session.Execute(new("player"),command).Submission.Accepted);
         var before = session.View;
         string[] roles = ["diplomacy-arrival", "diplomacy-greeting", "diplomacy-welcome", "gift-proposal",
-            "gift-host-favorable", "gift-accepted", "gift-success"];
+            "gift-actor-accepted", "gift-accepted", "gift-success"];
         var texts = MissionScenario.Texts(before) with { Messages = roles.ToDictionary(role => role,
             role => new MessageDefinition([new MessageLiteral(role), new MessageRandomChoice(
                 [[new MessageLiteral("A")], [new MessageLiteral("B")]]), new MessageValue(new("query", "day"))])) };
@@ -396,6 +396,14 @@ public sealed class MissionCommandTests
         var narrated = ExecutionPublication.Read(before,before,context,texts,content,facts,new HashSet<Guid> { command.CommandId });
 
         Assert.NotEmpty(fresh.Messages);
+        var meeting = new DiplomacyMeeting(command.CommandId, 2, 2);
+        Assert.Null(fresh.Messages[0].Diplomacy);
+        Assert.All(fresh.Messages.Skip(1).Where(m => m.SoundRole != "result-sound"), message =>
+        {
+            Assert.Equal(meeting, message.Diplomacy);
+            Assert.True(message.DiplomacyFarewell);
+        });
+        Assert.Null(fresh.Messages.Single(m => m.SoundRole == "result-sound").Diplomacy);
         Assert.Contains(fresh.Messages, message => message.SoundRole == "result-sound");
         Assert.All(fresh.Messages, message => Assert.Equal(clock,message.Message.Clock));
         Assert.Empty(narrated.Messages);

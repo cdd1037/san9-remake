@@ -65,7 +65,8 @@ public static class ClientContentImporter
         var dependency = new TextureDependency(Path.GetRelativePath(output, textureRoot).Replace('\\','/'));
         var mapAudio = MapAudioCompiler.Compile(exe);
         var battle = BattlePresentationCompiler.Compile(exe, textures.Library);
-        presentation = presentation with { MapAudio = mapAudio.Definition, Battle = battle.Definition };
+        presentation = presentation with { MapAudio = mapAudio.Definition, Battle = battle.Definition,
+            Diplomacy = DiplomacyPresentationCompiler.Compile(textures.Library) };
         foreach (var source in mapAudio.Sources.Concat(MapAudioCompiler.MusicSources).Concat(battle.Sources))
             presentation.Sounds.Add(source.Role, AudioAssetCompiler.Path(AudioAssetCompiler.Resolve(audioFiles, source.File)));
         Dictionary<string, byte[]> sounds = new(StringComparer.Ordinal);

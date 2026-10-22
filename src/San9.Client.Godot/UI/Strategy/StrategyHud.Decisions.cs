@@ -67,7 +67,8 @@ public partial class StrategyHud
         if (_decision is { Pending: true } active && Turn.Publication > _decisionPublication && Turn.LastResult is { } result)
         {
             _decisionPublication = Turn.Publication;
-            active.Complete(result);
+            var continuation = active.Draft.Meeting is not null ? DecisionDraft.Read(Session, Texts, CommandPresentation) : null;
+            active.Complete(result, continuation);
         }
         if (_decision is not null || _narration is not null || Turn.Screen != TurnScreen.AwaitingDecision || Turn.IsComputing) return;
         if (_decisionRevision == Session.Snapshot.Revision) return;
@@ -92,7 +93,7 @@ public partial class StrategyHud
                 Finished = CloseDecision,
                 Media = SceneMedia,
                 SkipIntroduction = draft.Diplomacy is { } diplomacy && !_diplomacyNarrated.Add(diplomacy.TaskId),
-                BeginMusic = role => Music.Begin(role, loop: true)
+                BeginMusic = Music.Begin
             };
             OverlayHost.AddWorkflow(_decision, InteractionBlock.Orders | InteractionBlock.Continuation);
         }

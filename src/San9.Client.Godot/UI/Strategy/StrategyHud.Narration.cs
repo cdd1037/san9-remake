@@ -16,6 +16,7 @@ public partial class StrategyHud
         _narration = new() { Messages = messages, View = view, Texts = Texts, Service = Textures, Textures = _textures, ZIndex = 4,
             ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, ReadMessageSpeed = () => ReadSettings().MessageSpeed,
             BeginMusic = Music.Begin,
+            DiplomacyPresentation = CommandPresentation.Diplomacy,
             Media = SceneMedia, MoviesEnabled = () => ReadSettings().MoviesEnabled,
             MessagePresented = message =>
             {

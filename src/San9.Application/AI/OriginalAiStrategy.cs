@@ -64,9 +64,9 @@ internal static class OriginalAiStrategy
         static long Ratio(long value, long maximum) => maximum > 0 ? 100 * value / maximum : 100;
         return ((Ratio(cities.Sum(s => (long)s.Cultivation), cities.Sum(s => (long)s.MaxCultivation)) +
             Ratio(cities.Sum(s => (long)s.Commerce), cities.Sum(s => (long)s.MaxCommerce)) +
-            Ratio(cities.Sum(s => (long)s.PublicOrder), 1000)) / 3,
+            Ratio(cities.Sum(s => (long)s.PublicOrder), 1000L * cities.Length)) / 3,
             (Ratio(all.Sum(s => (long)s.Durability), all.Sum(s => (long)s.MaxDurability)) +
-                Ratio(all.Sum(s => (long)s.Morale), 100)) / 2);
+                Ratio(all.Sum(s => (long)s.Morale), 100L * all.Length)) / 2);
     }
 
     internal static OriginalAiCorpsState PrepareCorps(WorldSnapshot world, CorpsState corps, OriginalAiState state,

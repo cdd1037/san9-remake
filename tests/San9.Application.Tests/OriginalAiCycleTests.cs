@@ -253,12 +253,29 @@ public sealed class OriginalAiCycleTests
         Assert.Equal(255, OriginalAiWorkGate.Attempts(recruitment, true, OriginalAiGroup.Unassigned));
     }
 
-    [Fact]
-    public void ReadinessKeepsFixedPublicOrderAndMoraleDenominators()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void ReadinessDoesNotIncreaseWithIdenticalPlaces(int count)
     {
-        var places = new[] { new SettlementState(1, 1, 0, 100, 100, 100, 1000, 100, 100, 100, 100),
-            new SettlementState(2, 1, 0, 100, 100, 100, 1000, 100, 100, 100, 100) };
-        Assert.Equal((133L, 150L), OriginalAiStrategy.Readiness(places));
+        var places = Enumerable.Range(1, count).Select(id =>
+            new SettlementState(id, 1, 0, 40, 100, 40, 400, 40, 100, 40, 100));
+        Assert.Equal((40L, 40L), OriginalAiStrategy.Readiness(places));
+    }
+
+    [Fact]
+    public void ReadinessUsesSeparateScopesAndTotalCapacityWeights()
+    {
+        SettlementState[] places =
+        [
+            new(1, 1, 0, 20, 100, 20, 100, 50, 100, 20, 100),
+            new(2, 1, 0, 180, 300, 80, 900, 150, 300, 180, 300),
+            new(3, 1, 0, 800, 1600, 50, 0, 0, 1000, 0, 1000) { Kind = SettlementKind.Facility }
+        ];
+        Assert.Equal((50L, 50L), OriginalAiStrategy.Readiness(places));
+        Assert.Equal((100L, 50L), OriginalAiStrategy.Readiness([places[2]]));
+        Assert.Equal((100L, 100L), OriginalAiStrategy.Readiness([]));
     }
 
     [Theory]
@@ -275,11 +292,43 @@ public sealed class OriginalAiCycleTests
                 Cultivation = economic, MaxCultivation = 100, PublicOrder = economic * 10, Durability = military, MaxDurability = 100, Morale = military } : s).ToArray(),
             Information = content.Information with { Relations = [new(1, 2, 100)] } };
         var session = GameSession.Start(content, 190);
+        foreach (int count in new[] { 1, 3 })
+        {
+            var world = session.Snapshot;
+            var home = world.Settlements.Single(s => s.Id == 1);
+            world = world with { Settlements = [.. world.Settlements,
+                .. Enumerable.Range(3, count - 1).Select(id => home with { Id = id })] };
+            var state = OriginalAiStrategy.PrepareGlobal(world, session.OriginalAi);
+            var result = OriginalAiStrategy.PrepareCorps(world, world.Corps.Single(c => c.OwnerId == 1), state,
+                new(content, null, world), new(new StableRandom(42)));
+            Assert.Equal(expected, result.Mode);
+        }
+    }
+
+    [Theory]
+    [InlineData(OriginalAiMode.Domestic, 49, 1)]
+    [InlineData(OriginalAiMode.Domestic, 50, 1)]
+    [InlineData(OriginalAiMode.Domestic, 51, 0)]
+    [InlineData(OriginalAiMode.MilitaryPreparation, 49, 1)]
+    [InlineData(OriginalAiMode.MilitaryPreparation, 50, 1)]
+    [InlineData(OriginalAiMode.MilitaryPreparation, 51, 0)]
+    public void MultiPlaceRetainedModeUsesNormalizedReadinessBeforeUpdateDraw(OriginalAiMode mode, int readiness, int expectedDraws)
+    {
+        var content = G01ScenarioTests.Fixture();
+        var session = GameSession.Start(content, 190);
         var world = session.Snapshot;
-        var state = OriginalAiStrategy.PrepareGlobal(world, session.OriginalAi);
-        var result = OriginalAiStrategy.PrepareCorps(world, world.Corps.Single(c => c.OwnerId == 1), state,
-            new(content, null, world), new(new StableRandom(42)));
-        Assert.Equal(expected, result.Mode);
+        var home = world.Settlements.Single(s => s.Id == 1) with
+        {
+            Commerce = readiness, MaxCommerce = 100, Cultivation = readiness, MaxCultivation = 100,
+            PublicOrder = readiness * 10, Durability = readiness, MaxDurability = 100, Morale = readiness
+        };
+        world = world with { Settlements = [.. world.Settlements.Where(s => s.Id != 1), home, home with { Id = 3 }] };
+        var state = session.OriginalAi with { Corps = [new(1, mode, null, null)] };
+        int draws = 0;
+        var result = OriginalAiStrategy.PrepareCorps(world, world.Corps.Single(c => c.Id == 1), state,
+            new(content, null, world), new OriginalAiRandom(maximum => { Assert.Equal(100, maximum); draws++; return 8; }));
+        Assert.Equal(expectedDraws, draws);
+        Assert.Equal(expectedDraws > 0 ? mode : OriginalAiMode.NoFrontier, result.Mode);
     }
 
     [Fact]

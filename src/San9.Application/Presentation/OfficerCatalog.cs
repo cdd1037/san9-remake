@@ -29,6 +29,7 @@ public static class OfficerCatalog
         var people = view.World.Officers.ToDictionary(o => o.Id);
         var forces = view.World.Forces.ToDictionary(f => f.Id);
         var offices = view.Information.Offices.ToDictionary(o => o.Id);
+        var ranks = view.Information.Ranks.ToDictionary(r => r.Id);
         var corps = view.World.Corps.ToDictionary(c => c.Id);
         var units = view.World.Units.ToDictionary(u => u.Id);
         var commands = page == 2 ? new OfficerCommands(view, texts) : null;
@@ -46,6 +47,14 @@ public static class OfficerCatalog
                 var command = commands?.Read(person);
                 var owner = o.OwnerId is int forceId ? forces.GetValueOrDefault(forceId) : null;
                 var office = person.OfficeId is int officeId ? offices.GetValueOrDefault(officeId) : null;
+                bool ruler = person.Status == OfficerStatus.Ruler;
+                CatalogCell Office() => person.Status switch
+                {
+                    OfficerStatus.Ruler => new("—", long.MaxValue),
+                    OfficerStatus.Captive => new("—", -2),
+                    OfficerStatus.Free => new("—", -3),
+                    _ => new(office is null ? "" : texts.Resolve(office.NameKey), office?.GovernorPriority ?? -1)
+                };
                 var treasures = treasuresByHolder[o.Id].ToArray();
                 var tactics = page == 0 || page >= 4 ? TacticAvailability.ForOfficer(person, owner, treasures, treasureRules) : null;
                 CatalogCell Commander()
@@ -98,10 +107,14 @@ public static class OfficerCatalog
                         // A ruler's dash has a highest-value sort key, not unavailable-value ordering.
                         "loyalty" => o.Status == OfficerStatus.Ruler ? new("—", long.MaxValue)
                             : owner is not null ? person.Loyalty : CatalogCell.Unavailable,
-                        "office" => new(office is null ? "无" : texts.Resolve(office.NameKey), office?.GovernorPriority ?? -1),
-                        "capacity" => office is null ? CatalogCell.Unavailable : (long)office.CommandCapacity,
-                        "salary" => office is null ? CatalogCell.Unavailable : office.Salary,
-                        "service" => o.IsServing && person.StatusStartYear is int year ? view.Year - year + 1 : CatalogCell.Unavailable,
+                        "office" => Office(),
+                        "capacity" => person.IsServing ? (long)CommanderCapacity.Read(ruler,
+                            owner?.RankId is int rankId ? ranks.GetValueOrDefault(rankId)?.CommandCapacity : null,
+                            office?.CommandCapacity) : CatalogCell.Unavailable,
+                        "salary" => ruler ? new("—", long.MaxValue)
+                            : person.IsServing ? office?.Salary ?? 1 : CatalogCell.Unavailable,
+                        "service" => ruler ? new("—", long.MaxValue)
+                            : o.IsServing && person.StatusStartYear is int year ? view.Year - year + 1 : CatalogCell.Unavailable,
                         "parent" => person.ParentId is null ? "" : Person(person.ParentId),
                         "age" => person.BirthYear > 0 ? view.Year - person.BirthYear + 1 : CatalogCell.Unavailable,
                         "gender" => person.IsFemale ? "女" : "男",

@@ -12,8 +12,9 @@ public sealed class MissionDraft
     private readonly GameSession session;
     private readonly Guid commandId = Guid.NewGuid();
     private readonly Lazy<ImmutableHashSet<int>> inspiration;
+    private readonly GiftOffer? availableGift;
     // Eligibility depends on the frozen revision and these inputs; stale drafts never consult this cache.
-    private readonly Dictionary<(int Actor, int Target, int? Second, GiftOffer Gift), CommandRejection> eligibility = [];
+    private readonly Dictionary<(int Actor, int Target, int? Second, GiftOffer? Gift), CommandRejection> eligibility = [];
     public StrategySnapshot View { get; }
     public SettlementState Home { get; }
     public string Kind { get; }
@@ -39,7 +40,7 @@ public sealed class MissionDraft
         View.RegionAt(View.World.Units.Single(u => u.Id == id).Position) : null;
     public ImmutableArray<int> Prisoners => Kind == "return" ? Targets.SelectMany(force => RawSecondary(force)
         .Where(person => EligibilityFor(ActorId!.Value, force, person) == CommandRejection.None)).Distinct().Order().ToImmutableArray() : [];
-    public GiftOffer Gift { get; private set; } = new(GiftKind.Money, 1000, null);
+    public GiftOffer? Gift { get; private set; }
     public MissionTargetKind TargetKind => Kind switch
     {
         "alienate" => MissionTargetKind.Officer, "burn" or "seize" => MissionTargetKind.Settlement,
@@ -73,9 +74,10 @@ public sealed class MissionDraft
         ActorId = Actors.IsEmpty ? null : Actors[0];
         if (Kind != "gift") return;
         var root = View.World.Corps.Single(c => c.OwnerId == View.RequirePlayerForce() && c.IsRoot);
-        if (root.Treasury.Money > 0) Gift = new(GiftKind.Money, Math.Min(1000, root.Treasury.Money), null);
-        else if (root.Treasury.Food > 0) Gift = new(GiftKind.Food, Math.Min(1000, root.Treasury.Food), null);
-        else if (!Treasures.IsEmpty) Gift = new(GiftKind.Treasure, 0, Treasures[0]);
+        // Candidate and journey queries need an affordable offer, but do not select a gift for the player.
+        if (root.Treasury.Money > 0) availableGift = new(GiftKind.Money, 1, null);
+        else if (root.Treasury.Food > 0) availableGift = new(GiftKind.Food, 1, null);
+        else if (!Treasures.IsEmpty) availableGift = new(GiftKind.Treasure, 0, Treasures[0]);
     }
 
     private UnitStrategyKind UnitKind => Kind switch
@@ -114,6 +116,7 @@ public sealed class MissionDraft
     private CommandRejection EligibilityFor(int actor, int target, int? second)
     {
         if (!CanPrepare) return CommandRejection.NotStable;
+        if (Kind == "gift" && Gift is null && availableGift is null) return CommandRejection.InvalidTask;
         var key = (actor,target,second,Gift);
         if (!eligibility.TryGetValue(key,out var rejection))
         {
@@ -131,7 +134,7 @@ public sealed class MissionDraft
             "burn" => session.GetBurnAdvice(force, actor, target),
             "seize" => session.GetSeizeAdvice(force, actor, target),
             "rumor" => session.GetGossipAdvice(force, actor, target, second!.Value),
-            "gift" => session.GetGiftAdvice(force, actor, target, Gift),
+            "gift" => session.GetGiftAdvice(force, actor, target, Gift!),
             "request" => session.GetAttackRequestAdvice(force, actor, target, second!.Value),
             "return" => session.GetPrisonerReturnAdvice(force, actor, target, second!.Value),
             "surrender" => session.GetSurrenderAdvice(force, actor, target),
@@ -139,11 +142,29 @@ public sealed class MissionDraft
         };
     }
     public CommandAdvice? Advice => CanPrepare && Complete ? AdviceFor(ActorId!.Value, TargetId!.Value, SecondaryId) : null;
-    public CommandPreparationPreview Preview => !CanPrepare ? new(CommandRejection.NotStable, null, null) : !Complete ?
-        new(CommandRejection.InvalidTask, null, null) : session.GetMissionPreparation(new("player"), CreateCommand());
-    public CommandRejection Rejection => Preview.Rejection;
-    private bool Complete => ActorId is not null && TargetId is not null &&
+    public CommandPreparationPreview Preview
+    {
+        get
+        {
+            if (!CanPrepare) return new(CommandRejection.NotStable, null, null);
+            if (ActorId is not int actor || TargetId is not int target || Kind == "gift" && Gift is null && availableGift is null)
+                return new(CommandRejection.InvalidTask, null, null);
+            int? second = SecondaryId;
+            // A request travels to the receiving ruler regardless of which facility is later selected.
+            // Preview an eligible completion without selecting it or enabling submission/advice.
+            if (Kind == "request" && second is null)
+            {
+                var targets = SecondaryTargets;
+                if (!targets.IsEmpty) second = targets[0];
+            }
+            return NeedsSecondary && second is null ? new(CommandRejection.InvalidTask, null, null) :
+                session.GetMissionPreparation(new("player"), CommandFor(actor, target, second));
+        }
+    }
+    public CommandRejection Rejection => CanPrepare && !Complete ? CommandRejection.InvalidTask : Preview.Rejection;
+    private bool TargetsComplete => ActorId is not null && TargetId is not null &&
         (!NeedsSecondary || SecondaryId is not null);
+    private bool Complete => TargetsComplete && (Kind != "gift" || Gift is not null);
     public bool CanExecute => Rejection == CommandRejection.None;
     public bool SetActor(int id)
     {
@@ -157,7 +178,11 @@ public sealed class MissionDraft
     {
         if (!(secondary ? SecondaryTargets : Targets).Contains(id)) return false;
         if (secondary) SecondaryId = id;
-        else { TargetId = id; SecondaryId = null; }
+        else
+        {
+            TargetId = id;
+            if (Kind != "request" || SecondaryId is int current && !SecondaryTargets.Contains(current)) SecondaryId = null;
+        }
         return true;
     }
     public bool SetGift(GiftOffer offer)
@@ -200,7 +225,7 @@ public sealed class MissionDraft
             "burn" => new BurnCommand(commandId, force, sequence, actor, target),
             "seize" => new SeizeCommand(commandId, force, sequence, actor, target),
             "rumor" => new GossipCommand(commandId, force, sequence, actor, target, second!.Value),
-            "gift" => new GiftCommand(commandId, force, sequence, actor, target, Gift),
+            "gift" => new GiftCommand(commandId, force, sequence, actor, target, Gift ?? availableGift!),
             "request" => new RequestAttackCommand(commandId, force, sequence, actor, target, second!.Value),
             "return" => new ReturnPrisonerCommand(commandId, force, sequence, actor, target, second!.Value),
             "surrender" => new DemandSurrenderCommand(commandId, force, sequence, actor, target),

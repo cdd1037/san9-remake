@@ -28,6 +28,7 @@ public sealed class MissionCommandTests
         var draft = new MissionDraft(session,1,kind);
         Assert.True(draft.SetActor(2));
         Assert.True(draft.SetTarget(2));
+        if (kind == "gift") Assert.True(draft.SetGift(new(GiftKind.Money,1000,null)));
         if (kind == "request") Assert.True(draft.SetTarget(3,true));
         string prefix = draft.IsDiplomacy ? kind : "strategy";
         string[] roles = [prefix + "-favorable",prefix + "-unfavorable",kind + "-start", "request-uncertain"];
@@ -66,6 +67,7 @@ public sealed class MissionCommandTests
         Assert.True(draft.SetActor(2));
         Assert.Contains(target,draft.Targets);
         Assert.True(draft.SetTarget(target));
+        if (kind == "gift") Assert.True(draft.SetGift(new(GiftKind.Money,1000,null)));
         if (kind == "rumor") Assert.True(draft.SetTarget(3,true));
         if (kind == "request") Assert.True(draft.SetTarget(3,true));
         if (kind == "return") Assert.True(draft.SetPrisoner(3));
@@ -92,6 +94,32 @@ public sealed class MissionCommandTests
         Assert.NotEqual(CommandRejection.None,session.GetPreparationEligibility(new("player"),acted));
         if (!draft.IsDiplomacy)
             Assert.NotEmpty(MissionPresentation.Results(new(content,result.Snapshot),MissionScenario.Texts(new(content,result.Snapshot)),session.AdvanceXun().Events).Records);
+    }
+
+    [Fact]
+    public void AttackRequestPreviewsRecipientJourneyAndRetainsOnlyEligibleFacilitySelection()
+    {
+        var session = GameSession.Start(MissionScenario.Create(),42);
+        var before = session.Capture();
+        var draft = new MissionDraft(session,1,"request");
+        Assert.True(draft.SetActor(2));
+        Assert.True(draft.SetTarget(2));
+        var arrival = draft.Preview.Arrival;
+        Assert.NotNull(arrival);
+        Assert.Null(draft.SecondaryId);
+        Assert.Null(draft.Advice);
+        Assert.False(draft.CanExecute);
+        Assert.Throws<InvalidOperationException>(() => draft.CreateCommand());
+        Assert.True(draft.SetTarget(3,true));
+        Assert.Equal(arrival,draft.Preview.Arrival);
+        Assert.True(draft.CanExecute);
+        Assert.True(draft.SetTarget(2));
+        Assert.Equal(3,draft.SecondaryId);
+        Assert.True(draft.SetTarget(3));
+        Assert.Null(draft.SecondaryId);
+        Assert.NotNull(draft.Preview.Arrival);
+        Assert.False(draft.CanExecute);
+        Assert.Same(before,session.Capture());
     }
 
     [Fact]
@@ -192,8 +220,16 @@ public sealed class MissionCommandTests
     {
         var session = GameSession.Start(MissionScenario.Create(),42);
         var draft = new MissionDraft(session,1,"gift");
+        var before = session.Capture();
+        Assert.Null(draft.Gift);
         Assert.True(draft.SetActor(2)); Assert.True(draft.SetTarget(2));
+        Assert.NotNull(draft.Preview.Arrival);
+        Assert.Null(draft.Advice);
+        Assert.False(draft.CanExecute);
+        Assert.Throws<InvalidOperationException>(() => draft.CreateCommand());
+        Assert.Same(before,session.Capture());
         Assert.True(draft.SetGift(new(GiftKind.Food,1200,null)));
+        Assert.True(draft.CanExecute);
         var command = Assert.IsType<GiftCommand>(draft.CreateCommand());
         Assert.Equal(GiftKind.Food,command.Offer.Kind);
         Assert.Null(command.Offer.TreasureId);
@@ -229,6 +265,7 @@ public sealed class MissionCommandTests
     {
         var session = GameSession.Start(MissionScenario.Create(),42);
         var draft = new MissionDraft(session,1,"gift"); draft.SetActor(2); draft.SetTarget(2);
+        Assert.True(draft.SetGift(new(GiftKind.Money,1000,null)));
         var command = Assert.IsType<GiftCommand>(draft.CreateCommand());
         Assert.True(session.Execute(new("player"),command).Submission.Accepted);
         var before = session.View; var texts = MissionScenario.Texts(before);
@@ -253,6 +290,7 @@ public sealed class MissionCommandTests
     {
         var session = GameSession.Start(MissionScenario.Create(),42);
         var draft = new MissionDraft(session,1,"gift"); draft.SetActor(2); draft.SetTarget(2);
+        Assert.True(draft.SetGift(new(GiftKind.Money,1000,null)));
         var command = Assert.IsType<GiftCommand>(draft.CreateCommand());
         Assert.True(session.Execute(new("player"),command).Submission.Accepted);
         var before = session.View;

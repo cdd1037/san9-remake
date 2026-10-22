@@ -7,7 +7,7 @@ public partial class StrategyHud
 {
     private MissionCommandView? _mission;
     private CorpsCommandView? _corpsCommand;
-    private (int? Actor, int? Target, int? Secondary, San9.Core.Simulation.GiftOffer Gift)? _missionAdviceSelection;
+    private (int? Actor, int? Target, int? Secondary, San9.Core.Simulation.GiftOffer? Gift)? _missionAdviceSelection;
     private void OpenMission(int id, string kind)
     {
         if (CommandPresentation.Missions.Count == 0)

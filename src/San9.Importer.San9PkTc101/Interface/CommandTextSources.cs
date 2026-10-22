@@ -7,6 +7,9 @@ namespace San9.Importer.San9PkTc101.Interface;
 internal static partial class CommandTextSources
 {
     internal static readonly (string Role, int Rva)[] Labels = [
+        ("value.gift-amount", 0x20b3c8),
+        ("value.gift-amount-empty", 0x20b3d0),
+        ("label.request-period", 0x21b6a0),
         ("title.facilities", 0x21c0d0),
         ("title.military", 0x21b3ec),
         ("title.sortie", 0x21c5d8),

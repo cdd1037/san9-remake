@@ -255,5 +255,8 @@
   "value.days": 1,
   "value.exchange-rate": 1,
   "value.quantity-title": 2,
-  "value.source": 1
+  "value.gift-amount": 2,
+  "value.gift-amount-empty": 1,
+  "value.source": 1,
+  "label.request-period": 0
 }

@@ -45,13 +45,15 @@ public partial class MissionCommandView : CommandPreparationView
         Body.AddChild(window);
         string source = CommandText.Resolve(Texts, "value.source", Draft.View.Settlements.Single(p => p.Id == Draft.Home.Id).ResolveName(Texts));
         float sourceWidth = source.Sum(c => c < 128 ? 8 : 16) + 32;
-        Body.AddChild(new MissionCommandFields { Textures = Textures, Bounds = bounds, SourceWidth = sourceWidth });
+        Body.AddChild(new MissionCommandFields { Textures = Textures, Bounds = bounds, SourceWidth = sourceWidth,
+            DividerWidth = Draft.IsDiplomacy ? 416 : bounds.Size.X });
         Label(source, at, new(sourceWidth,32));
         int arrivalX = Draft.Kind switch { "alienate" or "gift" or "request" or "surrender" => 256, "rumor" => 280,
             "burn" or "return" or "seize" => 336, _ => (int)bounds.Size.X - 152 };
         int arrivalWidth = Draft.Kind is "alienate" or "burn" or "seize" or "rumor" ? 152 : 136;
         Body.AddChild(new CommandArrivalField { Textures = Textures, Position = at + new Vector2(arrivalX,0), Size = new(arrivalWidth,32),
-            Text = CommandArrivalField.FormatDays(Texts, Draft.Preview.Arrival is {} arrival ? arrival.DayNumber - Draft.View.World.Clock.DayNumber : null) });
+            Text = Draft.Kind is ("gift" or "return") && Draft.TargetId is null ? "" :
+                CommandArrivalField.FormatDays(Texts, Draft.Preview.Arrival is {} arrival ? arrival.DayNumber - Draft.View.World.Clock.DayNumber : null) });
         int actorY = Draft.Kind switch { "false-report" or "disorder" => 312, "inspire" or "rescue" => 320,
             "alienate" or "return" => 176, "seize" => 152, "burn" => 120, "rumor" => 160,
             "gift" => 88, _ => 128 };
@@ -143,6 +145,11 @@ public partial class MissionCommandView : CommandPreparationView
             Properties(at+new Vector2(360,352),new OfficerProperty(CommandText.Resolve(Texts, "label.inspiration"),Draft.ActorKnowsInspiration is null ? "" : Draft.ActorKnowsInspiration == true ? "○" : "×",32));
         }
         if (Draft.Kind == "gift") BuildGift(window,at);
+        if (Draft.Kind == "request")
+        {
+            Caption(CommandText.Resolve(Texts,"label.request-period"),at+new Vector2(0,256),new(96,32));
+            Value(CommandText.Resolve(Texts,"value.days",180),at+new Vector2(104,256),new(56,32));
+        }
         Body.AddChild(new GameMessageBar { Textures = Textures, Text = Draft.ActorId is null ? CommandText.Resolve(Texts, "failure.no-actor") :
             Texts.Resolve(CommandMenuSkin.HintKey(Draft.Kind)) });
     }
@@ -194,17 +201,19 @@ public partial class MissionCommandView : CommandPreparationView
         var root = Draft.View.World.Corps.Single(c => c.OwnerId == Draft.View.PlayerForceId && c.IsRoot);
         window.ActionButton(CommandText.Resolve(Texts, "label.money"), "edit", new(0,216,104,40), () => Number(GiftKind.Money,root.Treasury.Money));
         window.ActionButton(CommandText.Resolve(Texts, "label.food"), "edit", new(0,256,104,40), () => Number(GiftKind.Food,root.Treasury.Food));
-        window.ActionButton(CommandText.Resolve(Texts, "label.treasure"), "edit", new(0,296,104,40), () => Select(InformationCategory.Treasures,Draft.Treasures,Draft.Gift.TreasureId,
+        window.ActionButton(CommandText.Resolve(Texts, "label.treasure"), "edit", new(0,296,104,40), () => Select(InformationCategory.Treasures,Draft.Treasures,Draft.Gift?.TreasureId,
             id => { Draft.SetGift(new(GiftKind.Treasure,0,id)); Changed(); }));
-        Value(Draft.Gift.Kind == GiftKind.Money ? Draft.Gift.Amount.ToString() : "0",at+new Vector2(104,216),new(120,32));
-        Value(Draft.Gift.Kind == GiftKind.Food ? Draft.Gift.Amount.ToString() : "0",at+new Vector2(104,256),new(128,32));
-        Value(Draft.Gift.TreasureId is int item ? Texts.Resolve(Draft.View.Information.Treasures.Single(t => t.Id == item).NameKey) : CommandText.Resolve(Texts, "label.none"),at+new Vector2(104,296),new(112,32));
+        Value(Amount(GiftKind.Money,root.Treasury.Money),at+new Vector2(104,216),new(120,32));
+        Value(Amount(GiftKind.Food,root.Treasury.Food),at+new Vector2(104,256),new(128,32));
+        Value(Draft.Gift?.TreasureId is int item ? Texts.Resolve(Draft.View.Information.Treasures.Single(t => t.Id == item).NameKey) : "",at+new Vector2(104,296),new(112,32));
+        string Amount(GiftKind kind, uint available) => Draft.Gift is { } gift && gift.Kind == kind ?
+            CommandText.Resolve(Texts,"value.gift-amount",gift.Amount,available) : CommandText.Resolve(Texts,"value.gift-amount-empty",available);
     }
     private void Number(GiftKind kind,uint maximum)
     {
         if (maximum == 0) { Notice(kind == GiftKind.Money ? CommandText.Resolve(Texts, "failure.money") : CommandText.Resolve(Texts, "failure.food")); return; }
         ReplaceChild(new NumberInputDialog { Textures = Textures, Subject = kind == GiftKind.Money ? CommandText.Resolve(Texts, "gift.money") : CommandText.Resolve(Texts, "gift.food"),
-            State = new(1,Math.Min(1000000,maximum),Draft.Gift.Kind == kind ? Draft.Gift.Amount : 1),
+            State = new(1,Math.Min(1000000,maximum),Draft.Gift is { } gift && gift.Kind == kind ? gift.Amount : 1),
             Confirmed = value => { Draft.SetGift(new(kind,value,null)); Changed(); }, Closed = CloseChild });
     }
 }
@@ -214,10 +223,11 @@ internal partial class MissionCommandFields : Control
     public TextureScope Textures { get; init; } = null!;
     public Rect2 Bounds { get; init; }
     public float SourceWidth { get; init; }
+    public float DividerWidth { get; init; }
     public override void _Ready() => MouseFilter = MouseFilterEnum.Ignore;
     public override void _Draw()
     {
         CommandPanelArt.Strip(this,Textures,"deployment-facility",new(Bounds.Position,new(SourceWidth,32)));
-        SkinPainter.Tile(this,Textures.Get("deployment-divider", this),new(Bounds.Position+new Vector2(0,40),new(Bounds.Size.X,5)));
+        SkinPainter.Tile(this,Textures.Get("deployment-divider", this),new(Bounds.Position+new Vector2(0,40),new(DividerWidth,5)));
     }
 }

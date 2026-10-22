@@ -7,7 +7,7 @@ namespace San9.Application.Presentation;
 
 public sealed record EditorTarget(int Id, string Name);
 public sealed record EditorField(string Label, uint Minimum, uint Maximum, uint Value, Action<uint> Set,
-    bool Toggle = false, string? Display = null);
+    bool Toggle = false, string? Display = null, int? TacticId = null);
 
 /// <summary>Owns the uncommitted values for an entire editor visit. Navigation never writes the session.</summary>
 public sealed class WorldEditorDraft
@@ -66,7 +66,7 @@ public sealed class WorldEditorDraft
     {
         var fields = Fields(id);
         return _session.View.Information.Tactics.Where(t => WorldEditing.OfficerTactics(_session.MilitaryRules).Contains(t.Id))
-            .Select(t => (fields.Single(f => f.Label == _texts.Resolve(t.NameKey)), _session.MilitaryRules!.Tactics[t.Id].Category!.Value)).ToArray();
+            .Select(t => (fields.Single(f => f.TacticId == t.Id), _session.MilitaryRules!.Tactics[t.Id].Category!.Value)).ToArray();
     }
     public IReadOnlyList<(EditorField Field, TacticEffect Effect)> CityTacticFields(int id)
     {
@@ -74,8 +74,7 @@ public sealed class WorldEditorDraft
         var city = _session.Snapshot.Settlements.Single(s => s.Id == id);
         return WorldEditing.CityTactics(_session.MilitaryRules, city).Select(tacticId =>
         {
-            var name = _texts.Resolve(_session.View.Information.Tactics.Single(t => t.Id == tacticId).NameKey);
-            return (fields.Single(f => f.Label == "城防：" + name), _session.MilitaryRules!.Tactics[tacticId].Effect);
+            return (fields.Single(f => f.TacticId == tacticId), _session.MilitaryRules!.Tactics[tacticId].Effect);
         }).ToArray();
     }
     public IReadOnlyList<EditorTarget> Targets { get; }
@@ -147,7 +146,7 @@ public sealed class WorldEditorDraft
     {
         List<EditorField> rows = [];
         void Number<T>(string label, uint min, uint max, Func<T, uint> read, Func<T, uint, T> write,
-            bool toggle = false, string? display = null) where T : WorldEdit
+            bool toggle = false, string? display = null, int? tacticId = null) where T : WorldEdit
         {
             uint value = read((T)_edits[id]);
             rows.Add(new(label, min, max, value, value =>
@@ -157,7 +156,7 @@ public sealed class WorldEditorDraft
                 // Reuse the original record when values return to their initial state, including array fields.
                 _edits[id] = Equal(next, _initial[id]) ? _initial[id] : next;
                 _preview = null;
-            }, toggle, display));
+            }, toggle, display, tacticId));
         }
         if (_edits[id] is OfficerEdit)
         {
@@ -193,7 +192,7 @@ public sealed class WorldEditorDraft
             {
                 int tacticId = tactic.Id;
                 Number<OfficerEdit>(_texts.Resolve(tactic.NameKey), 0, 1, p => p.LearnedTactics.Contains(tacticId) ? 1u : 0u,
-                    (p, v) => p with { LearnedTactics = v != 0 ? p.LearnedTactics.Add(tacticId) : p.LearnedTactics.Remove(tacticId) }, true);
+                    (p, v) => p with { LearnedTactics = v != 0 ? p.LearnedTactics.Add(tacticId) : p.LearnedTactics.Remove(tacticId) }, true, tacticId: tacticId);
             }
         }
         else if (_edits[id] is CorpsEdit)
@@ -232,7 +231,7 @@ public sealed class WorldEditorDraft
                     Number<SettlementEdit>("城防：" + _texts.Resolve(name), 0, 1, s => s.EnabledTacticIds.Contains(tacticId) ? 1u : 0u,
                         (s, v) => s with { EnabledTacticIds = v == 0 ? Toggle(s.EnabledTacticIds, tacticId, false) :
                             s.EnabledTacticIds.Where(other => (_session.MilitaryRules.Tactics[other].Effect == TacticEffect.FacilityAttack) !=
-                                (tactic.Effect == TacticEffect.FacilityAttack)).Append(tacticId).Order().ToImmutableArray() }, true);
+                                (tactic.Effect == TacticEffect.FacilityAttack)).Append(tacticId).Order().ToImmutableArray() }, true, tacticId: tacticId);
                 }
             }
         }

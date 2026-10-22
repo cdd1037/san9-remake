@@ -26,6 +26,26 @@ public sealed class WorldEditorTests
         Assert.Equal(4, Assert.Single(draft.Operation.Edits).Id);
         Assert.Equal(before, session.Capture());
     }
+    [Fact]
+    public void TacticIdentityDoesNotDependOnTranslatedLabels()
+    {
+        var session = GameSession.Start(Fixture(), 190);
+        var texts = Texts();
+        texts.Entries["tactic"] = "武力";
+        texts.Entries["rockfall"] = "武力";
+        var officers = new WorldEditorDraft(session, WorldEditorKind.Officers, texts);
+        var field = Assert.Single(officers.OfficerTacticFields(1)).Field;
+        Assert.Equal(7000, field.TacticId);
+        field.Set(1);
+        Assert.Contains(7000, officers.Preview.World.Officers.Single(p => p.Id == 1).LearnedTactics);
+        var cities = new WorldEditorDraft(session, WorldEditorKind.Cities, texts);
+        var tactics = cities.CityTacticFields(1);
+        Assert.Equal(2, tactics.Count);
+        Assert.Equal(2, tactics.Select(t => t.Field.TacticId).Distinct().Count());
+        Assert.Single(tactics, t => t.Field.TacticId == 7001).Field.Set(1);
+        Assert.Contains(7001, cities.Preview.World.Settlements.Single(p => p.Id == 1).EnabledTacticIds);
+    }
+
     private static ScenarioInitialState Fixture()
     {
         var source = G01ScenarioTests.Fixture();

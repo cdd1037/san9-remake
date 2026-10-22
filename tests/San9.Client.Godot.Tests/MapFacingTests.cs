@@ -38,7 +38,7 @@ public sealed class MapFacingTests
             Flags = Enumerable.Range(0, 8).Select(d => new[] { new MapUnitFlagPlacement(2 + d, -84 + d, 2),
                 new MapUnitFlagPlacement(-16 + d, -93 + d, -1) }).ToArray()
         }).ToArray() };
-        var map = new MapPackage(16, "fixture", "facing", "spring", 4, 4, 13056, 6656,
+        var map = new MapPackage(MapPackage.CurrentSchemaVersion, "fixture", "facing", "spring", 4, 4, 13056, 6656,
             Enumerable.Repeat(new MapSquare(0, 1, 0, 0), 16).ToArray(), [], [], [], [], [], [], [], [], [], [], [],
             new(UnitVisualFixture.Clips.Values.ToArray(), []), []) { Units = catalog };
         var terrain = new TerrainRenderer(map, [], []);

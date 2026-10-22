@@ -51,7 +51,7 @@ public sealed class TargetOverlayGeometryTests
     [Fact]
     public void InfluenceReplacesDimmingAndCandidateFootprintsRemainClear()
     {
-        var map = new MapPackage(16, "fixture", "fixture", "spring", 3, 1, 13056, 6656,
+        var map = new MapPackage(MapPackage.CurrentSchemaVersion, "fixture", "fixture", "spring", 3, 1, 13056, 6656,
             [new(0, 1, 0, 0), new(0, 1, 0, 0), new(0, 3, 5, 0)], [], [], [], [], [], [], [], [], [], [], [], new([], []), []);
         var meshes = TargetOverlayGeometry.Meshes(map, new HashSet<MapCell> { new(0, 0), new(2, 0) },
             new HashSet<MapCell> { new(2, 0) }).ToArray();

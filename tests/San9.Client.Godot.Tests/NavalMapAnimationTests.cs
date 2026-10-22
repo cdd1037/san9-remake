@@ -64,7 +64,7 @@ public sealed class NavalMapAnimationTests
         var clips = UnitVisualFixture.Clips.Values.Concat(new[] { new MapAnimationClip("short", ["s"], 100, []),
             new MapAnimationClip("long", ["l0", "l1"], 2000, []) }).ToArray();
         ImageAsset[] assets = [new("s", "s.png", 128, 128, 4), new("l0", "l.png", 128, 128, 4)];
-        var map = new MapPackage(16, "fixture", "ship", "spring", 4, 4, 13056, 6656,
+        var map = new MapPackage(MapPackage.CurrentSchemaVersion, "fixture", "ship", "spring", 4, 4, 13056, 6656,
             Enumerable.Repeat(new MapSquare(0, 1, 0, 0), 16).ToArray(), [], assets, [], [], [], [], [], [], [], [], [], new(clips, []), [])
             { Units = catalog };
         var plan = new MapDayPlan(map, session.View, [new BattleDamageEvent(session.Snapshot.Clock, id, 100, null, 1, 0, 1, 0, 0)]);

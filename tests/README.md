@@ -72,6 +72,8 @@ Headless 默认不运行。修改 CLI 参数解析、退出码、文件产物、
 
 外交资金推荐的请求／交还、有／无军师四种接线场景集中在`DiplomacyNegotiationPresentationTests.EditingTermsUsesOrdinaryAdviceAndKeepsFormalSpeechesInTheMeeting`，同时覆盖有利上界、手动金额、取消前的草稿保留与只读查询。删除重复的`CounterofferAmountTests`；金额搜索方向、端点及溢出边界仍由`AdvisedAmountTests`负责。
 
+命令进度的同旬与跨旬倒计时合并为`ExecutionCommandsTests.JourneyCountdownMarksOnlyTheFinishingXun`的数据用例，保留三个旬首、跨年、逐日剩余时间及完成后移除覆盖。地图测试夹具引用`MapPackage.CurrentSchemaVersion`，不各自维护版本数字。
+
 后续开发默认复用现有夹具与覆盖，只为新增规则、独有边界或实际缺陷补最小回归；不逐项把实现细节写成测试，不为每个功能重复保存／回放、确定性或公共失败矩阵。验证按本次风险选择必要入口，通过即交付，不以增加测试数量作为完成标准。
 
 整旬表现采样接口退出后，删除仅约束该接口的`PresentedAdvanceTests`：整旬事务失败回滚保留在`IncrementalAdvanceTests.FailedBatchDiscardsEarlierDaysAndSessionChanges`，跨季／跨年与逐日一致性复用该类已有用例，终局拒绝由`EndingSessionTests`覆盖。待答暂停与禁止继续推进并入`DailyTaskDecisionTests.IncrementalAnswersResumeOnlyCurrentDayAndPreserveReplay`；电脑自动答复后的表现投影改由`CapturedRulerDispositionTests`通过后台逐日入口检查。采样数量和样本合并断言随接口删除，正式演出仍由客户端逐日测试覆盖。

@@ -56,7 +56,7 @@ public sealed record SessionResult(SessionDisposition Disposition, SessionReject
 public sealed record SessionSnapshot(WorldSnapshot World, ImmutableArray<SessionRecord> Records,
     ImmutableArray<ChronicleEntry> Chronicle, long NextOperationSequence)
 {
-    [JsonRequired] public ImmutableArray<ChronicleFact> History { get; init; } = [];
+    [JsonRequired] public ImmutableList<ChronicleFact> History { get; init; } = [];
     [JsonRequired] public EndingSelection? Ending { get; init; }
     [JsonRequired] public ImmutableDictionary<int, Presentation.StrategicContextState> StrategicContexts { get; init; } = ImmutableDictionary<int, Presentation.StrategicContextState>.Empty;
     [JsonRequired] public ControllerKind PlayerForceController { get; init; } = ControllerKind.Player;

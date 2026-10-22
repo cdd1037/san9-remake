@@ -8,7 +8,7 @@ namespace San9.Application;
 /// <summary>Project committed facts into independent, persistent force histories.</summary>
 internal static class ChronicleHistory
 {
-    internal static ImmutableArray<ChronicleFact> Initialize(StrategySnapshot view)
+    internal static ImmutableList<ChronicleFact> Initialize(StrategySnapshot view)
     {
         var builder = new Builder(view, view);
         foreach (var force in view.World.Forces.Where(f => !f.IsEliminated && !f.IsDormant && f.LeaderId is not null))
@@ -23,26 +23,28 @@ internal static class ChronicleHistory
             if (force.AdviserId is int adviser)
                 builder.Add(view.World.Clock, force.Id, "adviser", actor: adviser);
         }
-        return builder.Facts.ToImmutableArray();
+        return builder.Facts.ToImmutableList();
     }
 
-    internal static ImmutableArray<ChronicleFact> Append(ImmutableArray<ChronicleFact> history, IReadOnlyList<ChronicleFact> additions)
+    internal static ImmutableList<ChronicleFact> Append(ImmutableList<ChronicleFact> history, IReadOnlyList<ChronicleFact> additions)
     {
         if (additions.Count == 0) return history;
         var pending = additions.Select(f => f.ForceId).ToHashSet();
         var last = new Dictionary<int, ChronicleFact>();
-        for (int index = history.Length - 1; index >= 0 && pending.Count > 0; index--)
+        for (int index = history.Count - 1; index >= 0 && pending.Count > 0; index--)
             if (pending.Remove(history[index].ForceId)) last[history[index].ForceId] = history[index];
-        var result = history.ToBuilder();
+        // A persistent tree shares old history with pending operations and checkpoints.
+        // Duplicate-only batches retain the exact committed root.
+        ImmutableList<ChronicleFact>.Builder? result = null;
         foreach (var fact in additions)
         {
             if (last.TryGetValue(fact.ForceId, out var previous) && previous.Clock == fact.Clock && previous.Role == fact.Role &&
                 previous.ForceColorCode == fact.ForceColorCode && previous.Values.Count == fact.Values.Count && previous.TextKeys.Count == fact.TextKeys.Count &&
                 previous.Values.All(p => fact.Values.TryGetValue(p.Key, out var value) && value == p.Value) &&
                 previous.TextKeys.All(p => fact.TextKeys.TryGetValue(p.Key, out var value) && value == p.Value)) continue;
-            result.Add(fact); last[fact.ForceId] = fact;
+            (result ??= history.ToBuilder()).Add(fact); last[fact.ForceId] = fact;
         }
-        return result.ToImmutable();
+        return result?.ToImmutable() ?? history;
     }
 
     internal static IReadOnlyList<ChronicleFact> Read(StrategySnapshot before, StrategySnapshot after, IReadOnlyList<DomainEvent> events, TerminalDefinition? terminal = null)

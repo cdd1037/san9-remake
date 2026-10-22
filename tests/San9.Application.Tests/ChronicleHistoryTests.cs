@@ -28,8 +28,32 @@ internal static class ChronicleTestContent
     private static MessageNode Person(string slot) => new MessageValue(new("property", "person.name", Arguments: [new("binding", slot)]));
 }
 
-public sealed class ChronicleHistoryTests
+public sealed class ChronicleHistoryTests(Xunit.Abstractions.ITestOutputHelper output)
 {
+    [Theory]
+    [InlineData(1_000)]
+    [InlineData(100_000)]
+    public void AppendingHistorySharesUnchangedFactsAndPreservesEarlierCheckpoints(int count)
+    {
+        var fact = GameSession.Start(MissionScenario.Create(), 42).History[0];
+        var history = Enumerable.Repeat(fact, count).ToImmutableList();
+        Assert.Same(history, ChronicleHistory.Append(history, [fact]));
+        var addition = fact with { Clock = fact.Clock.NextDay() };
+        _ = ChronicleHistory.Append([fact], [addition]); // Warm up before measuring allocation.
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var appended = ChronicleHistory.Append(history, [addition]);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        output.WriteLine($"history={count}, append bytes={allocated}");
+        Assert.True(allocated < 64_000, $"Appending one fact allocated {allocated} bytes.");
+        Assert.Equal(count, history.Count);
+        Assert.Same(fact, history[^1]);
+        Assert.Equal(count + 1, appended.Count);
+        Assert.Equal(addition, appended[^1]);
+        Assert.Same(appended, ChronicleHistory.Append(appended, [addition]));
+        // Persistence still exposes an ordered JSON array, independent of the runtime tree.
+        Assert.Equal(CanonicalJson.Text(history.ToArray()), CanonicalJson.Text(history));
+    }
+
     [Theory]
     [InlineData(PrisonerExecutionPath.CapturedRulerDisposition, "execution", new[] { 1, 2, 3 })]
     [InlineData(PrisonerExecutionPath.StrategicCommand, "execution-local", new[] { 2 })]
@@ -137,7 +161,7 @@ public sealed class ChronicleHistoryTests
         Assert.Contains(restored.History, f => f.ForceId == 1 && f.Role == "succession" && f.Values["other"].Entity!.Id == 2);
         Assert.Equal(before.World.Forces.Count(f => !f.IsEliminated && !f.IsDormant), history.Count);
         var once = ChronicleHistory.Append(session.History, history);
-        Assert.Equal(once.Length, ChronicleHistory.Append(once, history).Length);
+        Assert.Equal(once.Count, ChronicleHistory.Append(once, history).Count);
     }
     [Fact]
     public void AllianceFactsRetainTheirOwnContextAndDistinguishMemberDepartureFromBetrayal()

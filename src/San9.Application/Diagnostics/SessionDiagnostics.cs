@@ -8,7 +8,7 @@ using San9.Core.Simulation;
 namespace San9.Application.Diagnostics;
 
 public sealed record SessionDiagnosticSnapshot(WorldDiagnosticSnapshot World, ImmutableArray<SessionRecord> Records,
-    ImmutableArray<ChronicleEntry> Chronicle, ImmutableArray<ChronicleFact> History, EndingSelection? Ending, ImmutableDictionary<int, Presentation.StrategicContextState> StrategicContexts,
+    ImmutableArray<ChronicleEntry> Chronicle, ImmutableList<ChronicleFact> History, EndingSelection? Ending, ImmutableDictionary<int, Presentation.StrategicContextState> StrategicContexts,
     long NextOperationSequence, ControllerKind PlayerForceController, AI.OriginalAiState OriginalAi);
 
 public static class SessionDiagnostics

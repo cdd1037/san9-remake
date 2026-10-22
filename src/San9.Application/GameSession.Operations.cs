@@ -11,11 +11,11 @@ public sealed partial class GameSession
     // Captured on the owner thread. Calculation forks the engine and never accesses the live session.
     internal sealed record OperationInput(SimulationEngine Simulation, ScenarioSessionDefinition Definition,
         StrategySnapshot View, long Sequence, OriginalAiState OriginalAi,
-        EndingSelection? Ending, ImmutableDictionary<int, StrategicContextState> StrategicContexts, ImmutableArray<ChronicleFact> History);
+        EndingSelection? Ending, ImmutableDictionary<int, StrategicContextState> StrategicContexts, ImmutableList<ChronicleFact> History);
 
     internal sealed record OperationCommit(SimulationEngine Simulation, OriginalAiState OriginalAi,
         ImmutableArray<OriginalAiWorkReport> AiReports, EndingSelection? Ending, ImmutableDictionary<int, StrategicContextState> StrategicContexts,
-        ImmutableArray<ChronicleFact> History, SessionRecord[] Records, ChronicleEntry? Note);
+        ImmutableList<ChronicleFact> History, SessionRecord[] Records, ChronicleEntry? Note);
 
     internal sealed record PreparedOperation(SessionResult Result, StrategySnapshot View,
         OperationCommit? Commit = null);

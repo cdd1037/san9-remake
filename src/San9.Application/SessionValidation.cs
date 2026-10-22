@@ -9,7 +9,7 @@ internal static class SessionValidation
     {
         if (!snapshot.World.Simulation.CanPersist)
             throw new ArgumentException("Session is not at a save boundary.");
-        if (snapshot.Records.IsDefault || snapshot.Chronicle.IsDefault || snapshot.History.IsDefault || snapshot.Records.Length > GameSession.RecentRecordLimit ||
+        if (snapshot.Records.IsDefault || snapshot.Chronicle.IsDefault || snapshot.History is null || snapshot.Records.Length > GameSession.RecentRecordLimit ||
             snapshot.NextOperationSequence < 0)
             throw new ArgumentException("Missing session state.");
         if (!Enum.IsDefined(snapshot.PlayerForceController)) throw new ArgumentException("Invalid player force controller.");

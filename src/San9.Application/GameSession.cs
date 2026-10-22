@@ -39,7 +39,7 @@ public sealed partial class GameSession
     public IReadOnlyList<DomainEvent> InitialEvents => _initialEvents;
     public IReadOnlyList<SessionRecord> Records => _readOnlyRecords;
     public IReadOnlyList<ChronicleEntry> Chronicle => _readOnlyChronicle;
-    public ImmutableArray<ChronicleFact> History { get; private set; } = [];
+    public ImmutableList<ChronicleFact> History { get; private set; } = [];
     public WorldSnapshot Snapshot => _simulation.Snapshot;
     public StrategySnapshot InitialView => _initialView;
     public StrategySnapshot View => _view.World.Revision == Snapshot.Revision ? _view : _view = _snapshotSource.Project(Snapshot);

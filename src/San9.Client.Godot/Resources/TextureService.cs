@@ -50,7 +50,7 @@ public partial class TextureService : Node
         Cursors = package.Skin.Cursors;
         CursorAssets = Cursors.ToDictionary(p => p.Key, p => ui[p.Value.Asset]);
         var unitClips = package.Map.Units.Bodies.SelectMany(body => body.DirectionClips
-            .Concat(body.MeleeActions.Concat(body.RangedActions).SelectMany(a => a.DirectionClips))).ToHashSet();
+            .Concat(body.Attacks.SelectMany(a => a.Actions).SelectMany(a => a.DirectionClips))).ToHashSet();
         var unitFrames = package.Map.Animations.Clips.Where(clip => unitClips.Contains(clip.Id) ||
                 clip.Id.StartsWith("unit-flag-", StringComparison.Ordinal))
             .SelectMany(clip => clip.Frames.Concat(clip.SeasonFrames.Values.SelectMany(frames => frames)))

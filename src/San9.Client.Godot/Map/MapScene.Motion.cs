@@ -164,7 +164,7 @@ internal sealed partial class MapScene
             var bodyIds = Map.Units.Formations.Where(f => formations.Contains(f.FormationId)).SelectMany(f => f.Layouts)
                 .SelectMany(l => l.Members).Select(m => m.BodyId).ToHashSet();
             foreach (var body in Map.Units.Bodies.Where(b => bodyIds.Contains(b.Id) || Map.Units.Bodies.Any(original => bodyIds.Contains(original.Id) && original.ImperialBodyId == b.Id)))
-                foreach (var clip in body.DirectionClips.Concat(body.MeleeActions.Concat(body.RangedActions).SelectMany(a => a.DirectionClips))
+                foreach (var clip in body.DirectionClips.Concat(body.Attacks.SelectMany(a => a.Actions).SelectMany(a => a.DirectionClips))
                     .Concat(body.Wake is {} wake ? new[] { wake.ClipId } : [])
                     .Concat(body.Trail is {} trail ? new[] { trail.ClipId } : []).Concat(body.Engagement.Select(e => e.ClipId)))
                     foreach (string frame in Clips[clip].Frames) yield return frame;

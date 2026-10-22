@@ -4,6 +4,41 @@ namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class MapUnitCompilerTests
 {
+    [Theory]
+    [InlineData(16, 0x660e68, 0x660e48)]
+    [InlineData(17, 0x660e08, 0x660de8)]
+    [InlineData(18, 0x660da8, 0x660d88)]
+    [InlineData(19, 0x660d48, 0x660d28)]
+    public void NavalFlagsDecodeEachDirectionAndKeepTheSecondFlagAndDepth(int body, int position, int depth)
+    {
+        Dictionary<int, int> data = [];
+        for (int d = 0; d < 8; d++)
+        {
+            data[position + d * 8] = -45 + d;
+            data[position + d * 8 + 4] = -42 - d;
+            data[depth + d * 4] = 1;
+            if (body != 19) continue;
+            data[0x660ce8 + d * 8] = -16 + d;
+            data[0x660cec + d * 8] = -93 + d;
+            data[0x660cc4 + d * 4] = -1;
+        }
+        var flags = MapUnitCompiler.CompileFlags(a => data[a], body);
+        Assert.Equal(8, flags.Length);
+        for (int d = 0; d < 8; d++)
+        {
+            Assert.Equal(body == 19 ? 2 : 1, flags[d].Length);
+            Assert.Equal(new(-45 + d, -42 - d, 1), flags[d][0]);
+            if (body == 19) Assert.Equal(new(-16 + d, -93 + d, -1), flags[d][1]);
+        }
+    }
+
+    [Fact]
+    public void OtherBodiesUseTheSourceFlagCanvasInsteadOfTheBodySize()
+    {
+        var flags = MapUnitCompiler.CompileFlags(a => a == 0x64bb58 ? 68 : a == 0x64bb5c ? 52 : throw new InvalidOperationException(), 14);
+        Assert.All(flags, f => Assert.Equal(new MapUnitFlagPlacement(-34, -68, 0), Assert.Single(f)));
+    }
+
     private static MapUnitFormation[] Compile()
     {
         Dictionary<int, int> data = [];

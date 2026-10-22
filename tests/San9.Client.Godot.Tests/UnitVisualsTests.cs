@@ -106,7 +106,7 @@ public sealed class UnitVisualsTests
         var catalog = Catalog with
         {
             Bodies = [Catalog.Bodies[0] with
-        { MeleeActions = [new(Enumerable.Range(0, 8).Select(d => $"imperial-{d}").ToArray(), MapProjectileKind.None)],
+        { MeleeAttack = new([new(Enumerable.Range(0, 8).Select(d => $"imperial-{d}").ToArray())], MapProjectileKind.None, 0),
           Wake = new("influence", -29, -14) }, Catalog.Bodies[1]]
         };
         var unit = Sample(State with { Action = UnitVisualAction.Melee, Condition = UnitCondition.Confused }, catalog);

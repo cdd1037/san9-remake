@@ -54,6 +54,16 @@ public static class UnitVisuals
     public static double Disorder(UnitVisualState state, MapUnitMember member) =>
         Math.Clamp((100 - state.Morale) * (member.Group == 0 ? 2 : member.Index == 0 ? 0 : 1), 0, 100) / 100.0;
 
+    public static MapUnitAttack? Attack(MapUnitBody body, UnitVisualAction action) =>
+        action == UnitVisualAction.Melee ? body.MeleeAttack : action == UnitVisualAction.Ranged ? body.RangedAttack : null;
+
+    public static MapUnitAction? SelectAction(MapUnitBody body, UnitVisualAction action, int unitId, MapUnitMember member)
+    {
+        var attack = Attack(body, action);
+        return attack is null ? null : attack.Actions[(int)(Seed(unitId, member.Index,
+            unchecked((int)Seed(member.Group, 0, 4))) % (uint)attack.Actions.Length)];
+    }
+
     public static UnitVisual Resolve(UnitVisualState state, MapUnitCatalog catalog,
         IReadOnlyDictionary<string, MapAnimationClip> clips, UnitMotionPlayback? playback = null,
         Func<double, double, double>? elevationAt = null)
@@ -100,10 +110,9 @@ public static class UnitVisuals
         {
             var body = bodies[m.Member.BodyId];
             if (state.UsesImperialAppearance && body.ImperialBodyId is {} imperial) body = bodies[imperial];
-            var actions = state.Action == UnitVisualAction.Melee ? body.MeleeActions : state.Action == UnitVisualAction.Ranged ? body.RangedActions : [];
             bool attacking = state.Action is UnitVisualAction.Melee or UnitVisualAction.Ranged;
             int direction = attacking ? state.Direction : m.Pose.Direction;
-            string clip = actions.Length == 0 ? body.DirectionClips[direction] : actions[(int)(MemberSeed(m.Member, 4) % (uint)actions.Length)].DirectionClips[direction];
+            string clip = (SelectAction(body, state.Action, state.Id, m.Member)?.DirectionClips ?? body.DirectionClips)[direction];
             Add(clip, m.Pose.X - body.AnchorX, m.Pose.Y - body.AnchorY, m.Pose.GroundY + 30000,
                 attacking ? 0 : (int)(MemberSeed(m.Member, 5) % (uint)clips[clip].Frames.Length));
             animations[^1] = animations[^1] with
@@ -123,8 +132,11 @@ public static class UnitVisuals
                         (int)(MemberSeed(m.Member, 3) % (uint)clips[e.ClipId].Frames.Length));
         }
         int glyph = state.IsRulerCommander ? catalog.RulerFlagGlyph : state.Glyph;
-        foreach (string layer in FlagVisuals.Layers(state.Direction, state.Color, glyph))
-            Add(layer, x - 34, y + formation.FlagY, anchor.Y + 30100);
+        var primaryBody = bodies[layout.Members[0].BodyId];
+        if (state.UsesImperialAppearance && primaryBody.ImperialBodyId is {} primaryImperial) primaryBody = bodies[primaryImperial];
+        foreach (var flag in primaryBody.Flags[state.Direction])
+            foreach (string layer in FlagVisuals.Layers(state.Direction, state.Color, glyph))
+                Add(layer, x + flag.X, y + flag.Y, anchor.Y + 30100 + flag.DepthOffset);
         if (state.HasCityInfluence) Add(layout.Influence.ClipId, x + layout.Influence.X, y + layout.Influence.Y, anchor.Y + 30032);
         if (catalog.Conditions.TryGetValue(state.Condition, out var status))
             Add(status.ClipId, x + status.X, y + formation.StatusY + status.Y, anchor.Y + 40000);

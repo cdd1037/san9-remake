@@ -32,9 +32,15 @@ public sealed class MapFacingTests
         var before = GameSession.Start(definition, 1);
         var afterDefinition = definition with { Units = [definition.Units[0] with { Position = to, Facing = WorldDirection.East }] };
         var after = GameSession.Start(afterDefinition, 1);
-        var map = new MapPackage(15, "fixture", "facing", "spring", 4, 4, 13056, 6656,
+        var catalog = UnitVisualFixture.TrailCatalog;
+        if (water) catalog = catalog with { Bodies = catalog.Bodies.Select(b => b with
+        {
+            Flags = Enumerable.Range(0, 8).Select(d => new[] { new MapUnitFlagPlacement(2 + d, -84 + d, 2),
+                new MapUnitFlagPlacement(-16 + d, -93 + d, -1) }).ToArray()
+        }).ToArray() };
+        var map = new MapPackage(16, "fixture", "facing", "spring", 4, 4, 13056, 6656,
             Enumerable.Repeat(new MapSquare(0, 1, 0, 0), 16).ToArray(), [], [], [], [], [], [], [], [], [], [], [],
-            new(UnitVisualFixture.Clips.Values.ToArray(), []), []) { Units = UnitVisualFixture.TrailCatalog };
+            new(UnitVisualFixture.Clips.Values.ToArray(), []), []) { Units = catalog };
         var terrain = new TerrainRenderer(map, [], []);
         DomainEvent[] events = [new UnitMovedEvent(before.Snapshot.Clock, 10, from, to, 5, NavigationStatus.Moving)];
         var day = new TurnDayPresentation(before.View, after.View, events, new MapDayPlan(map, before.View, events));
@@ -76,6 +82,13 @@ public sealed class MapFacingTests
             Assert.Equal(UnitVisualAction.Idle, sample.Action);
             Assert.Contains(sample.Animations, a => a.IsBody && a.ClipId == "body-2");
             Assert.Contains(sample.Animations, a => a.ClipId == "unit-flag-2-cloth-0");
+            if (water)
+            {
+                var flags = sample.Animations.Where(a => a.ClipId == "unit-flag-2-cloth-0").ToArray();
+                Assert.Equal(2, flags.Length);
+                Assert.Equal((sample.AnchorX + 4, sample.AnchorY - 82), (flags[0].X, flags[0].Y));
+                Assert.Equal((sample.AnchorX - 14, sample.AnchorY - 91), (flags[1].X, flags[1].Y));
+            }
         }
     }
 }

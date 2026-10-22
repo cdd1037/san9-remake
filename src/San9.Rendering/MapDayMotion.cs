@@ -75,9 +75,6 @@ public static class MapProjectiles
         bool ballistic = attack.Projectile is MapProjectileKind.Arrow or MapProjectileKind.Stone;
         if (ballistic)
         {
-            // Wall volleys already have authored origins; unit volleys spread around their formation center.
-            if (attack.Projectile == MapProjectileKind.Arrow && !attack.SourceIsSettlement && attack.Origins.Length == 0 && shot > 0)
-                origin = new(origin.X + Scatter(attack, shot, 0, 16), origin.Y + Scatter(attack, shot, 1, 8));
             target = new(target.X + Scatter(attack, shot, 2, 32), target.Y + Scatter(attack, shot, 3, 32));
         }
         double dx = target.X - origin.X, dy = target.Y - origin.Y;

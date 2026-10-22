@@ -29,12 +29,12 @@ public sealed class MapDayPlanTests
         var session = GameSession.Start(definition, 1);
         var catalog = new MapUnitCatalog(
             [new("land", Enumerable.Repeat("land", 8).ToArray(), 0, 0)
-                { MeleeActions = [new(Enumerable.Repeat("land", 8).ToArray(), MapProjectileKind.None)] },
+                { MeleeAttack = new([new(Enumerable.Repeat("land", 8).ToArray())], MapProjectileKind.None, 0) },
              new("ship", Enumerable.Repeat("ship", 8).ToArray(), 0, 0)
-                { MeleeActions = [new(Enumerable.Repeat("ship", 8).ToArray(), MapProjectileKind.None)] }],
-            [new(10000, [new(1, [new("land", 0, 0)], new("land", 0, 0))], 0, 0),
-             new(20000, [new(1, [new("ship", 0, 0)], new("ship", 0, 0))], 0, 0)], [], -1);
-        var map = new MapPackage(15, "fixture", "shore", "spring", 2, 1, 13056, 6656,
+                { MeleeAttack = new([new(Enumerable.Repeat("ship", 8).ToArray())], MapProjectileKind.None, 0) }],
+            [new(10000, [new(1, [new("land", 0, 0)], new("land", 0, 0))], 0),
+             new(20000, [new(1, [new("ship", 0, 0)], new("ship", 0, 0))], 0)], [], -1);
+        var map = new MapPackage(16, "fixture", "shore", "spring", 2, 1, 13056, 6656,
             [new(0, 1, 0, 0), new(1, 1, 0, 0)], [], [], [], [], [], [new(1, to.X / 5, 0, 0)],
             Enumerable.Range(1, 14).Select(id => new MapComposition(id, [])).ToArray(), [], [], [], [],
             new([new("land", ["l0", "l1"], 200, []),
@@ -75,9 +75,9 @@ public sealed class MapDayPlanTests
         var catalog = UnitVisualFixture.Catalog with
         {
             Bodies = UnitVisualFixture.Catalog.Bodies.Select(b => b with
-                { MeleeActions = [new(Enumerable.Repeat("melee", 8).ToArray(), MapProjectileKind.None)] }).ToArray()
+                { MeleeAttack = new([new(Enumerable.Repeat("melee", 8).ToArray())], MapProjectileKind.None, 0) }).ToArray()
         };
-        var map = new MapPackage(15, "fixture", "melee", "spring", 1, 1, 13056, 6656,
+        var map = new MapPackage(16, "fixture", "melee", "spring", 1, 1, 13056, 6656,
             [new(0, 1, 0, 0)], [], [], [], [], [], [new(1, 0, 0, 0)],
             Enumerable.Range(1, 14).Select(id => new MapComposition(id, [])).ToArray(),
             [], [], [], [], new(clips, []), []) { BuildingTypes = [new(0, 100)], Units = catalog };
@@ -103,7 +103,7 @@ public sealed class MapDayPlanTests
              new(2, "target", 5, 10, 0, 100, 100, 100, 60, [])], [], [])
         { Information = new([], [], [], [new CorpsState(5, 5, null, new(100, 100)) { IsRoot = true }], []) };
         var session = GameSession.Start(definition, 1);
-        var map = new MapPackage(15, "fixture", "plan", "spring", 11, 1, 13056, 6656,
+        var map = new MapPackage(16, "fixture", "plan", "spring", 11, 1, 13056, 6656,
             Enumerable.Repeat(new MapSquare(0, 1, 0, 0), 11).ToArray(), [], [], [], [], [],
             [new(1, 0, 0, 0), new(2, 10, 0, 0)],
             Enumerable.Range(1, 14).Select(id => new MapComposition(id, [])).ToArray(),

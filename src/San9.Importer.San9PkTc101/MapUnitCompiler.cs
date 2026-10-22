@@ -46,18 +46,23 @@ public static class MapUnitCompiler
         }
         using var pe = new System.Reflection.PortableExecutable.PEReader(new MemoryStream(exe));
         int At(int address) => BinaryPrimitives.ReadInt32LittleEndian(pe.GetSectionData(checked(address - (int)pe.PEHeaders.PEHeader!.ImageBase)).GetContent(0, 4).AsSpan());
-        MapUnitAction[] Actions(int type, int table) => Enumerable.Range(0, At(table + type * 16)).Select(i =>
+        MapUnitAttack? Attack(int type, int table)
         {
-            int action = At(table + type * 16 + 4 * (i + 1));
-            int resource = At(0x664a40 + 4 * (action * 20 + type));
-            if (resource < 0) throw new InvalidDataException("Attack references an absent body action.");
-            var directions = Enumerable.Range(0, 8).Select(direction =>
+            var actions = Enumerable.Range(0, At(table + type * 16)).Select(i =>
             {
-                string key = $"unit-action-{type}-{action}-{direction}";
-                return clips.Any(c => c.Id == key) ? key : Export(key, resource + direction, 100);
+                int action = At(table + type * 16 + 4 * (i + 1));
+                int resource = At(0x664a40 + 4 * (action * 20 + type));
+                if (resource < 0) throw new InvalidDataException("Attack references an absent body action.");
+                var directions = Enumerable.Range(0, 8).Select(direction =>
+                {
+                    string key = $"unit-action-{type}-{action}-{direction}";
+                    return clips.Any(c => c.Id == key) ? key : Export(key, resource + direction, 100);
+                }).ToArray();
+                return new MapUnitAction(directions);
             }).ToArray();
-            return new MapUnitAction(directions, action == 5 ? MapProjectileKind.Arrow : action == 7 ? MapProjectileKind.Stone : MapProjectileKind.None);
-        }).ToArray();
+            return actions.Length == 0 ? null : new(actions,
+                type == 13 ? MapProjectileKind.Stone : MapProjectileKind.Arrow, type == 13 ? 1 : 5);
+        }
         var wakes = Enumerable.Range(0, 3).Select(i => new MapUnitEffect(Export($"unit-wake-{i}", 5643 + i, 125, 83),
             At(0x618b4c + i * 8), At(0x618b50 + i * 8))).ToArray();
         string dust = Export("unit-trail-dust", 5635, 125, frameCount: 4);
@@ -87,7 +92,8 @@ public static class MapUnitCompiler
             Int(0x214980 + 8 * type), Int(0x214984 + 8 * type))
         {
             ImperialBodyId = type == 0 ? "unit-body-3" : null,
-            MeleeActions = Actions(type, 0x663fd0), RangedActions = Actions(type, 0x663e90),
+            MeleeAttack = Attack(type, 0x663fd0), RangedAttack = Attack(type, 0x663e90),
+            Flags = CompileFlags(At, type),
             TrailChance = type >= 16 ? 100 : 6.25,
             Trail = type >= 16 ? trails[type <= 17 ? 0 : type - 17] : new(dust,
                 units.Images[Int(0x263240 + 4 * type) - 5000].Width / 16 - Int(0x214980 + 8 * type) - 12,
@@ -160,7 +166,23 @@ public static class MapUnitCompiler
                 return new MapUnitLayout(water ? 1 : thresholds[scale], members.ToArray(),
                     new(influenceClips[At(effect) - 5646], At(effect + 4), At(effect + 8)));
             }).ToArray();
-            return new MapUnitFormation(id, layouts, -64 - (primary >= 10 ? 16 : 0), At(0x66596c + 8 * primary));
+            return new MapUnitFormation(id, layouts, At(0x66596c + 8 * primary));
         }).ToArray();
+    }
+
+    internal static MapUnitFlagPlacement[][] CompileFlags(Func<int, int> at, int body)
+    {
+        (int Position, int Depth)[] tables = body switch
+        {
+            16 => [(0x660e68, 0x660e48)],
+            17 => [(0x660e08, 0x660de8)],
+            18 => [(0x660da8, 0x660d88)],
+            19 => [(0x660d48, 0x660d28), (0x660ce8, 0x660cc4)],
+            _ => []
+        };
+        return Enumerable.Range(0, 8).Select(d => tables.Length == 0
+            ? new[] { new MapUnitFlagPlacement(-at(0x64bb58) / 2, -16 - at(0x64bb5c), 0) }
+            : tables.Select(t => new MapUnitFlagPlacement(at(t.Position + d * 8), at(t.Position + d * 8 + 4),
+                at(t.Depth + d * 4))).ToArray()).ToArray();
     }
 }

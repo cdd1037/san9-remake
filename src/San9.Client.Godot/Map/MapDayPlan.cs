@@ -1,5 +1,6 @@
 using San9.Application.Presentation;
 using San9.Content.Maps;
+using San9.Content.Images;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 using San9.Rendering;
@@ -24,6 +25,7 @@ public sealed class MapDayPlan
     private readonly MapBuilding[] Buildings;
     private readonly Dictionary<int, UnitVisualState> _units;
     private readonly IReadOnlyDictionary<string, MapAnimationClip> Clips;
+    private readonly IReadOnlyDictionary<string, ImageAsset> Assets;
     private Dictionary<int, MapUnitMotion> _motions = [];
     private MapAttackMotion[] _attacks = [];
     public MapDayPlan(MapPackage map, StrategySnapshot state, IReadOnlyList<DomainEvent> events)
@@ -33,6 +35,7 @@ public sealed class MapDayPlan
         var projection = MapSceneProjection.Create(state, map);
         Buildings = projection.Buildings; _units = projection.Units;
         Clips = map.Animations.Clips.ToDictionary(c => c.Id);
+        Assets = map.Assets.ToDictionary(a => a.Id);
         Prepare();
     }
     private MapMotionPoint Project(double x, double y)
@@ -99,15 +102,36 @@ public sealed class MapDayPlan
             }
             else if (_units.TryGetValue(hit.AttackerId, out var unit))
             {
-                var body = AttackBody(unit, AttackLayout(unit, from).Members[0]);
+                var layout = AttackLayout(unit, from);
+                var primary = layout.Members[0];
+                var body = AttackBody(unit, primary);
                 var sourceArea = State.BattleArea(hit.AttackerId, false, from);
                 var targetArea = State.BattleArea(targetId, targetSettlement, to);
                 bool ranged = sourceArea is {} a && targetArea is {} b && !a.IntersectsExpanded(b, MapCoordinates.UnitsPerCell);
-                if (ranged && body.RangedActions.Length > 0 || body.MeleeActions.Length == 0)
+                if (ranged && body.RangedAttack is not null || body.MeleeAttack is null)
                 { action = UnitVisualAction.Ranged; }
-                var actions = action == UnitVisualAction.Ranged ? body.RangedActions : body.MeleeActions;
-                if (actions.Length > 0) kind = actions[unit.Id % actions.Length].Projectile;
-                source = source with { Y = source.Y - body.AnchorY / 2 };
+                var attack = UnitVisuals.Attack(body, action);
+                if (attack is null) continue;
+                kind = attack.Projectile;
+                if (kind != MapProjectileKind.None)
+                {
+                    // Each participating group's first body owns its emission point. A single
+                    // body repeats the volley there; projectile choice never selects a body variant.
+                    var leaders = layout.Members.Where(m => m.BodyId == primary.BodyId).GroupBy(m => m.Group)
+                        .OrderBy(g => g.Key).Select(g => g.MinBy(m => m.Index)!).ToArray();
+                    int direction = UnitVisuals.Direction(from, to);
+                    var ground = source;
+                    origins = Enumerable.Range(0, attack.VolleySize).Select(i =>
+                    {
+                        var member = leaders[i % leaders.Length];
+                        var memberBody = AttackBody(unit, member);
+                        var clip = UnitVisuals.SelectAction(memberBody, action, unit.Id, member)!.DirectionClips[direction];
+                        var image = Assets[Clips[clip].Frames[0]];
+                        return new MapMotionPoint(ground.X + member.X - memberBody.AnchorX + image.Width / 2,
+                            ground.Y + member.Y - memberBody.AnchorY + image.Height / 2);
+                    }).ToArray();
+                    source = origins[0];
+                }
             }
             else continue;
             attacks.Add(new(hit.AttackerId, hit.AttackerIsSettlement, targetId, targetSettlement,
@@ -124,11 +148,9 @@ public sealed class MapDayPlan
                 foreach (var member in layout.Members)
                 {
                     var body = AttackBody(state, member);
-                    var actions = attack.Action == UnitVisualAction.Melee ? body.MeleeActions : body.RangedActions;
-                    if (actions.Length == 0) continue;
-                    int seed = (int)(UnitVisuals.Seed(state.Id, member.Index,
-                        unchecked((int)UnitVisuals.Seed(member.Group, 0, 4))) % (uint)actions.Length);
-                    var clip = Clips[actions[seed].DirectionClips[attack.Direction]];
+                    var selected = UnitVisuals.SelectAction(body, attack.Action, state.Id, member);
+                    if (selected is null) continue;
+                    var clip = Clips[selected.DirectionClips[attack.Direction]];
                     duration = Math.Max(duration, clip.Frames.Length * clip.FrameMilliseconds / 1000.0);
                 }
             }

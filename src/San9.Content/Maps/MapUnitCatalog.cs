@@ -6,15 +6,19 @@ namespace San9.Content.Maps;
 public sealed record MapUnitBody(string Id, string[] DirectionClips, int AnchorX, int AnchorY)
 {
     public string? ImperialBodyId { get; init; }
-    [JsonRequired] public MapUnitAction[] MeleeActions { get; init; } = [];
-    [JsonRequired] public MapUnitAction[] RangedActions { get; init; } = [];
+    [JsonRequired] public MapUnitAttack? MeleeAttack { get; init; }
+    [JsonRequired] public MapUnitAttack? RangedAttack { get; init; }
+    [JsonRequired] public MapUnitFlagPlacement[][] Flags { get; init; } = [];
+    [JsonIgnore] public IEnumerable<MapUnitAttack> Attacks => new[] { MeleeAttack, RangedAttack }.OfType<MapUnitAttack>();
     [JsonRequired] public MapUnitEffect? Wake { get; init; }
     [JsonRequired] public MapUnitEffect? Trail { get; init; }
     [JsonRequired] public double TrailChance { get; init; }
     [JsonRequired] public MapUnitParticle[] Engagement { get; init; } = [];
 }
 public sealed record MapUnitParticle(string ClipId, int X, int Y, int DepthOffset);
-public sealed record MapUnitAction(string[] DirectionClips, MapProjectileKind Projectile);
+public sealed record MapUnitAction(string[] DirectionClips);
+public sealed record MapUnitAttack(MapUnitAction[] Actions, MapProjectileKind Projectile, int VolleySize);
+public sealed record MapUnitFlagPlacement(int X, int Y, int DepthOffset);
 public enum MapProjectileKind { None, Arrow, Stone, Rockfall }
 public sealed record MapProjectile(string[] Frames, int FrameMilliseconds, bool Directional, int AnchorX, int AnchorY)
 {
@@ -26,7 +30,7 @@ public sealed record MapUnitMember(string BodyId, int X, int Y)
     [JsonRequired] public int Index { get; init; }
 }
 public sealed record MapUnitLayout(uint MinimumSoldiers, MapUnitMember[] Members, MapUnitEffect Influence);
-public sealed record MapUnitFormation(int FormationId, MapUnitLayout[] Layouts, int FlagY, int StatusY);
+public sealed record MapUnitFormation(int FormationId, MapUnitLayout[] Layouts, int StatusY);
 public sealed record MapUnitEffect(string ClipId, int X, int Y);
 
 // Complete projected layouts: ranks and influence always select the same display scale.
@@ -44,7 +48,10 @@ public sealed record MapUnitCatalog(MapUnitBody[] Bodies, MapUnitFormation[] For
         if (RulerFlagGlyph < -1 ||
             Bodies.Any(b => string.IsNullOrWhiteSpace(b.Id) || b.DirectionClips.Length != 8 ||
                 b.DirectionClips.Any(c => !clips.ContainsKey(c)) ||
-                b.MeleeActions.Concat(b.RangedActions).Any(a => a.DirectionClips.Length != 8 || a.DirectionClips.Any(c => !clips.ContainsKey(c)) || !Enum.IsDefined(a.Projectile) || a.Projectile != MapProjectileKind.None && !Projectiles.ContainsKey(a.Projectile)) ||
+                b.Flags.Length != 8 || b.Flags.Any(f => f is null || f.Any(flag => flag is null)) ||
+                b.Attacks.Any(a => a.Actions.Length == 0 || a.Actions.Any(v => v.DirectionClips.Length != 8 || v.DirectionClips.Any(c => !clips.ContainsKey(c))) ||
+                    !Enum.IsDefined(a.Projectile) || a.Projectile == MapProjectileKind.None && a.VolleySize != 0 ||
+                    a.Projectile != MapProjectileKind.None && (a.VolleySize <= 0 || !Projectiles.ContainsKey(a.Projectile))) ||
                 b.Wake is {} wake && !clips.ContainsKey(wake.ClipId) ||
                 b.Trail is {} trail && !clips.ContainsKey(trail.ClipId) || !double.IsFinite(b.TrailChance) || b.TrailChance is < 0 or > 100 ||
                 b.Engagement.Any(e => !clips.ContainsKey(e.ClipId)) ||

@@ -14,12 +14,14 @@ internal static class UnitVisualFixture
             id.StartsWith("unit-flag-") ? [] : new() { ["spring"] = [id + "-0", id + "-1"], ["summer"] = [id + "-0", id + "-1"],
                 ["autumn"] = [id + "-winter-0", id + "-winter-1"], ["winter"] = [id + "-winter-0", id + "-winter-1"] }));
     public static readonly MapUnitCatalog Catalog = new(
-        [new("body", Enumerable.Range(0, 8).Select(d => $"body-{d}").ToArray(), 18, 30) { ImperialBodyId = "imperial" },
-         new("imperial", Enumerable.Range(0, 8).Select(d => $"imperial-{d}").ToArray(), 18, 30)],
+        [new("body", Enumerable.Range(0, 8).Select(d => $"body-{d}").ToArray(), 18, 30) { ImperialBodyId = "imperial", Flags = Flags() },
+         new("imperial", Enumerable.Range(0, 8).Select(d => $"imperial-{d}").ToArray(), 18, 30) { Flags = Flags() }],
         [new(10000, [new(1, [new("body", 0, 0)], new("influence", -40, -50)),
-                    new(1001, [new("body", -12, 0), new("body", 12, 0) { Index = 1 }], new("influence", -44, -57))], -64, -70),
-         new(20000, [new(1, [new("body", 0, 0), new("body", 12, 12) { Index = 1 }], new("influence", -40, -50))], -64, -70)],
+                    new(1001, [new("body", -12, 0), new("body", 12, 0) { Index = 1 }], new("influence", -44, -57))], -70),
+         new(20000, [new(1, [new("body", 0, 0), new("body", 12, 12) { Index = 1 }], new("influence", -40, -50))], -70)],
         new() { [UnitCondition.Confused] = new("confused", -16, 0), [UnitCondition.HighSpirits] = new("high", -16, 0) }, 0);
+    private static MapUnitFlagPlacement[][] Flags() => Enumerable.Range(0, 8)
+        .Select(_ => new[] { new MapUnitFlagPlacement(-34, -64, 0) }).ToArray();
     public static readonly MapUnitCatalog TrailCatalog = Catalog with { Bodies = Catalog.Bodies.Select(b => b with
             { Trail = new("influence", 0, 0), TrailChance = 100 }).ToArray() };
     public static readonly MapUnitCatalog OverlappingCatalog = Catalog with { Formations = Catalog.Formations.Select(f => f with

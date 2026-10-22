@@ -33,6 +33,7 @@ public sealed record ScrollBarSkin(TextureScope Textures, Texture2D TrackTop, Te
         Texture2D Part(string role, int? height = null) => new AtlasTexture { Atlas = textures.GetResource("editor-scroll-" + role),
             Region = new(0, 0, 16, height ?? textures.GetResource("editor-scroll-" + role).GetHeight()) };
         Texture2D[] Frames(string role) => Enumerable.Range(0, 4).Select(i => (Texture2D)textures.GetResource("editor-scroll-" + role + (i == 0 ? "" : $"-{i}"))).ToArray();
+        // Editor thumb roles are top cap (8px), repeating body (16px), bottom cap (8px).
         return new(textures, Part("track-top",12), Part("track-middle"), Part("track-bottom",12),
             Part("thumb-top"), Part("thumb-middle"), Part("thumb-bottom"), Frames("up"), Frames("down"), new(0,16));
     }

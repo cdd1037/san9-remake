@@ -109,12 +109,8 @@ public partial class AdministrativeDetailView : FixedPage, IInformationPage
                 Position = new(160,148), Size = new(64,80), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale });
         if (_data.LeaderAbilities is { } abilities)
         {
-            _body.AddChild(new OfficerAbilityRadar { Abilities = abilities, Position = new(258,162), Scale = new(52f/164,52f/164) });
-            _body.AddChild(new TextureRect { Texture = Textures.Get("detail-leader-radar-grid", this), Position = new(258,162), MouseFilter = MouseFilterEnum.Ignore });
-            Label("统率",new(264,146,40,16),16,HorizontalAlignment.Center,new Color("f8f850"));
-            Label("武力",new(228,180,32,16),16,HorizontalAlignment.Center,new Color("e85440"));
-            Label("智力",new(264,212,40,16),16,HorizontalAlignment.Center,new Color("60d868"));
-            Label("政治",new(308,180,32,16),16,HorizontalAlignment.Center,new Color("5098d8"));
+            _body.AddChild(new OfficerAbilityRadar { Abilities = abilities, Textures = Textures,
+                Layout = OfficerAbilityRadarLayout.Leader, Position = new(258,162) });
         }
         if (force)
         {

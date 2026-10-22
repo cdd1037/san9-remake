@@ -33,12 +33,8 @@ public partial class OfficerCard : Control
             CommandPanelArt.Label(this, _text, officer.Name, new(8,7,64,16));
             AddChild(new AsyncPortrait { Service = Service, Role = officer.PortraitRole,
                 View = San9.Content.Images.PortraitView.Face, Position = new(7,28), Size = new(64,80), MouseFilter = MouseFilterEnum.Ignore });
-            AddChild(new OfficerAbilityRadar { Abilities = officer.Abilities, Position = new(107,43), Scale = new(52f/164,52f/164) });
-            AddChild(new TextureRect { Texture = Textures.Get("detail-leader-radar-grid", this), Position = new(107,43), MouseFilter = MouseFilterEnum.Ignore });
-            CommandPanelArt.Label(this, _text, "统率", new(116,27,32,16), new Color("f8f850"));
-            CommandPanelArt.Label(this, _text, "武力", new(76,60,32,16), new Color("e85440"));
-            CommandPanelArt.Label(this, _text, "智力", new(116,94,32,16), new Color("60d868"));
-            CommandPanelArt.Label(this, _text, "政治", new(162,60,32,16), new Color("5098d8"));
+            AddChild(new OfficerAbilityRadar { Abilities = officer.Abilities, Textures = Textures,
+                Layout = OfficerAbilityRadarLayout.Card, Position = new(107,43) });
         }
         QueueRedraw();
     }

@@ -13,6 +13,9 @@ public partial class DetailSidebar : Control
     public Action Closed { get; init; } = null!;
     public int Rows { get; init; }
     public Rect2 NameBounds { get; init; }
+    public int RowHeight { get; init; } = 20;
+    public Rect2? ScrollBounds { get; init; }
+    public ScrollBarSkin? ScrollSkin { get; init; }
     private readonly List<DetailNameButton> _names = [];
     private SkinnedScrollBar _scroll = null!;
     private bool _refreshing;
@@ -25,13 +28,13 @@ public partial class DetailSidebar : Control
         {
             int slot = row;
             var button = new DetailNameButton { Textures = Textures,
-                Position = NameBounds.Position + new Vector2(0, row * 20), Size = NameBounds.Size };
+                Position = NameBounds.Position + new Vector2(0, row * RowHeight), Size = NameBounds.Size };
             button.MouseEntered += () => { State.PointAt(State.Candidates[State.Offset + slot]); Refresh(); };
             button.Pressed += () => Activated(State.Candidates[State.Offset + slot]);
             AddChild(button); _names.Add(button);
         }
-        _scroll = new SkinnedScrollBar { Skin = ScrollBarSkin.FromCatalog(Textures),
-            Position = new(990,124), Size = new(16, Rows * 20 - 2), ContextRequested = Closed };
+        _scroll = new SkinnedScrollBar { Skin = ScrollSkin ?? ScrollBarSkin.FromCatalog(Textures),
+            Position = ScrollBounds?.Position ?? new(990,124), Size = ScrollBounds?.Size ?? new(16, Rows * RowHeight - 2), ContextRequested = Closed };
         AddChild(_scroll);
         _scroll.Range.Page = Rows;
         _scroll.Range.ValueChanged += value =>

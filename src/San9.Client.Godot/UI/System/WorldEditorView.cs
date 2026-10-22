@@ -38,7 +38,7 @@ public partial class WorldEditorView : Control
         {
             Service = Service, Textures = Textures, TableState = Draft.Catalog, Pages = Draft.Pages,
             Title = CatalogTitle, HintText = "请选择欲编辑的" + Title[2..] + "。",
-            ReadRows = Draft.ReadRows, CloseTitle = "关闭", Confirmed = Commit, Closed = Closed,
+            ReadRows = Draft.ReadRows, CloseTitle = "关闭", Confirmed = Commit, Closed = RequestClose,
             Portrait = Draft.Kind == WorldEditorKind.Officers ? id => $"catalog-person-{id}" : null,
             ShowMap = Draft.Kind is WorldEditorKind.Corps or WorldEditorKind.Cities ? ShowMap : null,
             Activated = ShowDetail
@@ -52,7 +52,7 @@ public partial class WorldEditorView : Control
             ReadView = () => Draft.Preview, Texts = Texts, Service = Service, Skin = Skin, Textures = Textures,
             Category = Draft.Category, ReadCandidates = () => Draft.ReadRows(Draft.Catalog.Page).Select(r => r.Id).ToArray(),
             Title = CatalogTitle, HintText = "请选择欲编辑的" + (Draft.Kind == WorldEditorKind.Corps ? "军团" : "都市") + "。",
-            ShowList = ShowCatalog, Activated = ShowDetail, Closed = Closed, Confirmed = Commit
+            ShowList = ShowCatalog, Activated = ShowDetail, Closed = RequestClose, Confirmed = Commit
         });
     }
     public void ShowDetail(int rowId)
@@ -60,7 +60,7 @@ public partial class WorldEditorView : Control
         Draft.Catalog.SelectId(rowId);
         Replace(new WorldEditorDetailView
         {
-            Draft = Draft, CurrentId = Draft.TargetFromRow(rowId), Title = Title, Textures = Textures, Service = Service,
+            Draft = Draft, CurrentId = Draft.TargetFromRow(rowId), Title = Title, Textures = Textures, Service = Service, Texts = Texts,
             Candidates = Draft.Catalog.Rows.Select(r => Draft.TargetFromRow(r.Id)).ToArray(),
             MapPreview = MapPreview, Closed = () => { if (_mapMode) ShowMap(); else ShowCatalog(); },
             CurrentChanged = id => Draft.Catalog.SelectId(Draft.Kind == WorldEditorKind.Corps
@@ -72,6 +72,17 @@ public partial class WorldEditorView : Control
                     Confirmed = value => { field.Set(value); CloseModal(); refresh(); } });
             }
         });
+    }
+    private void RequestClose()
+    {
+        if (_modal is not null) return;
+        if (!Draft.HasChanges) { Closed(); return; }
+        var dialog = new GameDialog { Textures = Textures, Size = Size };
+        dialog.SetRichMessage(Texts.ResolveRich(WorldEditorText.ConfirmDiscardKey));
+        dialog.Confirmed += () => { CloseModal(); Closed(); };
+        dialog.Dismissed += CloseModal;
+        OpenModal(dialog);
+        dialog.FocusDefaultButton();
     }
     private void Commit()
     {

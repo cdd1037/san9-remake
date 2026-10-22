@@ -51,7 +51,9 @@ public partial class InformationMapPreview : Control
         }
         else if (settlement is not null)
         {
-            var p = MapGeometry.Center(settlement.X, settlement.Y); center = new(p.X, p.Y - 48);
+            var p = MapGeometry.Center(settlement.X, settlement.Y);
+            int elevation = scene.Map.Squares[settlement.Y * scene.Map.Width + settlement.X].Elevation;
+            center = new(p.X, p.Y - 10 * (elevation - 1) - 20);
         }
         else
         {

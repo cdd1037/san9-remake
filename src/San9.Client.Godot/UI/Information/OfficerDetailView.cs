@@ -117,18 +117,14 @@ public partial class OfficerDetailView : FixedPage, IInformationPage
         Label(_data.Name,new(232,50,196,28),24,HorizontalAlignment.Center);
         var portrait = new AsyncPortrait { Service = Service, Role = _data.PortraitRole, IsDeceased = () => _data.IsDeceased, Position = new(94,118), Size = new(240,240), MouseFilter = MouseFilterEnum.Ignore };
         _body.AddChild(portrait);
-        var radar = new OfficerAbilityRadar { Abilities = _data.RadarAbilities, Position = new(431,156), Size = new(164,164) }; _body.AddChild(radar);
-        _body.AddChild(new TextureRect { Texture = Textures.Get("detail-radar-grid", this), Position = new(431,156), MouseFilter = MouseFilterEnum.Ignore });
+        _body.AddChild(new OfficerAbilityRadar { Abilities = _data.RadarAbilities, Textures = Textures,
+            Layout = OfficerAbilityRadarLayout.Detail, Position = new(431,156) });
         string[] names = ["统率","武力","智力","政治"];
         for (int i = 0; i < 4; i++)
         {
             Label(names[i],new(660,120+i*32,48,24),16,HorizontalAlignment.Center);
             Label(_data.AbilityValues[i],new(714,120+i*32,72,24),16,HorizontalAlignment.Center);
         }
-        Label("统率",new(488,132,48,16),16,HorizontalAlignment.Center,color:new Color("f8f850"));
-        Label("武力",new(392,228,40,16),16,HorizontalAlignment.Center,color:new Color("e85440"));
-        Label("智力",new(488,324,48,16),16,HorizontalAlignment.Center,color:new Color("60d868"));
-        Label("政治",new(600,228,40,16),16,HorizontalAlignment.Center,color:new Color("5098d8"));
         if (State.Page == OfficerDetailPage.Status)
         {
             int[] xs = [96,288,464,640];
@@ -286,8 +282,12 @@ public partial class DetailNameButton : BaseButton
     public TextureScope Textures {get;init;}=null!;
     private readonly GameTextPresenter _text=new();private Label _label=null!;private bool _focused;
     public override void _Ready()
-    {FocusMode=FocusModeEnum.None;_label=new Label {Size=Size,MouseFilter=MouseFilterEnum.Ignore,ClipText=true};AddChild(_label);_text.Apply(_label,GameTextStyles.CatalogRow);}
-    public void Bind(string name,bool focused) { if (_label.Text == name && _focused == focused) return; _label.Text=name;_focused=focused;QueueRedraw(); }
+    {FocusMode=FocusModeEnum.None;_label=new Label {Size=Size,VerticalAlignment=VerticalAlignment.Center,MouseFilter=MouseFilterEnum.Ignore,ClipText=true};AddChild(_label);_text.Apply(_label,GameTextStyles.CatalogRow);}
+    public void Bind(string name, bool focused)
+    {
+        if (_label.Text == name && _focused == focused) return;
+        _label.Text = name; _focused = focused; QueueRedraw();
+    }
     private bool _pressed;
     public override void _Process(double delta)
     {
@@ -308,18 +308,4 @@ public partial class DetailNameButton : BaseButton
         DrawTexture(Textures.Get("roster-row-right"+suffix, this),new(Size.X-8,0));
     }
     public override void _ExitTree()=>_text.Dispose();
-}
-
-public partial class OfficerAbilityRadar : Control
-{
-    public San9.Core.Domain.OfficerAbilities Abilities {get;init;}
-    private ShaderMaterial? _material;
-    public override void _Ready()
-    {
-        MouseFilter = MouseFilterEnum.Ignore;
-        _material = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/officer_ability_radar.gdshader") };
-        _material.SetShaderParameter("abilities", new Vector4(Abilities.Leadership, Abilities.Politics, Abilities.Intelligence, Abilities.War));
-        AddChild(new ColorRect { Size = new(164,164), Material = _material, MouseFilter = MouseFilterEnum.Ignore });
-    }
-    public override void _ExitTree() => _material?.Dispose();
 }

@@ -25,7 +25,7 @@ public static partial class InterfaceSkinCompiler
             }
         }
         // RE-0199: loaded resource IDs belong to the G_EditPK bank, not G_Common.
-        Export("background", 1296); Export("panel", 1360); Export("portrait", 1365); Export("radar", 1366); Export("names", 1311);
+        Export("background", 1296); Export("panel", 1360); Export("map-frame", 1361); Export("portrait", 1365); Export("radar", 1366); Export("names", 1311);
         int[] frameResources = [1295, 1294, 1282, 1283, 1286, 1287, 1288, 1289, 1290, 1291, 1292, 1285];
         for (int i = 0; i < frameResources.Length; i++) Export("frame-" + WorldEditorSkin.FrameParts[i], frameResources[i]);
         string[] panel = ["top-left", "top", "top-right", "left", "right", "bottom-left", "bottom", "bottom-right"];
@@ -36,8 +36,10 @@ public static partial class InterfaceSkinCompiler
         for (int p = 0; p < 3; p++) Export(WorldEditorSkin.ButtonStyles[i] + "-" + new[] { "left", "middle", "right" }[p], first[i] + p, 4);
         Export("close-icon", 1284, 4); Export("help", 1293, 4);
         Export("scroll-down", 1314, 4); Export("scroll-up", 1315, 4);
-        foreach (var (part, resource) in new[] { ("track-top", 1317), ("track-middle", 1316), ("track-bottom", 1317), ("thumb-top", 1319), ("thumb-middle", 1318), ("thumb-bottom", 1320) }) Export("scroll-" + part, resource);
-        Export("field-value-left", 1362); Export("field-value-middle", 1363); Export("field-value-right", 1364);
+        foreach (var (part, resource) in new[] { ("track-top", 1317), ("track-middle", 1316), ("track-bottom", 1317), ("thumb-top", 1318), ("thumb-middle", 1319), ("thumb-bottom", 1320) }) Export("scroll-" + part, resource);
+        // RE-0199: numeric readouts use 1325 twice; static captions use 1362..1364.
+        Export("field-value-left", 1325); Export("field-value-middle", 1325); Export("field-value-right", 1326);
+        Export("caption-left", 1362); Export("caption-middle", 1363); Export("caption-right", 1364);
         Export("label-left", 1321); Export("label-middle", 1322); Export("label-right", 1323);
     }
 }

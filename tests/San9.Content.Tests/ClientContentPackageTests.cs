@@ -90,6 +90,7 @@ public sealed class ClientContentPackageTests
             text.Entries.Add(San9.Content.Interface.CommandMenuSkin.HintKey(id), "Hint");
         }
         foreach (string role in StrategyHintText.Roles) text.Entries.Add(StrategyHintText.Key(role), "Hint");
+        text.Entries.Add(WorldEditorText.ConfirmDiscardKey, "Discard changes?");
         foreach (string role in SpecialDeploymentText.Roles) text.Entries.Add(SpecialDeploymentText.Key(role), "Hint");
         foreach (string column in ExecutionPanelSkin.Columns) text.Entries.Add(ExecutionPanelSkin.HeaderKey(column), "Header");
         var p = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, [], map, Fixture(), text, skin, new(3, [])); p.ValidateLinks();

@@ -5,7 +5,7 @@ namespace San9.Content.Interface;
 public sealed record InterfaceSkin(int SchemaVersion, ImageAsset[] Assets, Dictionary<string,string> Roles, Dictionary<string,string> Colors,
     Dictionary<string, CursorDefinition> Cursors)
 {
-    public const int CurrentSchemaVersion = 57;
+    public const int CurrentSchemaVersion = 60;
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<int, TargetMarkerOffset> BuildingTargetOffsets { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired]

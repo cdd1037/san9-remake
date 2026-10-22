@@ -38,5 +38,6 @@ internal sealed class WorldEditorSkinPainter(CanvasItem canvas, TextureScope tex
         Draw("panel-bottom-left",new(rect.Position.X,rect.End.Y-20)); Draw("panel-bottom-right",rect.End-new Vector2(20,20));
     }
     public void Value(Rect2 rect) => SkinPainter.Strip(canvas, Get("field-value-left"), Get("field-value-middle"), Get("field-value-right"), rect);
+    public void Caption(Rect2 rect) => SkinPainter.Strip(canvas, Get("caption-left"), Get("caption-middle"), Get("caption-right"), rect);
     public void Label(Rect2 rect) => SkinPainter.Strip(canvas, Get("label-left"), Get("label-middle"), Get("label-right"), rect);
 }

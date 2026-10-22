@@ -21,8 +21,7 @@ public partial class PersonnelCommandFlow : Node
     public event Action<string>? Notice;
     public event Action<IReadOnlyList<CommandMessage>, StrategySnapshot, string?>? Narrate;
     private PersonnelCommandView? _view;
-    private Action<MapObjectTarget?>? _pickTarget;
-    private Action<MapCell>? _pickWaypoint;
+    private MapTargetInputLease? _input;
     public bool IsTargeting { get; private set; }
     public bool IsActive => _view is not null;
     public bool IsRegionSelection => _view?.Draft.Kind == "search";
@@ -60,13 +59,11 @@ public partial class PersonnelCommandFlow : Node
         if (_view is not {} view) return;
         IsTargeting = true; view.Hide();
         World.Display!.PersonnelTargets = view.Draft;
-        World.TargetPicked = _pickTarget = target =>
+        _input = new(World, target =>
         {
             if (target is null) EndTargets();
             else if (!target.Value.IsUnit) PickTarget(target.Value.Id);
-        };
-        World.WaypointPicked = _pickWaypoint = cell => { if (view.Draft.PlaceAt(cell) is int place) PickTarget(place); };
-        World.SitePicked = null;
+        }, cell => { if (view.Draft.PlaceAt(cell) is int place) PickTarget(place); });
         Changed?.Invoke();
     }
     private void PickTarget(int id)
@@ -86,9 +83,7 @@ public partial class PersonnelCommandFlow : Node
         IsTargeting = false;
         if (World.Display is { } display && ReferenceEquals(display.PersonnelTargets, _view?.Draft))
             display.PersonnelTargets = null;
-        if (World.TargetPicked == _pickTarget) World.TargetPicked = null;
-        if (World.WaypointPicked == _pickWaypoint) World.WaypointPicked = null;
-        _pickTarget = null; _pickWaypoint = null;
+        _input?.Dispose(); _input = null;
     }
 
     // Also used when the overlay host leaves the tree before this controller.

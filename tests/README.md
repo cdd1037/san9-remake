@@ -21,6 +21,14 @@ Rendering 的测试目前与客户端测试放在一起。仅为目录对称而�
 
 Godot 历史画面验收脚本也不属于默认测试集，后续开发默认不执行；只有当前任务明确要求复现对应场景时才运行。脚本分类与入口见[Godot 历史画面验收](../docs/ui/client-verification.md)。
 
+涉及工作流窗口或地图回调生命周期时，可在客户端编译后运行无资源依赖的引擎检查（将 `godot` 替换为本机 Godot .NET 可执行文件）：
+
+```powershell
+godot --headless --path src/San9.Client.Godot res://Diagnostics/Verification/WorkflowLifecycleVerification.tscn
+```
+
+成功输出 `WORKFLOW_LIFECYCLE_OK` 并以 0 退出；覆盖窗口锁、退出顺序与输入回调所有权，不代表画面或完整命令交互验收。
+
 ## 运行入口
 
 按实际受影响行为选入口，不按文件数量选择检查：局部C#逻辑改动验证受影响项目，共享契约或跨层行为变更运行默认解决方案；纯视觉调整按下文取舍，跨目录移动、注释或纯文档变更本身不构成跨层行为变更。Headless的触发条件见下文。

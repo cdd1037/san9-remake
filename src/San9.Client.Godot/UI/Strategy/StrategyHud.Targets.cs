@@ -8,7 +8,7 @@ namespace San9.Client.Godot;
 public partial class StrategyHud
 {
     private MilitaryTargets? _targets => _flow?.Targets;
-    private bool SelectingTargets => _targets is not null || _personnelFlow?.IsTargeting == true || _commandTargets is not null;
+    private bool SelectingTargets => _targets is not null || _personnelFlow?.IsTargeting == true || _commandTargets?.IsActive == true;
     private MilitaryCommandFlow _flow = null!;
     private Label _targetTitle = null!;
     private readonly List<StrategyButton> _targetButtons = [];
@@ -24,14 +24,14 @@ public partial class StrategyHud
             Textures = _textures, OverlayHost = OverlayHost, Definition = CommandPresentation.Personnel };
         _personnelFlow.Changed += RefreshMilitaryCommand;
         _personnelFlow.Notice += message => { _notice.SetNotice(message); _notice.Show(); };
-        _personnelFlow.Narrate += NarratePersonnel;
+        _personnelFlow.Narrate += (messages, view, sound) => _presentation.OpenNarration(messages, view, initialSound: sound);
         AddChild(_personnelFlow);
         _targetTitle = LabelAt(CommandText.Resolve(Texts, "select.object"), new(61, 12), new(104, 32), 24, HorizontalAlignment.Left);
         _text.Apply(_targetTitle, new(24, new Color("f8f8b0"), GameTextEffect.Outline, new Color("780000")));
         _targetTitle.Hide();
         foreach (var (role, title, x, action) in new (string, string, int, Action)[]
-            { ("list", CommandText.Resolve(Texts, "action.list"), 834, () => { if (_commandTargets is not null) ShowCommandTargetsList(); else if (_personnelFlow?.IsTargeting == true) _personnelFlow.ShowTargetList(); else _flow.ShowTargetList(); }),
-              ("cancel", CommandText.Resolve(Texts, "action.cancel"), 921, () => { if (_commandTargets is not null) EndCommandTargets(); else if (_personnelFlow?.IsTargeting == true) _personnelFlow.EndTargets(); else _flow.EndTargetSelection(); }) })
+            { ("list", CommandText.Resolve(Texts, "action.list"), 834, () => { if (_commandTargets?.IsActive == true) _commandTargets.ShowList(); else if (_personnelFlow?.IsTargeting == true) _personnelFlow.ShowTargetList(); else _flow.ShowTargetList(); }),
+              ("cancel", CommandText.Resolve(Texts, "action.cancel"), 921, () => { if (_commandTargets?.IsActive == true) _commandTargets.End(); else if (_personnelFlow?.IsTargeting == true) _personnelFlow.EndTargets(); else _flow.EndTargetSelection(); }) })
         {
             var button = new StrategyButton { Title = title, Position = new(x, 680), Size = new(88, 44), Visible = false,
                 Frames = Enumerable.Range(0, 4).Select(f => (Texture2D)_textures.Get($"target-{role}-{f}", this)).ToArray(),
@@ -46,7 +46,7 @@ public partial class StrategyHud
         var after = Session.View;
         var sequence = MilitaryCommandPresentation.Create(before, after, Session.Messages(Texts),
             CommandPresentation, command, events, Random.Shared.Next);
-        OpenNarration(sequence, after);
+        _presentation.OpenNarration(sequence, after);
     }
 
     private IEnumerable<(string Asset, Vector2 Position)> VisibleFrames()

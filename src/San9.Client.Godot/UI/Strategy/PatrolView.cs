@@ -1,5 +1,4 @@
 using Godot;
-using San9.Application;
 using San9.Application.Presentation;
 using San9.Content.Text;
 using San9.Content.Interface;
@@ -11,7 +10,6 @@ public partial class PatrolView : FixedPage
 {
     protected override Color PageBackground => new(0, 0, 0, .35f);
     public PatrolDraft Draft { get; init; } = null!;
-    public GameSession Session { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;
@@ -27,7 +25,6 @@ public partial class PatrolView : FixedPage
         _field = CommandPanelArt.Field(Textures, this);
         Rebuild();
     }
-    public override void _Process(double delta) { if (Session.Snapshot.Revision != Draft.View.World.Revision) Closed(); }
     private Label Label(string value, Rect2 rect, int size = 16, Color? color = null)
     {
         var label = new Label { Text = value, Position = rect.Position, Size = rect.Size, HorizontalAlignment = HorizontalAlignment.Center,

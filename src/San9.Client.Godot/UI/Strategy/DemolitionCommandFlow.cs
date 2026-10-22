@@ -5,48 +5,59 @@ using San9.Core.Simulation;
 
 namespace San9.Client.Godot;
 
-public partial class StrategyHud
+public partial class DemolitionCommandFlow : CommandWorkflow
 {
+    public bool IsActive => _demolition is not null;
     private GameDialog? _demolition;
     private FacilityDemolitionDraft? _demolitionDraft;
-    private MapObjectTarget? DemolitionSource => _demolitionDraft is { } draft ? new(draft.SettlementId, false) : null;
+    public MapObjectTarget? Source => _demolitionDraft is { } draft ? new(draft.SettlementId, false) : null;
 
-    private void OpenDemolition(int id)
+    public void Open(int id)
     {
+        try { OpenCore(id); }
+        catch { Close(); throw; }
+    }
+    private void OpenCore(int id)
+    {
+        if (HasWindow) return;
         if (FacilityDemolitionDraft.UnavailableReasonKey(Session.View, id) is string reason)
-        { _notice.SetNotice(Texts.Resolve(reason)); _notice.Show(); return; }
+        { Notice(Texts.Resolve(reason)); return; }
         if (CommandPresentation.Demolition is not { } definition)
-        { _notice.SetNotice(CommandText.Resolve(Texts, "content.demolition")); _notice.Show(); return; }
-        _textures.RequestPrefixes("dialog-", "narration-");
+        { Notice(CommandText.Resolve(Texts, "content.demolition")); return; }
+        Scope.RequestPrefixes("dialog-", "narration-");
         _demolitionDraft = new(Session, id);
-        _demolition = new() { Textures = _textures };
+        _demolition = new() { Textures = Scope };
         _demolition.SetRichMessage(_demolitionDraft.Confirmation(Session.Messages(Texts), definition).BbCode);
         _demolition.Confirmed += SubmitDemolition;
-        _demolition.Dismissed += CloseDemolition;
-        OverlayHost.AddWorkflow(_demolition);
+        _demolition.Dismissed += Close;
+        ShowWindow(_demolition, () => { _demolition = null; _demolitionDraft = null; });
         _demolition.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         _demolition.FocusDefaultButton();
     }
 
-    private void CloseDemolition()
+    public override void Close()
     {
         _demolitionDraft = null;
         if (_demolition is not { } dialog) return;
         _demolition = null;
-        OverlayHost.RemoveChild(dialog);
-        dialog.QueueFree();
+        CloseWindow(dialog);
     }
 
     private void SubmitDemolition()
     {
+        try { SubmitDemolitionCore(); }
+        catch { Close(); throw; }
+    }
+    private void SubmitDemolitionCore()
+    {
         if (_demolitionDraft is not { } draft) return;
-        if (!draft.CanExecute) { CloseDemolition(); return; }
+        if (!draft.CanExecute) { Close(); return; }
         var before = draft.View;
         var context = Session.Messages(Texts);
         var result = Session.Execute(new("player"), draft.CreateCommand(Guid.NewGuid(), Session.Snapshot.Simulation.NextSequence));
-        CloseDemolition();
+        Close();
         if (!result.Submission.Accepted)
-        { _notice.SetNotice(CommandText.Resolve(Texts, "failure.demolition")); _notice.Show(); return; }
+        { Notice(CommandText.Resolve(Texts, "failure.demolition")); return; }
         var sequence = FacilityDemolitionPresentation.Create(before, context, CommandPresentation.Demolition!,
             result.Events.OfType<FacilityDemolishedEvent>().Single(), Random.Shared.Next);
         OpenNarration(sequence, before);

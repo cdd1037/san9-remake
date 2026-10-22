@@ -23,6 +23,7 @@ public partial class MilitaryCommandFlow : Node
     public MilitaryCommandStage Stage => Source is null ? MilitaryCommandStage.None :
         Targets is null ? MilitaryCommandStage.Preparation :
         _policy is not null || _catalog is not null ? MilitaryCommandStage.TargetModal : MilitaryCommandStage.Targets;
+    private MapTargetInputLease? _input;
     private DeploymentView? _preparation;
     private SpecialDeploymentView? _specialPreparation;
     private MilitaryPolicyView? _policy;
@@ -88,13 +89,13 @@ public partial class MilitaryCommandFlow : Node
     private void BindTargets()
     {
         World.Display!.Targets = Targets;
-        World.TargetPicked = PickTarget;
-        World.WaypointPicked = cell => Targets?.SetWaypoint(cell);
-        World.SitePicked = Targets is SpecialDeploymentTargets { IsConstruction:true } construction ? cell =>
+        _input?.Dispose();
+        _input = new(World, PickTarget, cell => Targets?.SetWaypoint(cell),
+            Targets is SpecialDeploymentTargets { IsConstruction:true } construction ? cell =>
         {
             if (construction.At(cell) is { } target) PickMilitaryTarget(target);
             else construction.SetWaypoint(cell);
-        } : null;
+        } : null);
         Changed?.Invoke();
     }
 
@@ -149,11 +150,7 @@ public partial class MilitaryCommandFlow : Node
     {
         ClosePolicies();
         CloseTargetList();
-        Targets = null;
-        if (World.Display is { } display) display.Targets = null;
-        World.TargetPicked = null;
-        World.WaypointPicked = null;
-        World.SitePicked = null;
+        ReleaseTargets();
         if (_preparation is null && _specialPreparation is null) Source = null;
         _preparation?.Show(); _specialPreparation?.Show(); Changed?.Invoke();
     }
@@ -204,9 +201,17 @@ public partial class MilitaryCommandFlow : Node
             input is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
         { GetViewport().SetInputAsHandled(); EndTargetSelection(); }
     }
+    private void ReleaseTargets()
+    {
+        if (World.Display is { } display && ReferenceEquals(display.Targets, Targets)) display.Targets = null;
+        Targets = null;
+        _input?.Dispose(); _input = null;
+    }
     public override void _ExitTree()
     {
-        if (World.Display is { } display) display.Targets = null;
-        World.TargetPicked = null; World.WaypointPicked = null; World.SitePicked = null;
+        Changed = null; Notice = null; Submitted = null;
+        ReleaseTargets();
+        Source = null;
+        _preparation = null; _specialPreparation = null; _policy = null; _catalog = null;
     }
 }

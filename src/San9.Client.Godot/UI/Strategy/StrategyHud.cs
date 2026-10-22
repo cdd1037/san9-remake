@@ -102,12 +102,12 @@ public partial class StrategyHud : Control
             {
                 if (CommandPresentation.Progress is { } progress) _sceneSounds.Play(progress.StrategyTitleSound, SoundEnabled);
             },
-            CanContinue = publication => _executionPublication == publication &&
+            CanContinue = publication => _presentation?.Publication == publication &&
                 Interaction.CanContinue,
             PresentSeasonChange = PresentSeasonChange,
-            CanPlayDay = () => Interaction.CanPlay && _textures.IsReady && _speechTextures.IsReady && _battleView.Prepare(Turn.Day) && ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady && _executionPanels.IsExpanded,
-            PresentDay = PresentBattleDay,
-            RetryPresentation = () => _battleView.RetryResources(),
+            CanPlayDay = () => Interaction.CanPlay && _textures.IsReady && _feedback.ResourcesReady && _battle.Prepare(Turn.Day) && ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady && _executionPanels.IsExpanded,
+            PresentDay = day => _battle.PresentDay(day),
+            RetryPresentation = () => _battle.RetryResources(),
             CreateDay = (before, after, events) => new(before, after, events, new MapDayPlan(World.Package!, before, events),
                 battle: BattlePresentationPlan.Create(before, after, events, Session.Messages(Texts, before.World), Texts, CommandPresentation,
                     World.Package!.Buildings.ToDictionary(b => b.Id, b => b.FixedType), World.Package,
@@ -220,6 +220,8 @@ public partial class StrategyHud : Control
         AddChild(_hoverCard);
         BuildTurnControls();
         BuildTargetControls();
+        BuildCommandFlows();
+        BuildSessionPresentation();
         // Adding controls can trigger hit testing before the HUD is fully constructed.
         _built = true;
         BuildSidebar();
@@ -307,15 +309,15 @@ public partial class StrategyHud : Control
     private void ApplyUserSettings(Settings.UserSettings draft)
     {
         ApplySettings(draft);
-        if (!draft.SoundEnabled) { _sceneSounds.Stop(); _recordSounds.Stop(); }
+        if (!draft.SoundEnabled) { _sceneSounds.Stop(); _feedback.StopSounds(); }
         _executionPanels.SetReportMode(draft.ProgressReport);
     }
 
     private StrategyInteraction Interaction => StrategyInteraction.Resolve(_built, Turn?.Screen,
-        Turn?.CanAdvance == true, _commandTargets is not null ? CommandTargetStage : _personnelFlow?.IsActive != true ? _flow?.Stage ?? MilitaryCommandStage.None : _personnelFlow.Stage, Overview.IsOpen,
+        Turn?.CanAdvance == true, _commandTargets?.IsActive == true ? _commandTargets.Stage : _personnelFlow?.IsActive != true ? _flow?.Stage ?? MilitaryCommandStage.None : _personnelFlow.Stage, Overview.IsOpen,
         OverlayHost.IsInsideTree() && OverlayHost.HasModal || _notice?.Visible == true,
-        OverlayHost.Workflows.Blocked, SidebarMoving, _battleView?.IsSceneActive == true || HasMapPopup,
-        _pendingNarrations.Count != 0, Session.View.PlayerForceId is not null);
+        OverlayHost.Workflows.Blocked, SidebarMoving, _battle?.IsSceneActive == true || HasMapPopup,
+        _presentation?.HasQueuedNarration == true, Session.View.PlayerForceId is not null);
     private bool IsMapInteractionBlocked => !Interaction.CanUseMap;
     public bool CanNavigateMap => Interaction.CanNavigate;
     private bool HasMapPopup => _commandMenu?.Visible == true || _mapContext?.Visible == true;
@@ -332,7 +334,7 @@ public partial class StrategyHud : Control
 
     private bool IsCoveredPoint(Vector2 point)
     {
-        if (_battleView?.IsSceneActive == true) return true;
+        if (_battle?.IsSceneActive == true) return true;
         if (HasMapPopup) return true;
         if (_built && _executionPanels.Covers(point)) return true;
         if (point.Y >= Size.Y - 28 && point.Y < Size.Y && point.X >= 0 && point.X < Size.X) return true;
@@ -397,14 +399,14 @@ public partial class StrategyHud : Control
         if (command is not ("sortie" or "patrol" or "build" or "transport" or "demolish" or "delegate") && !MissionDraft.Supports(command) && !FacilityCommandDraft.Supports(command) && !AppointmentDraft.Supports(command) && !PersonnelDraft.Supports(command)) return;
         _commandMenu.Close();
         Overview.Close();
-        if (command == "patrol") OpenPatrol(target.Id);
-        else if (command == "demolish") OpenDemolition(target.Id);
-        else if (command == "delegate") OpenCorpsManagement();
-        else if (MissionDraft.Supports(command)) OpenMission(target.Id,command);
+        if (command == "patrol") _patrolFlow.Open(target.Id);
+        else if (command == "demolish") _demolitionFlow.Open(target.Id);
+        else if (command == "delegate") _corpsFlow.Open();
+        else if (MissionDraft.Supports(command)) _missionFlow.Open(target.Id,command);
         else if (PersonnelDraft.Supports(command)) _personnelFlow.Open(target.Id,command);
         else if (command is "build" or "transport") _flow.OpenSpecial(target.Id, command == "build" ? SpecialDeploymentKind.Construction : SpecialDeploymentKind.Transport);
-        else if (AppointmentDraft.Supports(command)) OpenAppointment(target.Id, command);
-        else if (FacilityCommandDraft.Supports(command)) OpenFacilityCommand(target.Id,command);
+        else if (AppointmentDraft.Supports(command)) _appointmentFlow.Open(target.Id, command);
+        else if (FacilityCommandDraft.Supports(command)) _facilityFlow.Open(target.Id,command);
         else _flow.Open(target.Id);
     }
 
@@ -483,7 +485,7 @@ public partial class StrategyHud : Control
         if (_commandMenu.Visible) { _message.SetMessage(_commandMenu.Hint, _commandMenu.HintEnabled); return; }
         if (_mapContext.Visible) { _message.SetMessage(_mapContext.Hint, _mapContext.HintEnabled); return; }
         if (_personnelFlow?.IsTargeting == true) { _message.SetMessage(_personnelFlow.IsRegionSelection ? "请选择目标地域。" : "请选择目标设施。",true); return; }
-        if (_commandTargets is not null) { _message.SetMessage("请选择目标。",true); return; }
+        if (_commandTargets?.IsActive == true) { _message.SetMessage("请选择目标。",true); return; }
         if (_targets is not null)
         {
             string initial = _targets is SpecialDeploymentTargets { IsConstruction:true }
@@ -517,7 +519,7 @@ public partial class StrategyHud : Control
     public override void _Input(InputEvent @event)
     {
         if (@event is InputEventMouseMotion motion) _hoverPosition = motion.Position;
-        HandleMapSpeechInput(@event);
+        if (_built) _feedback.HandleInput(@event);
     }
     private void ClearHover() => _hoverPosition = new Vector2(-1, -1);
     private void UpdateHover(Vector2 mouse)
@@ -556,7 +558,6 @@ public partial class StrategyHud : Control
     {
         if (!_built && World.IsVisibleReady) Build();
         if (_built) UpdateTurn(delta);
-        if (_commandTargets is {} request && request.Selection.View.World.Revision != Session.Snapshot.Revision) EndCommandTargets();
         if (_commandMenu?.Visible == true && _contextRevision != Session.Snapshot.Revision) _commandMenu.Close();
         if (_mapContext?.Visible == true && _contextRevision != Session.Snapshot.Revision) _mapContext.Close();
         if (World.LoadError is not null) _message.Text = "地图加载失败 · F3 查看详情";
@@ -570,7 +571,7 @@ public partial class StrategyHud : Control
         }
         if (_built)
         {
-            _minimap!.SetCommandSource(_flow.Source ?? PatrolSource ?? FacilitySource ?? DemolitionSource ?? AppointmentSource ?? _personnelFlow.Source ?? (_commandMenu!.Visible ? _commandTarget : null));
+            _minimap!.SetCommandSource(_flow.Source ?? _patrolFlow.Source ?? _facilityFlow.Source ?? _demolitionFlow.Source ?? _appointmentFlow.Source ?? _personnelFlow.Source ?? (_commandMenu!.Visible ? _commandTarget : null));
             UpdateSidebar(delta);
         }
         UpdateHover(_hoverPosition ?? GetGlobalMousePosition());
@@ -601,7 +602,6 @@ public partial class StrategyHud : Control
     }
     public override void _ExitTree()
     {
-        Music.SetMapTransitionGain(1);
         World.MapReady -= Build;
         World.EdgeScrollModeChanged -= ShowScrollModeNotice;
         World.BuildingContextRequested -= ShowSettlementContext;
@@ -610,7 +610,6 @@ public partial class StrategyHud : Control
         World.CommandMenuRequested -= ShowCommandMenu;
         GetWindow().MouseExited -= ClearHover;
         _textures.Dispose();
-        _speechTextures?.Dispose();
         _text.Dispose();
         _titleFlashMaterial.Dispose();
     }

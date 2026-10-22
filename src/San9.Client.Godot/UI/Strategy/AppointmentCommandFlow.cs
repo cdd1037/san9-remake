@@ -4,44 +4,59 @@ using San9.Core.Simulation;
 
 namespace San9.Client.Godot;
 
-public partial class StrategyHud
+public partial class AppointmentCommandFlow : CommandWorkflow
 {
     private AppointmentView? _appointment;
-    private MapObjectTarget? AppointmentSource => _appointment is { } view ? new(view.Draft.SourceId, false) : null;
-    private void OpenAppointment(int sourceId, string kind)
+    public MapObjectTarget? Source => _appointment is { } view ? new(view.Draft.SourceId, false) : null;
+    public override void _Process(double delta)
     {
-        if (AppointmentDraft.UnavailableReasonKey(Session.View, sourceId, kind) is string reason)
-        { _notice.SetNotice(Texts.Resolve(reason)); _notice.Show(); return; }
-        if (kind == "strategist" && CommandPresentation.Strategist is null)
-        { _notice.SetNotice(CommandText.Resolve(Texts, "content.strategist")); _notice.Show(); return; }
-        if (kind == "reward" && CommandPresentation.Reward is null)
-        { _notice.SetNotice(CommandText.Resolve(Texts, "content.reward")); _notice.Show(); return; }
-        if (kind == "exile" && CommandPresentation.Exile is null)
-        { _notice.SetNotice(CommandText.Resolve(Texts, "content.exile")); _notice.Show(); return; }
-        if (kind is "bestow" or "confiscate" && CommandPresentation.TreasureTransfer is null)
-        { _notice.SetNotice(CommandText.Resolve(Texts, "content.treasures")); _notice.Show(); return; }
-        if (kind == "execute" && CommandPresentation.Execution is null)
-        { _notice.SetNotice(CommandText.Resolve(Texts, "content.execution")); _notice.Show(); return; }
-        if (kind == "rank" && CommandPresentation.Offices is null)
-        { _notice.SetNotice(CommandText.Resolve(Texts, "content.rank")); _notice.Show(); return; }
-        _textures.RequestPrefixes("deployment-", "detail-", "catalog-", "information-", "dialog-", "narration-");
-        if (kind == "rank") _textures.RequestPrefixes("text-icon-arrow-");
-        _appointment = new() { Draft = new(Session, sourceId, kind), Texts = Texts, Service = Textures, Textures = _textures,
-            Closed = CloseAppointment, Submit = SubmitAppointment };
-        OverlayHost.AddWorkflow(_appointment);
+        if (_appointment is { } view && !view.Draft.IsCurrent) Close();
     }
-    private void CloseAppointment()
+    public void Open(int sourceId, string kind)
+    {
+        try { OpenCore(sourceId, kind); }
+        catch { Close(); throw; }
+    }
+    private void OpenCore(int sourceId, string kind)
+    {
+        if (HasWindow) return;
+        if (AppointmentDraft.UnavailableReasonKey(Session.View, sourceId, kind) is string reason)
+        { Notice(Texts.Resolve(reason)); return; }
+        if (kind == "strategist" && CommandPresentation.Strategist is null)
+        { Notice(CommandText.Resolve(Texts, "content.strategist")); return; }
+        if (kind == "reward" && CommandPresentation.Reward is null)
+        { Notice(CommandText.Resolve(Texts, "content.reward")); return; }
+        if (kind == "exile" && CommandPresentation.Exile is null)
+        { Notice(CommandText.Resolve(Texts, "content.exile")); return; }
+        if (kind is "bestow" or "confiscate" && CommandPresentation.TreasureTransfer is null)
+        { Notice(CommandText.Resolve(Texts, "content.treasures")); return; }
+        if (kind == "execute" && CommandPresentation.Execution is null)
+        { Notice(CommandText.Resolve(Texts, "content.execution")); return; }
+        if (kind == "rank" && CommandPresentation.Offices is null)
+        { Notice(CommandText.Resolve(Texts, "content.rank")); return; }
+        Scope.RequestPrefixes("deployment-", "detail-", "catalog-", "information-", "dialog-", "narration-");
+        if (kind == "rank") Scope.RequestPrefixes("text-icon-arrow-");
+        _appointment = new() { Draft = new(Session, sourceId, kind), Texts = Texts, Service = Textures, Textures = Scope,
+            Closed = Close, Submit = SubmitAppointment };
+        ShowWindow(_appointment, () => { _appointment = null; });
+    }
+    public override void Close()
     {
         if (_appointment is not { } view) return;
-        _appointment = null; OverlayHost.RemoveChild(view); view.QueueFree();
+        _appointment = null; CloseWindow(view);
     }
     private void SubmitAppointment()
+    {
+        try { SubmitAppointmentCore(); }
+        catch { Close(); throw; }
+    }
+    private void SubmitAppointmentCore()
     {
         if (_appointment is not { Draft.CanExecute: true } view) return;
         var draft = view.Draft;
         var beforeMessages = Session.Messages(Texts);
         var result = draft.Submit();
-        CloseAppointment();
+        Close();
         if (draft.Kind == "strategist" && result.Rejection == CommandRejection.None)
         {
             var sequence = StrategistPresentation.Create(draft.View, Session.Messages(Texts), CommandPresentation.Strategist!,
@@ -64,10 +79,10 @@ public partial class StrategyHud
             OpenNarration(execution is not null ? sequence : sequence.Concat(publication.Messages).ToArray(),draft.View,
                 () => {
                     if (result.Rejection != CommandRejection.None)
-                    { _notice.SetNotice(AppointmentPresentation.Result(draft, Texts, result)); _notice.Show(); }
+                    { Notice(AppointmentPresentation.Result(draft, Texts, result)); }
                 });
             return;
         }
-        _notice.SetNotice(AppointmentPresentation.Result(draft, Texts, result)); _notice.Show();
+        Notice(AppointmentPresentation.Result(draft, Texts, result));
     }
 }

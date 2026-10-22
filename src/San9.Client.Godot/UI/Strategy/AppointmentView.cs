@@ -18,7 +18,6 @@ public partial class AppointmentView : FixedPage
     private readonly GameTextPresenter text = new();
     private Control? body, child;
     public override void _Ready() { Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop; Rebuild(); }
-    public override void _Process(double delta) { if (!Draft.IsCurrent) Closed(); }
     private void Rebuild()
     {
         if (body is not null) { RemoveChild(body); body.QueueFree(); }

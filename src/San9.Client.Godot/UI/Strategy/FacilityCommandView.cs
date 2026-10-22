@@ -25,7 +25,6 @@ public partial class FacilityCommandView : FixedPage
         Size = new(1024,768); MouseFilter = MouseFilterEnum.Stop;
         _field = CommandPanelArt.Field(Textures, this); Rebuild();
     }
-    public override void _Process(double delta) { if (!Draft.IsCurrent) Closed(); }
     private void Label(string value, Rect2 rect)
     {
         var label = new Label { Text = value, Position = rect.Position, Size = rect.Size, HorizontalAlignment = HorizontalAlignment.Center,

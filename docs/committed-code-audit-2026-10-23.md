@@ -18,7 +18,7 @@
 | --- | --- | --- | --- |
 | A01 | P1 | 状态已提交后，订阅者异常仍使会话操作报失败 | 已复现；客户端重试后果经调用链核查 |
 | A02 | P1 | 内容包原位更新失败会留下混合版本 | 剧本包已复现；纹理／音频经静态核查 |
-| A03 | P2 | 纹理复用缺少可靠的输入内容与重建单元依赖记录 | 静态确认；未执行私有资源转换反例 |
+| A03 | P2 | 定向重建用单元来源戳为整包背书 | 静态确认；输入指纹建议已按既有决策撤回 |
 | A04 | P2 | 编辑器以显示文字反查字段，合法名称碰撞导致异常 | 已复现 |
 | A05 | P2 | 存档接受未定义的终局原因 | 已复现 |
 | A06 | P2 | 内容集合中的 null 元素绕过反序列化约束并变成内部异常 | Headless 已复现 |
@@ -82,20 +82,17 @@
 
 **验收：** 在每个发布步骤注入失败／取消，旧包仍完整可加载，或恢复机制能确定性完成／撤销更新；图片、音频、数据与清单使用同一发布约束。
 
-### A03 — 纹理来源记录不能证明当前产物仍对应当前输入
+### A03 — 定向重建不能用单元来源戳为整包背书
 
-**定位：** [TexturePackage.cs](../src/San9.Content/Packages/TexturePackage.cs)，`TextureSourceStamp` 第 7 行；[TexturePackageImporter.cs](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs)，35–46 行；[TexturePackageRebuilder.cs](../src/San9.Importer.San9PkTc101/Packages/TexturePackageRebuilder.cs)，49–57、105–108 行。
+**定位：** [TexturePackage.cs](../src/San9.Content/Packages/TexturePackage.cs)、[TexturePackageImporter.cs](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs)、[TexturePackageRebuilder.cs](../src/San9.Importer.San9PkTc101/Packages/TexturePackageRebuilder.cs)。
 
-有两个独立触发条件：
+定向重建会更新包级 `Sources` 中本次读取的来源戳，但保留其他重建单元的旧产物。例如 `skin` 和 `library/g_common` 共享来源，来源变化后只重建 `skin`，旧 library 仍在，包级戳却已被更新；随后普通导入可能错误复用整包。
 
-1. 整包复用只比较来源文件长度、最后修改时间以及整包转换版本。内容变更但长度与时间戳保持相同，会错误复用旧产物；仅时间戳变化又会触发不必要重转。`VerifyAsync` 校验输出图片格式与区域，不能证明其对应输入内容。
-2. 定向重建会更新包级 `Sources` 中所有本次读取的来源戳，但保留其他重建单元的旧产物。比如 `skin` 和 `library/g_common` 都读取 `G_Common.s9`；改变该文件后只重建 `skin`，旧 library 仍在，包级来源戳却已被更新。若整包转换版本未变且其他戳匹配，之后普通 `import-textures` 会判定整包可复用，遗漏旧 library 的失效。
+**审计纠正：** 大小与修改时间的复用策略是 [DEC-RENDER-0004](../specs/decisions/DEC-RENDER-0004-texture-atlases-and-gpu-cache.md) 已确认的取舍。同大小、同时间戳的替换不被自动识别属于该策略限制，撤回原报告要求改为内容摘要、仅时间戳变化不得转换的建议。本项仅处理局部重建错误推进整包来源记录。
 
-这不是已观察到的私有素材损坏事件，而是依据生产者、消费者和复用判断确认的失效条件。
+**根因与整改：** 整包来源戳只能由整包转换更新。定向重建保留原戳与包级转换版本；来源实际变化时，后续普通导入仍能识别整包尚未更新，不增加哈希缓存或隐式扩大本次重建范围。
 
-**根因与整改：** 将缓存有效性绑定到输入内容摘要、转换规则版本和实际重建单元；共享来源变更必须使所有依赖单元失效，不能用某个单元的新来源戳为整包背书。优先建立最小的依赖／失效记录，不必扩成通用构建平台。
-
-**验收：** 同长度、同时间戳但不同内容能失效；仅时间戳改变不要求转换；共享来源修改后局部重建不会让其余过期产物被错误标记为当前。
+**验收：** 定向替换保留原包来源戳，不能把其他单元旧产物标记为已使用新来源。
 
 ### A04 — 编辑器将显示标签当作字段身份
 
@@ -327,4 +324,33 @@ Core 已有内部 `SimulationRules` 配置对象，但公开引擎构造函数�
 
 **验证：** 在当前主工作区运行 `dotnet test San9Remake.slnx --no-restore --nologo`，产品代码构建成功；首轮 5,796 项通过，4 项因测试夹具缺少官职／宝物定义失败。补全夹具、保持统一校验后，4 项全部定向复测通过。后续增加／调整的历史规模、索引规模、规则引用与终止原因用例均定向通过；最终覆盖 Core 2,919、Application 1,784、Content 129、Importer 475、Client 499，共 5,806 个用例，无未解决失败。该计数合并全量与受影响项复测结果，不表示再次全量运行。另运行独立 Headless 测试，**39 项全部通过**。文档引用与 `git diff --check` 通过。
 
-本次验证日志在主工作区 `local/generated/audit-round2-tests.log`、`audit-round2-scaling.log`、`audit-round2-application-final.log`、`audit-round2-core-final.log`、`audit-round2-headless.log`。用户已有的结局展示等未提交改动保留；未做内容转换、Git 提交或 Godot 画面验收。存档 JSON 结构与规则状态语义不变，未增加旧格式兼容路径。
+本次验证日志在主工作区 `local/generated/audit-round2-tests.log`、`audit-round2-scaling.log`、`audit-round2-application-final.log`、`audit-round2-core-final.log`、`audit-round2-headless.log`。用户已有的结局展示等未提交改动保留；验证阶段未做内容转换或 Godot 画面验收，后续提交见下节。存档 JSON 结构与规则状态语义不变，未增加旧格式兼容路径。
+
+## 第一轮后续整改结果
+
+第二轮 A11–A15 已提交，提交为 `1cc513e3`、`2ae0493a`、`a8b2a0cc`、`d4a559fc`、`b4a2e635`。随后继续处理第一轮问题，曾按用户要求暂停；恢复后补充 A09 的工作流边界整改。下列代码与测试已按逻辑分组提交：`6217a113`（会话操作）、`321393ae`（终局原因）、`ee604703`（编辑器身份）、`8a8c3057`（预览预算）、`c29c2d99`（内容结构校验）、`9722faea`（包发布与来源记录）、`6b0cca16`（地图显示度量）、`b11e5ccf`（人事工作流）。原有结局展示等改动未纳入这些提交。
+
+| 项目 | 当前结果 |
+| --- | --- |
+| A01 | 删除会话提交后的外部 `Changed` 回调。信息面板按已提交操作序号刷新，后台计算仍由所有者显式完成；UI 刷新不再介入操作结果。 |
+| A02 | 剧本数据写入独立生成目录，最后替换 `content.json`；失败清理本次数据，不覆盖旧清单引用。贴图打包为每次生成选择独立路径；音频同样先写新路径、发布清单后清理旧资源。锁住清单导致发布失败时，旧包全文件及加载结果保持；连续重建同一贴图单元不会覆盖前一代像素。 |
+| A03 | 定向重建保留整包来源戳；撤回与既有决策冲突的内容哈希建议。 |
+| A04 | `EditorField.TacticId` 承担战法身份，显示名称只用于展示。武将字段与基础属性重名、城市战法相互重名均可正常操作。 |
+| A05 | 领域终局校验只接受 `conquest`、`time-limit`、`player-defeated`。未知原因经存档入口返回 `InvalidState`；测试中的虚构终局原因改为已定义原因。 |
+| A06 | 内容入口增加结构校验，按声明的可空性检查属性和集合元素，错误携带字段路径；保留合法可空元素，未初始化不可变数组也归为内容错误。Headless 的 null 人物元素反例返回退出码 3／`content`。 |
+| A07 | 结束控制、逐日推进在入口显式检查阶段条件；删除捕获整个计算过程 `InvalidOperationException` 的分支。内部异常保留诊断，失败分支不发布，操作 guard 释放。 |
+| A08 | 预览读取和标准编码共用 64 KiB 头部预算；超限槽位独立报错，后续槽位仍可浏览，正文不计入头部预算。完整载入先检查同一预算。 |
+| A09 | 按逐步拆分建议，将人事命令抽为 `PersonnelCommandFlow`，独立持有窗口、草稿、建议选择及地图目标回调；HUD 仅读取工作流状态、转发操作和连接现有演出。关闭、草稿失效、提交异常、节点退出共用释放路径，释放时不覆盖其他流程已接管的回调。其他工作流继续按相关功能演进拆分，不进行全 HUD 重写。 |
+| A10 | 将当前支持的地图尺寸、画布、投影及高差常数集中到 `MapDisplayMetrics`，地图校验、坐标投影和相机边界共用。仍只支持当前显示规格，没有扩成任意尺寸地图。 |
+
+**最终验证：** `dotnet test San9Remake.slnx --no-restore` 全部通过：Core 2,919、Application 1,786、Content 131、Importer 475、Client 500，共 **5,811** 项；实际 Godot 项目构建通过。另运行 `dotnet test tests/San9.Headless.Tests/San9.Headless.Tests.csproj --no-restore`，**40** 项通过。首次测试的两个默认不可变数组错误分类失败已修复；Windows 清单占用测试改为接受实际的 IO／访问拒绝异常，最终全量覆盖通过。日志位于 `local/generated/audit-remaining-final.log` 与 `audit-remaining-headless.log`。
+
+没有执行私有资源整包转换、Godot 画面验收或真实资源性能压测。发布保证以单个剧本包或纹理包为单位，不支持并发写入同一输出目录及运行中热更新；进程中断可能留下未引用资源，不能据此声称具备崩溃后的垃圾回收。原有结局展示等用户改动继续保留。
+
+### A09 恢复后的验证与边界
+
+[PersonnelCommandFlow](../src/San9.Client.Godot/UI/Strategy/PersonnelCommandFlow.cs) 不访问 HUD 或其他命令的私有字段。状态由工作流持有，现有 `StrategyOverlayHost` 继续持有窗口的输入锁，HUD 统一使用 `Stage`、`IsTargeting`、`Source` 决定门禁、目标栏和地图提示。窗口不再自行检查草稿失效，统一由工作流控制；准备窗口显示异常、提交拒绝或异常均释放当前窗口和目标选择。Overlay 先退出或工作流先退出都能释放引用，清理只撤销本流程安装的地图回调。
+
+本次只修改客户端职责与生命周期，运行 `dotnet test tests/San9.Client.Godot.Tests/San9.Client.Godot.Tests.csproj --no-restore`，实际 Godot 工程编译成功、**500 项通过**；`git diff --check` 通过。日志为 `local/generated/audit-hud-workflow.log`。复用此前未变的跨层及 Headless 检查，不重复全量执行。现有单测不覆盖 Godot 节点退出顺序及人工点击，尚未执行人事窗口、地图选点、取消和会话切换的实际交互验收；这里不将自动测试结果称为画面／交互通过。此次落实了审计建议的一个独立工作流边界，未声称全部 HUD 职责已经拆完。
+
+本报告继续保留，作为已修复项的证据索引与 A09 后续职责演进、实际交互验收的入口；前文基线问题不应直接当作当前版本仍存在的缺陷。

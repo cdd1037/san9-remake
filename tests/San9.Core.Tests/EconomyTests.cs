@@ -213,14 +213,19 @@ public sealed class EconomyTests
         mutation.Replace(mutation.Officers[1] with { OfficeId=7 });
         mutation.Replace(mutation.Officers[2] with { OfficeId=8 });
         world.Commit(mutation);
-        var engine=new SimulationEngine(world,new EconomyRulebook([new(7,15),new(8,10)],[]));
+        var rules = new SimulationRules
+        {
+            Economy = new([new(7,15),new(8,10)],[]),
+            Governance = new([new(7, 1000, 0), new(8, 1000, 1)])
+        };
+        var engine=new SimulationEngine(world, rules);
         var salaries=engine.InitialEvents.OfType<ResourceChangedEvent>().Where(e=>e.Reason=="salary").ToArray();
         Assert.Equal(new int?[]{1,2,3,4,5},salaries.Select(e=>e.SourceId));
         Assert.Equal(new long[]{-15,0,-1,-1,-1},salaries.Select(e=>e.Actual));
         Assert.Equal(10,salaries[1].Shortfall);
         Assert.Equal(89,engine.Snapshot.Officers.Single(p=>p.Id==2).Loyalty);
         Assert.Equal(2u,engine.Snapshot.Corps.Single(c=>c.Id==2).Treasury!.Money);
-        Assert.Empty(new SimulationEngine(WorldState.Restore(engine.Snapshot),new EconomyRulebook([new(7,15),new(8,10)],[])).InitialEvents);
+        Assert.Empty(new SimulationEngine(WorldState.Restore(engine.Snapshot), rules).InitialEvents);
     }
 
     [Fact]

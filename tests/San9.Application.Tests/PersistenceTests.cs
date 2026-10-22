@@ -645,6 +645,7 @@ public sealed class PersistenceTests : IDisposable
 
     private sealed class TerminalRules : SimulationRules
     {
+        internal TerminalRules() { Treasures = new([new(1, default, 5)]); }
         internal override void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events)
         {
             if (stage == ResolutionStage.TerminalCheck)
@@ -675,7 +676,7 @@ public sealed class PersistenceTests : IDisposable
         var definition = Fixture();
         var session = GameSession.Start(definition, 190);
         var snapshot = session.Snapshot;
-        var unknown = new SimulationEngine(WorldState.Create(snapshot.Clock, 190, snapshot.Forces, snapshot.Settlements,
+        var unknown = new ScenarioRules(definition).CreateEngine(WorldState.Create(snapshot.Clock, 190, snapshot.Forces, snapshot.Settlements,
             snapshot.Officers.Append(new OfficerState(999, 1, 1, new(1, 1, 1, 1), false)), snapshot.Units,
             snapshot.Corps, snapshot.Treasures, snapshot.Relations, snapshot.Simulation.Controls)).Snapshot;
         var envelope = StrictJson.Deserialize<SaveEnvelope>(SaveService.Encode(session));

@@ -5,6 +5,18 @@ namespace San9.Core.Tests;
 
 public sealed class QiaoMarriageTests
 {
+    [Fact]
+    public void EngineValidatesConfiguredEventReferencesBeforeInitializingTheWorld()
+    {
+        var world = World();
+        var before = world.CreateSnapshot();
+        Assert.Throws<ArgumentException>(() => new SimulationEngine(world, Rules(Definition() with { RulerId = 999 })));
+        Assert.Same(before, world.CreateSnapshot());
+        var engine = new SimulationEngine(world, Rules());
+        Assert.Single(engine.InitialEvents.OfType<QiaoMarriageEvent>());
+        Assert.Equal(engine.Snapshot, engine.Fork().Snapshot);
+    }
+
     internal static QiaoMarriageDefinition Definition() => new(11, 12, [31, 32], 21, 9, [3],
         new(199, 12, 30), new(209, 12, 30), 3, 7, 20, 25, new("qiao-marriage"));
     private static WorldState World() => WorldState.Create(new(190, 1, 1), 17,

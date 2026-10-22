@@ -8,7 +8,7 @@ namespace San9.Application;
 /// <summary>One scenario-owned compilation of authored definitions, shared by simulation and projections.</summary>
 internal sealed class ScenarioRules
 {
-    private readonly ScenarioInitialState _definition;
+    private readonly SimulationRules _simulation;
     internal EconomyRulebook Economy { get; }
     internal PersonnelRulebook Personnel { get; }
     internal TreasureRulebook Treasures { get; }
@@ -19,7 +19,6 @@ internal sealed class ScenarioRules
 
     internal ScenarioRules(ScenarioInitialState definition)
     {
-        _definition = definition;
         Economy = new EconomyRulebook(definition.Information.Offices.Select(o => new OfficeSalary(o.Id, o.Salary)).ToImmutableArray(),
             definition.DomesticPairs, definition.ImperialSealId)
         { FoodMarket = definition.FoodMarket, ImperialCourt = definition.ImperialCourt, RegionCityIds = definition.RegionCityIds.ToImmutableDictionary() };
@@ -33,10 +32,17 @@ internal sealed class ScenarioRules
             definition.Information.Ranks.Select(r => new PeerageRule(r.Id, r.Precedence, r.RequiredTrust, r.LoyaltyBonus)),
             definition.Information.CountryTitles.Select(t => t.Rule), definition.ProvinceCountryTitleIds);
         Abilities = new(Treasures, Governance);
+        _simulation = new()
+        {
+            Economy = Economy, Personnel = Personnel, Treasures = Treasures, Governance = Governance,
+            Military = Military, Terminal = definition.Terminal, Politics = Politics,
+            QiaoMarriage = definition.QiaoMarriage, SunMarriage = definition.SunMarriage,
+            HanzhongKing = definition.HanzhongKing, FiveTigers = definition.FiveTigers,
+            ExpeditionMemorial = definition.ExpeditionMemorial, ThreeVisits = definition.ThreeVisits,
+            ChainedPlot = definition.ChainedPlot, RedCliffs = definition.RedCliffs,
+            ShanyangGong = definition.ShanyangGong, Guandu = definition.Guandu
+        };
     }
 
-    internal SimulationEngine CreateEngine(WorldState world) => new(world, Economy, Personnel, Treasures, Governance,
-        Military, _definition.Terminal, Politics, _definition.QiaoMarriage, _definition.SunMarriage,
-        _definition.HanzhongKing, _definition.FiveTigers, _definition.ExpeditionMemorial, _definition.ThreeVisits,
-        _definition.ChainedPlot, _definition.RedCliffs, _definition.ShanyangGong, _definition.Guandu);
+    internal SimulationEngine CreateEngine(WorldState world) => new(world, _simulation);
 }

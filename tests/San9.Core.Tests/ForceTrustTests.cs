@@ -202,7 +202,7 @@ public sealed class ForceTrustTests
     [Fact]
     public void RestoreReconstructsTrustWithoutChangingRevisionSequenceOrEmittingGameplayEvents()
     {
-        var rules = new SimulationRules { Economy = CourtRules };
+        var rules = new SimulationRules { Economy = CourtRules, Treasures = new([new(5, default, 0)]) };
         var engine = new SimulationEngine(Assets(), rules);
         var snapshot = engine.CaptureStableState();
         var stale = snapshot with { Forces = snapshot.Forces.Select(f => f with { Trust = 1 }).ToArray() };

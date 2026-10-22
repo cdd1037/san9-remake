@@ -17,41 +17,6 @@ public sealed record TaskCancelledEvent(Guid TaskId, GameClock Clock, string Rea
 public sealed record SimulationEndedEvent(GameClock Clock, string Reason) : DomainEvent;
 public sealed record ControlEndedEvent(string ControllerId, int ForceId) : DomainEvent;
 
-// Rules are compiled domain code, not callbacks loaded from content or saves.
-internal class SimulationRules
-{
-    internal GuanduDefinition? Guandu { get; init; }
-    internal ShanyangGongDefinition? ShanyangGong { get; init; }
-    internal RedCliffsDefinition? RedCliffs { get; init; }
-    internal ChainedPlotDefinition? ChainedPlot { get; init; }
-    internal ThreeVisitsDefinition? ThreeVisits { get; init; }
-    internal HanzhongKingDefinition? HanzhongKing { get; init; }
-    internal FiveTigersDefinition? FiveTigers { get; init; }
-    internal ExpeditionMemorialDefinition? ExpeditionMemorial { get; init; }
-    internal SunMarriageDefinition? SunMarriage { get; init; }
-    internal QiaoMarriageDefinition? QiaoMarriage { get; init; }
-    internal PoliticalRulebook Politics { get; init; } = PoliticalRulebook.Empty;
-    internal TerminalDefinition? Terminal { get; init; }
-    internal EconomyRulebook Economy { get; init; } = EconomyRulebook.Empty;
-    internal TreasureRulebook Treasures { get; init; } = TreasureRulebook.Empty;
-    internal PersonnelRulebook Personnel { get; init; } = PersonnelRulebook.Empty;
-    internal GovernanceRulebook Governance { get; init; } = new([]);
-    internal MilitaryRulebook? Military { get; init; }
-    internal OfficerAbilityRules Abilities => new(Treasures, Governance);
-    internal virtual TaskRule? FindTask(string kind) => kind is PersonnelMissions.RecruitKind or PersonnelMissions.MoveKind or PersonnelMissions.SearchKind
-        ? new PersonnelMissionRule(this, kind) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel, Military)
-        : kind == UnitStrategies.Kind ? new UnitStrategyRule(this) : kind == BurnStrategies.Kind ? new BurnRule(this)
-        : kind == AlienateStrategies.Kind ? new AlienateRule(this)
-        : kind == SeizeStrategies.Kind ? new SeizeRule(this)
-        : kind == GossipStrategies.Kind ? new GossipRule(this)
-        : kind == GiftDiplomacy.Kind ? new GiftRule(this)
-        : kind == PrisonerReturnDiplomacy.Kind ? new PrisonerReturnRule(this)
-        : kind == AttackRequestDiplomacy.Kind ? new AttackRequestRule(this)
-        : kind == SurrenderDiplomacy.Kind ? new SurrenderRule(this)
-        : kind == TacticStudy.Kind ? new TacticStudyRule(this) : null;
-    internal virtual void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events) { }
-}
-
 internal abstract class TaskRule
 {
     internal virtual TaskResolutionPhase Phase => TaskResolutionPhase.DailyCommands;

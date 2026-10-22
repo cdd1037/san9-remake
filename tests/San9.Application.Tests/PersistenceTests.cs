@@ -643,13 +643,25 @@ public sealed class PersistenceTests : IDisposable
         Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(Encoding.UTF8.GetBytes(root.ToJsonString()), definition)).Failure);
     }
 
+    [Fact]
+    public void UnknownTerminalReasonIsReportedAsInvalidSavedState()
+    {
+        var definition = G01ScenarioTests.Fixture();
+        var envelope = SaveService.Capture(GameSession.Start(definition, 190));
+        var world = envelope.Session.World;
+        envelope = envelope with { Session = envelope.Session with { World = world with
+            { Simulation = world.Simulation with { Boundary = SimulationBoundary.Terminal, TerminalReason = "unknown-reason" } } } };
+        var error = Assert.Throws<SaveException>(() => SaveService.Decode(CanonicalJson.Encode(envelope), definition));
+        Assert.Equal(SaveFailure.InvalidState, error.Failure);
+    }
+
     private sealed class TerminalRules : SimulationRules
     {
         internal TerminalRules() { Treasures = new([new(1, default, 5)]); }
         internal override void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events)
         {
             if (stage == ResolutionStage.TerminalCheck)
-                world.SetSimulation(world.Simulation with { TerminalReason = "fixture-terminal" });
+                world.SetSimulation(world.Simulation with { TerminalReason = "player-defeated" });
         }
     }
 
@@ -662,7 +674,7 @@ public sealed class PersistenceTests : IDisposable
         SaveService.Write(FilePath("terminal.json"), terminal);
         var restored = SaveService.Read(FilePath("terminal.json"), definition);
         StateAssert.Equal(terminal.Capture(), restored.Capture());
-        Assert.Equal("fixture-terminal", restored.Snapshot.Simulation.TerminalReason);
+        Assert.Equal("player-defeated", restored.Snapshot.Simulation.TerminalReason);
         Assert.Empty(restored.InitialEvents);
         var before = restored.Capture();
         Assert.Empty(restored.AdvanceXun().Events);

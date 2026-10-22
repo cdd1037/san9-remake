@@ -114,6 +114,8 @@ public sealed class EndingSessionTests
         { Ending = new(EndingPolicy.ContinentalExpansion, new(2, 3, 7, 99)) }));
         Assert.Throws<ArgumentException>(() => GameSession.Restore(content, saved with
         { World = saved.World with { Simulation = saved.World.Simulation with { TerminalReason = "time-limit" } } }));
+        Assert.Throws<ArgumentException>(() => GameSession.Restore(content, saved with
+        { World = saved.World with { Simulation = saved.World.Simulation with { TerminalReason = "unknown-reason" } } }));
         var activeContent = content with { Terminal = new([1, 2], 350) };
         var active = GameSession.Start(activeContent, 1).Capture();
         Assert.Throws<ArgumentException>(() => GameSession.Restore(activeContent, active with

@@ -7,12 +7,16 @@ public sealed record TerminalResult(TerminalRoute Route, string? Reason, int? Wi
 
 public static class TerminalEvaluation
 {
+    public static bool IsKnownReason(string? reason) => reason is "conquest" or "time-limit" or "player-defeated";
+
     public static TerminalResult Evaluate(WorldSnapshot world, TerminalDefinition? definition) =>
         Evaluate(world.Clock, world.Simulation, world.Forces, world.Settlements, definition);
 
     internal static TerminalResult Evaluate(GameClock clock, SimulationState simulation, IEnumerable<ForceState> forces,
         IEnumerable<SettlementState> settlements, TerminalDefinition? definition)
     {
+        if (simulation.TerminalReason is not null && !IsKnownReason(simulation.TerminalReason))
+            throw new ArgumentException("Unknown terminal reason.");
         // Once a non-victory reason is set, neither victory nor the year limit can replace it.
         if (simulation.TerminalReason is string reason && reason != "conquest")
             return new(TerminalRoute.ReturnToTitle, reason, null);

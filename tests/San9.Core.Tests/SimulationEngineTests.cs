@@ -334,7 +334,7 @@ public sealed class SimulationEngineTests
     {
         var rules = new FixtureRules { OnStage = (stage, world, _) =>
         {
-            if (stage == stop) world.SetSimulation(world.Simulation with { TerminalReason = "fixture-terminal" });
+            if (stage == stop) world.SetSimulation(world.Simulation with { TerminalReason = "player-defeated" });
         } };
         var engine = new SimulationEngine(CreateWorld(), rules);
         Assert.Equal(stop, engine.InitialEvents.OfType<StageCompletedEvent>().Last().Stage);
@@ -361,7 +361,7 @@ public sealed class SimulationEngineTests
             Assert.False(engine.Execute(new("player"), new WaitCommand(Id(2), 1, 1)).Submission.Accepted);
             Assert.Equal(new GameClock(190, 1, 1), engine.Snapshot.Clock);
             if (stage == ResolutionStage.DailyMapUpdate)
-                world.SetSimulation(world.Simulation with { TerminalReason = "fixture-daily-terminal" });
+                world.SetSimulation(world.Simulation with { TerminalReason = "player-defeated" });
         };
         var result = Advance(engine);
         Assert.Equal(new GameClock(190, 1, 2), result.Snapshot.Clock);

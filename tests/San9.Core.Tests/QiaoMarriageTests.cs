@@ -81,7 +81,7 @@ public sealed class QiaoMarriageTests
             case "late-start": rules = Rules(Definition() with { LatestScenarioStart = new(189, 12, 30) }); break;
             case "late-date": world.SetClock(new(210, 1, 1)); break;
             case "non-quarter": world.SetClock(new(190, 2, 1)); break;
-            case "terminal": world.SetSimulation(world.Simulation with { TerminalReason = "ended" }); break;
+            case "terminal": world.SetSimulation(world.Simulation with { TerminalReason = "player-defeated" }); break;
         }
         List<DomainEvent> events = []; QuarterHistoricalEvents.ApplyQiaoMarriage(world, rules, events);
         Assert.Empty(events); Assert.Empty(world.Simulation.ConsumedEventKeys);

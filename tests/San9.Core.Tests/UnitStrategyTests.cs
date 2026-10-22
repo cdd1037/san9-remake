@@ -614,7 +614,7 @@ public sealed class UnitStrategyTests
         var world = World(friendly: true);
         Submit(world, rules, UnitStrategyKind.Reinforce, 0);
         var state = world.BeginMutation(rules.Abilities);
-        state.SetSimulation(state.Simulation with { TerminalReason = "test-end" });
+        state.SetSimulation(state.Simulation with { TerminalReason = "player-defeated" });
         List<DomainEvent> events = [];
         Assert.False(ResolutionPipeline.CheckTerminal(state, events));
         Assert.Empty(state.Simulation.Tasks);

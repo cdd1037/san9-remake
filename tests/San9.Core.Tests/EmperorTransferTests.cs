@@ -161,7 +161,7 @@ public sealed class EmperorTransferTests
     {
         var rules = Rules(); var w = Mutation(World(true), rules); List<DomainEvent> events = [];
         w.Replace(w.Settlements[1] with { OwnerId = 2 });
-        w.SetSimulation(w.Simulation with { TerminalReason = "fixture-terminal" });
+        w.SetSimulation(w.Simulation with { TerminalReason = "player-defeated" });
         new ResolutionPipeline(rules).Prepare(w, events);
         Assert.Equal(SimulationBoundary.Terminal, w.Simulation.Boundary);
         Assert.Null(w.Simulation.PendingEvent);

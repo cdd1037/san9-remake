@@ -324,7 +324,7 @@ public sealed class GiftSessionTests
         var events = new List<DomainEvent>();
         TaskCancellation.Apply(world, stale, "test-cancel", events);
         TaskCancellation.Apply(world, task, "test-cancel", events);
-        world.SetSimulation(world.Simulation with { TerminalReason = "test-end" });
+        world.SetSimulation(world.Simulation with { TerminalReason = "player-defeated" });
         Assert.False(ResolutionPipeline.CheckTerminal(world, events));
         Assert.Equal(5000, Assert.Single(events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-cancelled").Actual);
         Assert.Single(events.OfType<TaskCancelledEvent>());

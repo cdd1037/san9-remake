@@ -160,7 +160,7 @@ public sealed class HistoricalRecognitionTests
             case "own-opposing-city": world.Replace(world.Settlements[3] with { OwnerId = 1 }); break;
             case "destroyed-opposing-city": world.Replace(world.Settlements[3] with { IsDestroyed = true }); break;
             case "non-quarter": world.SetClock(new(190, 2, 1)); break;
-            case "terminal": world.SetSimulation(world.Simulation with { TerminalReason = "ended" }); break;
+            case "terminal": world.SetSimulation(world.Simulation with { TerminalReason = "player-defeated" }); break;
         }
         List<DomainEvent> events = []; Assert.False(HistoricalRecognition.ApplyExpeditionMemorial(world, Rules(), events));
         Assert.Empty(events); Assert.Empty(world.Simulation.ConsumedEventKeys);

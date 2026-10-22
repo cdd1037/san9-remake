@@ -41,7 +41,6 @@ public sealed class PrisonerExecutionTests
             _ => p
         }).ToArray() };
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new RecruitOfficerCommand(Guid.NewGuid(), 1, 0, 2, 7)).Submission.Accepted);
         var command = new ExecutePrisonerCommand(Guid.NewGuid(), 1, 1, 7);
         var result = session.Execute(new("player"), command);
@@ -65,8 +64,6 @@ public sealed class PrisonerExecutionTests
         StateAssert.Equal(before, session.Snapshot);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -141,7 +138,6 @@ public sealed class PrisonerExecutionTests
         definition = definition with { Officers = definition.Officers.Select(p => p.State.Id == 3
             ? p with { State = p.State with { SuccessionPriority = 100 } } : p).ToArray() };
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         session.Apply(session.Request(new EndControlOperation(), "player"));
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var execute = new ExecutePrisonerCommand(Guid.NewGuid(), 2, 0, 1);
@@ -176,8 +172,6 @@ public sealed class PrisonerExecutionTests
         Assert.Equal(SimulationBoundary.Stable, session.Snapshot.Simulation.Boundary);
         Assert.Equal(2, session.Snapshot.Simulation.Controls[session.Snapshot.Simulation.ActiveControl].ForceId);
         Assert.Empty(result.Events.OfType<StageCompletedEvent>());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -193,7 +187,6 @@ public sealed class PrisonerExecutionTests
             Information = original.Information with { Corps = [.. original.Information.Corps.Where(c => c.OwnerId != 1), new(10, 1, 1, new(1000, 2000)) { IsRoot = true }, new(20, 1, 3, new(300, 400))] }
         };
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         session.EndControl(new("player"));
         Assert.True(session.Execute(new("ai:2"), new ExecutePrisonerCommand(Guid.NewGuid(), 2, 0, 1)).Submission.Accepted);
         Assert.True(session.Execute(new("player"), new ChooseExecutionSuccessorCommand(Guid.NewGuid(), 1, 1, 1, 3)).Submission.Accepted);
@@ -204,8 +197,6 @@ public sealed class PrisonerExecutionTests
         Assert.All(session.Snapshot.Settlements.Where(s => s.OwnerId == 1), s => Assert.Equal(10, s.CorpsId));
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -217,7 +208,6 @@ public sealed class PrisonerExecutionTests
         Assert.True(session.Execute(new("ai:2"), new ExecutePrisonerCommand(Guid.NewGuid(), 2, 0, 1)).Submission.Accepted);
         var snapshot = new SessionSnapshot(session.Snapshot, [], [], session.NextOperationSequence);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
-        Assert.Throws<InvalidOperationException>(() => session.BeginRecording());
         var sim = snapshot.World.Simulation;
         foreach (var invalid in new[] { sim with { PendingExecutionSuccession = null },
             sim with { PendingExecutionSuccession = sim.PendingExecutionSuccession! with { ExecutingForceId = 1 } },

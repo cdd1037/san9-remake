@@ -35,7 +35,6 @@ public sealed class SurrenderSessionTests
         content = content with { Information = content.Information with { Corps = content.Information.Corps
             .Select(c => c.OwnerId == 3 ? c with { Treasury = new(0, 0) } : c).ToArray() } };
         var session = GameSession.Start(content, 42);
-        session.BeginRecording();
         session.EndControl(new("player"));
         Assert.True(session.Execute(new("ai:2"), new DemandSurrenderCommand(Guid.NewGuid(), 2, 0, 21, 1)).Submission.Accepted);
         var outbound = SaveService.Decode(SaveService.Encode(session), content);
@@ -54,8 +53,6 @@ public sealed class SurrenderSessionTests
         EventAssert.Equal(result.Events, restored.Execute(new("player"), response).Events);
         Assert.Equal(accept, Assert.Single(result.Events.OfType<SurrenderResolvedEvent>()).Accepted);
         Assert.Equal(accept, session.Snapshot.Forces.Single(f => f.Id == 1).IsEliminated);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

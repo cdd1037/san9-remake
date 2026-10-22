@@ -45,8 +45,7 @@ public sealed class ShanyangGongSessionTests
     [InlineData(false)]
     public void PublicSearchChoicesCommitAtomicallyResumeAndReplay(bool protect)
     {
-        var definition = Definition(); var session = GameSession.Start(definition, 17); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [12], 1)).Submission.Accepted);
+        var definition = Definition(); var session = GameSession.Start(definition, 17);         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [12], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var arrival = session.AdvanceXun(); EventAssert.Equal(arrival.Events, restored.AdvanceXun().Events);
         var prompt = session.GetShanyangGongPrompt()!;
@@ -91,8 +90,6 @@ public sealed class ShanyangGongSessionTests
         before = session.Snapshot; Assert.False(session.Execute(new("player"), answer).Submission.Accepted); StateAssert.Equal(before, session.Snapshot);
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
         Assert.Null(session.GetShanyangGongPrompt());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

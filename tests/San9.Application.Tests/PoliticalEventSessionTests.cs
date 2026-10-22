@@ -44,13 +44,9 @@ public sealed class PoliticalEventSessionTests
         scenario = scenario with { Information = scenario.Information with { CountryTitles = [.. scenario.Information.CountryTitles,
             new(new(501, false, true, false, [1], []), "preferred", 40)] } };
         var session = GameSession.Start(scenario, 17, playerForceController: ControllerKind.Automatic);
-        session.BeginRecording();
         for (int i = 0; i < 3; i++) session.AdvanceXun();
         Assert.Equal(501, session.Snapshot.Forces.Single(f => f.Id == 1).CountryTitleId);
         Assert.Null(session.GetPendingResponse());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario,
-            GameSession.EngineFactory(scenario));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -79,7 +75,6 @@ public sealed class PoliticalEventSessionTests
     public void QuarterTailChoiceIsReadOnlyUntilAtomicConfirmationAndRoundTrips(bool ended)
     {
         var scenario = Scenario(ended); var session = GameSession.Start(scenario, 17);
-        session.BeginRecording();
         Assert.Equal(10, session.View.Forces.Single(f => f.Id == 1).FlagGlyph);
         Assert.Null(session.GetCountryTitlePrompt());
         session.AdvanceXun(); session.AdvanceXun();
@@ -101,7 +96,6 @@ public sealed class PoliticalEventSessionTests
         for (int i = 0; i < 5; i++) Assert.Equal(prompt, session.GetCountryTitlePrompt());
         StateAssert.Equal(before, session.Snapshot);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
-        Assert.Throws<InvalidOperationException>(() => session.CaptureRecording());
         Assert.False(session.Execute(new("player"), new ChooseCountryTitleCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 900)).Submission.Accepted);
         Assert.False(session.Execute(new("ai:2"), new ChooseCountryTitleCommand(Guid.NewGuid(), 2, session.Snapshot.Simulation.NextSequence, 500)).Submission.Accepted);
         StateAssert.Equal(before, session.Snapshot);
@@ -122,8 +116,6 @@ public sealed class PoliticalEventSessionTests
         Assert.Equal(force, restored.View.Forces.Single(f => f.Id == 1));
         StateAssert.Equal(session.Capture(), restored.Capture());
         EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -131,8 +123,7 @@ public sealed class PoliticalEventSessionTests
     {
         var scenario = Scenario();
         scenario = scenario with { Forces = scenario.Forces.Select(f => f with { RankId = 700 }).ToArray() };
-        var session = GameSession.Start(scenario, 17); session.BeginRecording();
-        session.AdvanceXun(); session.AdvanceXun(); var result = session.AdvanceXun();
+        var session = GameSession.Start(scenario, 17);         session.AdvanceXun(); session.AdvanceXun(); var result = session.AdvanceXun();
         Assert.Equal(new[] { 1, 2 }, result.Events.OfType<PeerageChangedEvent>().Select(e => e.ForceId));
         Assert.All(session.View.Forces, f => Assert.Equal(5, f.RankId));
         Assert.False(session.View.ImperialCourtEnded); Assert.Null(session.GetCountryTitlePrompt());
@@ -140,8 +131,6 @@ public sealed class PoliticalEventSessionTests
         Assert.Equal(110, session.Snapshot.Forces.Single(f => f.Id == 2).Trust);
         var restored = SaveService.Decode(SaveService.Encode(session), scenario);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        StateAssert.Equal(session.Capture(), RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario,
-            GameSession.EngineFactory(scenario)).Session.Capture());
     }
 
     [Fact]
@@ -166,7 +155,7 @@ public sealed class PoliticalEventSessionTests
     {
         var scenario = Scenario() with { PlayerForceId = 2 };
         var session = GameSession.Start(scenario, 17);
-        var events = AutomaticResponseReplay.Advance(session, scenario, 3);
+        var events = AutomaticResponseVerification.Advance(session, scenario, 3);
         Assert.Single(events.OfType<PeerageChangedEvent>(), e => e.ForceId == 1);
         Assert.Equal(500, session.Snapshot.Forces.Single(f => f.Id == 1).CountryTitleId);
     }

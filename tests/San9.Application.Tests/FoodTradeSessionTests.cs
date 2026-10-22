@@ -27,8 +27,7 @@ public sealed class FoodTradeSessionTests
     [InlineData(FoodTradeDirection.Sell)]
     public void PublicTradeUsesIndependentAccountAndSurvivesSaveReplayAndXunRecovery(FoodTradeDirection direction)
     {
-        var d = Definition(); var session = GameSession.Start(d, 190); session.BeginRecording();
-        Assert.Contains("merchant", session.View.Settlements.Single(s => s.Id == 2).Icons);
+        var d = Definition(); var session = GameSession.Start(d, 190);         Assert.Contains("merchant", session.View.Settlements.Single(s => s.Id == 2).Icons);
         var before = session.Snapshot; var quote = session.GetFoodTradeQuote(1, 2, [2], direction);
         Assert.True(quote.Available); Assert.Equal(new(ResourceOwnerKind.Corps, 2), quote.Account);
         Assert.Equal(6000u, quote.MaximumFoodAmount); StateAssert.Equal(before, session.Snapshot);
@@ -49,8 +48,6 @@ public sealed class FoodTradeSessionTests
         session.AdvanceXun(); restored.AdvanceXun();
         StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.True(session.GetFoodTradeQuote(1, 2, [2], direction).Available);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

@@ -56,19 +56,20 @@ public sealed class StagedDailyTaskTests
         var content = Content();
         SimulationEngine Factory(WorldState world) => new(world, new Rules(automaticFinal));
         var session = GameSession.Start(content, 42, Factory);
-        session.BeginRecording();
         Guid taskId = Guid.NewGuid();
         Assert.True(session.Execute(new("player"), new StartTaskCommand(taskId, 1, 0, "staged-fixture", 1, 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), content, Factory);
         restored.AdvanceXun();
         uint beforeMoney = session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money;
         var advance = session.AdvanceXun();
+        List<DomainEvent> events = [.. advance.Events];
         Assert.Equal(3, session.Snapshot.Clock.Day);
         Assert.Equal(1, Assert.Single(session.Snapshot.Simulation.Tasks).ResolutionStep);
         Assert.DoesNotContain(advance.Events, e => e is TaskCompletedEvent);
         var first = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, taskId, 1, true);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var answered = session.Execute(new("player"), first);
+        events.AddRange(answered.Events);
         Assert.True(answered.Submission.Accepted);
         EventAssert.Equal(answered.Events, restored.Execute(new("player"), first).Events);
         StateAssert.Equal(session.Snapshot, restored.Snapshot);
@@ -85,19 +86,17 @@ public sealed class StagedDailyTaskTests
             Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
             var final = stale with { CommandId = Guid.NewGuid(), Step = 2, Accept = accept };
             answered = session.Execute(new("player"), final);
+            events.AddRange(answered.Events);
             Assert.True(answered.Submission.Accepted);
             EventAssert.Equal(answered.Events, restored.Execute(new("player"), final).Events);
             StateAssert.Equal(session.Snapshot, restored.Snapshot);
         }
         Assert.Single(answered.Events.OfType<TaskCompletedEvent>(), e => e.TaskId == taskId);
         Assert.Single(answered.Events.OfType<XunAdvancedEvent>());
+        Assert.Equal(10, events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));
         Assert.Empty(session.Snapshot.Simulation.Tasks);
         // The two ordinary officers also receive their next-xun salary after continuation.
         Assert.Equal(beforeMoney - 2 - (accept ? 100u : 0u), session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, Factory);
-        StateAssert.Equal(session.Snapshot, replay.Session.Snapshot);
-        Assert.Equal(10, replay.Events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));
-        Assert.Single(replay.Events.OfType<TaskCompletedEvent>(), e => e.TaskId == taskId);
     }
 
     [Fact]

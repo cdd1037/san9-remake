@@ -55,7 +55,6 @@ public sealed class DailyTaskDecisionTests
         SimulationEngine Factory(WorldState world) => new(world, new Rules(phase));
         var session = GameSession.Start(content, 42, Factory, enableXunStartCheckpoints: true);
         Assert.NotNull(session.TakeXunStartCheckpoint());
-        session.BeginRecording();
         List<DomainEvent> events = [];
         SessionResult Run(SessionOperation operation, Guid? id = null)
         {
@@ -105,8 +104,6 @@ public sealed class DailyTaskDecisionTests
         Assert.Equal(90, session.Snapshot.Forces[0].BaseTrust);
         Assert.Single(events.OfType<XunAdvancedEvent>());
         Assert.Equal(10, events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, Factory);
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -118,7 +115,6 @@ public sealed class DailyTaskDecisionTests
         var session = GameSession.Start(content, 42, Engine);
         Assert.True(session.Execute(new("corps:1"), new StartTaskCommand(Guid.NewGuid(), 1, 0,
             "decision-fixture", 2, 1)).Submission.Accepted);
-        session.BeginRecording();
         var before = session.Capture();
         var request = session.Request(new AdvanceOperation());
         var advance = session.Apply(request);
@@ -128,7 +124,6 @@ public sealed class DailyTaskDecisionTests
         Assert.Equal("daily-task", failure.Kind);
         Assert.Equal("corps:1", failure.ControllerId);
         StateAssert.Equal(before, session.Capture());
-        Assert.Empty(session.CaptureRecording().Operations);
         Assert.Empty(advance.Events);
         Assert.Equal(failure, session.Apply(request).AutomaticResponseFailure);
         var exception = Assert.Throws<InvalidOperationException>(() => session.AdvanceXun());
@@ -161,7 +156,6 @@ public sealed class DailyTaskDecisionTests
     {
         var content = Content();
         var session = GameSession.Start(content, 42, Engine);
-        session.BeginRecording();
         for (int actor = 1; actor <= 2; actor++)
             Assert.True(session.Execute(new("player"), new StartTaskCommand(Guid.NewGuid(), 1,
                 session.Snapshot.Simulation.NextSequence, "decision-fixture", actor, 1)).Submission.Accepted);
@@ -180,9 +174,8 @@ public sealed class DailyTaskDecisionTests
         Assert.Equal(97, session.Snapshot.Forces[0].BaseTrust);
         Assert.DoesNotContain(advance.Events, e => e is XunAdvancedEvent);
         Assert.Equal(3, advance.Events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));
+        List<DomainEvent> events = [.. advance.Events];
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
-        Assert.Throws<InvalidOperationException>(() => session.EndRecording());
-        Assert.True(session.IsRecording);
         for (int answer = 0; answer < 2; answer++)
         {
             var pending = session.Snapshot.Simulation.PendingDailyTask!;
@@ -193,6 +186,7 @@ public sealed class DailyTaskDecisionTests
             StateAssert.Equal(beforeAnswer, session.Snapshot);
             var request = session.Request(new CommandOperation(command), id: command.CommandId);
             var expected = session.Apply(request);
+            events.AddRange(expected.Events);
             var actual = restored.Apply(request);
             Assert.Equal(SessionDisposition.Accepted, expected.Disposition);
             Assert.Equal(SessionDisposition.Accepted, actual.Disposition);
@@ -219,9 +213,7 @@ public sealed class DailyTaskDecisionTests
         Assert.Equal(11, session.Snapshot.Settlements[0].PublicOrder);
         Assert.Empty(session.Snapshot.Simulation.Tasks);
         Assert.Null(session.Snapshot.Simulation.PendingDailyTask);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, Engine);
-        StateAssert.Equal(session.Snapshot, replay.Session.Snapshot);
-        Assert.Equal(10, replay.Events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));
+        Assert.Equal(10, events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));
     }
 
     [Fact]

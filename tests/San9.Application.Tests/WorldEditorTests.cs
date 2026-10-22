@@ -131,11 +131,19 @@ public sealed class WorldEditorTests
     }
 
     [Fact]
-    public void AllFiveEditorsUseRecordedSessionOperationsAndSurvivePersistence()
+    public void AllFiveEditorsUseSessionOperationsAndSurvivePersistence()
     {
         var definition = Fixture();
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
+        List<SessionRequest> requests = [];
+        var inputHeader = CommandLogService.CreateHeader(session);
+        SessionResult ApplyInput(SessionRequest request)
+        {
+            var result = session.Apply(request);
+            if (result.Disposition == SessionDisposition.Accepted)
+                requests.Add(request);
+            return result;
+        }
         var before = session.Snapshot;
         foreach (var (kind, id, label, value) in new[]
         {
@@ -147,8 +155,8 @@ public sealed class WorldEditorTests
             var draft = new WorldEditorDraft(session, kind, Texts());
             Set(draft, id, label, value);
             var request = session.Request(draft.Operation);
-            Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);
-            Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
+            Assert.Equal(SessionDisposition.Accepted, ApplyInput(request).Disposition);
+            Assert.Equal(SessionDisposition.AlreadyProcessed, ApplyInput(request).Disposition);
         }
         Assert.Equal(99, session.Snapshot.Officers.Single(p => p.Id == 1).BaseAbilities.War);
         Assert.Equal(999999u, session.Snapshot.Corps.Single(c => c.Id == 2).Treasury.Money);
@@ -165,14 +173,12 @@ public sealed class WorldEditorTests
         var logPath = Path.Combine(Path.GetTempPath(), $"san9-editor-{Guid.NewGuid():N}.jsonl");
         try
         {
-            CommandLogService.Write(logPath, session);
+            CommandLogService.Write(logPath, inputHeader, requests);
             var replay = GameSession.Start(definition, 190);
             Assert.Null(CommandLogService.Replay(logPath, replay).FirstFailure);
             StateAssert.Equal(session.Capture(), replay.Capture());
         }
         finally { File.Delete(logPath); }
-        var recording = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition), verifyEvents: true);
-        StateAssert.Equal(session.Capture(), recording.Session.Capture());
         Assert.Equal([7000], GameSession.Start(definition, 190).Snapshot.Settlements.Single(s => s.Id == 1).EnabledTacticIds.ToArray());
     }
 

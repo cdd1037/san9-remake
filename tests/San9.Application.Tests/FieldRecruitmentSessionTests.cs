@@ -39,10 +39,9 @@ public sealed class FieldRecruitmentSessionTests
 
     [Theory]
     [InlineData(true)] [InlineData(false)]
-    public void PublicFieldRecruitmentPreservesBothJourneyLegsAndRecording(bool success)
+    public void PublicFieldRecruitmentPreservesBothJourneyLegs(bool success)
     {
         var definition = Definition(success); var session = GameSession.Start(definition, 17);
-        session.BeginRecording();
         var command = new RecruitOfficerCommand(Guid.NewGuid(), 1, 0, 11, 20);
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
         var submitted = Assert.Single(session.Snapshot.Simulation.Tasks);
@@ -63,8 +62,6 @@ public sealed class FieldRecruitmentSessionTests
             EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.DoesNotContain(session.Snapshot.Simulation.Tasks, t => t.OfficerId == 11);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

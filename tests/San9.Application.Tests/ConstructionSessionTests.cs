@@ -35,7 +35,6 @@ public sealed class ConstructionSessionTests
         { ["city"] = "都市", ["region"] = "白水", ["fort"] = "城塞", ["work"] = "土垒" });
         Assert.Throws<InvalidDataException>(() => (definition with { FacilityNameSuffixKeys = new() { [99999] = "fort" } }).Validate());
         var session = GameSession.Start(definition, 42);
-        session.BeginRecording();
         definition.FacilityNameSuffixKeys[9000] = "changed-by-author";
         Assert.True(session.Execute(new("player"), new ConstructFacilityCommand(Guid.NewGuid(), 1, 0, 1, [11], 10000,
             8000, 9000, new(17, 2))).Submission.Accepted);
@@ -104,7 +103,5 @@ public sealed class ConstructionSessionTests
         var loaded = SaveService.Decode(SaveService.Encode(session), definition);
         Assert.Equal("白水土垒", loaded.View.Settlements.Single(s => s.Id == 8000).ResolveName(texts));
         StateAssert.Equal(session.Snapshot, loaded.Snapshot);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.CaptureRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

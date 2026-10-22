@@ -45,8 +45,7 @@ public sealed class SearchConflictSessionTests
     [MemberData(nameof(Choices))]
     public void EveryChoiceSupportsPublicQueryAtomicResponseSaveAndReplay(string kind, SearchConflictChoice choice)
     {
-        var d = Definition(kind); var session = GameSession.Start(d, 20); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
+        var d = Definition(kind); var session = GameSession.Start(d, 20);         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         session.AdvanceXun(); restored.AdvanceXun();
         var p = Assert.IsType<SearchConflictPrompt>(session.GetSearchConflictPrompt());
@@ -70,8 +69,6 @@ public sealed class SearchConflictSessionTests
         Assert.DoesNotContain(result.Events, e => e is SearchResolvedEvent);
         StateAssert.Equal(session.Capture(), restored.Capture());
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         if (kind == "scholar" && choice == SearchConflictChoice.Execute)
         { Assert.True(session.Snapshot.Officers.Single(o => o.Id == 3).IsDormant); Assert.Equal(1, session.Snapshot.Officers.Single(o => o.Id == 2).LifespanTier); }
     }
@@ -146,8 +143,7 @@ public sealed class SearchConflictSessionTests
         d = d with { SearchEvents = [e with { Sites = [new(1, 1)], MinimumSuccessChance = 0 }],
             Officers = d.Officers.Select(o => o.State.Id == 2
                 ? o with { State = o.State with { BaseAbilities = o.State.BaseAbilities with { War = 0 } } } : o).ToArray() };
-        var session = GameSession.Start(d, 20); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
+        var session = GameSession.Start(d, 20);         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         session.AdvanceXun(); restored.AdvanceXun();
         var prompt = Assert.IsType<SearchConflictPrompt>(session.GetSearchConflictPrompt());
@@ -163,8 +159,6 @@ public sealed class SearchConflictSessionTests
         Assert.DoesNotContain(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "search-conflict");
         Assert.Equal(SessionDisposition.Accepted, restored.Apply(request).Disposition);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

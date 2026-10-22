@@ -262,24 +262,16 @@ public sealed class ProgressPresentationTests
     }
 
     [Fact]
-    public void SaveAndRecordingRetainContextPublication()
+    public void SaveRetainContextPublication()
     {
         var definition = Scenario();
         var session = GameSession.Start(definition,42);
-        session.BeginRecording();
         session.AdvanceXun();
         var loaded = SaveService.Decode(SaveService.Encode(session),definition);
         Assert.Equal(session.StrategicContext.Clock,SaveService.Load(SaveService.Encode(session),definition).StrategicContext.Clock);
         StateAssert.Equal(session.Capture(), loaded.Capture());
         Assert.Equal(session.StrategicContext.Clock,loaded.StrategicContext.Clock);
         Assert.Same(loaded.StrategicContext,StrategicContext.Prepare(loaded.View,loaded.StrategicContext,_ => throw new Exception("Rerolled save")));
-        string path = Path.Combine(Path.GetTempPath(),$"san9-context-{Guid.NewGuid():N}.json");
-        try
-        {
-            RecordingService.Write(path,session.CaptureRecording());
-            StateAssert.Equal(session.Capture(), RecordingService.Replay(path,definition).Session.Capture());
-        }
-        finally { File.Delete(path); }
     }
 
     [Fact]

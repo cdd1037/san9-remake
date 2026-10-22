@@ -5,9 +5,6 @@ namespace San9.Application;
 
 public sealed partial class GameSession
 {
-    private SessionSnapshot? _recordingInitial;
-    private readonly List<RecordedOperation> _recording = [];
-    public bool IsRecording => _recordingInitial is not null;
     public bool HasUnsavedChanges { get; private set; } = true;
     public ImmutableArray<RulesVersionWarning> RulesVersionWarnings { get; private set; } = [];
 
@@ -61,28 +58,6 @@ public sealed partial class GameSession
             world.Clock.DayNumber <= _lastXunStartDay) return;
         _lastXunStartDay = world.Clock.DayNumber;
         _xunStartCheckpoint = CaptureCurrentState();
-    }
-    public void BeginRecording()
-    {
-        if (IsRecording) throw new InvalidOperationException("Recording is already active.");
-        _recordingInitial = Capture();
-        _recording.Clear();
-    }
-
-    public SessionRecording CaptureRecording()
-    {
-        CaptureStableState();
-        return new(_recordingInitial ?? throw new InvalidOperationException("Recording is not enabled."),
-            _recording.ToImmutableArray());
-    }
-
-    public SessionRecording EndRecording()
-    {
-        var recording = CaptureRecording();
-        _recordingInitial = null;
-        _recording.Clear();
-        _recording.TrimExcess();
-        return recording;
     }
     public WorldSnapshot CaptureStableState()
     {

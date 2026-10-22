@@ -45,16 +45,33 @@ public sealed class MilitarySessionTests
     }
 
     [Fact]
-    public void UnitOrderPoliciesAndWaypointSurviveSaveLogAndRecording()
+    public void UnitOrderPoliciesAndWaypointSurviveSaveLog()
     {
         var definition = Fixture(); var session = GameSession.Start(definition, 42);
-        session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [1], 400, 7,
+        List<SessionRequest> requests = [];
+        var inputHeader = CommandLogService.CreateHeader(session);
+        SessionResult ApplyInput(SessionRequest request)
+        {
+            var result = session.Apply(request);
+            if (result.Disposition == SessionDisposition.Accepted)
+                requests.Add(request);
+            return result;
+        }
+        San9.Core.Simulation.CommandExecutionResult ExecuteInput(San9.Core.Simulation.CommandContext context, San9.Core.Simulation.GameCommand command)
+        {
+            var request = session.Request(new CommandOperation(command), context.ControllerId, command.CommandId);
+            var result = session.Execute(context, command);
+            if (result.Submission.Accepted)
+                requests.Add(request);
+            return result;
+        }
+        SessionResult AdvanceInput() => ApplyInput(session.Request(new AdvanceOperation()));
+        Assert.True(ExecuteInput(new("player"), new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [1], 400, 7,
             new(MilitaryOrderKind.Move, new(32, 7), null)) { DepartureDelayDays = 9 }).Submission.Accepted);
         int unitId = Assert.Single(session.Snapshot.Units).Id;
         var command = new OrderUnitCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, unitId,
             new(MilitaryOrderKind.Return, null, 2)) { Policies = new(true, true, false, true), Waypoint = new(12, 2) };
-        Assert.True(session.Execute(new("player"), command).Submission.Accepted);
+        Assert.True(ExecuteInput(new("player"), command).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var unit = Assert.Single(restored.Snapshot.Units);
         Assert.Equal(command.Policies, unit.Policies); Assert.Equal(command.Waypoint, unit.Waypoint);
@@ -62,23 +79,20 @@ public sealed class MilitarySessionTests
         string path = Path.Combine(Path.GetTempPath(), $"unit-order-{Guid.NewGuid():N}.jsonl");
         try
         {
-            CommandLogService.Write(path, session);
+            CommandLogService.Write(path, inputHeader, requests);
             var fromLog = GameSession.Start(definition, 42);
             var replayed = CommandLogService.Replay(path, fromLog);
             Assert.Null(replayed.FirstFailure); Assert.Equal(2, replayed.Accepted);
             StateAssert.Equal(session.Snapshot, fromLog.Snapshot);
         }
         finally { File.Delete(path); }
-        EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Snapshot, replay.Session.Snapshot);
+        EventAssert.Equal(AdvanceInput().Events, restored.AdvanceXun().Events);
     }
 
     [Fact]
     public void DelayedWaypointDeploymentPersistsAndReplaysAsRealUnit()
     {
         var definition = Fixture(); var session = GameSession.Start(definition, 42);
-        session.BeginRecording();
         var command = new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [1], 400, 7,
             new(MilitaryOrderKind.Move, new(32, 7), null))
             { DepartureDelayDays = 9, Waypoint = new(12, 2) };
@@ -92,8 +106,6 @@ public sealed class MilitarySessionTests
         Assert.True(Assert.Single(session.Snapshot.Units).HasEnteredDailyCycle);
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         StateAssert.Equal(session.Snapshot, restored.Snapshot);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Snapshot, replay.Session.Snapshot);
     }
 
     [Fact]
@@ -151,7 +163,7 @@ public sealed class MilitarySessionTests
     }
 
     [Fact]
-    public void AlienateAdviceMissionSaveAndRecordingUseThePublicCommandPath()
+    public void AlienateAdviceMissionSaveUseThePublicCommandPath()
     {
         var basis = Fixture();
         var definition = basis with
@@ -168,7 +180,6 @@ public sealed class MilitarySessionTests
         var before = session.Capture();
         Assert.Equal(AdviserOpinion.NoAdviser, session.GetAlienateAdvice(1, 1, 2).Opinion);
         StateAssert.Equal(before, session.Capture());
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new AlienateCommand(Guid.NewGuid(), 1, 0, 1, 2)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
 
@@ -176,13 +187,10 @@ public sealed class MilitarySessionTests
         Assert.Single(result.Events.OfType<AlienateResolvedEvent>());
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition,
-            GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
-    public void GossipAdviceMissionSaveAndRecordingUseThePublicCommandPath()
+    public void GossipAdviceMissionSaveUseThePublicCommandPath()
     {
         var basis = Fixture();
         var definition = basis with
@@ -214,7 +222,6 @@ public sealed class MilitarySessionTests
         var before = session.Capture();
         Assert.Equal(AdviserOpinion.NoAdviser, session.GetGossipAdvice(1, 1, 2, 3).Opinion);
         StateAssert.Equal(before, session.Capture());
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new GossipCommand(Guid.NewGuid(), 1, 0, 1, 2, 3))
             .Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
@@ -223,13 +230,10 @@ public sealed class MilitarySessionTests
         Assert.Single(result.Events.OfType<GossipResolvedEvent>());
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition,
-            GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
-    public void BurnAdviceAndBothJourneyLegsSurviveSaveAndRecording()
+    public void BurnAdviceAndBothJourneyLegsSurviveSave()
     {
         var basis = Fixture();
         var definition = basis with
@@ -248,7 +252,6 @@ public sealed class MilitarySessionTests
         var before = session.Capture();
         Assert.Equal(AdviserOpinion.NoAdviser, session.GetBurnAdvice(1, 1, 2).Opinion);
         StateAssert.Equal(before, session.Capture());
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new BurnCommand(Guid.NewGuid(), 1, 0, 1, 2)).Submission.Accepted);
         session.AdvanceXun();
         Assert.Equal("strategy-burn", Assert.Single(session.Snapshot.Simulation.Tasks).Kind);
@@ -261,12 +264,10 @@ public sealed class MilitarySessionTests
         EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
         Assert.Empty(session.Snapshot.Simulation.Tasks);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
-    public void SeizeAdviceAndBothJourneyLegsSurviveSaveAndRecording()
+    public void SeizeAdviceAndBothJourneyLegsSurviveSave()
     {
         var basis = Fixture();
         var definition = basis with
@@ -286,7 +287,6 @@ public sealed class MilitarySessionTests
         var before = session.Capture();
         Assert.Equal(AdviserOpinion.NoAdviser, session.GetSeizeAdvice(1, 1, 2).Opinion);
         StateAssert.Equal(before, session.Capture());
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new SeizeCommand(Guid.NewGuid(), 1, 0, 1, 2)).Submission.Accepted);
         session.AdvanceXun();
         Assert.Equal("strategy-seize", Assert.Single(session.Snapshot.Simulation.Tasks).Kind);
@@ -299,15 +299,12 @@ public sealed class MilitarySessionTests
         EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
         Assert.Empty(session.Snapshot.Simulation.Tasks);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition,
-            GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
     [InlineData(UnitStrategyKind.Inspire)]
     [InlineData(UnitStrategyKind.Reinforce)]
-    public void UnitStrategyCommandAdviceAndBothJourneyLegsSurviveSaveAndRecording(UnitStrategyKind strategy)
+    public void UnitStrategyCommandAdviceAndBothJourneyLegsSurviveSave(UnitStrategyKind strategy)
     {
         var basis = Fixture();
         var definition = basis with
@@ -328,7 +325,6 @@ public sealed class MilitarySessionTests
         long RankedSoldiers() => StrategyOverview.Rankings(session.View).Single(c => c.Metric == ForceRankingMetric.Soldiers)
             .Leaders.Single(e => e.Force.Id == 1).Value;
         long soldiersBeforeDeparture = RankedSoldiers();
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new UnitStrategyCommand(Guid.NewGuid(), 1, 0, 1, strategy, 10)).Submission.Accepted);
         Assert.Equal(soldiersBeforeDeparture, RankedSoldiers());
         session.AdvanceXun();
@@ -345,8 +341,6 @@ public sealed class MilitarySessionTests
         EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
         Assert.Empty(session.Snapshot.Simulation.Tasks);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -380,7 +374,6 @@ public sealed class MilitarySessionTests
             Formations = [basis.Military.Formations[0] with { MovementBudget = 95 }, basis.Military.Formations[1]]
         } };
         var session = GameSession.Start(definition, 42);
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new DeployUnitCommand(Guid.NewGuid(), 1, 0,
             1, [1], 400, 7, new(MilitaryOrderKind.Move, new(402, 7), null))).Submission.Accepted);
         int id = Assert.Single(session.Snapshot.Units).Id;
@@ -415,9 +408,6 @@ public sealed class MilitarySessionTests
         Assert.Equal(session.View.UnitArrival(id), restored.View.UnitArrival(id));
         EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
-        Assert.Equal(session.View.UnitArrival(id), replay.Session.View.UnitArrival(id));
     }
 
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "military-public", 190, 1, 1, 1,
@@ -432,11 +422,10 @@ public sealed class MilitarySessionTests
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }], []) };
 
     [Fact]
-    public void PublicCommandSurvivesSaveAndRecordingWithCurrentLocationQueries()
+    public void PublicCommandSurvivesSaveWithCurrentLocationQueries()
     {
         var definition = Fixture();
         var session = GameSession.Start(definition, 42);
-        session.BeginRecording();
         var command = new TransportUnitCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
             1, [1], 400, 2, 200, 300) { Policies = new(true, false, true, false) };
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
@@ -474,8 +463,6 @@ public sealed class MilitarySessionTests
         Assert.Equal(1, session.View.Officers[0].SettlementId);
         Assert.Null(session.View.Officers[0].UnitId);
         Assert.DoesNotContain(session.Snapshot.Simulation.Tasks, task => task.OfficerId == 1);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -545,7 +532,6 @@ public sealed class MilitarySessionTests
     {
         var definition = ReinforcementFixture();
         var session = GameSession.Start(definition, 42);
-        session.BeginRecording();
         var deployment = MilitaryPlanner.Choose(session, new("corps:10", 1, ControllerKind.Automatic), Guid.NewGuid());
         var first = session.Execute(new("corps:10"), deployment);
         Assert.True(first.Submission.Accepted);
@@ -565,8 +551,6 @@ public sealed class MilitarySessionTests
         Assert.Single(events.OfType<UnitAbsorbedEvent>());
         Assert.Empty(session.Snapshot.Units);
         Assert.True(session.Snapshot.Settlements.Single(s => s.Id == 2).Soldiers >= 3000);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

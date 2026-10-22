@@ -61,12 +61,10 @@ public sealed class OfficeRequestSessionTests
         var session = GameSession.Start(scenario, 190);
         session.AdvanceXun(); session.AdvanceXun();
         var restored = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
-        session.BeginRecording();
         EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
         Assert.Equal(new OfficeRequestPrompt(9000, 1, 1), session.GetOfficeRequestPrompt());
         var waitingHash = session.Snapshot;
         Assert.Throws<SaveException>(() => SaveService.Encode(session));
-        Assert.Throws<InvalidOperationException>(() => session.CaptureRecording());
         Assert.Null(SessionDiagnostics.Compare(session, restored));
         _ = session.GetOfficeRequestPrompt();
         StateAssert.Equal(waitingHash, session.Snapshot);
@@ -78,8 +76,6 @@ public sealed class OfficeRequestSessionTests
         EventAssert.Equal(result.Events, restored.Apply(request).Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var saved = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
         Assert.Empty(saved.InitialEvents);
         StateAssert.Equal(session.Capture(), saved.Capture());
@@ -104,7 +100,7 @@ public sealed class OfficeRequestSessionTests
     {
         var scenario = Scenario() with { PlayerForceId = 2 };
         var session = GameSession.Start(scenario, 190);
-        var events = AutomaticResponseReplay.Advance(session, scenario, 3);
+        var events = AutomaticResponseVerification.Advance(session, scenario, 3);
         Assert.Contains(events.OfType<OfficeRequestResolvedEvent>(), e => e.OfficerId == 9000 && e.Choice == EventChoice.Accept);
         Assert.Equal(1, session.Snapshot.Officers.Single(p => p.Id == 9000).OwnerId);
     }

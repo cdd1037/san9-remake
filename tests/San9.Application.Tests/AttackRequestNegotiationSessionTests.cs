@@ -32,7 +32,6 @@ public sealed class AttackRequestNegotiationSessionTests
     {
         var content = Content();
         var session = GameSession.Start(content, 42);
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new RequestAttackCommand(Guid.NewGuid(), 1, 0, 12, 2, 3)).Submission.Accepted);
         var outbound = SaveService.Decode(SaveService.Encode(session), content);
         var arrived = session.AdvanceXun();
@@ -48,7 +47,5 @@ public sealed class AttackRequestNegotiationSessionTests
         Assert.Equal(accept ? AttackRequestOutcome.Accepted : AttackRequestOutcome.Refused,
             Assert.Single(result.Events.OfType<AttackRequestResolvedEvent>()).Outcome);
         DecisionResponses.DeclineAll(session);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

@@ -24,15 +24,12 @@ public sealed class CorpsTreasuryTests
         Assert.Equal(root.Treasury.Money + 3000L, force.Money);
         Assert.Equal(root.Treasury.Food + 4000L, force.Food);
         Assert.Equal(force.Money, EconomicOutlook.Read(session.Snapshot, new Dictionary<int, int>(), 1).Money.Balance);
-        session.BeginRecording();
         var result = session.Execute(new("player"), new DevelopCommand(Guid.NewGuid(), 1, 0, new(1, 1, [2], DomesticActivity.Commerce)));
         Assert.True(result.Submission.Accepted);
         Assert.Contains(result.Events.OfType<ResourceChangedEvent>(), e => e.Account == new ResourceAccount(ResourceOwnerKind.Corps, 101) && e.Actual < 0);
         Assert.Equal(3000u, session.Snapshot.Corps.Single(c => c.Id == 202).Treasury.Money);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         Assert.Equal(session.View.PlayerCorps, restored.View.PlayerCorps);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var serialized = JsonNode.Parse(CanonicalJson.Text(session.Snapshot.Forces[0]))!.AsObject();
         Assert.False(serialized.ContainsKey("money"));
         Assert.False(serialized.ContainsKey("food"));

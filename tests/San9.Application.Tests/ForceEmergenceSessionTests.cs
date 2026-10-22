@@ -24,11 +24,10 @@ public sealed class ForceEmergenceSessionTests
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(80, 80, 80, new(10000, 100000)) { IsRoot = true }], []) };
 
     [Fact]
-    public void PublicAdvanceCreatesQueryableAutomaticForceWithSaveAndRecordingRoundTrip()
+    public void PublicAdvanceCreatesQueryableAutomaticForceWithSaveRoundTrip()
     {
         var scenario = Scenario();
         var session = GameSession.Start(scenario, 17);
-        session.BeginRecording();
         Assert.Empty(session.AdvanceXun().Events.OfType<ForceFoundedEvent>());
         Assert.Empty(session.AdvanceXun().Events.OfType<ForceFoundedEvent>());
         var before = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
@@ -47,8 +46,6 @@ public sealed class ForceEmergenceSessionTests
         var next = session.AdvanceXun();
         Assert.Empty(next.Events.OfType<ForceFoundedEvent>());
         EventAssert.Equal(next.Events, restored.AdvanceXun().Events);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -58,13 +55,10 @@ public sealed class ForceEmergenceSessionTests
         scenario = scenario with { Information = scenario.Information with
         { Ranks = [new(9000, "rank.low", 10000, 900, 0, 3), new(1, "rank.high", 30000, 100, 0, 20)] } };
         var session = GameSession.Start(scenario, 17);
-        session.BeginRecording();
         for (int i = 0; i < 3; i++) session.AdvanceXun();
         Assert.Equal(9000, session.View.Forces.Single(f => f.Id == 81).RankId);
         var restored = SaveService.Decode(SaveService.Encode(session), scenario);
         Assert.Equal(9000, restored.View.Forces.Single(f => f.Id == 81).RankId);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -80,8 +74,7 @@ public sealed class ForceEmergenceSessionTests
                 CountryTitles = [new(new(5000, true, true, false, [], []), "title", 37)]
             }
         };
-        var session = GameSession.Start(scenario, 17); session.BeginRecording();
-        for (int i = 0; i < 9; i++) session.AdvanceXun();
+        var session = GameSession.Start(scenario, 17);         for (int i = 0; i < 9; i++) session.AdvanceXun();
         Assert.Equal(5, session.View.Forces.Single(f => f.Id == 81).RankId);
         Assert.Equal(-1, session.View.Forces.Single(f => f.Id == 81).FlagGlyph);
         for (int i = 0; i < 9; i++) session.AdvanceXun();
@@ -90,8 +83,6 @@ public sealed class ForceEmergenceSessionTests
         Assert.Null(session.GetCountryTitlePrompt());
         var restored = SaveService.Decode(SaveService.Encode(session), scenario);
         Assert.Equal(force, restored.View.Forces.Single(f => f.Id == 81));
-        StateAssert.Equal(session.Capture(), RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario,
-            GameSession.EngineFactory(scenario)).Session.Capture());
     }
 
     [Theory]

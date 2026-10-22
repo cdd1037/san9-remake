@@ -12,7 +12,7 @@ namespace San9.Application.Tests;
 public sealed class UnitDefectionSessionTests
 {
     [Fact]
-    public void SiegeAtXunBoundaryRoundTripsSaveAndRecording()
+    public void SiegeAtXunBoundaryRoundTripsSave()
     {
         var basis = FieldRecruitmentSessionTests.Definition(true);
         var content = basis with
@@ -37,7 +37,6 @@ public sealed class UnitDefectionSessionTests
                     MemberRanks = new Dictionary<int, BattleRank> { [id == 101 ? 11 : 1] = BattleRank.Middle }.ToImmutableDictionary(),
                     Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 100 } })]
         } });
-        session.BeginRecording();
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         var result = session.AdvanceXun();
         Assert.Equal(new GameClock(190, 2, 1), Assert.Single(result.Events.OfType<UnitDefectedEvent>()).Clock);
@@ -46,8 +45,6 @@ public sealed class UnitDefectionSessionTests
         restored = SaveService.Decode(SaveService.Encode(session), content);
         Assert.Empty(restored.InitialEvents);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

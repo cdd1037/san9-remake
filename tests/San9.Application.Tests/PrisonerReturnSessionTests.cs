@@ -33,7 +33,6 @@ public sealed class PrisonerReturnSessionTests
     {
         var content = Content(exchange: exchange);
         var session = GameSession.Start(content, 42);
-        session.BeginRecording();
         var command = new ReturnPrisonerCommand(Guid.NewGuid(), 1, 0, 12, 2, 13);
         uint initialMoney = session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money;
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
@@ -62,8 +61,6 @@ public sealed class PrisonerReturnSessionTests
         Assert.Equal(accept ? OfficerStatus.Serving : OfficerStatus.Captive, session.Snapshot.Officers.Single(p => p.Id == 13).Status);
         Assert.All(session.Snapshot.Simulation.Tasks, t => Assert.NotNull(t.Journey!.ReturnLeg));
         Assert.Single(result.Events.OfType<XunAdvancedEvent>());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Snapshot, replay.Session.Snapshot);
     }
 
     [Fact]
@@ -93,7 +90,6 @@ public sealed class PrisonerReturnSessionTests
         content = content with { Information = content.Information with
             { TreasureStates = [new(9, 21, TreasureDiscovery.Discovered, null)] } };
         var session = GameSession.Start(content, 42);
-        session.BeginRecording();
         session.EndControl(new("player"));
         Assert.True(session.Execute(new("ai:2"), new ReturnPrisonerCommand(Guid.NewGuid(), 2, 0, 22, 1, 23)).Submission.Accepted);
         var outbound = SaveService.Decode(SaveService.Encode(session), content);
@@ -110,8 +106,6 @@ public sealed class PrisonerReturnSessionTests
         EventAssert.Equal(result.Events, restored.Execute(new("player"), response).Events);
         Assert.Equal(kind != CompensationKind.Refuse, Assert.Single(result.Events.OfType<PrisonerReturnResolvedEvent>()).Accepted);
         if (kind == CompensationKind.Treasure) Assert.Equal(11, session.Snapshot.Treasures.Single().HolderId);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Snapshot, replay.Session.Snapshot);
     }
 
     [Fact]

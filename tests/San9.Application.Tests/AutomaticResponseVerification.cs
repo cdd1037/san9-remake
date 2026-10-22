@@ -5,11 +5,10 @@ using San9.Core.Simulation;
 
 namespace San9.Application.Tests;
 
-internal static class AutomaticResponseReplay
+internal static class AutomaticResponseVerification
 {
     internal static IReadOnlyList<DomainEvent> Advance(GameSession session, ScenarioInitialState definition, int xun)
     {
-        session.BeginRecording();
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         List<DomainEvent> events = [];
         for (int i = 0; i < xun; i++)
@@ -21,8 +20,6 @@ internal static class AutomaticResponseReplay
             StateAssert.Equal(session.Capture(), restored.Capture());
             events.AddRange(result.Events);
         }
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         return events;
     }
 }

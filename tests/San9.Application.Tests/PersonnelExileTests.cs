@@ -18,7 +18,6 @@ public sealed class PersonnelExileTests
         };
         var session = GameSession.Start(definition, 190);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
-        session.BeginRecording();
         Guid id = Guid.NewGuid();
         var request = session.Request(new CommandOperation(new ExileOfficerCommand(id, 1, 0, 2)), id: id);
         var result = session.Apply(request);
@@ -32,8 +31,6 @@ public sealed class PersonnelExileTests
         Assert.Equal(45, person.LoyaltyTo(1));
         restored = SaveService.Decode(SaveService.Encode(restored), definition);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
 
     }
 }

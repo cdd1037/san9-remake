@@ -53,9 +53,6 @@ public sealed record SessionResult(SessionDisposition Disposition, SessionReject
     IReadOnlyList<DomainEvent> Events, WorldSnapshot Snapshot,
     CommandRejection CommandRejection = CommandRejection.None, DevelopmentOutcome? Development = null, AI.AutomaticResponseFailure? AutomaticResponseFailure = null);
 
-public sealed record RecordedOperation(SessionRequest Request, ImmutableArray<DomainEvent> Events);
-public sealed record SessionRecording(SessionSnapshot Initial, ImmutableArray<RecordedOperation> Operations);
-
 public sealed record SessionSnapshot(WorldSnapshot World, ImmutableArray<SessionRecord> Records,
     ImmutableArray<ChronicleEntry> Chronicle, long NextOperationSequence)
 {

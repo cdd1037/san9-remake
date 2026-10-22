@@ -9,7 +9,7 @@ namespace San9.Application.Tests;
 public sealed class DuelAdvantagesSessionTests
 {
     [Fact]
-    public void DuelOptionsAndAuthoredAdvantagesSurviveSaveRecordingAndCommandLog()
+    public void DuelOptionsAndAuthoredAdvantagesSurviveSaveAndCommandLog()
     {
         var fixture = G01ScenarioTests.Fixture();
         var officer = fixture.Officers[0];
@@ -18,16 +18,25 @@ public sealed class DuelAdvantagesSessionTests
             : p).ToArray() };
         Assert.False(GameSession.Start(scenario, 190).Snapshot.Simulation.BattleDeathsEnabled);
         var session = GameSession.Start(scenario, 190, battleDeathsEnabled: true);
+        List<SessionRequest> requests = [];
+        var inputHeader = CommandLogService.CreateHeader(session);
+        SessionResult ApplyInput(SessionRequest request)
+        {
+            var result = session.Apply(request);
+            if (result.Disposition == SessionDisposition.Accepted)
+                requests.Add(request);
+            return result;
+        }
+        SessionResult AdvanceInput() => ApplyInput(session.Request(new AdvanceOperation()));
         var restored = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
         Assert.True(restored.Snapshot.Simulation.BattleDeathsEnabled);
         Assert.Equal(DuelAdvantages.DominantParry | DuelAdvantages.DominantDoubleStrike,
             restored.Snapshot.Officers.Single(p => p.Id == officer.State.Id).DuelAdvantages);
-        session.BeginRecording();
-        session.AdvanceXun();
+AdvanceInput();
         var log = Path.Combine(Path.GetTempPath(), $"san9-duel-{Guid.NewGuid():N}.jsonl");
         try
         {
-            CommandLogService.Write(log, session);
+            CommandLogService.Write(log, inputHeader, requests);
             Assert.True(CommandLogService.ReadHeader(log).BattleDeathsEnabled);
             Assert.Throws<CommandLogException>(() => CommandLogService.Replay(log, GameSession.Start(scenario, 190)));
             var compatible = GameSession.Start(scenario, 190, battleDeathsEnabled: true);
@@ -35,8 +44,6 @@ public sealed class DuelAdvantagesSessionTests
             StateAssert.Equal(session.Capture(), compatible.Capture());
         }
         finally { File.Delete(log); }
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]

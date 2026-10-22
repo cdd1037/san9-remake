@@ -23,7 +23,8 @@
 ## 验证与交付
 
 - C# 局部逻辑改动验证受影响项目；纯视觉调整按[覆盖取舍](tests/README.md#覆盖取舍)选择验证；共享契约或跨层行为改动运行 `dotnet test San9Remake.slnx`。Python 改动运行相关测试；纯文档检查引用、命令与差异。测试职责和入口见[测试说明](tests/README.md)。
-- Headless 进程测试不在默认解决方案内；涉及 CLI、退出码、文件产物、存档／命令日志／录像协议、跨进程接线或公共测试配置时，另运行 `dotnet test tests/San9.Headless.Tests/San9.Headless.Tests.csproj`。
+- Headless 进程测试不在默认解决方案内；涉及 CLI、退出码、文件产物、存档／命令日志协议、跨进程接线或公共测试配置时，另运行 `dotnet test tests/San9.Headless.Tests/San9.Headless.Tests.csproj`。
+- 录像已延期并撤下，不将其协议维护、完整重放或未来接口作为日常开发及阶段交付要求；保留存档、精确恢复、确定性和显式命令脚本验证。
 - 同一代码、输入及相关配置已通过的检查不重复运行；实际内容变化、失败或具体未解决风险才扩大或重跑，文件修改时间本身不作为失效依据。不添加只复述实现的测试。
 - 视觉检查按需安排并遵从用户分工，具体见[覆盖取舍](tests/README.md#覆盖取舍)。历史 Godot 验收脚本仅在当前任务明确要求复现时运行，见[入口与限制](docs/ui/client-verification.md)。
 - 纯视觉调整默认不更新配套文档；例外与 BEH／DEC 维护条件见[规格索引](specs/README.md#规格维护)。

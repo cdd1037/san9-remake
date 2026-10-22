@@ -100,7 +100,6 @@ public sealed class PersonnelCommandTests
     {
         var definition = Definition();
         var session = GameSession.Start(definition,7);
-        session.BeginRecording();
         var before = session.Snapshot;
         var draft = new PersonnelDraft(session,1,"search");
         Assert.True(draft.SetMembers([3,1]));
@@ -119,9 +118,6 @@ public sealed class PersonnelCommandTests
         var restored = San9.Application.Persistence.SaveService.Decode(San9.Application.Persistence.SaveService.Encode(session),definition);
         EventAssert.Equal(session.AdvanceXun().Events,restored.AdvanceXun().Events);
         StateAssert.Equal(session.Capture(),restored.Capture());
-        var replay = San9.Application.Persistence.RecordingService.Replay(
-            San9.Application.Persistence.RecordingService.Encode(session.EndRecording()),definition,GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(),replay.Session.Capture());
     }
 
     [Theory]

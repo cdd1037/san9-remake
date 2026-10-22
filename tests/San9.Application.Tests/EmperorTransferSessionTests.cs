@@ -70,7 +70,7 @@ public sealed class EmperorTransferSessionTests
         var content = Content(); var session = Pending(content);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         Assert.Equal(new EmperorTransferPending(2), restored.Snapshot.Simulation.EmperorTransfer);
-        session.BeginRecording(); var first = session.AdvanceXun();
+var first = session.AdvanceXun();
         EventAssert.Equal(first.Events, restored.AdvanceXun().Events);
         Assert.Single(first.Events.OfType<EmperorTransferOfferedEvent>());
         var stages = first.Events.OfType<StageCompletedEvent>().Select(e => e.Stage).ToArray();
@@ -101,8 +101,6 @@ public sealed class EmperorTransferSessionTests
         Assert.Equal(OfficerStatus.Free, session.Snapshot.Officers.Single(p => p.Id == 99).Status);
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys);
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), content).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var duplicate = session.Execute(new("player"), command with { CommandId = Guid.NewGuid(), Sequence = session.Snapshot.Simulation.NextSequence });
         Assert.False(duplicate.Submission.Accepted);
         Assert.Empty(session.AdvanceXun().Events.OfType<EmperorTransferResolvedEvent>());
@@ -138,7 +136,7 @@ public sealed class EmperorTransferSessionTests
         var scenario = Content() with { PlayerForceId = 2 };
         var initial = Pending(scenario).Capture();
         var session = GameSession.Restore(scenario, initial);
-        var events = AutomaticResponseReplay.Advance(session, scenario, 1);
+        var events = AutomaticResponseVerification.Advance(session, scenario, 1);
         Assert.Equal(EmperorTransferChoice.Support, Assert.Single(events.OfType<EmperorTransferResolvedEvent>()).Choice);
     }
 }

@@ -28,10 +28,9 @@ public sealed class TreasureMonumentSessionTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void ChoiceResumesDailyQueueAndStableSaveAndRecordingAgree(bool accept)
+    public void ChoiceResumesDailyQueueAndStableSaveAgree(bool accept)
     {
-        var d = Definition(); var session = GameSession.Start(d, 1); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
+        var d = Definition(); var session = GameSession.Start(d, 1);         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         session.AdvanceXun(); restored.AdvanceXun();
         var p = Assert.IsType<TreasureMonumentPrompt>(session.GetTreasureMonumentPrompt());
@@ -54,8 +53,6 @@ public sealed class TreasureMonumentSessionTests
         Assert.Null(session.GetTreasureMonumentPrompt());
         StateAssert.Equal(session.Capture(), restored.Capture());
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [2], 1)).Submission.Accepted);
         session.AdvanceXun(); Assert.Equal(!accept, session.GetTreasureMonumentPrompt() is not null);
     }

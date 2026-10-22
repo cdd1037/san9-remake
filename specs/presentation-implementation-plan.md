@@ -158,7 +158,7 @@ Core 保留确定性行为事实，Application 组织用例、只读查询和必
 
 每个子项完成原作证据或重制选择核对、正式交互、结果展示和相关验证后交付；数据与资源产物仅在实际失效或缺失时更新，相关改动收敛后按[工程流程](engineering-workflow.md#变更流程)集中转换，复用未变产物及已有核对结果。同时更新受影响的当前文档，不附带全仓历史清理。
 
-- 局部 C# 逻辑验证受影响项目；共享契约或跨层行为运行 `dotnet test San9Remake.slnx`。涉及持久化、录像、CLI 或跨进程接线时另运行 `dotnet test tests/San9.Headless.Tests/San9.Headless.Tests.csproj`。
+- 局部 C# 逻辑验证受影响项目；共享契约或跨层行为运行 `dotnet test San9Remake.slnx`。涉及持久化、CLI 或跨进程接线时另运行 `dotnet test tests/San9.Headless.Tests/San9.Headless.Tests.csproj`。
 - 纯视觉变更按[测试覆盖取舍](../tests/README.md#覆盖取舍)验证。实际画面由用户验收，不自动启动游戏，不默认复跑历史 Godot 脚本。
 - 交付区分数据覆盖、查询／命令接线、自动化验证和实际画面验收，不以编译成功代替交互完成。已通过且输入未变的检查不重复运行。
 

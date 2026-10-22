@@ -37,7 +37,6 @@ public sealed class AttackRequestSessionTests
         { AttackRequests = [new(1, 2, 30, 3)] , Information = new([], [], [], Enumerable.Range(1, 3).Select(id => new San9.Core.Domain.CorpsState(id, id, null, new(10000, 100000)) { IsRoot = true }).ToArray(), []) };
         var session = GameSession.Start(content, 1);
         Assert.Equal(new(1, 2, 30, 3, 2), Assert.Single(session.Snapshot.Simulation.AttackRequests));
-        session.BeginRecording();
         session.AdvanceXun();
         Assert.Equal(1, Assert.Single(session.Snapshot.Simulation.AttackRequests).RemainingXun);
         var saved = SaveService.Encode(session);
@@ -45,14 +44,12 @@ public sealed class AttackRequestSessionTests
         StateAssert.Equal(session.Capture(), SaveService.Decode(saved, changed).Capture());
         var restored = SaveService.Decode(saved, content);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        session.AdvanceXun();
-        restored.AdvanceXun();
+        var expired = session.AdvanceXun();
+        EventAssert.Equal(expired.Events, restored.AdvanceXun().Events);
+        Assert.Equal(AttackRequestEndReason.Expired, Assert.Single(expired.Events.OfType<AttackRequestEndedEvent>()).Reason);
         Assert.Empty(session.Snapshot.Simulation.AttackRequests);
         Assert.Equal(80, session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
-        Assert.Equal(AttackRequestEndReason.Expired, Assert.Single(replay.Events.OfType<AttackRequestEndedEvent>()).Reason);
         var json = JsonNode.Parse(Encoding.UTF8.GetString(saved))!;
         Assert.True(json["session"]!["world"]!["simulation"]!.AsObject().Remove("attackRequests"));
         var failure = Assert.Throws<SaveException>(() => SaveService.Decode(Encoding.UTF8.GetBytes(json.ToJsonString()), content));

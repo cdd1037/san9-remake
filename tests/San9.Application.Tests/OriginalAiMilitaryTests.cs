@@ -780,7 +780,7 @@ public sealed class OriginalAiMilitaryTests
     }
 
     [Fact]
-    public void ActualAutomaticCampaignCapturesAndSurvivesRestoreAndRecordingReplay()
+    public void ActualAutomaticCampaignCapturesAndSurvivesRestore()
     {
         var content = Fixture();
         // Isolate the military chain from personnel reassignment and unrelated random events.
@@ -792,7 +792,6 @@ public sealed class OriginalAiMilitaryTests
                     OriginalAiWork.Train, OriginalAiWork.Commerce, OriginalAiWork.Cultivation)) }
         };
         var session = GameSession.Start(content, 190, playerForceController: ControllerKind.Automatic);
-        session.BeginRecording();
         bool captured = false;
         var history = new List<DomainEvent>();
         for (int turn = 0; turn < 12 && !captured; turn++)
@@ -809,9 +808,6 @@ public sealed class OriginalAiMilitaryTests
         Assert.True(firstDeployment > 0);
         Assert.Contains(history.Take(firstDeployment), e => e is DevelopmentCompletedEvent { Command.Activity: DomesticActivity.Recruit });
         Assert.Contains(history.Take(firstDeployment), e => e is DevelopmentCompletedEvent { Command.Activity: DomesticActivity.Commerce or DomesticActivity.Cultivation });
-        var recording = session.EndRecording();
-        var replay = RecordingService.Replay(RecordingService.Encode(recording), content, GameSession.EngineFactory(content), verifyEvents: true);
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     private static WorldSnapshot EnemyArmy(WorldSnapshot world, int wait = 0, int target = 1) => world with

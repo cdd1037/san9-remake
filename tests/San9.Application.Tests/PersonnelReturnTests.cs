@@ -65,7 +65,6 @@ public sealed class PersonnelReturnTests
                 .WithLoyalty(1, 60).WithLoyalty(2, 80))]
         };
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         int originalLoyalty = session.Snapshot.Officers.Single(p => p.Id == 7).LoyaltyTo(2);
         GameCommand command = exile ? new ExileOfficerCommand(Guid.NewGuid(), 1, 0, 7)
             : new ReleasePrisonerCommand(Guid.NewGuid(), 1, 0, 7);
@@ -89,7 +88,5 @@ public sealed class PersonnelReturnTests
         Assert.True(returned);
         Assert.Empty(session.Snapshot.Simulation.Tasks);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

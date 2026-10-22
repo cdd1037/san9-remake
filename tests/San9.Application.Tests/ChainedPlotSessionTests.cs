@@ -40,7 +40,6 @@ public sealed class ChainedPlotSessionTests
                 { Id = "withdraw-conspirator", ChanceAbility = ConflictChanceAbility.Politics, ChanceDivisor = 1 }]
         };
         var session = GameSession.Start(definition, 17);
-        session.BeginRecording();
         Assert.Equal(ChainedPlotStep.Prelude, Assert.Single(session.AdvanceXun().Events.OfType<ChainedPlotEvent>()).Step);
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, [14], 1)).Submission.Accepted);
@@ -59,15 +58,12 @@ public sealed class ChainedPlotSessionTests
         Assert.Empty(session.AdvanceXun().Events.OfType<ChainedPlotEvent>());
         Assert.Empty(restored.AdvanceXun().Events.OfType<ChainedPlotEvent>());
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
     [Fact]
     public void PreludeAndCoupSaveAndReplayAtStableBoundariesWithoutRepeatingDeaths()
     {
         var definition = Definition(); var session = GameSession.Start(definition, 17);
-        Assert.Empty(session.InitialEvents.OfType<ChainedPlotEvent>()); session.BeginRecording();
-        foreach (var step in new[] { ChainedPlotStep.Prelude, ChainedPlotStep.Coup })
+        Assert.Empty(session.InitialEvents.OfType<ChainedPlotEvent>());         foreach (var step in new[] { ChainedPlotStep.Prelude, ChainedPlotStep.Coup })
         {
             var restored = SaveService.Decode(SaveService.Encode(session), definition);
             var result = session.AdvanceXun();
@@ -81,8 +77,6 @@ public sealed class ChainedPlotSessionTests
         Assert.Equal(12, session.Snapshot.Forces.Single().LeaderId);
         Assert.Equal(new[] { 11, 15 }, session.Snapshot.Officers.Where(p => p.Status == OfficerStatus.Dead).Select(p => p.Id));
         Assert.Empty(session.AdvanceXun().Events.OfType<ChainedPlotEvent>());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -92,13 +86,10 @@ public sealed class ChainedPlotSessionTests
         var session = GameSession.Start(definition, 17);
         Assert.Equal(ChainedPlotStep.CourtUnavailable, Assert.Single(session.InitialEvents.OfType<ChainedPlotEvent>()).Step);
         Assert.Equal(11, session.Snapshot.Forces.Single().LeaderId);
-        session.BeginRecording();
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Empty(restored.InitialEvents);
         Assert.Empty(session.AdvanceXun().Events.OfType<ChainedPlotEvent>());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

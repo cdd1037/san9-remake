@@ -35,11 +35,10 @@ public sealed class SettlementDefectionSessionTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void XunTransitionChangesLiveQueryAndRoundTripsSaveAndFullRecording(bool occupied)
+    public void XunTransitionChangesLiveQueryAndRoundTripsSave(bool occupied)
     {
         var content = Scenario(occupied);
         var session = GameSession.Start(content, 17);
-        session.BeginRecording();
         Assert.Empty(session.InitialEvents.OfType<SettlementDefectedEvent>());
         for (int i = 0; i < 2; i++) Assert.Empty(session.AdvanceXun().Events.OfType<SettlementDefectedEvent>());
         var before = SaveService.Decode(SaveService.Encode(session), content);
@@ -56,8 +55,6 @@ public sealed class SettlementDefectionSessionTests
         var next = session.AdvanceXun();
         Assert.Empty(next.Events.OfType<SettlementDefectedEvent>());
         EventAssert.Equal(next.Events, restored.AdvanceXun().Events);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

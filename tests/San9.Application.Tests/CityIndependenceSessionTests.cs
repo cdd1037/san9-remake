@@ -32,7 +32,6 @@ public sealed class CityIndependenceSessionTests
     {
         var content = Scenario();
         var session = GameSession.Start(content, 17);
-        session.BeginRecording();
         for (int i = 0; i < 2; i++) Assert.Empty(session.AdvanceXun().Events.OfType<CityIndependenceEvent>());
         var before = SaveService.Decode(SaveService.Encode(session), content);
         var result = session.AdvanceXun();
@@ -44,8 +43,6 @@ public sealed class CityIndependenceSessionTests
         StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Empty(restored.InitialEvents);
         EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -91,7 +88,6 @@ public sealed class CityIndependenceSessionTests
         content = content with { CityConnections = [new(1, 2)], Officers = content.Officers.Select(p =>
             p.State.Id == 10 ? p with { State = p.State.WithLoyalty(1, 255) } : p).ToArray() };
         var session = GameSession.Start(content, 17);
-        session.BeginRecording();
         session.AdvanceXun(); session.AdvanceXun();
         var result = session.AdvanceXun();
         Assert.Empty(result.Events.OfType<CityIndependenceEvent>());
@@ -102,7 +98,5 @@ public sealed class CityIndependenceSessionTests
         Assert.Equal(1, session.Snapshot.Settlements.Single(s => s.Id == 1).OwnerId);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

@@ -42,10 +42,9 @@ public sealed class PenglaiSessionTests
     }
 
     [Fact]
-    public void ExplorationActivatesQueriesAndSurvivesSaveAndFullRecording()
+    public void ExplorationActivatesQueriesAndSurvivesSave()
     {
-        var d = Definition(); var session = GameSession.Start(d, 17); session.BeginRecording();
-        var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, d.Forces.Select(f => f.NameKey).Concat(d.Officers.Select(p => p.NameKey)).Concat(d.RegionNameKeys.Values).Distinct().ToDictionary(k => k, k => k));
+        var d = Definition(); var session = GameSession.Start(d, 17);         var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, d.Forces.Select(f => f.NameKey).Concat(d.Officers.Select(p => p.NameKey)).Concat(d.RegionNameKeys.Values).Distinct().ToDictionary(k => k, k => k));
         var query = new InformationQuery(session, texts);
         Assert.DoesNotContain(query.Read(InformationCategory.Corps).Rows, r => r.Key.Id == 2);
         Assert.DoesNotContain(session.View.Settlements, s => s.Id is 3 or 4);
@@ -66,8 +65,6 @@ public sealed class PenglaiSessionTests
         Assert.Equal(810, session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         Assert.DoesNotContain(session.AdvanceXun().Events, e => e is ForceActivatedBySearchEvent);
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, [1], 5)).Submission.Accepted);

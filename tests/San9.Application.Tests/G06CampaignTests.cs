@@ -25,11 +25,10 @@ public sealed class G06CampaignTests
     , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(100000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 22, new(1000, 1000)) { IsRoot = true }], []) };
 
     [Fact]
-    public void EconomyRecruitmentPlannerDeploymentConquestSaveAndRecordingUsePublicSession()
+    public void EconomyRecruitmentPlannerDeploymentConquestSaveUsePublicSession()
     {
         var definition = Fixture();
         var session = GameSession.Start(definition, 42);
-        session.BeginRecording();
         var events = new List<DomainEvent>();
         foreach (var activity in new[] { DomesticActivity.Commerce, DomesticActivity.Recruit })
         {
@@ -62,8 +61,6 @@ public sealed class G06CampaignTests
         Assert.Contains(events.OfType<DevelopmentCompletedEvent>(), e => e.Command.Activity == DomesticActivity.Recruit);
         Assert.True(session.View.Forces.Single(f => f.Id == 2).IsEliminated);
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -73,7 +70,6 @@ public sealed class G06CampaignTests
         var definition = initial with { PlayerForceId = 2,
             Settlements = [initial.Settlements[0] with { Soldiers = 10000 }, initial.Settlements[1]] };
         var session = GameSession.Start(definition, 42);
-        session.BeginRecording();
         session.EndControl(new("player"));
         var attack = MilitaryPlanner.Choose(session, new("ai:1", 1, ControllerKind.Automatic), Guid.NewGuid());
         var submitted = session.Execute(new("ai:1"), attack);
@@ -89,7 +85,5 @@ public sealed class G06CampaignTests
         Assert.Empty(session.AdvanceXun().Events);
         StateAssert.Equal(hash, session.Capture());
         StateAssert.Equal(hash, SaveService.Decode(SaveService.Encode(session), definition).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(hash, replay.Session.Capture());
     }
 }

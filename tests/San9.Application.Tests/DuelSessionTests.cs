@@ -42,30 +42,25 @@ public sealed class DuelSessionTests
         var scenario = Scenario();
         // Isolate succession/replay from strategic decisions to withdraw from this deliberately losing duel.
         var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true);
-        session.BeginRecording();
         var restored = SaveService.Decode(SaveService.Encode(session), scenario);
         var arrival = session.AdvanceXun();
         EventAssert.Equal(arrival.Events, restored.AdvanceXun().Events);
         var prompt = Assert.IsType<DuelSuccessionPrompt>(session.GetDuelSuccessionPrompt());
         Assert.Equal(22, prompt.RulerId);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
-        Assert.Throws<InvalidOperationException>(() => session.CaptureRecording());
         var answer = new ChooseDuelSuccessorCommand(Guid.NewGuid(), 2, session.Snapshot.Simulation.NextSequence, 22, 21);
         var result = session.Execute(new("player"), answer);
         Assert.True(result.Submission.Accepted);
         EventAssert.Equal(result.Events, restored.Execute(new("player"), answer).Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.DoesNotContain("pendingDuel", System.Text.Encoding.UTF8.GetString(SaveService.Encode(session)));
-        var recording = RecordingService.Encode(session.EndRecording());
-        var replay = RecordingService.Replay(recording, scenario, GameSession.EngineFactory(scenario), verifyEvents: true);
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
-        Assert.Single(replay.Events.OfType<OfficerDiedEvent>(), e => e.OfficerId == 22);
-        Assert.Single(replay.Events.OfType<DuelStartedEvent>(), e => e.Clock.Day == 2);
+        var events = arrival.Events.Concat(result.Events);
+        Assert.Single(events.OfType<OfficerDiedEvent>(), e => e.OfficerId == 22);
+        Assert.Single(events.OfType<DuelStartedEvent>(), e => e.Clock.Day == 2);
         if (Environment.GetEnvironmentVariable("SAN9_G09_REPORT_DIR") is { Length: > 0 } output)
         {
             Directory.CreateDirectory(output);
             File.WriteAllBytes(Path.Combine(output, "duel-scenario.json"), CanonicalJson.Encode(scenario));
-            File.WriteAllBytes(Path.Combine(output, "duel.recording.json"), recording);
         }
     }
     [Fact]
@@ -76,7 +71,7 @@ public sealed class DuelSessionTests
         Assert.True(new StableRandom(StableRandom.DeriveSeed(seed, "duel-death")).NextUInt64() % 100 < 30);
         var scenario = Scenario() with { PlayerForceId = 1 };
         var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true);
-        var events = AutomaticResponseReplay.Advance(session, scenario, 1);
+        var events = AutomaticResponseVerification.Advance(session, scenario, 1);
         Assert.Contains(events.OfType<OfficerDiedEvent>(), e => e.OfficerId == 22);
         Assert.NotEqual(22, session.Snapshot.Forces.Single(f => f.Id == 2).LeaderId);
     }

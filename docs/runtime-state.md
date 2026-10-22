@@ -2,11 +2,11 @@
 
 ## 当前结构
 
-G10已完成核心玩法验收（2026-09-21），搜索38项对象、支持历史与周期事件均已闭合，190年完整包及独立CLI36旬通过；专用表现继续按路线图交接。普通场景终局和八类结局已接入。`TerminalDefinition`／`EndingDefinition`是内容输入，`TerminalEvaluation`在旬前置检查，`EndingSnapshotFactory`从终局世界产生只读汇总。`GameSession.GetEndingPrompt`提供责任者候选，`EndingOperation`提交选择，`Ending`查询结果；Application保存选择并录入录像，世界状态和日期不变。普通探索通过`GetSearchRecruitmentPrompt`查询发现人物后的实时选择，复用逐日任务响应继续推进；待答期间禁止保存和导出录像，回答后回到稳定边界即可保存，实际回答随录像重放。主动求官由`GetOfficeRequestPrompt`查询、`RespondOfficeRequestCommand`回答，与联盟共用日历拥有的`EventSession`；人物及资源效果只在提交时写回，候选游标续行不重跑旬更新。特殊探索已接入华佗疗伤：内容人物引用与概率参数驱动当前世界伤员查询，包含原属己方的俘虏，原子治疗后停止搜索；`SearchHealingResolvedEvent`提供治疗名单。初始事件消费键由内容复制到世界并纳入保存与录像。神兽通过`GetBeastSearchPrompt`查询战斗／逃走选择，复用逐日任务响应；奖励、伤势、寿命和地点消费原子提交，完成后结束搜索。季度历史入口`QuarterHistoricalEvents`先尝试联盟，资格失败才检查二乔；`QiaoMarriageEvent`记录当前人物寿命与信望奖励、外交目标，成功消费与效果同事务进入保存和录像，无额外确认命令。二乔失败才检查`SunMarriage`，完成转属、旧任务／部队／军团清理、关系与玩家兵法奖励，`SunMarriageEvent`和消费同事务提交；资格失败不消费，二乔先成功则留到下季。其后汉中王、五虎将、出师表依次检查，首个成功停止季度主表；晋爵复用`PoliticalEvents.GrantRank`，人物奖励按原属俘虏／在职范围分别处理，政治收尾仍读取已提交的爵位与信望。新定义和消费均纳入内容指纹及保存录像，无新增命令。其余进度见[G10验证](g10-verification.md)。
+G10已完成核心玩法验收（2026-09-21），搜索38项对象、支持历史与周期事件均已闭合，190年完整包及独立CLI36旬通过；专用表现继续按路线图交接。普通场景终局和八类结局已接入。`TerminalDefinition`／`EndingDefinition`是内容输入，`TerminalEvaluation`在旬前置检查，`EndingSnapshotFactory`从终局世界产生只读汇总。`GameSession.GetEndingPrompt`提供责任者候选，`EndingOperation`提交选择，`Ending`查询结果；Application保存选择并进入会话状态，世界状态和日期不变。普通探索通过`GetSearchRecruitmentPrompt`查询发现人物后的实时选择，复用逐日任务响应继续推进；待答期间禁止保存，回答后回到稳定边界即可保存，实际回答通过会话操作提交。主动求官由`GetOfficeRequestPrompt`查询、`RespondOfficeRequestCommand`回答，与联盟共用日历拥有的`EventSession`；人物及资源效果只在提交时写回，候选游标续行不重跑旬更新。特殊探索已接入华佗疗伤：内容人物引用与概率参数驱动当前世界伤员查询，包含原属己方的俘虏，原子治疗后停止搜索；`SearchHealingResolvedEvent`提供治疗名单。初始事件消费键由内容复制到世界并纳入保存恢复。神兽通过`GetBeastSearchPrompt`查询战斗／逃走选择，复用逐日任务响应；奖励、伤势、寿命和地点消费原子提交，完成后结束搜索。季度历史入口`QuarterHistoricalEvents`先尝试联盟，资格失败才检查二乔；`QiaoMarriageEvent`记录当前人物寿命与信望奖励、外交目标，成功消费与效果同事务进入保存恢复，无额外确认命令。二乔失败才检查`SunMarriage`，完成转属、旧任务／部队／军团清理、关系与玩家兵法奖励，`SunMarriageEvent`和消费同事务提交；资格失败不消费，二乔先成功则留到下季。其后汉中王、五虎将、出师表依次检查，首个成功停止季度主表；晋爵复用`PoliticalEvents.GrantRank`，人物奖励按原属俘虏／在职范围分别处理，政治收尾仍读取已提交的爵位与信望。新定义进入内容，消费状态纳入存档，无新增命令。其余进度见[G10验证](g10-verification.md)。
 
 内容包提供支持范围内的完整定义、资源和初始状态，不按首屏或初始可见性删减对象。`GameSession.Start`复制初始记录，创建独立的`WorldState`；Core持有势力、据点、人物、宝物等当前状态。两个会话互不影响，改变导入对象也不会改变已启动会话。Core不依赖内容包、Godot或原版格式。
 
-状态只能通过规则提交，成功事务更新世界版本。`WorldSnapshot`保留按ID排序的只读记录；旧快照不随新事务变化。状态摘要包含日级日期、起始日期、控制席位/当前位置、命令序号水位、持续任务、命名随机状态及全部当前领域记录，仅在录像、测试或诊断主动请求时计算，用于确定性对比。世界摘要不包含显示文本、图像或会话内容身份；会话诊断摘要覆盖当前世界、年表、最近记录与操作水位，二者均不写入普通快照；磁盘文件仅保留封套完整性校验和独立内容指纹。
+状态只能通过规则提交，成功事务更新世界版本。`WorldSnapshot`保留按ID排序的只读记录；旧快照不随新事务变化。状态摘要包含日级日期、起始日期、控制席位/当前位置、命令序号水位、持续任务、命名随机状态及全部当前领域记录，仅在测试或诊断主动请求时计算，用于确定性对比。世界摘要不包含显示文本、图像或会话内容身份；会话诊断摘要覆盖当前世界、年表、最近记录与操作水位，二者均不写入普通快照；磁盘文件仅保留封套完整性校验和独立内容指纹。
 
 `SimulationEngine`统一组织规则执行及事务提交：类型化命令经控制权限与业务终验后即时提交或建立持续任务；全部控制席位结束后逐日推进到下一旬，再完成前置更新。`DomesticDevelopmentHandler`检查业务前提并准备变更，`XunRecovery`负责旬行动恢复；二者都只修改候选事务，不自行发布世界。`GameSession`通过运行引擎执行用例，从成功提交返回的领域事件生成会话记录，再通知界面。
 
@@ -48,11 +48,11 @@ Application把当前世界与复制后的名称/显示定义组合成`StrategySn
 
 G09已完成：人物登场、成长、伤势恢复、自然死亡、处决、继任、迁移、季度修行和单挑已接入。继任及修行报名等待仅在内存续行，拒绝存档；正式90日修行任务可保存。v14支持继任自动回退、修行结业后同季续招及电脑双方单挑阵亡，季度自然死亡使用命令前返程时序。原版差异与实际验证见[G09](g09-verification.md)。
 
-G08已接入：`SimulationState.Alliance`唯一保存当前联盟目标、盟主、成员和剩余旬数，内容初始联盟经Application建局后沿快照、摘要、存档和录像传递。`AllianceDiplomacy`处理旬到期与势力退出，军事公共敌对查询拒绝联盟成员之间攻击；`ForceRelations`统一有界对称关系写回。八类计略均已接入公共命令、只读意见、类型化任务、日级效果和返程；`PersonnelJourney`保存目标位置及各命令载荷，流言额外保存两个目标势力身份。`PersistentTask.Reinforcements`保存救援在途现役、伤兵、当前士气与遣散城市，去返程之间转移唯一载荷；日粮耗和断粮损失与其他兵员载体共用账户结算；到达入库、伤兵返程、返城超额及任务失效由运输与遣散服务结清。夺取复用宝物转移、俘虏恢复和资源账户服务，流言复用关系与忠诚服务。季度形成以`PendingAlliance`保存玩家回答；四类外交使用`PendingDailyTask`及任务阶段号保存旬边界谈判和剩余队列。赠与预付款、俘虏补偿、请求期限与劝降归并均由Core清算；`DiplomacyPlanner`与`StrategyPlanner`只生成公共命令，自动军团使用本军团控制权限。完整覆盖与实际验证见[G08](g08-verification.md)。
+G08已接入：`SimulationState.Alliance`唯一保存当前联盟目标、盟主、成员和剩余旬数，内容初始联盟经Application建局后沿快照、摘要、存档传递。`AllianceDiplomacy`处理旬到期与势力退出，军事公共敌对查询拒绝联盟成员之间攻击；`ForceRelations`统一有界对称关系写回。八类计略均已接入公共命令、只读意见、类型化任务、日级效果和返程；`PersonnelJourney`保存目标位置及各命令载荷，流言额外保存两个目标势力身份。`PersistentTask.Reinforcements`保存救援在途现役、伤兵、当前士气与遣散城市，去返程之间转移唯一载荷；日粮耗和断粮损失与其他兵员载体共用账户结算；到达入库、伤兵返程、返城超额及任务失效由运输与遣散服务结清。夺取复用宝物转移、俘虏恢复和资源账户服务，流言复用关系与忠诚服务。季度形成以`PendingAlliance`保存玩家回答；四类外交使用`PendingDailyTask`及任务阶段号保存旬边界谈判和剩余队列。赠与预付款、俘虏补偿、请求期限与劝降归并均由Core清算；`DiplomacyPlanner`与`StrategyPlanner`只生成公共命令，自动军团使用本军团控制权限。完整覆盖与实际验证见[G08](g08-verification.md)。
 
 依据[BEH-ECONOMY-0001](../specs/behavior/BEH-ECONOMY-0001-domestic-and-economic-cycle.md)，六项经营命令支持1至5名不同参与者。公共处理器验证当前归属、驻地、行动占用、项目次数与资源，原子提交属性、账户、兵员、熟练度和使用状态；拒绝不改变世界与随机。征兵按实际剩余容量和资金计算，兵役与驻军严格守恒。
 
-`EconomyRulebook`由Application从内容的官职和人物组合定义构建，不保存第二份可写世界。`ResourceAccounts`解析势力/军团账户并报告请求、实际、短缺和饱和；`EconomicCycle`在旬前支付俸禄、每日命令前扣粮、季度更新人口与收入、七月收获。普通存档包含当前状态；完整资源事件属于显式录像。
+`EconomyRulebook`由Application从内容的官职和人物组合定义构建，不保存第二份可写世界。`ResourceAccounts`解析势力/军团账户并报告请求、实际、短缺和饱和；`EconomicCycle`在旬前支付俸禄、每日命令前扣粮、季度更新人口与收入、七月收获。普通存档包含当前状态；资源事件由执行结果返回，调用方按需消费，不进入会话永久历史。
 
 F3面板对选中玩家城市选择可用武将中当前政治最高者执行，展示成功增量或拒绝原因。它是实际用例的调试入口；正式内政菜单尚未制作。
 
@@ -84,7 +84,7 @@ G06的`MilitaryOrder`分别引用部队或据点，失效目标在战后事务�
 
 人事任务记录是旅行占用的来源，名单和建筑可用人数读取任务及人物当前据点/部队位置；旬恢复清行动位时不清任务，也不把出征成员变回驻城者。内部编译规则决定人事任务时长、资格及完成效果，存档不能携带执行代码；未知任务规则恢复时拒绝。正式任务已接入搜索人物、普通登用与多人调动，驻地与出行目的地分别保存，到期重验并由统一人事转换清理引用。军师任命与褒美使用即时公共命令；实际边界见[G04推进记录](g04-verification.md)。军事命令由`UnitState.Order`持有，日地图阶段重寻路，不使用固定到期日的人事任务表达行军。
 
-`CaptureStableState`拒绝执行中取存档；`WorldState.Restore`验证稳定边界与不变量，保留版本且不执行首轮更新。`SaveEnvelope.Session.World`包含权威世界，初始种子只保存于`SimulationState`。Application的`SaveService`实现严格校验、同目录原子替换和新会话恢复；`CommandLogService`按会话序号重放，旧序号返回已处理且不产生事件、不验证旧载荷。`GameSession.Apply`在候选世界上执行，世界、最近128条内政记录和水位一起发布；玩家年表保留，完整操作与事件仅在显式录像时记录。协议、独立CLI和实际验收见[G02验收](g02-verification.md)。
+`CaptureStableState`拒绝执行中取存档；`WorldState.Restore`验证稳定边界与不变量，保留版本且不执行首轮更新。`SaveEnvelope.Session.World`包含权威世界，初始种子只保存于`SimulationState`。Application的`SaveService`实现严格校验、同目录原子替换和新会话恢复；`CommandLogService`按会话序号重放，旧序号返回已处理且不产生事件、不验证旧载荷。`GameSession.Apply`在候选世界上执行，世界、最近128条内政记录和水位一起发布；玩家年表保留，不保留完整操作与事件历史。协议、独立CLI和实际验收见[G02验收](g02-verification.md)。
 
 ## 此前运行态验证
 

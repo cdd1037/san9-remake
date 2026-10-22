@@ -23,14 +23,14 @@ public sealed class CommandLogException(int line, string message, Exception? inn
 
 public static class CommandLogService
 {
-    public static void Write(string path, GameSession session)
+    /// <summary>Describes the input script's starting configuration; the caller owns its explicit requests.</summary>
+    public static CommandLogHeader CreateHeader(GameSession session)
     {
-        var recording = session.CaptureRecording();
-        Write(path, new(SessionProtocol.LogFormatVersion, SessionProtocol.RulesVersion, recording.Initial.World.Simulation.InitialSeed)
-            { BattleDeathsEnabled = recording.Initial.World.Simulation.BattleDeathsEnabled,
-                ComputerDamageBonusPercent = recording.Initial.World.Simulation.ComputerDamageBonusPercent,
-                PlayerForceController = recording.Initial.PlayerForceController, OriginalAi = recording.Initial.OriginalAi.Policy },
-            recording.Operations.Select(e => e.Request));
+        var simulation = session.Snapshot.Simulation;
+        return new(SessionProtocol.LogFormatVersion, SessionProtocol.RulesVersion, simulation.InitialSeed)
+            { BattleDeathsEnabled = simulation.BattleDeathsEnabled,
+                ComputerDamageBonusPercent = simulation.ComputerDamageBonusPercent,
+                PlayerForceController = session.PlayerForceController, OriginalAi = session.OriginalAi.Policy };
     }
 
     public static void Write(string path, CommandLogHeader header, IEnumerable<SessionRequest> requests)

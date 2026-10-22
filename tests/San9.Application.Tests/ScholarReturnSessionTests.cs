@@ -39,8 +39,7 @@ public sealed class ScholarReturnSessionTests
     public void ChoicesPersistHistoryConsumptionAndReplayThroughPublicSession(bool accept)
     {
         var definition = Definition();
-        var session = GameSession.Start(definition, Seed()); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
+        var session = GameSession.Start(definition, Seed());         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         session.AdvanceXun(); restored.AdvanceXun();
         var prompt = Assert.IsType<ScholarReturnPrompt>(session.GetScholarReturnPrompt());
@@ -61,8 +60,6 @@ public sealed class ScholarReturnSessionTests
         Assert.Null(session.GetScholarReturnPrompt());
         StateAssert.Equal(session.Capture(), restored.Capture());
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

@@ -34,8 +34,7 @@ public sealed class G10StageSessionTests
     public void HistoricalDeathCancelsJourneyThenSuccessorCanChooseEventBeforeTerminalFreeze()
     {
         var d = Scenario() with { UnbuiltPlaces = [new(3, new(500, 0))], RegionNameKeys = new() { [1] = "home", [2] = "away", [3] = "distant" },
-            RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 1 } }; var session = GameSession.Start(d, 17); session.BeginRecording();
-        Assert.Equal(ChainedPlotStep.Prelude, Assert.Single(session.AdvanceXun().Events.OfType<ChainedPlotEvent>()).Step);
+            RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 1 } }; var session = GameSession.Start(d, 17);         Assert.Equal(ChainedPlotStep.Prelude, Assert.Single(session.AdvanceXun().Events.OfType<ChainedPlotEvent>()).Step);
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [11], 3)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         var coup = session.AdvanceXun(); EventAssert.Equal(coup.Events, restored.AdvanceXun().Events);
@@ -66,8 +65,7 @@ public sealed class G10StageSessionTests
             SearchEvents = [new ScholarPunishmentSearchEventDefinition([new(1, 21, [], new("scholar.visited"))], 1)
                 { Id = "scholar", ChanceAbility = ConflictChanceAbility.Politics, ChanceDivisor = 1 }]
         };
-        var session = GameSession.Start(d, 17); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [12], 1)).Submission.Accepted);
+        var session = GameSession.Start(d, 17);         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [12], 1)).Submission.Accepted);
         session.AdvanceXun(); var prompt = Assert.IsType<SearchConflictPrompt>(session.GetSearchConflictPrompt());
         var result = session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
             prompt.TaskId, prompt.Step, false) { SearchConflict = SearchConflictChoice.Execute });
@@ -85,7 +83,5 @@ public sealed class G10StageSessionTests
         Assert.Equal(SessionRejection.Terminal, session.Apply(session.Request(new AdvanceOperation())).Rejection);
         StateAssert.Equal(hash, session.Snapshot);
         StateAssert.Equal(savedState, SaveService.Decode(saved, d).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        StateAssert.Equal(savedState, replay.Session.Capture());
     }
 }

@@ -72,7 +72,6 @@ public sealed class AttackRequestPlannerTests
             "settlement" => new CaptureSettlementDelegation(3), _ => new GeneralDelegation()
         };
         var session = GameSession.Start(content, 42);
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new SetCorpsDelegationCommand(Guid.NewGuid(), 1, 0, 20, delegation)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         var request = session.Request(new EndControlOperation());
@@ -82,8 +81,6 @@ public sealed class AttackRequestPlannerTests
         StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Empty(session.Snapshot.Units);
         Assert.Equal(delegation, session.Snapshot.Corps.Single(c => c.Id == 20).Delegation);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var authored = content with { Information = content.Information with { Corps = content.Information.Corps.Select(c =>
             c.Id == 20 ? c with { Delegation = delegation } : c).ToArray() } };
         authored.Validate();
@@ -126,7 +123,6 @@ public sealed class AttackRequestPlannerTests
         var command = Assert.IsType<DeployUnitCommand>(MilitaryPlanner.Choose(session, new("player", 1, ControllerKind.Player), Guid.NewGuid()));
         Assert.Equal(3, command.Order.SettlementId);
         StateAssert.Equal(before, session.Capture());
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
         Assert.Single(session.Snapshot.Simulation.AttackRequests);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
@@ -141,8 +137,6 @@ public sealed class AttackRequestPlannerTests
         }
         Assert.Empty(session.Snapshot.Simulation.AttackRequests);
         Assert.Equal(AttackRequestEndReason.Fulfilled, Assert.Single(events.OfType<AttackRequestEndedEvent>()).Reason);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

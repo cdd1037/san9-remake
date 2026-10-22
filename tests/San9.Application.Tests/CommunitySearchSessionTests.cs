@@ -45,8 +45,7 @@ public sealed class CommunitySearchSessionTests
     [MemberData(nameof(Choices))]
     public void EveryChoiceSupportsPublicQueryAtomicResponseSaveAndReplay(string kind, CommunitySearchChoice choice)
     {
-        var d = Definition(kind); var session = GameSession.Start(d, 20); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
+        var d = Definition(kind); var session = GameSession.Start(d, 20);         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         session.AdvanceXun(); restored.AdvanceXun();
         var p = Assert.IsType<CommunitySearchPrompt>(session.GetCommunitySearchPrompt());
@@ -70,8 +69,6 @@ public sealed class CommunitySearchSessionTests
         Assert.DoesNotContain(result.Events, e => e is SearchResolvedEvent);
         StateAssert.Equal(session.Capture(), restored.Capture());
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -115,7 +112,6 @@ public sealed class CommunitySearchSessionTests
         d = d with { Settlements = [d.Settlements[0] with { Soldiers = soldiers }],
             SearchEvents = [(CivicSearchEventDefinition)Event("volunteers") with { MaximumForceSoldiersExclusive = 20000 }] };
         var session = GameSession.Start(d, 20);
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         session.AdvanceXun(); restored.AdvanceXun();
@@ -130,7 +126,5 @@ public sealed class CommunitySearchSessionTests
             Assert.Equal(SessionDisposition.Accepted, restored.Apply(request).Disposition);
         }
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

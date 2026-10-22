@@ -40,12 +40,8 @@ public sealed class HeadlessProcessTests : IDisposable
         Assert.Equal(0, run.Code);
         Assert.Single(run.Report.GetProperty("rulesVersionWarnings").EnumerateArray());
         StateAssert.Equal(ReadSession("continuous.save.json"), ReadSession("run.save.json"));
-        var replay = await Run("replay", "--fixture", "--recording", FilePath("verification.recording.json"),
-            "--save", FilePath("replay.save.json"), "--report", FilePath("replay-report.json"));
-        Assert.Equal(0, replay.Code);
-        StateAssert.Equal(ReadSession("continuous.save.json"), ReadSession("replay.save.json"));
-        using var report = JsonDocument.Parse(File.ReadAllBytes(FilePath("replay-report.json")));
-        Assert.True(JsonElement.DeepEquals(replay.Report, report.RootElement));
+        using var report = JsonDocument.Parse(File.ReadAllBytes(FilePath("run-report.json")));
+        Assert.True(JsonElement.DeepEquals(run.Report, report.RootElement));
     }
 
     [Fact]

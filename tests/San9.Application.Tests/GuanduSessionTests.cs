@@ -41,7 +41,6 @@ public sealed class GuanduSessionTests
     public void PublicRecruitmentGuaranteesSuccessBeforeTransferAndReplaysAcrossSaveBoundaries()
     {
         var definition = Definition(); var session = GameSession.Start(definition, 17);
-        session.BeginRecording();
         var command = new RecruitOfficerCommand(Guid.NewGuid(), 1, 0, 12, 23);
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
@@ -60,8 +59,6 @@ public sealed class GuanduSessionTests
         var saved = SaveService.Decode(SaveService.Encode(session), definition);
         StateAssert.Equal(session.Capture(), saved.Capture());
         Assert.Empty(session.AdvanceXun().Events.OfType<GuanduEvent>());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

@@ -29,7 +29,6 @@ public sealed class CapturedRulerDispositionTests
     {
         var definition = Fixture();
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var advance = session.Request(new AdvanceOperation(), "player");
         var result = session.Apply(advance);
@@ -42,7 +41,6 @@ public sealed class CapturedRulerDispositionTests
         Assert.DoesNotContain(result.Events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.UnitAndBuildingEvents);
         Assert.Empty(result.Events.OfType<XunAdvancedEvent>());
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
-        Assert.Throws<InvalidOperationException>(() => session.BeginRecording());
         var hash = session.Snapshot;
         long sequence = session.Snapshot.Simulation.NextSequence;
         Assert.Equal(CommandRejection.DecisionPending, session.Execute(new("player"), new WaitCommand(Guid.NewGuid(), 1, sequence)).Submission.Rejection);
@@ -93,8 +91,6 @@ public sealed class CapturedRulerDispositionTests
         }
         else Assert.Single(completed.Events.OfType<PrisonerExecutedEvent>());
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
     private static ScenarioInitialState AddThirdForce(ScenarioInitialState original, bool captive = false) => original with
     {
@@ -116,7 +112,6 @@ public sealed class CapturedRulerDispositionTests
         definition = definition with { Information = definition.Information with {
             Treasures = [new(100, "seal", 1, 0, 0, null)], TreasureStates = [new(100, 1, TreasureDiscovery.Discovered, null)] } };
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         var result = session.AdvanceXun();
         Assert.Null(session.GetCapturedRulerPrompt());
         Assert.Empty(result.Events.OfType<AllianceVictoryEvent>());
@@ -142,8 +137,6 @@ public sealed class CapturedRulerDispositionTests
             (victory.TargetForceId, victory.VictorForceId, victory.Cause, victory.BaseTrustGained));
         Assert.Equal(initialTrust + 15, session.Snapshot.Forces.Single(f => f.Id == 2).BaseTrust);
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -165,7 +158,6 @@ public sealed class CapturedRulerDispositionTests
         if (noHeir) definition = definition with { Officers = definition.Officers.Where(p => p.State.OwnerId != 2 || p.State.Id == 4).ToArray() };
         var session = GameSession.Start(definition, 190);
         int initialTrust = session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust;
-        session.BeginRecording();
         var saved = SaveService.Encode(session);
         session.AdvanceXun();
         var command = new ChooseCapturedRulerDispositionCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 4, action);
@@ -185,8 +177,6 @@ public sealed class CapturedRulerDispositionTests
         restored.AdvanceXun();
         EventAssert.Equal(result.Events, restored.Execute(new("player"), command).Events);
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -223,7 +213,6 @@ public sealed class CapturedRulerDispositionTests
         var original = Fixture();
         var definition = original with { Officers = original.Officers.Where(p => p.State.OwnerId != 2 || p.State.Id == 4).ToArray() };
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         session.AdvanceXun();
         Assert.NotNull(session.GetCapturedRulerPrompt());
         var result = session.Execute(new("player"), new ChooseCapturedRulerDispositionCommand(Guid.NewGuid(), 1,
@@ -238,8 +227,6 @@ public sealed class CapturedRulerDispositionTests
         Assert.Single(result.Events.OfType<SimulationEndedEvent>());
         Assert.DoesNotContain(result.Events, e => e is StageCompletedEvent or XunAdvancedEvent);
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
     private static ScenarioInitialState ComputerFixture(bool execute)
     {
@@ -261,7 +248,6 @@ public sealed class CapturedRulerDispositionTests
     {
         var definition = ComputerFixture(execute);
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         var saved = SaveService.Encode(session);
         var result = session.Apply(session.Request(new AdvanceOperation()));
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
@@ -277,10 +263,6 @@ public sealed class CapturedRulerDispositionTests
         var restored = SaveService.Decode(saved, definition);
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var recording = session.EndRecording();
-        Assert.Single(recording.Operations);
-        var replay = RecordingService.Replay(RecordingService.Encode(recording), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -403,7 +385,6 @@ public sealed class CapturedRulerDispositionTests
         var definition = original with { Alliance = new(1, 2, [2, 3], 10),
             Officers = original.Officers.Where(p => p.State.OwnerId != 1 || p.State.Id == 1).ToArray() };
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         var result = session.AdvanceXun();
         Assert.Equal(SimulationBoundary.Terminal, session.Snapshot.Simulation.Boundary);
         Assert.Equal(new GameClock(190, 1, 2), session.Snapshot.Clock);
@@ -413,8 +394,6 @@ public sealed class CapturedRulerDispositionTests
         Assert.Empty(result.Events.OfType<ExecutionSuccessionRequestedEvent>());
         Assert.DoesNotContain(result.Events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.UnitAndBuildingEvents);
         Assert.Empty(result.Events.OfType<XunAdvancedEvent>());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -423,7 +402,6 @@ public sealed class CapturedRulerDispositionTests
         var definition = ComputerFixture(false);
         var rules = new RepeatingDispositionRules { Personnel = new(definition.Settlements.Select(s => new PersonPlace(s.Id, s.Position))) };
         var session = GameSession.Start(definition, 190, w => new(w, rules));
-        session.BeginRecording();
         var before = session.Capture();
         var result = session.Apply(session.Request(new AdvanceOperation()));
         Assert.Equal(SessionRejection.AutomaticResponseFailed, result.Rejection);
@@ -431,7 +409,6 @@ public sealed class CapturedRulerDispositionTests
         Assert.Equal("ai:2", result.AutomaticResponseFailure.ControllerId);
         StateAssert.Equal(before, session.Capture());
         Assert.Empty(result.Events);
-        Assert.Empty(session.CaptureRecording().Operations);
         Assert.Empty(session.Records);
     }
 

@@ -52,7 +52,6 @@ public sealed class EndingSessionTests
         Assert.Null(session.Ending);
         var snapshot = session.Snapshot;
         session = SaveService.Decode(SaveService.Encode(session), content, GameSession.EngineFactory(content));
-        session.BeginRecording();
         var request = session.Request(new EndingOperation(new(EndingPolicy.ContinentalExpansion, new(2, 3, 7, 8))));
         Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);
         Assert.Equal(EndingOutcome.SouthernDynasty, session.Ending!.Outcome);
@@ -62,9 +61,6 @@ public sealed class EndingSessionTests
         Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
         Assert.Equal(SessionDisposition.Rejected, session.Apply(session.Request(request.Operation)).Disposition);
         Assert.Equal(SessionRejection.Terminal, session.Apply(session.Request(new AdvanceOperation())).Rejection);
-        var recording = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), recording.Session.Capture());
-        Assert.Equal(session.Ending, recording.Session.Ending);
         var restored = SaveService.Decode(SaveService.Encode(session), content, GameSession.EngineFactory(content));
         StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal(session.Ending, restored.Ending);

@@ -40,7 +40,6 @@ public sealed class BeastSearchSessionTests
     {
         var definition = Definition(knows);
         var session = GameSession.Start(definition, Seed());
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         session.AdvanceXun(); restored.AdvanceXun();
@@ -65,8 +64,6 @@ public sealed class BeastSearchSessionTests
         var saved = SaveService.Decode(SaveService.Encode(session), definition);
         StateAssert.Equal(session.Capture(), saved.Capture());
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var person = session.Snapshot.Officers.Single(p => p.Id == 2);
         Assert.Equal(expected == EventResult.Succeeded ? 82 : 80, person.BaseAbilities.War);
         Assert.Equal(expected == EventResult.Succeeded, person.LearnedTactics.Contains(102));

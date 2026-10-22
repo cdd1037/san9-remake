@@ -40,8 +40,7 @@ public sealed class RedCliffsSessionTests
     public void MovingCommanderIntoTheRegionTriggersAtNextXunAndReplaysThroughSaveBoundaries()
     {
         var definition = Definition(); var session = GameSession.Start(definition, 17);
-        Assert.Empty(session.InitialEvents.OfType<RedCliffsEvent>()); session.BeginRecording();
-        var command = new MoveOfficersCommand(Guid.NewGuid(), 1, 0, [12], 3);
+        Assert.Empty(session.InitialEvents.OfType<RedCliffsEvent>());         var command = new MoveOfficersCommand(Guid.NewGuid(), 1, 0, [12], 3);
         Assert.True(session.Execute(new("player"), command).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var result = session.AdvanceXun();
@@ -55,8 +54,6 @@ public sealed class RedCliffsSessionTests
         var saved = SaveService.Decode(SaveService.Encode(session), definition);
         Assert.Empty(saved.InitialEvents); StateAssert.Equal(session.Capture(), saved.Capture());
         Assert.Empty(session.AdvanceXun().Events.OfType<RedCliffsEvent>());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

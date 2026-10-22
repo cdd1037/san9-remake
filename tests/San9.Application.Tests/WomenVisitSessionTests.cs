@@ -36,10 +36,9 @@ public sealed class WomenVisitSessionTests
     }
 
     [Fact]
-    public void SameDayVisitsCompleteWithoutChoiceAndRepeatThroughSaveAndRecording()
+    public void SameDayVisitsCompleteWithoutChoiceAndRepeatThroughSave()
     {
-        var d = Definition(); var session = GameSession.Start(d, Seed()); session.BeginRecording();
-        foreach (int actor in new[] { 2, 4 })
+        var d = Definition(); var session = GameSession.Start(d, Seed());         foreach (int actor in new[] { 2, 4 })
             Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [actor], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         var result = session.AdvanceXun(); var again = restored.AdvanceXun();
@@ -54,8 +53,6 @@ public sealed class WomenVisitSessionTests
         Assert.Equal(102, Assert.Single(session.AdvanceXun().Events.OfType<WomenVisitResolvedEvent>()).LearnedTacticId);
         Assert.Equal(new[] { 101, 102 }, session.Snapshot.Officers.Single(p => p.Id == 2).LearnedTactics);
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

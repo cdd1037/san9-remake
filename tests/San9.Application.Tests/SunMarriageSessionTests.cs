@@ -35,7 +35,7 @@ public sealed class SunMarriageSessionTests
     public void QuarterTransfersAndGrantsOnceAcrossPublicQuerySaveAndReplay()
     {
         var definition = Definition(); var session = GameSession.Start(definition, 17);
-        session.BeginRecording(); var restored = SaveService.Decode(SaveService.Encode(session), definition);
+var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var result = session.AdvanceXun(); Assert.Single(result.Events.OfType<SunMarriageEvent>());
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         var person = session.Snapshot.Officers.Single(p => p.Id == 22);
@@ -48,9 +48,6 @@ public sealed class SunMarriageSessionTests
             var next = session.AdvanceXun(); Assert.Empty(next.Events.OfType<SunMarriageEvent>());
             EventAssert.Equal(next.Events, after.AdvanceXun().Events);
         }
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
-        Assert.Single(replay.Events.OfType<SunMarriageEvent>());
     }
 
     [Fact]
@@ -61,16 +58,13 @@ public sealed class SunMarriageSessionTests
         definition = definition with { Officers = [.. definition.Officers, new("companion", new(12, 1, 1, new(50, 50, 50, 50), false))],
             // A Qiao relation penalty would invalidate the following marriage; use an independent authored rival.
             QiaoMarriage = definition.QiaoMarriage with { RivalRulerId = 31 } };
-        var session = GameSession.Start(definition, 17); session.BeginRecording();
-        var first = session.AdvanceXun(); Assert.Single(first.Events.OfType<QiaoMarriageEvent>()); Assert.Empty(first.Events.OfType<SunMarriageEvent>());
+        var session = GameSession.Start(definition, 17);         var first = session.AdvanceXun(); Assert.Single(first.Events.OfType<QiaoMarriageEvent>()); Assert.Empty(first.Events.OfType<SunMarriageEvent>());
         for (int i = 0; i < 9; i++)
         {
             var next = session.AdvanceXun();
             if (i < 8) Assert.Empty(next.Events.OfType<SunMarriageEvent>());
             else Assert.Single(next.Events.OfType<SunMarriageEvent>());
         }
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

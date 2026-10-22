@@ -24,13 +24,12 @@ public sealed class OfficerAppearanceSessionTests
     }
 
     [Fact]
-    public void AppearanceBecomesVisibleAndUsableAfterJanuaryAndSaveRecordingRoundTrips()
+    public void AppearanceBecomesVisibleAndUsableAfterJanuaryAndSaveRoundTrips()
     {
         var scenario = Scenario();
         var session = GameSession.Start(scenario, 190);
         Assert.DoesNotContain(session.View.Officers, p => p.Id == 9000);
         var restored = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
-        session.BeginRecording();
         var expected = session.AdvanceXun();
         var actual = restored.AdvanceXun();
         EventAssert.Equal(expected.Events, actual.Events);
@@ -43,8 +42,6 @@ public sealed class OfficerAppearanceSessionTests
         Assert.False(person.Acted);
         Assert.Equal(80000, person.BloodlineId);
         Assert.Equal(191, person.AppearanceYear);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var after = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
         Assert.Empty(after.InitialEvents);
         StateAssert.Equal(session.Capture(), after.Capture());

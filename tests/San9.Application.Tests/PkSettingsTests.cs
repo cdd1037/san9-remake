@@ -10,7 +10,6 @@ public sealed class PkSettingsTests
     {
         var scenario = G01ScenarioTests.Fixture();
         var session = GameSession.Start(scenario, 190);
-        session.BeginRecording();
         var request = session.Request(new PkSettingsOperation(false, false, true));
         var result = session.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
@@ -26,9 +25,6 @@ public sealed class PkSettingsTests
             GameSession.EngineFactory(scenario)).Snapshot.Simulation;
         Assert.Equal((state.OtherForceOrdersVisible, state.OtherForceTacticsVisible, state.BattleDeathsEnabled),
             (loaded.OtherForceOrdersVisible, loaded.OtherForceTacticsVisible, loaded.BattleDeathsEnabled));
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario,
-            GameSession.EngineFactory(scenario));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var fresh = GameSession.Start(scenario, 190).Snapshot.Simulation;
         Assert.True(fresh.OtherForceOrdersVisible);
         Assert.True(fresh.OtherForceTacticsVisible);

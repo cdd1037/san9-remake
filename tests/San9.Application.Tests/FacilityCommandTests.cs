@@ -76,10 +76,9 @@ public sealed class FacilityCommandTests
     }
 
     [Fact]
-    public void ExplicitRecruitAmountIsValidatedAndPreservedByRecording()
+    public void ExplicitRecruitAmountIsValidatedAndSubmitted()
     {
         var definition = Definition(); var session = GameSession.Start(definition,7);
-        session.BeginRecording();
         var draft = new FacilityCommandDraft(session,1,"recruit");
         Assert.True(draft.SetMembers([1]));
         Assert.False(draft.SetRecruitAmount(0));
@@ -97,8 +96,6 @@ public sealed class FacilityCommandTests
         var result = session.Execute(new("player"),command);
         Assert.True(result.Submission.Accepted);
         Assert.Equal(11,Assert.Single(result.Events.OfType<DevelopmentCompletedEvent>()).Increment);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()),definition,GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Snapshot, replay.Session.Snapshot);
     }
 
     [Fact]

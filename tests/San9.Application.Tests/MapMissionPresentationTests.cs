@@ -93,26 +93,16 @@ public sealed class MapMissionPresentationTests
     }
 
     [Fact]
-    public void RealMissionRecordingReplaysCapturedTargetsWithoutChangingSaveProtocol()
+    public void RealMissionProducesTargetEventsAndSurvivesSave()
     {
         var content = MissionScenario.Create();
         var session = GameSession.Start(content,42);
-        session.BeginRecording();
         var draft = new MissionDraft(session,1,"false-report");
         draft.SetActor(2); draft.SetTarget(20);
         Assert.True(session.Execute(new("player"),draft.CreateCommand()).Submission.Accepted);
         var result = session.AdvanceXun();
         Assert.NotEmpty(result.Events.OfType<UnitStrategyResolvedEvent>());
-        string path = Path.Combine(Path.GetTempPath(),$"san9-map-mission-{Guid.NewGuid():N}.recording.json");
-        RecordingReplay replay;
-        try
-        {
-            RecordingService.Write(path,session.CaptureRecording());
-            replay = RecordingService.Replay(path,content);
-        }
-        finally { File.Delete(path); }
-        StateAssert.Equal(session.Snapshot, replay.Session.Snapshot);
-        Assert.Equal(result.Events.OfType<UnitStrategyResolvedEvent>().Select(e => e.Target),
-            replay.Events.OfType<UnitStrategyResolvedEvent>().Select(e => e.Target));
+        var restored = SaveService.Decode(SaveService.Encode(session), content);
+        StateAssert.Equal(session.Capture(), restored.Capture());
     }
 }

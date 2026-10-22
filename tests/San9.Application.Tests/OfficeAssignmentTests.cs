@@ -26,13 +26,10 @@ public sealed class OfficeAssignmentTests
         var session = GameSession.Start(definition, 190);
         Assert.Equal(rankId, session.View.Forces.Single(f => f.Id == 1).RankId);
         Assert.Equal(8, Assert.Single(session.View.Information.Ranks).Id);
-        session.BeginRecording();
         var result = session.Execute(new("player"), new AssignOfficesCommand(Guid.NewGuid(), 1, 0, [new(2, 400)]));
         Assert.Equal(allowed, result.Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
 
     }
 
@@ -78,7 +75,6 @@ public sealed class OfficeAssignmentTests
                 { OfficeId = 1200 } } : p).ToArray()
         };
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         var before = session.Snapshot;
         Assert.False(session.Execute(new("player"), new AssignOfficesCommand(Guid.NewGuid(), 1, 0, [new(2, 1200)])).Submission.Accepted);
         StateAssert.Equal(before, session.Snapshot);
@@ -92,7 +88,5 @@ public sealed class OfficeAssignmentTests
         var savedState = session.Capture();
         var saved = SaveService.Encode(session);
         StateAssert.Equal(savedState, SaveService.Decode(saved, definition).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(savedState, replay.Session.Capture());
     }
 }

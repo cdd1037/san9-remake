@@ -31,9 +31,18 @@ public sealed class HeadlessHostTests : IDisposable
         { Information = new([], [], [], [new(1, 1, null, new(1000, 1000)) { IsRoot = true }], []) };
         File.WriteAllBytes(FilePath("scenario.json"), CanonicalJson.Encode(definition));
         var session = GameSession.Start(definition, 42);
-        session.BeginRecording();
-        for (int i = 0; i < 6; i++) session.AdvanceXun();
-        CommandLogService.Write(FilePath("commands.jsonl"), session);
+        List<SessionRequest> requests = [];
+        var inputHeader = CommandLogService.CreateHeader(session);
+        SessionResult ApplyInput(SessionRequest request)
+        {
+            var result = session.Apply(request);
+            if (result.Disposition == SessionDisposition.Accepted)
+                requests.Add(request);
+            return result;
+        }
+        SessionResult AdvanceInput() => ApplyInput(session.Request(new AdvanceOperation()));
+        for (int i = 0; i < 6; i++) AdvanceInput();
+        CommandLogService.Write(FilePath("commands.jsonl"), inputHeader, requests);
         var result = Run("run", "--scenario", FilePath("scenario.json"), "--log", FilePath("commands.jsonl"), "--report", FilePath("report.json"));
         Assert.Equal(0, result.Code);
         Assert.Equal(new[] { "commands.jsonl", "report.attempts.jsonl", "report.events.jsonl", "report.json", "scenario.json" },
@@ -43,21 +52,6 @@ public sealed class HeadlessHostTests : IDisposable
         Assert.Equal(0, result.Code);
         Assert.Single(Directory.GetFiles(_directory, "*.save.json", SearchOption.AllDirectories));
         Assert.Equal(60, ReadSession("explicit.save.json").World.Clock.DayNumber - new GameClock(190, 1, 1).DayNumber);
-    }
-
-    [Fact]
-    public void RecordingReplayUsesOperationsWithoutComparingRecordedEvents()
-    {
-        Assert.Equal(0, Run("verify", "--fixture", "--xuns", "1", "--output", _directory).Code);
-        var envelope = StrictJson.Deserialize<RecordingEnvelope>(File.ReadAllBytes(FilePath("verification.recording.json")));
-        int index = envelope.Recording.Operations.Select((entry, i) => (entry, i)).First(p => !p.entry.Events.IsEmpty).i;
-        var entry = envelope.Recording.Operations[index];
-        var changed = envelope.Recording with { Operations = envelope.Recording.Operations.SetItem(index, entry with { Events = [] }) };
-        RecordingService.Write(FilePath("diverged.recording.json"), changed);
-        var result = Run("replay", "--fixture", "--recording", FilePath("diverged.recording.json"),
-            "--report", FilePath("diverged.json"), "--save", FilePath("diverged.save.json"));
-        Assert.Equal(0, result.Code);
-        StateAssert.Equal(ReadSession("continuous.save.json"), ReadSession("diverged.save.json"));
     }
 
     [Fact]
@@ -78,8 +72,7 @@ public sealed class HeadlessHostTests : IDisposable
         var result = Run("verify", "--scenario", FilePath("scenario.json"), "--xuns", "3", "--output", _directory);
         Assert.Equal(0, result.Code);
         Assert.Equal(1, ReadSession("continuous.save.json").World.Officers.Single(o => o.Id == 2).OwnerId);
-        var recording = StrictJson.Deserialize<RecordingEnvelope>(File.ReadAllBytes(FilePath("verification.recording.json")));
-        Assert.Contains(recording.Recording.Operations, o => o.Request.Operation is CommandOperation { Command: RespondOfficeRequestCommand });
+        Assert.Contains("respond-office-request", File.ReadAllText(FilePath("commands.jsonl")));
     }
 
     [Theory]
@@ -102,10 +95,6 @@ public sealed class HeadlessHostTests : IDisposable
         var freshReplay = Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--report", FilePath("autonomous-fresh.json"), "--save", FilePath("autonomous-fresh.save.json"));
         Assert.Equal(0, freshReplay.Code);
         StateAssert.Equal(ReadSession("continuous.save.json"), ReadSession("autonomous-fresh.save.json"));
-        var recordingReplay = Run("replay", "--fixture", "--recording", FilePath("verification.recording.json"),
-            "--report", FilePath("autonomous-recording.json"), "--save", FilePath("autonomous-recording.save.json"));
-        Assert.Equal(0, recordingReplay.Code);
-        StateAssert.Equal(ReadSession("continuous.save.json"), ReadSession("autonomous-recording.save.json"));
     }
 
     [Fact]
@@ -114,6 +103,34 @@ public sealed class HeadlessHostTests : IDisposable
         var result = Run("verify", "--fixture", "--strategy", "autonomous", "--ai-budget", "0", "--output", _directory);
         Assert.Equal(2, result.Code);
         Assert.Equal("usage", result.Report.GetProperty("firstFailure").GetProperty("code").GetString());
+    }
+
+    [Theory]
+    [InlineData("replay", "--recording")]
+    [InlineData("run", "--record")]
+    public void RemovedRecordingModeAndOptionsAreUsageFailures(string mode, string option)
+    {
+        var result = Run(mode, "--fixture", option, FilePath("obsolete.json"), "--report", FilePath("obsolete-report.json"));
+        Assert.Equal(2, result.Code);
+        Assert.Equal("usage", result.Report.GetProperty("firstFailure").GetProperty("code").GetString());
+        Assert.False(File.Exists(FilePath("obsolete.json")));
+    }
+
+    [Fact]
+    public void PlayerLoadExecutesRemainingScriptAndRejectsMixedRestoreModes()
+    {
+        Assert.Equal(0, Run("verify", "--fixture", "--xuns", "2", "--output", _directory).Code);
+        var loaded = Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--load", FilePath("checkpoint.save.json"),
+            "--report", FilePath("loaded-report.json"), "--save", FilePath("loaded.save.json"));
+        Assert.Equal(0, loaded.Code);
+        Assert.Equal(1, loaded.Report.GetProperty("completedXun").GetInt32());
+        Assert.True(loaded.Report.GetProperty("alreadyProcessedOperations").GetInt32() > 0);
+        Assert.DoesNotContain("operations", File.ReadAllText(FilePath("loaded.save.json")));
+        StateAssert.NotEqual(ReadSession("continuous.save.json"), ReadSession("loaded.save.json"));
+        var mixed = Run("run", "--fixture", "--log", FilePath("commands.jsonl"),
+            "--load", FilePath("checkpoint.save.json"), "--restore", FilePath("checkpoint.save.json"),
+            "--report", FilePath("mixed-report.json"));
+        Assert.Equal(2, mixed.Code);
     }
 
     [Fact]
@@ -160,10 +177,18 @@ public sealed class HeadlessHostTests : IDisposable
         , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
         File.WriteAllBytes(FilePath("scenario.json"), CanonicalJson.Encode(definition));
         var session = GameSession.Start(definition, 190);
+        List<SessionRequest> requests = [];
+        var inputHeader = CommandLogService.CreateHeader(session);
+        SessionResult ApplyInput(SessionRequest request)
+        {
+            var result = session.Apply(request);
+            if (result.Disposition == SessionDisposition.Accepted)
+                requests.Add(request);
+            return result;
+        }
         SaveService.Write(FilePath("initial.save.json"), session);
-        session.BeginRecording();
-        Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new ChronicleOperation("accepted prefix"))).Disposition);
-        CommandLogService.Write(FilePath("commands.jsonl"), session);
+        Assert.Equal(SessionDisposition.Accepted, ApplyInput(session.Request(new ChronicleOperation("accepted prefix"))).Disposition);
+        CommandLogService.Write(FilePath("commands.jsonl"), inputHeader, requests);
     }
 
     [Fact]
@@ -176,9 +201,18 @@ public sealed class HeadlessHostTests : IDisposable
         string scenario = FilePath("bonus-scenario.json"), log = FilePath("bonus.commands.jsonl");
         File.WriteAllBytes(scenario, CanonicalJson.Encode(content));
         var session = GameSession.Start(content, 190, 100);
-        session.BeginRecording();
-        session.AdvanceXun();
-        CommandLogService.Write(log, session);
+        List<SessionRequest> requests = [];
+        var inputHeader = CommandLogService.CreateHeader(session);
+        SessionResult ApplyInput(SessionRequest request)
+        {
+            var result = session.Apply(request);
+            if (result.Disposition == SessionDisposition.Accepted)
+                requests.Add(request);
+            return result;
+        }
+        SessionResult AdvanceInput() => ApplyInput(session.Request(new AdvanceOperation()));
+AdvanceInput();
+        CommandLogService.Write(log, inputHeader, requests);
         var result = Run("run", "--scenario", scenario, "--log", log, "--report", FilePath("bonus-report.json"), "--save", FilePath("bonus-report.save.json"));
         Assert.Equal(0, result.Code);
         StateAssert.Equal(session.Capture(), ReadSession("bonus-report.save.json"));
@@ -195,27 +229,41 @@ public sealed class HeadlessHostTests : IDisposable
                 new("hidden", new(3, null, 101, new(50, 50, 50, 50), false)
                 { Status = San9.Core.Domain.OfficerStatus.Undiscovered })]
         , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
-        string scenario = FilePath("search-scenario.json"), log = FilePath("search.commands.jsonl"), recording = FilePath("search.recording.json");
+        string scenario = FilePath("search-scenario.json"), log = FilePath("search.commands.jsonl");
         File.WriteAllBytes(scenario, San9.Core.Simulation.CanonicalJson.Encode(content));
         var session = San9.Application.GameSession.Start(content, 190);
-        session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new San9.Core.Simulation.SearchCommand(Guid.NewGuid(), 1, 0, [2], 101)).Submission.Accepted);
-        session.AdvanceXun();
+        List<SessionRequest> requests = [];
+        var inputHeader = CommandLogService.CreateHeader(session);
+        SessionResult ApplyInput(SessionRequest request)
+        {
+            var result = session.Apply(request);
+            if (result.Disposition == SessionDisposition.Accepted)
+                requests.Add(request);
+            return result;
+        }
+        San9.Core.Simulation.CommandExecutionResult ExecuteInput(San9.Core.Simulation.CommandContext context, San9.Core.Simulation.GameCommand command)
+        {
+            var request = session.Request(new CommandOperation(command), context.ControllerId, command.CommandId);
+            var result = session.Execute(context, command);
+            if (result.Submission.Accepted)
+                requests.Add(request);
+            return result;
+        }
+        SessionResult AdvanceInput() => ApplyInput(session.Request(new AdvanceOperation()));
+        Assert.True(ExecuteInput(new("player"), new San9.Core.Simulation.SearchCommand(Guid.NewGuid(), 1, 0, [2], 101)).Submission.Accepted);
+AdvanceInput();
         var prompt = session.GetSearchRecruitmentPrompt()!;
         Assert.NotNull(prompt);
-        Assert.True(session.Execute(new("player"), new San9.Core.Simulation.RespondDailyTaskCommand(Guid.NewGuid(), 1,
+        Assert.True(ExecuteInput(new("player"), new San9.Core.Simulation.RespondDailyTaskCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, prompt.TaskId, prompt.Step, false)).Submission.Accepted);
-        San9.Application.Persistence.CommandLogService.Write(log, session);
+        San9.Application.Persistence.CommandLogService.Write(log, inputHeader, requests);
         var executed = Run("run", "--scenario", scenario, "--log", log, "--report", FilePath("search-run.json"),
-            "--save", FilePath("search.save.json"), "--record", recording);
+            "--save", FilePath("search.save.json"));
         Assert.Equal(0, executed.Code);
         StateAssert.Equal(session.Capture(), ReadSession("search.save.json"));
         var restored = San9.Application.Persistence.SaveService.Read(FilePath("search.save.json"), content);
         Assert.Equal(San9.Core.Domain.OfficerStatus.Free, restored.Snapshot.Officers.Single(o => o.Id == 3).Status);
         Assert.Equal(new San9.Core.Simulation.GameClock(190, 1, 11), restored.Snapshot.Clock);
-        var replay = Run("replay", "--scenario", scenario, "--recording", recording, "--report", FilePath("search-replay.json"), "--save", FilePath("search-replay.save.json"));
-        Assert.Equal(0, replay.Code);
-        StateAssert.Equal(session.Capture(), ReadSession("search-replay.save.json"));
     }
 
     [Theory]
@@ -240,12 +288,29 @@ public sealed class HeadlessHostTests : IDisposable
                 new("visitor", new(3, null, null, default, false) { Status = OfficerStatus.Special })],
             SearchEvents = [rule]
         , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
-        string scenario = FilePath("g10.json"), log = FilePath("g10.commands.jsonl"), initial = FilePath("g10.initial.json"), record = FilePath("g10.recording.json");
+        string scenario = FilePath("g10.json"), log = FilePath("g10.commands.jsonl"), initial = FilePath("g10.initial.json");
         File.WriteAllBytes(scenario, JsonSerializer.SerializeToUtf8Bytes(d, San9.Content.Packages.ScenarioContentFiles.DataJsonOptions));
         var session = GameSession.Start(d, 190);
-        SaveService.Write(initial, session); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 101)).Submission.Accepted);
-        session.AdvanceXun();
+        List<SessionRequest> requests = [];
+        var inputHeader = CommandLogService.CreateHeader(session);
+        SessionResult ApplyInput(SessionRequest request)
+        {
+            var result = session.Apply(request);
+            if (result.Disposition == SessionDisposition.Accepted)
+                requests.Add(request);
+            return result;
+        }
+        San9.Core.Simulation.CommandExecutionResult ExecuteInput(San9.Core.Simulation.CommandContext context, San9.Core.Simulation.GameCommand command)
+        {
+            var request = session.Request(new CommandOperation(command), context.ControllerId, command.CommandId);
+            var result = session.Execute(context, command);
+            if (result.Submission.Accepted)
+                requests.Add(request);
+            return result;
+        }
+        SessionResult AdvanceInput() => ApplyInput(session.Request(new AdvanceOperation()));
+        SaveService.Write(initial, session);         Assert.True(ExecuteInput(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 101)).Submission.Accepted);
+AdvanceInput();
         var task = session.Snapshot.Simulation.Tasks.Single(t => t.Id == session.Snapshot.Simulation.PendingDailyTask!.RemainingTaskIds[0]);
         var answer = new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, task.Id, task.ResolutionStep, true);
         answer = kind switch
@@ -254,13 +319,11 @@ public sealed class HeadlessHostTests : IDisposable
             "conflict" => answer with { SearchConflict = SearchConflictChoice.Pay },
             _ => answer with { MerchantInvestment = new(MerchantInvestmentChoice.Invest, 100) }
         };
-        Assert.True(session.Execute(new("player"), answer).Submission.Accepted);
-        CommandLogService.Write(log, session);
+        Assert.True(ExecuteInput(new("player"), answer).Submission.Accepted);
+        CommandLogService.Write(log, inputHeader, requests);
         var executed = Run("run", "--scenario", scenario, "--restore", initial, "--log", log,
-            "--report", FilePath("g10-run.json"), "--save", FilePath("g10-final.json"), "--record", record);
+            "--report", FilePath("g10-run.json"), "--save", FilePath("g10-final.json"));
         Assert.True(executed.Code == 0, executed.Report.ToString()); StateAssert.Equal(session.Capture(), ReadSession("g10-final.json"));
-        var replay = Run("replay", "--scenario", scenario, "--recording", record, "--report", FilePath("g10-replay.json"), "--save", FilePath("g10-replay.save.json"));
-        Assert.Equal(0, replay.Code); StateAssert.Equal(session.Capture(), ReadSession("g10-replay.save.json"));
     }
 
     [Fact]
@@ -273,21 +336,26 @@ public sealed class HeadlessHostTests : IDisposable
             Officers = [new("ruler", new(17, 9, 101, new(80, 80, 80, 80), false))],
             Terminal = new([101], 350), Ending = new([101], [101], [101], [101], [101], [101], [])
         , Information = new([], [], [], [new San9.Core.Domain.CorpsState(9, 9, 17, new(1000, 1000)) { IsRoot = true }], []) };
-        string scenario = FilePath("ending-scenario.json"), log = FilePath("ending.commands.jsonl"), recording = FilePath("ending.recording.json");
+        string scenario = FilePath("ending-scenario.json"), log = FilePath("ending.commands.jsonl");
         File.WriteAllBytes(scenario, San9.Core.Simulation.CanonicalJson.Encode(content));
         var session = San9.Application.GameSession.Start(content, 1);
-        session.BeginRecording();
+        List<SessionRequest> requests = [];
+        var inputHeader = CommandLogService.CreateHeader(session);
+        SessionResult ApplyInput(SessionRequest request)
+        {
+            var result = session.Apply(request);
+            if (result.Disposition == SessionDisposition.Accepted)
+                requests.Add(request);
+            return result;
+        }
         var request = session.Request(new San9.Application.EndingOperation(new(San9.Core.Domain.EndingPolicy.DomesticProsperity, null)));
-        Assert.Equal(San9.Application.SessionDisposition.Accepted, session.Apply(request).Disposition);
-        San9.Application.Persistence.CommandLogService.Write(log, session);
+        Assert.Equal(San9.Application.SessionDisposition.Accepted, ApplyInput(request).Disposition);
+        San9.Application.Persistence.CommandLogService.Write(log, inputHeader, requests);
         var executed = Run("run", "--scenario", scenario, "--log", log, "--report", FilePath("ending-run.json"),
-            "--save", FilePath("ending.save.json"), "--record", recording);
+            "--save", FilePath("ending.save.json"));
         Assert.Equal(0, executed.Code);
         StateAssert.Equal(session.Capture(), ReadSession("ending.save.json"));
         Assert.Equal((int)San9.Core.Domain.EndingOutcome.FallenState, executed.Report.GetProperty("ending").GetProperty("outcome").GetInt32());
-        var replay = Run("replay", "--scenario", scenario, "--recording", recording, "--report", FilePath("ending-replay.json"), "--save", FilePath("ending-replay.save.json"));
-        Assert.Equal(0, replay.Code);
-        StateAssert.Equal(session.Capture(), ReadSession("ending-replay.save.json"));
         Assert.Equal(session.Ending, San9.Application.Persistence.SaveService.Read(FilePath("ending.save.json"), content).Ending);
     }
 
@@ -308,30 +376,44 @@ public sealed class HeadlessHostTests : IDisposable
         };
         File.WriteAllBytes(FilePath("scenario.json"), San9.Core.Simulation.CanonicalJson.Encode(definition));
         var session = GameSession.Start(definition, 190);
+        List<SessionRequest> requests = [];
+        var inputHeader = CommandLogService.CreateHeader(session);
+        SessionResult ApplyInput(SessionRequest request)
+        {
+            var result = session.Apply(request);
+            if (result.Disposition == SessionDisposition.Accepted)
+                requests.Add(request);
+            return result;
+        }
+        San9.Core.Simulation.CommandExecutionResult ExecuteInput(San9.Core.Simulation.CommandContext context, San9.Core.Simulation.GameCommand command)
+        {
+            var request = session.Request(new CommandOperation(command), context.ControllerId, command.CommandId);
+            var result = session.Execute(context, command);
+            if (result.Submission.Accepted)
+                requests.Add(request);
+            return result;
+        }
+        SessionResult AdvanceInput() => ApplyInput(session.Request(new AdvanceOperation()));
+        SessionResult EndInput(San9.Core.Simulation.CommandContext context) => ApplyInput(session.Request(new EndControlOperation(), context.ControllerId));
         SaveService.Write(FilePath("initial.json"), session);
-        session.BeginRecording();
-        session.EndControl(new("player"));
-        Assert.True(session.Execute(new("ai:2"), new GiftCommand(Guid.NewGuid(), 2, 0, 4, 1,
+EndInput(new("player"));
+        Assert.True(ExecuteInput(new("ai:2"), new GiftCommand(Guid.NewGuid(), 2, 0, 4, 1,
             new(GiftKind.Money, 2000, null))).Submission.Accepted);
-        session.AdvanceXun();
+AdvanceInput();
         var pending = session.Snapshot.Simulation.PendingDailyTask!;
-        Assert.True(session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,
+        Assert.True(ExecuteInput(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, pending.RemainingTaskIds[0], 0, false)).Submission.Accepted);
-        CommandLogService.Write(FilePath("commands.jsonl"), session);
+        CommandLogService.Write(FilePath("commands.jsonl"), inputHeader, requests);
         var result = Run("run", "--scenario", FilePath("scenario.json"), "--restore", FilePath("initial.json"),
-            "--log", FilePath("commands.jsonl"), "--save", FilePath("resolved.json"),
-            "--record", FilePath("recording.json"), "--report", FilePath("report.json"));
+            "--log", FilePath("commands.jsonl"), "--save", FilePath("resolved.json"), "--report", FilePath("report.json"));
         Assert.Equal(0, result.Code);
         Assert.True(result.Report.GetProperty("diplomacyStrategyEvents").GetProperty("gift-resolved").GetInt32() > 0);
         Assert.Contains("respond-daily-task", File.ReadAllText(FilePath("commands.jsonl")));
         StateAssert.Equal(session.Capture(), SaveService.Read(FilePath("resolved.json"), definition).Capture());
-        var replay = Run("replay", "--scenario", FilePath("scenario.json"), "--recording", FilePath("recording.json"), "--report", FilePath("replay.json"), "--save", FilePath("replay.save.json"));
-        Assert.Equal(0, replay.Code);
-        StateAssert.Equal(session.Capture(), ReadSession("replay.save.json"));
     }
 
     [Fact]
-    public void MilitaryRecordingReportsDeploymentMovementAndSingleAbsorption()
+    public void MilitaryScriptReportsDeploymentMovementAndSingleAbsorption()
     {
         var definition = new San9.Content.Scenarios.ScenarioInitialState(San9.Content.Scenarios.ScenarioInitialState.CurrentSchemaVersion,
             "military-cli", 190, 1, 1, 1, [new(1, "force", 1, 100)],
@@ -343,13 +425,30 @@ public sealed class HeadlessHostTests : IDisposable
                 [new(1, new(2, 2), new(1, 1)), new(2, new(12, 2), new(1, 1))]) { TransportFormations = new(1, null) }
         , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }], []) };
         var session = San9.Application.GameSession.Start(definition, 190);
-        session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new San9.Core.Simulation.TransportUnitCommand(Guid.NewGuid(), 1, 0,
+        List<SessionRequest> requests = [];
+        var inputHeader = CommandLogService.CreateHeader(session);
+        SessionResult ApplyInput(SessionRequest request)
+        {
+            var result = session.Apply(request);
+            if (result.Disposition == SessionDisposition.Accepted)
+                requests.Add(request);
+            return result;
+        }
+        San9.Core.Simulation.CommandExecutionResult ExecuteInput(San9.Core.Simulation.CommandContext context, San9.Core.Simulation.GameCommand command)
+        {
+            var request = session.Request(new CommandOperation(command), context.ControllerId, command.CommandId);
+            var result = session.Execute(context, command);
+            if (result.Submission.Accepted)
+                requests.Add(request);
+            return result;
+        }
+        SessionResult AdvanceInput() => ApplyInput(session.Request(new AdvanceOperation()));
+        Assert.True(ExecuteInput(new("player"), new San9.Core.Simulation.TransportUnitCommand(Guid.NewGuid(), 1, 0,
             1, [1], 400, 2, 20, 30)).Submission.Accepted);
-        session.AdvanceXun();
+AdvanceInput();
         File.WriteAllBytes(FilePath("scenario.json"), San9.Core.Simulation.CanonicalJson.Encode(definition));
-        San9.Application.Persistence.RecordingService.Write(FilePath("military.recording.json"), session.EndRecording());
-        var result = Run("replay", "--scenario", FilePath("scenario.json"), "--recording", FilePath("military.recording.json"),
+        CommandLogService.Write(FilePath("military.commands.jsonl"), inputHeader, requests);
+        var result = Run("run", "--scenario", FilePath("scenario.json"), "--log", FilePath("military.commands.jsonl"),
             "--report", FilePath("military-report.json"), "--save", FilePath("military-report.save.json"));
         Assert.Equal(0, result.Code);
         Assert.Equal("G05", result.Report.GetProperty("goal").GetString());
@@ -391,21 +490,25 @@ public sealed class HeadlessHostTests : IDisposable
         string scenario = FilePath("personnel.scenario.json");
         File.WriteAllBytes(scenario, CanonicalJson.Encode(definition));
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new RewardOfficerCommand(Guid.NewGuid(), 1, 0, 2)).Submission.Accepted);
-        Assert.True(session.Execute(new("player"), new AppointAdviserCommand(Guid.NewGuid(), 1, 1, 3)).Submission.Accepted);
-        CommandLogService.Write(FilePath("personnel.jsonl"), session);
-        var run = Run("run", "--scenario", scenario, "--log", FilePath("personnel.jsonl"), "--report", FilePath("personnel-report.json"),
-            "--record", FilePath("personnel.recording.json"), "--save", FilePath("personnel-report.save.json"));
+        List<SessionRequest> requests = [];
+        var inputHeader = CommandLogService.CreateHeader(session);
+        San9.Core.Simulation.CommandExecutionResult ExecuteInput(San9.Core.Simulation.CommandContext context, San9.Core.Simulation.GameCommand command)
+        {
+            var request = session.Request(new CommandOperation(command), context.ControllerId, command.CommandId);
+            var result = session.Execute(context, command);
+            if (result.Submission.Accepted)
+                requests.Add(request);
+            return result;
+        }
+        Assert.True(ExecuteInput(new("player"), new RewardOfficerCommand(Guid.NewGuid(), 1, 0, 2)).Submission.Accepted);
+        Assert.True(ExecuteInput(new("player"), new AppointAdviserCommand(Guid.NewGuid(), 1, 1, 3)).Submission.Accepted);
+        CommandLogService.Write(FilePath("personnel.jsonl"), inputHeader, requests);
+        var run = Run("run", "--scenario", scenario, "--log", FilePath("personnel.jsonl"), "--report", FilePath("personnel-report.json"), "--save", FilePath("personnel-report.save.json"));
         Assert.Equal(0, run.Code);
         StateAssert.Equal(session.Capture(), ReadSession("personnel-report.save.json"));
         Assert.Equal("G04", run.Report.GetProperty("goal").GetString());
         Assert.Equal(1, run.Report.GetProperty("personnelEvents").GetProperty("officer-rewarded").GetInt32());
         Assert.Equal(1, run.Report.GetProperty("personnelEvents").GetProperty("adviser-appointed").GetInt32());
-        var replay = Run("replay", "--scenario", scenario, "--recording", FilePath("personnel.recording.json"), "--report", FilePath("personnel-replay-report.json"), "--save", FilePath("personnel-replay-report.save.json"));
-        Assert.Equal(0, replay.Code);
-        Assert.Equal("G04", replay.Report.GetProperty("goal").GetString());
-        StateAssert.Equal(ReadSession("personnel-report.save.json"), ReadSession("personnel-replay-report.save.json"));
     }
 
     [Fact]
@@ -426,54 +529,14 @@ public sealed class HeadlessHostTests : IDisposable
         var replay = Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--restore", FilePath("initial.save.json"),
             "--save", FilePath("replay.save.json"), "--report", FilePath("replay-report.json"));
         Assert.Equal(0, replay.Code);
-        StateAssert.Equal(finalState, ReadSession("replay.save.json"));
+        StateAssert.Equal(ReadSession("continuous.save.json"), ReadSession("replay.save.json"));
         Assert.Equal(File.ReadAllBytes(FilePath("events.jsonl")), File.ReadAllBytes(FilePath("replay-report.events.jsonl")));
         var repeated = Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--restore", FilePath("replay.save.json"),
             "--save", FilePath("replay.save.json"), "--report", FilePath("duplicate-report.json"));
         Assert.Equal(0, repeated.Code);
         Assert.Equal(0, repeated.Report.GetProperty("acceptedOperations").GetInt32());
         Assert.Equal(requests.Length, repeated.Report.GetProperty("alreadyProcessedOperations").GetInt32());
-        StateAssert.Equal(finalState, ReadSession("replay.save.json"));
         Assert.Equal(0, new FileInfo(FilePath("duplicate-report.events.jsonl")).Length);
-    }
-
-    [Fact]
-    public void ExplicitRecordingAndPlaybackUseSeparateArtifacts()
-    {
-        Assert.Equal(0, (Run("verify", "--fixture", "--xuns", "2", "--output", _directory)).Code);
-        var run = Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--report", FilePath("record-report.json"),
-            "--save", FilePath("player.save.json"), "--record", FilePath("debug.recording.json"));
-        Assert.Equal(0, run.Code);
-        var playback = Run("replay", "--fixture", "--recording", FilePath("debug.recording.json"),
-            "--report", FilePath("playback-report.json"), "--save", FilePath("playback.save.json"));
-        Assert.Equal(0, playback.Code);
-        Assert.Equal(2, playback.Report.GetProperty("completedXun").GetInt32());
-        StateAssert.Equal(ReadSession("player.save.json"), ReadSession("playback.save.json"));
-        Assert.Equal(File.ReadAllBytes(FilePath("player.save.json")), File.ReadAllBytes(FilePath("playback.save.json")));
-        Assert.Equal(File.ReadAllBytes(FilePath("record-report.events.jsonl")), File.ReadAllBytes(FilePath("playback-report.events.jsonl")));
-        Assert.DoesNotContain("operations", File.ReadAllText(FilePath("player.save.json")));
-        var midway = Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--load", FilePath("checkpoint.save.json"),
-            "--report", FilePath("midway-report.json"), "--record", FilePath("midway.recording.json"), "--save", FilePath("midway-report.save.json"));
-        Assert.Equal(0, midway.Code);
-        Assert.Equal(1, midway.Report.GetProperty("completedXun").GetInt32());
-        Assert.True(midway.Report.GetProperty("alreadyProcessedOperations").GetInt32() > 0);
-        var midPlayback = Run("replay", "--fixture", "--recording", FilePath("midway.recording.json"), "--report", FilePath("mid-playback-report.json"), "--save", FilePath("mid-playback-report.save.json"));
-        Assert.Equal(0, midPlayback.Code);
-        Assert.Equal(1, midPlayback.Report.GetProperty("completedXun").GetInt32());
-        StateAssert.NotEqual(ReadSession("player.save.json"), ReadSession("midway-report.save.json"));
-        StateAssert.Equal(ReadSession("midway-report.save.json"), ReadSession("mid-playback-report.save.json"));
-        var mixed = Run("run", "--fixture", "--log", FilePath("commands.jsonl"),
-            "--load", FilePath("checkpoint.save.json"), "--restore", FilePath("checkpoint.save.json"),
-            "--report", FilePath("mixed-report.json"));
-        Assert.Equal(2, mixed.Code);
-        var conflict = Run("run", "--fixture", "--log", FilePath("commands.jsonl"), "--report", FilePath("conflict.json"), "--record", FilePath("commands.jsonl"));
-        Assert.Equal(2, conflict.Code);
-        var node = JsonNode.Parse(File.ReadAllBytes(FilePath("debug.recording.json")))!;
-        node["formatVersion"] = 999;
-        File.WriteAllText(FilePath("bad.recording.json"), node.ToJsonString());
-        var bad = Run("replay", "--fixture", "--recording", FilePath("bad.recording.json"), "--report", FilePath("bad-record-report.json"));
-        Assert.Equal(5, bad.Code);
-        Assert.Equal("recording", bad.Report.GetProperty("firstFailure").GetProperty("code").GetString());
     }
 
     [Fact]
@@ -562,7 +625,7 @@ public sealed class HeadlessHostTests : IDisposable
     [InlineData("commands.jsonl")]
     [InlineData("events.jsonl")]
     [InlineData("checkpoints.json")]
-    [InlineData("verification.recording.json")]
+
     public void VerificationRejectsOutputCollisionsBeforeReadingOrOverwritingTheScenario(string name)
     {
         byte[] original = "scenario input must remain intact"u8.ToArray();

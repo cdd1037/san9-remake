@@ -43,7 +43,6 @@ public sealed class DiplomacyPlannerTests
         var content = G01ScenarioTests.Fixture();
         content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f.IsRoot && f.OwnerId == 2 ? f with { Treasury = f.Treasury with { Money = 30000 } } : f).ToArray(), Relations = [new(1, 2, 60)] } };
         var session = GameSession.Start(content, 42);
-        session.BeginRecording();
         session.EndControl(new("player"));
         var seat = session.Snapshot.Simulation.Controls.Single(c => c.ForceId == 2);
         var gift = Assert.IsType<GiftCommand>(DiplomacyPlanner.Choose(session, content, seat, Guid.NewGuid()));
@@ -61,8 +60,6 @@ public sealed class DiplomacyPlannerTests
         Assert.Single(answered.Events.OfType<XunAdvancedEvent>());
         EventAssert.Equal(answered.Events, restored.Apply(request).Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

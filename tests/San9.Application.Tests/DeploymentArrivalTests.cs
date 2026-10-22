@@ -71,7 +71,6 @@ public sealed class DeploymentArrivalTests
                 new(2, 1, 2, new(2000, 3000)) { ControlMode = CorpsControlMode.Automatic }] }
         };
         var session = GameSession.Start(definition, 42);
-        session.BeginRecording();
         var draft = new DeploymentDraft(session.View, 1); Assert.True(draft.SetMembers([1]));
         var targets = new DeploymentTargets(draft);
         Assert.Equal(MilitaryMarker.Enter, targets.Candidates[new(2, false)]);
@@ -89,8 +88,6 @@ public sealed class DeploymentArrivalTests
         Assert.Equal(OfficerStatus.Serving, session.Snapshot.Officers.Single(p => p.Id == 2).Status);
         StateAssert.Equal(session.Capture(), restored.Capture());
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

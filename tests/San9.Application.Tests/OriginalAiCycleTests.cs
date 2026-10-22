@@ -358,7 +358,6 @@ public sealed class OriginalAiCycleTests
             OriginalAi = content.OriginalAi with { Advanced = true, WorkRules = content.OriginalAi.WorkRules.SetItem(OriginalAiWork.Trade, new(0, 0, 1, false, true)) },
             Information = content.Information with { Corps = content.Information.Corps.Select(c => c with { Treasury = new(100000, 0) }).ToArray() } };
         var session = GameSession.Start(content, 190, playerForceController: ControllerKind.Automatic);
-        session.BeginRecording();
         var request = session.Request(new PrepareAdvanceOperation());
         var result = session.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
@@ -371,8 +370,6 @@ public sealed class OriginalAiCycleTests
         session.AdvanceXun();
         restored.AdvanceXun();
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content), verifyEvents: true);
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]

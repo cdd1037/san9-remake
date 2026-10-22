@@ -2,17 +2,17 @@
 
 验收日期：2026-09-12。G01前置提交为`c7df256`，复用其日历、任务、随机、事务和统一命令终验；G02退出条件已成立。行为依据为[BEH-SAVE-0001](../specs/behavior/BEH-SAVE-0001-session-persistence-replay-and-headless.md)。没有启动游戏或扩展表现层。
 
-本文保留G02完成时的协议与验收记录。当前G03已扩展经营规则及内容字段，规则版本、格式和重新转换要求见[G03验收](g03-verification.md)。
+本文的CLI说明按当前实现维护；实际验证章节保留G02历史证据。2026-10-22录像已撤下，历史录像结果不构成当前功能或日常验收要求。当前契约见[BEH-SAVE-0001](../specs/behavior/BEH-SAVE-0001-session-persistence-replay-and-headless.md)。
 
 ## 实际能力与所有权
 
-`ScenarioSessionDefinition`从现有Content剧本创建规则身份与世界；`GameSession.Start/Restore`组织新局和恢复。`SaveService`保存完整世界、控制轮次、任务、命名随机、最近128条内政记录、玩家年表和序号水位；完整历史仅在显式录像中记录。恢复不重复新局准备，先验证身份与引用再构造查询。Content/Importer沿用已有完整剧本集合，没有新增导入字段。
+`ScenarioSessionDefinition`从现有Content剧本创建规则身份与世界；`GameSession.Start/Restore`组织新局和恢复。`SaveService`保存完整世界、控制轮次、任务、命名随机、最近128条内政记录、玩家年表和序号水位；不累计完整操作和事件历史。恢复不重复新局准备，先验证身份与引用再构造查询。Content/Importer沿用已有完整剧本集合，没有新增导入字段。
 
 `GameSession.Apply`统一命令、结束控制、推进与年表操作，在候选世界上执行并发布当前状态和水位。会话序号从0开始，另有Core命令序号；Core不保存整局已完成命令ID。当前会话内旧序号返回`AlreadyProcessed`，不执行、不返回旧结果，也不验证旧载荷；未来序号拒绝。外部JSONL在文件头核对格式、种子和会话配置，规则版本不同仅警告；本地请求不再重复附加流指纹。拒绝不占用序号。JSONL输入首次失败即停止，接受前缀可保存续跑。
 
-当前存档版本为110，JSONL日志版本为114，录像版本为22，规则版本为`san9-core-g10-v107`。旧协议文件明确拒绝，不保留兼容分支。存档与录像均不保存完整性哈希，快照、录像和默认报告均不生成世界／会话哈希。显式诊断通过源生成JSON元数据比较完整状态并报告字段差异，包括不持久化的待答状态；本地提交次数不参与语义比较。只读查询可检查`Revision`。G01及早期G02历史摘要仅保留为当时验收证据。
+当前存档版本122、JSONL命令日志版本129；未知格式拒绝，规则版本不同仅告警后按当前规则继续。普通存档不含操作历史或完整事件历史。显式诊断比较完整状态并返回字段差异，不生成默认状态哈希。
 
-普通玩家存档不包含操作或事件历史，也不包含录像。自动内政记录保留最近128条，玩家手写年表保留。`BeginRecording`在当前稳定边界捕获起点，显式记录后续接受操作与事件；`EndRecording`停止并释放会话内部历史。`RecordingService`把起点、操作与事件写入独立文件，重放从起点恢复；支持有任务和已消耗随机流的中途起点。读普通存档不自动恢复录制，重新开启形成新的片段。
+命令脚本的头与请求由调用方显式提供：`CommandLogService.CreateHeader(session)`捕获起始配置，`CommandLogService.Write(path, header, requests)`写入输入集合；GameSession不录制、不导出历史。中途执行需要匹配的精确起点存档。
 
 解析拒绝缺字段、额外字段、重复键、非法枚举、空集合元素、截断、未知版本、损坏引用及未知任务规则。文件通过同目录临时文件、flush和原子替换写入；替换前故障不会截断旧文件。没有旧版自动迁移，也不额外承诺硬件断电保证。
 
@@ -26,16 +26,9 @@ dotnet run --project src/San9.Headless -- verify --scenario local/generated/cont
 dotnet run --project src/San9.Headless -- run --fixture --log local/generated/verification/roadmap-g02/public/commands.jsonl --report local/generated/verification/roadmap-g02/replay/report.json --save local/generated/verification/roadmap-g02/replay/final.save.json
 ```
 
-`run`默认不录制，可增加`--load PATH`恢复、`--record PATH`显式输出独立录像；再次输入旧日志按水位跳过。输入可选`--fixture`或`--scenario PATH`。`verify`可设`--seed N`。`run`的种子取日志头，保存和恢复时必须保持规则内容一致。
+`run`执行显式JSONL脚本，可增加`--load PATH`玩家读档（换运行种子），或`--restore PATH`精确恢复；二者互斥。再次输入旧前缀按水位跳过。输入可选`--fixture`或`--scenario PATH`，新局种子取日志头；`verify`可设`--seed N`。`--save PATH`保存已接受前缀，不自动产生存档。
 
-录像用法（普通存档与录像是两个独立输出）：
-
-```powershell
-dotnet run --project src/San9.Headless -- run --fixture --log local/generated/verification/roadmap-g02/public/commands.jsonl --report local/generated/verification/roadmap-g02/record/report.json --save local/generated/verification/roadmap-g02/record/player.save.json --record local/generated/verification/roadmap-g02/record/debug.recording.json
-dotnet run --project src/San9.Headless -- replay --fixture --recording local/generated/verification/roadmap-g02/record/debug.recording.json --report local/generated/verification/roadmap-g02/playback/report.json --save local/generated/verification/roadmap-g02/playback/final.save.json
-```
-
-中途录制可在`run`同时指定`--load`和`--record`；新录像的起点就是载入状态，日志中的旧前缀跳过不录制。录像已含起点，`replay`无需另传初始存档；裸JSONL只含操作，中途日志需配合正确`--load`。
+录像的`replay`模式、`--record`和`--recording`已移除，使用会返回退出码2；没有旧录像读取或迁移入口。
 
 日志为每行一个JSON对象：首行为`formatVersion/rulesVersion/seed`及会话设置；后续为`id/sequence/controllerId/operation`。例如第0条年表操作：
 
@@ -43,9 +36,9 @@ dotnet run --project src/San9.Headless -- replay --fixture --recording local/gen
 {"controllerId":"player","id":"00000003-0000-0000-0000-000000000000","operation":{"text":"Headless scripted verification","type":"chronicle-note"},"sequence":0}
 ```
 
-操作类型为`command`、`end-control`、`advance-xun`、`chronicle-note`。领域命令的稳定类型和字段见[GameCommand](../src/San9.Core/Simulation/GameCommand.cs)，完整可复放样例由上述`verify`输出。正式命令目前支持wait/develop；内部start-task仅用于具有显式规则注册的测试，CLI不接受未知任务规则。
+操作类型为`command`、`end-control`、`advance-xun`、`chronicle-note`。领域命令的稳定类型和字段见[GameCommand](../src/San9.Core/Simulation/GameCommand.cs)，完整可复放样例由上述`verify`输出。正式命令由当前公共会话协议定义；内部start-task仅用于具有显式规则注册的测试，CLI不接受未知任务规则。
 
-`verify`是显式调试验证，会比较连续／恢复／重放终态、逐步核对实际事件，并录制`verification.recording.json`，同时输出初始/检查点/连续/恢复存档、`commands.jsonl`、`events.jsonl`、`checkpoints.json`、`report.json`。`run`输出报告、事件与尝试记录，可选保存已接受前缀。stdout始终输出机器JSON；报告包含种子、日志路径、完成旬数、结束原因、首个失败与耗时。
+`verify`是显式调试验证，会比较连续／恢复／重放终态、逐步核对实际事件，输出初始/检查点/连续/恢复存档、`commands.jsonl`、`events.jsonl`、`checkpoints.json`、`report.json`。`run`输出报告、事件与尝试记录，可选保存已接受前缀。stdout始终输出机器JSON；报告包含种子、日志路径、完成旬数、结束原因、首个失败与耗时。
 
 | 退出码 | 含义 |
 | --- | --- |
@@ -53,12 +46,12 @@ dotnet run --project src/San9.Headless -- replay --fixture --recording local/gen
 | 2 | 参数或输出路径冲突 |
 | 3 | 内容输入错误 |
 | 4 | 存档错误 |
-| 5 | 日志或录像解析/重放拒绝（录像差异序号在`failureSequence`） |
+| 5 | 命令脚本解析或执行拒绝（`firstFailure.line`定位输入行） |
 | 6 | 文件I/O错误 |
 | 7 | 验证不一致 |
 | 8 | 未预期异常 |
 
-## 实际验证
+## 实际验证（历史证据）
 
 `dotnet test San9Remake.slnx --nologo --no-restore`通过460项，0失败：Core86、Content29、Application63、Importer183、Client93、Headless6。客户端仅编译和测试。独立进程测试覆盖CLI实际退出码、日志失败行、重复恢复、接受前缀保存与输入文件保护。
 

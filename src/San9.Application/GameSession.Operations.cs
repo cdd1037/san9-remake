@@ -191,7 +191,6 @@ public sealed partial class GameSession
                 if (commit.Note is not null) _chronicle.Add(commit.Note);
                 NextOperationSequence++;
                 HasUnsavedChanges = true;
-                if (IsRecording) _recording.Add(new(request, prepared.Result.Events.ToImmutableArray()));
                 _capture = null;
             }
         }

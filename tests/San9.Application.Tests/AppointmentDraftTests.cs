@@ -36,7 +36,6 @@ public sealed class AppointmentDraftTests
     public void EachFlowUsesRecordedCommandsAndSurvivesSaveAndReplay(string kind)
     {
         var definition = Fixture(); var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         var draft = new AppointmentDraft(session, 1, kind);
         int singleTarget = kind == "strategist" ? draft.Candidates[0] : 2;
         var before = session.Snapshot;
@@ -64,8 +63,6 @@ public sealed class AppointmentDraftTests
             case "exile": Assert.All(session.Snapshot.Officers.Where(p => p.Id is 2 or 3), p => Assert.Equal(OfficerStatus.Free, p.Status)); break;
         }
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

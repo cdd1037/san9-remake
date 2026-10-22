@@ -89,14 +89,13 @@ public sealed class ChronicleHistoryTests
     }
 
     [Fact]
-    public void CommittedHistorySurvivesBackgroundPublicationPlayerLoadAndRecordingReplay()
+    public void CommittedHistorySurvivesBackgroundPublicationAndPlayerLoad()
     {
         var definition = MissionScenario.Create();
         var session = GameSession.Start(definition, 42);
         var texts = ChronicleTestContent.AddTo(MissionScenario.Texts(session.View));
         var content = ChronicleTestContent.Definition();
         var initial = ChroniclePresentation.Read(session, texts, content).Lines;
-        session.BeginRecording();
         var id = Guid.NewGuid();
         var request = session.Request(new CommandOperation(new AppointAdviserCommand(id, 1, session.Snapshot.Simulation.NextSequence, 2)), id: id);
         var pending = session.StartOperation(request);
@@ -112,8 +111,6 @@ public sealed class ChronicleHistoryTests
         Assert.Equal(saved.Lines, ChroniclePresentation.Read(loaded, texts, content).Lines);
         Assert.Equal(initial[0], saved.Lines[0]);
         StateAssert.Equal(session.Capture() with { World = loaded.Snapshot }, loaded.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition), verifyEvents: true);
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

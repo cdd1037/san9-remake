@@ -101,8 +101,6 @@ public sealed class PersistenceTests : IDisposable
         Assert.False(session.HasUnsavedChanges);
         Assert.Same(before, session.Capture());
         _ = session.View;
-        session.BeginRecording();
-        session.EndRecording();
         var rejected = session.Apply(session.Request(new ChronicleOperation("rejected"), "ai:2"));
         Assert.Equal(SessionDisposition.Rejected, rejected.Disposition);
         Assert.False(session.HasUnsavedChanges);
@@ -135,17 +133,14 @@ public sealed class PersistenceTests : IDisposable
     }
 
     [Fact]
-    public void ConsumedEventKeysSurviveSaveAndRecording()
+    public void ConsumedEventKeysSurviveSave()
     {
         var definition = Fixture() with { ConsumedEventKeys = [new("history")] };
         var session = GameSession.Start(definition, 190);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal("history", Assert.Single(restored.Snapshot.Simulation.ConsumedEventKeys).Value);
-        restored.BeginRecording();
         restored.AdvanceXun();
-        var replay = RecordingService.Replay(RecordingService.Encode(restored.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(restored.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -164,7 +159,7 @@ public sealed class PersistenceTests : IDisposable
     }
 
     [Fact]
-    public void InitialAllianceSurvivesSaveAndRecordedExpiryWithoutRepeatingInitialUpdates()
+    public void InitialAllianceSurvivesSaveAndExpiryWithoutRepeatingInitialUpdates()
     {
         var basis = Fixture();
         var definition = basis with
@@ -179,14 +174,11 @@ public sealed class PersistenceTests : IDisposable
         var restored = SaveService.Decode(SaveService.Encode(session), definition, GameSession.EngineFactory(definition));
         Assert.Equal(1, restored.Snapshot.Simulation.Alliance!.RemainingXun);
         Assert.Empty(restored.InitialEvents);
-        session.BeginRecording();
         var expected = session.AdvanceXun();
         var actual = restored.AdvanceXun();
         Assert.Null(restored.Snapshot.Simulation.Alliance);
         StateAssert.Equal(session.Capture(), restored.Capture());
         EventAssert.Equal(expected.Events, actual.Events);
-        var replayed = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replayed.Session.Capture());
         var missing = JsonNode.Parse(SaveService.Encode(session))!;
         missing["session"]!["world"]!["simulation"]!.AsObject().Remove("alliance");
         Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => SaveService.Decode(
@@ -208,7 +200,7 @@ public sealed class PersistenceTests : IDisposable
     }
 
     [Fact]
-    public void PlayerLoadStartsNewStreamsAndItsRecordingReplaysExactly()
+    public void PlayerLoadStartsNewStreamsAndPreservesExactRestoration()
     {
         var definition = Fixture();
         var rules = new FixtureRules();
@@ -228,14 +220,8 @@ public sealed class PersistenceTests : IDisposable
         Assert.Equal(original.NextOperationSequence, loaded.NextOperationSequence);
         Assert.Empty(loaded.Snapshot.Simulation.RandomStreams);
         Assert.Empty(loaded.InitialEvents);
-        Assert.False(loaded.IsRecording);
-        loaded.BeginRecording();
         loaded.AdvanceXun();
         Assert.NotEmpty(loaded.Snapshot.Simulation.RandomStreams);
-        var recording = loaded.EndRecording();
-        Assert.Equal(loaded.Snapshot.Simulation.RunSeed, recording.Initial.World.Simulation.RunSeed);
-        var replay = RecordingService.Replay(RecordingService.Encode(recording), definition, factory);
-        Assert.Equal(SaveService.Encode(loaded), SaveService.Encode(replay.Session));
         var exact = SaveService.Decode(SaveService.Encode(loaded), definition, factory);
         Assert.Equal(SaveService.Encode(loaded), SaveService.Encode(exact));
     }
@@ -325,9 +311,14 @@ public sealed class PersistenceTests : IDisposable
         var rules = new FixtureRules();
         Func<WorldState, SimulationEngine> factory = w => new(w, rules);
         var continuous = GameSession.Start(definition, 190, factory);
-        continuous.BeginRecording();
         var resumed = GameSession.Start(definition, 190, factory);
-        void Apply(SessionRequest request) => Equal(continuous.Apply(request), resumed.Apply(request));
+        var header = CommandLogService.CreateHeader(continuous);
+        List<SessionRequest> requests = [];
+        void Apply(SessionRequest request)
+        {
+            Equal(continuous.Apply(request), resumed.Apply(request));
+            requests.Add(request);
+        }
         void Checkpoint()
         {
             SaveService.Write(FilePath("checkpoint.json"), resumed);
@@ -374,13 +365,11 @@ public sealed class PersistenceTests : IDisposable
         Assert.Single(resumed.Snapshot.Simulation.RandomStreams, s => s.Name == "fixture-investment");
         StateAssert.Equal(continuous.Capture(), resumed.Capture());
         Assert.Equal(continuous.Records, resumed.Records);
-        CommandLogService.Write(FilePath("commands.jsonl"), continuous);
+        CommandLogService.Write(FilePath("commands.jsonl"), header, requests);
         var replayed = GameSession.Start(definition, 190, factory);
         var replay = CommandLogService.Replay(FilePath("commands.jsonl"), replayed);
         Assert.Null(replay.FirstFailure);
         StateAssert.Equal(continuous.Capture(), replayed.Capture());
-        Assert.Equal(continuous.CaptureRecording().Operations.SelectMany(e => e.Events).Select(e => CanonicalJson.Text<DomainEvent>(e)),
-            replay.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)));
         var before = resumed.Capture();
         var duplicate = CommandLogService.Replay(FilePath("commands.jsonl"), resumed);
         Assert.Equal(resumed.NextOperationSequence, duplicate.AlreadyProcessed);
@@ -475,28 +464,6 @@ public sealed class PersistenceTests : IDisposable
         Assert.Equal(1, result.Accepted);
         Assert.Equal("old log command", Assert.Single(session.Chronicle).Text);
         Assert.Equal("older-rules", Assert.Single(session.RulesVersionWarnings).SavedVersion);
-    }
-
-    [Fact]
-    public void RuleVersionMismatchWarnsAndRecordingStillValidatesRealReplayDifferences()
-    {
-        var definition = Fixture();
-        var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
-        session.AddChronicleNote("old recording command");
-        var envelope = StrictJson.Deserialize<RecordingEnvelope>(RecordingService.Encode(session.EndRecording()))
-            with { RulesVersion = "older-rules" };
-        var warnings = new List<RulesVersionWarning>();
-        var replay = RecordingService.Replay(CanonicalJson.Encode(envelope), definition, GameSession.EngineFactory(definition), warnings.Add);
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
-        Assert.Equal("older-rules", Assert.Single(replay.Session.RulesVersionWarnings).SavedVersion);
-        Assert.Single(warnings);
-        envelope = envelope with { Recording = envelope.Recording with { Operations = envelope.Recording.Operations.SetItem(0,
-            envelope.Recording.Operations[0] with { Events = [new XunAdvancedEvent(session.Snapshot.Clock, session.Snapshot.Clock)] }) } };
-        warnings.Clear();
-        Assert.Contains("diverged", Assert.Throws<RecordingException>(() => RecordingService.Replay(
-            CanonicalJson.Encode(envelope), definition, GameSession.EngineFactory(definition), warnings.Add, verifyEvents: true)).Message);
-        Assert.Single(warnings);
     }
 
     [Fact]
@@ -646,7 +613,6 @@ public sealed class PersistenceTests : IDisposable
             } : o).ToArray()
         };
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         var request = session.Request(new CommandOperation(new RewardOfficerCommand(Id(80), 1, 0, 2)), id: Id(80));
         Assert.Equal(SessionDisposition.Accepted, session.Apply(request).Disposition);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
@@ -659,8 +625,6 @@ public sealed class PersistenceTests : IDisposable
         var second = session.Request(new CommandOperation(new RewardOfficerCommand(Id(81), 1, session.Snapshot.Simulation.NextSequence, 2)), id: Id(81));
         Equal(session.Apply(second), restored.Apply(second));
         Assert.Equal(84, restored.Snapshot.Officers.Single(p => p.Id == 2).Loyalty);
-        var replayed = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        Assert.Equal(SaveService.Encode(restored), SaveService.Encode(replayed.Session));
     }
 
     [Fact]
@@ -744,8 +708,6 @@ public sealed class PersistenceTests : IDisposable
             session.AdvanceXun();
             DecisionResponses.DeclineAll(session);
         }
-        Assert.False(session.IsRecording);
-        Assert.Throws<InvalidOperationException>(() => session.CaptureRecording());
         byte[] final = SaveService.Encode(session);
         string json = Encoding.UTF8.GetString(final);
         Assert.DoesNotContain("acceptedCommandIds", json);
@@ -779,73 +741,6 @@ public sealed class PersistenceTests : IDisposable
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         Assert.Equal(session.Records, restored.Records);
         Assert.Equal("player note", Assert.Single(restored.Chronicle).Text);
-    }
-
-    [Fact]
-    public void MidGameRecordingIsIndependentFromPlayerSaveAndReplaysFromDisk()
-    {
-        var definition = Fixture();
-        var rules = new FixtureRules();
-        Func<WorldState, SimulationEngine> factory = w => new(w, rules);
-        var session = GameSession.Start(definition, 190, factory);
-        session.AddChronicleNote("before recording");
-        session.Apply(session.Request(new CommandOperation(new StartTaskCommand(Id(1), 1, 0, "fixture-investment", 2, 1)), id: Id(1)));
-        session.AdvanceXun();
-        var plain = SaveService.Decode(SaveService.Encode(session), definition, factory);
-        session.BeginRecording();
-        Assert.Throws<InvalidOperationException>(() => session.BeginRecording());
-        var origin = session.Capture();
-        var advance = session.Request(new AdvanceOperation());
-        Equal(session.Apply(advance), plain.Apply(advance));
-        Assert.Equal(SaveService.Encode(plain), SaveService.Encode(session));
-        var completed = session.EndRecording();
-        StateAssert.Equal(origin, completed.Initial);
-        Assert.Single(completed.Operations);
-        Assert.False(session.IsRecording);
-        Assert.Throws<InvalidOperationException>(() => session.CaptureRecording());
-        string path = FilePath("midgame.recording.json");
-        RecordingService.Write(path, completed);
-        var replayed = RecordingService.Replay(File.ReadAllBytes(path), definition, factory);
-        Assert.Equal(SaveService.Encode(plain), SaveService.Encode(replayed.Session));
-        Assert.Equal(1, replayed.Accepted);
-        Assert.False(replayed.Session.IsRecording);
-        rules.Fail = true;
-        Assert.Equal(advance.Sequence, Assert.Throws<RecordingException>(() =>
-            RecordingService.Replay(File.ReadAllBytes(path), definition, factory)).Sequence);
-        rules.Fail = false;
-        Assert.Empty(replayed.Session.InitialEvents);
-        session.BeginRecording();
-        Assert.Empty(session.CaptureRecording().Operations);
-        StateAssert.Equal(session.Capture(), session.CaptureRecording().Initial);
-        Assert.False(SaveService.Decode(SaveService.Encode(session), definition, factory).IsRecording);
-    }
-
-    [Fact]
-    public void RecordingRejectsInvalidFormatAndEventVerificationReportsFirstDivergence()
-    {
-        var definition = Fixture();
-        var session = GameSession.Start(definition, 190);
-        session.AdvanceXun();
-        session.BeginRecording();
-        session.AddChronicleNote("recorded");
-        session.AdvanceXun();
-        byte[] bytes = RecordingService.Encode(session.CaptureRecording());
-        Assert.Throws<RecordingException>(() => RecordingService.Replay(bytes[..^5], definition, GameSession.EngineFactory(definition)));
-        var root = JsonNode.Parse(bytes)!;
-        root["formatVersion"] = 999;
-        Assert.Throws<RecordingException>(() => RecordingService.Replay(Encoding.UTF8.GetBytes(root.ToJsonString()), definition, GameSession.EngineFactory(definition)));
-        var changed = definition with { Information = definition.Information with { Corps = definition.Information.Corps.Select(f => f with { Treasury = f.Treasury with { Money = 100 } }).ToArray() } };
-        StateAssert.Equal(session.Capture(), RecordingService.Replay(bytes, changed, GameSession.EngineFactory(changed)).Session.Capture());
-        var envelope = StrictJson.Deserialize<RecordingEnvelope>(bytes);
-        var operations = envelope.Recording.Operations.SetItem(1, envelope.Recording.Operations[1] with { Events = [] });
-        var divergent = envelope with { Recording = envelope.Recording with { Operations = operations } };
-        var encoded = CanonicalJson.Encode(divergent);
-        Assert.Equal(2, Assert.Throws<RecordingException>(() => RecordingService.Replay(encoded, definition, GameSession.EngineFactory(definition), verifyEvents: true)).Sequence);
-        Assert.Null(SessionDiagnostics.Compare(session.Capture(),
-            RecordingService.Replay(encoded, definition, GameSession.EngineFactory(definition)).Session.Capture()));
-        var outOfOrder = envelope with { Recording = envelope.Recording with { Operations = envelope.Recording.Operations.Reverse().ToImmutableArray() } };
-        encoded = CanonicalJson.Encode(outOfOrder);
-        Assert.Equal(2, Assert.Throws<RecordingException>(() => RecordingService.Replay(encoded, definition, GameSession.EngineFactory(definition))).Sequence);
     }
 
     private static void Equal(SessionResult a, SessionResult b)

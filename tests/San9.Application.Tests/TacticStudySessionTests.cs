@@ -18,7 +18,6 @@ public sealed class TacticStudySessionTests
         var definition = Scenario();
         definition = definition with { Officers = definition.Officers.Append(Person(5, 1, 1, 100)).ToArray() };
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         ReachQuarter(session);
         Assert.True(Choose(session, 1, 2).Submission.Accepted);
         Assert.True(Choose(session, 2, 3).Submission.Accepted);
@@ -33,8 +32,6 @@ public sealed class TacticStudySessionTests
         Assert.Equal(new GameClock(190, 10, 1), Assert.Single(session.Snapshot.Simulation.Tasks).Due);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     private static ScenarioInitialState Scenario() => new(ScenarioInitialState.CurrentSchemaVersion, "study", 190, 1, 1, 1,
@@ -76,7 +73,6 @@ public sealed class TacticStudySessionTests
         var definition = Scenario();
         var session = GameSession.Start(definition, 190);
         Assert.Null(session.GetTacticStudyPrompt());
-        session.BeginRecording();
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         ReachQuarter(restored);
         ReachQuarter(session);
@@ -120,8 +116,6 @@ public sealed class TacticStudySessionTests
         Assert.Contains(9000, session.Snapshot.Officers.Single(o => o.Id == 2).LearnedTactics);
         Assert.DoesNotContain(session.Snapshot.Simulation.RandomStreams, s => s.Name.Contains("study") || s.Name.Contains("learn"));
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

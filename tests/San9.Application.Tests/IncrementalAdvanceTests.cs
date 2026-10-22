@@ -28,7 +28,6 @@ public sealed class IncrementalAdvanceTests
         var definition = G01ScenarioTests.Fixture() with { Month = month, Day = day };
         var batch = GameSession.Start(definition, 190);
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         var start = session.Snapshot.Clock;
         var expected = batch.AdvanceXun();
         List<DomainEvent> events = [.. Apply(session, new PrepareAdvanceOperation()).Events];
@@ -48,9 +47,6 @@ public sealed class IncrementalAdvanceTests
         }
         StateAssert.Equal(batch.Snapshot, session.Snapshot);
         EventAssert.Equal(expected.Events, events);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
-        EventAssert.Equal(events, replay.Events);
     }
 
     [Fact]
@@ -114,7 +110,6 @@ public sealed class IncrementalAdvanceTests
             if (fail) throw new TimeoutException("Injected calculation failure");
         });
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 190, world => new(world, rules));
-        session.BeginRecording();
         session.MarkSaved(session.NextOperationSequence);
         var before = session.Capture();
         int notifications = 0;
@@ -131,13 +126,11 @@ public sealed class IncrementalAdvanceTests
         Assert.Same(before, session.Capture());
         Assert.False(session.HasUnsavedChanges);
         Assert.Equal(0, notifications);
-        Assert.Empty(session.CaptureRecording().Operations);
         fail = false;
         var result = background ? Apply(session, new AdvanceOperation()) : session.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         Assert.Equal(1, notifications);
         Assert.True(session.HasUnsavedChanges);
-        Assert.Single(session.CaptureRecording().Operations);
     }
 
     private sealed class FailingRules : SimulationRules
@@ -153,13 +146,11 @@ public sealed class IncrementalAdvanceTests
     public void FailedBatchDiscardsEarlierDaysAndSessionChanges()
     {
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 190, world => new(world, new FailingRules()));
-        session.BeginRecording();
         var before = session.Capture();
         var result = session.Apply(session.Request(new AdvanceOperation()));
         Assert.Equal(SessionRejection.NotStable, result.Rejection);
         Assert.Empty(result.Events);
         StateAssert.Equal(before, session.Capture());
-        Assert.Empty(session.CaptureRecording().Operations);
     }
 
     [Fact]

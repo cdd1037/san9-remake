@@ -31,7 +31,6 @@ public sealed class AllianceFormationSessionTests
         var initial = GameSession.Start(definition, seed).Capture();
         var session = GameSession.Restore(definition, initial with { World = initial.World with
         { Clock = new(191, 3, 21) } });
-        session.BeginRecording();
         var arrival = session.AdvanceXun();
         Assert.Equal(offered, arrival.Events.OfType<AllianceProposedEvent>().Any());
         if (offered)
@@ -50,9 +49,6 @@ public sealed class AllianceFormationSessionTests
             Assert.DoesNotContain(new PersistentEventKey("qiao-marriage"), session.Snapshot.Simulation.ConsumedEventKeys);
         }
         else Assert.Single(arrival.Events.OfType<QiaoMarriageEvent>());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
-        Assert.Equal(offered ? 0 : 1, replay.Events.OfType<QiaoMarriageEvent>().Count());
     }
 
     private static ScenarioInitialState Definition() => new(ScenarioInitialState.CurrentSchemaVersion, "alliance-choice", 190, 1, 1, 5,
@@ -75,7 +71,6 @@ public sealed class AllianceFormationSessionTests
     {
         var definition = Definition();
         var session = Ready(definition);
-        session.BeginRecording();
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         restored.AdvanceXun();
         uint draftPopulation = session.Snapshot.Settlements.Single(s => s.Id == 100).DraftPopulation;
@@ -97,20 +92,15 @@ public sealed class AllianceFormationSessionTests
         Assert.True(session.Snapshot.Relations.Count > definition.Information.Relations.Length);
         var final = SaveService.Decode(SaveService.Encode(session), definition);
         StateAssert.Equal(session.Capture(), final.Capture());
-        var replayed = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replayed.Session.Capture());
-        Assert.Single(replayed.Events.OfType<AllianceProposedEvent>());
-        Assert.Single(replayed.Events.OfType<AllianceFormedEvent>());
     }
 
     [Fact]
-    public void PendingSaveAndRecordingStartAndImplicitJoinValueAreRejected()
+    public void PendingSaveAndImplicitJoinValueAreRejected()
     {
         var definition = Definition();
         var session = Ready(definition);
         session.AdvanceXun();
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
-        Assert.Throws<InvalidOperationException>(() => session.BeginRecording());
         var command = JsonNode.Parse(CanonicalJson.Text<GameCommand>(new AllianceParticipationCommand(Guid.NewGuid(), 5, 0, 1, false)))!;
         command.AsObject().Remove("join");
         Assert.Throws<System.Text.Json.JsonException>(() => System.Text.Json.JsonSerializer.Deserialize<GameCommand>(command.ToJsonString(),

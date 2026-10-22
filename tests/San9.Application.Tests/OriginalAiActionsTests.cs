@@ -472,7 +472,7 @@ public sealed class OriginalAiActionsTests
         Assert.Empty(h.Commands);
     }
     [Fact]
-    public void DelegatedProductionStrategySurvivesSaveAndRecordingWithoutRepeatingWork()
+    public void DelegatedProductionStrategySurvivesSaveWithoutRepeatingWork()
     {
         var content = Fixture();
         content = content with
@@ -488,7 +488,6 @@ public sealed class OriginalAiActionsTests
             }
         };
         var session = GameSession.Start(content, 42);
-        session.BeginRecording();
         var request = session.Request(new EndControlOperation());
         var result = session.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
@@ -502,9 +501,6 @@ public sealed class OriginalAiActionsTests
             EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
             StateAssert.Equal(session.Capture(), restored.Capture());
         }
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content,
-            GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]

@@ -42,8 +42,7 @@ public sealed class MysticBookSessionTests
     [InlineData(true, true)]
     public void BothChoicesSaveRestoreAndReplayWithTheCorrectOwnershipAndPayment(bool returning, bool accept)
     {
-        var d = Definition(returning); var session = GameSession.Start(d, 1); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
+        var d = Definition(returning); var session = GameSession.Start(d, 1);         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         session.AdvanceXun(); restored.AdvanceXun();
         Guid task; int step;
@@ -74,8 +73,6 @@ public sealed class MysticBookSessionTests
         Assert.Null(session.GetMysticBookOfferPrompt()); Assert.Null(session.GetMysticBookReturnPrompt());
         StateAssert.Equal(session.Capture(), restored.Capture());
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

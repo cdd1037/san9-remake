@@ -22,7 +22,6 @@ public sealed class ForceRelationCycleSessionTests
             Information = InformationDefinitions.Empty with { Corps = [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(10000, 10000)) { IsRoot = true }], Relations = [new(1, 2, 80)] }
         };
         var session = GameSession.Start(content, 7);
-        session.BeginRecording();
         Assert.Equal(80, Assert.Single(session.Snapshot.Relations).Value);
         for (int i = 0; i < 2; i++) Assert.Empty(session.AdvanceXun().Events.OfType<ForceRelationChangedEvent>());
         var restored = SaveService.Decode(SaveService.Encode(session), content);
@@ -35,8 +34,5 @@ public sealed class ForceRelationCycleSessionTests
         Assert.Empty(session.AdvanceXun().Events.OfType<ForceRelationChangedEvent>());
         restored.AdvanceXun();
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
-        Assert.Single(replay.Events.OfType<ForceRelationChangedEvent>());
     }
 }

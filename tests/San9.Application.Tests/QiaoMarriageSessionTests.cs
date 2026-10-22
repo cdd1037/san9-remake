@@ -34,8 +34,7 @@ public sealed class QiaoMarriageSessionTests
     {
         var definition = Scenario(); var session = GameSession.Start(definition, 17);
         Assert.Empty(session.InitialEvents.OfType<QiaoMarriageEvent>());
-        var restored = SaveService.Decode(SaveService.Encode(session), definition); session.BeginRecording();
-        var result = session.AdvanceXun();
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);         var result = session.AdvanceXun();
         Assert.Single(result.Events.OfType<QiaoMarriageEvent>());
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         Assert.Equal(120, session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust);
@@ -49,9 +48,6 @@ public sealed class QiaoMarriageSessionTests
             Assert.Empty(next.Events.OfType<QiaoMarriageEvent>());
             EventAssert.Equal(next.Events, after.AdvanceXun().Events);
         }
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
-        Assert.Single(replay.Events.OfType<QiaoMarriageEvent>());
     }
 
     [Fact]

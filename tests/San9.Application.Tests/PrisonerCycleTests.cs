@@ -24,7 +24,6 @@ public sealed class PrisonerCycleTests
         var session = GameSession.Start(definition, 190);
         Assert.Equal(79, session.Snapshot.Officers.Single(p => p.Id == 7).Loyalty);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
-        session.BeginRecording();
         List<PrisonerEscapedEvent> escapes = [];
         for (int xun = 0; xun < 36; xun++)
         {
@@ -51,7 +50,5 @@ public sealed class PrisonerCycleTests
         Assert.Single(escapes);
         Assert.InRange(captive.LoyaltyTo(2), 44, 79);
         Assert.Equal(126, captive.LoyaltyTo(1)); // Four quarterly interest updates toward 50.
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

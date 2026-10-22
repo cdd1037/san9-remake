@@ -53,7 +53,6 @@ public sealed class ThreeVisitsSessionTests
     {
         var definition = Definition(); var session = GameSession.Start(definition, 17);
         Assert.Equal(ThreeVisitsStep.Recommendation, Assert.Single(session.InitialEvents.OfType<ThreeVisitsEvent>()).Step);
-        session.BeginRecording();
         for (int visit = 0; visit < 2; visit++)
         {
             var command = new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [11], 1);
@@ -70,15 +69,12 @@ public sealed class ThreeVisitsSessionTests
         Assert.Equal(150, session.Snapshot.Officers.Single(p => p.Id == 15).Loyalty);
         Assert.Equal(new GameClock(190, 2, 1), session.Snapshot.Simulation.ThreeVisitsStarted);
         Assert.Equal(110, session.Snapshot.Forces.Single().BaseTrust);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
     public void ExpiryAtExactlyOneYearSurvivesSaveAndFullReplay()
     {
-        var definition = Definition(); var session = GameSession.Start(definition, 17); session.BeginRecording();
-        for (int xun = 0; xun < 35; xun++)
+        var definition = Definition(); var session = GameSession.Start(definition, 17);         for (int xun = 0; xun < 35; xun++)
             Assert.Empty(session.AdvanceXun().Events.OfType<ThreeVisitsEvent>());
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var result = session.AdvanceXun();
@@ -86,8 +82,6 @@ public sealed class ThreeVisitsSessionTests
         Assert.Equal(ThreeVisitsStep.Expired, Assert.Single(result.Events.OfType<ThreeVisitsEvent>()).Step);
         Assert.Equal(new GameClock(191, 2, 1), session.Snapshot.Clock);
         Assert.Equal(OfficerStatus.Undiscovered, session.Snapshot.Officers.Single(p => p.Id == 15).Status);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

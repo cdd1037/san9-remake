@@ -8,7 +8,7 @@
 
 | 范围 | 已有能力 | 详细说明与验证 |
 | --- | --- | --- |
-| 时间与会话 | 日／旬／月／季／年调度、任务占用、确定性恢复、存档、命令日志及验证用录像 | [运行时状态](docs/runtime-state.md)、[G01](docs/g01-verification.md)、[G02](docs/g02-verification.md) |
+| 时间与会话 | 日／旬／月／季／年调度、任务占用、确定性恢复、存档、显式命令脚本 | [运行时状态](docs/runtime-state.md)、[G01](docs/g01-verification.md)、[G02](docs/g02-verification.md) |
 | 经营与人事 | 内政、兵粮收支、粮食买卖、探索登用、奖惩与宝物、军团治理及人员归属迁移 | [G03](docs/g03-verification.md)、[G04](docs/g04-verification.md)、[人事审计](docs/g04-implementation-audit.md) |
 | 地图与军事 | 领域拓扑和寻路、编队行军／输送、普通战斗、兵法、攻城占领、设施建设、俘虏与战后清理 | [G05](docs/g05-verification.md)、[G06](docs/g06-verification.md)、[G07](docs/g07-verification.md)、[军事外交边界](docs/military-diplomacy-verification.md) |
 | 外交与计略 | 联盟、谈判、赠与、俘虏返还、劝降、八类计略、军团方针及有限自动规划 | [G08](docs/g08-verification.md) |
@@ -17,12 +17,12 @@
 | 地图显示 | 190 年地图、拖动缩放、四季预览、地貌合成、旗帜／水面／守兵动画、建筑当前状态和悬停 | [地图](docs/map-import.md)、[纹理资源](docs/texture-resources.md) |
 | 界面与文本 | 战略主界面、小地图／全图、设施／武将名单、十类情报目录与详情、统一 BBCode 消息和文字样式 | [UI 文档](docs/ui/README.md)、[情报界面](docs/ui/information-browser.md)、[文本管线](docs/client-content.md#原版文本统一入口) |
 
-阶段验证包含公开夹具、190 年内容包、保存恢复与独立 CLI 录像重放；具体范围以链接记录为准。当前限制：
+阶段验证包含公开夹具、190 年内容包、保存恢复与独立 CLI 命令脚本验证；具体范围以链接记录为准。当前限制：
 
 - 正式经营、买卖、战斗及事件选择等菜单和表现尚未完整接入，主界面“进行”按钮暂不可用；新增画面按任务单独验收。
 - 完整战略 AI、全局遮挡和季节随模拟日期联动仍属后续范围，旧自主规划已退出，原版AI接入前电脑／委任暂不主动行动；公共日期推进、已有任务及必要响应继续运行。
-- 录像当前用于确定性验证；面向玩家的全程回看、跳转与接手分支尚未交付，见[录像交付边界](specs/behavior/BEH-SAVE-0001-session-persistence-replay-and-headless.md#面向玩家交付前的后续要求)。玩家读档与精确恢复的随机语义见[随机与 SL 约定](docs/randomness.md)。
-- 旧内容包须按当前契约重新转换，旧规则存档／日志／录像明确拒绝加载。
+- 录像已延期并撤下；日常开发不维护录像协议或执行完整录像验收，未来需求明确后重新设计，见[延期边界](specs/behavior/BEH-SAVE-0001-session-persistence-replay-and-headless.md#面向玩家交付前的后续要求)。玩家读档与精确恢复的随机语义见[随机与 SL 约定](docs/randomness.md)。
+- 旧内容包须按当前契约重新转换，未知格式存档／日志明确拒绝加载；仅规则版本不同则告警后按当前规则继续。
 
 原版素材、转换包与界面字体不随仓库分发。运行前须完成本地转换，并将 `LXGWWenKaiMonoGBLite-Medium.ttf` 放入 `src/San9.Client.Godot/assets/`；仓库保留 Godot 导入配置和 OFL 许可证。
 
@@ -37,7 +37,7 @@ dotnet build San9Remake.slnx
 dotnet test San9Remake.slnx
 ```
 
-默认解决方案测试不包含 Headless 进程测试。涉及 CLI、退出码、文件产物、持久化／录像协议、跨进程接线或公共测试配置时，单独运行：
+默认解决方案测试不包含 Headless 进程测试。涉及 CLI、退出码、文件产物、持久化协议、跨进程接线或公共测试配置时，单独运行：
 
 ```powershell
 dotnet test tests/San9.Headless.Tests/San9.Headless.Tests.csproj
@@ -74,7 +74,7 @@ dotnet run --project src/San9.Tools -- import-client --game-dir "private/游戏�
 dotnet run --project src/San9.Headless -- verify --fixture --xuns 36 --output local/generated/verification/roadmap-g02/public
 ```
 
-支持玩家读档、精确恢复、JSONL 命令重放、验证用录像和机器报告，参数与失败码见[G02 使用说明](docs/g02-verification.md)。
+支持玩家读档、精确恢复、JSONL 命令脚本和机器报告，参数与失败码见[G02 使用说明](docs/g02-verification.md)。
 
 ## 工程结构
 
@@ -86,7 +86,7 @@ dotnet run --project src/San9.Headless -- verify --fixture --xuns 36 --output lo
 | `src/San9.Importer.San9PkTc101/` | 繁中 PK 样本识别、源数据解析与资源转换 |
 | `src/San9.Rendering/` | 引擎无关的地貌合成、地图坐标及动画帧选择 |
 | `src/San9.Client.Godot/` | 输入、相机、UI 与地图绘制 |
-| `src/San9.Headless/` | 无界面会话、命令日志与录像验证 |
+| `src/San9.Headless/` | 无界面会话、命令脚本与保存恢复验证 |
 | `src/San9.Tools/` | `import-textures` 独立纹理、`import-client` 剧本转换与 `render-map` 静态导出 |
 | `tests/` | 自动化测试 |
 | `research/` | 来源、实验、逆向证据及独立验证脚本 |

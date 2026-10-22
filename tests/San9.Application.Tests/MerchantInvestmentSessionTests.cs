@@ -42,8 +42,7 @@ public sealed class MerchantInvestmentSessionTests
     [InlineData(MerchantInvestmentChoice.Execute, true, ResourceKind.Money)]
     public void AllOutcomesPreserveCurrentMarketSaveAndReplay(MerchantInvestmentChoice choice, bool wins, ResourceKind resource)
     {
-        var d = Definition(resource); var session = GameSession.Start(d, Seed(wins)); session.BeginRecording();
-        int price = session.Snapshot.Simulation.FoodExchangeRate; Assert.InRange(price, 7, 8);
+        var d = Definition(resource); var session = GameSession.Start(d, Seed(wins));         int price = session.Snapshot.Simulation.FoodExchangeRate; Assert.InRange(price, 7, 8);
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         Assert.Equal(price, restored.Snapshot.Simulation.FoodExchangeRate);
@@ -65,8 +64,6 @@ public sealed class MerchantInvestmentSessionTests
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys); Assert.DoesNotContain(first.Events, e => e is SearchResolvedEvent);
         StateAssert.Equal(session.Capture(), restored.Capture());
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var rng = new StableRandom(StableRandom.DeriveSeed(Seed(wins), "food-market")); rng.NextUInt64(); rng.NextUInt64();
         Assert.Equal(rng.State, session.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "food-market").State);
     }

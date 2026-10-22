@@ -22,7 +22,7 @@ public sealed class FreeOfficerMigrationSessionTests
     }
 
     [Fact]
-    public void MigrationCancelsRecruitmentAndRoundTripsSaveAndRecording()
+    public void MigrationCancelsRecruitmentAndRoundTripsSave()
     {
         var scenario = Scenario();
         const ulong seed = 2UL;
@@ -33,7 +33,6 @@ public sealed class FreeOfficerMigrationSessionTests
         Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new CommandOperation(command), "player", command.CommandId)).Disposition);
         Assert.Contains(session.Snapshot.Simulation.Tasks, t => t.Id == command.CommandId);
         var restored = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
-        session.BeginRecording();
         var result = session.AdvanceXun();
         Assert.Equal(new FreeOfficerMigratedEvent(new(190, 2, 1), 9000, 2, 1), Assert.Single(result.Events.OfType<FreeOfficerMigratedEvent>()));
         Assert.Contains(result.Events.OfType<TaskCancelledEvent>(), e => e.TaskId == command.CommandId);
@@ -42,8 +41,6 @@ public sealed class FreeOfficerMigrationSessionTests
         Assert.Contains(session.View.Officers, p => p.Id == 9000);
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var after = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
         Assert.Empty(after.InitialEvents);
         StateAssert.Equal(session.Capture(), after.Capture());

@@ -9,7 +9,9 @@ using San9.Content.Scenarios;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
-if (args.Length < 5) throw new ArgumentException("Usage: scenario.json unit-count xun-count march|combat report-path [verify|navigation|quality|queries|record]");
+if (args.Length < 5) throw new ArgumentException("Usage: scenario.json unit-count xun-count march|combat report-path [verify|navigation|quality|queries|full-route]");
+if (args.Skip(5).Any(option => option is not ("verify" or "navigation" or "quality" or "queries" or "full-route")))
+    throw new ArgumentException("Unknown benchmark option.");
 var original = JsonSerializer.Deserialize<ScenarioInitialState>(File.ReadAllText(args[0], Encoding.UTF8), ScenarioContentFiles.DataJsonOptions)!;
 int count = int.Parse(args[1]);
 int xuns = int.Parse(args[2]);
@@ -36,7 +38,6 @@ if (args.Contains("queries"))
     QueryBenchmark.Run(session.Snapshot, new MilitaryRulebook(definition.Military!), Log);
     return;
 }
-if (args.Contains("record")) session.BeginRecording();
 Log($"rules={SessionProtocol.RulesVersion} requested={count} actual={session.Snapshot.Units.Count} mode={args[3]} player_controller={session.PlayerForceController} startup_ms={startup.Elapsed.TotalMilliseconds:F2}");
 GameSession? restored = null;
 for (int i = 0; i < xuns; i++)
@@ -61,15 +62,6 @@ for (int i = 0; i < xuns; i++)
     if (i == 0 && args.Contains("verify")) restored = SaveService.Decode(SaveService.Encode(session), definition);
 }
 Log($"completed restore_verified={restored is not null && xuns > 1} revision={session.Snapshot.Revision}");
-if (args.Contains("record"))
-{
-    string recordingPath = report + ".recording.json";
-    RecordingService.Write(recordingPath, session.EndRecording());
-    var replay = RecordingService.Replay(recordingPath, definition, verifyEvents: true);
-    if (SessionDiagnostics.Compare(session.Capture(), replay.Session.Capture()) is { } difference)
-        throw new InvalidOperationException($"Recording diverged at {difference.Path}: {difference.Expected} != {difference.Actual}.");
-    Log("recording_verified=True");
-}
 
 void Log(string line)
 {

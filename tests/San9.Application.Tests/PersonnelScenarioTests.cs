@@ -37,7 +37,6 @@ public sealed class PersonnelScenarioTests
             }).ToArray()
         };
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [11], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         var expected = session.AdvanceXun();
@@ -51,8 +50,6 @@ public sealed class PersonnelScenarioTests
         Assert.Equal(3, ruler.LifespanTier);
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -65,10 +62,7 @@ public sealed class PersonnelScenarioTests
         var loaded = SaveService.Decode(SaveService.Encode(session), definition, GameSession.EngineFactory(definition), playerLoad: true);
         Assert.Equal(task, Assert.Single(loaded.Snapshot.Simulation.Tasks));
         Assert.NotEqual(session.Snapshot.Simulation.RunSeed, loaded.Snapshot.Simulation.RunSeed);
-        loaded.BeginRecording();
         loaded.AdvanceXun();
-        var replay = RecordingService.Replay(RecordingService.Encode(loaded.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(loaded.Capture(), replay.Session.Capture());
     }
 
     private static ScenarioInitialState Fixture() => new(ScenarioInitialState.CurrentSchemaVersion, "personnel-public", 190, 1, 1, 1,
@@ -90,7 +84,6 @@ public sealed class PersonnelScenarioTests
         var definition = Fixture();
         var session = GameSession.Start(definition, 190);
         var resumed = SaveService.Decode(SaveService.Encode(session), definition);
-        session.BeginRecording();
         HashSet<string> commands = [];
         List<DomainEvent> events = [];
         int checkpoints = 0;
@@ -159,8 +152,6 @@ public sealed class PersonnelScenarioTests
         Assert.Contains(events, e => e is RecruitmentResolvedEvent { TargetOfficerId: 21, Success: true });
         Assert.Contains(events, e => e is OfficerMovedEvent { OfficerId: 21, DestinationId: 3 });
         Assert.Contains(events, e => e is OfficerRewardedEvent { OfficerId: 21 });
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -176,7 +167,6 @@ public sealed class PersonnelScenarioTests
             _ => p
         }).ToArray() };
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [11], 1)).Submission.Accepted);
         Assert.False(session.View.Officers.Single(p => p.Id == 11).IsAvailable);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
@@ -190,7 +180,6 @@ public sealed class PersonnelScenarioTests
         }
         Assert.NotNull(session.GetSearchRecruitmentPrompt());
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
-        Assert.Throws<InvalidOperationException>(() => session.CaptureRecording());
         RespondSearch(session, restored, acceptRecruitment);
         StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal(new GameClock(190, 1, 11), session.Snapshot.Clock);
@@ -199,8 +188,6 @@ public sealed class PersonnelScenarioTests
         Assert.Equal(acceptRecruitment ? OfficerStatus.Serving : OfficerStatus.Free,
             session.Snapshot.Officers.Single(p => p.Id == 21).Status);
         if (acceptRecruitment) Assert.True(session.View.Officers.Single(p => p.Id == 21).IsAvailable);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

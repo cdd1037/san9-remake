@@ -36,8 +36,7 @@ public sealed class TigerSearchSessionTests
     [InlineData(true, false, EventResult.Defeated)]
     public void ChoicesRoundTripSaveAndReplayWithoutOrdinarySearch(bool accept, bool wins, EventResult expected)
     {
-        var d = Definition; var session = GameSession.Start(d, Seed(wins)); session.BeginRecording();
-        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
+        var d = Definition; var session = GameSession.Start(d, Seed(wins));         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         session.AdvanceXun(); restored.AdvanceXun();
         var prompt = Assert.IsType<TigerSearchPrompt>(session.GetTigerSearchPrompt());
@@ -59,8 +58,6 @@ public sealed class TigerSearchSessionTests
         Assert.Empty(session.Snapshot.Simulation.ConsumedEventKeys); Assert.Null(session.GetTigerSearchPrompt());
         StateAssert.Equal(session.Capture(), restored.Capture());
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), d, GameSession.EngineFactory(d));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

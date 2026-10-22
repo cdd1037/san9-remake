@@ -22,7 +22,6 @@ public sealed class CorpsControlTests
             Information = baseline.Information with { Corps = [.. baseline.Information.Corps.Where(c => c.OwnerId != 1), new(10, 1, 1, new(1000, 2000)) { IsRoot = true }, new(11, 1, 2, new(1000, 2000))] }
         };
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1, 0, 11, CorpsControlMode.Automatic)).Submission.Accepted);
         var command = new RecruitOfficerCommand(Guid.NewGuid(), 1, 1, 2, 7);
         var hash = session.Snapshot;
@@ -40,8 +39,6 @@ public sealed class CorpsControlTests
         var saveState = session.Capture();
         var save = SaveService.Encode(session);
         StateAssert.Equal(saveState, SaveService.Decode(save, definition).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(saveState, replay.Session.Capture());
         long sequence = session.Snapshot.Simulation.NextSequence;
         Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1, sequence, 11, CorpsControlMode.Direct)).Submission.Accepted);
         Assert.False(session.Validate(new(CorpsControl.ControllerId(11)), new WaitCommand(Guid.NewGuid(), 1, sequence + 1)).Accepted);

@@ -45,15 +45,13 @@ public sealed class HeadlessHost
             else
             {
                 _reportPath = Path.GetFullPath(Required(options, "report"));
-                if (_report.Mode == "replay") ReplayRecording(options);
-                else Replay(options);
+                Replay(options);
             }
             _report.Success = true;
         }
         catch (UsageException error) { exitCode = Fail(2, "usage", error); }
         catch (ContentException error) { exitCode = Fail(3, "content", error); }
         catch (SaveException error) { exitCode = Fail(4, "save-" + error.Failure, error); }
-        catch (RecordingException error) { exitCode = Fail(5, "recording", error); _report.FailureSequence = error.Sequence; }
         catch (CommandLogException error) { exitCode = Fail(5, "replay", error, error.Line); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { exitCode = Fail(6, "io", error); }
         catch (VerificationException error) { exitCode = Fail(7, "verification", error); }
@@ -250,7 +248,6 @@ public sealed class HeadlessHost
         _session = options.TryGetValue("load", out string? load) ? SaveService.Load(load, definition) :
             options.TryGetValue("restore", out string? restore) ? SaveService.Read(restore, definition) : GameSession.Start(definition, header.Seed, header.ComputerDamageBonusPercent, battleDeathsEnabled: header.BattleDeathsEnabled, playerForceController: header.PlayerForceController);
         _started = _session.Snapshot.Clock;
-        if (options.ContainsKey("record")) _session.BeginRecording();
         var result = CommandLogService.Replay(log, _session);
         _report.AcceptedOperations = result.Accepted;
         _report.AlreadyProcessedOperations = result.AlreadyProcessed;
@@ -261,23 +258,9 @@ public sealed class HeadlessHost
         WriteLines(_report.EventLog, result.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)));
         WriteLines(_report.AttemptLog, result.Attempts.Select(a => CanonicalJson.Text(a)));
         if (options.TryGetValue("save", out string? save)) SaveService.Write(save, _session);
-        if (options.TryGetValue("record", out string? record)) RecordingService.Write(record, _session.CaptureRecording());
         if (result.FirstFailure is not null)
             throw new CommandLogException(result.FirstFailure.Line, "Operation rejected: " + result.FirstFailure.Rejection);
         _report.TerminationReason = _session.Snapshot.Simulation.TerminalReason ?? "log-complete";
-    }
-
-    private void ReplayRecording(Dictionary<string, string> options)
-    {
-        var replay = RecordingService.Replay(Required(options, "recording"), Content(options), _report.RulesVersionWarnings.Add);
-        _session = replay.Session;
-        _started = replay.Started;
-        _report.AcceptedOperations = replay.Accepted;
-        SummarizeEvents(replay.Events);
-        _report.EventLog = Path.ChangeExtension(_reportPath!, ".events.jsonl");
-        WriteLines(_report.EventLog, replay.Events.Select(e => CanonicalJson.Text<DomainEvent>(e)));
-        if (options.TryGetValue("save", out string? save)) SaveService.Write(save, _session);
-        _report.TerminationReason = "recording-complete";
     }
 
     private void Verify(Dictionary<string, string> options, string output)
@@ -293,7 +276,8 @@ public sealed class HeadlessHost
         var definition = Content(options);
         _session = GameSession.Start(definition, seed,
             playerForceController: autonomous ? ControllerKind.Automatic : ControllerKind.Player);
-        _session.BeginRecording();
+        var commandHeader = CommandLogService.CreateHeader(_session);
+        List<SessionRequest> requests = [];
         _started = _session.Snapshot.Clock;
         var restored = GameSession.Restore(definition, _session.Capture());
         Directory.CreateDirectory(output);
@@ -340,6 +324,7 @@ public sealed class HeadlessHost
                 throw new VerificationException($"Operation {request.Sequence}: continuous {a.Disposition}/{a.Rejection}, restored {b.Disposition}/{b.Rejection}; " +
                     $"state difference={difference}; event difference={eventDifference}.");
             }
+            requests.Add(request);
             _report.AcceptedOperations++;
             SummarizeEvents(a.Events);
             if (request.Operation is CommandOperation { Command: WaitCommand }) _report.WaitCommands++;
@@ -428,14 +413,10 @@ public sealed class HeadlessHost
         if (!File.ReadAllBytes(Path.Combine(output, "continuous.save.json")).SequenceEqual(File.ReadAllBytes(Path.Combine(output, "restored.save.json"))))
             throw new VerificationException("Canonical save files differ.");
         _report.CommandLog = Path.Combine(output, "commands.jsonl");
-        CommandLogService.Write(_report.CommandLog, _session);
+        CommandLogService.Write(_report.CommandLog, commandHeader, requests);
         _report.EventLog = Path.Combine(output, "events.jsonl");
         WriteLines(_report.EventLog, events.Select(e => CanonicalJson.Text<DomainEvent>(e)));
         Write(Path.Combine(output, "checkpoints.json"), CanonicalJson.Encode(checkpoints));
-        string recordingPath = Path.Combine(output, "verification.recording.json");
-        RecordingService.Write(recordingPath, _session.CaptureRecording());
-        var recordingReplay = RecordingService.Replay(recordingPath, definition, verifyEvents: true);
-        RequireEqual(_session.Capture(), recordingReplay.Session.Capture(), "Recording replay differs");
         var replayed = SaveService.Read(Path.Combine(output, "initial.save.json"), definition);
         var replay = CommandLogService.Replay(_report.CommandLog, replayed);
         if (replay.FirstFailure is not null || EventDiagnostics.Compare(events, replay.Events) is not null)
@@ -471,10 +452,10 @@ public sealed class HeadlessHost
 
     private static Dictionary<string, string> Parse(string[] args)
     {
-        if (args.Length == 0 || args[0] is not ("run" or "verify" or "replay"))
-            throw new UsageException("Use verify --fixture|--scenario PATH --output DIR [--xuns N] [--seed N] [--strategy simple|autonomous], or run --fixture|--scenario PATH --log PATH --report PATH [--load PATH|--restore PATH] [--save PATH] [--record PATH], or replay --fixture|--scenario PATH --recording PATH --report PATH [--save PATH].");
+        if (args.Length == 0 || args[0] is not ("run" or "verify"))
+            throw new UsageException("Use verify --fixture|--scenario PATH --output DIR [--xuns N] [--seed N] [--strategy simple|autonomous], or run --fixture|--scenario PATH --log PATH --report PATH [--load PATH|--restore PATH] [--save PATH].");
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
-        string[] allowed = args[0] == "verify" ? ["fixture", "scenario", "output", "xuns", "seed", "strategy"] : args[0] == "run" ? ["fixture", "scenario", "log", "report", "load", "restore", "save", "record"] : ["fixture", "scenario", "recording", "report", "save"];
+        string[] allowed = args[0] == "verify" ? ["fixture", "scenario", "output", "xuns", "seed", "strategy"] : ["fixture", "scenario", "log", "report", "load", "restore", "save"];
         for (int i = 1; i < args.Length; i++)
         {
             if (!args[i].StartsWith("--", StringComparison.Ordinal)) throw new UsageException("Expected named option.");
@@ -501,7 +482,7 @@ public sealed class HeadlessHost
         {
             string directory = Path.GetFullPath(Required(options, "output"));
             foreach (string file in new[] { "report.json", "divergence.json", "initial.save.json", "checkpoint.save.json",
-                "continuous.save.json", "restored.save.json", "commands.jsonl", "events.jsonl", "checkpoints.json", "verification.recording.json" })
+                "continuous.save.json", "restored.save.json", "commands.jsonl", "events.jsonl", "checkpoints.json" })
                 outputs.Add(Path.Combine(directory, file), file);
         }
         else
@@ -514,9 +495,7 @@ public sealed class HeadlessHost
         }
         if (options.TryGetValue("save", out var save) && !outputs.TryAdd(Path.GetFullPath(save), "save"))
             throw new UsageException("Output paths must be distinct.");
-        if (options.TryGetValue("record", out var record) && !outputs.TryAdd(Path.GetFullPath(record), "record"))
-            throw new UsageException("Recording output must be distinct.");
-        foreach (string key in new[] { "scenario", "log", "load", "restore", "recording" })
+        foreach (string key in new[] { "scenario", "log", "load", "restore" })
             if (options.TryGetValue(key, out var input) && outputs.TryGetValue(Path.GetFullPath(input), out var output) &&
                 !(key is "load" or "restore" && output == "save"))
                 throw new UsageException("Output would overwrite an input: " + key);

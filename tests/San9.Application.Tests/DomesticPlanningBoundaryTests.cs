@@ -146,7 +146,6 @@ public sealed class DomesticPlanningBoundaryTests
             .Select(c => c.OwnerId == 2 ? c with { ControlMode = mode } : c).ToArray() } };
         var whole = GameSession.Start(initial, 190);
         var split = GameSession.Start(initial, 190);
-        whole.BeginRecording();
         var result = whole.Apply(whole.Request(new AdvanceOperation()));
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         Assert.NotEmpty(result.Events.OfType<DevelopmentCompletedEvent>());
@@ -155,8 +154,6 @@ public sealed class DomesticPlanningBoundaryTests
             Assert.Equal(SessionDisposition.Accepted, split.Apply(split.Request(new EndControlOperation(), seat.ControllerId)).Disposition);
         Assert.Equal(SessionDisposition.Accepted, split.Apply(split.Request(new AdvanceOperation())).Disposition);
         StateAssert.Equal(whole.Snapshot, split.Snapshot);
-        var replay = RecordingService.Replay(RecordingService.Encode(whole.EndRecording()), initial, GameSession.EngineFactory(initial));
-        StateAssert.Equal(whole.Capture(), replay.Session.Capture());
         var restored = SaveService.Decode(SaveService.Encode(whole), initial);
         StateAssert.Equal(whole.AdvanceXun().Snapshot, restored.AdvanceXun().Snapshot);
     }

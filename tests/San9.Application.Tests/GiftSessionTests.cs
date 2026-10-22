@@ -58,7 +58,6 @@ public sealed class GiftSessionTests
         var content = Content();
         content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f with { Treasury = f.Treasury with { Food = 500000 } }).ToArray() } };
         var session = GameSession.Start(content, 42);
-        session.BeginRecording();
         var offer = new GiftOffer(kind, amount, kind == GiftKind.Treasure ? 9 : null);
         var beforeAdvice = session.Capture();
         Assert.Equal(session.GetGiftAdvice(1, 12, 2, offer), session.GetGiftAdvice(1, 12, 2, offer));
@@ -88,8 +87,6 @@ public sealed class GiftSessionTests
         DecisionResponses.DeclineAll(session);
         DecisionResponses.DeclineAll(returning);
         StateAssert.Equal(session.Capture(), returning.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -106,7 +103,6 @@ public sealed class GiftSessionTests
             { TreasureStates = [new(9, 21, TreasureDiscovery.Discovered, null)] } };
         uint amount = kind == GiftKind.Treasure ? 0u : 1000u;
         var session = GameSession.Start(content, 42);
-        session.BeginRecording();
         session.EndControl(new("player"));
         Assert.True(session.Execute(new("ai:2"), new GiftCommand(Guid.NewGuid(), 2, 0, 22, 1,
             new(kind, amount, kind == GiftKind.Treasure ? 9 : null))).Submission.Accepted);
@@ -161,8 +157,6 @@ public sealed class GiftSessionTests
         EventAssert.Equal(home.Events, returning.AdvanceXun().Events);
         Assert.DoesNotContain(home.Events.OfType<ResourceChangedEvent>(), e => e.Reason is "gift-refused" or "gift-cancelled");
         Assert.DoesNotContain(session.Snapshot.Simulation.Tasks, t => t.OfficerId == 22);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

@@ -86,8 +86,6 @@ public sealed class SnipingSessionTests
         }
         Assert.True(session.Snapshot.Simulation.BattleDeathsEnabled);
         Assert.Equal(70, session.Snapshot.Officers.Single(p => p.Id == 22).BaseAbilities.War);
-
-        session.BeginRecording();
         var restored = SaveService.Decode(SaveService.Encode(session), scenario);
         var arrival = session.AdvanceXun();
         EventAssert.Equal(arrival.Events, restored.AdvanceXun().Events);
@@ -99,7 +97,6 @@ public sealed class SnipingSessionTests
         Assert.DoesNotContain(arrival.Events, e => e is OfficerDiedEvent or XunAdvancedEvent);
         Assert.DoesNotContain(arrival.Events.OfType<StageCompletedEvent>(), e => e.Stage == ResolutionStage.DailyMapUpdate);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
-        Assert.Throws<InvalidOperationException>(() => session.CaptureRecording());
         var hash = session.Snapshot;
         long sequence = session.Snapshot.Simulation.NextSequence;
         Assert.Equal(CommandRejection.DecisionPending, session.Execute(new("player"), new WaitCommand(Guid.NewGuid(), 2, sequence)).Submission.Rejection);
@@ -137,8 +134,6 @@ public sealed class SnipingSessionTests
                 e.TargetUnitId == pending.Tactic!.Target.UnitId && e.SettlementId == pending.Tactic.Target.SettlementId));
         Assert.DoesNotContain("pendingSniping", System.Text.Encoding.UTF8.GetString(SaveService.Encode(session)));
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), scenario).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -158,7 +153,7 @@ public sealed class SnipingSessionTests
         Assert.Equal(1UL, new StableRandom(StableRandom.DeriveSeed(seed, "military-sniping-target")).NextUInt64() % 2);
         var scenario = Scenario("field") with { PlayerForceId = 1 };
         var session = GameSession.Start(scenario, seed, battleDeathsEnabled: true);
-        var events = AutomaticResponseReplay.Advance(session, scenario, 1);
+        var events = AutomaticResponseVerification.Advance(session, scenario, 1);
         Assert.Contains(events.OfType<OfficerDiedEvent>(), e => e.OfficerId == 22);
         Assert.NotEqual(22, session.Snapshot.Forces.Single(f => f.Id == 2).LeaderId);
     }

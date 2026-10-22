@@ -26,8 +26,6 @@ public sealed class BarbarianSelectionTests
         Assert.False(session.Snapshot.Forces.Single(f => f.Id == playerId).IsBarbarian);
         Assert.True(session.Snapshot.Forces.Single(f => f.Id != playerId).IsBarbarian);
         Assert.False(session.View.Forces.Single(f => f.Id == playerId).IsBarbarian);
-
-        session.BeginRecording();
         List<ResourceChangedEvent> resources = [];
         for (int xun = 0; xun < 18; xun++)
         {
@@ -47,7 +45,5 @@ public sealed class BarbarianSelectionTests
         Assert.Contains(resources, e => e.Account.Id == playerId && e.Reason == "annual-harvest");
         Assert.Contains(resources, e => e.Account.Id != playerId && e.Reason == "barbarian-quarterly-funds");
         Assert.Contains(resources, e => e.Account.Id != playerId && e.Reason == "barbarian-annual-food");
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

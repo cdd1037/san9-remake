@@ -36,15 +36,12 @@ public sealed class ForceConsolidationSessionTests
         { World = initial.World with { Simulation = initial.World.Simulation with { ForceConsolidationPending = true } } });
         var restored = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
         Assert.True(restored.Snapshot.Simulation.ForceConsolidationPending);
-        session.BeginRecording();
         var result = session.AdvanceXun();
         Assert.Single(result.Events.OfType<ForcesConsolidatedEvent>());
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         Assert.False(session.Snapshot.Simulation.ForceConsolidationPending);
         StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Empty(session.AdvanceXun().Events.OfType<ForcesConsolidatedEvent>());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), scenario, GameSession.EngineFactory(scenario));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         var saved = SaveService.Decode(SaveService.Encode(session), scenario, GameSession.EngineFactory(scenario));
         StateAssert.Equal(session.Capture(), saved.Capture());
         Assert.Empty(saved.InitialEvents);

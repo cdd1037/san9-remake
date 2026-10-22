@@ -619,7 +619,6 @@ public sealed class OriginalAiPersonnelTests
         var session = GameSession.Restore(content, new(initial, [], [], 0) { OriginalAi = OriginalAiState.Create(content) }, GameSession.EngineFactory(content));
         // Explicitly delegate the root: descendants created by its public command must get a turn too.
         Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1, 0, 1, CorpsControlMode.Automatic)).Submission.Accepted);
-        session.BeginRecording();
         var result = session.Apply(session.Request(new EndControlOperation(), "player"));
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         Assert.Equal(2, result.Events.OfType<CorpsCreatedEvent>().Count());
@@ -635,8 +634,6 @@ public sealed class OriginalAiPersonnelTests
             children.Any(c => session.Snapshot.Settlements.Any(s => s.Id == e.Task.Journey?.DestinationPlaceId && s.CorpsId == c.Id)));
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content), verifyEvents: true);
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -680,7 +677,6 @@ public sealed class OriginalAiPersonnelTests
         Assert.Equal(0UL, stream.NextUInt64() % 100);
         initial = initial with { Simulation = initial.Simulation with { RunSeed = runSeed } };
         var session = GameSession.Restore(content, new(initial, [], [], 0) { OriginalAi = OriginalAiState.Create(content) }, GameSession.EngineFactory(content));
-        session.BeginRecording();
         Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new EndControlOperation(), "player")).Disposition);
         var result = session.Apply(session.Request(new EndControlOperation(), "ai:2"));
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
@@ -702,8 +698,6 @@ public sealed class OriginalAiPersonnelTests
         Assert.Contains(session.LastOriginalAiWork, r => r.Work == OriginalAiWork.GrantTreasure);
         Assert.Equal(1, session.LastOriginalAiWork.Single(r => r.Work == OriginalAiWork.DisposePrisoner).Submitted);
         Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content), verifyEvents: true);
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

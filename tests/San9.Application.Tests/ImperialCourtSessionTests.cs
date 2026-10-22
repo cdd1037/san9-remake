@@ -34,7 +34,6 @@ public sealed class ImperialCourtSessionTests
         Assert.Equal(12, session.View.EmperorId); Assert.Equal(1, session.View.EmperorCityId);
         Assert.DoesNotContain(session.InitialEvents, e => e is EmperorDeathEvent);
         var before = SaveService.Decode(SaveService.Encode(session), definition);
-        session.BeginRecording();
         var result = session.AdvanceXun();
         Assert.Single(result.Events.OfType<EmperorDeathEvent>());
         EventAssert.Equal(result.Events, before.AdvanceXun().Events);
@@ -59,8 +58,6 @@ public sealed class ImperialCourtSessionTests
             Assert.Empty(next.Events.OfType<EmperorDeathEvent>());
             EventAssert.Equal(next.Events, restored.AdvanceXun().Events);
         }
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]
@@ -69,8 +66,7 @@ public sealed class ImperialCourtSessionTests
         var definition = Scenario();
         definition = definition with { ImperialCourt = definition.ImperialCourt with
         { DeathEvents = [definition.ImperialCourt.DeathEvents[0], new(11, new(190, 4, 1), new(190, 4, 1), 0)] } };
-        var session = GameSession.Start(definition, 17); session.BeginRecording();
-        var first = session.AdvanceXun();
+        var session = GameSession.Start(definition, 17);         var first = session.AdvanceXun();
         Assert.Equal(12, Assert.Single(first.Events.OfType<EmperorDeathEvent>()).OfficerId);
         Assert.Equal(11, session.View.EmperorId);
         Assert.Equal(OfficerStatus.Free, session.Snapshot.Officers.Single(p => p.Id == 11).Status);
@@ -85,8 +81,6 @@ public sealed class ImperialCourtSessionTests
         Assert.Equal(new GameClock(190, 7, 1), session.Snapshot.Clock);
         Assert.Null(session.View.EmperorId); Assert.False(session.View.ImperialCourtEnded);
         Assert.All(session.View.Forces, f => Assert.Equal(100, f.Trust));
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Fact]

@@ -23,7 +23,6 @@ public sealed class StrategyPlannerTests
             Military = basis.Military! with { Places = [.. basis.Military.Places, new(4, new(127, 7), new(1, 1))] }
         };
         var session = GameSession.Start(content, 42);
-        session.BeginRecording();
         var actor = new ControlSeat(content.PlayerForceId == 3 ? "ai:1" : "corps:11", 1, ControllerKind.Automatic);
         if (content.PlayerForceId == 3) session.EndControl(new("player"));
         var command = StrategyPlanner.Choose(session, actor, Guid.NewGuid());
@@ -34,8 +33,6 @@ public sealed class StrategyPlannerTests
         Assert.Contains(submitted.Events.OfType<TaskStartedEvent>(), e => e.Task.ControllerId == "corps:11" &&
             e.Task.OfficerId == 2 && e.Task.Journey?.Burn is not null);
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -46,7 +43,6 @@ public sealed class StrategyPlannerTests
         var content = MissionScenario.Create(kind);
         var session = GameSession.Start(content, 42);
         var seat = session.Snapshot.Simulation.Controls.Single(c => c.ForceId == 1);
-        session.BeginRecording();
         var id = Guid.NewGuid();
         var before = session.Capture();
         var command = StrategyPlanner.Choose(session, seat, id);
@@ -68,14 +64,10 @@ public sealed class StrategyPlannerTests
         });
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
-        byte[] recording = RecordingService.Encode(session.EndRecording());
-        var replay = RecordingService.Replay(recording, content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
         if (Environment.GetEnvironmentVariable("SAN9_G08_REPORT_DIR") is { Length: > 0 } output)
         {
             Directory.CreateDirectory(output);
             File.WriteAllBytes(Path.Combine(output, $"scenario-{kind}.json"), CanonicalJson.Encode(content));
-            File.WriteAllBytes(Path.Combine(output, $"strategy-{kind}.recording.json"), recording);
         }
     }
 
@@ -119,7 +111,6 @@ public sealed class StrategyPlannerTests
         Assert.NotEqual(0, Category(StrategyPlanner.Choose(session, session.Snapshot.Simulation.Controls[0], Guid.NewGuid())));
         content = content with { PlayerForceId = 3 };
         session = GameSession.Start(content, 42);
-        session.BeginRecording();
         var actor = new ControlSeat(content.PlayerForceId == 3 ? "ai:1" : "corps:11", 1, ControllerKind.Automatic);
         if (content.PlayerForceId == 3) session.EndControl(new("player"));
         var command = StrategyPlanner.Choose(session, actor, Guid.NewGuid());
@@ -131,8 +122,6 @@ public sealed class StrategyPlannerTests
             (e.Task.Journey?.UnitStrategy is not null || e.Task.Journey?.Burn is not null || e.Task.Journey?.Seize is not null ||
              e.Task.Journey?.Gossip is not null || e.Task.Kind == "strategy-alienate"));
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), content, GameSession.EngineFactory(content));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     private static int Category(GameCommand command) => command switch

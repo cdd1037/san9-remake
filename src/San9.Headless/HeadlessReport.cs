@@ -43,7 +43,6 @@ public sealed class HeadlessReport
     public long ElapsedMilliseconds { get; set; }
     public int AcceptedOperations { get; set; }
     public int AlreadyProcessedOperations { get; set; }
-    public long? FailureSequence { get; set; }
     public int DevelopmentCommands { get; set; }
     public int WaitCommands { get; set; }
     public Dictionary<string, int> PersonnelEvents { get; set; } = [];

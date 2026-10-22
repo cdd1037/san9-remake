@@ -90,7 +90,6 @@ public sealed class AmphibiousSessionTests
                 f with { IsCommon = f.Id != special || common, RequiredTacticId = f.Id == special ? 8000 : null }).ToImmutableArray() }
         };
         var session = GameSession.Start(definition, 42);
-        session.BeginRecording();
         if (reform)
         {
             Assert.True(session.Execute(new("player"), new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [1], 400, 100,
@@ -121,8 +120,6 @@ public sealed class AmphibiousSessionTests
             StateAssert.Equal(session.Capture(), restored.Capture());
             Assert.Equal(additional ? new[] { special } : [], restored.Snapshot.Forces.Single().AdditionalFormationIds);
         }
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 
     [Theory]
@@ -140,7 +137,6 @@ public sealed class AmphibiousSessionTests
     {
         var definition = Fixture();
         var session = GameSession.Start(definition, 42);
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [1], 400, 100,
             new(MilitaryOrderKind.Move, new(32, 7), null))).Submission.Accepted);
         var unit = Assert.Single(session.Snapshot.Units);
@@ -167,7 +163,5 @@ public sealed class AmphibiousSessionTests
         Assert.Equal(new WorldPosition(32, 7), unit.Position);
         Assert.Equal(100, session.View.FormationId(unit));
         Assert.Equal(200, unit.NavalFormationId);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

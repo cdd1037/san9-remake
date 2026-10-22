@@ -9,7 +9,7 @@
 | 项目 | 主要负责 | 控制重复的原则 |
 | --- | --- | --- |
 | San9.Core.Tests | 领域规则、边界条件、随机消费、状态不变量 | 在这里展开规则输入矩阵 |
-| San9.Application.Tests | 内容到运行态的接线、命令与查询、会话推进、存档和回放 | 保留各功能接线与特殊状态往返，公共会话协议集中验证 |
+| San9.Application.Tests | 内容到运行态的接线、命令与查询、会话推进、存档和命令脚本 | 保留各功能接线与特殊状态往返，公共会话协议集中验证 |
 | San9.Content.Tests | 内容契约、序列化、引用与资源校验 | 与具体原版格式无关的契约放在这里 |
 | San9.Importer.San9PkTc101.Tests | 源格式识别、解析、转换与导出 | 验证源数据到共享语义的映射，不重复领域规则矩阵 |
 | San9.Client.Godot.Tests | 客户端选取、坐标、显示状态、设置及 Rendering 逻辑 | 自动化逻辑验证不代表实际画面验收 |
@@ -74,9 +74,13 @@ Headless 默认不运行。修改 CLI 参数解析、退出码、文件产物、
 
 整旬表现采样接口退出后，删除仅约束该接口的`PresentedAdvanceTests`：整旬事务失败回滚保留在`IncrementalAdvanceTests.FailedBatchDiscardsEarlierDaysAndSessionChanges`，跨季／跨年与逐日一致性复用该类已有用例，终局拒绝由`EndingSessionTests`覆盖。待答暂停与禁止继续推进并入`DailyTaskDecisionTests.IncrementalAnswersResumeOnlyCurrentDayAndPreserveReplay`；电脑自动答复后的表现投影改由`CapturedRulerDispositionTests`通过后台逐日入口检查。采样数量和样本合并断言随接口删除，正式演出仍由客户端逐日测试覆盖。
 
-单挑领域测试保留触发、随机短路、逐刀守恒、超出原版名单数量、后果与继任边界；`DuelContestTests`不再重复整场结算或逐刀做JSON往返，真实事件协议与确定性由`DuelSessionTests`的录像回放显式比对事件承担。该会话往返只跑显式继任选择，自动／显式选择矩阵留在`DuelCombatIntegrationTests`，电脑自动响应仍有独立会话入口。选项和自定义单挑特性共用一次保存／命令日志／录像验证。演出保留体力、替补、粒子和对白边界，将体力等待并入逐刀场景、对白局部动画并入暂停／跳过场景，稳定旗帜与粒子复用已有重复计划检查；不追加全套播放排列。
+单挑领域测试保留触发、随机短路、逐刀守恒、超出原版名单数量、后果与继任边界；`DuelContestTests`不再重复整场结算或逐刀做JSON往返，真实事件与确定性由领域单挑用例和保存恢复后的事件比较承担。该会话往返只跑显式继任选择，自动／显式选择矩阵留在`DuelCombatIntegrationTests`，电脑自动响应仍有独立会话入口。选项和自定义单挑特性共用一次保存／命令日志验证。演出保留体力、替补、粒子和对白边界，将体力等待并入逐刀场景、对白局部动画并入暂停／跳过场景，稳定旗帜与粒子复用已有重复计划检查；不追加全套播放排列。
 
 世界事件演出测试聚焦发生时身份、自动／待答输出归属、重复播放抑制及记录正文复用，不逐项固定装饰文案排列或消息总数。地图喊话完成状态并入已有延迟、主动关闭、资源等待和自然结束场景；真实内容包绑定样本独立求值，不把互斥结果拼成领域事件时间线。
+
+## 录像撤下后的覆盖
+
+2026-10-22删除录制开关、起点、文件格式、事件对比和独立录像回放专属测试；混合玩法用例只移除录像步骤，保留领域结果、原子性、查询、存档和恢复断言。命令脚本用例显式构造输入，不建立替代录制器。Headless保留`run`／`verify`的报告、存档、失败前缀、玩家加载和进程接线，并拒绝撤下的录像模式／参数。无需每次功能变化维护录像版本或完整重放。
 
 ## 公共协议与进程覆盖
 
@@ -84,17 +88,17 @@ Headless 默认不运行。修改 CLI 参数解析、退出码、文件产物、
 
 | 协议 | 集中覆盖位置 | 事件测试保留的内容 |
 | --- | --- | --- |
-| 等待响应时禁止保存和结束录制 | `DailyTaskDecisionTests.TwoSameDayDecisionsContinueInMemoryAndReplayWithoutRepeatingDailyWork`；`SaveBoundaryTests` | 进入 `AwaitingDecision`、事件提示与恢复一致 |
+| 等待响应时禁止保存 | `DailyTaskDecisionTests.TwoSameDayDecisionsContinueInMemoryAndReplayWithoutRepeatingDailyWork`；`SaveBoundaryTests` | 进入 `AwaitingDecision`、事件提示与恢复一致 |
 | 同一响应重复提交不产生效果 | 上述日任务测试覆盖仍有待办和已恢复稳定两种状态；`PersistenceTests.OperationWatermarkSurvivesSave` 覆盖存档水位 | 首次响应的事件与领域状态变化 |
 | 错误任务、错误阶段、公共互斥字段不修改状态 | `DailyTaskDecisionTests.InvalidResponsesAndNormalCommandsCannotMutatePendingDecision`；`StagedDailyTaskTests` 的过期阶段响应 | 投资金额、具体事件选项、事件专有载荷的校验 |
 
-Headless 的领域场景由`HeadlessHostTests`直接调用生产宿主，并以独立`TextWriter`捕获输出，不修改全局Console。文件产物、退出码、恢复、重放、警告和失败前缀断言保留。`HeadlessProcessTests`只执行两个入口用例、共四次真实进程启动，覆盖三种命令模式、标准输出／错误、成功／失败退出码及跨进程存档／日志／录像。失败输入由应用API准备，不用另一个CLI进程造夹具。
+Headless 的领域场景由`HeadlessHostTests`直接调用生产宿主，并以独立`TextWriter`捕获输出，不修改全局Console。文件产物、退出码、恢复、重放、警告和失败前缀断言保留。`HeadlessProcessTests`只执行两个入口用例、共三次真实进程启动，覆盖两种命令模式、标准输出／错误、成功／失败退出码及跨进程存档／日志。失败输入由应用API准备，不用另一个CLI进程造夹具。
 
 内容合法性与必需字段归 Content，会话指纹和接线归 Application，规则矩阵归 Core。表格样式中的精确数值须有规格依据；不能仅为固定实现常量增加断言。数量和耗时不是覆盖目标，历史整理基线由 Git 保留。
 
-状态一致性断言使用共享的`StateAssert.Equal`／`NotEqual`，直接传入不可变世界或会话快照。共享状态和相等记录跳过序列化，跨快照按分块使用源生成诊断元数据比较语义内容；`NotEqual`使用`AreEqual`，不定位差异，`Equal`只在失败时定位字段差异，不计算SHA-256、不生成规范化JSON字符串。只读界面验收使用`Revision`。测试中的存档／录像序列化仍覆盖真实产品协议，不另建替代存档实现。
+状态一致性断言使用共享的`StateAssert.Equal`／`NotEqual`，直接传入不可变世界或会话快照。共享状态和相等记录跳过序列化，跨快照按分块使用源生成诊断元数据比较语义内容；`NotEqual`使用`AreEqual`，不定位差异，`Equal`只在失败时定位字段差异，不计算SHA-256、不生成规范化JSON字符串。只读界面验收使用`Revision`。测试中的存档序列化仍覆盖真实产品协议，不另建替代存档实现。
 
-事件一致性使用`EventAssert.Equal`逐项比较，保留类型、顺序、长度和字段语义；相等记录跳过JSON，仅不相等的事件使用源生成元数据比较。玩法测试以快照断言比较恢复／重放状态，实际往返仍使用产品存档协议；字节稳定性、格式和录制隔离集中在`PersistenceTests`验证。失败诊断仅在断言失败时序列化。固定分支夹具使用已知种子或`TestSeeds`随机向量，并核对要求的随机值；随机矩阵继续覆盖原有输入范围，不运行时搜索分支种子。
+事件一致性使用`EventAssert.Equal`逐项比较，保留类型、顺序、长度和字段语义；相等记录跳过JSON，仅不相等的事件使用源生成元数据比较。玩法测试以快照断言比较恢复／重放状态，实际往返仍使用产品存档协议；存档字节稳定性、格式和恢复隔离集中在`PersistenceTests`验证。失败诊断仅在断言失败时序列化。固定分支夹具使用已知种子或`TestSeeds`随机向量，并核对要求的随机值；随机矩阵继续覆盖原有输入范围，不运行时搜索分支种子。
 
 默认存档不累计操作／事件历史由3旬短流程、文件字段检查和恢复后继续一致性验证；记录队列通过`AutomaticRecordsAreBoundedWhilePlayerNotesArePreserved`越过128条上限并验证精确淘汰顺序。删除40年推进及存档长度差阈值，后者随当前AI目标、随机流和日期位数变化，不能证明历史有界。这些用例不承担长期对局或内存泄漏验收；有具体长期故障时按实际状态／资源增长补回归。
 
@@ -102,7 +106,7 @@ Headless 的领域场景由`HeadlessHostTests`直接调用生产宿主，并以�
 
 地图预览是粗路线意图，不能与逐日细步或攻城最终停点直接比较。`BattlefieldPathSearchTests`、`PlanningRouteCostTests`检查粗格连接、预算与工作区复用；`MovementNavigationTests`、`CombatApproachTests`、`AmphibiousMovementTests`检查实际细步、完整对象碰撞、中心地形扣费及跨岸。旧A*最优路径、整队地形净空和精细预览相等断言已迁移，局部受阻不要求升级为全图细搜索。
 
-`NavigationQueryConsistencyTests`覆盖正式移动日期下的ETA首次到达、等待／混乱、预测状态隔离和占用缓存；`MilitaryMovementTests`检查非法途经点的命令拒绝与恢复，`MilitaryRoutePreviewTests`检查界面粗路线、中继和旧接触不污染改令预览。现有保存／录像及Headless覆盖继续承担协议职责。
+`NavigationQueryConsistencyTests`覆盖正式移动日期下的ETA首次到达、等待／混乱、预测状态隔离和占用缓存；`MilitaryMovementTests`检查非法途经点的命令拒绝与恢复，`MilitaryRoutePreviewTests`检查界面粗路线、中继和旧接触不污染改令预览。现有保存及Headless覆盖继续承担协议职责。
 
 ## 原型AI退出后的覆盖
 

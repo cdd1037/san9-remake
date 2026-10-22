@@ -21,7 +21,6 @@ public sealed class CorpsGovernanceTests
             Information = baseline.Information with { Corps = [.. baseline.Information.Corps.Where(c => c.OwnerId != 1), new(10, 1, 1, new(1000, 2000)) { IsRoot = true }, new(11, 1, 2, new(100, 200))] }
         };
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         var command = new DissolveCorpsCommand(Guid.NewGuid(), 1, 0, 11);
         Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new CommandOperation(command), id: command.CommandId)).Disposition);
         Assert.Equal(3, Assert.Single(session.Snapshot.Units).ServicePlaceId);
@@ -29,8 +28,6 @@ public sealed class CorpsGovernanceTests
         var saveState = session.Capture();
         var save = SaveService.Encode(session);
         StateAssert.Equal(saveState, SaveService.Decode(save, definition).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(saveState, replay.Session.Capture());
     }
 
     [Fact]
@@ -50,7 +47,6 @@ public sealed class CorpsGovernanceTests
             Information = baseline.Information with { Corps = [.. baseline.Information.Corps.Where(c => c.OwnerId != 1), new(1000, 1, 1, new(1000, 2000)) { IsRoot = true }] }
         };
         var session = GameSession.Start(definition, 190);
-        session.BeginRecording();
         var before = session.Snapshot;
         Assert.True(session.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [3], 100, 200, new GeneralDelegation())).Submission.Accepted);
         var created = session.Snapshot.Corps.Single(c => !c.IsRoot);
@@ -74,7 +70,5 @@ public sealed class CorpsGovernanceTests
         Assert.Equal(before.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money, session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
         Assert.Equal(before.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Food, session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Food);
         Assert.Single(session.Snapshot.Corps, c => c.OwnerId == 1);
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

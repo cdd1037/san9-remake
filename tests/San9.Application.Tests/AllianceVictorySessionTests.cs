@@ -34,7 +34,6 @@ public sealed class AllianceVictorySessionTests
         , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 100000)) { IsRoot = true }], []) };
         var session = GameSession.Start(definition, 42);
         int trust = session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust;
-        session.BeginRecording();
         Assert.True(session.Execute(new("player"), new DeployUnitCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, 1, [11], 5000, 1,
             new(MilitaryOrderKind.AttackSettlement, null, 2))).Submission.Accepted);
@@ -54,7 +53,5 @@ public sealed class AllianceVictorySessionTests
         Assert.Single(events.OfType<AllianceEndedEvent>());
         Assert.True(session.Snapshot.Forces.Single(f => f.Id == 2).IsEliminated);
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), definition).Capture());
-        var replay = RecordingService.Replay(RecordingService.Encode(session.EndRecording()), definition, GameSession.EngineFactory(definition));
-        StateAssert.Equal(session.Capture(), replay.Session.Capture());
     }
 }

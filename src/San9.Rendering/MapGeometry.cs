@@ -1,17 +1,18 @@
 using San9.Content.Maps;
+using static San9.Content.Maps.MapDisplayMetrics;
 
 namespace San9.Rendering;
 
 public static class MapGeometry
 {
-    public static (int X, int Y) Center(int x, int y) => (32 * (x + 200 - y) + 96, 16 * (x + y + 1) + 112);
+    public static (int X, int Y) Center(int x, int y) => (HalfCellWidth * (x + Height - y) + OriginX, HalfCellHeight * (x + y + 1) + OriginY);
     public static bool TrySquare(double px, double py, out int x, out int y)
     {
-        double difference = (px - 96) / 32 - 200;
-        double sum = (py - 112) / 16 - 1;
+        double difference = (px - OriginX) / HalfCellWidth - Height;
+        double sum = (py - OriginY) / HalfCellHeight - 1;
         x = (int)Math.Floor((sum + difference) / 2 + 0.5);
         y = (int)Math.Floor((sum - difference) / 2 + 0.5);
-        return x is >= 0 and < 200 && y is >= 0 and < 200;
+        return x is >= 0 and < Width && y is >= 0 and < Height;
     }
     public static int Mod(int value, int period) => (value % period + period) % period;
 
@@ -19,8 +20,8 @@ public static class MapGeometry
     // still uses TrySquare; rounding a moving foot position would create steps.
     public static double SampleElevation(double px, double py, int width, int height, IReadOnlyList<MapSquare> squares)
     {
-        double difference = (px - 96) / 32 - 200;
-        double sum = (py - 112) / 16 - 1;
+        double difference = (px - OriginX) / HalfCellWidth - Height;
+        double sum = (py - OriginY) / HalfCellHeight - 1;
         double x = Math.Clamp((sum + difference) / 2, 0, width - 1);
         double y = Math.Clamp((sum - difference) / 2, 0, height - 1);
         int x0 = (int)Math.Floor(x), y0 = (int)Math.Floor(y);

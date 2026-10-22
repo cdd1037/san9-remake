@@ -1,4 +1,5 @@
 using San9.Content.Maps;
+using static San9.Content.Maps.MapDisplayMetrics;
 
 namespace San9.Rendering;
 
@@ -65,19 +66,19 @@ public static class MapCameraBoundary
     {
         // Search the local height surface, independent of resource image bounds.
         MapGeometry.TrySquare(px, py, out int x, out int y);
-        for (int row = Math.Max(0, y - 4); row <= Math.Min(199, y + 4); row++)
-        for (int column = Math.Max(0, x - 4); column <= Math.Min(199, x + 4); column++)
+        for (int row = Math.Max(0, y - 4); row <= Math.Min(LastRow, y + 4); row++)
+        for (int column = Math.Max(0, x - 4); column <= Math.Min(LastColumn, x + 4); column++)
         {
-            var square = squares[column + row * 200];
+            var square = squares[column + row * Width];
             var center = MapGeometry.Center(column, row);
             double dx = px - center.X;
-            if (Math.Abs(dx) > 32) continue;
+            if (Math.Abs(dx) > HalfCellWidth) continue;
             int mask = square.ElevationMask;
-            double side = (mask & (dx < 0 ? 4 : 8)) != 0 ? -10 : 0;
-            double top = -16 - ((mask & 1) != 0 ? 10 : 0);
-            double bottom = 16 - ((mask & 2) != 0 ? 10 : 0);
-            double t = Math.Abs(dx) / 32;
-            double cy = center.Y - 10 * (square.Elevation - 1);
+            double side = (mask & (dx < 0 ? 4 : 8)) != 0 ? -ElevationStep : 0;
+            double top = -HalfCellHeight - ((mask & 1) != 0 ? ElevationStep : 0);
+            double bottom = HalfCellHeight - ((mask & 2) != 0 ? ElevationStep : 0);
+            double t = Math.Abs(dx) / HalfCellWidth;
+            double cy = center.Y - ElevationStep * (square.Elevation - 1);
             if (py >= cy + top + (side - top) * t && py < cy + bottom + (side - bottom) * t)
                 return (px, py);
         }
@@ -100,26 +101,26 @@ public static class MapCameraBoundary
     {
         IEnumerable<Segment> Square(int column, int row)
         {
-            var square = squares[column + row * 200];
+            var square = squares[column + row * Width];
             var center = MapGeometry.Center(column, row);
-            double cy = center.Y - 10 * (square.Elevation - 1);
+            double cy = center.Y - ElevationStep * (square.Elevation - 1);
             int mask = square.ElevationMask;
-            double top = cy - 16 - ((mask & 1) != 0 ? 10 : 0);
-            double bottom = cy + 16 - ((mask & 2) != 0 ? 10 : 0);
-            double left = cy - ((mask & 4) != 0 ? 10 : 0);
-            double right = cy - ((mask & 8) != 0 ? 10 : 0);
-            if (column == 0) yield return new(center.X - 32, left, center.X, top);
-            if (row == 0) yield return new(center.X, top, center.X + 32, right);
-            if (column == 199) yield return new(center.X + 32, right, center.X, bottom);
-            if (row == 199) yield return new(center.X, bottom, center.X - 32, left);
+            double top = cy - HalfCellHeight - ((mask & 1) != 0 ? ElevationStep : 0);
+            double bottom = cy + HalfCellHeight - ((mask & 2) != 0 ? ElevationStep : 0);
+            double left = cy - ((mask & 4) != 0 ? ElevationStep : 0);
+            double right = cy - ((mask & 8) != 0 ? ElevationStep : 0);
+            if (column == 0) yield return new(center.X - HalfCellWidth, left, center.X, top);
+            if (row == 0) yield return new(center.X, top, center.X + HalfCellWidth, right);
+            if (column == LastColumn) yield return new(center.X + HalfCellWidth, right, center.X, bottom);
+            if (row == LastRow) yield return new(center.X, bottom, center.X - HalfCellWidth, left);
         }
-        for (int i = 0; i < 200; i++)
+        for (int i = 0; i < Width; i++)
         {
             foreach (var edge in Square(i, 0)) yield return edge;
-            foreach (var edge in Square(i, 199)) yield return edge;
-            if (i is 0 or 199) continue;
+            foreach (var edge in Square(i, LastRow)) yield return edge;
+            if (i is 0 or LastColumn) continue;
             foreach (var edge in Square(0, i)) yield return edge;
-            foreach (var edge in Square(199, i)) yield return edge;
+            foreach (var edge in Square(LastColumn, i)) yield return edge;
         }
     }
 }

@@ -47,7 +47,7 @@ public static class UnitCatalog
             }
             else
             {
-                var command = commands.ReadUnit(unit);
+                var command = commands.ReadUnit(unit, view.PlayerForceId);
                 CatalogCell Policy(string value) => unit.OwnerId == view.PlayerForceId ? new(value) : new("＊＊＊", IsUnavailable: true);
                 cells = [name, command.Order, command.Target,
                     Policy(unit.Policies.AttackApproachingEnemies ? "迎击" : "无视"),

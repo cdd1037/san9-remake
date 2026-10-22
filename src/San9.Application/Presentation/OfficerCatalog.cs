@@ -44,7 +44,7 @@ public static class OfficerCatalog
             .Select(o =>
             {
                 var person = people[o.Id];
-                var command = commands?.Read(person);
+                var command = commands?.Read(person, view.PlayerForceId);
                 var owner = o.OwnerId is int forceId ? forces.GetValueOrDefault(forceId) : null;
                 var office = person.OfficeId is int officeId ? offices.GetValueOrDefault(officeId) : null;
                 bool ruler = person.Status == OfficerStatus.Ruler;

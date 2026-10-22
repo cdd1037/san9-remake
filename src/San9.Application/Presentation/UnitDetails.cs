@@ -28,12 +28,12 @@ public static class UnitDetails
         int? navalId = unit.NavalFormationId ?? (unit.FormationId is int primary && rules?.Formations[primary].TravelMode == TravelMode.Water ? primary : null);
         var water = view.Information.Formations.FirstOrDefault(f => f.Id == navalId);
         string force = texts.Resolve(view.Forces.Single(f => f.Id == unit.OwnerId).NameKey);
-        var command = new OfficerCommands(view, texts).ReadUnit(unit);
+        var command = new OfficerCommands(view, texts).ReadUnit(unit, view.PlayerForceId);
         string Policy(string value) => unit.OwnerId == view.PlayerForceId ? value : "＊＊＊";
         var boardMembers = members.OrderBy(o => unit.MemberRanks.GetValueOrDefault(o.Id, BattleRank.Middle)).ThenByDescending(o => o.Id == unit.CommanderId).ThenBy(o => o.Id).Select(o =>
         {
             var person = view.World.Officers.Single(p => p.Id == o.Id);
-            var tactic = UnitTacticDisplay.Read(view, rules, texts, unit, person);
+            var tactic = UnitTacticDisplay.Read(view, rules, texts, unit, person, view.PlayerForceId);
             return new FormationMemberView(o.Id, texts.Resolve(o.NameKey), tactic.Text == "＊＊" ? "＊＊＊" : tactic.Text.Length == 0 ? "—" : tactic.Text,
                 unit.MemberRanks.GetValueOrDefault(o.Id, BattleRank.Middle), o.Id == unit.CommanderId)
             { TacticAvailable = !tactic.IsUnavailable };

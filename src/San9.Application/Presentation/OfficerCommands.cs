@@ -26,9 +26,9 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
         ? Region(region) + "周围" : $"({position.X},{position.Y})";
     private static CatalogCell Hidden(int width) => new(new string('＊', width), IsUnavailable: true);
 
-    public (CatalogCell Order, CatalogCell Target) ReadUnit(UnitState unit)
+    public (CatalogCell Order, CatalogCell Target) ReadUnit(UnitState unit, int? viewerForceId)
     {
-        if (unit.OwnerId != view.PlayerForceId && !view.World.Simulation.OtherForceOrdersVisible)
+        if (unit.OwnerId != viewerForceId && !view.World.Simulation.OtherForceOrdersVisible)
             return (Hidden(2), Hidden(5));
         var effective = unit.EffectiveOrder;
         CatalogCell order = effective?.Kind switch
@@ -51,7 +51,7 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
         return (order, target);
     }
 
-    public OfficerCommandCells Read(OfficerState person)
+    public OfficerCommandCells Read(OfficerState person, int? viewerForceId)
     {
         var task = tasks.GetValueOrDefault(person.Id);
         var unit = person.UnitId is int unitId ? units[unitId] : null;
@@ -62,14 +62,14 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
             : CatalogCell.Unavailable;
         // Rank stays public; equipped tactics follow their own PK visibility setting.
         CatalogCell tactic = unit is not null && rank is not null
-            ? UnitTacticDisplay.Read(view, view.MilitaryRules, texts, unit, person)
-            : person.OwnerId != view.PlayerForceId && !view.World.Simulation.OtherForceTacticsVisible
+            ? UnitTacticDisplay.Read(view, view.MilitaryRules, texts, unit, person, viewerForceId)
+            : person.OwnerId != viewerForceId && !view.World.Simulation.OtherForceTacticsVisible
                 ? Hidden(2) : person.EquippedTacticId is null ? new("") : CatalogCell.Unavailable;
-        var arrival = OfficerArrival.Read(view, person, task);
-        if (person.OwnerId != view.PlayerForceId)
+        var arrival = OfficerArrival.Read(view, person, task, viewerForceId);
+        if (person.OwnerId != viewerForceId)
         {
             var (foreignOrder, foreignTarget) = unit is not null && UnitCatalog.IsListed(unit)
-                ? ReadUnit(unit) : (Hidden(2), Hidden(5));
+                ? ReadUnit(unit, viewerForceId) : (Hidden(2), Hidden(5));
             return new(foreignOrder, Hidden(4), foreignTarget, arrival, rankCell, tactic);
         }
 
@@ -78,7 +78,7 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
         CatalogCell target = CatalogCell.Unavailable;
         if (unit is not null)
         {
-            (order, target) = ReadUnit(unit);
+            (order, target) = ReadUnit(unit, viewerForceId);
         }
         else if (task?.Journey is { } journey)
         {

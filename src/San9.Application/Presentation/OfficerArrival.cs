@@ -5,10 +5,10 @@ namespace San9.Application.Presentation;
 
 internal static class OfficerArrival
 {
-    public static CatalogCell Read(StrategySnapshot view, OfficerState person, PersistentTask? task)
+    public static CatalogCell Read(StrategySnapshot view, OfficerState person, PersistentTask? task, int? viewerForceId)
     {
         // Corps retain their root force as OwnerId. Visibility precedes applicability.
-        if (person.OwnerId != view.PlayerForceId) return new("**", IsUnavailable: true);
+        if (person.OwnerId != viewerForceId) return new("**", IsUnavailable: true);
         if (person.UnitId is not null || task?.Journey is not { } journey) return CatalogCell.Unavailable;
 
         long days = journey.ReturnLeg is { } leg ? leg.CountdownDays

@@ -7,9 +7,9 @@ namespace San9.Application.Presentation;
 internal static class UnitTacticDisplay
 {
     internal static CatalogCell Read(StrategySnapshot view, MilitaryRulebook? rules, TextCatalog texts,
-        UnitState unit, OfficerState officer)
+        UnitState unit, OfficerState officer, int? viewerForceId)
     {
-        if (unit.OwnerId != view.PlayerForceId && !view.World.Simulation.OtherForceTacticsVisible)
+        if (unit.OwnerId != viewerForceId && !view.World.Simulation.OtherForceTacticsVisible)
             return new("＊＊", IsUnavailable: true);
         if (rules?.TacticFormation(unit) is not { } formation)
             return CatalogCell.Unavailable;

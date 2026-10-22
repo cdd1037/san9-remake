@@ -33,7 +33,7 @@ internal sealed partial class OriginalAiMilitary
         var target = Building(ProjectedOrder(unit)) ?? Building(unit.Order);
         if (target is not null)
             return target.Kind == SettlementKind.City && target.Soldiers < 10000 &&
-                !World.Simulation.Controls.Any(c => c.ControllerId == "player" && c.ForceId == target.OwnerId);
+                !World.Simulation.Controls.Any(c => c.Kind == ControllerKind.Player && c.ForceId == target.OwnerId);
         return unit.Order?.UnitId is not int targetUnit || !World.Units.Any(u => u.Id == targetUnit && u.Soldiers > 0);
     }
 

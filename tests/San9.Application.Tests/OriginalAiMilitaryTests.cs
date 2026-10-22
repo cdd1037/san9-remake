@@ -1234,9 +1234,13 @@ public sealed class OriginalAiMilitaryTests
     }
 
     [Theory]
-    [InlineData(9999, 1)]
-    [InlineData(10000, 0)]
-    public void BarbarianRetreatFallsBackToMainBuildingWhileEngaged(uint garrison, int recalled)
+    [InlineData(9999, ControllerKind.Automatic, "ai:2", 1)]
+    [InlineData(10000, ControllerKind.Automatic, "ai:2", 0)]
+    [InlineData(9999, ControllerKind.Player, "player", 0)]
+    [InlineData(9999, ControllerKind.Player, "custom-player", 0)]
+    [InlineData(9999, ControllerKind.Automatic, "player", 1)]
+    public void BarbarianRetreatFallsBackToMainBuildingWhileEngaged(uint garrison, ControllerKind targetKind,
+        string targetController, int recalled)
     {
         var content = Fixture();
         content = content with { Settlements = content.Settlements.Select(s => s.Id == 2 ? s with { Soldiers = garrison } : s).ToArray() };
@@ -1251,7 +1255,12 @@ public sealed class OriginalAiMilitaryTests
                     CorpsId = 1, ServicePlaceId = 1, EngagementTargetId = 900,
                     Order = new(MilitaryOrderKind.AttackSettlement, null, 2),
                     MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(2, BattleRank.Middle) }),
-                Simulation = enemy.Simulation with { NextUnitId = 902 }
+                Simulation = enemy.Simulation with
+                {
+                    NextUnitId = 902,
+                    Controls = enemy.Simulation.Controls.Select(c => c.ForceId == 2
+                        ? c with { Kind = targetKind, ControllerId = targetController } : c).ToImmutableArray()
+                }
             };
         });
         Assert.Equal(recalled, h.Run(OriginalAiWork.Retreat).Submitted);

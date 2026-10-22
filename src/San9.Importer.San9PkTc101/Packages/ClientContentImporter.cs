@@ -74,6 +74,10 @@ public static class ClientContentImporter
             sounds.Add(AudioAssetCompiler.Path(file), Read(Path.Combine(sourceDirectory.Root, file)));
         foreach (string path in presentation.Sounds.Values.Distinct())
             if (!sounds.ContainsKey(path)) throw new InvalidDataException("Missing prepared audio asset: " + path);
+        string audioGeneration = "audio/" + Guid.NewGuid().ToString("N") + "/";
+        string PublishedAudio(string path) => audioGeneration + Path.GetFileName(path);
+        presentation = presentation with { Sounds = presentation.Sounds.ToDictionary(p => p.Key, p => PublishedAudio(p.Value), StringComparer.Ordinal) };
+        sounds = sounds.ToDictionary(p => PublishedAudio(p.Key), p => p.Value, StringComparer.Ordinal);
         var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(),
             dependency, MapInstance.From(map), scenario, text, roles)
         { Presentation = presentation };
@@ -87,10 +91,10 @@ public static class ClientContentImporter
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             await File.WriteAllBytesAsync(target, bytes, token);
         }
+        await ScenarioContentFiles.WriteAsync(output, content, token, PublicationMessageCatalog.Groups);
         var currentAudio = sounds.Keys.Select(path => PackageFiles.Resolve(output, path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (string path in Directory.EnumerateFiles(Path.Combine(output, "audio"), "*", SearchOption.AllDirectories))
             if (San9.Content.Interface.AudioFileFormats.Identify(path) is not null && !currentAudio.Contains(path)) File.Delete(path);
-        await ScenarioContentFiles.WriteAsync(output, content, token, PublicationMessageCatalog.Groups);
         File.Delete(Path.Combine(output, "message-id-map.json"));
         if (messageReports)
         {

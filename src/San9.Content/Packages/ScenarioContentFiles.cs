@@ -79,13 +79,16 @@ public static class ScenarioContentFiles
         if (content.SchemaVersion != ScenarioContent.CurrentSchemaVersion) throw new InvalidDataException("Unsupported scenario content version.");
         if (messageGroups is not null && messageGroups.Keys.Any(key => !content.Text.Messages.ContainsKey(key)))
             throw new InvalidDataException("Message grouping contains an unknown message key.");
+        root = Path.GetFullPath(root);
+        string generation = "data/" + Guid.NewGuid().ToString("N") + "/";
         var messageFiles = content.Text.Messages.GroupBy(pair =>
             ValidateCategory(messageGroups?.GetValueOrDefault(pair.Key) ?? Category(pair.Key)), StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
-            .ToDictionary(group => $"messages/{group.Key}.json", group => group.ToDictionary(pair => pair.Key, pair => pair.Value));
+            .ToDictionary(group => $"{generation}messages/{group.Key}.json", group => group.ToDictionary(pair => pair.Key, pair => pair.Value));
         Directory.CreateDirectory(root);
         var manifest = new ScenarioContentManifest(ScenarioContent.CurrentSchemaVersion, content.Sources, content.Textures,
-            "map.json", "scenario.json", "text.json", messageFiles.Keys.ToArray(), "illustrations.json");
+            generation + "map.json", generation + "scenario.json", generation + "text.json", messageFiles.Keys.ToArray(), generation + "illustrations.json")
+            { Presentation = generation + "presentation.json" };
         string manifestPath = Path.Combine(root, "content.json");
         string[] previousFiles = [];
         if (File.Exists(manifestPath))
@@ -117,6 +120,7 @@ public static class ScenarioContentFiles
             await using var file = File.Create(pending);
             await JsonSerializer.SerializeAsync(file, value, options, token);
         }
+        bool published = false;
         try
         {
             await Stage(manifest.Map, content.Map, DataJsonOptions);
@@ -128,13 +132,18 @@ public static class ScenarioContentFiles
             await Stage("content.json", manifest, PackageFiles.JsonOptions);
             token.ThrowIfCancellationRequested();
             foreach (var (pending, target) in files) File.Move(pending, target, true);
+            published = true;
             var currentFiles = files.Select(file => file.Target).ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach (string obsolete in previousFiles.Distinct(StringComparer.OrdinalIgnoreCase))
                 if (!currentFiles.Contains(obsolete)) File.Delete(obsolete);
         }
         finally
         {
-            foreach (var (pending, _) in files) File.Delete(pending);
+            foreach (var (pending, target) in files)
+            {
+                File.Delete(pending);
+                if (!published && target != manifestPath) File.Delete(target);
+            }
         }
     }
 

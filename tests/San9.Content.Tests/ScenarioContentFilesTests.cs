@@ -9,6 +9,13 @@ public sealed class ScenarioContentFilesTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "san9-split-" + Guid.NewGuid().ToString("N"));
 
+    private string PublishedPath(string name)
+    {
+        var manifest = JsonSerializer.Deserialize<ScenarioContentManifest>(File.ReadAllText(Path.Combine(_root, "content.json")), PackageFiles.JsonOptions)!;
+        var paths = new[] { manifest.Map, manifest.Scenario, manifest.Text, manifest.Illustrations, manifest.Presentation }.Concat(manifest.Messages);
+        return PackageFiles.Resolve(_root, paths.Single(p => p.EndsWith("/" + name, StringComparison.Ordinal)));
+    }
+
     private static ScenarioContent Fixture() => new(ScenarioContent.CurrentSchemaVersion, [new("fixture", "hash")], new("../textures"),
         new("source", "first", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], [], [], [], [], []),
@@ -23,12 +30,13 @@ public sealed class ScenarioContentFilesTests : IDisposable
     public async Task SplitFilesPreserveFullModelAndRequiredNulls()
     {
         var content = Fixture();
+        content = content with { Map = content.Map with { LeftEdge = [null], RightEdge = [null] } };
         await ScenarioContentFiles.WriteAsync(_root, content);
         var restored = await ScenarioContentFiles.LoadAsync(_root);
         Assert.Equal(JsonSerializer.Serialize(content, PackageFiles.JsonOptions),
             JsonSerializer.Serialize(restored, PackageFiles.JsonOptions));
         Assert.Equal(7, Directory.GetFiles(_root, "*", SearchOption.AllDirectories).Length);
-        string messages = await File.ReadAllTextAsync(Path.Combine(_root, "messages/general.json"));
+        string messages = await File.ReadAllTextAsync(PublishedPath("messages/general.json"));
         Assert.DoesNotContain("\"format\"", messages);
         Assert.DoesNotContain("\"binding\"", messages);
         Assert.DoesNotContain("semanticsConfirmed", messages);
@@ -47,7 +55,7 @@ public sealed class ScenarioContentFilesTests : IDisposable
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ForceInitialState>(
             force.Replace("\"leaderId\":null,", ""), ScenarioContentFiles.DataJsonOptions));
         Assert.Contains("\"binding\": null", JsonSerializer.Serialize(new MessageExpression("number"), PackageFiles.JsonOptions));
-        using var text = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(_root, "text.json")));
+        using var text = JsonDocument.Parse(await File.ReadAllTextAsync(PublishedPath("text.json")));
         Assert.False(text.RootElement.TryGetProperty("messages", out _));
         Assert.Equal("简体", text.RootElement.GetProperty("entries").GetProperty("name").GetString());
         Assert.DoesNotContain("sourceText", text.RootElement.GetRawText());
@@ -66,7 +74,7 @@ public sealed class ScenarioContentFilesTests : IDisposable
     public async Task MissingDataFailsLoading()
     {
         await ScenarioContentFiles.WriteAsync(_root, Fixture());
-        File.Delete(Path.Combine(_root, "messages/general.json"));
+        File.Delete(PublishedPath("messages/general.json"));
         await Assert.ThrowsAsync<FileNotFoundException>(() => ScenarioContentFiles.LoadAsync(_root));
     }
 
@@ -105,7 +113,7 @@ public sealed class ScenarioContentFilesTests : IDisposable
     public async Task RewriteRemovesOnlyPreviouslyReferencedObsoleteFiles()
     {
         await ScenarioContentFiles.WriteAsync(_root, Fixture());
-        File.Move(Path.Combine(_root, "map.json"), Path.Combine(_root, "old-map.json"));
+        File.Move(PublishedPath("map.json"), Path.Combine(_root, "old-map.json"));
         var manifest = await PackageFiles.ReadAsync<ScenarioContentManifest>(Path.Combine(_root, "content.json"));
         await File.WriteAllTextAsync(Path.Combine(_root, "content.json"),
             JsonSerializer.Serialize(manifest with { Map = "old-map.json" }, PackageFiles.JsonOptions));
@@ -138,12 +146,15 @@ public sealed class ScenarioContentFilesTests : IDisposable
         var restored = await ScenarioContentFiles.LoadAsync(_root);
         Assert.Equal("help.attack", Assert.IsType<MessageReference>(Assert.Single(restored.Text.Messages["battle.attack"].Nodes)).Key);
         Assert.Equal("进攻", MessageMarkup.Static(restored.Text.Messages["help.attack"].Nodes));
-        Assert.True(File.Exists(Path.Combine(_root, "messages/battle.json")));
-        Assert.True(File.Exists(Path.Combine(_root, "messages/help.json")));
+        string battlePath = PublishedPath("messages/battle.json");
+        string helpPath = PublishedPath("messages/help.json");
+        Assert.True(File.Exists(battlePath));
+        Assert.True(File.Exists(PublishedPath("messages/help.json")));
+        Directory.CreateDirectory(Path.Combine(_root, "messages"));
         await File.WriteAllTextAsync(Path.Combine(_root, "messages/notes.json"), "{}");
         await ScenarioContentFiles.WriteAsync(_root, Fixture());
-        Assert.False(File.Exists(Path.Combine(_root, "messages/battle.json")));
-        Assert.False(File.Exists(Path.Combine(_root, "messages/help.json")));
+        Assert.False(File.Exists(battlePath));
+        Assert.False(File.Exists(helpPath));
         Assert.True(File.Exists(Path.Combine(_root, "messages/notes.json")));
     }
 
@@ -155,12 +166,14 @@ public sealed class ScenarioContentFilesTests : IDisposable
         content.Text.Messages.Add("messages.8677", new([new MessageLiteral("帮助")]));
         await ScenarioContentFiles.WriteAsync(_root, content, messageGroups: new Dictionary<string, string>
         { ["messages.5592"] = "dialogue", ["messages.8677"] = "help" });
+        string dialoguePath = PublishedPath("messages/dialogue.json");
+        Directory.CreateDirectory(Path.Combine(_root, "messages"));
         await File.WriteAllTextAsync(Path.Combine(_root, "messages/notes.json"), "{}");
         await ScenarioContentFiles.WriteAsync(_root, content, messageGroups: new Dictionary<string, string>
         { ["messages.8677"] = "help" });
-        Assert.False(File.Exists(Path.Combine(_root, "messages/dialogue.json")));
+        Assert.False(File.Exists(dialoguePath));
         Assert.True(File.Exists(Path.Combine(_root, "messages/notes.json")));
-        using var help = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(_root, "messages/help.json")));
+        using var help = JsonDocument.Parse(await File.ReadAllTextAsync(PublishedPath("messages/help.json")));
         Assert.Equal("messages.8677", Assert.Single(help.RootElement.EnumerateObject()).Name);
         var restored = await ScenarioContentFiles.LoadAsync(_root);
         Assert.Equal("messages.8677", Assert.IsType<MessageReference>(Assert.Single(restored.Text.Messages["messages.5592"].Nodes)).Key);
@@ -192,13 +205,43 @@ public sealed class ScenarioContentFilesTests : IDisposable
     public async Task ReconvertRetiresOldMonolithicMessagesButDoesNotLoadOldSchema()
     {
         await ScenarioContentFiles.WriteAsync(_root, Fixture());
-        File.Move(Path.Combine(_root, "messages/general.json"), Path.Combine(_root, "messages.json"));
+        File.Move(PublishedPath("messages/general.json"), Path.Combine(_root, "messages.json"));
         await File.WriteAllTextAsync(Path.Combine(_root, "content.json"),
             """{"schemaVersion":140,"map":"map.json","scenario":"scenario.json","text":"text.json","messages":"messages.json","illustrations":"illustrations.json"}""");
         await Assert.ThrowsAsync<InvalidDataException>(() => ScenarioContentFiles.LoadAsync(_root));
         await ScenarioContentFiles.WriteAsync(_root, Fixture());
         Assert.False(File.Exists(Path.Combine(_root, "messages.json")));
         Assert.Equal(2, (await ScenarioContentFiles.LoadAsync(_root)).Text.Messages.Count);
+    }
+
+    [Fact]
+    public async Task FailedManifestReplacementKeepsTheEntirePreviousGeneration()
+    {
+        var content = Fixture();
+        await ScenarioContentFiles.WriteAsync(_root, content);
+        var before = Directory.GetFiles(_root, "*", SearchOption.AllDirectories).ToDictionary(path => path, File.ReadAllBytes);
+        using (var locked = new FileStream(Path.Combine(_root, "content.json"), FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            if (!OperatingSystem.IsWindows()) return; // Unix permits replacement of an open file.
+            var failure = await Record.ExceptionAsync(() => ScenarioContentFiles.WriteAsync(_root,
+                content with { Scenario = content.Scenario with { ScenarioId = "replacement" } }));
+            Assert.True(failure is IOException or UnauthorizedAccessException, failure?.ToString());
+        }
+        Assert.Equal(before.Keys.Order(), Directory.GetFiles(_root, "*", SearchOption.AllDirectories).Order());
+        foreach (var (path, bytes) in before) Assert.Equal(bytes, await File.ReadAllBytesAsync(path));
+        Assert.Equal("first", (await ScenarioContentFiles.LoadAsync(_root)).Scenario.ScenarioId);
+    }
+
+    [Fact]
+    public async Task NullCollectionElementIsAContentErrorWithItsLocation()
+    {
+        await ScenarioContentFiles.WriteAsync(_root, Fixture());
+        var path = PublishedPath("scenario.json");
+        var node = System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(path))!;
+        node["officers"] = new System.Text.Json.Nodes.JsonArray((System.Text.Json.Nodes.JsonNode?)null);
+        await File.WriteAllTextAsync(path, node.ToJsonString());
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() => ScenarioContentFiles.LoadAsync(_root));
+        Assert.Contains("Officers[0]", error.Message);
     }
 
     public void Dispose()

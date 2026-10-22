@@ -8,6 +8,8 @@ internal static class TexturePackagePacking
 {
     public static TexturePackage Pack(string output, TexturePackage package, string directory, CancellationToken token)
     {
+        // Packing never overwrites files referenced by the currently published manifest.
+        directory += "/" + Guid.NewGuid().ToString("N");
         var map = package.Map;
         var skin = package.Skin;
         var portraits = package.Portraits;

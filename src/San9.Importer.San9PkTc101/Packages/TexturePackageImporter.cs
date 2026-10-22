@@ -85,9 +85,14 @@ public static class TexturePackageImporter
         string staging = Path.Combine(output, ".sources");
         package.Validate();
         await ImageAssetFiles.VerifyAsync(output, package.Assets, token);
-        string pending = manifest + ".pending";
-        await File.WriteAllTextAsync(pending, JsonSerializer.Serialize(package, PackageFiles.JsonOptions), token);
-        File.Move(pending, manifest, true);
+        string pending = manifest + "." + Guid.NewGuid().ToString("N") + ".pending";
+        try
+        {
+            await File.WriteAllTextAsync(pending, JsonSerializer.Serialize(package, PackageFiles.JsonOptions), token);
+            token.ThrowIfCancellationRequested();
+            File.Move(pending, manifest, true);
+        }
+        finally { File.Delete(pending); }
         // Only this builder owns these outputs. Cleanup follows a successfully published manifest.
         var retained = package.Assets.Select(a => PackageFiles.Resolve(output, a.Path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (string directory in new[] { PackageFiles.Resolve(output, "images"), staging })

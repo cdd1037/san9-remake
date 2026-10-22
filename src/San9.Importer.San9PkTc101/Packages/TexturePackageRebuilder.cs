@@ -47,15 +47,10 @@ internal static class TexturePackageRebuilder
             ?? throw new InvalidDataException("Empty texture package.");
         if (manifest["schemaVersion"]?.GetValue<int>() != 5 || manifest["sourceBuild"]?.GetValue<string>() != San9PkTc101Detector.SourceBuildId)
             throw new InvalidDataException("Targeted rebuilding requires a matching texture package schema and source build.");
-        var sources = (manifest["sources"].Deserialize<TextureSourceStamp[]>(PackageFiles.JsonOptions)
-            ?? throw new InvalidDataException("Missing texture sources.")).ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
         byte[] Read(string path)
         {
             token.ThrowIfCancellationRequested();
-            byte[] bytes = File.ReadAllBytes(path);
-            var info = new FileInfo(path);
-            sources[info.Name] = new(info.Name, info.Length, info.LastWriteTimeUtc);
-            return bytes;
+            return File.ReadAllBytes(path);
         }
         Dictionary<string, ImageAsset> images = new(StringComparer.Ordinal);
         ImageAsset Save(string id, string sourcePath, PngImage image)
@@ -102,7 +97,7 @@ internal static class TexturePackageRebuilder
                     Archives = library.Archives.Where(a => a.Id != archiveId).Concat(converted.Archives).OrderBy(a => a.Id, StringComparer.Ordinal).ToArray() });
                 break;
         }
-        package = package with { Sources = sources.Values.OrderBy(s => s.Name, StringComparer.Ordinal).ToArray() };
+        // Sources certifies the entire package. A local rebuild cannot certify retained units.
         // Other definitions may still reference the old atlas. Never overwrite it during a local correction.
         package = TexturePackagePacking.Pack(output, package, "images/rebuilt/" + scope, token);
         await TexturePackageImporter.PublishAsync(output, package, token);

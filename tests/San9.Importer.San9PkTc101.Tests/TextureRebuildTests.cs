@@ -15,7 +15,7 @@ public sealed class TextureRebuildTests : IDisposable
     public void RebuildingSkinDiscardsItsObsoleteSchemaButRequiresRetainedUnitsToBeReadable()
     {
         var skin = new InterfaceSkin(35, [], [], [], []) { BuildingTargetOffsets = new() { [0] = new(-16, -58) } };
-        var package = new TexturePackage(5, 25, "test", [],
+        var package = new TexturePackage(5, 25, "test", [new("shared.s9", 10, DateTime.UnixEpoch)],
             new([], [], [], [], [], new int[288], new int[16], [], new byte[32]), skin, new(3, []), []);
         var manifest = JsonSerializer.SerializeToNode(package, PackageFiles.JsonOptions)!.AsObject();
         manifest["skin"] = JsonNode.Parse("{\"schemaVersion\":29}");
@@ -24,6 +24,7 @@ public sealed class TextureRebuildTests : IDisposable
         Assert.Equal(35, rebuilt.Skin.SchemaVersion);
         Assert.Equal(new TargetMarkerOffset(-16, -58), rebuilt.Skin.BuildingTargetOffsets[0]);
         Assert.Equal(package.ConversionVersion, rebuilt.ConversionVersion);
+        Assert.Equal(package.Sources, rebuilt.Sources);
         Assert.True(JsonNode.DeepEquals(JsonSerializer.SerializeToNode(package.Map, PackageFiles.JsonOptions), manifest["map"]));
         manifest["map"]!.AsObject().Remove("units");
         Assert.Throws<JsonException>(() => TexturePackageRebuilder.ReplaceUnit(manifest, "skin", skin));
@@ -69,6 +70,8 @@ public sealed class TextureRebuildTests : IDisposable
         File.WriteAllBytes(Path.Combine(root, ".sources", "0.png"), new PngImage(1, 1, 3, [1, 2, 3]).Encode());
         var again = TexturePackagePacking.Pack(root, package, "images/rebuilt/skin", default);
         Assert.Equal(new byte[] { 1, 2, 3 }, ImageAssetFiles.Load(root, again.Skin.Assets)[rebuilt.Id].Pixels);
+        Assert.NotEqual(rebuilt.Path, Assert.Single(again.Skin.Assets).Path);
+        Assert.Equal(new byte[] { 90, 80, 70 }, ImageAssetFiles.Load(root, [rebuilt])[rebuilt.Id].Pixels);
         Assert.Equal(oldBytes, File.ReadAllBytes(Path.Combine(root, "images", "shared.png")));
     }
 

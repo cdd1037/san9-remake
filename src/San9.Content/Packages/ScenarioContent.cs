@@ -28,5 +28,5 @@ public sealed record ScenarioContent(int SchemaVersion, ContentSource[] Sources,
 {
     [System.Text.Json.Serialization.JsonRequired]
     public San9.Content.Interface.CommandPresentation Presentation { get; init; } = San9.Content.Interface.CommandPresentation.Empty;
-    public const int CurrentSchemaVersion = 211;
+    public const int CurrentSchemaVersion = 212;
 }

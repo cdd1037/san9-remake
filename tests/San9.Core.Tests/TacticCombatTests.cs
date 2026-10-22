@@ -98,7 +98,8 @@ public sealed class TacticCombatTests
         var rules = new MilitaryRulebook(new(4, 1, [0, 0, 0, 0], [new(0, 1, 1)],
             [new(100, 5, 0, 100000, 2, new(1, 1), mode) { Combat = combat, Attack = new(1, false),
                 AutomaticTacticLearningId = waterLearning ? 9020 : null,
-                CaptureRanks = [BattleRank.Front, BattleRank.Front], Tactics = new(opportunityChance, linkMultiplier, [0], water ? [9000] : []) },
+                CaptureRanks = [BattleRank.Front, BattleRank.Front], Tactics = new(opportunityChance, linkMultiplier, [0], water ? [9000] : [])
+                    { AutomaticOpportunityChance = water ? opportunityChance : null } },
              new(200, 5, 0, 100000, 1, new(1, 1), mode) { Combat = combat, CaptureRanks = [BattleRank.Middle],
                 MartialTacticVulnerabilities = vulnerableCategory is int weak ? [weak] : [],
                 Attack = counter ? new(1, false) : null, Tactics = counter ? new(opportunityChance, 2, [0], []) : null }],

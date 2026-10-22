@@ -30,7 +30,8 @@ internal static class TacticSupport
                 .Select(p => new { p.Officer, p.Tactic, Targets = Targets(world, new(source.Id, false), p.Tactic, military) })
                 .Where(p => p.Targets.Length > 0).ToArray();
             if (candidates.Length == 0 || !TacticCombat.Roll(world, "military-tactic-support-opportunity",
-                Math.Min(100, profile.OpportunityChance + (source.Condition == UnitCondition.HighSpirits ? 5 : 0)))) continue;
+                Math.Min(100, (profile.AutomaticOpportunityChance ?? profile.OpportunityChance) +
+                    (source.Condition == UnitCondition.HighSpirits ? 5 : 0)))) continue;
             foreach (var candidate in candidates)
             {
                 if (!TacticCombat.Roll(world, "military-tactic-support-member", TacticMath.AllocationChance(

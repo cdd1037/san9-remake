@@ -8,6 +8,7 @@ public sealed record FormationMemberView(int OfficerId, string Name, string Tact
 {
     public FormationSlot? Position { get; init; }
     public string HoverText { get; init; } = "";
+    public bool TacticAvailable { get; init; } = true;
 }
 public sealed record FormationBoardData(FormationPresentation? Presentation, IReadOnlyList<FormationMemberView> Members);
 public sealed record UnitDetailData(int Id, string Name, string Condition, string Force, string Home,
@@ -34,7 +35,8 @@ public static class UnitDetails
             var person = view.World.Officers.Single(p => p.Id == o.Id);
             var tactic = UnitTacticDisplay.Read(view, rules, texts, unit, person);
             return new FormationMemberView(o.Id, texts.Resolve(o.NameKey), tactic.Text == "＊＊" ? "＊＊＊" : tactic.Text.Length == 0 ? "—" : tactic.Text,
-                unit.MemberRanks.GetValueOrDefault(o.Id, BattleRank.Middle), o.Id == unit.CommanderId);
+                unit.MemberRanks.GetValueOrDefault(o.Id, BattleRank.Middle), o.Id == unit.CommanderId)
+            { TacticAvailable = !tactic.IsUnavailable };
         }).ToArray();
         var commander = view.World.Officers.FirstOrDefault(o => o.Id == unit.CommanderId);
         var owner = view.World.Forces.Single(f => f.Id == unit.OwnerId);

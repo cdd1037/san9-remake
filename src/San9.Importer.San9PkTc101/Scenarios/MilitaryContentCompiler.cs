@@ -56,11 +56,12 @@ public static class MilitaryContentCompiler
                     ? new uint[] { 6000, 12000, 20000, 30000, 40000, 50000 }
                         .Select((minimum, index) => new SoldierFootprint(minimum, new(index + 5, index + 5))).ToImmutableArray() : [],
                     IsCommon = f.Id is >= 0 and <= 11 or >= 20 and <= 23,
-                    Tactics = f.Id is 13 or 14 or 24 or 25 or 27 ? null : new(Mode(f.Id) == TravelMode.Water ? 10 : 15,
+                    Tactics = f.Id is 13 or 14 or 24 or 25 or 27 ? null : new(15,
                         f.Id == 2 ? 3 : 2,
                         Enumerable.Range(0, 4).Where(category => Favored(f.Id, category)).ToImmutableArray(),
-                        Mode(f.Id) == TravelMode.Water ? tactics.Where(t => t.Id is >= 31 and <= 34 && t.SupportsArrayType(f.Id))
-                            .Select(t => t.Id).ToImmutableArray() : []),
+                        f.Id is >= 20 and <= 23 ? tactics.Where(t => t.Id is >= 31 and <= 34 && t.SupportsArrayType(f.Id))
+                            .Select(t => t.Id).ToImmutableArray() : [])
+                        { AutomaticOpportunityChance = Mode(f.Id) == TravelMode.Water ? 10 : null },
                     ConfusionResistanceChance = f.Id == 7 ? 50 : 0,
                     BypassesPassiveCounters = f.Id is 12 or 13 or 14 or 24 or 25,
                     RequiredTacticId = tactics.Where(t => t.Id is >= 12 and <= 18 && t.SupportsArrayType(f.Id))

@@ -78,6 +78,14 @@ public sealed class MilitaryContentCompilerTests
         Assert.Equal(Enumerable.Range(0, 17), definition.Terrains.Select(t => t.Id));
         Assert.Equal(Enumerable.Range(0, 28), definition.Formations.Select(f => f.Id));
         Assert.All(definition.Formations.Where(f => f.Id is 13 or 14 or 24 or 25 or 27), f => Assert.Null(f.Tactics));
+        Assert.All(definition.Formations.Where(f => f.Tactics is not null), f =>
+        {
+            Assert.Equal(15, f.Tactics!.OpportunityChance);
+            Assert.Equal(f.TravelMode == TravelMode.Water ? 10 : (int?)null, f.Tactics.AutomaticOpportunityChance);
+        });
+        // The source task factory dispatches ship tactics only for formations 20..23;
+        // formation 26 retains the automatic phase but falls through to personal equipment.
+        Assert.Empty(definition.Formations.Single(f => f.Id == 26).Tactics!.AutomaticTactics);
         Assert.Equal(50, definition.DefensiveTacticChance);
         Assert.All(definition.Formations.Where(f => f.Id is 12 or 13 or 14 or 24 or 25), f => Assert.True(f.BypassesPassiveCounters));
         Assert.Equal(50, definition.Formations.Single(f => f.Id == 7).ConfusionResistanceChance);

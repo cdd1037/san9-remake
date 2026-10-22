@@ -19,8 +19,8 @@ public sealed class TacticFormationTests
         mutation.SetSimulation(mutation.Simulation with { RandomStreams =
             [new("military-tactic-counter", TestSeeds.StateForRoll(roll))] });
         var target = new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 2 };
-        Assert.Equal(allowed ? true : (bool?)null, TacticCombat.PrepareOpportunity(mutation, 1, target, rules, true));
-        Assert.True(TacticCombat.PrepareOpportunity(mutation, 1, target, rules, false));
+        Assert.Equal(allowed ? true : (bool?)null, TacticCombat.PrepareOpportunity(mutation, 1, target, rules, [], true));
+        Assert.True(TacticCombat.PrepareOpportunity(mutation, 1, target, rules, [], false));
     }
 
     [Theory]
@@ -49,7 +49,7 @@ public sealed class TacticFormationTests
         mutation.SetSimulation(mutation.Simulation with { RandomStreams = [new("military-tactic-counter", counterState)] });
         var target = new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 2 };
 
-        Assert.Equal(allowed ? true : (bool?)null, TacticCombat.PrepareOpportunity(mutation, 1, target, rules, true));
+        Assert.Equal(allowed ? true : (bool?)null, TacticCombat.PrepareOpportunity(mutation, 1, target, rules, [], true));
         Assert.Equal(allowed, mutation.Simulation.RandomStreams.Single().State != counterState);
     }
 
@@ -89,7 +89,7 @@ public sealed class TacticFormationTests
         var originalOfficer = mutation.Officers[11];
         var target = new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 2 };
         List<DomainEvent> events = [];
-        Assert.Null(TacticCombat.PrepareOpportunity(mutation, 1, target, rules, false));
+        Assert.Null(TacticCombat.PrepareOpportunity(mutation, 1, target, rules, events, false));
         TacticCombat.ResolveOpportunity(mutation, 1, target, rules, events);
         TacticSupport.AdvanceDay(mutation, rules, events);
         Assert.Empty(events);

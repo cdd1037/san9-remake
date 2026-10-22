@@ -166,7 +166,8 @@ public partial class FormationMemberButton : BaseButton
     private void ApplyText()
     {
         var scale = Size / new Vector2(120, 80);
-        foreach (var label in _labels) _text.Apply(label, GameTextStyles.CatalogRow with {
+        foreach (var label in _labels) _text.Apply(label, (label == _labels[0] && !Member.TacticAvailable
+            ? GameTextStyles.CatalogDisabledRow : GameTextStyles.CatalogRow) with {
             FontSize = Math.Max(1, (int)(24 * Math.Min(scale.X, scale.Y))),
             EffectColor = Highlighted ? new Color("00f098") : Colors.Black });
     }

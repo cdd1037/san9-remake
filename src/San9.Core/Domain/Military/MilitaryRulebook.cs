@@ -52,7 +52,10 @@ public sealed record OrdinaryAttack(int Range, bool DamagesWalls)
 }
 
 public sealed record FormationTactics(int OpportunityChance, int LinkMultiplier,
-    ImmutableArray<int> FavoredCategories, ImmutableArray<int> AutomaticTactics);
+    ImmutableArray<int> FavoredCategories, ImmutableArray<int> AutomaticTactics)
+{
+    [JsonRequired] public int? AutomaticOpportunityChance { get; init; }
+}
 
 public sealed record CombatProfile(int AgainstUnits, int AgainstGarrison, int AgainstWalls, int Defense, int WoundedPercent)
 {
@@ -196,6 +199,8 @@ public sealed partial class MilitaryRulebook
         higherGroundTrap = definition.HigherGroundTrap;
         foreach (var formation in Formations.Values)
             if (formation.Tactics is { } tactics && (tactics.OpportunityChance is < 0 or > 100 ||
+                tactics.AutomaticOpportunityChance is < 0 or > 100 ||
+                !tactics.AutomaticTactics.IsDefaultOrEmpty && tactics.AutomaticOpportunityChance is null ||
                 tactics.LinkMultiplier <= 0 || tactics.FavoredCategories.IsDefault || tactics.AutomaticTactics.IsDefault ||
                 tactics.FavoredCategories.Any(c => c is < 0 or > 8) ||
                 tactics.FavoredCategories.Distinct().Count() != tactics.FavoredCategories.Length ||

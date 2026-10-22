@@ -205,8 +205,8 @@ public sealed class OfficerCommandTests
     [InlineData("construction", "—")]
     [InlineData("transport", "—")]
     [InlineData("unformed", "—")]
-    [InlineData("naval", "水战")]
-    public void CommandAndFormationBoardShowTheSameUsableTacticsWithoutClearingEquipment(string mode, string expected)
+    [InlineData("naval", "奋迅")]
+    public void CommandAndFormationBoardShowEquipmentWithoutSubstitutingAutomaticTactics(string mode, string expected)
     {
         var world = Deployed();
         var military = definition.Military!;
@@ -216,7 +216,8 @@ public sealed class OfficerCommandTests
         if (mode == "naval") military = military with
         {
             TerrainIds = Enumerable.Repeat(1, 16).ToImmutableArray(), Terrains = [new(1, 1, 1) { IsWater = true }],
-            Formations = [.. military.Formations, new(901, 5, 0, 100000, 5, new(1, 1), TravelMode.Water) { Tactics = new(10, 2, [], [3]) }],
+            Formations = [.. military.Formations, new(901, 5, 0, 100000, 5, new(1, 1), TravelMode.Water)
+                { Tactics = new(15, 2, [], [3]) { AutomaticOpportunityChance = 10 } }],
             Tactics = [.. military.Tactics, new(3, 4, TacticEffect.Martial, 10, 9, 0, false, true, [901])]
         };
         if (mode == "naval") world = world with { Units = world.Units.Select(u => u with { NavalFormationId = 901 }).ToArray() };
@@ -225,7 +226,53 @@ public sealed class OfficerCommandTests
         Assert.Equal(expected, Read(world, content: content)[5].Text);
         var detail = UnitDetails.Read(new(content, world), new(military), texts, 10);
         Assert.All(detail.Board.Members, member => Assert.Equal(expected, member.Tactic));
+        Assert.All(detail.Board.Members, member => Assert.Equal(mode == "combat", member.TacticAvailable));
         Assert.All(world.Officers, officer => Assert.Equal(2, officer.EquippedTacticId));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NavalEquipmentNamesSurviveShoreChangesAndOnlyIncompatibleTacticsAreDimmed(bool water)
+    {
+        var military = definition.Military!;
+        military = military with
+        {
+            TerrainIds = Enumerable.Repeat(water ? 1 : 0, 16).ToImmutableArray(),
+            Terrains = [new(0, 1, null), new(1, 1, 1) { IsWater = true }],
+            Formations = [.. military.Formations,
+                new(901, 5, 0, 100000, 5, new(1, 1), TravelMode.Water)
+                    { Tactics = new(15, 2, [], [3]) { AutomaticOpportunityChance = 10 } }],
+            Tactics = [military.Tactics[0] with { CompatibleFormations = [900, 901] }, military.Tactics[1],
+                new(3, 4, TacticEffect.Martial, 10, 9, 0, false, true, [901])]
+        };
+        var content = definition with { Military = military, Information = definition.Information with
+            { Tactics = [.. definition.Information.Tactics, new(3, "naval-tactic")] } };
+        var world = Deployed();
+        world = world with
+        {
+            Units = world.Units.Select(u => u with { NavalFormationId = 901 }).ToArray(),
+            Officers = world.Officers.Select(o => o with
+                { EquippedTacticId = o.Id == 1 ? 0 : o.Id == 3 ? null : 2 }).ToArray()
+        };
+        var view = new StrategySnapshot(content, world);
+        var members = UnitDetails.Read(view, view.MilitaryRules, texts, 10).Board.Members.ToDictionary(m => m.OfficerId);
+        Assert.Equal("奋战", members[1].Tactic);
+        Assert.True(members[1].TacticAvailable);
+        Assert.Equal("奋迅", members[2].Tactic);
+        Assert.Equal(!water, members[2].TacticAvailable);
+        Assert.Equal("—", members[3].Tactic);
+        Assert.Equal("", Read(world, 3, content)[5].Text);
+        Assert.Equal("奋战", Read(world, 1, content)[5].Text);
+        var incompatible = Read(world, 2, content)[5];
+        Assert.Equal("奋迅", incompatible.Text);
+        Assert.Equal(water, incompatible.IsUnavailable);
+
+        var hidden = world with { Simulation = world.Simulation with { OtherForceTacticsVisible = false } };
+        var hiddenView = new StrategySnapshot(content, hidden);
+        Assert.All(UnitDetails.Read(hiddenView, hiddenView.MilitaryRules, texts, 20).Board.Members,
+            member => Assert.Equal("＊＊＊", member.Tactic));
+        Assert.Equal("＊＊", Read(hidden, 4, content)[5].Text);
     }
 
     [Fact]

@@ -23,7 +23,7 @@ internal static class DuelCombat
         int sourceId, int targetId, SimulationRules rules, List<DomainEvent> events, bool counter)
     {
         var order = new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = targetId };
-        bool? tacticReady = TacticCombat.PrepareOpportunity(world, sourceId, order, rules, counter);
+        bool? tacticReady = TacticCombat.PrepareOpportunity(world, sourceId, order, rules, events, counter);
         if (tacticReady is null) return null;
         var roster = DuelParticipants.Select(world, world.Units[sourceId], world.Units[targetId], rules.Military!);
         if (roster is not null)

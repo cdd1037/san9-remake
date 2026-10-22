@@ -178,6 +178,7 @@ public sealed class FacilityCombatTests
         var engine = Engine(targetSoldiers: 1);
         var result = Advance(engine);
         var ended = Assert.Single(result.Events.OfType<UnitTerminatedEvent>());
+        Assert.Equal(UnitTerminationReason.Defeated, ended.Reason);
         Assert.Equal(new BattleSource(1, true), ended.Winner);
         Assert.Empty(engine.Snapshot.Units);
         var prisoner = engine.Snapshot.Officers.Single(p => p.Id == 21);

@@ -2,11 +2,11 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public enum UnitTerminationReason { Defeated, ForceEliminated, MoraleCollapsed }
+public enum UnitTerminationReason { Defeated, ForceEliminated, MoraleCollapsed, Surrendered }
 
 public sealed record UnitTerminatedEvent(GameClock Clock, int UnitId, BattleSource? Winner, long UnrecoveredSoldiers) : DomainEvent
 {
-    [System.Text.Json.Serialization.JsonRequired] public UnitTerminationReason Reason { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public required UnitTerminationReason Reason { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public required BattleObjectContext Target { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public BattleObjectContext? Source { get; init; }
 }

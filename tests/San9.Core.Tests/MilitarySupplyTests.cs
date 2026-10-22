@@ -76,7 +76,7 @@ public sealed class MilitarySupplyTests
         world.Commit(mutation);
         var engine = new SimulationEngine(world, Rules());
         var result = engine.AdvanceXun();
-        Assert.Single(result.Events.OfType<UnitTerminatedEvent>());
+        Assert.Equal(UnitTerminationReason.MoraleCollapsed, Assert.Single(result.Events.OfType<UnitTerminatedEvent>()).Reason);
         Assert.DoesNotContain(engine.Snapshot.Units, u => u.Id == 0);
         Assert.Null(Assert.Single(engine.Snapshot.Units).Order);
         Assert.Equal(1, engine.Snapshot.Officers.Single(p => p.Id == 11).SettlementId);

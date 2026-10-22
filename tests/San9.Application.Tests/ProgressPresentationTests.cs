@@ -321,7 +321,7 @@ public sealed class ProgressPresentationTests
         events.Add(new OfficerCapturedEvent(clock,22,1,null,10));
         events.Add(new UnitMovedEvent(clock,10,new(64,12),new(130,12),1,NavigationStatus.Moving));
         events.Add(new UnitTerminatedEvent(clock,10,null,5000)
-            { Target = new(10,false,1,2,new(130,12),1,false), Source = null });
+            { Reason = UnitTerminationReason.Defeated, Target = new(10,false,1,2,new(130,12),1,false), Source = null });
         var record = ExecutionPublication.Read(before,after,session.Messages(texts,before.World),texts,content,events).Records[0];
         Assert.Equal(movedBefore ? MapCoordinates.Cell(new(64,12)) : before.World.Units.Single(u => u.Id == 10).Cell,record.Location);
     }
@@ -341,7 +341,7 @@ public sealed class ProgressPresentationTests
         var content = new ProgressPresentationDefinition(new() { ["unit-defeated"] = new("defeat",new()
             { ["person.0"]="other",["unit.0"]="unit" }) },[]);
         DomainEvent[] events = [new UnitTerminatedEvent(clock,20,new(10,false),5000)
-        {
+        { Reason = UnitTerminationReason.Defeated,
             Target = new(20,false,2,23,new(67,12),2,false),
             Source = new(10,false,1,2,new(62,12),1,false)
         }];
@@ -361,7 +361,7 @@ public sealed class ProgressPresentationTests
     }
 
     [Fact]
-    public void SurrenderOnlySuppressesItsOwnDissolutionAndPreservesOtherBattleReports()
+    public void TerminationReasonDeterminesReportsWithoutDependingOnEventBatch()
     {
         var session = GameSession.Start(Scenario(),42);
         var before = session.View;
@@ -371,12 +371,15 @@ public sealed class ProgressPresentationTests
         var content = CommandPresentation.Empty with
             { Progress = new(new() { ["unit-lost"] = new("loss",[]) },[]) };
         var loss = new UnitTerminatedEvent(clock,10,null,5000)
-            { Target = new(10,false,1,2,new(62,12),1,false), Source = null };
+            { Reason = UnitTerminationReason.Defeated, Target = new(10,false,1,2,new(62,12),1,false), Source = null };
         var surrender = new ForceSurrenderedEvent(clock,1,2,0,0,0,0,[],[]);
         IReadOnlyList<MapMessageRecord> Read(params DomainEvent[] events) =>
             ExecutionPublication.Read(before,before,session.Messages(texts),texts,content,events).Records;
 
-        Assert.Empty(Read(loss,surrender));
+        var dissolved = loss with { Reason = UnitTerminationReason.Surrendered };
+        Assert.Empty(Read(dissolved));
+        Assert.Empty(Read(dissolved,surrender));
+        Assert.Single(Read(loss,surrender));
         Assert.Single(Read(loss,surrender with { ForceId = 3 }));
         Assert.Single(Read(loss,surrender with { Clock = clock.NextDay() }));
         Assert.Single(Read(loss with { Winner = new(20,false),

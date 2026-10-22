@@ -87,7 +87,7 @@ internal static class SurrenderMerge
                 world.RemoveUnit(unit.Id);
                 MilitaryPolicies.RemoveTarget(world, unit.Id, false, events);
                 events.Add(new UnitTerminatedEvent(world.Clock, unit.Id, null, city is null ? troops : 0)
-                    { Target = BattleObjectContext.Capture(unit), Source = null });
+                    { Target = BattleObjectContext.Capture(unit), Source = null, Reason = UnitTerminationReason.Surrendered });
             }
             else
             {

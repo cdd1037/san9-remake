@@ -36,7 +36,7 @@ public sealed class BattlePresentationTests
             facts.AddRange(new[] { 21, 22, 23 }.Take(count).Select(id =>
                 new OfficerCapturedEvent(session.Snapshot.Clock, id, 1, 1, null)));
             facts.Add(new UnitTerminatedEvent(session.Snapshot.Clock, 20, new(10, false), 0)
-                { Source = occurrence.Source, Target = occurrence.Target });
+                { Reason = UnitTerminationReason.Defeated, Source = occurrence.Source, Target = occurrence.Target });
             return BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content);
         }
         var one = Plan(1); var three = Plan(3);

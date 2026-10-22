@@ -166,7 +166,11 @@ public sealed class SurrenderDiplomacyTests
         if (emptyUnit)
         {
             Assert.Empty(engine.Snapshot.Units);
-            Assert.Contains(result.Events, e => e is UnitTerminatedEvent terminated && terminated.UnitId == 50);
+            var dissolved = Assert.Single(result.Events.OfType<UnitTerminatedEvent>());
+            Assert.Equal(50, dissolved.UnitId);
+            Assert.Equal(UnitTerminationReason.Surrendered, dissolved.Reason);
+            Assert.Equal(2, dissolved.Target.ForceId);
+            Assert.Null(dissolved.Winner);
             Assert.Equal(OfficerStatus.Serving, engine.Snapshot.Officers.Single(p => p.Id == 33).Status);
         }
         else if (units)

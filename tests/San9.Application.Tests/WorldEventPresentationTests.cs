@@ -366,7 +366,7 @@ public sealed class WorldEventPresentationTests
             new SettlementCapturedEvent(clock, enemyPlace, otherForce, new(npcTarget.Id, false), false) { Source = npcTarget, Result = before.World.Settlements.Single(s => s.Id == enemyPlace) },
             new FacilityDestroyedEvent(clock, enemyPlace, new(npcTarget.Id, false)) { Source = npcTarget, PreviousOwnerId = otherForce,
                 Result = before.World.Settlements.Single(s => s.Id == enemyPlace) with { IsDestroyed = true, OwnerId = null } },
-            new UnitTerminatedEvent(clock, npcSource.Id, new(npcTarget.Id, false), 0) { Target = npcSource, Source = npcTarget }];
+            new UnitTerminatedEvent(clock, npcSource.Id, new(npcTarget.Id, false), 0) { Reason = UnitTerminationReason.Defeated, Target = npcSource, Source = npcTarget }];
         var reports = ProgressMessages.Read(before, before, session.Messages(package.Text), package.Text, package.Presentation.Progress!, detailedFacts);
         Assert.Equal(new[] { "messages.10120", "messages.9916", "messages.9994" }, reports.Select(r => r.Message.Key));
         Assert.All(reports, r => { Assert.Equal(MapReportImportance.Detailed, r.Importance); Assert.Null(r.ForceColorCode); });

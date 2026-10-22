@@ -81,9 +81,7 @@ public static class ProgressMessages
                     values["unit"] = MessageBinding.Reference(MessageEntityKind.Unit, waypoint.Unit.Id);
                     role = "waypoint-reached";
                     break;
-                case UnitTerminatedEvent lost when lost.Reason != UnitTerminationReason.ForceEliminated && lost.Target is { } target &&
-                    !(lost.Winner is null && events.OfType<ForceSurrenderedEvent>()
-                        .Any(s => s.ForceId == target.ForceId && s.Clock == lost.Clock)):
+                case UnitTerminatedEvent lost when lost.Reason is UnitTerminationReason.Defeated or UnitTerminationReason.MoraleCollapsed && lost.Target is { } target:
                     clock = lost.Clock; objects.Add(target); location = target.Position is { } point ? MapCoordinates.Cell(point) : target.ServicePlaceId is int home ? PlaceLocation(home) : null;
                     colorForce = target.ForceId;
                     values["unit"] = MessageBinding.Reference(target.IsSettlement ? MessageEntityKind.Settlement : MessageEntityKind.Unit, target.Id);

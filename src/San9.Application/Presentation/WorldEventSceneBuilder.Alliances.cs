@@ -27,12 +27,12 @@ internal sealed partial class WorldEventSceneBuilder
                 clock = victory.Clock; Force("target-force", victory.TargetForceId); Force("force", victory.VictorForceId);
                 int victor = before.World.Forces.Single(f => f.Id == victory.VictorForceId).LeaderId!.Value;
                 Person("actor", victor); location = PersonLocation(victor); colorForce = victory.VictorForceId;
-                Message("alliance-victory"); Message("alliance-victory-declaration", speech: true); Message("alliance-victory-trust"); Message("alliance-victory-ended", record: true); break;
+                Message("alliance-victory"); Message("alliance-victory-declaration"); Message("alliance-victory-trust"); Message("alliance-victory-ended", record: true); break;
             case AllianceFormedEvent formed when before.World.Simulation.PendingEvent is not AllianceEventSession:
                 clock = formed.Clock; Force("leader-force", formed.Alliance.LeaderForceId); Force("target-force", formed.Alliance.TargetForceId);
                 int allianceLeader = before.World.Forces.Single(f => f.Id == formed.Alliance.LeaderForceId).LeaderId!.Value;
                 Person("actor", allianceLeader); location = PersonLocation(allianceLeader); colorForce = formed.Alliance.LeaderForceId;
-                Message("alliance-formed-image"); Message("alliance-formed-declaration", speech: true); Message("alliance-formed-trust"); Message("alliance-formed-result", record: true); break;
+                Message("alliance-formed-image"); Message("alliance-formed-declaration"); Message("alliance-formed-trust"); Message("alliance-formed-result", record: true); break;
             case AllianceFormationFailedEvent failed when before.World.Simulation.PendingEvent is not AllianceEventSession:
                 clock = failed.Clock; Force("target-force", failed.TargetForceId); Message("alliance-formation-failed", record: true); break;
             case WarDeclaredEvent { BetrayedAlliance: true } betrayal:

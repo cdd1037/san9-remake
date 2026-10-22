@@ -60,7 +60,7 @@ internal sealed partial class WorldEventSceneBuilder
             if (events[i] is UnitMovedEvent moved && moved.UnitId == unit) return MapCoordinates.Cell(moved.To);
         return before.World.Units.SingleOrDefault(u => u.Id == unit)?.Cell;
     }
-    private void Message(string role, bool speech = false, bool focus = false, string? music = null, string? movie = null, bool record = false, bool musicLoop = false)
+    private void Message(string role, bool focus = false, string? music = null, string? movie = null, bool record = false, bool musicLoop = false)
     {
         var definition = content.Messages[role];
         var message = ProgressMessageProducer.Produce(definition, occurrence.AtOccurrence(clock), texts, values, Pick)
@@ -76,15 +76,6 @@ internal sealed partial class WorldEventSceneBuilder
         };
         if (message.SpeakerId is int speakerId)
             message = message with { Speaker = speakerContext.Speaker(speakerId) };
-        if (speech && message.SpeakerId is int speaker && location is { } cell)
-            message = message with
-            {
-                WaitForMapSpeech = true,
-                MapSpeech = new(
-                $"world-event:{before.World.Revision}:{index}:{messages.Count}:{role}", message.Message, speaker,
-                texts.Resolve(before.MessageSpeaker(speaker).NameKey), cell, ForceColorCode:
-                before.Forces.Concat(after.Forces).FirstOrDefault(f => f.Id == colorForce)?.ColorCode)
-            };
         messages.Add(message);
         if (record) AddRecord(message.Message);
     }
@@ -106,14 +97,14 @@ internal sealed partial class WorldEventSceneBuilder
                 ? p with { OwnerId = force, Status = OfficerStatus.Ruler } : p).ToImmutableArray()
         });
         speakerContext = occurrence;
-        Message("founder-declaration", speech: true, focus: true);
+        Message("founder-declaration", focus: true);
         if (predecessor is int previous) Force("previous-force", previous);
         Message(predecessor is null ? "force-founded" : "city-independent");
     }
     private void Search(int actor, int other, int place, int force)
     { Person("actor", actor); Person("other", other); Place(place); Force("force", force); location = PlaceLocation(place); colorForce = force; }
     private void Visit()
-    { Message("visit-arrival"); Message("visit-greeting", speech: true); Message("visit-conversation"); Message("visit-departure", speech: true); }
+    { Message("visit-arrival"); Message("visit-greeting"); Message("visit-conversation"); Message("visit-departure"); }
     private void TrustAndLoyalty(int force, bool loyalty = true)
     {
         Force("force", force); Message("force-trust");

@@ -14,7 +14,7 @@ internal sealed partial class WorldEventSceneBuilder
             case ForceActivatedBySearchEvent activation:
                 clock = activation.Clock; Person("actor", activation.SearchingOfficerId); Force("force", activation.SearchingForceId);
                 location = PersonLocation(activation.SearchingOfficerId);
-                Message("activation-introduction", movie: "force-activation"); Message("activation-reaction", speech: true);
+                Message("activation-introduction", movie: "force-activation"); Message("activation-reaction");
                 Message("activation-result"); Message("force-trust"); break;
             case ImperialCeremonyResolvedEvent ceremony:
                 clock = ceremony.Clock; Person("actor", ceremony.RulerId); Force("force", ceremony.ForceId);
@@ -27,18 +27,18 @@ internal sealed partial class WorldEventSceneBuilder
             case SageVisitResolvedEvent sage:
                 clock = sage.Clock; Search(sage.SearchingOfficerId, sage.SageOfficerId, sage.PlaceId, sage.ForceId); Visit(); Message("sage-loyalty"); break;
             case DivinerVisitResolvedEvent diviner:
-                clock = diviner.Clock; Search(diviner.SearchingOfficerId, diviner.DivinerOfficerId, diviner.PlaceId, diviner.ForceId); Visit(); Message("diviner-advice", speech: true); break;
+                clock = diviner.Clock; Search(diviner.SearchingOfficerId, diviner.DivinerOfficerId, diviner.PlaceId, diviner.ForceId); Visit(); Message("diviner-advice"); break;
             case PhysicianVisitResolvedEvent physician:
                 clock = physician.Clock; Search(physician.SearchingOfficerId, physician.PhysicianOfficerId, physician.PlaceId, physician.ForceId); Visit();
-                Message("physician-book", speech: true); values["treasure-name"] = new(0, texts.Resolve(before.Information.Treasures.Single(t => t.Id == physician.TreasureId).NameKey));
+                Message("physician-book"); values["treasure-name"] = new(0, texts.Resolve(before.Information.Treasures.Single(t => t.Id == physician.TreasureId).NameKey));
                 Message("treasure-acquired"); break;
             case WomenVisitResolvedEvent women:
-                clock = women.Clock; Search(women.SearchingOfficerId, women.VisitorOfficerId, women.PlaceId, women.ForceId); Visit(); Message("women-teaching", speech: true);
+                clock = women.Clock; Search(women.SearchingOfficerId, women.VisitorOfficerId, women.PlaceId, women.ForceId); Visit(); Message("women-teaching");
                 values["tactic"] = MessageBinding.Reference(MessageEntityKind.Tactic, women.LearnedTacticId); Message("tactic-learned"); break;
             case SearchHealingResolvedEvent healing:
                 clock = healing.Clock; int healingForce = before.World.Officers.Single(p => p.Id == healing.SearchingOfficerId).OwnerId!.Value;
                 Search(healing.SearchingOfficerId, healing.HealerOfficerId, healing.PlaceId, healingForce);
-                Message("healing-arrival"); Message("healing-greeting", speech: true); Message("healing-treatment"); Message("healing-departure", speech: true); Message("healing-result"); break;
+                Message("healing-arrival"); Message("healing-greeting"); Message("healing-treatment"); Message("healing-departure"); Message("healing-result"); break;
             default: return false;
         }
         return true;

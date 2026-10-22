@@ -90,8 +90,9 @@ public sealed class WorldEventPresentationTests
         var output = ExecutionPublication.Read(before, after, session.Messages(texts, before.World), texts, content, [fact]);
         Assert.Equal(new[] { "founder-declaration", resultRole }, output.Messages.Select(m => m.Message.Key));
         var declaration = output.Messages[0];
-        Assert.True(declaration.WaitForMapSpeech); Assert.Equal(before.PlaceCell(1), declaration.FocusLocation);
-        Assert.Equal(before.PlaceCell(1), declaration.MapSpeech!.Location);
+        Assert.False(declaration.WaitForMapSpeech); Assert.Null(declaration.MapSpeech);
+        Assert.Equal(before.PlaceCell(1), declaration.FocusLocation);
+        Assert.Equal(2, declaration.SpeakerId);
         Assert.Equal("actor", declaration.Speaker!.ForceName);
         Assert.Equal("actor", output.Messages[1].Message.BbCode); Assert.Equal("founded", output.Messages[1].SoundRole);
         Assert.Empty(output.Records);
@@ -111,8 +112,9 @@ public sealed class WorldEventPresentationTests
         });
         DomainEvent[] facts = [new ForcesConsolidatedEvent(before.World.Clock, 2, 3, 10, 10, 20, 20)];
         var first = ExecutionPublication.Read(before, after, session.Messages(texts), texts, content, facts);
-        var speeches = first.Messages.Where(m => m.WaitForMapSpeech).ToArray();
+        var speeches = first.Messages.Where(m => m.SpeakerId is not null).ToArray();
         Assert.Equal(new[] { "enemy-ruler", "third-ruler" }, speeches.Select(m => m.Speaker!.ForceName));
+        Assert.All(first.Messages, m => { Assert.Null(m.MapSpeech); Assert.False(m.WaitForMapSpeech); });
         var repeated = ExecutionPublication.Read(before, after, session.Messages(texts), texts, content, facts);
         Assert.Equal(first.Messages, repeated.Messages); Assert.Equal(first.Records, repeated.Records);
         Assert.Empty(first.Records);
@@ -152,6 +154,7 @@ public sealed class WorldEventPresentationTests
         Assert.Equal(21, output.Messages[3].IllustrationPersonId); Assert.True(output.Messages[3].IllustrationDeceased);
         Assert.Equal("force-eliminated-music", output.Messages[^1].BackgroundMusicRole);
         Assert.False(output.Messages[^1].BackgroundMusicLoop);
+        Assert.All(output.Messages, m => { Assert.Null(m.MapSpeech); Assert.False(m.WaitForMapSpeech); });
         Assert.Empty(ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts, presentedFeedback: output.FeedbackIds).Messages);
     }
 
@@ -191,12 +194,19 @@ public sealed class WorldEventPresentationTests
             RegionCityIds = new(MissionScenario.Create().RegionCityIds) { [99] = 1 }
         };
         var session = GameSession.Start(definition, 42); var (_, texts, content) = Fixture(); var before = session.View;
+        texts.Messages["visit-arrival"] = new([new MessageValue(new("property", "settlement.name",
+            Arguments: [new("binding", "building.0")]))]);
+        content.Events!.Messages["visit-arrival"] = new("visit-arrival", new() { ["building.0"] = "place" });
         DomainEvent[] facts = [new WomenVisitResolvedEvent(before.World.Clock, "women", 1, 2, 22, 99, 0)];
         var output = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts);
-        var speeches = output.Messages.Where(m => m.MapSpeech is not null).ToArray();
+        Assert.Equal(texts.Resolve("home"), output.Messages[0].Message.BbCode);
+        var speeches = output.Messages.Where(m => m.SpeakerId is not null).ToArray();
         Assert.NotEmpty(speeches);
         Assert.All(speeches, m =>
-        { Assert.Equal(22, m.SpeakerId); Assert.Equal(MapCoordinates.Cell(new(60, 20)), m.MapSpeech!.Location); });
+        {
+            Assert.Equal(22, m.SpeakerId); Assert.Equal(texts.Resolve(before.MessageSpeaker(22).NameKey), m.Speaker!.Name);
+            Assert.Null(m.MapSpeech); Assert.False(m.WaitForMapSpeech); Assert.Null(m.FocusLocation);
+        });
     }
 
     [Fact]
@@ -211,7 +221,9 @@ public sealed class WorldEventPresentationTests
         DomainEvent[] facts = [new AllianceFormedEvent(before.World.Clock, new(3, 2, [1, 2], 12))];
         Assert.Empty(ExecutionPublication.Read(pending, before, session.Messages(texts), texts, content, facts).Messages);
         var automatic = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts);
-        Assert.Contains(automatic.Messages, m => m.WaitForMapSpeech);
+        Assert.Equal(before.World.Forces.Single(f => f.Id == 2).LeaderId,
+            Assert.Single(automatic.Messages, m => m.Message.Key == "alliance-formed-declaration").SpeakerId);
+        Assert.All(automatic.Messages, m => { Assert.Null(m.MapSpeech); Assert.False(m.WaitForMapSpeech); });
         Assert.Same(automatic.Messages.Last().Message, Assert.Single(automatic.Records).Message);
     }
 
@@ -294,6 +306,7 @@ public sealed class WorldEventPresentationTests
             var output = WorldEventPresentation.Read(occurrence, occurrence, session.Messages(package.Text, occurrence.World),
                 package.Text, content, [fact, .. rewards], 0);
             Assert.All(output.Messages, m => Assert.False(string.IsNullOrWhiteSpace(m.Message.BbCode)));
+            Assert.All(output.Messages, m => { Assert.Null(m.MapSpeech); Assert.False(m.WaitForMapSpeech); });
             if (fact is PeerageChangedEvent { Kind: PeerageChangeKind.Investiture or PeerageChangeKind.Abdication })
             {
                 var music = output.Messages.Where(m => m.BackgroundMusicRole is not null).ToArray();

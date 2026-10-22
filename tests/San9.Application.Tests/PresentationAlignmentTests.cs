@@ -20,7 +20,7 @@ public sealed class PresentationAlignmentTests
         var progress = new ProgressPresentationDefinition(ProgressPresentationDefinition.RecordRoles.ToDictionary(r => r, r => new DecisionMessageDefinition(r, [])), [])
         {
             Feedback = ProgressPresentationDefinition.FeedbackRoles.ToDictionary(r => r, r => new DecisionMessageDefinition(r, [],
-                r is "appearance-greeting" or "prisoner-escape-speech" or "battle-capture-speech" ? "actor" : null)),
+                r is "appearance-greeting" or "prisoner-escape-speech" or "battle-capture-speech" or "battle-capture-dialogue" ? "actor" : null)),
             MapSpeeches = ProgressPresentationDefinition.MapSpeechRoles.ToDictionary(r => r, r => new DecisionMessageDefinition(r, [], "actor"))
         };
         return (session, texts, CommandPresentation.Empty with { Progress = progress });
@@ -78,12 +78,16 @@ public sealed class PresentationAlignmentTests
         Assert.Single(output.Messages, m => m.Message.Key == "tactic-learned");
         var greeting = Assert.Single(output.Messages, m => m.Message.Key == "appearance-greeting");
         Assert.Equal("ruler", greeting.Speaker!.ForceName);
-        Assert.NotNull(greeting.MapSpeech);
+        Assert.Equal(22, greeting.SpeakerId);
+        Assert.Null(greeting.MapSpeech);
+        Assert.False(greeting.WaitForMapSpeech);
         Assert.Equal(22, Assert.Single(output.Messages, m => m.Message.Key == "appearance-introduction").IllustrationPersonId);
+        var plan = BattlePresentationPlan.Create(before, before, facts, session.Messages(texts), texts, content);
+        Assert.All(plan.Messages, m => Assert.Equal(BattleMessageChannel.Dialogue, m.Channel));
     }
 
     [Fact]
-    public void EscapeUsesRetainedDetentionAndNoJournalEntry()
+    public void EscapeUsesPortraitDialogueAtRetainedDetentionAndNoJournalEntry()
     {
         var (session, texts, content) = Fixture(); var before = session.View;
         var after = new StrategySnapshot(MissionScenario.Create(), before.World with
@@ -92,10 +96,19 @@ public sealed class PresentationAlignmentTests
         { Occurrence = new(2, 1, new(32, 7)), CaptorForceId = 1 }];
         var output = ExecutionPublication.Read(before, after, session.Messages(texts), texts, content, facts);
         Assert.Empty(output.Records);
-        var speech = Assert.Single(output.Messages, m => m.MapSpeech is not null);
-        Assert.Equal(MapCoordinates.Cell(new(32, 7)), speech.MapSpeech!.Location);
-        Assert.Equal(2, speech.MapSpeech.ForceColorCode);
-        Assert.Contains(output.Messages, m => m.Message.Key == "prisoner-escape-result");
+        Assert.Equal(new[] { "prisoner-escape-speech", "prisoner-escape-result" }, output.Messages.Select(m => m.Message.Key));
+        var speech = output.Messages[0];
+        Assert.Equal(22, speech.SpeakerId);
+        Assert.NotNull(speech.Speaker);
+        Assert.Equal(MapCoordinates.Cell(new(32, 7)), speech.FocusLocation);
+        Assert.All(output.Messages, m => { Assert.Null(m.MapSpeech); Assert.False(m.WaitForMapSpeech); });
+
+        var plan = BattlePresentationPlan.Create(before, after, facts, session.Messages(texts), texts, content);
+        Assert.Equal(output.Messages, plan.Messages.Select(m => m.Message));
+        Assert.All(plan.Messages, m => Assert.Equal(BattleMessageChannel.Dialogue, m.Channel));
+        var remaining = ExecutionPublication.Read(before, after, session.Messages(texts), texts, content, facts,
+            presentedFeedback: plan.PresentedFeedback);
+        Assert.Empty(remaining.Messages); Assert.Empty(remaining.Records);
     }
 
     [Fact]
@@ -116,6 +129,13 @@ public sealed class PresentationAlignmentTests
         Assert.Equal(2, plan.Messages.Select(m => m.Message.MapSpeech!.Location).Distinct().Count());
         var remaining = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts, presentedFeedback: plan.PresentedFeedback);
         Assert.Empty(remaining.Messages); Assert.Empty(remaining.Records);
+        var dialogue = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts, executionMap: false);
+        Assert.Equal(2, dialogue.Messages.Count);
+        Assert.All(dialogue.Messages, m =>
+        {
+            Assert.Equal("battle-capture-dialogue", m.Message.Key);
+            Assert.NotNull(m.Speaker); Assert.Null(m.MapSpeech); Assert.False(m.WaitForMapSpeech);
+        });
     }
 
     [Fact]

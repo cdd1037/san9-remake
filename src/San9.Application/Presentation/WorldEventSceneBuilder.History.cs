@@ -21,7 +21,7 @@ internal sealed partial class WorldEventSceneBuilder
                         Message("chained-coup", movie: "chained-coup"); Person("actor", chained.RulerId); Message("ruler-death");
                         Message("chained-result"); Person("actor", chained.SuccessorId); Person("other", chained.RulerId);
                         location = PersonLocation(chained.SuccessorId); colorForce = chained.ForceId;
-                        Message("successor-declaration", speech: true); break;
+                        Message("successor-declaration"); break;
                     case ChainedPlotStep.RulerUnavailable: Message("chained-ruler-unavailable"); break;
                     case ChainedPlotStep.ConspiratorsUnavailable: Message("chained-conspirators-unavailable"); break;
                     case ChainedPlotStep.CourtUnavailable:
@@ -36,7 +36,7 @@ internal sealed partial class WorldEventSceneBuilder
                 {
                     case ThreeVisitsStep.Recommendation:
                         Person("actor", content.People["recommender"]); location = PersonLocation(content.People["recommender"]);
-                        Message("three-visits-recommendation", speech: true); break;
+                        Message("three-visits-recommendation"); break;
                     case ThreeVisitsStep.FirstVisit: Message("three-visits-first", movie: "three-visits-first"); break;
                     case ThreeVisitsStep.Recruitment:
                         Message("three-visits-recruitment", movie: "three-visits-recruitment"); Message("three-visits-result");
@@ -44,7 +44,7 @@ internal sealed partial class WorldEventSceneBuilder
                         Force("force", force); Message("force-trust"); break;
                     case ThreeVisitsStep.Expired:
                         var visitingRuler = before.World.Officers.Single(p => p.Id == visits.RulerId);
-                        if (visitingRuler.Status == OfficerStatus.Ruler && Player(visitingRuler.OwnerId)) Message("three-visits-expired-reaction", speech: true);
+                        if (visitingRuler.Status == OfficerStatus.Ruler && Player(visitingRuler.OwnerId)) Message("three-visits-expired-reaction");
                         Message("three-visits-expired"); break;
                 }
                 break;
@@ -55,7 +55,7 @@ internal sealed partial class WorldEventSceneBuilder
                 if (before.World.Officers.Count(p => p.OwnerId == cliffs.ForceId && p.IsServing) > 1) Message("red-cliffs-loyalty"); break;
             case GuanduEvent guandu:
                 clock = guandu.Clock; Person("actor", guandu.RecruitedOfficerId); location = PersonLocation(guandu.RecruitingOfficerId);
-                Message("guandu-introduction"); Message("guandu-advice", speech: true, movie: "guandu"); Message("guandu-result");
+                Message("guandu-introduction"); Message("guandu-advice", movie: "guandu"); Message("guandu-result");
                 Message("guandu-soldiers"); Message("guandu-food"); Message("guandu-trust"); Message("guandu-enemy-trust");
                 if (before.World.Officers.Count(p => p.OwnerId == guandu.ForceId && p.IsServing) > 1) Message("guandu-loyalty"); break;
             case QiaoMarriageEvent qiao:

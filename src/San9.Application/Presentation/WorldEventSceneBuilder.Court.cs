@@ -34,7 +34,7 @@ internal sealed partial class WorldEventSceneBuilder
                 }
                 else if (rank.Kind == PeerageChangeKind.Proclamation)
                 {
-                    if (playerRank) { Message("proclamation-introduction"); Message("proclamation-declaration", speech: true); }
+                    if (playerRank) { Message("proclamation-introduction"); Message("proclamation-declaration"); }
                     Message("proclamation-result");
                 }
                 else if (rank.Kind == PeerageChangeKind.Investiture)
@@ -44,7 +44,7 @@ internal sealed partial class WorldEventSceneBuilder
                 }
                 else
                 {
-                    if (playerRank) { Message("promotion-introduction"); Message("promotion-declaration", speech: true); }
+                    if (playerRank) { Message("promotion-introduction"); Message("promotion-declaration"); }
                     Message("promotion-result");
                 }
                 TrustAndLoyalty(rank.ForceId); break;

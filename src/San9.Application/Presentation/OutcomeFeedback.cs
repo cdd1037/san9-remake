@@ -49,13 +49,13 @@ internal static class OutcomeFeedback
             var message = Produce(role, true);
             records.Add(new($"{identity}:{role}", message.Message, location, MapRecordColors.Resolve(before, after, color), importance) { SoundRole = sound });
         }
-        void Prompt(string role, bool speech = false)
+        void Prompt(string role, bool mapSpeech = false)
         {
             var message = Produce(role, false) with { FocusLocation = location };
             if (message.SpeakerId is int speaker)
             {
                 message = message with { Speaker = occurrence.Speaker(speaker) };
-                if (speech && executionMap && location is { } cell)
+                if (mapSpeech && executionMap && location is { } cell)
                     message = message with { WaitForMapSpeech = true, MapSpeech = new($"{identity}:{role}", message.Message,
                         speaker, texts.Resolve(before.MessageSpeaker(speaker).NameKey), cell,
                         ForceColorCode: before.Forces.Concat(after.Forces).FirstOrDefault(f => f.Id == color)?.ColorCode) };
@@ -102,7 +102,7 @@ internal static class OutcomeFeedback
                 Person("ruler", before.World.Forces.Single(f => f.Id == owner).LeaderId!.Value);
                 Prompt("appearance-introduction");
                 messages[^1] = messages[^1] with { IllustrationPersonId = person.Id };
-                Prompt("appearance-greeting", true); Prompt("appearance-result"); break;
+                Prompt("appearance-greeting"); Prompt("appearance-result"); break;
             case TreasuryCapturedEvent captured when Player(captured.PreviousForceId) || Player(captured.ForceId):
                 At(new(captured.ForceId, captured.PlaceId, captured.Position));
                 Force("force", captured.PreviousForceId); Force("enemy-force", captured.ForceId);
@@ -113,7 +113,7 @@ internal static class OutcomeFeedback
             case PrisonerEscapedEvent escaped when Player(escaped.Occurrence.ForceId) || Player(escaped.CaptorForceId):
                 At(escaped.Occurrence); Person("actor", escaped.OfficerId);
                 values["place"] = ProgressMessageProducer.Place(escaped.Occurrence.PlaceId!.Value);
-                Prompt("prisoner-escape-speech", true); Prompt("prisoner-escape-result"); break;
+                Prompt("prisoner-escape-speech"); Prompt("prisoner-escape-result"); break;
             case BattlePersonnelResolvedEvent battle:
                 Object(battle.Captor);
                 if (battle.CapturedIds.Length > 0 && (Player(battle.Captor.ForceId) || Player(battle.Defeated.ForceId)))
@@ -125,7 +125,7 @@ internal static class OutcomeFeedback
                     if (battle.LastCapturedId is int last && battle.Captor.CommanderId is int receivingCommander)
                     {
                         Object(battle.Defeated); Person("actor", last); Person("ruler", receivingCommander);
-                        Prompt(executionMap ? "battle-capture-speech" : "battle-capture-dialogue", true);
+                        Prompt(executionMap ? "battle-capture-speech" : "battle-capture-dialogue", mapSpeech: executionMap);
                     }
                 }
                 if (battle.RetreatedIds.Length > 0 && Player(battle.Defeated.ForceId))

@@ -21,14 +21,14 @@ internal sealed partial class WorldEventSceneBuilder
                 clock = defected.Clock; Force("force", defected.ForceId); Place(defected.SettlementId); location = PlaceLocation(defected.SettlementId); colorForce = defected.ForceId;
                 if (defected.CommanderId is int defector)
                 {
-                    Person("actor", defector); Message("defection-declaration", speech: true, focus: true); Message("settlement-defection", record: true);
+                    Person("actor", defector); Message("defection-declaration", focus: true); Message("settlement-defection", record: true);
                     foreach (int follower in defected.FollowerIds.Where(id => id != defector)) { Person("actor", follower); Message("defection-follower"); }
                 }
                 else Message("abandoned-defection", focus: true, record: true);
                 break;
             case UnitDefectedEvent defected when Player(defected.PreviousForceId) || Player(defected.ForceId):
                 clock = defected.Clock; Force("force", defected.ForceId); Person("actor", defected.CommanderId); location = PersonLocation(defected.CommanderId); colorForce = defected.ForceId;
-                Message("defection-declaration", speech: true, focus: true); Message("unit-defection", record: true);
+                Message("defection-declaration", focus: true); Message("unit-defection", record: true);
                 foreach (int follower in defected.FollowerIds.Where(id => id != defected.CommanderId)) { Person("actor", follower); Message("defection-follower"); }
                 break;
             case ForcesConsolidatedEvent merged:
@@ -40,7 +40,7 @@ internal sealed partial class WorldEventSceneBuilder
                 int place = ruler.SettlementId ?? before.World.Units.Single(u => u.Id == ruler.UnitId).ServicePlaceId!.Value;
                 Place(place); location = PersonLocation(survivor);
                 Message("consolidation-arrival", focus: true);
-                Message("consolidation-offer", speech: true); Message("consolidation-reply", speech: true);
+                Message("consolidation-offer"); Message("consolidation-reply");
                 values["year"] = new(clock.Year); values["month"] = new(clock.Month);
                 Message("consolidation-result"); Message("consolidation-trust"); Message("consolidation-soldiers"); Message("consolidation-morale"); break;
             case ForceEliminatedEvent eliminated:
@@ -51,7 +51,7 @@ internal sealed partial class WorldEventSceneBuilder
                 if (CompositeDeath(previous)) break;
                 clock = succession.Clock; Person("actor", succession.OfficerId); Person("other", previous);
                 location = PersonLocation(succession.OfficerId); colorForce = succession.ForceId;
-                Message("successor-declaration", speech: true);
+                Message("successor-declaration");
                 // In the main map the source dispatches 9992 as a record instead of also opening 7190.
                 break;
             case OfficerDiedEvent death when death.Cause is not (OfficerDeathCause.NoRetreat or OfficerDeathCause.ForceEliminated):

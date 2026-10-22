@@ -98,7 +98,7 @@ public static class OfficerCatalog
                         // A ruler's dash has a highest-value sort key, not unavailable-value ordering.
                         "loyalty" => o.Status == OfficerStatus.Ruler ? new("—", long.MaxValue)
                             : owner is not null ? person.Loyalty : CatalogCell.Unavailable,
-                        "office" => office is null ? "无" : texts.Resolve(office.NameKey),
+                        "office" => new(office is null ? "无" : texts.Resolve(office.NameKey), office?.GovernorPriority ?? -1),
                         "capacity" => office is null ? CatalogCell.Unavailable : (long)office.CommandCapacity,
                         "salary" => office is null ? CatalogCell.Unavailable : office.Salary,
                         "service" => o.IsServing && person.StatusStartYear is int year ? view.Year - year + 1 : CatalogCell.Unavailable,

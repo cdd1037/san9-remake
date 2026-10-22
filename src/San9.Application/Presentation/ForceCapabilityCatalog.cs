@@ -53,8 +53,8 @@ public static class ForceCapabilityCatalog
             var rules = view.Rules.Governance;
             rows = view.Information.Offices.Where(o => rules.CanAppoint(force.RankId, rules.Offices[o.Id]))
                 .Select(o => pageIndex == 1
-                    ? Row(o.Id, texts.Resolve(o.NameKey), o.DescriptionKey is { } key ? texts.Resolve(key) : "")
-                    : Row(o.Id, texts.Resolve(o.NameKey), string.Join("、", members.Where(p => p.OfficeId == o.Id).Select(p => Person(p.Id))),
+                    ? Row(o.Id, new CatalogCell(texts.Resolve(o.NameKey), o.GovernorPriority), o.DescriptionKey is { } key ? texts.Resolve(key) : "")
+                    : Row(o.Id, new CatalogCell(texts.Resolve(o.NameKey), o.GovernorPriority), string.Join("、", members.Where(p => p.OfficeId == o.Id).Select(p => Person(p.Id))),
                         (long)o.CommandCapacity, o.Salary, o.AbilityBonuses.Leadership, o.AbilityBonuses.War,
                         o.AbilityBonuses.Intelligence, o.AbilityBonuses.Politics, rules.Offices[o.Id].LoyaltyBonus));
         }

@@ -10,7 +10,7 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
     private static CatalogColumn C(string id, string title, int width = 4) => new(id, title, width, CatalogAlignment.Center);
     private static CatalogColumn N(string id, string title, int width = 6) => new(id, title, width, CatalogAlignment.Right);
     private static CatalogPage P(string title, string name, params CatalogColumn[] columns) => new(title,
-        [new("name", name, name == "地域" ? 8 : 6, CatalogAlignment.Left), .. columns]);
+        [new("name", name, name is "地域" or "势力" ? 8 : 6, CatalogAlignment.Left), .. columns]);
     private static CatalogColumn[] Money { get; } = [N("money", "资金", 7), N("money-cost", "资金支出", 7), N("money-income", "资金收入", 7), N("money-forecast", "预测资金", 7), C("money-sufficient", "资金充裕")];
     private static CatalogColumn[] Food { get; } = [N("food", "兵粮", 7), N("food-cost", "兵粮支出", 7), N("food-income", "兵粮收入", 7), N("food-forecast", "预测兵粮", 7), C("food-sufficient", "兵粮充裕")];
     private static CatalogColumn[] People { get; } = [C("commander", "大将", 8), N("serving", "在任", 3), N("captives", "俘虏", 3), N("free", "在野", 3)];
@@ -129,7 +129,7 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
             var rank = view.Information.Ranks.Single(r => r.Id == id);
             return field switch
             {
-                "name" => texts.Resolve(rank.NameKey), "capacity" => (long)rank.CommandCapacity, "trust" => rank.RequiredTrust,
+                "name" => new(texts.Resolve(rank.NameKey), rank.Precedence), "capacity" => (long)rank.CommandCapacity, "trust" => rank.RequiredTrust,
                 "description" => rank.DescriptionKey is { } description ? texts.Resolve(description) : CatalogCell.Unavailable,
                 "holders" => RankHolders(id),
                 _ => throw new ArgumentOutOfRangeException(nameof(field))
@@ -167,7 +167,7 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
             case "force": return Force(owner);
             case "leader": return Person(corps?.LeaderId ?? force.LeaderId);
             case "country": return view.Information.CountryTitles.FirstOrDefault(t => t.Id == force.CountryTitleId) is { } title ? texts.Resolve(title.NameKey) : CatalogCell.Unavailable;
-            case "rank": return view.Information.Ranks.FirstOrDefault(r => r.Id == force.RankId) is { } rank ? texts.Resolve(rank.NameKey) : CatalogCell.Unavailable;
+            case "rank": return view.Information.Ranks.FirstOrDefault(r => r.Id == force.RankId) is { } rank ? new CatalogCell(texts.Resolve(rank.NameKey), rank.Precedence) : CatalogCell.Unavailable;
             case "trust": return force.Trust;
             case "adviser": return Person(view.World.Forces.Single(f => f.Id == owner).AdviserId);
             case "corps": return view.World.Corps.Count(c => c.OwnerId == owner);

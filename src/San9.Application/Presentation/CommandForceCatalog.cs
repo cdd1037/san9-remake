@@ -14,7 +14,7 @@ public sealed class CommandForceCatalog
         var shared = AdministrativeCatalog.Pages(InformationCategory.Forces);
         CatalogColumn Column(string field) => shared.SelectMany(p => p.Columns).First(c => c.Id == field);
         CatalogColumn Count(string field) => Column(field) with { PreferredHalfCells = 6 };
-        Pages = [new(CommandText.Resolve(texts, "title.delegate"), [Column("name") with { PreferredHalfCells = 8 }, Column("relation"), Column("alliance"),
+        Pages = [new(CommandText.Resolve(texts, "title.delegate"), [Column("name"), Column("relation"), Column("alliance"),
             Count("trust"), Count("cities"), Column("soldiers"), Count("officers") with { Title = CommandText.Resolve(texts, "label.serving") }]), .. shared];
         var catalog = new AdministrativeCatalog(view,texts);
         var fields = Pages.SelectMany(p => p.Columns).Select(c => c.Id).Distinct().ToArray();

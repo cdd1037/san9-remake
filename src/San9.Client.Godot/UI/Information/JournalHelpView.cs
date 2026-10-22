@@ -16,6 +16,7 @@ public partial class JournalHelpView : Control
     public override void _Ready()
     {
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
+        AddChild(new ViewportFill { Color = new(0, 0, 0, .45f) });
         _title = new GameRichTextLabel { Textures = Textures, Position = new(292, 170), Size = new(440, 36) }; AddChild(_title);
         _body = new GameRichTextLabel { Textures = Textures, Position = new(292, 220), Size = new(440, 292), ScrollActive = true,
             AutowrapMode = TextServer.AutowrapMode.WordSmart, MouseFilter = MouseFilterEnum.Stop }; AddChild(_body);
@@ -37,7 +38,6 @@ public partial class JournalHelpView : Control
     public override void _GuiInput(InputEvent input) => AcceptEvent();
     public override void _Draw()
     {
-        DrawRect(new(0, 0, 1024, 768), new Color(0, 0, 0, .45f));
         new DetailSkinPainter(this, Textures).Panel(new(264, 144, 496, 504));
     }
 }

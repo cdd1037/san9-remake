@@ -312,7 +312,7 @@ public partial class StrategyHud : Control
     }
 
     private StrategyInteraction Interaction => StrategyInteraction.Resolve(_built, Turn?.Screen,
-        Turn?.CanAdvance == true, _commandTargets is not null ? CommandTargetStage : _personnel is null ? _flow?.Stage ?? MilitaryCommandStage.None : PersonnelStage, Overview.IsOpen,
+        Turn?.CanAdvance == true, _commandTargets is not null ? CommandTargetStage : _personnelFlow?.IsActive != true ? _flow?.Stage ?? MilitaryCommandStage.None : _personnelFlow.Stage, Overview.IsOpen,
         OverlayHost.IsInsideTree() && OverlayHost.HasModal || _notice?.Visible == true,
         OverlayHost.Workflows.Blocked, SidebarMoving, _battleView?.IsSceneActive == true || HasMapPopup,
         _pendingNarrations.Count != 0, Session.View.PlayerForceId is not null);
@@ -401,7 +401,7 @@ public partial class StrategyHud : Control
         else if (command == "demolish") OpenDemolition(target.Id);
         else if (command == "delegate") OpenCorpsManagement();
         else if (MissionDraft.Supports(command)) OpenMission(target.Id,command);
-        else if (PersonnelDraft.Supports(command)) OpenPersonnel(target.Id,command);
+        else if (PersonnelDraft.Supports(command)) _personnelFlow.Open(target.Id,command);
         else if (command is "build" or "transport") _flow.OpenSpecial(target.Id, command == "build" ? SpecialDeploymentKind.Construction : SpecialDeploymentKind.Transport);
         else if (AppointmentDraft.Supports(command)) OpenAppointment(target.Id, command);
         else if (FacilityCommandDraft.Supports(command)) OpenFacilityCommand(target.Id,command);
@@ -482,7 +482,7 @@ public partial class StrategyHud : Control
         }
         if (_commandMenu.Visible) { _message.SetMessage(_commandMenu.Hint, _commandMenu.HintEnabled); return; }
         if (_mapContext.Visible) { _message.SetMessage(_mapContext.Hint, _mapContext.HintEnabled); return; }
-        if (_personnelTargeting) { _message.SetMessage(_personnel?.Draft.Kind == "search" ? "请选择目标地域。" : "请选择目标设施。",true); return; }
+        if (_personnelFlow?.IsTargeting == true) { _message.SetMessage(_personnelFlow.IsRegionSelection ? "请选择目标地域。" : "请选择目标设施。",true); return; }
         if (_commandTargets is not null) { _message.SetMessage("请选择目标。",true); return; }
         if (_targets is not null)
         {
@@ -570,7 +570,7 @@ public partial class StrategyHud : Control
         }
         if (_built)
         {
-            _minimap!.SetCommandSource(_flow.Source ?? PatrolSource ?? FacilitySource ?? DemolitionSource ?? AppointmentSource ?? PersonnelSource ?? (_commandMenu!.Visible ? _commandTarget : null));
+            _minimap!.SetCommandSource(_flow.Source ?? PatrolSource ?? FacilitySource ?? DemolitionSource ?? AppointmentSource ?? _personnelFlow.Source ?? (_commandMenu!.Visible ? _commandTarget : null));
             UpdateSidebar(delta);
         }
         UpdateHover(_hoverPosition ?? GetGlobalMousePosition());

@@ -25,7 +25,6 @@ public partial class PersonnelCommandView : FixedPage
     private Rect2 Bounds => Draft.Kind switch { "summon" => new(216,222,592,324), "move" => new(304,248,416,272),
         "search" => new(196,(768-SearchWindowHeight)/2,632,SearchWindowHeight), _ => new(288,236,448,296) };
     public override void _Ready() { Size = new(1024,768); MouseFilter = MouseFilterEnum.Stop; Rebuild(); }
-    public override void _Process(double delta) { if (!Draft.IsCurrent) Closed(); }
     private void Label(string value, Rect2 bounds) => CommandPanelArt.Label(_body!, _text, value, bounds);
     private OfficerCardData Card(int id)
     {

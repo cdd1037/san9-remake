@@ -168,6 +168,23 @@ public sealed class SlotSaveStoreTests : IDisposable
     }
 
     [Fact]
+    public void OversizedPreviewIsBoundedAndDoesNotHideOtherSlots()
+    {
+        var store = new SlotSaveStore(_directory, Definition);
+        var oversized = Encoding.UTF8.GetBytes("{\"header\":{\"unfinished\":\"" + new string('x', SlotSaveStore.MaximumPreviewBytes * 2));
+        using var stream = new MemoryStream(oversized);
+        Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() => store.ReadPreview(stream)).Failure);
+        Assert.Equal(SlotSaveStore.MaximumPreviewBytes, stream.Position);
+        store.Write(1, oversized);
+        store.Write(2, SlotSaveStore.Encode(GameSession.Start(Definition, 1), Summary("valid")));
+        var catalog = store.ReadCatalog(2);
+        Assert.Equal(SaveFailure.InvalidFormat, catalog[1].Error!.Failure);
+        Assert.Equal("valid", catalog[2].Summary!.Note);
+        Assert.Throws<SaveException>(() => SlotSaveStore.Encode(GameSession.Start(Definition, 1),
+            Summary(new string('x', SlotSaveStore.MaximumPreviewBytes))));
+    }
+
+    [Fact]
     public void FailedAtomicReplacementLeavesTheDestinationAndCleansTemporaryFiles()
     {
         var store = new SlotSaveStore(_directory, Definition);

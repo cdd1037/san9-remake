@@ -18,6 +18,7 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
 {
     private const int FormatVersion = 4;
     public const int AutoSaveCount = 10;
+    public const int MaximumPreviewBytes = 64 * 1024;
     private readonly BackgroundSaveQueue _writes = new();
     public string AutoSavePathFor(int slot)
     {
@@ -73,7 +74,13 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
 
     public static byte[] Encode(GameSession session, SaveSlotSummary summary) => Encode(Capture(session, summary));
     // Canonical order places "header" before "save", allowing a bounded prefix read.
-    public static byte[] Encode(SlotSaveDocument document) => CanonicalJson.Encode(document);
+    public static byte[] Encode(SlotSaveDocument document)
+    {
+        ValidateHeader(document.Header);
+        if (CanonicalJson.Encode(document.Header).Length + "{\"header\":"u8.Length > MaximumPreviewBytes)
+            throw new SaveException(SaveFailure.InvalidFormat, "Slot preview exceeds its byte budget.");
+        return CanonicalJson.Encode(document);
+    }
     public void Write(int slot, byte[] bytes) => WriteFile(PathFor(slot), bytes);
     public Task WriteAsync(int slot, SlotSaveDocument document) => _writes.Enqueue(() => Write(slot, Encode(document)));
 
@@ -108,6 +115,8 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
     public GameSession LoadAutoSave(int slot) => LoadFile(AutoSavePathFor(slot));
     private GameSession LoadFile(string path) => ReadFile(path, stream =>
     {
+        _ = ReadPreview(stream);
+        stream.Position = 0;
         var document = StrictJson.Deserialize<SlotSaveDocument>(stream);
         ValidateHeader(document.Header);
         return SaveService.Load(document.Save, definition);
@@ -142,7 +151,9 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
                 }
             }
             if (read == 0) throw new JsonException("Truncated slot header.");
-            if (length == buffer.Length) Array.Resize(ref buffer, checked(buffer.Length * 2));
+            if (length == MaximumPreviewBytes)
+                throw new SaveException(SaveFailure.InvalidFormat, "Slot preview exceeds its byte budget.");
+            if (length == buffer.Length) Array.Resize(ref buffer, Math.Min(MaximumPreviewBytes, buffer.Length * 2));
         }
     }
     private static void ValidateHeader(SlotSaveHeader header)

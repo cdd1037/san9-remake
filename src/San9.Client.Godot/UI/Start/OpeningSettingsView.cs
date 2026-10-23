@@ -16,7 +16,7 @@ public partial class OpeningSettingsView : Control
     public Func<NewGameSettings, int, Task> Confirmed { get; init; } = null!;
     private bool _creating;
     private Label _hint = null!;
-    public bool Advanced { get; private set; }
+    public bool Advanced { get; private set; } = true;
     public bool Fictional { get; private set; }
     private int[] _values = new int[6];
     private readonly List<Label> _summary = [];
@@ -90,7 +90,7 @@ public partial class OpeningSettingsView : Control
             }
         }
     }
-    public void FocusDefault() => GetNode<OpeningSettingButton>("Beginner").GrabFocus();
+    public void FocusDefault() => GetNode<OpeningSettingButton>(Advanced ? "Advanced" : "Beginner").GrabFocus();
     private void Choice(string name, string title, Vector2 position, Action choose, Func<bool> selected)
     {
         var image = Service.LibraryAssets[Art.ChoiceHighlight];

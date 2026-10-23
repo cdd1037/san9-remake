@@ -19,7 +19,7 @@ public static class SaveSlotSummaryFactory
         string xun = view.Day <= 10 ? "上旬" : view.Day <= 20 ? "中旬" : "下旬";
         return new(force is null ? simulation.Controls.Any(c => c.Kind == ControllerKind.Player) ? "玩家势力" : "无玩家势力" : texts.Resolve(ruler?.NameKey ?? force.NameKey), ruler is null ? null : $"information-person-{ruler.Id}",
             $"{definition.Year,3}年{definition.Month,2}月", texts.Resolve(TextCatalog.ScenarioTitleKey), $"{view.Year,3}年{view.Month,2}月{xun}", DateTimeOffset.Now,
-            simulation.Controls.Count(c => c.Kind == ControllerKind.Player), null,
-            simulation.ComputerDamageBonusPercent == 0 ? "标准" : "强化", note);
+            simulation.Controls.Count(c => c.Kind == ControllerKind.Player), simulation.NewGame.Mode == San9.Core.Domain.GameMode.Historical,
+            simulation.NewGame.Difficulty == San9.Core.Domain.GameDifficulty.Advanced ? "高级" : "初级", note);
     }
 }

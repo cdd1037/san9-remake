@@ -9,7 +9,7 @@ internal static class SunMarriage
 {
     internal static bool Apply(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {
-        if (rules.SunMarriage is not { } definition || !world.Clock.Boundary.Quarter ||
+        if (world.Simulation.NewGame.Mode != GameMode.Historical || rules.SunMarriage is not { } definition || !world.Clock.Boundary.Quarter ||
             world.Simulation.PendingEvent is not null || world.Simulation.TerminalReason is not null ||
             world.Clock.DayNumber > definition.LatestDate.DayNumber || world.Simulation.ConsumedEventKeys.Contains(definition.ConsumptionKey)) return false;
         if (!world.Officers.TryGetValue(definition.RecipientRulerId, out var ruler) ||

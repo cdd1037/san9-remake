@@ -246,7 +246,7 @@ public sealed class HeadlessHost
         catch (InvalidDataException error) { throw new CommandLogException(1, "Invalid original AI policy.", error); }
         definition = definition with { OriginalAi = header.OriginalAi };
         _session = options.TryGetValue("load", out string? load) ? SaveService.Load(load, definition) :
-            options.TryGetValue("restore", out string? restore) ? SaveService.Read(restore, definition) : GameSession.Start(definition, header.Seed, header.ComputerDamageBonusPercent, battleDeathsEnabled: header.BattleDeathsEnabled, playerForceController: header.PlayerForceController);
+            options.TryGetValue("restore", out string? restore) ? SaveService.Read(restore, definition) : GameSession.Start(definition, header.Seed, header.ComputerDamageBonusPercent, battleDeathsEnabled: header.BattleDeathsEnabled, playerForceController: header.PlayerForceController, settings: header.NewGame, playerForceIds: header.PlayerForceIds);
         _started = _session.Snapshot.Clock;
         var result = CommandLogService.Replay(log, _session);
         _report.AcceptedOperations = result.Accepted;

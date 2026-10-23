@@ -68,6 +68,7 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
 {
     /// <summary>Runtime continuation for day-at-a-time advancement; never a save boundary.</summary>
     [JsonIgnore] public GameClock? DailyAdvanceStarted { get; init; }
+    [JsonRequired] public San9.Core.Domain.NewGameSettings NewGame { get; init; } = new();
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public GameClock? ThreeVisitsStarted { get; init; }
     [JsonRequired] public EmperorTransferPending? EmperorTransfer { get; init; }

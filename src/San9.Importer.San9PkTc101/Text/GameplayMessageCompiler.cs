@@ -103,7 +103,7 @@ public sealed class GameplayMessageCompiler(ScenarioInitialState scenario, IRead
                 }
                 if (e.Operation == "query")
                 {
-                    if (e.Binding == "scenario-mode") return Query("scenario.has-message-tag", new MessageExpression("text", ScenarioMessageTags.TimelessHeroes));
+                    if (e.Binding == "scenario-mode") return Query("game.is-fictional");
                     if (e.Binding == "world-flag")
                     {
                         string? history = a is [{ Operation: "constant", Number: 2 }] ? "chained-plot.completed" :

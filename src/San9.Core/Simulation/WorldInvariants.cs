@@ -138,6 +138,8 @@ internal static class WorldInvariants
     private static void ValidateSimulation(WorldMutation state)
     {
         var sim = state.Simulation;
+        if (sim.NewGame is null) throw new ArgumentException("Missing new-game settings.");
+        sim.NewGame.Validate();
         if (sim.FoodExchangeRate <= 0) throw new ArgumentException("Invalid food exchange rate.");
         sim.Alliance?.Validate(state.Forces.Values.Where(f => !f.IsEliminated && (!f.IsBarbarian ||
             sim.Controls.Any(c => c.ForceId == f.Id && c.Kind == ControllerKind.Player))).Select(f => f.Id).ToHashSet());

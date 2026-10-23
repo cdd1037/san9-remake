@@ -5,6 +5,9 @@ public sealed record ProgressPresentationDefinition(Dictionary<string, DecisionM
     Dictionary<string, DecisionMessageDefinition> Context)
 {
     [System.Text.Json.Serialization.JsonRequired]
+    public Dictionary<string, DecisionMessageDefinition> Introduction { get; init; } = [];
+    public static readonly string[] IntroductionRoles = ["opening", "alliance-member", "alliance-target", "enemies", "friends", "economy", "shortage", "ambition"];
+    [System.Text.Json.Serialization.JsonRequired]
     public DecisionMessageDefinition OrderPrompt { get; init; } = null!;
     [System.Text.Json.Serialization.JsonRequired]
     public string StrategyTitleSound { get; init; } = null!;

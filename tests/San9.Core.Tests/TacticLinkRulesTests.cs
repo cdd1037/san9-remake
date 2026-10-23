@@ -16,6 +16,7 @@ public sealed class TacticLinkRulesTests
         Assert.Equal(105, rules.Chance(First, partner, Ordinary));
         Assert.Equal(95, rules.Chance(partner, First, Ordinary));
         Assert.Equal(130, rules.Chance(First, partner, Ordinary with { LinkMultiplier = 3 }));
+        Assert.Equal(60, rules.Chance(First, partner, Ordinary, historical: false));
         Assert.Equal(60, (rules with { RelationshipsEnabled = false }).Chance(First, partner, Ordinary));
     }
 

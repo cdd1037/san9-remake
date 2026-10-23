@@ -214,15 +214,19 @@ public sealed class HeadlessHostTests : IDisposable
     }
 
     [Fact]
-    public void CommandLogCreatesReplayWithRecordedComputerDamageBonus()
+    public void CommandLogCreatesReplayWithRecordedNewGameConfiguration()
     {
-        var content = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "bonus-cli", 190, 1, 1, 1,
+        var content = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "bonus-cli", 190, 1, 1, null,
             [new(1, "force", 0, 100) { LeaderId = 1 }],
             [new(101, "city", 1, 0, 0, 0, 100, 100, 0, [])], [], [])
         { Officers = [new("ruler", new(1, 1, 101, new(80, 80, 80, 80), false) { Status = OfficerStatus.Ruler })] , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
         string scenario = FilePath("bonus-scenario.json"), log = FilePath("bonus.commands.jsonl");
         File.WriteAllBytes(scenario, CanonicalJson.Encode(content));
-        var session = GameSession.Start(content, 190, 100);
+        var session = GameSession.Start(content, 190, 100, settings: new()
+        {
+            Difficulty = GameDifficulty.Beginner, Mode = GameMode.Fictional,
+            MoneyBonus = 73, FoodBonus = 80, DomesticBonus = 9, SoldierBonus = 800, MoraleBonus = 4
+        }, playerForceIds: [1]);
         List<SessionRequest> requests = [];
         var inputHeader = CommandLogService.CreateHeader(session);
         SessionResult ApplyInput(SessionRequest request)

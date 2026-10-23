@@ -112,4 +112,46 @@ public sealed class ScenarioStartupTests
         Assert.True(restored.Snapshot.Simulation.NaturalDeathsEnabled);
         Assert.True(restored.Snapshot.Simulation.FreeOfficerMigrationEnabled);
     }
+    [Fact]
+    public void MultiplePlayerForcesAreNormalizedBeforeBonusesAndRestoreRetainsConfirmedSettings()
+    {
+        var definition = G01ScenarioTests.Fixture();
+        definition = definition with { Forces = definition.Forces.Select(f => f with { IsBarbarian = true }).ToArray() };
+        var settings = new NewGameSettings { Difficulty = GameDifficulty.Advanced, Mode = GameMode.Fictional,
+            MoneyBonus = 100, SoldierBonus = 10000, DomesticBonus = 100, MoraleBonus = 20 };
+        definition = definition with { FictionalOfficerPlaceIds = [1, 2] };
+        var session = GameSession.Start(definition, 123, settings: settings, playerForceIds: [2, 1]);
+        Assert.All(session.Snapshot.Forces, f => Assert.False(f.IsBarbarian));
+        Assert.Equal(new[] { 1, 2 }, session.Snapshot.Simulation.Controls.Where(c => c.Kind == San9.Core.Simulation.ControllerKind.Player).Select(c => c.ForceId));
+        Assert.All(session.Snapshot.Settlements, s => Assert.Equal(definition.Settlements.Single(p => p.Id == s.Id).Soldiers, s.Soldiers));
+        Assert.Equal(settings, session.Snapshot.Simulation.NewGame);
+        var changedDefaults = definition with { OriginalAi = definition.OriginalAi with { Advanced = false } };
+        var restored = SaveService.Decode(SaveService.Encode(session), changedDefaults);
+        StateAssert.Equal(session.Capture(), restored.Capture());
+        Assert.Equal(new[] { 1, 2 }, restored.InitialPlayerForceIds);
+        Assert.Equal(1, restored.Messages(new(San9.Content.Text.TextCatalog.CurrentSchemaVersion, [])).Query("game.is-fictional", []).Number);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ExplicitCommandScriptsRejectDifferentNewGameConfigurationBeforeApplyingAnyOperation(bool changePlayers)
+    {
+        var definition = G01ScenarioTests.Fixture();
+        var original = GameSession.Start(definition, 123, settings: new() { Difficulty = GameDifficulty.Beginner }, playerForceIds: [1, 2]);
+        string path = Path.Combine(Path.GetTempPath(), $"san9-new-game-{Guid.NewGuid():N}.jsonl");
+        try
+        {
+            var header = CommandLogService.CreateHeader(original);
+            CommandLogService.Write(path, header, [original.Request(new ChronicleOperation("new game"))]);
+            var same = GameSession.Start(definition, header.Seed, settings: header.NewGame, playerForceIds: header.PlayerForceIds);
+            Assert.Equal(1, CommandLogService.Replay(path, same).Accepted);
+            var different = GameSession.Start(definition, header.Seed,
+                settings: changePlayers ? header.NewGame : header.NewGame with { MoraleBonus = 1 },
+                playerForceIds: changePlayers ? [1] : header.PlayerForceIds);
+            Assert.Throws<CommandLogException>(() => CommandLogService.Replay(path, different));
+            Assert.Empty(different.Chronicle);
+        }
+        finally { File.Delete(path); }
+    }
 }

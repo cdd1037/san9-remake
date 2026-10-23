@@ -4,13 +4,14 @@ using San9.Content.Interface;
 
 namespace San9.Client.Godot;
 
-/// <summary>Opening menu presentation only. The host will own future navigation and commands.</summary>
+/// <summary>Owns opening drafts and delegates confirmed game creation to the host.</summary>
 public partial class StartMenuView : FixedPage
 {
     protected override Color PageBackground => Colors.Black;
     public StartMenuPresentation Definition { get; init; } = null!;
     public ScenarioSelectionPresentation SelectionDefinition { get; init; } = null!;
     public Func<string, CancellationToken, Task<ScenarioForceSelection>> LoadScenario { get; init; } = null!;
+    public Func<string, int[], San9.Core.Domain.NewGameSettings, int, Task> BeginGame { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
     private TextureScope _textures = null!;
     private StartMenuArtwork _artwork = null!;
@@ -99,6 +100,7 @@ public partial class StartMenuView : FixedPage
         {
             _settings = new OpeningSettingsView { Name = "OpeningSettings", Definition = SelectionDefinition,
                 Service = Service, Help = Definition.Help, Close = Definition.Close, QuitRequested = RequestQuit,
+                Confirmed = (settings, damage) => BeginGame(_forces!.Entry.Id, _forces.Selected.Order().ToArray(), settings, damage),
                 Closed = () =>
                 {
                     _settings!.Hide(); _forces!.Show(); _forces.GetNode<StartMenuButton>("Confirm").GrabFocus();

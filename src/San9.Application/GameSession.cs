@@ -25,6 +25,7 @@ public sealed partial class GameSession
     public bool CanEditWorld => !_executing && Snapshot.Simulation.Boundary == SimulationBoundary.Stable && _originalAi.Continuation is null;
     private EndingSelection? _ending;
     /// <summary>Initial controller configuration, used to reconstruct command logs.</summary>
+    public ImmutableArray<int> InitialPlayerForceIds { get; private set; } = [];
     public ControllerKind PlayerForceController { get; private set; } = ControllerKind.Player;
     private OriginalAiState _originalAi;
     public OriginalAiState OriginalAi => _originalAi;

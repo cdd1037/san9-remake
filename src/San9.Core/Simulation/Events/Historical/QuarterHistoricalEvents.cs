@@ -18,7 +18,7 @@ internal static class QuarterHistoricalEvents
 
     internal static bool ApplyQiaoMarriage(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {
-        if (!world.Clock.Boundary.Quarter || world.Simulation.PendingEvent is not null ||
+        if (world.Simulation.NewGame.Mode != GameMode.Historical || !world.Clock.Boundary.Quarter || world.Simulation.PendingEvent is not null ||
             world.Simulation.TerminalReason is not null || rules.QiaoMarriage is not { } definition ||
             world.Simulation.Started.DayNumber > definition.LatestScenarioStart.DayNumber ||
             world.Clock.DayNumber > definition.LatestDate.DayNumber ||

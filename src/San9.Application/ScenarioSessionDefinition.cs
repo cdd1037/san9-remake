@@ -7,13 +7,24 @@ namespace San9.Application;
 
 internal sealed class ScenarioSessionDefinition
 {
-    internal ScenarioSessionDefinition(ScenarioInitialState definition)
+    private readonly HashSet<int> _playerForces;
+    internal ScenarioSessionDefinition(ScenarioInitialState definition, IReadOnlyCollection<int>? playerForceIds = null)
     {
         definition.Validate();
-        definition = InitializePlayerActivation(definition);
+        _playerForces = (playerForceIds ?? (definition.PlayerForceId is int player ? [player] : [])).ToHashSet();
+        if (_playerForces.Any(id => !definition.Forces.Any(f => f.Id == id)) ||
+            playerForceIds is not null && _playerForces.Count != playerForceIds.Count)
+            throw new ArgumentException("Invalid player force selection.");
+        InitialPlayerForceIds = _playerForces.Order().ToImmutableArray();
+        foreach (int id in InitialPlayerForceIds)
+            definition = InitializePlayerActivation(definition with { PlayerForceId = id });
+        if (_playerForces.Any(id => definition.Forces.Single(f => f.Id == id).IsDormant))
+            throw new ArgumentException("Selected force cannot be activated.");
+        definition = definition with { PlayerForceId = InitialPlayerForceIds.IsEmpty ? null : InitialPlayerForceIds[0] };
         if (definition.Day is not (1 or 11 or 21)) throw new ArgumentException("Expected a stable xun boundary.");
         Content = definition with
         {
+            FictionalOfficerPlaceIds = definition.FictionalOfficerPlaceIds.ToArray(),
             Information = definition.Information.Copy(), Forces = definition.Forces.ToArray(),
             Officers = definition.Officers.ToArray(), Units = definition.Units.ToArray(),
             Settlements = definition.Settlements.Select(s => s with { Icons = s.Icons.ToArray() }).ToArray(),
@@ -24,6 +35,7 @@ internal sealed class ScenarioSessionDefinition
     }
 
     internal ScenarioInitialState Content { get; }
+    internal ImmutableArray<int> InitialPlayerForceIds { get; }
 
     private static ScenarioInitialState InitializePlayerActivation(ScenarioInitialState definition)
     {
@@ -45,22 +57,23 @@ internal sealed class ScenarioSessionDefinition
     internal ScenarioRules Rules { get; }
     internal MilitaryRulebook? MilitaryRules => Rules.Military;
     internal WorldState CreateWorld(ulong seed, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false,
-        ControllerKind playerForceController = ControllerKind.Player) => WorldState.Create(new(Content.Year, Content.Month, Content.Day), seed,
+        ControllerKind playerForceController = ControllerKind.Player, NewGameSettings? settings = null) => WorldState.Create(new(Content.Year, Content.Month, Content.Day), seed,
         Forces(),
         BarbarianStartup.CreateSettlements(Forces(), Settlements(), Content.Officers.Select(o => o.State)),
         Content.Officers.Select(o => o.CreateState(Content.Year)), Content.Units, Content.Information.Corps,
         Content.Information.TreasureStates, Content.Information.Relations,
-        Content.Forces.Where(f => !f.IsDormant).OrderBy(f => f.Id == Content.PlayerForceId ? 0 : 1).ThenBy(f => f.Id)
-            .Select(f => new ControlSeat(f.Id == Content.PlayerForceId && playerForceController == ControllerKind.Player ? "player" : $"ai:{f.Id}", f.Id,
-                f.Id == Content.PlayerForceId ? playerForceController : ControllerKind.Automatic)), computerDamageBonusPercent, Content.Alliance,
+        Content.Forces.Where(f => !f.IsDormant).OrderBy(f => _playerForces.Contains(f.Id) ? 0 : 1).ThenBy(f => f.Id)
+            .Select(f => new ControlSeat(_playerForces.Contains(f.Id) && playerForceController == ControllerKind.Player ? "player" : $"ai:{f.Id}", f.Id,
+                _playerForces.Contains(f.Id) ? playerForceController : ControllerKind.Automatic)), computerDamageBonusPercent, Content.Alliance,
         Content.AttackRequests.Select(r => new AttackRequestState(r.RequestedForceId, r.RequesterForceId, r.TargetSettlementId,
-            Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)), Content.AnnualAppearancesEnabled, Content.NaturalDeathsEnabled, Content.FreeOfficerMigrationEnabled, battleDeathsEnabled, Content.OfficeRequestsEnabled, Content.ConsumedEventKeys, Content.ForceConsolidationEnabled, Content.ForceEmergenceEnabled, Content.CityIndependenceEnabled, Content.ImperialCourtEnded, Content.ThreeVisitsStarted, Content.FoodExchangeRate, Content.SettlementDefectionsEnabled, Content.UnitDefectionsEnabled);
+            Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)), Content.AnnualAppearancesEnabled, Content.NaturalDeathsEnabled, Content.FreeOfficerMigrationEnabled, battleDeathsEnabled, Content.OfficeRequestsEnabled, Content.ConsumedEventKeys, Content.ForceConsolidationEnabled, Content.ForceEmergenceEnabled, Content.CityIndependenceEnabled, Content.ImperialCourtEnded, Content.ThreeVisitsStarted, Content.FoodExchangeRate, Content.SettlementDefectionsEnabled, Content.UnitDefectionsEnabled,
+        settings ?? new NewGameSettings { Difficulty = Content.OriginalAi.Advanced ? GameDifficulty.Advanced : GameDifficulty.Beginner }, Content.FictionalOfficerPlaceIds, _playerForces);
 
     private IEnumerable<ForceState> Forces() => Content.Forces.Select(f => new ForceState(f.Id, f.Trust)
     {
         ColorCode = f.ColorCode,
         AdditionalFormationIds = f.AdditionalFormationIds.Order().ToImmutableArray(),
-        ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray(), IsBarbarian = f.Id != Content.PlayerForceId && f.IsBarbarian, IsDormant = f.IsDormant,
+        ProvidedTactics = f.ProvidedTactics.Order().ToImmutableArray(), IsBarbarian = !_playerForces.Contains(f.Id) && f.IsBarbarian, IsDormant = f.IsDormant,
         EventHistory = f.EventHistory.OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray(), HasDeposedEmperor = f.HasDeposedEmperor, LeaderId = f.LeaderId, AdviserId = f.AdviserId, RankId = f.RankId, CountryTitleId = f.CountryTitleId, BaseTrust = f.BaseTrust
     });
 

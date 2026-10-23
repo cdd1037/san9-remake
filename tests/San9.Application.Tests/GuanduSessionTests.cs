@@ -49,7 +49,7 @@ public sealed class GuanduSessionTests
         EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal(3000u, session.Snapshot.Settlements.Single(s => s.Id == 4).Soldiers);
-        Assert.Equal(3001u, session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Food);
+        Assert.Equal(4201u, session.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Food);
         Assert.Equal(150, session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust);
         Assert.Equal(85, session.Snapshot.Forces.Single(f => f.Id == 2).BaseTrust);
         var recruit = session.Snapshot.Officers.Single(o => o.Id == 23);

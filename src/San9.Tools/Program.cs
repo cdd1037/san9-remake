@@ -46,6 +46,7 @@ try
                 !session.Snapshot.Settlements.Select(s => s.Id).Order().SequenceEqual(scenario.Scenario.Settlements.Select(s => s.Id).Order()) ||
                 !session.Snapshot.Officers.Select(o => o.Id).Order().SequenceEqual(scenario.Scenario.Officers.Select(o => o.State.Id).Order()))
                 throw new InvalidDataException($"Initial world lost scenario identities: {entry.Id}");
+            NewGameContentVerification.Verify(scenario);
             var query = new San9.Application.Presentation.InformationQuery(session, scenario.Text);
             foreach (var category in new[] { San9.Application.Presentation.InformationCategory.Forces, San9.Application.Presentation.InformationCategory.Cities,
                 San9.Application.Presentation.InformationCategory.Regions, San9.Application.Presentation.InformationCategory.Officers, San9.Application.Presentation.InformationCategory.Treasures })

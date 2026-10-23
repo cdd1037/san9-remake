@@ -23,6 +23,8 @@ public partial class SessionPresentationFlow : Node
     public ISceneMedia SceneMedia { get; init; } = null!;
     public Func<Settings.UserSettings> ReadSettings { get; init; } = null!;
     private bool SoundEnabled => ReadSettings().SoundEnabled;
+    public bool IntroduceNewGame { get; init; }
+    private readonly HashSet<int> _introducedForces = [];
     public Action? StartNewGame { get; init; }
     public Action LoadGame { get; init; } = null!;
     public Func<MapMessageRecord, bool> PresentMapRecord { get; init; } = null!;
@@ -80,7 +82,13 @@ public partial class SessionPresentationFlow : Node
             if (CommandPresentation.Progress is { } progress)
             {
                 var context = Session.Messages(Texts);
-                List<CommandMessage> sequence = [.. StrategyEntryPresentation.Produce(Session.View, context, Texts, progress)];
+                List<CommandMessage> sequence = [];
+                if (IntroduceNewGame && Session.View.PlayerForceId is int force && !_introducedForces.Contains(force))
+                {
+                    sequence.AddRange(NewGameIntroduction.Produce(Session.View, context, Texts, progress));
+                    _introducedForces.Add(force);
+                }
+                sequence.AddRange(StrategyEntryPresentation.Produce(Session.View, context, Texts, progress));
                 if (Session.StrategicContext.Clock is { } clock && _contextPresented != (Session.View.PlayerForceId, clock))
                 {
                     _contextPresented = (Session.View.PlayerForceId, clock);

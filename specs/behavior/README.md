@@ -79,3 +79,4 @@
 - [BEH-UI-0008：地图战斗与兵法演出](BEH-UI-0008-battle-presentation.md)（P3已有接线和自动化验证；普通武力兵法画面细节未对齐原作，尚未完成）
 - [BEH-UI-0009：PK设定](BEH-UI-0009-pk-settings.md)（四项独立设置、会话存档与显示门控；画面待验收）
 - [BEH-UI-0010：世界事件演出](BEH-UI-0010-world-event-presentation.md)（起兵／自立、合并、死亡／继任及自动历史、政治、探索和联盟；电影占位，画面及试听待验收）
+- [BEH-UI-0011：新游戏创建与开局设定](BEH-UI-0011-new-game.md)（正式建局、难度／虚拟初始化及开局发言）

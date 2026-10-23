@@ -11,6 +11,7 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
     int corpsId, CommandContext context, OriginalAiRandom random, Func<GameCommand, bool> submit)
 {
     private WorldSnapshot World => engine.Snapshot;
+    private bool Advanced => World.Simulation.NewGame.Difficulty == GameDifficulty.Advanced;
     private CorpsState Corps { get { Refresh(); return currentCorps ??= World.Corps.Single(c => c.Id == corpsId); } }
     private int Owner => Corps.OwnerId;
     private ForceState Force { get { Refresh(); return currentForce ??= World.Forces.Single(f => f.Id == Owner); } }
@@ -78,7 +79,7 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
     private static bool Active(UnitState u) => FieldUnit(u) &&
         u.Condition is not (UnitCondition.Routed or UnitCondition.Disguised or UnitCondition.NoFormation);
     private static bool Departed(UnitState u) => Active(u) && u.HasEnteredDailyCycle;
-    private bool DeploymentCandidate(UnitState u) => Active(u) && (content.OriginalAi.Advanced || u.HasEnteredDailyCycle);
+    private bool DeploymentCandidate(UnitState u) => Active(u) && (Advanced || u.HasEnteredDailyCycle);
     private SettlementState[] Places
     {
         get

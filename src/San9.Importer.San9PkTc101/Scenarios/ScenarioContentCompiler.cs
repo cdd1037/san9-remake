@@ -140,6 +140,8 @@ public static class ScenarioContentCompiler
         var snapshot = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, null, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
         { UnbuiltPlaces = personPlaces.Where(p => settlements.All(s => s.Id != p.Id)).Select(p => new San9.Core.Domain.PersonPlace(p.Id, San9.Core.Domain.MapCoordinates.Center(new(p.X, p.Y)))).ToImmutableArray(),
+            FictionalOfficerPlaceIds = personPlaces.Where(p => p.Id < 187 && p.Id is not (>= 45 and <= 49) and not (>= 184 and <= 186))
+                .Select(p => p.Id).Order().ToArray(),
             FacilityNameSuffixKeys = suffixKeys,
             OriginalAi = OriginalAiContentCompiler.Compile(persons, officers.Select(o => o.State.Id)),
             PoliticalEvents = PoliticalContentCompiler.Events(header.ScenarioModeCode),

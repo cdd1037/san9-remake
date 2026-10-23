@@ -11,7 +11,7 @@ internal static class Guandu
 {
     internal static bool Eligible(WorldMutation world, int actorId, int targetId, SimulationRules rules)
     {
-        if (rules.Guandu is not { } d || rules.Military is not { } military || targetId != d.RecruitId ||
+        if (world.Simulation.NewGame.Mode != GameMode.Historical || rules.Guandu is not { } d || rules.Military is not { } military || targetId != d.RecruitId ||
             world.Simulation.ConsumedEventKeys.Contains(d.ConsumptionKey) ||
             !world.Officers.TryGetValue(d.PatronId, out var patron) || !patron.IsServing ||
             !world.Officers.TryGetValue(d.OpponentId, out var opponent) || !HasAffiliation(opponent) ||

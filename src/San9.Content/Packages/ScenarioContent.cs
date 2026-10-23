@@ -48,7 +48,7 @@ public sealed record ScenarioContent(int SchemaVersion, TextureDependency Textur
     [System.Text.Json.Serialization.JsonRequired]
     public San9.Content.Interface.CommandPresentation Presentation { get; init; } = San9.Content.Interface.CommandPresentation.Empty;
     [System.Text.Json.Serialization.JsonIgnore] public string ResourceRoot { get; init; } = "";
-    public const int CurrentSchemaVersion = 225;
+    public const int CurrentSchemaVersion = 226;
 }
 
 /// <summary>Selected scenario data and static display references, read from the authoritative content files.</summary>

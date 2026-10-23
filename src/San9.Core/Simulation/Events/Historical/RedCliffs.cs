@@ -11,7 +11,7 @@ internal static class RedCliffs
 {
     internal static bool Apply(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {
-        if (rules.RedCliffs is not { } definition || rules.Military is not { } military ||
+        if (world.Simulation.NewGame.Mode != GameMode.Historical || rules.RedCliffs is not { } definition || rules.Military is not { } military ||
             world.Simulation.ConsumedEventKeys.Contains(definition.ConsumptionKey)) return false;
         if (!world.Officers.TryGetValue(definition.OfficerId, out var person)) return false;
         if (person.OwnerId is not int owner || !world.Forces.TryGetValue(owner, out var force) || force.IsEliminated ||

@@ -1,6 +1,8 @@
 # 客户端内容管线
 
-内容目录按剧本组织，共享内容独立保存。正常启动进入开局菜单，不预载任何剧本世界；“重新开始游戏”打开选剧本页。20个正式剧本均已转换，分类、悬停预览、返回／关闭／Esc可用；点击剧本进入选择势力页，地图／一览、选择草稿的决定／取消及返回已接入；势力决定后进入合并的开局设定页，仅保留难度、模式和电脑战力，创建会话尚未接入。需要直接进入世界时显式传入`--scenario`或`--content-package`，玩家势力由`--player-force`指定，未指定则为观察状态。开局资源来源见[RE-0200](../research/findings/RE-SAN9PK-0200.md)与[RE-0201](../research/findings/RE-SAN9PK-0201.md)。
+内容目录按剧本组织，共享内容独立保存。正常启动进入开局菜单，不预载任何剧本世界；“重新开始游戏”打开选剧本页。20个正式剧本均已转换，分类、悬停预览、返回／关闭／Esc可用；点击剧本进入选择势力页，地图／一览、选择草稿的决定／取消及返回已接入；势力决定后进入合并的开局设定页，确认难度、模式和电脑战力后正式创建新游戏，进入地图、播放开局介绍并生成首旬自动存档。多玩家选择、电脑补偿、虚拟初始化及保存边界见[新游戏规格](../specs/behavior/BEH-UI-0011-new-game.md)。需要直接进入世界时显式传入`--scenario`或`--content-package`，玩家势力由`--player-force`指定，未指定则为观察状态。开局资源来源见[RE-0200](../research/findings/RE-SAN9PK-0200.md)与[RE-0201](../research/findings/RE-SAN9PK-0201.md)。
+
+2026-10-23新游戏接入使用组合包226／剧本144，增加虚拟人物候选地点和开局介绍消息绑定；20个正式剧本已按`import-content`原位集中更新，复用纹理和已准备音频。规则v177、存档125、命令脚本130；旧存档／脚本按格式拒绝，旧包须重转，不提供兼容分支。`verify-content`同时检查双模式下全部可选势力的开局介绍。
 
 ## 剧本目录与共享内容
 
@@ -125,13 +127,13 @@ P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本37 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
-表中的数据文件名表示逻辑分工，实际路径以`content.json`为准。目录型发布把每个剧本的初始世界和地图实例直接写入该剧本目录，静态词条`text.json`及可选私有消息放入其`messages/`，公共消息按显式归属统一发布到`shared/messages/`，公共贴图、音频和开局界面写入`shared/`；独立包可将资源根设为自身。现行入口为组合包223、剧本143；旧布局须重转，不提供运行时兼容分支。
+表中的数据文件名表示逻辑分工，实际路径以`content.json`为准。目录型发布把每个剧本的初始世界和地图实例直接写入该剧本目录，静态词条`text.json`及可选私有消息放入其`messages/`，公共消息按显式归属统一发布到`shared/messages/`，公共贴图、音频和开局界面写入`shared/`；独立包可将资源根设为自身。现行入口为组合包226、剧本144；旧布局须重转，不提供运行时兼容分支。
 
 剧本`map.json`只保存`definition`地图定义路径和`buildings`建筑布置，路径相对显式`resourceRoot`。目录型TC101包共用`shared/maps/china/map.json`，保存独立schema1、地图尺寸、方格、地形绘制、桥、云、地图边缘、水面、边界和建筑类型定义；每个剧本独立持有建筑身份、位置及固定类型。共享由转换器显式指定，写入时核对固定数据完全一致，差异不得静默复用。独立包可在自身目录携带`map-definition.json`，自定义内容也可引用自己的地图定义。运行时地图身份来自剧本定义，初始季节由开局月份计算，地图JSON不再保存重复的`scenarioId`、`initialSeason`或源文件`sources`。组合包schema223拒绝旧布局；原位重转保留公共纹理、消息及音频的既有归属，不要求纹理重建。
 
 `content.json.sharedMessages`必填可空，非空时引用公共消息库清单（目录型TC101包为`shared/messages/library.json`）；`messages`只列出本剧本私有消息文件。公共库清单声明自身schema和相对该清单目录的分组文件；剧本清单中的路径仍相对`resourceRoot`。加载时先读取公共消息，再合并私有消息，私有同名键必须列入`messageOverrides`，不声明的重名、无对应公共／私有正文的覆盖声明、缺失引用和循环引用均拒绝。引用闭包在合并后校验，公共消息可引用被本剧本覆盖的键；同一剧本的私有消息不影响其他剧本。独立包可令`sharedMessages`为null并独立携带完整消息。
 
-`messages/text.json`保存静态词条及人物名称引用；`text`和`library`为保留文件名，不可用作消息分组名。公共消息按已确认的源绑定逐步分类：剧本标题及简介放入`scenario-catalog.json`，人物姓名放入`person-names.json`，兵法、阵型、官职、爵位、州名、国号分别放入`tactics.json`、`formations.json`、`offices.json`、`ranks.json`、`geography.json`、`country-titles.json`。消息键与节点不变，文件之间仍可互相引用；未确认用途的列继续留在`messages.json`，不按相邻编号扩大分类范围。已有列传正文保存在公共库的`biographies.json`，人物的`biographyKey`直接引用它，`text.json`不再复制一份列传。静态文本解析支持无运行时参数的消息正文，动态消息仍通过消息求值器处理。剧本私有`messages/text.json.messageTags`提供具名台词条件，公共模板通过`scenario.has-message-tag`在运行时查询。TC101将黄巾起义等开局语境及模式1的超时空人物台词条件转换为标签，原作剧本编号与模式值不进入运行时消息；势力判断保留实体比较，不因初始剧本中缺席就折叠为恒假。
+`messages/text.json`保存静态词条及人物名称引用；`text`和`library`为保留文件名，不可用作消息分组名。公共消息按已确认的源绑定逐步分类：剧本标题及简介放入`scenario-catalog.json`，人物姓名放入`person-names.json`，兵法、阵型、官职、爵位、州名、国号分别放入`tactics.json`、`formations.json`、`offices.json`、`ranks.json`、`geography.json`、`country-titles.json`。消息键与节点不变，文件之间仍可互相引用；未确认用途的列继续留在`messages.json`，不按相邻编号扩大分类范围。已有列传正文保存在公共库的`biographies.json`，人物的`biographyKey`直接引用它，`text.json`不再复制一份列传。静态文本解析支持无运行时参数的消息正文，动态消息仍通过消息求值器处理。剧本私有`messages/text.json.messageTags`提供具名台词条件，公共模板通过`scenario.has-message-tag`在运行时查询。TC101将黄巾起义等剧本开局语境转换为标签；原作DC史实／虚拟条件转换为`game.is-fictional`，读取已保存的世界设定，不再误用剧本模式1的标签。原作剧本编号不进入运行时消息；势力判断保留实体比较，不因初始剧本中缺席就折叠为恒假。
 
 定向纹理重建只更新所选单元，保留整包 `Sources` 与转换版本；共享来源变化后，后续普通整包导入仍按既定大小／修改时间策略识别失效，不以局部读取的新来源戳替整包背书。
 

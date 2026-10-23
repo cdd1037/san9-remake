@@ -90,6 +90,11 @@ public sealed class WorldMessageContext
             : _forces[Id(index, MessageEntityKind.Force)];
         MessageBinding Text(string text) => new(0, text);
         MessageBinding Flag(bool value) => new(value ? 1 : 0);
+        if (name == "game.is-fictional")
+        {
+            Count(0);
+            return Flag(_world.Simulation.NewGame.Mode == GameMode.Fictional);
+        }
         if (name == "scenario.has-message-tag")
         {
             Count(1);

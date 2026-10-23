@@ -161,7 +161,7 @@ internal static class TacticCombat
         List<Participant> participants = [primary];
         foreach (var other in candidates.OrderBy(p => p.Officer.Id).Where(p => p.Officer.Id != primary.Officer.Id && p.Tactic.Effect == TacticEffect.Martial && p.Tactic.Category == primary.Tactic.Category))
         {
-            int linkChance = military.LinkRules.Chance(primary.Officer, other.Officer, profile);
+            int linkChance = military.LinkRules.Chance(primary.Officer, other.Officer, profile, world.Simulation.NewGame.Mode == GameMode.Historical);
             if (Roll(world, "military-tactic-link", linkChance)) participants.Add(other);
         }
         int category = primary.Tactic.Category!.Value;

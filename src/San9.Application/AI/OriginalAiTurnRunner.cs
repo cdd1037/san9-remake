@@ -29,6 +29,7 @@ internal static class OriginalAiTurnRunner
         }
         else if (cursor.Seat != seat) throw new InvalidOperationException("Original AI continuation belongs to another control.");
         var force = engine.Snapshot.Forces.Single(f => f.Id == seat.ForceId);
+        bool advanced = engine.Snapshot.Simulation.NewGame.Difficulty == GameDifficulty.Advanced;
         var geographyContext = new OriginalAiGeographyContext(definition.Content, definition.MilitaryRules);
         var geography = geographyContext.Get(engine.Snapshot);
         while (!cursor.Queue.IsEmpty && engine.Snapshot.Simulation.Boundary == SimulationBoundary.Stable)
@@ -105,12 +106,12 @@ internal static class OriginalAiTurnRunner
                     Report(new(corps.Id, work, OriginalAiWorkEnd.Permission, 0, 0));
                     continue;
                 }
-                if (!OriginalAiWorkGate.Calendar(engine.Snapshot.Clock, engine.Snapshot.Simulation.Started, forceState.SchedulingKey, rule, policy.Advanced))
+                if (!OriginalAiWorkGate.Calendar(engine.Snapshot.Clock, engine.Snapshot.Simulation.Started, forceState.SchedulingKey, rule, advanced))
                 {
                     Report(new(corps.Id, work, OriginalAiWorkEnd.Calendar, 0, 0));
                     continue;
                 }
-                int limit = OriginalAiWorkGate.Attempts(rule, policy.Advanced, forceState.Group);
+                int limit = OriginalAiWorkGate.Attempts(rule, advanced, forceState.Group);
                 if (work <= OriginalAiWork.Train)
                 {
                     var activity = work switch

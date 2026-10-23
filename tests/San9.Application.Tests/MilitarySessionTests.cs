@@ -535,7 +535,8 @@ public sealed class MilitarySessionTests
         var snapshot = session.Capture();
         session = GameSession.Restore(definition, snapshot with { World = snapshot.World with
         {
-            Settlements = snapshot.World.Settlements.Select(s => s.Id == 1 ? s with { ConfusionDaysRemaining = 12 } : s).ToArray()
+            Settlements = snapshot.World.Settlements.Select(s => s with
+                { ConfusionDaysRemaining = s.Id == 1 ? 12 : 0, Soldiers = definition.Settlements.Single(p => p.Id == s.Id).Soldiers }).ToArray()
         } });
         if (!delegated) session.EndControl(new("player"));
         var seat = new ControlSeat(delegated ? "corps:10" : "ai:1", 1, ControllerKind.Automatic);

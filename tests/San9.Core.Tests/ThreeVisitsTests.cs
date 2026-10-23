@@ -40,6 +40,7 @@ public sealed class ThreeVisitsTests
     }
 
     [Theory]
+    [InlineData("fictional")]
     [InlineData("loyalty")]
     [InlineData("captive-recommender")]
     [InlineData("captive-companion")]
@@ -52,6 +53,7 @@ public sealed class ThreeVisitsTests
         var world = Stable();
         switch (failure)
         {
+            case "fictional": world.SetSimulation(world.Simulation with { NewGame = new() { Mode = GameMode.Fictional } }); break;
             case "loyalty": world.Replace(world.Officers[14].WithLoyalty(1, 95)); break;
             case "captive-recommender": world.Replace(world.Officers[14] with { Status = OfficerStatus.Captive }); break;
             case "captive-companion": world.Replace(world.Officers[12] with { Status = OfficerStatus.Captive }); break;

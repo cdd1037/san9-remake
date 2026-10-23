@@ -12,6 +12,9 @@ internal static class SessionValidation
         if (snapshot.Records.IsDefault || snapshot.Chronicle.IsDefault || snapshot.History is null || snapshot.Records.Length > GameSession.RecentRecordLimit ||
             snapshot.NextOperationSequence < 0)
             throw new ArgumentException("Missing session state.");
+        if (snapshot.InitialPlayerForceIds.IsDefault || snapshot.InitialPlayerForceIds.Distinct().Count() != snapshot.InitialPlayerForceIds.Length ||
+            snapshot.InitialPlayerForceIds.Any(id => !definition.Content.Forces.Any(f => f.Id == id)))
+            throw new ArgumentException("Invalid initial player selection.");
         if (!Enum.IsDefined(snapshot.PlayerForceController)) throw new ArgumentException("Invalid player force controller.");
         if (snapshot.OriginalAi is null) throw new ArgumentException("Missing original AI state.");
         snapshot.OriginalAi.Validate(snapshot.World, definition.Content);

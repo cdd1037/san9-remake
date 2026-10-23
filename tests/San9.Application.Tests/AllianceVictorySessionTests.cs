@@ -32,7 +32,7 @@ public sealed class AllianceVictorySessionTests
                     new(2, new(12, 2), new(1, 1)) { Combat = combat },
                     new(3, new(27, 2), new(1, 1)) { Combat = combat }])
         , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 100000)) { IsRoot = true }], []) };
-        var session = GameSession.Start(definition, 42);
+        var session = GameSession.Start(definition, 42, settings: new() { Difficulty = GameDifficulty.Beginner });
         int trust = session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust;
         Assert.True(session.Execute(new("player"), new DeployUnitCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, 1, [11], 5000, 1,

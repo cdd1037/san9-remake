@@ -18,7 +18,7 @@ internal static class ThreeVisits
 
     internal static void EnterControl(WorldMutation world, SimulationRules rules, List<DomainEvent> events)
     {
-        if (rules.ThreeVisits is not { } definition || world.Simulation.Boundary != SimulationBoundary.Stable ||
+        if (world.Simulation.NewGame.Mode != GameMode.Historical || rules.ThreeVisits is not { } definition || world.Simulation.Boundary != SimulationBoundary.Stable ||
             world.Simulation.ActiveControl >= world.Simulation.Controls.Length || Consumed(world, definition.StartedKey)) return;
         var seat = world.Simulation.Controls[world.Simulation.ActiveControl];
         if (seat.Kind != ControllerKind.Player || world.Forces[seat.ForceId].LeaderId != definition.RulerId ||

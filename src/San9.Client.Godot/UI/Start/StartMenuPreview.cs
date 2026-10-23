@@ -8,6 +8,7 @@ namespace San9.Client.Godot;
 public partial class StartMenuPreview : Node
 {
     [Export] public string ContentRoot { get; set; } = "../../local/generated/content";
+    public Func<string, int[], San9.Core.Domain.NewGameSettings, int, Task> BeginGame { get; init; } = null!;
     private readonly CancellationTokenSource _lifetime = new();
     public override async void _Ready()
     {
@@ -22,7 +23,7 @@ public partial class StartMenuPreview : Node
             token.ThrowIfCancellationRequested();
             opening.Menu.Validate(textures.Assets); opening.Selection.Validate(textures.Assets);
             var service = new TextureService(); service.Initialize(textures, PackageFiles.Resolve(root, catalog.Textures)); AddChild(service);
-            var view = new StartMenuView { Definition = opening.Menu, SelectionDefinition = opening.Selection, Service = service,
+            var view = new StartMenuView { Definition = opening.Menu, SelectionDefinition = opening.Selection, Service = service, BeginGame = BeginGame,
                 LoadScenario = (id, cancellation) => Task.Run(async () =>
                 {
                     var entry = catalog.RequireScenario(id);

@@ -31,7 +31,7 @@ internal static class DuelParticipants
             foreach (var candidate in front)
             {
                 if (candidate.Id == initial.Id || candidate.Injury != 0 || candidate.TacticCooldown != 0 || candidate.Acted) continue;
-                int support = rules.LinkRules.Chance(initial, candidate, formation.Tactics?.LinkMultiplier ?? 2);
+                int support = rules.LinkRules.Chance(initial, candidate, formation.Tactics?.LinkMultiplier ?? 2, world.Simulation.NewGame.Mode == GameMode.Historical);
                 if (support > 0 && (support >= 100 || world.NextRandom("duel-support") % 100 < (uint)support)) selected.Add(candidate);
             }
             return selected.OrderByDescending(p => world.Abilities(p).War).ThenBy(p => p.Id).Select(p => p.Id).Prepend(initial.Id).ToImmutableArray();

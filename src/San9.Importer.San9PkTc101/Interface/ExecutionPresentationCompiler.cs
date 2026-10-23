@@ -100,6 +100,17 @@ internal static class ExecutionPresentationCompiler
                 ["contact-building"] = M(10452, "actor", ("person.0", "actor"), ("person.1", "other"))
             },
             Feedback = new() { ["ability-grown"] = new("messages.7233", new() { ["person.0"] = "actor", ["number.0"] = "ability", ["number.1"] = "amount", ["number.2"] = "current" }, Sound: "decision-increase") },
+            Introduction = new()
+            {
+                ["opening"] = M(6071, "actor", ("person.0", "actor"), ("person.1", "ruler")),
+                ["alliance-member"] = M(6072, "actor", ("person.0", "actor"), ("person.1", "ruler"), ("person.2", "alliance-target"), ("person.3", "alliance-leader")),
+                ["alliance-target"] = M(6073, "actor", ("person.0", "actor"), ("person.1", "ruler"), ("person.2", "alliance-leader")),
+                ["enemies"] = M(6074, "actor", ("person.0", "actor"), ("person.1", "ruler"), ("force.0", "force"), ("force.1", "second-force"), ("number.0", "count")),
+                ["friends"] = M(6075, "actor", ("person.0", "actor"), ("person.1", "ruler"), ("force.0", "force"), ("force.1", "second-force"), ("number.0", "count")),
+                ["economy"] = M(6076, "actor", ("person.0", "actor"), ("person.1", "ruler")),
+                ["shortage"] = M(6077, "actor", ("person.0", "actor"), ("person.1", "ruler")),
+                ["ambition"] = M(6078, "actor", ("person.0", "actor"), ("person.1", "ruler"), ("force.0", "force"), ("number.0", "count"))
+            },
             OrderPrompt = new("messages.5992", new() { ["person.0"] = "ruler" }, Sound: "strategy-order-prompt"),
             StrategyTitleSound = "strategy-title"
         };

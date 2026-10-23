@@ -44,7 +44,8 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int? PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 143;
+    public const int CurrentSchemaVersion = 144;
+    [JsonRequired] public int[] FictionalOfficerPlaceIds { get; init; } = [];
     [JsonRequired] public OriginalAiDefinition OriginalAi { get; init; } = OriginalAiDefinition.Default;
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public San9.Core.Domain.FoodMarketDefinition? FoodMarket { get; init; }
@@ -105,6 +106,9 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             SearchEvents.IsDefault || Forces.Select(f => f.Id).Distinct().Count() != Forces.Length ||
             PlayerForceId is not null && !Forces.Any(f => f.Id == PlayerForceId && (!f.IsDormant || SearchEvents.OfType<San9.Core.Domain.ForceActivationSearchEventDefinition>().Any(d => d.ForceId == f.Id))))
             throw new InvalidDataException("Invalid scenario date or player force.");
+        if (FictionalOfficerPlaceIds is null || FictionalOfficerPlaceIds.Distinct().Count() != FictionalOfficerPlaceIds.Length ||
+            FictionalOfficerPlaceIds.Any(id => !Settlements.Any(s => s.Id == id && !s.IsDormant) && !UnbuiltPlaces.Any(p => p.Id == id)))
+            throw new InvalidDataException("Invalid fictional officer starting places.");
         Information.Validate(this);
         try { Alliance?.Validate(Forces.Where(f => !f.IsDormant && !f.IsBarbarian).Select(f => f.Id).ToHashSet()); }
         catch (ArgumentException error) { throw new InvalidDataException("Invalid initial alliance.", error); }

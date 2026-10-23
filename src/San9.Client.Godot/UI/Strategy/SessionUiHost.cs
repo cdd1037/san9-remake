@@ -141,6 +141,7 @@ public partial class SessionUiHost : Node
         var overlayHost = StrategyOverlayHost.Create();
         Hud = new StrategyHud
         {
+            IntroduceNewGame = _pendingKind is SessionReplacementKind.Startup or SessionReplacementKind.NewGame,
             CommandPresentation = Content.Presentation, ContentRoot = Content.ContentRoot,
             SaveStore = SaveStore,
             StrategyReady = SavePendingCheckpoint,

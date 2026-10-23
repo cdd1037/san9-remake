@@ -30,17 +30,17 @@ public sealed partial class GameSession
         new ScenarioRules(definition).CreateEngine;
 
     public static GameSession Start(ScenarioInitialState definition, ulong seed, int computerDamageBonusPercent = 0,
-        bool battleDeathsEnabled = false, ControllerKind playerForceController = ControllerKind.Player, bool enableXunStartCheckpoints = false)
+        bool battleDeathsEnabled = false, ControllerKind playerForceController = ControllerKind.Player, bool enableXunStartCheckpoints = false, NewGameSettings? settings = null, IReadOnlyCollection<int>? playerForceIds = null)
     {
         if (!Enum.IsDefined(playerForceController)) throw new ArgumentOutOfRangeException(nameof(playerForceController));
-        return Start(definition, seed, null, computerDamageBonusPercent, battleDeathsEnabled, playerForceController, enableXunStartCheckpoints);
+        return Start(definition, seed, null, computerDamageBonusPercent, battleDeathsEnabled, playerForceController, enableXunStartCheckpoints, settings, playerForceIds);
     }
 
-    internal static GameSession Start(ScenarioInitialState definition, ulong seed, Func<WorldState, SimulationEngine>? factory, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false, ControllerKind playerForceController = ControllerKind.Player, bool enableXunStartCheckpoints = false)
+    internal static GameSession Start(ScenarioInitialState definition, ulong seed, Func<WorldState, SimulationEngine>? factory, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false, ControllerKind playerForceController = ControllerKind.Player, bool enableXunStartCheckpoints = false, NewGameSettings? settings = null, IReadOnlyCollection<int>? playerForceIds = null)
     {
-        var owned = new ScenarioSessionDefinition(definition);
-        var session = new GameSession(owned, (factory ?? owned.Rules.CreateEngine)(owned.CreateWorld(seed, computerDamageBonusPercent, battleDeathsEnabled, playerForceController)))
-            { PlayerForceController = playerForceController };
+        var owned = new ScenarioSessionDefinition(definition, playerForceIds);
+        var session = new GameSession(owned, (factory ?? owned.Rules.CreateEngine)(owned.CreateWorld(seed, computerDamageBonusPercent, battleDeathsEnabled, playerForceController, settings)))
+            { PlayerForceController = playerForceController, InitialPlayerForceIds = owned.InitialPlayerForceIds };
         session.History = ChronicleHistory.Initialize(session.View);
         if (enableXunStartCheckpoints)
         {
@@ -98,6 +98,7 @@ public sealed partial class GameSession
         session._strategicContexts = snapshot.StrategicContexts;
         session._originalAi = snapshot.OriginalAi;
         session.PlayerForceController = snapshot.PlayerForceController;
+        session.InitialPlayerForceIds = snapshot.InitialPlayerForceIds;
         session.HasUnsavedChanges = false;
         return session;
     }

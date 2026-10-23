@@ -408,7 +408,7 @@ public sealed class PersistenceTests : IDisposable
         var first = new SessionRequest(Id(1), 0, "player", new ChronicleOperation("first"));
         var bad = new SessionRequest(Id(2), 1, "ai:2", new ChronicleOperation("bad"));
         var third = new SessionRequest(Id(3), 2, "player", new ChronicleOperation("unreached"));
-        CommandLogService.Write(FilePath("log.jsonl"), new(SessionProtocol.LogFormatVersion, SessionProtocol.RulesVersion, 190), [first, bad, third]);
+        CommandLogService.Write(FilePath("log.jsonl"), CommandLogService.CreateHeader(session), [first, bad, third]);
         var result = CommandLogService.Replay(FilePath("log.jsonl"), session);
         Assert.Equal(3, result.FirstFailure!.Line);
         Assert.Equal(1, result.Accepted);
@@ -457,7 +457,7 @@ public sealed class PersistenceTests : IDisposable
         var session = GameSession.Start(definition, 190);
         string path = FilePath("older-rules.jsonl");
         var request = session.Request(new ChronicleOperation("old log command"));
-        var header = new CommandLogHeader(SessionProtocol.LogFormatVersion, "older-rules", 190);
+        var header = CommandLogService.CreateHeader(session) with { RulesVersion = "older-rules" };
         CommandLogService.Write(path, header, [request]);
         var result = CommandLogService.Replay(path, session);
         Assert.Null(result.FirstFailure);

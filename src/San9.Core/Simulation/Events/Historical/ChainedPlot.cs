@@ -24,6 +24,7 @@ internal static class ChainedPlot
         bool started = world.Simulation.ConsumedEventKeys.Contains(definition.StartedKey);
         if (!started)
         {
+            if (world.Simulation.NewGame.Mode != GameMode.Historical) return false;
             if (!ruling || !conspirators || !court || world.Clock.DayNumber < definition.EarliestDate.DayNumber ||
                 !(successor!.Loyalty < definition.LoyaltyThreshold && instigator!.Loyalty < definition.LoyaltyThreshold ||
                     world.Forces[force!.Value].Trust < definition.TrustThreshold)) return false;

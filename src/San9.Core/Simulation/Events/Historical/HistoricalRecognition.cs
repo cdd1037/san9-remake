@@ -10,7 +10,7 @@ public sealed record ExpeditionMemorialEvent(GameClock Clock, int ForceId, int O
 internal static class HistoricalRecognition
 {
     private static bool Ready(WorldMutation world, PersistentEventKey key, int minimumDays = 0) =>
-        world.Clock.Boundary.Quarter && world.Simulation.PendingEvent is null && world.Simulation.TerminalReason is null &&
+        world.Simulation.NewGame.Mode == GameMode.Historical && world.Clock.Boundary.Quarter && world.Simulation.PendingEvent is null && world.Simulation.TerminalReason is null &&
         world.Clock.DayNumber - world.Simulation.Started.DayNumber >= minimumDays && !world.Simulation.ConsumedEventKeys.Contains(key);
 
     internal static bool ApplyHanzhongKing(WorldMutation world, SimulationRules rules, List<DomainEvent> events)

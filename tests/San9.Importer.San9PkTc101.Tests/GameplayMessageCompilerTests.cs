@@ -16,7 +16,7 @@ public sealed class GameplayMessageCompilerTests
             ["force"] = Message(new("=", Arguments: [new("binding", "force.0.id"), new("constant", Number: 9001)]))
         });
         Assert.Equal("yellow-turban-rebellion", Assert.Single(Expression(compiled["opening"]).Arguments!).Binding);
-        Assert.Equal(ScenarioMessageTags.TimelessHeroes, Assert.Single(Expression(compiled["mode"]).Arguments!).Binding);
+        Assert.Equal(new MessageExpression("query", "game.is-fictional", Arguments: []), Expression(compiled["mode"]));
         Assert.Equal(new MessageExpression("entity", "Force", 9001), Expression(compiled["force"]).Arguments![1]);
         Assert.Contains("yellow-turban-rebellion", ScenarioMessageTags.For(0, 0));
         Assert.DoesNotContain(ScenarioMessageTags.TimelessHeroes, ScenarioMessageTags.For(0, 0));

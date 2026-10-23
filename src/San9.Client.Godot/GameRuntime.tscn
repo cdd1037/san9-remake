@@ -1,0 +1,37 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource path="res://Map/MapWorld.cs" type="Script" id="1_map"]
+[ext_resource path="res://Map/MapViewportCover.cs" type="Script" id="2_cover"]
+
+[node name="GameRuntime" type="Node"]
+
+[node name="MapWorld" type="Node2D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("1_map")
+
+[node name="MapCamera" type="Camera2D" parent="MapWorld"]
+unique_name_in_owner = true
+
+[node name="UiLayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="UiRoot" type="Control" parent="UiLayer"]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="MapViewportCover" type="Control" parent="UiLayer/UiRoot"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+z_index = -1
+script = ExtResource("2_cover")

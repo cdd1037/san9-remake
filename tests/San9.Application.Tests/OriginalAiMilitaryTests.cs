@@ -54,7 +54,12 @@ public sealed class OriginalAiMilitaryTests
         {
             var definition = new ScenarioSessionDefinition(content);
             var world = definition.CreateWorld(190).CreateSnapshot();
-            world = world with { Simulation = world.Simulation with { Boundary = SimulationBoundary.Stable } };
+            world = world with
+            {
+                Settlements = world.Settlements.Select(s => s with { Soldiers = content.Settlements.Single(p => p.Id == s.Id).Soldiers }).ToArray(),
+                Corps = content.Information.Corps,
+                Simulation = world.Simulation with { Boundary = SimulationBoundary.Stable }
+            };
             Engine = GameSession.EngineFactory(content)(WorldState.Restore(change?.Invoke(world) ?? world));
             var context = new CommandContext("player");
             var rules = definition.Rules.Military!;

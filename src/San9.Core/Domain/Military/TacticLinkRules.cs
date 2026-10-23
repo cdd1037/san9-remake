@@ -17,12 +17,12 @@ public sealed record TacticLinkRules(bool RelationshipsEnabled, int KinshipBonus
             throw new ArgumentException("Invalid tactic link relationships.");
     }
 
-    public int Chance(OfficerState source, OfficerState partner, FormationTactics formation) => Chance(source, partner, formation.LinkMultiplier);
+    public int Chance(OfficerState source, OfficerState partner, FormationTactics formation, bool historical = true) => Chance(source, partner, formation.LinkMultiplier, historical);
 
-    public int Chance(OfficerState source, OfficerState partner, int multiplier)
+    public int Chance(OfficerState source, OfficerState partner, int multiplier, bool historical = true)
     {
         int bonus = 0;
-        if (RelationshipsEnabled)
+        if (RelationshipsEnabled && historical)
         {
             int first = Math.Min(source.Id, partner.Id), second = Math.Max(source.Id, partner.Id);
             var pair = Pairs.FirstOrDefault(p => p.FirstId == first && p.SecondId == second);

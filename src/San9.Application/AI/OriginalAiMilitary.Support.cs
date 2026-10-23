@@ -106,7 +106,7 @@ internal sealed partial class OriginalAiMilitary
         while (More)
         {
             bool chosen = false;
-            var group0 = Places.Where(s => s.ConfusionDaysRemaining == 0 && Pressure(s.Id, content.OriginalAi.Advanced).Any(u => Opponent(u.OwnerId))).Select(s => s.Id).ToHashSet();
+            var group0 = Places.Where(s => s.ConfusionDaysRemaining == 0 && Pressure(s.Id, Advanced).Any(u => Opponent(u.OwnerId))).Select(s => s.Id).ToHashSet();
             for (int group = 0; group < 2 && !chosen; group++)
             {
                 foreach (var source in Places.Where(s => s.ConfusionDaysRemaining == 0 && s.Soldiers >= 20000 && People(s.Id).Length >= 2 &&

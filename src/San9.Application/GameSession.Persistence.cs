@@ -79,6 +79,6 @@ public sealed partial class GameSession
         var records = _records.ToImmutableArray();
         var chronicle = _chronicle.ToImmutableArray();
         return _capture = new(world, records, chronicle, NextOperationSequence)
-            { Ending = _ending, StrategicContexts = _strategicContexts, PlayerForceController = PlayerForceController, OriginalAi = _originalAi, History = History };
+            { InitialPlayerForceIds = InitialPlayerForceIds, Ending = _ending, StrategicContexts = _strategicContexts, PlayerForceController = PlayerForceController, OriginalAi = _originalAi, History = History };
     }
 }

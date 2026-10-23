@@ -56,10 +56,12 @@ public sealed class DailyTaskDecisionTests
         var session = GameSession.Start(content, 42, Factory, enableXunStartCheckpoints: true);
         Assert.NotNull(session.TakeXunStartCheckpoint());
         List<DomainEvent> events = [];
+        List<San9.Application.Presentation.ResolutionPresentationTransition> transitions = [];
         SessionResult Run(SessionOperation operation, Guid? id = null)
         {
             var pending = session.StartOperation(session.Request(operation, id: id));
             Assert.True(SpinWait.SpinUntil(() => pending.IsCompleted, TimeSpan.FromSeconds(10)));
+            transitions.AddRange(pending.PreparedTransitions);
             var result = pending.Complete();
             Assert.Equal(SessionDisposition.Accepted, result.Disposition);
             events.AddRange(result.Events);
@@ -103,6 +105,7 @@ public sealed class DailyTaskDecisionTests
         Assert.Null(session.TakeXunStartCheckpoint());
         Assert.Equal(90, session.Snapshot.Forces[0].BaseTrust);
         Assert.Single(events.OfType<XunAdvancedEvent>());
+        Assert.Equal([ResolutionPhase.XunClosing, ResolutionPhase.XunOpening], transitions.Select(t => t.Phase));
         Assert.Equal(10, events.OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.BeforeDailyCommands));
     }
 

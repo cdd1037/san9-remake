@@ -107,7 +107,6 @@ public partial class SessionPresentationFlow : Node
         _pendingNarrations.Clear();
         _windows?.Dispose();
         _diplomacyNarrated.Clear();
-        _executionBefore = null;
     }
 
     private DecisionView? _decision;
@@ -117,29 +116,30 @@ public partial class SessionPresentationFlow : Node
     private EndingView? _endingView;
     private bool _terminalPresented;
     private long _endingPublication;
-    private StrategySnapshot? _executionBefore;
     private long _executionPublication;
     private void UpdateExecutionMessages()
     {
-        if (Turn.Publication > _executionPublication && Turn.LastResult is { } result && _executionBefore is { } before)
+        if (Turn.Publication > _executionPublication && Turn.Feedback is { } feedback)
         {
-            var output = ExecutionPublication.Read(before, Session.View, Session.Messages(Texts, before.World), Texts, CommandPresentation, result.Events, _diplomacyNarrated, Turn.LastPresentedFeedback);
+            var before = feedback.Before;
+            var output = ExecutionPublication.Read(before, feedback.After, Session.Messages(Texts, before.World), Texts,
+                CommandPresentation, feedback.Events, _diplomacyNarrated, Turn.LastPresentedFeedback,
+                startIndex: feedback.StartIndex, endIndex: feedback.EndIndex);
             foreach (var record in output.Records) PresentMapRecord(record);
             OpenNarration(PresentExecutionMessages(output.Messages),before);
             _executionPublication = Turn.Publication;
         }
-        _executionBefore = Session.View;
     }
 
     private void UpdateEnding()
     {
-        if (_endingView is { Pending: true } ending && Turn.Publication > _endingPublication)
-        { _endingPublication = Turn.Publication; ending.Complete(); }
+        if (_endingView is { Pending: true } ending && Turn.CommittedPublication > _endingPublication)
+        { _endingPublication = Turn.CommittedPublication; ending.Complete(); }
         if (Turn.Screen != TurnScreen.Terminal || _terminalPresented || _narration is not null) return;
         _terminalPresented = true;
         if (Session.GetEndingPrompt() is null) { ShowSessionEnd(); return; }
         Scope.RequestPrefixes("decision-", "catalog-", "information-", "narration-", "dialog-", "progress-record-", "detail-", "catalog-scroll-", "message-", "text-icon-");
-        _endingPublication = Turn.Publication;
+        _endingPublication = Turn.CommittedPublication;
         _endingView = new()
         {
             Draft = new(Session, Texts, CommandPresentation.Decisions),
@@ -176,9 +176,9 @@ public partial class SessionPresentationFlow : Node
 
     private void UpdateDecision()
     {
-        if (_decision is { Pending: true } active && Turn.Publication > _decisionPublication && Turn.LastResult is { } result)
+        if (_decision is { Pending: true } active && Turn.CommittedPublication > _decisionPublication && Turn.LastResult is { } result)
         {
-            _decisionPublication = Turn.Publication;
+            _decisionPublication = Turn.CommittedPublication;
             var continuation = active.Draft.Meeting is not null ? DecisionDraft.Read(Session, Texts, CommandPresentation) : null;
             active.Complete(result, continuation);
         }
@@ -189,7 +189,7 @@ public partial class SessionPresentationFlow : Node
         {
             var draft = DecisionDraft.Read(Session, Texts, CommandPresentation);
             if (draft is null) return;
-            _decisionPublication = Turn.Publication;
+            _decisionPublication = Turn.CommittedPublication;
             _decisionRevision = Session.Snapshot.Revision;
             _decision = new()
             {

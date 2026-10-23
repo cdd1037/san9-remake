@@ -14,7 +14,7 @@ public sealed partial class GameSession
         if (_executing) throw new InvalidOperationException("Session is executing.");
         var input = CaptureOperationInput();
         _executing = true;
-        return new(this, request, Task.Run(() => CalculateOperation(input, request)));
+        return new(this, request, Task.Run(() => CalculateOperation(input, request, captureTransitions: true)));
     }
 
     public sealed class PendingSessionOperation
@@ -35,6 +35,7 @@ public sealed partial class GameSession
         public Presentation.StrategySnapshot PreparedView => Prepared.View;
         public IReadOnlyList<DomainEvent> PreparedEvents => Prepared.Result.Events;
         public WorldSnapshot PreparedSnapshot => Prepared.Result.Snapshot;
+        public IReadOnlyList<Presentation.ResolutionPresentationTransition> PreparedTransitions => Prepared.Transitions;
 
         public SessionResult Complete()
         {

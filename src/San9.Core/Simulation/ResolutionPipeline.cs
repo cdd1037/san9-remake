@@ -45,8 +45,16 @@ internal abstract class TaskRule
 
 internal sealed class ResolutionPipeline(SimulationRules rules)
 {
+    internal Action<ResolutionTransition>? Observer { get; set; }
+
+    internal void Transition(ResolutionPhase phase, WorldMutation world, List<DomainEvent> events)
+    {
+        if (Observer is { } observer) observer(new(phase, events.Count, world.CapturePresentation()));
+    }
+
     internal void Prepare(WorldMutation world, List<DomainEvent> events, ResolutionStage? after = null)
     {
+        if (after is null) Transition(ResolutionPhase.XunOpening, world, events);
         var boundary = world.Clock.Boundary;
         List<ResolutionStage> stages = [ResolutionStage.TerminalCheck, ResolutionStage.XunEvents, ResolutionStage.XunUpdate];
         if (boundary.Month) stages.Add(ResolutionStage.MonthEvents);
@@ -86,6 +94,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
     {
         if (world.Clock.IsXunBoundary)
         {
+            if (remainingTasks is null) Transition(ResolutionPhase.XunClosing, world, events);
             ResolveTasks(world, events, xunStarted, phase: TaskResolutionPhase.XunBoundary, remainingTasks: remainingTasks);
             if (world.Simulation.PendingDailyTask is not null || !CheckTerminal(world, events)) return;
         }

@@ -13,6 +13,26 @@ public sealed partial class SimulationEngine
     /// <summary>Branches the current runtime for an isolated operation, sharing immutable records and compiled rules.</summary>
     public SimulationEngine Fork() => new(_world.Fork(), _rules, new(_rules));
 
+    /// <summary>Observes immutable phase boundaries on this calculation branch only.</summary>
+    public IDisposable ObserveResolution(Action<ResolutionTransition> observer)
+    {
+        ArgumentNullException.ThrowIfNull(observer);
+        if (_pipeline.Observer is not null) throw new InvalidOperationException("Resolution is already observed.");
+        _pipeline.Observer = observer;
+        return new ResolutionObservation(_pipeline);
+    }
+
+    private sealed class ResolutionObservation(ResolutionPipeline pipeline) : IDisposable
+    {
+        private ResolutionPipeline? _pipeline = pipeline;
+        public void Dispose()
+        {
+            if (_pipeline is not { } observed) return;
+            _pipeline = null;
+            observed.Observer = null;
+        }
+    }
+
     public void SetPkSettings(bool otherOrders, bool otherTactics, bool battleDeaths)
     {
         if (_world.IsExecuting || _world.Simulation.Boundary != SimulationBoundary.Stable)

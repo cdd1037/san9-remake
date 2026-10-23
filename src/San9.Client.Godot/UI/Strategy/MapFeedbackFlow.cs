@@ -18,6 +18,7 @@ public partial class MapFeedbackFlow : Control
     public Func<IEnumerable<OverlayBounds>> Obstacles { get; init; } = null!;
     public Func<Vector2, bool> InputBlocked { get; init; } = null!;
     public Func<bool> ModalOpen { get; init; } = null!;
+    public Func<bool> CanRevealRecords { get; init; } = null!;
     public bool ResourcesReady => _speechTextures.IsReady;
     public bool RecordsRequested { get; private set; }
     public bool IsComplete(string id) => _mapSpeech.IsComplete(id);
@@ -62,7 +63,7 @@ public partial class MapFeedbackFlow : Control
     {
         if (!Panels.Append(entry)) return false;
         RecordsRequested = true;
-        Panels.ExpandImmediately();
+        if (CanRevealRecords()) Panels.ExpandImmediately();
         if (entry.SoundRole is { } sound) SceneSounds.Play(sound, SoundEnabled());
         if (entry.Location is { } location)
         {

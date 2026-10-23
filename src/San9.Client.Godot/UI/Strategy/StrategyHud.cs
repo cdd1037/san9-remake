@@ -107,6 +107,7 @@ public partial class StrategyHud : Control
             },
             CanContinue = publication => _presentation?.Publication == publication &&
                 Interaction.CanContinue,
+            CanPresentClosing = () => _executionPanels.IsCollapsed,
             PresentSeasonChange = PresentSeasonChange,
             CanPlayDay = () => Interaction.CanPlay && _textures.IsReady && _feedback.ResourcesReady && _battle.Prepare(Turn.Day) && ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady && _executionPanels.IsExpanded,
             PresentDay = day => _battle.PresentDay(day),

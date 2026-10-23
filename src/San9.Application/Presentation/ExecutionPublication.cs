@@ -10,7 +10,8 @@ public static class ExecutionPublication
 {
     public static ExecutionOutput Read(StrategySnapshot before, StrategySnapshot after,
         WorldMessageContext context, TextCatalog texts, CommandPresentation content,
-        IReadOnlyList<DomainEvent> events, IReadOnlySet<Guid>? alreadyPresented = null, IReadOnlySet<string>? presentedFeedback = null, bool executionMap = true)
+        IReadOnlyList<DomainEvent> events, IReadOnlySet<Guid>? alreadyPresented = null, IReadOnlySet<string>? presentedFeedback = null, bool executionMap = true,
+        int startIndex = 0, int? endIndex = null)
     {
         List<CommandMessage> messages = [];
         List<MapMessageRecord> records = [];
@@ -18,10 +19,11 @@ public static class ExecutionPublication
         var identities = new PresentationIdentity(before, after);
         var occurrenceBefore = before;
         var occurrenceContext = context;
-        for (int index = 0; index < events.Count; index++)
+        for (int index = 0; index < (endIndex ?? events.Count); index++)
         {
             // Presented facts still update the identity of subsequent facts.
             if (index > 0) identities.Apply(events[index - 1]);
+            if (index < startIndex) continue;
             if (!ReferenceEquals(occurrenceBefore, identities.View))
             {
                 occurrenceBefore = identities.View;

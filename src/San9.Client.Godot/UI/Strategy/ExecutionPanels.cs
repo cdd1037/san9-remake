@@ -28,6 +28,7 @@ public partial class ExecutionPanels : Control
     private double _elapsed;
     public bool Expanded => _expanded;
     public bool IsExpanded => _expanded && _offset == 0;
+    public bool IsCollapsed => !_expanded && _offset == Travel;
     private bool ReportsVisible => RecordsLog.ReportMode != Settings.ProgressReportMode.Off;
     public void SetReportMode(Settings.ProgressReportMode mode)
     {

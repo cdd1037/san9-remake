@@ -99,7 +99,8 @@ public partial class StrategyHud
         _feedback.Advance(delta);
         bool showPanels = Turn.Screen is TurnScreen.Preparing or TurnScreen.Playing or TurnScreen.AwaitingDecision or TurnScreen.Presenting ||
             Turn.Screen == TurnScreen.Failed && _executionPanels.Expanded;
-        _executionPanels.Advance(showPanels || _feedback.RecordsRequested, delta, _presentation?.HasDecision == true);
+        bool allowPanels = Turn.Phase == San9.Core.Simulation.ResolutionPhase.Daily || Turn.IsStrategy;
+        _executionPanels.Advance(allowPanels && (showPanels || _feedback.RecordsRequested), delta, _presentation?.HasDecision == true);
         _executionPanels.Bind(Turn.Display ?? Session.View);
         UpdateTurnControls();
     }
@@ -151,10 +152,7 @@ public partial class StrategyHud
         _turnProgress.Visible = _pauseTurn.Visible = Turn.IsExecutionPresentation;
         _turnProgress.Value = Math.Floor(304 * Turn.Progress);
         _pauseTurn.SetPressedNoSignal(Turn.Paused);
-        // The calendar remains at the starting xun until the committed return boundary.
-        var clock = Turn.SeasonChangeOrigin is { } previousDate && _seasonChange?.ShowsNewBadge != true
-            ? previousDate : Turn.Display?.World.Clock ?? Session.Snapshot.Clock;
-        if (Turn.Screen is not (TurnScreen.Entering or TurnScreen.Playing))
-        { _year.Text = $"{clock.Year}年"; _date.Text = $"{clock.Month}月{(clock.Day <= 10 ? "上旬" : clock.Day <= 20 ? "中旬" : "下旬")}"; }
+        var clock = _seasonChange?.ShowsNewBadge == true ? Turn.Display!.World.Clock : Turn.CalendarDate;
+        _year.Text = $"{clock.Year}年"; _date.Text = $"{clock.Month}月{(clock.Day <= 10 ? "上旬" : clock.Day <= 20 ? "中旬" : "下旬")}";
     }
 }

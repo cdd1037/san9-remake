@@ -12,6 +12,7 @@ public partial class StrategyHud
             CommandPresentation = CommandPresentation, Panels = _executionPanels, Minimap = _minimap!,
             SceneSounds = _sceneSounds, SoundEnabled = () => SoundEnabled, Obstacles = MapObstacles,
             InputBlocked = IsBlockedPoint, ModalOpen = () => OverlayHost.HasModal || _notice.Visible,
+            CanRevealRecords = () => Turn.Phase == San9.Core.Simulation.ResolutionPhase.Daily || Turn.IsStrategy,
             MouseFilter = MouseFilterEnum.Ignore, Size = Size };
         AddChild(_feedback);
     }

@@ -18,7 +18,10 @@ public sealed partial class GameSession
         ImmutableList<ChronicleFact> History, SessionRecord[] Records, ChronicleEntry? Note);
 
     internal sealed record PreparedOperation(SessionResult Result, StrategySnapshot View,
-        OperationCommit? Commit = null);
+        OperationCommit? Commit = null)
+    {
+        public IReadOnlyList<Presentation.ResolutionPresentationTransition> Transitions { get; init; } = [];
+    }
 
     private OperationInput CaptureOperationInput() => new(_simulation, _definition, View,
         NextOperationSequence, _originalAi, _ending, _strategicContexts, History);
@@ -38,7 +41,7 @@ public sealed partial class GameSession
         return PublishOperation(request, prepared);
     }
 
-    private static PreparedOperation CalculateOperation(OperationInput input, SessionRequest request)
+    private static PreparedOperation CalculateOperation(OperationInput input, SessionRequest request, bool captureTransitions = false)
     {
         PreparedOperation Rejected(SessionRejection reason, CommandRejection command = CommandRejection.None,
             DevelopmentOutcome? development = null) =>
@@ -61,6 +64,9 @@ public sealed partial class GameSession
             List<OriginalAiWorkReport> aiReports = [];
             var terrainRoutes = new OriginalAiTerrainRoutes();
             List<DomainEvent> events = [];
+            List<ResolutionPresentationTransition> transitions = [];
+            using var observation = captureTransitions ? candidate.ObserveResolution(transition => transitions.Add(new(transition.Phase,
+                events.Count + transition.EventIndex, input.View.ForWorld(transition.Snapshot)))) : null;
             DevelopmentOutcome? development = null;
             ChronicleEntry? note = null;
             var ending = input.Ending;
@@ -172,7 +178,7 @@ public sealed partial class GameSession
             var commit = new OperationCommit(candidate, originalAi.Reconcile(snapshot), aiReports.ToImmutableArray(),
                 ending, strategicContexts, history, completed, note);
             return new(new(SessionDisposition.Accepted, SessionRejection.None, publishedEvents, snapshot, Development: development),
-                view, commit);
+                view, commit) { Transitions = transitions.ToArray() };
         }
         catch (AutomaticResponseException failure)
         {

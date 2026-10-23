@@ -100,11 +100,13 @@ public sealed class TurnPresentationTests
     {
         var session = Session(month, days == 10 ? 21 : 1);
         int titles = 0, seasons = 0, xunStarts = 0;
+        bool panelsClosed = false;
         var turn = new TurnPresentation(session)
         {
             StrategyTitleStarted = () => titles++,
             StrategyReady = () => { Assert.True(session.Snapshot.Simulation.CanPersist); xunStarts++; },
-            PresentSeasonChange = _ => { seasons++; return true; }
+            PresentSeasonChange = _ => { seasons++; return true; },
+            CanPresentClosing = () => panelsClosed
         };
         Assert.False(turn.UsesExecutionMusic);
         Assert.True(turn.Request());
@@ -145,6 +147,41 @@ public sealed class TurnPresentationTests
 
         dialogueOpen = false;
         turn.Update(0);
+        if (days == 10)
+        {
+            Assert.Equal(consumed, turn.Publication);
+            Assert.Equal(ResolutionPhase.XunClosing, turn.Phase);
+            Assert.False(turn.IsExecutionPresentation);
+            turn.Update(100);
+            Assert.Equal(consumed, turn.Publication);
+            Assert.Equal(0, titles);
+            panelsClosed = true;
+            turn.Update(0);
+            Assert.Equal(ResolutionPhase.XunClosing, turn.Phase);
+            Assert.False(turn.IsExecutionPresentation);
+            Assert.Equal(0, turn.Progress);
+            Assert.Equal(new GameClock(190, month, 30), turn.CalendarDate);
+            Assert.DoesNotContain(turn.Feedback!.Events.Skip(turn.Feedback.StartIndex).Take(turn.Feedback.EndIndex - turn.Feedback.StartIndex),
+                e => e is StageCompletedEvent { Stage: ResolutionStage.XunEvents });
+            Assert.Equal(operation, session.NextOperationSequence);
+            Assert.Equal(0, titles);
+            Assert.Equal(0, seasons);
+            consumed = turn.Publication;
+            turn.Update(0);
+            Assert.Equal(ResolutionPhase.XunOpening, turn.Phase);
+            Assert.Equal(session.Snapshot.Clock, turn.CalendarDate);
+            Assert.False(turn.IsExecutionPresentation);
+            Assert.Equal(0, titles);
+            Assert.Contains(turn.Feedback!.Events.Skip(turn.Feedback.StartIndex).Take(turn.Feedback.EndIndex - turn.Feedback.StartIndex),
+                e => e is StageCompletedEvent { Stage: ResolutionStage.XunEvents });
+            consumed = turn.Publication;
+            dialogueOpen = true;
+            turn.Update(100);
+            Assert.Equal(0, titles);
+            Assert.Equal(operation, session.NextOperationSequence);
+            dialogueOpen = false;
+            turn.Update(0);
+        }
         Assert.Equal(days == 10 ? TurnScreen.Returning : TurnScreen.Playing, turn.Screen);
         Assert.Equal(days != 10, turn.IsExecutionPresentation);
         Assert.Equal(days != 10, turn.UsesExecutionMusic);
@@ -178,7 +215,7 @@ public sealed class TurnPresentationTests
             StrategyTitleStarted = () => titleCount++
         };
         Enter(turn);
-        for (int i = 0; i < 20 && turn.SeasonChangeOrigin is null; i++) { Ready(turn); turn.Update(10); }
+        for (int i = 0; i < 20 && turn.Phase != ResolutionPhase.XunClosing; i++) { Ready(turn); turn.Update(10); }
         Assert.Equal(0, seasonMonth);
         turn.CanContinue = _ => false;
         turn.Update(100);
@@ -198,6 +235,10 @@ public sealed class TurnPresentationTests
         Assert.Equal(sequence, session.NextOperationSequence);
         completed = true; turn.Update(0);
         Assert.Null(turn.SeasonChangeOrigin);
+        Assert.Equal(ResolutionPhase.XunOpening, turn.Phase);
+        Assert.Equal(new GameClock(190, 4, 1), turn.CalendarDate);
+        Assert.Equal(0, titleCount);
+        turn.Update(0);
         Assert.Equal(TurnScreen.Returning, turn.Screen);
         Assert.Equal(1, titleCount);
         var restored = new TurnPresentation(session) { PresentSeasonChange = _ => throw new Exception("Must not replay") };
@@ -263,8 +304,9 @@ public sealed class TurnPresentationTests
                 Ready(turn); turn.Update(.05); updates++;
                 if (turn.Publication == publication) continue;
                 publication = turn.Publication;
-                states.Add(turn.LastResult!.Snapshot);
-                events.AddRange(turn.LastResult.Events);
+                var feedback = turn.Feedback!;
+                states.Add(feedback.After.World);
+                events.AddRange(feedback.Events.Skip(feedback.StartIndex).Take(feedback.EndIndex - feedback.StartIndex));
             }
             Assert.Equal(TurnScreen.Strategy, turn.Screen);
             Assert.Equal(11, session.Snapshot.Clock.Day);

@@ -6,6 +6,49 @@ namespace San9.Application.Tests;
 
 public sealed class IncrementalAdvanceTests
 {
+    private sealed class BoundaryEffects : SimulationRules
+    {
+        internal override void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events)
+        {
+            if (world.Clock.Day != 11) return;
+            int value = stage switch
+            {
+                ResolutionStage.DailyMapUpdate => 111,
+                ResolutionStage.UnitAndBuildingEvents => 222,
+                ResolutionStage.XunUpdate => 333,
+                _ => 0
+            };
+            if (value > 0) world.Replace(world.Settlements[1] with { PublicOrder = value });
+        }
+    }
+
+    [Fact]
+    public void PreparedBoundariesKeepClosingAndOpeningStateIsolatedFromLaterRules()
+    {
+        var session = GameSession.Start(G01ScenarioTests.Fixture(), 190, world => new(world, new BoundaryEffects()));
+        Apply(session, new PrepareAdvanceOperation());
+        for (int i = 0; i < 9; i++) Apply(session, new AdvanceDayOperation());
+        var before = session.Snapshot;
+        long sequence = session.NextOperationSequence;
+        var pending = session.StartOperation(session.Request(new AdvanceDayOperation()));
+        Assert.True(SpinWait.SpinUntil(() => pending.IsCompleted, TimeSpan.FromSeconds(10)));
+        var transitions = pending.PreparedTransitions;
+        Assert.Equal([ResolutionPhase.XunClosing, ResolutionPhase.XunOpening], transitions.Select(t => t.Phase));
+        Assert.Equal(111, transitions[0].View.World.Settlements.Single(s => s.Id == 1).PublicOrder);
+        Assert.Equal(222, transitions[1].View.World.Settlements.Single(s => s.Id == 1).PublicOrder);
+        Assert.Equal(333, pending.PreparedView.World.Settlements.Single(s => s.Id == 1).PublicOrder);
+        Assert.True(transitions[0].EventIndex < transitions[1].EventIndex);
+        Assert.IsType<StageCompletedEvent>(pending.PreparedEvents[transitions[0].EventIndex - 1]);
+        Assert.Equal(ResolutionStage.TerminalCheck,
+            Assert.IsType<StageCompletedEvent>(pending.PreparedEvents[transitions[1].EventIndex]).Stage);
+        Assert.Same(before, session.Snapshot);
+        Assert.Equal(sequence, session.NextOperationSequence);
+        Assert.Equal(SessionDisposition.Accepted, pending.Complete().Disposition);
+        Assert.Equal(333, session.Snapshot.Settlements.Single(s => s.Id == 1).PublicOrder);
+        Assert.Equal(111, transitions[0].View.World.Settlements.Single(s => s.Id == 1).PublicOrder);
+        Assert.Equal(222, transitions[1].View.World.Settlements.Single(s => s.Id == 1).PublicOrder);
+    }
+
     private sealed class BlockingRules(Action entered) : SimulationRules
     {
         internal override void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events) => entered();

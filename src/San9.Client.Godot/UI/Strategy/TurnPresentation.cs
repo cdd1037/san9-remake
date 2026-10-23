@@ -7,6 +7,9 @@ namespace San9.Client.Godot;
 
 public enum TurnScreen { Initializing, Strategy, Confirmation, Entering, Preparing, Playing, Returning, AwaitingDecision, Presenting, Terminal, Failed }
 
+public sealed record TurnFeedback(StrategySnapshot Before, StrategySnapshot After, IReadOnlyList<DomainEvent> Events,
+    int StartIndex, int EndIndex);
+
 /// <summary>The owner thread presents one committed step; isolated workers calculate the next.</summary>
 public sealed class TurnPresentation(GameSession session, bool enterStrategy = false)
 {
@@ -19,6 +22,7 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
     public Func<StrategySnapshot, StrategySnapshot, IReadOnlyList<DomainEvent>, TurnDayPresentation> CreateDay { get; init; } =
         (before, after, events) => new(before, after, events);
     public Func<bool>? CanPlayDay { get; set; }
+    public Func<bool>? CanPresentClosing { get; init; }
     public Action<TurnDayPresentation>? PresentDay { get; init; }
     public Action? RetryPresentation { get; init; }
     public IReadOnlySet<string> LastPresentedFeedback { get; private set; } = new HashSet<string>();
@@ -26,8 +30,12 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
     public Func<long, bool>? CanContinue { get; set; }
     public Func<int, bool>? PresentSeasonChange { get; init; }
     public GameClock? SeasonChangeOrigin { get; private set; }
+    public GameClock CalendarDate { get; private set; } = session.Snapshot.Clock;
+    public ResolutionPhase Phase { get; private set; } = ResolutionPhase.Daily;
+    public TurnFeedback? Feedback { get; private set; }
     public SessionResult? LastResult { get; private set; }
     public long Publication { get; private set; }
+    public long CommittedPublication { get; private set; }
     public long StrategyEntrance { get; private set; } = 1;
     public Action? StrategyTitleStarted { get; init; }
     public Action? StrategyReady { get; init; }
@@ -47,7 +55,7 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
     public double Progress { get; private set; }
     public bool IsStrategy => Screen is TurnScreen.Strategy or TurnScreen.Confirmation;
     public bool UsesExecutionMusic => Screen is not (TurnScreen.Initializing or TurnScreen.Strategy or TurnScreen.Confirmation or TurnScreen.Returning or TurnScreen.Terminal);
-    public bool IsExecutionPresentation => Screen is TurnScreen.Playing or TurnScreen.Presenting;
+    public bool IsExecutionPresentation => Phase == ResolutionPhase.Daily && Screen is (TurnScreen.Playing or TurnScreen.Presenting);
     public bool CanAdvance => Screen == TurnScreen.Strategy && session.Snapshot.Simulation.Boundary == SimulationBoundary.Stable;
     public bool CanBrowseMap => Screen is TurnScreen.Strategy or TurnScreen.Playing;
     public bool CanCancelFailure => !_presentationFailed && session.Snapshot.Simulation.CanPersist && session.Snapshot.Clock.DayNumber == _startedDay;
@@ -59,6 +67,11 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
     private bool _advancing;
     private bool _presentationFailed;
     private bool _stopAtBoundary;
+    private sealed record FeedbackFrame(ResolutionPhase Phase, StrategySnapshot Before, StrategySnapshot After, int Start, int End);
+    private readonly Queue<FeedbackFrame> _frames = new();
+    private StrategySnapshot _operationBefore = session.View;
+    private IReadOnlyList<DomainEvent> _operationEvents = [];
+    private bool _frameEmitted;
     public void StopAtStrategyBoundary()
     {
         if (_advancing && Screen is not (TurnScreen.Strategy or TurnScreen.Returning or TurnScreen.Terminal))
@@ -113,6 +126,7 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
         Display = session.View;
         _startedDay = session.Snapshot.Clock.DayNumber;
         Progress = 0;
+        Phase = ResolutionPhase.Daily;
         Paused = false;
         _remaining = TransitionDuration;
         ExecutionTitleStarted?.Invoke();
@@ -126,6 +140,7 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
     {
         if (Screen != TurnScreen.AwaitingDecision || _pending is not null) return false;
         _request = session.Request(new CommandOperation(command), controllerId, command.CommandId);
+        _operationBefore = session.View;
         _pending = session.StartOperation(_request);
         return true;
     }
@@ -138,6 +153,7 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
 
     public void Update(double seconds)
     {
+        _frameEmitted = false;
         if (Screen == TurnScreen.Initializing) { ReturnToStrategy(); return; }
         // Scale presentation only. Background operations and reading timers use their own clocks.
         seconds *= (int)PlaybackSpeed;
@@ -207,7 +223,10 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
         catch { Publish(); return; }
         try
         {
-            Day ??= CreateDay(Display!, prepared, events);
+            // The map day ends before xun closing; later phases have their own snapshots and feedback.
+            var closing = _pending.PreparedTransitions.FirstOrDefault(t => t.Phase == ResolutionPhase.XunClosing);
+            Day ??= CreateDay(Display!, closing?.View ?? prepared,
+                closing is null ? events : events.Take(closing.EventIndex).ToArray());
             if (CanPlayDay?.Invoke() == false) return;
             Day.Advance(seconds);
             PresentDay?.Invoke(Day);
@@ -227,6 +246,7 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
 
     private void Start(SessionOperation operation)
     {
+        _operationBefore = session.View;
         _request = session.Request(operation);
         _pending = session.StartOperation(_request);
     }
@@ -239,20 +259,24 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
         if (_pending is not { IsCompleted: true }) return false;
         try
         {
-            var previousDate = session.Snapshot.Clock;
+            var transitions = _pending.PreparedTransitions;
             var result = _pending.Complete();
             if (result.Disposition != SessionDisposition.Accepted)
                 throw new InvalidOperationException(result.Rejection.ToString());
-            Display = session.View;
-            if (Display.World.Clock.DayNumber > previousDate.DayNumber && Display.World.Clock.Boundary.Quarter &&
-                Display.World.Clock.DayNumber - Display.World.Simulation.Started.DayNumber >= 10)
-            {
-                SeasonChangeOrigin = previousDate;
-            }
             LastPresentedFeedback = Day?.Battle?.PresentedFeedback ?? new HashSet<string>();
             LastResult = result;
-            Publication++;
-            Progress = Math.Clamp((Display.World.Clock.DayNumber - _startedDay) / 10.0, 0, 1);
+            CommittedPublication++;
+            _operationEvents = result.Events;
+            var before = _operationBefore;
+            var phase = Phase;
+            int start = 0;
+            foreach (var transition in transitions)
+            {
+                _frames.Enqueue(new(phase, before, transition.View, start, transition.EventIndex));
+                phase = transition.Phase; before = transition.View; start = transition.EventIndex;
+            }
+            _frames.Enqueue(new(phase, before, session.View, start, result.Events.Count));
+            EmitFrame(_frames.Dequeue());
             return true;
         }
         catch (Exception error)
@@ -268,12 +292,30 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
     private void Continue()
     {
         if (CanContinue?.Invoke(Publication) == false) { Screen = TurnScreen.Presenting; return; }
-        if (SeasonChangeOrigin is not null)
+        if (_frames.TryPeek(out var frame))
         {
-            // Let the HUD consume this publication before checking its dialogue gate on the next update.
-            if (Screen != TurnScreen.Presenting || PresentSeasonChange?.Invoke(Display!.Month) == false)
-            { Screen = TurnScreen.Presenting; return; }
-            SeasonChangeOrigin = null;
+            Screen = TurnScreen.Presenting;
+            if (_frameEmitted) return;
+            if (frame.Phase == ResolutionPhase.XunClosing)
+            {
+                Phase = frame.Phase; Progress = 0; Display = frame.Before;
+                if (CanPresentClosing?.Invoke() == false) return;
+            }
+            if (frame.Phase == ResolutionPhase.XunOpening && CalendarDate != frame.Before.World.Clock)
+            {
+                Phase = frame.Phase; Progress = 0; Display = frame.Before;
+                var clock = frame.Before.World.Clock;
+                if (clock.Boundary.Quarter && clock.DayNumber - frame.Before.World.Simulation.Started.DayNumber >= 10)
+                {
+                    SeasonChangeOrigin ??= CalendarDate;
+                    if (PresentSeasonChange?.Invoke(clock.Month) == false) return;
+                    SeasonChangeOrigin = null;
+                }
+                CalendarDate = clock;
+            }
+            LastPresentedFeedback = new HashSet<string>();
+            EmitFrame(_frames.Dequeue());
+            return;
         }
         var state = session.Snapshot.Simulation;
         if (state.Boundary == SimulationBoundary.Terminal) { Screen = TurnScreen.Terminal; return; }
@@ -290,7 +332,7 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
         if (session.Snapshot.Clock.DayNumber >= _startedDay + 10)
         {
             if (!state.Controls.Any(c => c.Kind == ControllerKind.Player) && !_stopAtBoundary)
-            { _startedDay = session.Snapshot.Clock.DayNumber; Progress = 0; Screen = TurnScreen.Preparing; Start(new PrepareAdvanceOperation()); return; }
+            { _startedDay = session.Snapshot.Clock.DayNumber; Progress = 0; Phase = ResolutionPhase.Daily; Screen = TurnScreen.Preparing; Start(new PrepareAdvanceOperation()); return; }
             ReturnToStrategy(); return;
         }
         if (state.ActiveControl < state.Controls.Length)
@@ -301,6 +343,21 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
         }
         Screen = TurnScreen.Playing;
         Start(new AdvanceDayOperation());
+    }
+
+    private void EmitFrame(FeedbackFrame frame)
+    {
+        Phase = frame.Phase;
+        Display = frame.After;
+        Feedback = new(_operationBefore, frame.After, _operationEvents, frame.Start, frame.End);
+        Publication++; _frameEmitted = true;
+        if (Phase == ResolutionPhase.Daily)
+        {
+            Progress = Math.Clamp((frame.After.World.Clock.DayNumber - _startedDay) / 10.0, 0, 1);
+            if (!frame.After.World.Clock.IsXunBoundary || frame.After.World.Clock == CalendarDate)
+                CalendarDate = frame.After.World.Clock;
+        }
+        else Progress = 0;
     }
 
     private void ReturnToStrategy()

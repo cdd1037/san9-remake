@@ -34,11 +34,11 @@ public partial class StrategyHud
     {
         World.PresentationSeason = Turn.SeasonChangeOrigin is { } previous
             ? _seasonChange?.NeedsNewSeason == true ? _seasonTarget : CalendarSeason.ForMonth(previous.Month)
-            : null;
+            : CalendarSeason.ForMonth(Turn.CalendarDate.Month);
         _seasonChangeView.Sample(_seasonChange, World.LoadError);
         string season = _seasonChange?.ShowsNewBadge == true ? _seasonTarget :
             Turn.SeasonChangeOrigin is { } old ? CalendarSeason.ForMonth(old.Month) :
-            CalendarSeason.ForMonth((Turn.Display ?? Session.View).Month);
+            CalendarSeason.ForMonth(Turn.CalendarDate.Month);
         float brightness = _seasonChange?.BadgeBrightness(season) ?? 1;
         if (_badgeSeason != season)
         {

@@ -200,6 +200,19 @@ public sealed class ScenarioContentFilesTests : IDisposable
         await Assert.ThrowsAsync<FileNotFoundException>(() => ScenarioContentFiles.LoadAsync(first));
     }
 
+    [Theory]
+    [InlineData("shared/maps/custom/map.json")]
+    [InlineData("map-definition.json")]
+    public async Task RewritingScenarioPreservesItsReferencedMapDefinition(string path)
+    {
+        var content = Fixture();
+        var shared = await MapDefinitionFiles.WriteAsync(_root, path, content.Map.Definition);
+        await ScenarioContentFiles.WriteAsync(_root, content, sharedMap: shared);
+        await ScenarioContentFiles.WriteAsync(_root, content, sharedMap: shared);
+        var restored = await ScenarioContentFiles.LoadAsync(_root);
+        Assert.Equal(JsonSerializer.Serialize(content.Map.Definition), JsonSerializer.Serialize(restored.Map.Definition));
+    }
+
     [Fact]
     public async Task SplitFilesPreserveFullModelAndRequiredNulls()
     {

@@ -213,18 +213,10 @@ public static class ScenarioContentFiles
                 }
                 string oldRoot = previous.RootElement.TryGetProperty("resourceRoot", out var oldResourceRoot)
                     ? ResolveResourceRoot(root, oldResourceRoot.GetString()!) : root;
-                if (previous.RootElement.TryGetProperty("map", out var oldMap))
-                {
-                    string oldMapPath = PackageFiles.Resolve(oldRoot, oldMap.GetString()!);
-                    if (File.Exists(oldMapPath))
-                    {
-                        await using var oldMapStream = File.OpenRead(oldMapPath);
-                        using var oldMapDocument = await JsonDocument.ParseAsync(oldMapStream, cancellationToken: token);
-                        if (oldMapDocument.RootElement.TryGetProperty("definition", out var definition))
-                            paths.Add(definition.GetString()!);
-                    }
-                }
+                // Only the standalone definition belongs to this writer. Referenced shared
+                // geography can live beneath the same root and is owned by its publisher.
                 previousFiles = paths.Select(path => PackageFiles.Resolve(oldRoot, path))
+                    .Append(Path.Combine(root, "map-definition.json"))
                     .Where(path => IsInside(root, path)).ToArray();
             }
         }
@@ -253,6 +245,7 @@ public static class ScenarioContentFiles
             Publish(files);
             File.Delete(Path.Combine(root, "preview.json"));
             var currentFiles = files.Select(file => file.Target).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            currentFiles.Add(PackageFiles.Resolve(resourceRoot, mapDefinitionPath));
             foreach (string obsolete in previousFiles.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 if (currentFiles.Contains(obsolete)) continue;
@@ -311,15 +304,8 @@ public static class ScenarioContentFiles
 
     public static async Task<ScenarioInitialState> LoadScenarioAsync(string root, CancellationToken token = default)
     {
-        var manifest = await PackageFiles.ReadAsync<ScenarioContentManifest>(Path.Combine(root, "content.json"), token);
-        if (manifest.SchemaVersion != ScenarioContent.CurrentSchemaVersion)
-            throw new InvalidDataException("Unsupported scenario content version; reconvert the package.");
-        string resourceRoot = ResolveResourceRoot(root, manifest.ResourceRoot);
-        await using var stream = File.OpenRead(PackageFiles.Resolve(resourceRoot, manifest.Scenario));
-        var scenario = await JsonSerializer.DeserializeAsync<ScenarioInitialState>(stream, DataJsonOptions, token)
-            ?? throw new InvalidDataException("Empty scenario state.");
-        ContentStructure.Validate(scenario);
-        return scenario;
+        var manifest = await ReadManifestAsync(root, token);
+        return await ReadDataAsync<ScenarioInitialState>(ResolveResourceRoot(root, manifest.ResourceRoot), manifest.Scenario, token);
     }
 
     public static string ResolveResourceRoot(string scenarioRoot, string relative)

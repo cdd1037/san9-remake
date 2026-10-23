@@ -156,6 +156,7 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
         _frameEmitted = false;
         if (Screen == TurnScreen.Initializing) { ReturnToStrategy(); return; }
         // Scale presentation only. Background operations and reading timers use their own clocks.
+        double readingSeconds = seconds;
         seconds *= (int)PlaybackSpeed;
         if (Screen==TurnScreen.Terminal && _pending is not null) { Publish(); return; }
         if (Screen == TurnScreen.Presenting)
@@ -228,7 +229,7 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
             Day ??= CreateDay(Display!, closing?.View ?? prepared,
                 closing is null ? events : events.Take(closing.EventIndex).ToArray());
             if (CanPlayDay?.Invoke() == false) return;
-            Day.Advance(seconds);
+            Day.Advance(seconds, readingSeconds: readingSeconds);
             PresentDay?.Invoke(Day);
             double completed = Display!.World.Clock.DayNumber - _startedDay;
             double next = _pending.PreparedSnapshot.Clock.DayNumber - _startedDay;

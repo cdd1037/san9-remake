@@ -42,6 +42,7 @@ public sealed record DuelSceneCue(string Id, double Start, double End, DuelPrese
     public ImmutableArray<DuelFlagView> Flags { get; init; } = [];
     public ImmutableArray<DuelParticleCue> Particles { get; init; } = [];
     public const double EffectFadeDuration = .2;
+    public const double DialogueDuration = 3;
     public static double HitPointsDuration(double from, int to)
     {
         double difference = Math.Abs(to - from);

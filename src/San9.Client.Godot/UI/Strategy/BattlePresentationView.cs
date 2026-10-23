@@ -265,7 +265,6 @@ public partial class BattlePresentationView : Control
     public override void _GuiInput(InputEvent input)
     {
         if (!IsSceneActive || input is not InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } mouse) return;
-            _day.Advance(stage.End - _day.Elapsed);
         if (new Rect2(820, 700, 88, 44).HasPoint(mouse.Position - SceneOffset)) PauseRequested?.Invoke();
         else if (new Rect2(920, 700, 96, 44).HasPoint(mouse.Position - SceneOffset)) _day?.SkipVisual();
         else if (!IsPaused() && _duel?.Sample(_day!.Elapsed) is { Dialogue: not null } stage)

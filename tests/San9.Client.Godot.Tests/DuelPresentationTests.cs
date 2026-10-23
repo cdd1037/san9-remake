@@ -202,7 +202,8 @@ public sealed class DuelPresentationTests
         day.Advance(10000);
         Assert.Equal("introduction", Assert.Single(day.PendingDialogues).Message.Message.Key);
         day.CompleteDialogue(day.PendingDialogues[0].Id);
-        day.Advance(10000);
+        var firstSpeech = plan.Messages.First(c => c.Channel == BattleMessageChannel.DuelDialogue);
+        day.Advance(firstSpeech.Time - day.Elapsed);
         Assert.NotEmpty(day.PendingDuelDialogues);
         double gate = day.Elapsed, visual = day.DuelDialogueElapsed;
         day.Advance(.1);
@@ -213,12 +214,7 @@ public sealed class DuelPresentationTests
         Assert.Equal(visual + .1, day.DuelDialogueElapsed, 6);
         if (skip) day.SkipVisual();
         else
-            for (int guard = 0; guard < 100 && day.PendingDialogues.Count == 0; guard++)
-            {
-                foreach (var message in day.PendingDuelDialogues) day.CompleteDialogue(message.Id);
-                Assert.Equal(0, day.DuelDialogueElapsed);
-                day.Advance(10000);
-            }
+            day.Advance(10000);
         Assert.Empty(day.PendingDuelDialogues);
         Assert.Equal(plan.Duels[0].End, day.Elapsed);
         Assert.False(day.IsComplete);
@@ -231,6 +227,36 @@ public sealed class DuelPresentationTests
         day.CompleteDialogue(day.PendingDialogues[0].Id);
         day.Advance(10000); Assert.True(day.IsComplete);
         StateAssert.Equal(before, session.Snapshot);
+    }
+
+    [Fact]
+    public void DuelReadingUsesThreeUnscaledSecondsAndClickSkipsTheRemainingPageSpan()
+    {
+        var (session, texts, content, facts) = Fixture();
+        var plan = BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content);
+        var day = new TurnDayPresentation(session.View, session.View, facts, battle: plan);
+        day.Advance(10000);
+        day.CompleteDialogue(Assert.Single(day.PendingDialogues).Id);
+        var speech = plan.Messages.First(c => c.Channel == BattleMessageChannel.DuelDialogue);
+        var stage = plan.Duels[0].Stages.Single(s => s.Start == speech.Time && s.Dialogue is not null);
+        day.Advance(speech.Time - day.Elapsed);
+        day.Advance(5.8, readingSeconds: 2.9);
+        Assert.Equal(speech.Time, day.Elapsed, 6);
+        Assert.Equal(2.9, day.DuelDialogueElapsed, 6);
+        day.Advance(10, paused: true);
+        Assert.Equal(2.9, day.DuelDialogueElapsed, 6);
+        day.Advance(.2, readingSeconds: .1);
+        Assert.True(day.IsDialogueComplete(speech.Id));
+        Assert.Equal(stage.End, day.Elapsed, 6);
+        Assert.Equal(0, day.DuelDialogueElapsed);
+
+        var clicked = new TurnDayPresentation(session.View, session.View, facts, battle: plan);
+        clicked.Advance(10000);
+        clicked.CompleteDialogue(Assert.Single(clicked.PendingDialogues).Id);
+        clicked.Advance(speech.Time - clicked.Elapsed);
+        clicked.CompleteDialogue(speech.Id);
+        Assert.Equal(stage.End, clicked.Elapsed, 6);
+        Assert.False(clicked.IsComplete);
     }
 
     [Fact]

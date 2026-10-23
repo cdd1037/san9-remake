@@ -123,7 +123,7 @@ internal sealed partial class BattlePresentationBuilder
         }
         void Speech(string role, int actor, int opponent, DuelAction? la = null, DuelAction? ra = null, string? sound = null)
         {
-            if (duelScenesEnabled) Add(DuelStageKind.Dialogue, 2.4, la, ra, sound, dialogue: Message(role, actor, opponent));
+            if (duelScenesEnabled) Add(DuelStageKind.Dialogue, DuelSceneCue.DialogueDuration, la, ra, sound, dialogue: Message(role, actor, opponent));
         }
         void Preparation(bool onLeft, DuelAction action, string sound)
         {

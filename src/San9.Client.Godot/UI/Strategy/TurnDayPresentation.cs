@@ -90,8 +90,17 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
         !IsMapEffectBlocking && _mapEffectStarts.Count == _mapEffects.Length;
     public void CompleteDialogue(string id)
     {
-        if (!PendingDialogues.Concat(PendingDuelDialogues).Any(c => c.Id == id)) throw new InvalidOperationException("Battle dialogue is not pending.");
+        var cue = PendingDialogues.Concat(PendingDuelDialogues).FirstOrDefault(c => c.Id == id)
+            ?? throw new InvalidOperationException("Battle dialogue is not pending.");
         _completedDialogues.Add(id);
+        if (cue.Channel == BattleMessageChannel.DuelDialogue)
+        {
+            var scene = Battle!.Duels.Single(c => c.Id == cue.SceneId);
+            var stage = scene.Stages.Single(s => s.Dialogue is not null && Math.Abs(s.Start - cue.Time) < 1e-9);
+            // Reading already occupied wall time. Advancing to the next stage must not
+            // play the decorative dialogue span a second time.
+            Elapsed = stage.End;
+        }
         PresentationRevision++;
         DuelDialogueElapsed = 0;
     }
@@ -109,9 +118,10 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
         if (current is not null) Advance(current.End - Elapsed);
     }
     public double Progress => Math.Clamp(Elapsed / Duration, 0, 1);
-    public void Advance(double seconds, bool paused = false)
+    public void Advance(double seconds, bool paused = false, double? readingSeconds = null)
     {
         seconds = Math.Max(0, seconds);
+        double readingRate = seconds > 0 ? Math.Max(0, readingSeconds ?? seconds) / seconds : 0;
         if (paused)
         {
             Hold(seconds);
@@ -155,6 +165,15 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
                 if (IsMapEffectBlocking) return;
                 continue;
             }
+            if (PendingDuelDialogues.FirstOrDefault() is { } dialogue)
+            {
+                double held = readingRate > 0 ? Math.Min(seconds, Math.Max(0, DuelSceneCue.DialogueDuration - DuelDialogueElapsed) / readingRate) : 0;
+                Hold(held); seconds -= held;
+                DuelDialogueElapsed += held * readingRate;
+                if (DuelDialogueElapsed < DuelSceneCue.DialogueDuration - 1e-9) return;
+                CompleteDialogue(dialogue.Id);
+                continue;
+            }
             double remaining = NextBatch is { } next ? Math.Max(0, next.Time - Elapsed) : seconds;
             double? effectTime = _mapEffects.Where(c => !_mapEffectStarts.ContainsKey(c.Id) && IsFactReady(c.FactIndex) && IsDialogueComplete(c.AfterDialogueId))
                 .Select(c => (double?)c.Time).Min();
@@ -163,6 +182,7 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
             seconds -= consumed;
             if (NextBatch is { } due && due.Time <= Elapsed + 1e-9) continue;
             if (effectTime is { } effectStart && effectStart <= Elapsed + 1e-9) continue;
+            if (PendingDuelDialogues.Count > 0 && seconds > 0) continue;
             return;
         }
     }
@@ -193,7 +213,6 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
         double consumed = next - Elapsed;
         VisualElapsed += consumed;
         Elapsed = next;
-        if (PendingDuelDialogues.Count > 0) DuelDialogueElapsed += seconds - consumed;
         return consumed;
     }
 }

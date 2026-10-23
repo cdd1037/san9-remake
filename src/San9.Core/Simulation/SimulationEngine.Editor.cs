@@ -31,7 +31,7 @@ public sealed partial class SimulationEngine
                             ChangedOutside(p.Abilities.Politics, person.BaseAbilities.Politics, 1, 100) ||
                             ChangedOutside(p.Abilities.Leadership, person.BaseAbilities.Leadership, 1, 100) ||
                             p.Personality is < 0 or > 3 || p.Righteousness is < 0 or > 15 || p.Ambition is < 0 or > 15 ||
-                            p.Affinity is < 0 or > 149 || ChangedOutside(p.Injury, person.Injury, 0, 7) ||
+                            p.Affinity is < 0 or > 149 || ChangedOutside(p.LifespanTier, person.LifespanTier, 0, 7) ||
                             (person.OwnerId is null ? p.Loyalty is not null : p.Loyalty is null || ChangedOutside(p.Loyalty.Value, person.Loyalty, 0, 100)) ||
                             p.Proficiencies.IsDefault || p.Proficiencies.Length != 9 ||
                             p.Proficiencies.Where((v, i) => ChangedOutside(v, person.TacticProficiencies[i], 0, 1000)).Any() ||

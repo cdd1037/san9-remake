@@ -174,11 +174,15 @@ public sealed class WorldEditorTests
         {
             var draft = new WorldEditorDraft(session, kind, Texts());
             Set(draft, id, label, value);
+            if (kind == WorldEditorKind.Officers) Set(draft, id, "寿命", 7);
             var request = session.Request(draft.Operation);
             Assert.Equal(SessionDisposition.Accepted, ApplyInput(request).Disposition);
             Assert.Equal(SessionDisposition.AlreadyProcessed, ApplyInput(request).Disposition);
         }
         Assert.Equal(99, session.Snapshot.Officers.Single(p => p.Id == 1).BaseAbilities.War);
+        Assert.Equal(7, session.Snapshot.Officers.Single(p => p.Id == 1).LifespanTier);
+        Assert.Equal(before.Officers.Single(p => p.Id == 1).Injury,
+            session.Snapshot.Officers.Single(p => p.Id == 1).Injury);
         Assert.Equal(999999u, session.Snapshot.Corps.Single(c => c.Id == 2).Treasury.Money);
         Assert.Equal([7000, 7001], session.Snapshot.Settlements.Single(s => s.Id == 1).EnabledTacticIds.ToArray());
         Assert.Equal(0, session.Snapshot.Settlements.Single(s => s.Id == 10).Morale);

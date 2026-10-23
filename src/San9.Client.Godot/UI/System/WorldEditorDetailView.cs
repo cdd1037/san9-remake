@@ -151,7 +151,7 @@ public partial class WorldEditorDetailView : FixedPage
         string[] axes = ["统率", "武力", "智力", "政治"];
         _panels.Add(new(414,108,336,180)); _panels.Add(new(414,293,336,52)); _panels.Add(new(93,349,656,308));
         for (int i = 0; i < axes.Length; i++) Field(fields, axes[i], new(438,120+i*32),64,68);
-        string[] personal = ["情义","野心","相性","负伤","忠诚"];
+        string[] personal = ["情义","野心","相性","寿命","忠诚"];
         for (int i=0;i<personal.Length;i++) Field(fields,personal[i],new(602,120+i*32),64,68);
         Plate("性格",new(450,311,56,28));
         var personalities=fields.Where(f=>f.Label.StartsWith("性格 · ",StringComparison.Ordinal)).ToArray();

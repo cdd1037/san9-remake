@@ -115,7 +115,7 @@ public sealed class WorldEditorDraft
             {
                 var p = world.Officers.Single(p => p.Id == id);
                 edit = new OfficerEdit(id, p.BaseAbilities, p.Personality, p.Righteousness, p.Ambition, p.Affinity,
-                    p.Injury, p.OwnerId is null ? null : p.Loyalty, p.TacticProficiencies, p.MasteredCategories, p.LearnedTactics);
+                    p.LifespanTier, p.OwnerId is null ? null : p.Loyalty, p.TacticProficiencies, p.MasteredCategories, p.LearnedTactics);
             }
             else if (kind == WorldEditorKind.Corps)
             {
@@ -175,7 +175,7 @@ public sealed class WorldEditorDraft
             Number<OfficerEdit>("情义", 0, 15, p => (uint)p.Righteousness, (p, v) => p with { Righteousness = (int)v });
             Number<OfficerEdit>("野心", 0, 15, p => (uint)p.Ambition, (p, v) => p with { Ambition = (int)v });
             Number<OfficerEdit>("相性", 0, 149, p => (uint)p.Affinity, (p, v) => p with { Affinity = (int)v });
-            Number<OfficerEdit>("负伤", 0, 7, p => (uint)p.Injury, (p, v) => p with { Injury = (int)v });
+            Number<OfficerEdit>("寿命", 0, 7, p => (uint)p.LifespanTier, (p, v) => p with { LifespanTier = (int)v });
             if (((OfficerEdit)_edits[id]).Loyalty is not null)
                 Number<OfficerEdit>("忠诚", 0, 100, p => (uint)p.Loyalty!.Value, (p, v) => p with { Loyalty = (int)v });
             string[] categories = ["步兵", "骑兵", "弓骑", "弩兵", "水军", "攻城", "智略", "谋略", "策略"];

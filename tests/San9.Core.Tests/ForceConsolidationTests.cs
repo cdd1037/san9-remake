@@ -280,7 +280,7 @@ public sealed class ForceConsolidationTests
     }
 
     [Fact]
-    public void MergeRefundsReservedGiftsAndCancelsBothDirectionsBeforeTreasuryTransfer()
+    public void MergeSettlesCarriedGiftsSeparatelyFromTreasuryAndCancelsBothDirections()
     {
         var world = World();
         var funded = world.BeginMutation();
@@ -299,8 +299,10 @@ public sealed class ForceConsolidationTests
         var mutation = Pending(world);
         List<DomainEvent> events = [];
         ForceConsolidation.Apply(mutation, Rules(), events);
-        Assert.Equal(sourceMoney, Assert.Single(events.OfType<ForcesConsolidatedEvent>()).MoneyRemoved);
-        Assert.Equal(sourceMoney + targetMoney, mutation.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 3).Treasury.Money);
+        Assert.Equal(sourceMoney - 1000, Assert.Single(events.OfType<ForcesConsolidatedEvent>()).MoneyRemoved);
+        Assert.Equal(sourceMoney + targetMoney - 2000, mutation.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 3).Treasury.Money);
+        Assert.Equal(new ReturnCargo(ResourceKind.Money, 1000), Assert.Single(mutation.Simulation.Tasks).ReturnCargo);
+        Assert.Equal(outgoing.CommandId, Assert.Single(events.OfType<ReturnCargoLostEvent>()).TaskId);
         Assert.Equal(new[] { outgoing.CommandId, incoming.CommandId }.Order(),
             events.OfType<TaskCancelledEvent>().Select(e => e.TaskId).Order());
         Assert.DoesNotContain(mutation.Simulation.Tasks, t => t.Gift is not null || t.ForceId == 2);

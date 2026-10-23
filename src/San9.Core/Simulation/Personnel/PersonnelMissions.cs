@@ -53,7 +53,8 @@ public sealed record RecruitmentResolvedEvent(GameClock Clock, int OfficerId, in
 public sealed record RecruitmentOccurrence(int ForceId, OfficerStatus PreviousStatus, PersonOccurrence Target,
     bool TransferredUnit, bool TransferredPlace, int? DetainingForceId);
 public sealed record PersonAffiliationChangedEvent(GameClock Clock, int OfficerId, int? PreviousForceId, int? ForceId, int PlaceId) : DomainEvent;
-public sealed record OfficerMovedEvent(GameClock Clock, int OfficerId, int OriginId, int DestinationId) : DomainEvent;
+public sealed record OfficerMovedEvent(GameClock Clock, int OfficerId, int OriginId, int DestinationId,
+    PersonnelArrivalOccurrence Arrival) : DomainEvent;
 public sealed record ForceRelationChangedEvent(GameClock Clock, int FirstId, int SecondId, int Previous, int Current) : DomainEvent;
 public sealed record OfficerAbilityGrownEvent(GameClock Clock, int OfficerId, string Ability, int Previous, int Current) : DomainEvent
 {
@@ -397,7 +398,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
         if (kind == PersonnelMissions.MoveKind)
         {
             int? oldCorpsId = PersonnelLocations.Corps(world, world.Officers[task.OfficerId]);
-            PersonnelTransitions.Move(world, task.OfficerId, journey.DestinationPlaceId, events, rules, true);
+            PersonnelTransitions.Move(world, task, events, rules, true);
             if (oldCorpsId is int corpsId && world.Settlements[journey.DestinationPlaceId].CorpsId != corpsId)
             {
                 var person = world.Officers[task.OfficerId];

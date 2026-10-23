@@ -374,8 +374,8 @@ public sealed class MissionCommandTests
         var narrated = MissionPresentation.Results(before,texts,events,new HashSet<Guid> { command.CommandId });
         Assert.Equal(messages.Records,narrated.Records);
         Assert.Empty(narrated.Messages);
-        var cancelled = MissionPresentation.Results(before,texts,[new TaskCancelledEvent(command.CommandId,clock,"target-invalidated")]);
-        Assert.Contains("目标已失效",Assert.Single(cancelled.Records).Message.BbCode);
+        var cancelled = MissionPresentation.Results(before,texts,[new TaskCancelledEvent(command.CommandId,clock,"invalid-target-or-executor")]);
+        Assert.Contains("人物、目标或来源状态已不满足执行条件",Assert.Single(cancelled.Records).Message.BbCode);
         var other = before.World with { Simulation = before.World.Simulation with { Tasks = before.World.Simulation.Tasks.Select(t => t with { ControllerId = "ai:1" }).ToImmutableArray() } };
         // Delegating the work does not change the player's reporting eligibility.
         Assert.Equal(messages.Records, MissionPresentation.Results(new(MissionScenario.Create(),other),texts,events).Records);

@@ -112,7 +112,9 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
                 case BattleDamageEvent damage: PresentDamage(damage); break;
                 case BattleContactStartedEvent or UnitWaypointReachedEvent or UnitPolicyRespondedEvent: PresentMapNotification(); break;
                 case BattleConditionChangedEvent condition: PresentCondition(condition); break;
-                case SecretContactReportedEvent or OfficerAbilityGrownEvent or RecruitmentResolvedEvent: PresentFeedback(); break;
+                case SecretContactReportedEvent or OfficerAbilityGrownEvent or RecruitmentResolvedEvent or
+                    PersonnelJourneyInterruptedEvent or OfficerMovedEvent or PersonnelReturnedEvent or
+                    ReturnCargoDeliveredEvent or ReturnCargoLostEvent: PresentFeedback(); break;
                 case TacticLearnedEvent or OfficerInjuryWorsenedEvent or CommanderChangedEvent or UnitCommanderChangedEvent or
                     CorpsLeaderChangedEvent or CorpsDissolvedEvent or HighSpiritsExpiredEvent or OfficerAppearedEvent or
                     TreasuryCapturedEvent or PrisonerEscapedEvent or BattlePersonnelResolvedEvent: PresentOutcome(); break;

@@ -42,7 +42,7 @@ internal static class MilitaryDailyCycle
             {
                 world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Remove(task) });
                 events.Add(new TaskCancelledEvent(task.Id, world.Clock, "reinforcement-unfit"));
-                PersonnelReturns.Start(world, updated, rules.Personnel, events, afterDailyCommands: false);
+                PersonnelReturns.Start(world, updated, rules.Personnel, events, afterDailyCommands: false, interrupted: true);
             }
             else
                 world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Replace(task, updated) });

@@ -261,7 +261,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         }
         else
         {
-            TaskCancellation.Apply(world, task, "invalid-target-or-executor", events);
+            TaskCancellation.Apply(world, task, "invalid-target-or-executor", events, preserveCargo: task.Journey is not null);
             if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
         }
         CorpsDelegations.Cleanup(world, rules.Military, events);
@@ -305,7 +305,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             }
             else
             {
-                TaskCancellation.Apply(world, task, "invalid-target-or-executor", events);
+                TaskCancellation.Apply(world, task, "invalid-target-or-executor", events, preserveCargo: task.Journey is not null);
                 if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
             }
             CorpsDelegations.Cleanup(world, rules.Military, events);

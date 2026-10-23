@@ -265,6 +265,10 @@ internal static class WorldInvariants
             if (task.Gift is { } gift && (task.Kind != GiftDiplomacy.Kind || gift.Offer?.IsValid != true ||
                 gift.TargetForceId == task.ForceId || !state.Forces.ContainsKey(gift.TargetForceId)))
                 throw new ArgumentException("Invalid gift mission.");
+            if (task.ReturnCargo is { } cargo && (task.Kind != PersonnelReturns.Kind || task.Journey?.ReturnLeg is null ||
+                cargo.Resource is not (ResourceKind.Money or ResourceKind.Food) || cargo.Amount == 0 ||
+                cargo.Amount > GiftOffer.MaximumAmount(cargo.Resource == ResourceKind.Money ? GiftKind.Money : GiftKind.Food)))
+                throw new ArgumentException("Invalid returning resources.");
             _ = new GameClock(task.Started.Year, task.Started.Month, task.Started.Day);
             _ = new GameClock(task.Due.Year, task.Due.Month, task.Due.Day);
             if (string.IsNullOrWhiteSpace(task.Kind) || task.Id == Guid.Empty ||

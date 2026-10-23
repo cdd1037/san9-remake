@@ -15,6 +15,18 @@ internal static class PersonnelPresentationCompiler
         Add("search-start", 5669, "actor", null, departure);
         Add("employ-start", 5675, "actor", null, [.. departure, ("person.2", "target")]);
         Add("captive-start", 5778, "actor", null, [.. departure, ("person.2", "target")]);
+        (string, string)[] interruption = [("person.0", "actor"), ("building.0", "home"), ("string.0", "command-name")];
+        Add("journey-interrupted", 7395, "actor", null, interruption);
+        Add("journey-withdrawal", 7411, null, null, interruption);
+        Add("journey-interrupted-record", 10069, null, null, ("person.0", "actor"), ("string.0", "command-name"));
+        (string, string)[] arrival = [("person.0", "ruler"), ("person.1", "actor"), ("person.2", "second"),
+            ("person.3", "third"), ("building.0", "home"), ("number.0", "count"), ("number.1", "remaining"), ("return-kind.0", "return-kind")];
+        Add("journey-arrived", 7404, null, null, arrival);
+        Add("journey-arrived-record", 10073, null, null, arrival);
+        Add("cargo-money", 7401, null, null, ("person.0", "actor"), ("number.0", "amount"));
+        Add("cargo-food", 7402, null, null, ("person.0", "actor"), ("number.0", "amount"));
+        Add("cargo-money-record", 10018, null, null, ("person.0", "actor"), ("number.0", "amount"));
+        Add("cargo-food-record", 10019, null, null, ("person.0", "actor"), ("number.0", "amount"));
         (string, string)[] searchAdvice = [("person.0", "adviser"), ("person.1", "ruler"), ("building.0", "place")];
         Add("search-favorable", 7297, "adviser", null, searchAdvice);
         Add("search-unfavorable", 7301, "adviser", null, searchAdvice);

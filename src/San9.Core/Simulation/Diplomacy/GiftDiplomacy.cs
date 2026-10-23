@@ -141,9 +141,6 @@ internal static class GiftDiplomacy
         world.Treasures.TryGetValue(gift.Offer.TreasureId!.Value, out var item) && item.Discovered && item.HolderId == task.OfficerId &&
         rules.Treasures.Items.ContainsKey(item.Id));
 
-    internal static void Cancel(WorldMutation world, PersistentTask task, List<DomainEvent> events) =>
-        Refund(world, task, "gift-cancelled", events);
-
     private static uint Refund(WorldMutation world, PersistentTask task, string reason, List<DomainEvent> events)
     {
         if (task.Gift is not { } gift || gift.Offer.Kind == GiftKind.Treasure) return 0;

@@ -17,7 +17,7 @@ internal static class SettlementTasks
             if (place.OwnerId == task.ForceId && !place.IsDestroyed && place.Durability > 0) continue;
             if (task.Journey is not { } journey || journey.DestinationPlaceId == placeId)
             {
-                TaskCancellation.Apply(world, task, reason, events);
+                TaskCancellation.Apply(world, task, reason, events, preserveCargo: task.Journey is not null);
                 if (task.Journey is not null) BattlePersonnel.ResumeReturn(world, task, rules, events);
                 continue;
             }

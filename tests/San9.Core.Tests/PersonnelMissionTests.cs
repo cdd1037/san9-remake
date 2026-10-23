@@ -51,6 +51,7 @@ public sealed class PersonnelMissionTests
         EventAssert.Equal(completed,Advance(restored));
         Assert.Equal(3,completed.OfType<SearchResolvedEvent>().Count());
         Assert.Equal(3,completed.OfType<PersonnelReturnedEvent>().Count());
+        Assert.All(completed.OfType<PersonnelReturnedEvent>(), e => Assert.False(e.Arrival.Notify));
         Assert.Empty(engine.Snapshot.Simulation.Tasks);
         Assert.True(engine.Snapshot.Officers.Single(p => p.Id == 1).IsCommander);
         StateAssert.Equal(engine.Snapshot,restored.Snapshot);
@@ -387,6 +388,7 @@ public sealed class PersonnelMissionTests
         Assert.Single(events.OfType<RecruitmentResolvedEvent>());
         Assert.Single(events.OfType<TaskCompletedEvent>());
         Assert.Single(events.OfType<TaskCancelledEvent>());
+        Assert.Equal(12, Assert.Single(events.OfType<PersonnelJourneyInterruptedEvent>()).OfficerId);
         Assert.Equal(3, engine.Snapshot.Simulation.Tasks.Count(t => t.Kind == "personnel-return"));
         Advance(engine);
         Assert.Empty(engine.Snapshot.Simulation.Tasks);

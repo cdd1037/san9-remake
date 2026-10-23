@@ -175,12 +175,15 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
                 "employ-favorable", "employ-unfavorable", "search-none", "search-empty", "search-money", "search-treasure",
                 "employ-meeting", "employ-secret-meeting", "employ-success", "employ-failure", "captive-success", "captive-failure",
                 "captive-free-failure", "employ-result-success", "employ-result-failure", "employ-unit", "employ-territory",
-                "search-first-visit", "search-return-visit", "captive-result-success", "employ-city"];
+                "search-first-visit", "search-return-visit", "captive-result-success", "employ-city",
+                "journey-interrupted", "journey-withdrawal", "journey-interrupted-record", "journey-arrived", "journey-arrived-record",
+                "cargo-money", "cargo-food", "cargo-money-record", "cargo-food-record"];
             if (roles.Except(personnel.Messages.Keys).Any()) throw new InvalidDataException("Missing personnel presentation binding.");
             if (string.IsNullOrWhiteSpace(personnel.DepartureSound) || !Sounds.ContainsKey(personnel.DepartureSound))
                 throw new InvalidDataException("Missing personnel departure sound.");
             new DecisionPresentations([], []) { Shared = personnel.Messages }.Validate(texts, Sounds, personIds);
-            string[] values = ["actor", "ruler", "adviser", "target", "old-ruler", "place", "home", "force", "old-force", "treasure", "money"];
+            string[] values = ["actor", "ruler", "adviser", "target", "old-ruler", "place", "home", "force", "old-force", "treasure", "money",
+                "command-name", "second", "third", "count", "remaining", "return-kind", "amount"];
             if (personnel.Messages.Values.Any(m => m.Bindings.Values.Except(values).Any() ||
                 m.Speaker is string speaker && speaker is not ("actor" or "target" or "adviser")))
                 throw new InvalidDataException("Unknown personnel message role.");

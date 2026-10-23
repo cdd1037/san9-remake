@@ -82,7 +82,9 @@ internal static class OccurrenceFeedback
             messages.AddRange(MapNotificationSpeeches.Read(occurrenceBefore, after, occurrenceContext, texts, progress, fact, index));
         }
         Flush(FeedbackKind.MapSpeech);
-        var mission = MissionPresentation.Results(before, texts, [fact], alreadyPresented, content.Missions, context, content.Decisions.People);
+        bool interruptedJourney = content.Personnel is not null && fact is TaskCancelledEvent cancelled &&
+            events.OfType<PersonnelJourneyInterruptedEvent>().Any(e => e.TaskId == cancelled.TaskId);
+        var mission = MissionPresentation.Results(before, texts, interruptedJourney ? [] : [fact], alreadyPresented, content.Missions, context, content.Decisions.People);
         messages.AddRange(mission.Messages);
         records.AddRange(mission.Records);
         Flush(FeedbackKind.Mission);
@@ -96,6 +98,13 @@ internal static class OccurrenceFeedback
                 ? new[] { fact }.Concat(events.OfType<PersonnelTerritoryTransferredEvent>().Where(e => e.OfficerId == recruitment.TargetOfficerId)).ToArray()
                 : [fact];
             messages.AddRange(PersonnelPresentation.Results(before, context.AtOccurrence(clock), texts, personnel, related, Pick));
+        }
+        Flush(FeedbackKind.Personnel);
+        if (content.Personnel is { } journeys && fact is PersonnelJourneyInterruptedEvent or OfficerMovedEvent or PersonnelReturnedEvent or
+            ReturnCargoDeliveredEvent or ReturnCargoLostEvent)
+        {
+            var journey = PersonnelJourneyPresentation.Read(occurrenceBefore, occurrenceContext, texts, journeys, events, index, Pick);
+            messages.AddRange(journey.Messages); records.AddRange(journey.Records);
         }
         Flush(FeedbackKind.Personnel);
         if (fact is TaskCompletedEvent completed)

@@ -359,7 +359,6 @@ public static class MissionPresentation
     private static string Cancellation(TextCatalog texts, string reason) => reason switch
     {
         "reinforcement-unfit" => CommandText.Resolve(texts, "cancel.reinforcement-unfit"),
-        "target-invalidated" => CommandText.Resolve(texts, "cancel.target-invalidated"),
         _ => CommandText.Resolve(texts, "cancel.conditions")
     };
 }

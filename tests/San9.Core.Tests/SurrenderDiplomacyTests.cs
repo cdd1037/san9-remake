@@ -223,7 +223,7 @@ public sealed class SurrenderDiplomacyTests
     }
 
     [Fact]
-    public void MergeSettlesOutgoingGiftBeforeSplittingTreasuryAndClearsAllianceAndRequests()
+    public void MergeExcludesLostOutgoingGiftFromTreasuryAndClearsAllianceAndRequests()
     {
         var world = World();
         var mutation = world.BeginMutation();
@@ -241,7 +241,8 @@ public sealed class SurrenderDiplomacyTests
         var result = engine.Execute(new("second"), new RespondDailyTaskCommand(Guid.NewGuid(), 2, 2, task.Id, 0, true));
         Assert.Contains(result.Events, e => e is TaskCancelledEvent cancelled && cancelled.TaskId == giftId);
         Assert.DoesNotContain(result.Events, e => e is GiftResolvedEvent);
-        Assert.Equal(funds + 1000, Assert.Single(result.Events.OfType<ForceSurrenderedEvent>()).MoneyRemoved);
+        Assert.Equal(funds, Assert.Single(result.Events.OfType<ForceSurrenderedEvent>()).MoneyRemoved);
+        Assert.Equal(giftId, Assert.Single(result.Events.OfType<ReturnCargoLostEvent>()).TaskId);
         Assert.Empty(engine.Snapshot.Simulation.AttackRequests);
         Assert.Null(engine.Snapshot.Simulation.Alliance);
         Assert.DoesNotContain(result.Events.OfType<AttackRequestEndedEvent>(), e => e.Reason == AttackRequestEndReason.Broken);

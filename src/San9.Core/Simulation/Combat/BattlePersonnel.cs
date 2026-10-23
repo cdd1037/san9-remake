@@ -94,12 +94,13 @@ internal static class BattlePersonnel
     {
         if (task.Journey?.ReturnLeg?.FieldTravel != true)
         {
-            PersonnelReturns.Start(world, task, rules.Personnel, events, world.CurrentDateCommandsConsumed);
+            PersonnelReturns.Start(world, task, rules.Personnel, events, world.CurrentDateCommandsConsumed, interrupted: true);
             return;
         }
         var person = world.Officers[task.OfficerId];
         if (!person.IsServing || person.OwnerId != task.ForceId)
         {
+            ReturningResources.Lose(world, task, "cargo-executor-lost", events);
             ReinforcementTransport.Disband(world, task, "reinforcement-executor-lost", events);
             return;
         }
@@ -108,6 +109,7 @@ internal static class BattlePersonnel
             preferredCorps: task.Journey.ReturnLeg.CorpsId);
         if (home is null)
         {
+            ReturningResources.Lose(world, task, "cargo-no-home", events);
             ReinforcementTransport.Disband(world, task, "reinforcement-no-home", events);
             Displace(world, person.Id, origin, rules.Personnel, rules.Military!, events);
             return;

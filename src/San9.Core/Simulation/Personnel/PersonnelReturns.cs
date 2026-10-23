@@ -3,11 +3,12 @@ using San9.Core.Domain;
 namespace San9.Core.Simulation;
 
 internal sealed record PersonnelReturnContext(string ControllerId, int ForceId, long Sequence,
-    bool DiplomaticEnvoy = false, ReinforcementTroops? Reinforcements = null)
+    bool DiplomaticEnvoy = false, ReinforcementTroops? Reinforcements = null, ReturnCargo? Cargo = null)
 {
-    internal static PersonnelReturnContext FromTask(PersistentTask task, int officerId) => new(
+    internal static PersonnelReturnContext FromTask(PersistentTask task, int officerId, bool interrupted = false) => new(
         task.ControllerId, task.ForceId, task.Sequence, officerId == task.OfficerId &&
-            (DiplomacyJourney.IsDiplomatic(task) || task.Journey?.ReturnLeg?.DiplomaticEnvoy == true), task.Reinforcements);
+            (DiplomacyJourney.IsDiplomatic(task) || task.Journey?.ReturnLeg?.DiplomaticEnvoy == true), task.Reinforcements,
+        officerId == task.OfficerId ? interrupted ? ReturningResources.From(task) : task.ReturnCargo : null);
 }
 
 internal static class PersonnelReturns
@@ -63,7 +64,7 @@ internal static class PersonnelReturns
         PersonnelTransitions.CancelMissions(world, personId, "service-place-lost", events, places, afterDailyCommands, preserveReinforcements: true);
         if (journey is not null)
         {
-            Start(world, journey, places, events, afterDailyCommands);
+            Start(world, journey, places, events, afterDailyCommands, interrupted: true);
             return;
         }
         var home = world.Settlements.Values.Where(s => s.OwnerId == person.OwnerId && s.CanHostPersons && s.Durability > 0 &&
@@ -75,12 +76,13 @@ internal static class PersonnelReturns
     }
 
     internal static void Start(WorldMutation world, PersistentTask previous, PersonnelRulebook places,
-        List<DomainEvent> events, bool afterDailyCommands, int? companionId = null, bool arrived = false)
+        List<DomainEvent> events, bool afterDailyCommands, int? companionId = null, bool arrived = false, bool interrupted = false)
     {
         int officerId = companionId ?? previous.OfficerId;
         var person = world.Officers[officerId];
         if (!person.IsServing || person.OwnerId != previous.ForceId)
         {
+            if (interrupted) ReturningResources.Lose(world, previous, "cargo-executor-lost", events);
             ReinforcementTransport.Disband(world, previous, "reinforcement-executor-lost", events);
             return;
         }
@@ -94,10 +96,14 @@ internal static class PersonnelReturns
                 .OrderBy(s => DistanceTo(s.Id)).ThenBy(s => s.Id).FirstOrDefault();
         if (home is null)
         {
+            if (interrupted) ReturningResources.Lose(world, previous, "cargo-no-home", events);
             ReinforcementTransport.Disband(world, previous, "reinforcement-no-home", events);
             BattlePersonnel.DisplaceAtPlace(world, person.Id, from, places, events);
             return;
         }
+        if (interrupted && previous.Journey.ReturnLeg is null)
+            events.Add(new PersonnelJourneyInterruptedEvent(world.Clock, previous.Id, previous.ForceId,
+                person.Id, previous.Kind, previous.Journey.UnitStrategy?.Strategy, home.Id, PersonnelLocations.Corps(world, person)));
         int days = DistanceTo(home.Id);
         // A completed visit to a moving target has no remaining outbound leg to deduct from the return.
         if (companionId is null && !arrived)
@@ -114,7 +120,7 @@ internal static class PersonnelReturns
             }
             else if (days >= remaining) days -= remaining;
         }
-        Schedule(world, PersonnelReturnContext.FromTask(previous, person.Id), person.Id, from, home.Id, days, afterDailyCommands, events,
+        Schedule(world, PersonnelReturnContext.FromTask(previous, person.Id, interrupted), person.Id, from, home.Id, days, afterDailyCommands, events,
             new(origin, PersonnelLocations.Position(world, places, home.Id), false),
             previous.Journey.Route.FieldDestination || previous.Journey.ReturnLeg?.FieldTravel == true);
     }
@@ -138,7 +144,7 @@ internal static class PersonnelReturns
                     DiplomaticEnvoy = context.DiplomaticEnvoy
                 }
             },
-            Reinforcements = context.Reinforcements
+            Reinforcements = context.Reinforcements, ReturnCargo = context.Cargo
         };
         world.Replace(world.Officers[officerId] with { SettlementId = destination, RegionId = null, Acted = true, IsCommander = false });
         world.SetSimulation(world.Simulation with { Tasks = world.Simulation.Tasks.Add(task) });
@@ -161,8 +167,16 @@ internal sealed class PersonnelReturnRule(PersonnelRulebook places, MilitaryRule
     internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events)
     {
         ReinforcementTransport.Arrive(world, task, places, events);
-        events.Add(new PersonnelReturnedEvent(world.Clock, task.OfficerId, task.OriginSettlementId));
+        ReturningResources.Deliver(world, task, events);
+        // The post-date-advance merge is silent in the original; the ordinary daily arrival reports once.
+        events.Add(new PersonnelReturnedEvent(world.Clock, task.OfficerId, task.OriginSettlementId,
+            new(task.ForceId, world.Forces[task.ForceId].LeaderId, task.Sequence, world.Clock == task.Due,
+                PersonnelLocations.Corps(world, world.Officers[task.OfficerId]))));
     }
 }
 
-public sealed record PersonnelReturnedEvent(GameClock Clock, int OfficerId, int DestinationId) : DomainEvent;
+public sealed record PersonnelArrivalOccurrence(int ForceId, int? RulerId, long Sequence, bool Notify, int? SourceCorpsId);
+public sealed record PersonnelJourneyInterruptedEvent(GameClock Clock, Guid TaskId, int ForceId, int OfficerId,
+    string MissionKind, UnitStrategyKind? Strategy, int DestinationId, int? CorpsId) : DomainEvent;
+public sealed record PersonnelReturnedEvent(GameClock Clock, int OfficerId, int DestinationId,
+    PersonnelArrivalOccurrence Arrival) : DomainEvent;

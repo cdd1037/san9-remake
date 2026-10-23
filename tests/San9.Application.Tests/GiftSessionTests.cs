@@ -164,7 +164,7 @@ public sealed class GiftSessionTests
         var returning = SaveService.Decode(SaveService.Encode(session), content);
         var home = session.AdvanceXun();
         EventAssert.Equal(home.Events, returning.AdvanceXun().Events);
-        Assert.DoesNotContain(home.Events.OfType<ResourceChangedEvent>(), e => e.Reason is "gift-refused" or "gift-cancelled");
+        Assert.DoesNotContain(home.Events.OfType<ResourceChangedEvent>(), e => e.Reason is "gift-refused" or "gift-returned");
         Assert.DoesNotContain(session.Snapshot.Simulation.Tasks, t => t.OfficerId == 22);
     }
 
@@ -297,7 +297,7 @@ public sealed class GiftSessionTests
         List<DomainEvent> cancelled = [];
         var returning = Assert.Single(world.Simulation.Tasks, t => t.OfficerId == 22);
         TaskCancellation.Apply(world, returning, "test-return-cancel", cancelled);
-        Assert.DoesNotContain(cancelled.OfType<ResourceChangedEvent>(), e => e.Reason is "gift-refused" or "gift-cancelled");
+        Assert.DoesNotContain(cancelled.OfType<ResourceChangedEvent>(), e => e.Reason is "gift-refused" or "gift-returned");
     }
 
     [Fact]
@@ -326,27 +326,100 @@ public sealed class GiftSessionTests
         TaskCancellation.Apply(world, task, "test-cancel", events);
         world.SetSimulation(world.Simulation with { TerminalReason = "player-defeated" });
         Assert.False(ResolutionPipeline.CheckTerminal(world, events));
-        Assert.Equal(5000, Assert.Single(events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-cancelled").Actual);
+        Assert.Empty(events.OfType<ResourceChangedEvent>());
+        Assert.Equal(5000u, Assert.Single(events.OfType<ReturnCargoLostEvent>()).Amount);
         Assert.Single(events.OfType<TaskCancelledEvent>());
         Assert.Empty(world.Simulation.Tasks);
     }
 
-    [Fact]
-    public void InvalidatedTargetRefundsPrepaidResourcesAndDoesNotApplyGiftEffects()
+    private static GameSession CancelledGift(GiftKind kind, out ScenarioInitialState content)
     {
-        var content = Content();
+        content = Content();
         var session = GameSession.Start(content, 42);
         Assert.True(session.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2,
-            new(GiftKind.Money, 5000, null))).Submission.Accepted);
+            new(kind, kind == GiftKind.Money ? 5000u : 50000u, null))).Submission.Accepted);
         var saved = session.Capture();
         session = GameSession.Restore(content, saved with { World = saved.World with
             { Forces = saved.World.Forces.Select(f => f.Id == 2 ? f with { LeaderId = null } : f).ToImmutableArray() } });
         var result = session.AdvanceXun();
         Assert.Empty(result.Events.OfType<GiftResolvedEvent>());
-        var refund = Assert.Single(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-cancelled");
-        Assert.Equal(5000, refund.Actual);
+        Assert.DoesNotContain(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason.StartsWith("gift-", StringComparison.Ordinal));
+        Assert.NotNull(Assert.Single(session.Snapshot.Simulation.Tasks).ReturnCargo);
+        return session;
+    }
+
+    [Theory]
+    [InlineData(GiftKind.Money, ResourceKind.Money, 5000u)]
+    [InlineData(GiftKind.Food, ResourceKind.Food, 50000u)]
+    public void InvalidatedTargetReturnsPrepaidResourcesOnArrivalWithoutGiftEffects(GiftKind kind, ResourceKind resource, uint amount)
+    {
+        var session = CancelledGift(kind, out var content);
+        Assert.Equal(new ReturnCargo(resource, amount), Assert.Single(session.Snapshot.Simulation.Tasks).ReturnCargo);
+        session = SaveService.Decode(SaveService.Encode(session), content);
+        var arrival = session.AdvanceXun();
+        var refund = Assert.Single(arrival.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-returned");
+        Assert.Equal((long)amount, refund.Actual);
+        Assert.Equal(resource, Assert.Single(arrival.Events.OfType<ReturnCargoDeliveredEvent>()).Resource);
         Assert.All(session.Snapshot.Simulation.Tasks, t => Assert.NotNull(t.Journey!.ReturnLeg));
-        Assert.DoesNotContain(session.AdvanceXun().Events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-cancelled");
+        Assert.DoesNotContain(session.AdvanceXun().Events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-returned");
+    }
+
+    [Fact]
+    public void RedirectedReturnKeepsTheParcelAndSaturatesOnlyAtArrival()
+    {
+        var session = CancelledGift(GiftKind.Money, out var content);
+        var state = session.Capture();
+        var world = WorldState.Restore(state.World).BeginMutation();
+        var old = Assert.Single(world.Simulation.Tasks);
+        List<DomainEvent> redirect = [];
+        TaskCancellation.Apply(world, old, "test-redirect", redirect, preserveCargo: true);
+        PersonnelReturns.Start(world, old, session.View.Rules.Personnel, redirect, false, interrupted: true);
+        var returning = Assert.Single(world.Simulation.Tasks);
+        Assert.Equal(old.ReturnCargo, returning.ReturnCargo);
+        Assert.Empty(redirect.OfType<ReturnCargoLostEvent>());
+        Assert.Empty(redirect.OfType<ReturnCargoDeliveredEvent>());
+        Assert.Empty(redirect.OfType<PersonnelJourneyInterruptedEvent>());
+        var root = world.Corps[1];
+        world.Replace(root with { Treasury = root.Treasury with { Money = 999900 } });
+        session = GameSession.Restore(content, state with { World = world.CapturePresentation() });
+        var arrival = session.AdvanceXun();
+        var delivered = Assert.Single(arrival.Events.OfType<ReturnCargoDeliveredEvent>());
+        Assert.Equal((5000u, 100u), (delivered.Amount, delivered.Received));
+        Assert.Equal(4900, Assert.Single(arrival.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "gift-returned").SaturationLoss);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CapturedOrDeadCarrierDoesNotRefundTheParcel(bool capture)
+    {
+        var session = CancelledGift(GiftKind.Money, out _);
+        var world = WorldState.Restore(session.Snapshot).BeginMutation();
+        var task = Assert.Single(world.Simulation.Tasks);
+        List<DomainEvent> events = [];
+        if (capture) PersonnelTransitions.Capture(world, 12, 2, null, session.View.Rules.Personnel, events);
+        else Assert.True(OfficerDeath.Remove(world, 12, OfficerDeathCause.Natural, session.View.Rules.Personnel, events, false));
+        TaskCancellation.Apply(world, task, "duplicate-cleanup", events);
+        Assert.Empty(world.Simulation.Tasks);
+        Assert.Equal(5000u, Assert.Single(events.OfType<ReturnCargoLostEvent>()).Amount);
+        Assert.Empty(events.OfType<ResourceChangedEvent>());
+        Assert.Empty(events.OfType<ReturnCargoDeliveredEvent>());
+    }
+
+    [Fact]
+    public void LosingTheLastHomeRecordsTheParcelLossWithoutRefunding()
+    {
+        var session = CancelledGift(GiftKind.Money, out _);
+        var world = WorldState.Restore(session.Snapshot).BeginMutation();
+        var task = Assert.Single(world.Simulation.Tasks);
+        List<DomainEvent> events = [];
+        world.Replace(world.Settlements[1] with { OwnerId = 2 });
+        TaskCancellation.Apply(world, task, "test-home-lost", events, preserveCargo: true);
+        PersonnelReturns.Start(world, task, session.View.Rules.Personnel, events, false, interrupted: true);
+        Assert.Empty(world.Simulation.Tasks);
+        Assert.Equal(5000u, Assert.Single(events.OfType<ReturnCargoLostEvent>()).Amount);
+        Assert.Empty(events.OfType<ReturnCargoDeliveredEvent>());
+        Assert.DoesNotContain(events.OfType<ResourceChangedEvent>(), e => e.Resource == ResourceKind.Money && e.Actual > 0);
     }
     [Theory]
     [InlineData(GiftKind.Money)]

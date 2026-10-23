@@ -268,7 +268,7 @@ public sealed class CityIndependenceTests
     }
 
     [Fact]
-    public void PredecessorExitCancelsBothDiplomaticDirectionsAndRefundsIncomingGift()
+    public void PredecessorExitCancelsBothDirectionsAndReturnsIncomingGiftWithTheEnvoy()
     {
         var initial = World().CreateSnapshot();
         var state = WorldState.Create(initial.Clock, 17, initial.Forces, initial.Settlements,
@@ -290,7 +290,9 @@ public sealed class CityIndependenceTests
         Assert.True(world.Forces[1].IsEliminated);
         Assert.Equal(new[] { outgoing.CommandId, incoming.CommandId }.Order(), events.OfType<TaskCancelledEvent>().Select(e => e.TaskId).Order());
         Assert.DoesNotContain(world.Simulation.Tasks, t => t.Gift is not null || t.ForceId == 1);
-        Assert.Equal(incomingForceMoney, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money);
+        Assert.Equal(incomingForceMoney - 1000, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money);
+        Assert.Equal(new ReturnCargo(ResourceKind.Money, 1000), Assert.Single(world.Simulation.Tasks).ReturnCargo);
+        Assert.Equal(outgoing.CommandId, Assert.Single(events.OfType<ReturnCargoLostEvent>()).TaskId);
         ResolutionPipeline.CheckTerminal(world, events);
         WorldInvariants.Validate(world);
     }

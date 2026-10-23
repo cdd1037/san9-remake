@@ -49,20 +49,22 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
         return (JourneyOrder(task), target);
     }
 
-    private static string JourneyOrder(PersistentTask task) => task.Kind switch
+    private static string JourneyOrder(PersistentTask task) => JourneyOrder(task.Kind, task.Journey?.UnitStrategy?.Strategy);
+
+    internal static string JourneyOrder(string kind, UnitStrategyKind? strategy) => kind switch
     {
         "personnel-move" => "移动", "personnel-search" => "探索", "personnel-recruit" => "登庸",
         "personnel-return" => "撤回", "tactic-study" => "修行", "strategy-alienate" => "离间",
         "strategy-burn" => "烧夷", "strategy-seize" => "夺取", "strategy-gossip" => "流言",
         "diplomacy-gift" => "赠与", "diplomacy-attack-request" => "请求",
         "diplomacy-prisoner-return" => "交还", "diplomacy-surrender" => "劝降",
-        "unit-strategy" => task.Journey!.UnitStrategy!.Strategy switch
+        "unit-strategy" => strategy switch
         {
             UnitStrategyKind.FalseReport => "伪报", UnitStrategyKind.Disorder => "扰乱",
             UnitStrategyKind.Inspire => "激励", UnitStrategyKind.Reinforce => "救援",
-            _ => throw new ArgumentOutOfRangeException(nameof(task))
+            _ => throw new ArgumentOutOfRangeException(nameof(strategy))
         },
-        _ => throw new InvalidOperationException($"Unknown officer journey kind '{task.Kind}'.")
+        _ => throw new InvalidOperationException($"Unknown officer journey kind '{kind}'.")
     };
 
     public (CatalogCell Order, CatalogCell Target) ReadUnit(UnitState unit, int? viewerForceId)

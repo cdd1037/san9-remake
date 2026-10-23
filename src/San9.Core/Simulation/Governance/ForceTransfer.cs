@@ -12,9 +12,9 @@ internal static class ForceTransfer
             t.PrisonerReturn?.TargetForceId == force || t.AttackRequest?.TargetForceId == force || t.Surrender?.TargetForceId == force)
             .OrderBy(t => t.Sequence).ThenBy(t => t.Id).ToArray())
         {
-            TaskCancellation.Apply(world, task, reason, events);
+            TaskCancellation.Apply(world, task, reason, events, preserveCargo: task.ForceId != force && task.Journey is not null);
             if (task.ForceId == force) ReinforcementTransport.Disband(world, task, reason, events);
-            else if (task.Journey is not null) PersonnelReturns.Start(world, task, rules.Personnel, events, afterDailyCommands);
+            else if (task.Journey is not null) PersonnelReturns.Start(world, task, rules.Personnel, events, afterDailyCommands, interrupted: true);
         }
     }
 

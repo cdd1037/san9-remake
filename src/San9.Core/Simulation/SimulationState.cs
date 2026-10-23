@@ -27,6 +27,7 @@ public sealed record PersistentTask(Guid Id, string Kind, string ControllerId, i
     [JsonRequired] public PersonnelJourney? Journey { get; init; }
     [JsonRequired] public ReinforcementTroops? Reinforcements { get; init; }
     [JsonRequired] public GiftMission? Gift { get; init; }
+    [JsonRequired] public ReturnCargo? ReturnCargo { get; init; }
     [JsonRequired] public PrisonerReturnMission? PrisonerReturn { get; init; }
     [JsonRequired] public AttackRequestMission? AttackRequest { get; init; }
     [JsonRequired] public SurrenderMission? Surrender { get; init; }

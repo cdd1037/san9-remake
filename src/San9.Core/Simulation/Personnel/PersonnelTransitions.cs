@@ -125,14 +125,16 @@ internal static class PersonnelTransitions
         events.Add(new PersonAffiliationChangedEvent(world.Clock, personId, person.OwnerId, forceId, destinationId));
     }
 
-    internal static void Move(WorldMutation world, int personId, int destinationId, List<DomainEvent> events, PersonnelRulebook places, bool afterDailyCommands)
+    internal static void Move(WorldMutation world, PersistentTask task, List<DomainEvent> events, PersonnelRulebook places, bool afterDailyCommands)
     {
+        int personId = task.OfficerId, destinationId = task.Journey!.DestinationPlaceId;
         var person = world.Officers[personId];
         var destination = world.Settlements[destinationId];
         if (destination.OwnerId != person.OwnerId || !destination.CanHostPersons) throw new InvalidOperationException("Invalid move destination.");
         CancelMissions(world, personId, "person-location-changed", events, places, afterDailyCommands);
         world.Replace(person with { SettlementId = destinationId, RegionId = null, Acted = true, IsCommander = false });
-        events.Add(new OfficerMovedEvent(world.Clock, personId, person.SettlementId!.Value, destinationId));
+        events.Add(new OfficerMovedEvent(world.Clock, personId, person.SettlementId!.Value, destinationId,
+            new(task.ForceId, world.Forces[task.ForceId].LeaderId, task.Sequence, true, PersonnelLocations.Corps(world, person))));
     }
 
     internal static void CancelMissions(WorldMutation world, int personId, string reason, List<DomainEvent> events, PersonnelRulebook places, bool afterDailyCommands,
@@ -143,9 +145,10 @@ internal static class PersonnelTransitions
             .OrderBy(t => t.Sequence).ThenBy(t => t.OriginSettlementId).ThenBy(t => t.OfficerId).ThenBy(t => t.Id).ToArray())
         {
             world.Replace(world.Officers[task.OfficerId] with { Acted = true });
-            TaskCancellation.Apply(world, task, reason, events);
+            TaskCancellation.Apply(world, task, reason, events,
+                preserveCargo: preserveReinforcements || task.OfficerId != personId && task.Journey is not null);
             if (task.OfficerId != personId && task.Journey is not null)
-                PersonnelReturns.Start(world, task, places, events, afterDailyCommands);
+                PersonnelReturns.Start(world, task, places, events, afterDailyCommands, interrupted: true);
             else if (!preserveReinforcements)
                 ReinforcementTransport.Disband(world, task, reason, events);
         }

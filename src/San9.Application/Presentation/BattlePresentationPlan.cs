@@ -10,7 +10,7 @@ using San9.Rendering;
 namespace San9.Application.Presentation;
 
 public enum BattleMessageChannel { MapSpeech, Dialogue, DuelDialogue }
-public sealed record BattleAttackPhase(double Time, int FirstFactIndex, int LastFactIndex, string? AfterDialogueId);
+public sealed record BattleMapBatch(double Time, int FirstFactIndex, int LastFactIndex, string? AfterDialogueId);
 public sealed record BattleMessageCue(string Id, double Time, CommandMessage Message,
     BattleMessageChannel Channel = BattleMessageChannel.MapSpeech)
 {
@@ -27,6 +27,7 @@ public sealed record BattleVisualCue(string Id, double Start, double End, Battle
     BattleObjectContext Target, int TacticId, int ActorId, bool Blocked, bool Doubled,
     uint SoldierLoss, int DurabilityLoss, int MoraleLoss, BattleSprite? Effect, BattleZoomDefinition? Zoom)
 {
+    public bool IsMapEffect => Zoom is null && !ScreenEffect;
     public uint SoldierGain { get; init; }
     public bool ScreenEffect { get; init; }
     public double? FadeOutStart { get; init; }
@@ -59,7 +60,7 @@ public sealed record BattleMapNumberCue(string Id, double Start, BattleObjectCon
 /// <summary>Occurrence ordered, immutable presentation. Text choices and identities are fixed before playback.</summary>
 public sealed class BattlePresentationPlan
 {
-    public IReadOnlyList<BattleAttackPhase> Attacks { get; }
+    public IReadOnlyList<BattleMapBatch> MapBatches { get; }
     public IReadOnlyList<DuelSceneCue> Duels { get; }
     public IReadOnlyList<BattleMessageCue> Messages { get; }
     public IReadOnlyList<BattleRecordCue> Records { get; }
@@ -73,9 +74,9 @@ public sealed class BattlePresentationPlan
     public BattleMapNumberDefinition? NumberDefinition { get; }
     internal BattlePresentationPlan(List<BattleMessageCue> messages, List<BattleRecordCue> records, List<BattleVisualCue> visuals, List<BattleValueCue> values,
         List<BattleMapEffectCue> effects, List<BattleMapNumberCue> numbers, BattleMapNumberDefinition? numberDefinition, HashSet<string> feedback, double duration, List<DuelSceneCue> duels,
-        List<BattleMapChangeCue> mapChanges, List<BattleAttackPhase> attacks)
+        List<BattleMapChangeCue> mapChanges, List<BattleMapBatch> batches)
     {
-        Attacks = attacks.AsReadOnly();
+        MapBatches = batches.AsReadOnly();
         Duels = duels.AsReadOnly();
         Messages = messages.AsReadOnly(); Records = records.AsReadOnly(); Visuals = visuals.AsReadOnly(); Values = values.AsReadOnly();
         MapEffects = effects.AsReadOnly(); MapNumbers = numbers.AsReadOnly(); NumberDefinition = numberDefinition;

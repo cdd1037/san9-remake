@@ -23,6 +23,25 @@ public sealed class BattlePresentationTests
     }
 
     [Fact]
+    public void MapRemovalStillSeparatesAttacksWithoutAReportOrDialogue()
+    {
+        var (session, texts, content, occurrence) = Fixture();
+        var damage = new BattleDamageEvent(session.Snapshot.Clock, 10, 20, null, 500, 0, 500, 0, 0)
+            { Source = occurrence.Source, Target = occurrence.Target };
+        DomainEvent[] facts = [damage,
+            new UnitTerminatedEvent(session.Snapshot.Clock, occurrence.Target.Id, null, 0)
+                { Target = occurrence.Target, Reason = UnitTerminationReason.ForceEliminated },
+            damage with { TargetUnitId = null, SettlementId = 2, Target = null }];
+        var plan = BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content);
+        Assert.Empty(plan.Messages);
+        Assert.Empty(plan.Records);
+        Assert.Equal(2, plan.MapBatches.Count);
+        Assert.Equal(0, plan.MapBatches[0].LastFactIndex);
+        Assert.Equal(2, plan.MapBatches[1].FirstFactIndex);
+        Assert.Equal(occurrence.Target.Id, Assert.Single(plan.MapChanges).RemovedUnitId);
+    }
+
+    [Fact]
     public void DefeatRemovesAtImpactAndAdditionalCaptivesDoNotExtendTheDay()
     {
         var (session, texts, content, occurrence) = Fixture();
@@ -89,7 +108,7 @@ public sealed class BattlePresentationTests
     [InlineData(true, false)]
     [InlineData(false, true)]
     [InlineData(true, true)]
-    public void DisabledTacticScenesKeepDialoguesWithoutCreatingZoom(bool blocked, bool chain)
+    public void DisabledTacticScenesKeepParticipantSpeechesAndRecordsWithoutSceneResponses(bool blocked, bool chain)
     {
         var (session, texts, content, occurrence) = Fixture();
         var before = session.View;
@@ -101,12 +120,16 @@ public sealed class BattlePresentationTests
         var baseline = BattlePresentationPlan.Create(session.View, session.View, facts,
             session.Messages(texts), texts, content);
         Assert.Contains(baseline.Visuals, visual => visual.Zoom is not null);
+        string[] sceneResponses = ["hit-reaction", "block-reaction", "block-reply"];
+        foreach (string role in sceneResponses) content.Battle!.Messages.Remove(role);
         var plan = BattlePresentationPlan.Create(before, before, facts, session.Messages(texts, before.World), texts, content,
             tacticScenesEnabled: false);
         Assert.DoesNotContain(plan.Visuals, visual => visual.Zoom is not null);
         Assert.Equal(baseline.Records.Select(c => c.Record.Message.Key), plan.Records.Select(c => c.Record.Message.Key));
-        Assert.Equal(baseline.Messages.Select(c => (c.Id, c.Message, c.Channel)),
+        Assert.Equal(baseline.Messages.Where(c => !sceneResponses.Contains(c.Message.Message.Key)).Select(c => (c.Id, c.Message, c.Channel)),
             plan.Messages.Select(c => (c.Id, c.Message, c.Channel)));
+        Assert.DoesNotContain(plan.Messages, c => sceneResponses.Contains(c.Message.Message.Key));
+        Assert.Equal(1, plan.Duration);
         Assert.All(plan.Messages, message => Assert.Equal(BattleMessageChannel.Dialogue, message.Channel));
         Assert.Equal(baseline.Values.Select(value => (value.TargetId, value.Soldiers, value.Morale, value.Durability)),
             plan.Values.Select(value => (value.TargetId, value.Soldiers, value.Morale, value.Durability)));
@@ -136,7 +159,7 @@ public sealed class BattlePresentationTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void NextSceneWaitsForLongMapEffectsAndTheirResultFeedback(bool support)
+    public void MapEffectLifetimeIsOwnedByItsBatchRatherThanTheNextSceneTimeline(bool support)
     {
         var (session, texts, content, occurrence) = Fixture(false);
         var martial = Fixture().Content.Battle!.Tactics[99];
@@ -158,9 +181,26 @@ public sealed class BattlePresentationTests
         facts.Add(new TacticActivatedEvent(clock, 10, false, 20, false, 100, [new(3, 100)], false, 10) { Occurrence = occurrence });
         var plan = BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content);
         var next = Assert.Single(plan.Visuals, c => c.Zoom is not null);
-        Assert.All(plan.Visuals.Where(c => c.Zoom is null), c => Assert.True(c.End <= next.EntranceStart));
-        Assert.All(plan.MapEffects, c => Assert.True(c.Start + c.Sprite.Columns * c.Sprite.FrameMilliseconds / 1000.0 <= next.EntranceStart));
-        Assert.All(plan.MapNumbers, c => Assert.True(c.Start + San9.Rendering.BattleMapNumberPlayback.Duration(plan.NumberDefinition!) <= next.EntranceStart));
+        var batch = Assert.Single(plan.MapBatches);
+        Assert.True(batch.LastFactIndex < next.FactIndex);
+        Assert.All(plan.Visuals.Where(c => c.IsMapEffect), c => Assert.Equal(batch.Time, c.Start));
+        Assert.All(plan.MapEffects, c => Assert.Equal(batch.Time, c.Start));
+        Assert.Equal(batch.Time, next.EntranceStart);
+        Assert.All(plan.MapNumbers, c => Assert.Equal(batch.Time, c.Start));
+    }
+
+    [Fact]
+    public void RecoveryBeforeOrdinaryCombatDoesNotDelayTheAttackBoundary()
+    {
+        var (session, texts, content, occurrence) = Fixture();
+        DomainEvent[] facts = [new BattleConditionChangedEvent(session.Snapshot.Clock, 20, false, UnitCondition.Normal, 0),
+            new BattleDamageEvent(session.Snapshot.Clock, 10, 20, null, 500, 0, 500, 0, 0)
+                { Source = occurrence.Source, Target = occurrence.Target }];
+        var plan = BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content);
+        Assert.Empty(plan.MapEffects);
+        Assert.All(plan.Values, value => Assert.Equal(1, value.Time));
+        Assert.Equal(1, Assert.Single(plan.MapBatches).Time);
+        Assert.Equal(1, plan.Duration);
     }
 
     [Fact]
@@ -174,7 +214,7 @@ public sealed class BattlePresentationTests
         var hidden = tactic with { Source = occurrence.Source with { ForceId = 3 }, SoldierLoss = 700 };
         var plan = BattlePresentationPlan.Create(session.View, session.View, [damage, tactic, hidden], session.Messages(texts), texts, content);
         Assert.Equal(1, plan.Values[0].Time);
-        Assert.Equal(0, Assert.Single(plan.Attacks).FirstFactIndex);
+        Assert.Equal(0, Assert.Single(plan.MapBatches).FirstFactIndex);
         var number = Assert.Single(plan.MapNumbers);
         Assert.Equal(-500, number.Amount);
         Assert.Equal(occurrence.Target, number.Target);
@@ -236,7 +276,8 @@ public sealed class BattlePresentationTests
         Assert.Equal(occurrence.Target, number.Target);
         Assert.Equal("state-sound", effect.Sprite.Sound);
         Assert.All(plan.Values.Where(v => v.Condition is not null), v => Assert.Equal(zoom.End, v.Time));
-        Assert.True(plan.Duration >= number.Start + 1);
+        Assert.Equal(zoom.End, plan.Duration);
+        Assert.Equal(effect.FactIndex, Assert.Single(plan.MapBatches).FirstFactIndex);
     }
 
     [Theory]
@@ -266,7 +307,7 @@ public sealed class BattlePresentationTests
             Assert.Equal(target, effect.Target);
             Assert.Equal(value.Time, effect.Start);
             Assert.Equal("state-sound", effect.Sprite.Sound);
-            Assert.True(plan.Duration >= effect.Start + 0.8);
+            Assert.Equal(effect.Start, plan.Duration);
         }
         else Assert.Empty(plan.MapEffects);
     }
@@ -327,21 +368,23 @@ public sealed class BattlePresentationTests
         DomainEvent[] facts = [new TacticActivatedEvent(session.Snapshot.Clock,10,false,20,false,99, [new(3, 99)],false,10) { Occurrence=occurrence },
             new TacticSnipingResolvedEvent(session.Snapshot.Clock,new(10,false),new(20,false),99,2,21,0,injury)];
         var plan = BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content, tacticScenesEnabled: scenesEnabled);
-        var action = Assert.Single(plan.Messages, c => c.Message.Message.Key == "sniping-action");
-        var reaction = Assert.Single(plan.Messages, c => c.Message.Message.Key == response);
-        Assert.Equal(2, action.Message.SpeakerId); Assert.Equal(21, reaction.Message.SpeakerId);
         var injuryRecord = Assert.Single(plan.Records, c => c.Record.Message.Key == "sniping-enemy").Record;
         Assert.Equal(1, injuryRecord.ForceColorCode);
         Assert.Equal(MapCoordinates.Cell(occurrence.Source.Position!.Value), injuryRecord.Location);
+        if (!scenesEnabled)
+        {
+            Assert.Empty(plan.Visuals);
+            Assert.Equal("action", Assert.Single(plan.Messages).Message.Message.Key);
+            Assert.Equal(1, plan.Duration);
+            return;
+        }
+        var action = Assert.Single(plan.Messages, c => c.Message.Message.Key == "sniping-action");
+        var reaction = Assert.Single(plan.Messages, c => c.Message.Message.Key == response);
+        Assert.Equal(2, action.Message.SpeakerId); Assert.Equal(21, reaction.Message.SpeakerId);
         Assert.Equal(BattleMessageChannel.Dialogue, action.Channel);
         Assert.Equal(BattleMessageChannel.Dialogue, reaction.Channel);
         Assert.Null(action.Message.MapSpeech);
         Assert.Null(reaction.Message.MapSpeech);
-        if (!scenesEnabled)
-        {
-            Assert.Empty(plan.Visuals);
-            return;
-        }
         Assert.Equal(4, plan.Visuals.Count(c => c.ScreenEffect));
         var zoom = Assert.Single(plan.Visuals, c => c.Zoom is not null);
         Assert.InRange(action.Time, zoom.Start, zoom.End);
@@ -392,7 +435,8 @@ public sealed class BattlePresentationTests
         Assert.Equal(2, linked.Message.SpeakerId);
         Assert.Equal("奋斗", linked.Message.Message.BbCode);
         Assert.Equal(new[] { "奋迅", "奋斗" }, plan.Records.Where(c => c.Record.Message.Key == "link").Select(c => c.Record.Message.BbCode));
-        Assert.Equal("奋迅", Assert.Single(plan.Messages, c => c.Message.Message.Key == "hit-reaction").Message.Message.BbCode);
+        if (scenesEnabled) Assert.Equal("奋迅", Assert.Single(plan.Messages, c => c.Message.Message.Key == "hit-reaction").Message.Message.BbCode);
+        else Assert.DoesNotContain(plan.Messages, c => c.Message.Message.Key == "hit-reaction");
         Assert.Equal(BattleMessageChannel.Dialogue, linked.Channel);
     }
 
@@ -649,7 +693,7 @@ public sealed class BattlePresentationTests
         var dialogue = Assert.Single(plan.Messages, c => c.Channel == BattleMessageChannel.Dialogue);
         var effect = Assert.Single(plan.Visuals, c => !c.ScreenEffect);
         Assert.Equal(dialogue.Time + (support ? 0 : .64), effect.Start, 6);
-        Assert.Equal(effect.End, plan.Duration);
+        Assert.Equal(effect.Start, plan.Duration);
         Assert.Equal(dialogue.Id, effect.AfterDialogueId);
         var response = Assert.Single(plan.Messages, c => c.Message.Message.Key == "hit");
         Assert.Equal(1, response.Message.MapSpeech!.DelaySeconds);
@@ -664,20 +708,24 @@ public sealed class BattlePresentationTests
         }
     }
 
-    [Fact]
-    public void ComputerBattleRetainsADetailedReportWithoutPlayerScenesOrEffects()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ComputerBattleRetainsADetailedReportWithoutPlayerScenesOrEffects(bool scenesEnabled)
     {
         var (session, texts, content, occurrence) = Fixture();
         occurrence = occurrence with { Source = occurrence.Source with { ForceId = 3 } };
         var fact = new TacticActivatedEvent(session.Snapshot.Clock, 10, false, 20, false, 99, [new(3, 99)], false, 10) { Occurrence = occurrence };
-        var plan = BattlePresentationPlan.Create(session.View, session.View, [fact], session.Messages(texts), texts, content);
+        var plan = BattlePresentationPlan.Create(session.View, session.View, [fact], session.Messages(texts), texts, content,
+            tacticScenesEnabled: scenesEnabled);
         Assert.Empty(plan.Messages); Assert.Empty(plan.Visuals);
         var report = Assert.Single(plan.Records).Record;
         Assert.Equal("activation-other", report.Message.Key);
         Assert.Equal(MapReportImportance.Detailed, report.Importance);
         Assert.Null(report.ForceColorCode);
 
-        var repeated = BattlePresentationPlan.Create(session.View, session.View, [fact, fact, fact], session.Messages(texts), texts, content);
+        var repeated = BattlePresentationPlan.Create(session.View, session.View, [fact, fact, fact], session.Messages(texts), texts, content,
+            tacticScenesEnabled: scenesEnabled);
         Assert.Equal(plan.Duration, repeated.Duration);
         Assert.All(repeated.Records, c => Assert.Equal(plan.Records[0].Time, c.Time));
     }

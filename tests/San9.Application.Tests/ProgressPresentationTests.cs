@@ -26,9 +26,12 @@ public sealed class ProgressPresentationTests
         var content = CommandPresentation.Empty with { Progress = progress };
         var own = new BattleObjectContext(10, false, 1, 3, new(62, 12), 1, false);
         var enemy = new BattleObjectContext(20, false, 2, 23, new(67, 12), 2, false);
-        DomainEvent[] facts = [new UnitWaypointReachedEvent(before.World.Clock, own, new(47, 12)),
+        var attack = new BattleDamageEvent(before.World.Clock, own.Id, enemy.Id, null, 10, 0, 10, 0, 0)
+            { Source = own, Target = enemy };
+        var reply = attack with { AttackerId = enemy.Id, TargetUnitId = own.Id, Source = enemy, Target = own };
+        DomainEvent[] facts = [attack, new UnitWaypointReachedEvent(before.World.Clock, own, new(47, 12)), reply,
             new BattleContactStartedEvent(before.World.Clock, own, enemy, true, 5000, 5000),
-            new BattleContactStartedEvent(before.World.Clock, enemy, own, false, 5000, 5000)];
+            attack, new BattleContactStartedEvent(before.World.Clock, enemy, own, false, 5000, 5000), reply];
         var output = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts);
         Assert.Equal(2, output.Records.Count);
         Assert.All(output.Records, r => Assert.Equal(1, r.ForceColorCode));
@@ -37,10 +40,18 @@ public sealed class ProgressPresentationTests
         Assert.Equal(output.Records[0].Location, arrival.Location);
         Assert.Null(arrival.UnitId);
         Assert.Equal(3, output.Messages.Count);
+        var early = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts, endIndex: 3);
+        var late = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts, startIndex: 3);
+        Assert.Equal(output.Messages, early.Messages.Concat(late.Messages));
+        Assert.Equal(output.Records, early.Records.Concat(late.Records));
+        Assert.True(output.FeedbackIds.SetEquals(early.FeedbackIds.Concat(late.FeedbackIds)));
         Assert.Equal(2, Assert.Single(output.Messages, m => m.Message.Key == "contact-defense").MapSpeech!.ForceColorCode);
         var plan = BattlePresentationPlan.Create(before, before, facts, session.Messages(texts), texts, content);
         Assert.Equal(2, plan.Records.Count);
         Assert.Equal(3, plan.Messages.Count);
+        var phase = Assert.Single(plan.MapBatches);
+        Assert.Equal((0, 6), (phase.FirstFactIndex, phase.LastFactIndex));
+        Assert.All(plan.Values, value => Assert.Equal(1, value.Time));
         var rest = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts, presentedFeedback: plan.PresentedFeedback);
         Assert.Empty(rest.Records); Assert.Empty(rest.Messages);
     }

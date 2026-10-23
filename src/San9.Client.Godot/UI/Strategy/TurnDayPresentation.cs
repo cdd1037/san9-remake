@@ -1,4 +1,6 @@
 using San9.Application.Presentation;
+using San9.Content.Images;
+using San9.Content.Interface;
 using San9.Core.Simulation;
 using San9.Rendering;
 
@@ -22,20 +24,34 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
         (VisualElapsed - progressMilliseconds / 1000 - _pauses.Where(p => p.Position < progressMilliseconds / 1000).Sum(p => p.Duration)) * 1000;
     public MapDayPlan? Plan { get; } = plan;
     public Func<MapPresentationBounds?>? Viewport { get; init; }
-    private readonly IReadOnlyList<BattleAttackPhase> _attackPhases = battle?.Attacks ??
+    public IReadOnlyDictionary<string, ImageAsset> MapEffectAssets { get; init; } = new Dictionary<string, ImageAsset>();
+    private sealed record MapEffect(string Id, double Time, double Duration, int FactIndex, string? AfterDialogueId,
+        BattleObjectContext Target, BattleSprite Sprite);
+    private readonly MapEffect[] _mapEffects = ReadMapEffects(battle);
+    private readonly Dictionary<string, (double Start, bool Admitted)> _mapEffectStarts = [];
+    private double _mapEffectEnd;
+    private bool IsMapEffectBlocking => VisualElapsed < _mapEffectEnd - 1e-9;
+    public bool IsMapEffectPresented(string id) => _mapEffectStarts.TryGetValue(id, out var state) && state.Admitted;
+    public double MapEffectElapsed(string id) => IsMapEffectPresented(id) ? VisualElapsed - _mapEffectStarts[id].Start : -1;
+    private static MapEffect[] ReadMapEffects(BattlePresentationPlan? plan) => plan is null ? [] :
+        plan.MapEffects.Select(c => new MapEffect(c.Id, c.Start, c.Sprite.Columns * c.Sprite.FrameMilliseconds / 1000.0,
+            c.FactIndex, c.AfterDialogueId, c.Target, c.Sprite))
+        .Concat(plan.Visuals.Where(c => c.IsMapEffect && c.Effect is not null).Select(c =>
+            new MapEffect(c.Id, c.Start, c.End - c.Start, c.FactIndex, c.AfterDialogueId, c.Target, c.Effect!))).ToArray();
+    private readonly IReadOnlyList<BattleMapBatch> _mapBatches = battle?.MapBatches ??
         (plan?.Attacks.Count > 0 ? [new(DayDuration, plan.Attacks.Min(a => a.FactIndex), plan.Attacks.Max(a => a.FactIndex), null)] : []);
-    private int _nextAttackPhase;
+    private int _nextBatch;
     private readonly Dictionary<MapAttackMotion, (double Start, MapAttackAdmission Admission)> _attacks = [];
-    private bool _attackPhaseActive;
-    private double _phaseEnd;
-    private BattleAttackPhase? NextAttackPhase => _nextAttackPhase < _attackPhases.Count ? _attackPhases[_nextAttackPhase] : null;
-    public bool IsFactReady(int factIndex) => NextAttackPhase is not { } phase || factIndex <= phase.LastFactIndex;
+    private bool _batchActive;
+    private double _batchEnd;
+    private BattleMapBatch? NextBatch => _nextBatch < _mapBatches.Count ? _mapBatches[_nextBatch] : null;
+    public bool IsFactReady(int factIndex) => NextBatch is not { } phase || factIndex <= phase.LastFactIndex;
     public bool IsAttackPresented(MapAttackMotion attack) => _attacks.TryGetValue(attack, out var state) && (state.Admission.Body || state.Admission.Shots.Count > 0);
     public bool IsBodyPresented(MapAttackMotion attack) => _attacks.TryGetValue(attack, out var state) && state.Admission.Body;
     public double AttackMilliseconds(MapAttackMotion attack) => _attacks.TryGetValue(attack, out var state) ? (VisualElapsed - state.Start) * 1000 : -1;
     public double AttackVisualStart(MapAttackMotion attack) => _attacks[attack].Start * 1000;
     public IReadOnlySet<int> PresentedShots(MapAttackMotion attack) => _attacks.TryGetValue(attack, out var state) ? state.Admission.Shots : new HashSet<int>();
-    public bool IsCombatBlocking => _attackPhaseActive && VisualElapsed < _phaseEnd - 1e-9;
+    public bool IsCombatBlocking => _batchActive && VisualElapsed < _batchEnd - 1e-9;
     public BattlePresentationPlan? Battle { get; } = battle;
     private BattleMapFrame? _mapFrame;
     private (int Changes, int Values) _mapVersion = (-1, -1);
@@ -67,10 +83,11 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
         .Where(c => c.Channel != BattleMessageChannel.MapSpeech && !_completedDialogues.Contains(c.Id))
         .Select(c => (double?)c.Time).Min();
     public IReadOnlyList<BattleMessageCue> ReadyMapSpeeches => Battle?.Messages
-        .Where(c => c.Channel == BattleMessageChannel.MapSpeech && c.Time <= Elapsed && IsFactReady(c.FactIndex) && IsDialogueComplete(c.AfterDialogueId)).ToArray() ?? [];
+        .Where(c => c.Channel == BattleMessageChannel.MapSpeech && (c.Time <= Elapsed || IsComplete) && IsFactReady(c.FactIndex) && IsDialogueComplete(c.AfterDialogueId)).ToArray() ?? [];
     public IReadOnlyList<BattleRecordCue> ReadyRecords => Battle?.Records
-        .Where(c => c.Time <= Elapsed && IsFactReady(c.FactIndex) && IsDialogueComplete(c.AfterDialogueId)).ToArray() ?? [];
-    public bool IsComplete => Elapsed >= Duration && NextAttackPhase is null && NextDialogueTime is null;
+        .Where(c => (c.Time <= Elapsed || IsComplete) && IsFactReady(c.FactIndex) && IsDialogueComplete(c.AfterDialogueId)).ToArray() ?? [];
+    public bool IsComplete => Elapsed >= Duration && NextBatch is null && NextDialogueTime is null &&
+        !IsMapEffectBlocking && _mapEffectStarts.Count == _mapEffects.Length;
     public void CompleteDialogue(string id)
     {
         if (!PendingDialogues.Concat(PendingDuelDialogues).Any(c => c.Id == id)) throw new InvalidOperationException("Battle dialogue is not pending.");
@@ -102,34 +119,63 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
         }
         while (true)
         {
-            if (_attackPhaseActive)
+            StartMapEffects();
+            if (_batchActive)
             {
-                double held = Math.Min(seconds, Math.Max(0, _phaseEnd - VisualElapsed));
+                double held = Math.Min(seconds, Math.Max(0, Math.Max(_batchEnd, _mapEffectEnd) - VisualElapsed));
                 Hold(held); seconds -= held;
-                if (IsCombatBlocking) return;
-                _nextAttackPhase++;
+                if (IsCombatBlocking || IsMapEffectBlocking) return;
+                _nextBatch++;
                 PresentationRevision++;
-                _attackPhaseActive = false;
+                _batchActive = false;
             }
-            if (NextAttackPhase is { } phase && phase.Time <= Elapsed + 1e-9)
+            if (NextBatch is { } phase && phase.Time <= Elapsed + 1e-9)
             {
                 if (!IsDialogueComplete(phase.AfterDialogueId)) return;
-                _attackPhaseActive = true; _phaseEnd = VisualElapsed;
+                _batchActive = true; _batchEnd = VisualElapsed;
                 PresentationRevision++;
                 var viewport = Viewport?.Invoke();
+                Dictionary<int, double> bodies = [];
                 foreach (var attack in Plan?.Attacks.Where(a => a.FactIndex >= phase.FirstFactIndex && a.FactIndex <= phase.LastFactIndex) ?? [])
                 {
-                    var admitted = viewport is { } bounds ? Plan!.Admit(attack, bounds) : new MapAttackAdmission(false, new HashSet<int>(), 0);
+                    var admitted = viewport is { } bounds ? Plan!.Admit(attack, bounds) : new MapAttackAdmission(false, new HashSet<int>(), 0, 0);
                     _attacks.Add(attack, (VisualElapsed, admitted));
-                    _phaseEnd = Math.Max(_phaseEnd, VisualElapsed + admitted.BlockingDuration);
+                    // A later notification replaces this unit's body action, while every
+                    // admitted projectile retains its independent lifetime.
+                    if (admitted.Body) bodies[attack.SourceId] = admitted.BodyBlockingDuration;
+                    _batchEnd = Math.Max(_batchEnd, VisualElapsed + admitted.ProjectileBlockingDuration);
                 }
+                _batchEnd = Math.Max(_batchEnd, VisualElapsed + bodies.Values.DefaultIfEmpty(0).Max());
                 continue;
             }
-            double remaining = NextAttackPhase is { } next ? Math.Max(0, next.Time - Elapsed) : seconds;
+            if (IsMapEffectBlocking)
+            {
+                double held = Math.Min(seconds, _mapEffectEnd - VisualElapsed);
+                Hold(held); seconds -= held;
+                if (IsMapEffectBlocking) return;
+                continue;
+            }
+            double remaining = NextBatch is { } next ? Math.Max(0, next.Time - Elapsed) : seconds;
+            double? effectTime = _mapEffects.Where(c => !_mapEffectStarts.ContainsKey(c.Id) && IsFactReady(c.FactIndex) && IsDialogueComplete(c.AfterDialogueId))
+                .Select(c => (double?)c.Time).Min();
+            if (effectTime is { } start) remaining = Math.Min(remaining, Math.Max(0, start - Elapsed));
             double consumed = AdvanceTimeline(Math.Min(seconds, remaining));
             seconds -= consumed;
-            if (NextAttackPhase is { } due && due.Time <= Elapsed + 1e-9) continue;
+            if (NextBatch is { } due && due.Time <= Elapsed + 1e-9) continue;
+            if (effectTime is { } effectStart && effectStart <= Elapsed + 1e-9) continue;
             return;
+        }
+    }
+    private void StartMapEffects()
+    {
+        foreach (var cue in _mapEffects.Where(c => !_mapEffectStarts.ContainsKey(c.Id) && c.Time <= Elapsed + 1e-9 &&
+            IsFactReady(c.FactIndex) && IsDialogueComplete(c.AfterDialogueId)))
+        {
+            bool admitted = Plan is not null && Viewport?.Invoke() is { } bounds &&
+                MapEffectAssets.TryGetValue(cue.Sprite.Asset, out var asset) && Plan.AdmitMapEffect(cue.Target, cue.Sprite, asset, bounds);
+            _mapEffectStarts.Add(cue.Id, (VisualElapsed, admitted));
+            if (admitted) _mapEffectEnd = Math.Max(_mapEffectEnd, VisualElapsed + cue.Duration);
+            PresentationRevision++;
         }
     }
     private void Hold(double seconds)

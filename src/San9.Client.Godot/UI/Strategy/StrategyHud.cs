@@ -117,6 +117,7 @@ public partial class StrategyHud : Control
                     World.Package!.Buildings.ToDictionary(b => b.Id, b => b.FixedType), World.Package,
                     ReadSettings().TacticScenesEnabled, ReadSettings().DuelScenesEnabled))
             {
+                MapEffectAssets = Textures.LibraryAssets,
                 Viewport = () => World.Display?.Presented is { } frame
                     ? new MapPresentationBounds(frame.ViewportBounds.Position.X, frame.ViewportBounds.Position.Y,
                         frame.ViewportBounds.Size.X, frame.ViewportBounds.Size.Y) : null

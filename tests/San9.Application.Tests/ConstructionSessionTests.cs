@@ -50,7 +50,7 @@ public sealed class ConstructionSessionTests
                         Soldiers = 0, Wounded = 0, Durability = 0, Morale = 0 } }];
         var mapPlan = BattlePresentationPlan.Create(beforeConstruction, session.View, mapFacts,
             session.Messages(texts, beforeConstruction.World), texts, new([], null));
-        var startedFrame = new BattleMapFrame(beforeConstruction, mapPlan.MapChanges.Where(c => c.Time <= 1), []);
+        var startedFrame = new BattleMapFrame(beforeConstruction, mapPlan.MapChanges.Where(c => c.FactIndex == 0), []);
         Assert.DoesNotContain(beforeConstruction.Settlements, s => s.Id == 8000);
         Assert.True(startedFrame.Settlements[8000].IsUnderConstruction);
         Assert.Equal(started.Durability, startedFrame.Settlements[8000].Durability);

@@ -59,6 +59,148 @@ public sealed class MapDayPlanTests
     }
 
     [Fact]
+    public void RepeatedSourceReplacesTheBodyWaitAndKeepsBothVolleys()
+    {
+        var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "replies", 190, 1, 1, 5,
+            [new(5, "player", 0, 100)], [new(1, "city", 5, 0, 0, 100, 100, 100, 60, [])], [], [])
+        {
+            Units = [new(10, 5, new(2, 2), 100) { FormationId = 10000 },
+                new(20, 5, new(12, 2), 100) { FormationId = 10000 }],
+            Military = new(3, 1, [0, 0, 0], [new(0, 1, null)],
+                [new(10000, 1, 50, 1000, 5, new(1, 1), TravelMode.Land)], [new(1, new(2, 2), new(1, 1))]),
+            Information = new([], [], [], [new CorpsState(5, 5, null, new(100, 100)) { IsRoot = true }], [])
+                { Formations = [new(10000, "formation")] }
+        };
+        var session = GameSession.Start(definition, 1);
+        var catalog = UnitVisualFixture.Catalog with
+        {
+            Bodies = UnitVisualFixture.Catalog.Bodies.Select(b => b with
+            {
+                MeleeAttack = new([new(Enumerable.Repeat("melee", 8).ToArray()) { BlocksDayProgress = true }], MapProjectileKind.Arrow, 5),
+                RangedAttack = new([new(Enumerable.Repeat("ranged", 8).ToArray()) { BlocksDayProgress = true }], MapProjectileKind.Arrow, 5)
+            }).ToArray(),
+            Projectiles = new() { [MapProjectileKind.Arrow] = new(["arrow"], 64, false, 0, 0) }
+        };
+        var clips = UnitVisualFixture.Clips.Values.Concat(new MapAnimationClip[]
+            { new("melee", ["body", "body"], 100, []), new("ranged", Enumerable.Repeat("body", 30).ToArray(), 100, []) }).ToArray();
+        var map = new MapPackage(MapPackage.CurrentSchemaVersion, "fixture", "replies", "spring", 3, 1, 13056, 6656,
+            Enumerable.Repeat(new MapSquare(0, 1, 0, 0), 3).ToArray(), [], [new("body", "body.png", 32, 32)], [], [], [],
+            [new(1, 0, 0, 0)], Enumerable.Range(1, 14).Select(id => new MapComposition(id, [])).ToArray(),
+            [], [], [], [], new(clips, []), []) { BuildingTypes = [new(0, 100)], Units = catalog };
+        DomainEvent[] events = [new BattleDamageEvent(session.Snapshot.Clock, 10, 20, null, 10, 0, 10, 0, 0),
+            new BattleDamageEvent(session.Snapshot.Clock, 10, null, 1, 10, 0, 10, 0, 0)];
+        var texts = new San9.Content.Text.TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, []);
+        var battle = San9.Application.Presentation.BattlePresentationPlan.Create(session.View, session.View, events,
+            session.Messages(texts), texts, new([], null));
+        var plan = new MapDayPlan(map, session.View, events);
+        var bounds = new San9.Rendering.MapPresentationBounds(-100000, -100000, 200000, 200000);
+        var day = new TurnDayPresentation(session.View, session.View, events, plan, battle: battle) { Viewport = () => bounds };
+        var scene = new MapScene(map, new San9.Rendering.TerrainRenderer(map, [], []), "spring", session.View,
+            new Dictionary<string, San9.Content.Images.ImageAsset>(), () => 0, day: day);
+        day.Advance(1);
+        Assert.Equal(San9.Rendering.UnitVisualAction.Ranged, plan.Attacks[0].Action);
+        Assert.Equal(San9.Rendering.UnitVisualAction.Melee, plan.Attacks[1].Action);
+        Assert.All(plan.Attacks, attack => Assert.Equal(5, day.PresentedShots(attack).Count));
+        var unit = scene.Units.Single(u => u.Id == 10);
+        Assert.Equal(San9.Rendering.UnitVisualAction.Melee, scene.Sample(unit).Action);
+        string? attackId = scene.Sample(unit).AttackId;
+        day.Advance(.1);
+        Assert.Equal(attackId, scene.Sample(unit).AttackId);
+        Assert.Equal(100, scene.Sample(unit).AttackMilliseconds!.Value, 6);
+        double blocking = Math.Max(plan.Admit(plan.Attacks[1], bounds).BodyBlockingDuration,
+            plan.Attacks.Max(attack => plan.Admit(attack, bounds).ProjectileBlockingDuration));
+        Assert.True(blocking < plan.Admit(plan.Attacks[0], bounds).BodyBlockingDuration);
+        day.Advance(blocking - .1);
+        Assert.True(day.IsComplete);
+        Assert.Equal(1 + blocking, day.VisualElapsed, 8);
+    }
+
+    [Fact]
+    public void SiegeAttacksSeparatedByNonvisualFactsShareOneBlockingWindow()
+    {
+        var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "siege", 190, 1, 1, 5,
+            [new(5, "player", 0, 100)], [new(1, "city", 5, 3, 0, 100, 100, 100, 60, [])], [], [])
+        {
+            Units = [new(10, 5, new(2, 2), 100) { FormationId = 10000 },
+                new(11, 5, new(7, 2), 100) { FormationId = 10000 },
+                new(12, 5, new(12, 2), 100) { FormationId = 10000 }],
+            Military = new(4, 1, [0, 0, 0, 0], [new(0, 1, null)],
+                [new(10000, 1, 50, 1000, 5, new(1, 1), TravelMode.Land)], [new(1, new(17, 2), new(1, 1))]),
+            Information = new([], [], [], [new CorpsState(5, 5, null, new(100, 100)) { IsRoot = true }], [])
+                { Formations = [new(10000, "formation")] }
+        };
+        var session = GameSession.Start(definition, 1);
+        var catalog = UnitVisualFixture.Catalog with
+        {
+            Bodies = UnitVisualFixture.Catalog.Bodies.Select(b => b with
+                { MeleeAttack = new([new(Enumerable.Repeat("attack", 8).ToArray())], MapProjectileKind.Arrow, 5) }).ToArray(),
+            Projectiles = new() { [MapProjectileKind.Arrow] = new(["arrow"], 64, false, 0, 0) }
+        };
+        var map = new MapPackage(MapPackage.CurrentSchemaVersion, "fixture", "siege", "spring", 4, 1, 13056, 6656,
+            Enumerable.Repeat(new MapSquare(0, 1, 0, 0), 4).ToArray(), [], [new("body", "body.png", 32, 32)], [], [], [],
+            [new(1, 3, 0, 0)], Enumerable.Range(1, 14).Select(id => new MapComposition(id, [])).ToArray(),
+            [], [], [], [], new([new("attack", ["body"], 100, [])], []), [])
+            { BuildingTypes = [new(0, 100)], Units = catalog };
+        var clock = session.Snapshot.Clock;
+        List<DomainEvent> events = [];
+        foreach (int id in new[] { 10, 11, 12 })
+        {
+            events.Add(new BattleDamageEvent(clock, id, null, 1, 10, 0, 10, 1, 0));
+            events.Add(new TacticProficiencyGrownEvent(clock, id, 5, 0, 1));
+            events.Add(new CityBattleDamageEvent(clock, 1, id, 1, 1, 1));
+        }
+        var texts = new San9.Content.Text.TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, []);
+        var battle = San9.Application.Presentation.BattlePresentationPlan.Create(session.View, session.View, events,
+            session.Messages(texts), texts, new([], null));
+        var plan = new MapDayPlan(map, session.View, events);
+        var bounds = new San9.Rendering.MapPresentationBounds(-100000, -100000, 200000, 200000);
+        var day = new TurnDayPresentation(session.View, session.View, events, plan, battle: battle) { Viewport = () => bounds };
+        day.Advance(1);
+        Assert.Equal(3, plan.Attacks.Count);
+        Assert.All(plan.Attacks, attack => Assert.True(day.IsAttackPresented(attack)));
+        Assert.All(plan.Attacks, attack => Assert.Equal(0, day.AttackMilliseconds(attack)));
+        Assert.True(day.IsCombatBlocking);
+        double blocking = plan.Attacks.Max(attack => plan.Admit(attack, bounds).BlockingDuration);
+        day.Advance(blocking);
+        Assert.True(day.IsComplete);
+        Assert.Equal(1 + blocking, day.VisualElapsed, 8);
+        Assert.Equal(70u, day.MapFrame.Settlements[1].Soldiers);
+
+        // The finite state effect and volleys share their longest wait. A longer
+        // number animation must remain independent of that blocking interval.
+        var content = new San9.Content.Interface.CommandPresentation([], null)
+        {
+            Battle = new(new(), new(), "hit", "block")
+            {
+                ConditionEffects = new() { [UnitCondition.Confused] = new("state", 8, 300) },
+                MapNumbers = new("digits", 12, 20, 1000, 8, 4)
+            }
+        };
+        var withState = events.ToList();
+        withState.Insert(1, new BattleConditionChangedEvent(clock, 1, true, UnitCondition.Confused, 3));
+        withState.Add(((BattleDamageEvent)events[0]) with { TacticId = 99 });
+        var liveBattle = San9.Application.Presentation.BattlePresentationPlan.Create(session.View, session.View, withState,
+            session.Messages(texts), texts, content);
+        Assert.Single(liveBattle.MapBatches);
+        Assert.Single(liveBattle.MapNumbers);
+        var livePlan = new MapDayPlan(map, session.View, withState);
+        var effect = Assert.Single(liveBattle.MapEffects);
+        var assets = new Dictionary<string, San9.Content.Images.ImageAsset> { ["state"] = new("state", "state.png", 512, 64) };
+        var liveDay = new TurnDayPresentation(session.View, session.View, withState, livePlan, battle: liveBattle)
+            { Viewport = () => bounds, MapEffectAssets = assets };
+        liveDay.Advance(100);
+        Assert.True(liveDay.IsMapEffectPresented(effect.Id));
+        Assert.True(liveDay.IsComplete);
+        Assert.Equal(1 + Math.Max(blocking, 2.4), liveDay.VisualElapsed, 8);
+        var hiddenDay = new TurnDayPresentation(session.View, session.View, withState, livePlan, battle: liveBattle)
+            { Viewport = () => new(-10000, -10000, 1, 1), MapEffectAssets = assets };
+        hiddenDay.Advance(1);
+        Assert.True(hiddenDay.IsComplete);
+        Assert.False(hiddenDay.IsMapEffectPresented(effect.Id));
+        Assert.Equal(1, hiddenDay.VisualElapsed, 8);
+    }
+
+    [Fact]
     public void AdmittedWallArrowOutsideTheEndpointBoundsIsPreparedAndDrawn()
     {
         var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "wall", 190, 1, 1, 5,
@@ -256,29 +398,28 @@ public sealed class MapDayPlanTests
         Assert.True(replay.IsComplete);
         Assert.Equal(1 + blocking, replay.VisualElapsed, 8);
 
-        // Independent attacks share one phase; a later fact and its following attack wait for that phase.
+        // State publication does not split the live batch or add another volley wait.
         var hit = (BattleDamageEvent)events[0];
         DomainEvent[] ordered = [hit, hit with { AttackerId = 2, SettlementId = 1 },
             new BattleConditionChangedEvent(hit.Clock, 2, true, UnitCondition.Confused, 3), hit];
         var text = new San9.Content.Text.TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, []);
         var battle = San9.Application.Presentation.BattlePresentationPlan.Create(session.View, session.View, ordered,
             session.Messages(text), text, new([], null));
-        Assert.Equal(2, battle.Attacks.Count);
-        Assert.Equal((0, 1), (battle.Attacks[0].FirstFactIndex, battle.Attacks[0].LastFactIndex));
+        Assert.Equal((0, 3), (Assert.Single(battle.MapBatches).FirstFactIndex, battle.MapBatches[0].LastFactIndex));
         var orderedPlan = new MapDayPlan(map, session.View, ordered);
         var orderedDay = new TurnDayPresentation(session.View, session.View, ordered, orderedPlan, battle: battle)
             { Viewport = () => new(-100000, -100000, 200000, 200000) };
         orderedDay.Advance(1);
         Assert.True(orderedDay.IsAttackPresented(orderedPlan.Attacks[0]));
         Assert.True(orderedDay.IsAttackPresented(orderedPlan.Attacks[1]));
-        Assert.False(orderedDay.IsAttackPresented(orderedPlan.Attacks[2]));
-        Assert.False(orderedDay.IsFactReady(2));
-        double firstPhase = orderedPlan.Attacks.Take(2).Max(a => orderedPlan.Admit(a, new(-100000, -100000, 200000, 200000)).BlockingDuration);
+        Assert.True(orderedDay.IsAttackPresented(orderedPlan.Attacks[2]));
+        Assert.True(orderedDay.IsFactReady(2));
+        double firstPhase = orderedPlan.Attacks.Max(a => orderedPlan.Admit(a, new(-100000, -100000, 200000, 200000)).BlockingDuration);
         orderedDay.Advance(firstPhase);
         Assert.True(orderedDay.IsFactReady(2));
         Assert.True(orderedDay.IsAttackPresented(orderedPlan.Attacks[2]));
-        Assert.Equal(0, orderedDay.AttackMilliseconds(orderedPlan.Attacks[2]), 6);
-        Assert.True(orderedDay.IsCombatBlocking);
+        Assert.Equal(firstPhase * 1000, orderedDay.AttackMilliseconds(orderedPlan.Attacks[2]), 6);
+        Assert.True(orderedDay.IsComplete);
         orderedDay.Advance(100);
         Assert.True(orderedDay.IsComplete);
 
@@ -296,7 +437,8 @@ public sealed class MapDayPlanTests
             session.Messages(dialogueText), dialogueText, content);
         var dialogueMap = new MapDayPlan(map, session.View, withDialogue);
         var dialogueDay = new TurnDayPresentation(session.View, session.View, withDialogue, dialogueMap, battle: dialogueBattle)
-            { Viewport = () => new(-100000, -100000, 200000, 200000) };
+            { Viewport = () => new(-100000, -100000, 200000, 200000),
+                MapEffectAssets = new Dictionary<string, San9.Content.Images.ImageAsset> { ["support-effect"] = new("support-effect", "effect.png", 64, 32) } };
         dialogueDay.Advance(1);
         Assert.Empty(dialogueDay.PendingDialogues);
         Assert.Empty(dialogueDay.ReadyRecords);
@@ -307,10 +449,6 @@ public sealed class MapDayPlanTests
         Assert.False(dialogueDay.IsAttackPresented(dialogueMap.Attacks[1]));
         dialogueDay.CompleteDialogue(Assert.Single(dialogueDay.PendingDialogues).Id);
         dialogueDay.Advance(0);
-        Assert.False(dialogueDay.IsAttackPresented(dialogueMap.Attacks[1]));
-        dialogueDay.Advance(.39);
-        Assert.False(dialogueDay.IsAttackPresented(dialogueMap.Attacks[1]));
-        dialogueDay.Advance(.01);
         Assert.True(dialogueDay.IsAttackPresented(dialogueMap.Attacks[1]));
         dialogueDay.Advance(100);
         Assert.True(dialogueDay.IsComplete);

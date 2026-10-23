@@ -49,7 +49,6 @@ public partial class BattlePlaybackFlow : Control
             PlaySound = role => SceneSounds.Play(role, SoundEnabled()),
             PlayMapSound = (role, point) => _mapSounds.PlayOnce(role, point, SoundEnabled()),
             IsPaused = () => Turn.Paused,
-            FocusRequested = obj => World.FocusCell(BattleCell(obj)),
             Project = obj =>
             {
                 Vector2 point;
@@ -91,6 +90,7 @@ public partial class BattlePlaybackFlow : Control
     {
         if (!ReferenceEquals(_battleMessagesDay, day)) { _battleMessagesDay = day; _battleMessagesPlayed.Clear(); }
         if (day.Battle is not { } plan) return;
+        _battleView.PublishMapFeedback(day);
         var dialogues = day.PendingDialogues.Where(c => !_battleMessagesPlayed.Contains(c.Id)).ToArray();
         if (dialogues.Length > 0)
         {

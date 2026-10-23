@@ -1,6 +1,7 @@
 using San9.Application.Presentation;
 using San9.Content.Maps;
 using San9.Content.Images;
+using San9.Content.Interface;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 using San9.Rendering;
@@ -14,6 +15,19 @@ public sealed class MapDayPlan
     public IReadOnlyList<MapAttackMotion> Attacks => _attacks;
     private readonly Dictionary<MapAttackMotion, (double Duration, double Blocking)> _bodies = [];
     public double BodyDuration(MapAttackMotion attack) => _bodies[attack].Duration;
+    public bool AdmitMapEffect(BattleObjectContext target, BattleSprite sprite, ImageAsset asset, MapPresentationBounds viewport)
+    {
+        if (!target.IsSettlement && target.IsGarrison) return false;
+        var position = target.Position ?? (target.ServicePlaceId is int servicePlace && Settlements.TryGetValue(servicePlace, out var place)
+            ? MapCoordinates.Center(new(place.X, place.Y)) : (WorldPosition?)null);
+        if (position is not { } point) return false;
+        var origin = Project(point.X, point.Y);
+        if (!viewport.ContainsBody(origin)) return false;
+        double width = asset.Width / (double)sprite.Columns;
+        double left = origin.X + sprite.OffsetX - (sprite.Centered ? width / 2 : 0);
+        double top = origin.Y + sprite.OffsetY;
+        return viewport.Intersects(left, top, left + width, top + asset.Height, 192, 96);
+    }
     public MapAttackAdmission Admit(MapAttackMotion attack, MapPresentationBounds viewport)
     {
         bool body = !attack.SourceIsSettlement && viewport.ContainsBody(attack.BodyPosition);
@@ -22,9 +36,8 @@ public sealed class MapDayPlan
             Enumerable.Range(0, MapProjectiles.ShotCount(attack)).Where(i => MapProjectiles.IsVisible(attack, i, viewport)).ToHashSet();
         double impact = attack.Projectile != MapProjectileKind.None && Map.Units.Projectiles[attack.Projectile].Impact is {} effect
             ? Clips[effect.ClipId].Frames.Length * Clips[effect.ClipId].FrameMilliseconds / 1000.0 : 0;
-        double blocking = Math.Max(body ? _bodies[attack].Blocking : 0,
-            shots.Select(i => MapProjectiles.Duration(attack, i) / 1000 + impact).DefaultIfEmpty(0).Max());
-        return new(body, shots, blocking);
+        double projectileBlocking = shots.Select(i => MapProjectiles.Duration(attack, i) / 1000 + impact).DefaultIfEmpty(0).Max();
+        return new(body, shots, body ? _bodies[attack].Blocking : 0, projectileBlocking);
     }
     private readonly MapPackage Map;
     private readonly StrategySnapshot State;
@@ -177,4 +190,7 @@ public sealed class MapDayPlan
     }
 }
 
-public sealed record MapAttackAdmission(bool Body, IReadOnlySet<int> Shots, double BlockingDuration);
+public sealed record MapAttackAdmission(bool Body, IReadOnlySet<int> Shots, double BodyBlockingDuration, double ProjectileBlockingDuration)
+{
+    public double BlockingDuration => Math.Max(BodyBlockingDuration, ProjectileBlockingDuration);
+}

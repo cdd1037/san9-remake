@@ -75,7 +75,7 @@ public sealed partial class GameSession
 
     internal static GameSession Restore(ScenarioInitialState definition, SessionSnapshot snapshot, Func<WorldState, SimulationEngine>? factory)
     {
-        return Restore(new ScenarioSessionDefinition(definition), snapshot, factory);
+        return Restore(new ScenarioSessionDefinition(definition, snapshot.InitialPlayerForceIds), snapshot, factory);
     }
 
     internal static GameSession Restore(ScenarioSessionDefinition owned, SessionSnapshot snapshot, Func<WorldState, SimulationEngine>? factory)

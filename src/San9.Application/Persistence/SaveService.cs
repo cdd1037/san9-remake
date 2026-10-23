@@ -54,9 +54,9 @@ public static class SaveService
             throw new SaveException(SaveFailure.UnsupportedVersion, "Unsupported save version.");
         if (string.IsNullOrWhiteSpace(envelope.RulesVersion))
             throw new SaveException(SaveFailure.InvalidFormat, "Missing save rules version.");
-        var owned = new ScenarioSessionDefinition(definition);
         try
         {
+            var owned = new ScenarioSessionDefinition(definition, envelope.Session.InitialPlayerForceIds);
             var session = playerLoad ? GameSession.Load(owned, envelope.Session, factory) : GameSession.Restore(owned, envelope.Session, factory);
             session.ReportRulesVersion(envelope.RulesVersion);
             return session;

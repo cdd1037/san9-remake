@@ -100,6 +100,20 @@ public sealed class PenglaiSessionTests
     }
 
     [Fact]
+    public void RestoringExplicitSelectionDoesNotActivateTheScenarioDefaultForce()
+    {
+        var definition = Definition() with { PlayerForceId = 2 };
+        var session = GameSession.Start(definition, 17, playerForceIds: [1]);
+        var snapshot = session.Capture();
+        Assert.True(session.Snapshot.Forces.Single(f => f.Id == 2).IsDormant);
+        StateAssert.Equal(snapshot, GameSession.Restore(definition, snapshot).Capture());
+        StateAssert.Equal(snapshot, SaveService.Decode(SaveService.Encode(session), definition).Capture());
+        var loaded = SaveService.Load(SaveService.Capture(session), definition);
+        Assert.True(loaded.Snapshot.Forces.Single(f => f.Id == 2).IsDormant);
+        Assert.Equal(new[] { 1 }, loaded.InitialPlayerForceIds);
+    }
+
+    [Fact]
     public void ActivationReferencesAndDormantSaveStateAreValidated()
     {
         var d = Definition(); var activation = (ForceActivationSearchEventDefinition)d.SearchEvents[0];

@@ -11,7 +11,8 @@ public static class ClientContentImporter
     public static async Task<ClientContentPackage> ImportAsync(string gameDirectory, string scenarioFile,
         string textureRoot, string output, Action<string>? progress = null, bool messageReports = false, CancellationToken token = default, string? resourceRoot = null,
         SharedMessageLibrary? sharedMessages = null, bool publishSharedMessages = false,
-        SharedMapDefinition? sharedMap = null, bool publishSharedMap = false)
+        SharedMapDefinition? sharedMap = null, bool publishSharedMap = false,
+        San9.Content.Interface.ScenarioPreviewEntry? preview = null)
     {
         var sourceDirectory = new San9SourceDirectory(gameDirectory);
         string sourceExe = sourceDirectory.Executable, dataDirectory = sourceDirectory.Root;
@@ -85,7 +86,7 @@ public static class ClientContentImporter
         sounds = sounds.ToDictionary(p => PublishedAudio(p.Key), p => p.Value, StringComparer.Ordinal);
         var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion,
             dependency, MapInstance.From(map), scenario, text, roles)
-        { Presentation = presentation };
+        { Presentation = presentation, Preview = preview };
         var loaded = ClientContentFiles.Resolve(content, textures, textureRoot) with { ContentRoot = resourceRoot };
         foreach (string key in messages.Keys)
             if (!San9.Content.Text.MessageGraph.ReferencesValid(key, messages))

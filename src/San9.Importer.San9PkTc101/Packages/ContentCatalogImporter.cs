@@ -8,7 +8,8 @@ namespace San9.Importer.San9PkTc101.Packages;
 
 public static class ContentCatalogImporter
 {
-    public static async Task ImportAsync(string gameDirectory, string output, Action<string>? progress = null, CancellationToken token = default)
+    public static async Task ImportAsync(string gameDirectory, string output, Action<string>? progress = null, CancellationToken token = default,
+        bool openingOnly = false)
     {
         output = Path.GetFullPath(output);
         var source = new San9SourceDirectory(gameDirectory);
@@ -24,7 +25,8 @@ public static class ContentCatalogImporter
             using var file = File.OpenRead(source.File($"D_Sce{i:D3}.S9"));
             return San9ScenarioArchive.ReadHeader(file);
         }).ToArray();
-        var selection = ScenarioSelectionPresentationCompiler.Compile(exe, textures.Library, text, headers);
+        var map = OpeningMapCompiler.Compile(exe, File.ReadAllBytes(source.File("G_MMap.s9")), textures.Library);
+        var selection = ScenarioSelectionPresentationCompiler.Compile(exe, textures.Library, text, headers, map);
         List<ScenarioCatalogEntry> entries = [];
         SharedMessageLibrary? sharedMessages = null;
         SharedMapDefinition? sharedMap = null;
@@ -32,13 +34,19 @@ public static class ContentCatalogImporter
         {
             var header = headers.Single(h => $"scenario-{h.ScenarioId}" == preview.Id);
             string path = $"scenarios/{preview.CategoryId}/{preview.Id}";
+            entries.Add(new(preview.Id, path));
+            if (openingOnly)
+            {
+                await ScenarioContentFiles.WritePreviewAsync(PackageFiles.Resolve(output, path), preview, token);
+                progress?.Invoke($"Refreshed scenario preview: {preview.Id}.");
+                continue;
+            }
             var package = await ClientContentImporter.ImportAsync(gameDirectory, $"D_Sce{header.ScenarioId + 1:D3}.S9", textureRoot,
                 PackageFiles.Resolve(output, path), progress, token: token, resourceRoot: output,
                 sharedMessages: sharedMessages, publishSharedMessages: sharedMessages is null,
-                sharedMap: sharedMap, publishSharedMap: sharedMap is null);
+                sharedMap: sharedMap, publishSharedMap: sharedMap is null, preview: preview);
             sharedMessages ??= new("shared/messages/library.json", package.Text.Messages);
             sharedMap ??= new("shared/maps/china/map.json", MapDefinition.From(package.Map));
-            entries.Add(new(preview, path, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture)));
             progress?.Invoke($"Published {preview.Id}: {preview.Year}/{preview.Month} ({preview.CategoryId}).");
         }
         var opening = new OpeningContent(StartMenuPresentationCompiler.Compile(textures.Library, text), selection with { Entries = [] });

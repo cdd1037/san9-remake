@@ -7,6 +7,7 @@ public partial class CatalogBulkButton : BaseButton
 {
     public string Title { get; init; } = "";
     public TextureScope Textures { get; init; } = null!;
+    public Func<bool, bool, bool, GameTextStyle>? TextStyle { get; init; }
     private readonly GameTextPresenter _text = new();
     private Label _label = null!;
     private (bool Hovered, bool Pressed, bool Disabled)? _previous;
@@ -31,7 +32,7 @@ public partial class CatalogBulkButton : BaseButton
         if (_previous == state) return;
         _previous = state;
         _frame = Disabled ? 3 : pressed ? 2 : hovered ? 1 : 0;
-        _text.Apply(_label, GameTextStyles.CatalogBulk(hovered, pressed, Disabled));
+        _text.Apply(_label, TextStyle?.Invoke(hovered, pressed, Disabled) ?? GameTextStyles.CatalogBulk(hovered, pressed, Disabled));
         _label.Position = new Vector2(0, -1) + (pressed ? new Vector2(2, 2) : Vector2.Zero);
         QueueRedraw();
     }

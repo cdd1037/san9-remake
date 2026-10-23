@@ -51,6 +51,6 @@ public static class StartMenuPresentationCompiler
             [new(Enumerable.Range(0, 10).Select(i => Asset("g_start", i)).ToArray(), 1, 0, 56, .2),
              new(Enumerable.Range(10, 8).Select(i => Asset("g_start", i)).ToArray(), 1, 352, 556, .2)],
             [Sprite(38, 448, 48), new(Asset("g_locspk", 0), 0, 0), Sprite(20, 0, 640)],
-            Sprite(23, 920, 8, 4), Sprite(24, 968, 8, 4), Hint(8057), entries);
+            Sprite(23, 920, 8, 4), Sprite(24, 968, 8, 4), Hint(8057), entries) { QuitPrompt = MessageMarkup.Static(text.Messages["messages.8032"].Nodes) };
     }
 }

@@ -12,10 +12,16 @@ public partial class StartMenuArtwork : Control
     private double _illustrationTime;
     private StartMenuGlints _glints = null!;
     private bool _menuVisible = true;
+    private bool _illustrationVisible = true;
+    public bool IllustrationVisible
+    {
+        get => _illustrationVisible;
+        set { _illustrationVisible = value; _glints.Visible = MenuVisible && value; QueueRedraw(); }
+    }
     public bool MenuVisible
     {
         get => _menuVisible;
-        set { _menuVisible = value; _glints.Visible = value; QueueRedraw(); }
+        set { _menuVisible = value; _glints.Visible = value && IllustrationVisible; QueueRedraw(); }
     }
     public override void _Ready()
     {
@@ -42,7 +48,7 @@ public partial class StartMenuArtwork : Control
         foreach (var animation in Definition.Ambience) PaintAnimation(this, Textures, animation, _elapsed);
         if (!MenuVisible) return;
         foreach (var sprite in Definition.Foreground) DrawSprite(sprite);
-        PaintAnimation(this, Textures, _entry.Illustration, _illustrationTime);
+        if (IllustrationVisible) PaintAnimation(this, Textures, _entry.Illustration, _illustrationTime);
     }
     private void DrawSprite(StartMenuSprite sprite) => DrawTexture(Textures.Get(sprite.Asset, this), new(sprite.X, sprite.Y));
     internal static void PaintAnimation(Control canvas, TextureScope textures, StartMenuAnimation animation, double elapsed)

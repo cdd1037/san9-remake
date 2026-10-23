@@ -16,6 +16,10 @@ public partial class CatalogView : FixedPage, IInformationPage
     public Func<int, bool>? PortraitDeceased { get; init; }
     public Func<int, string?>? Portrait { get; init; }
     public TextureScope Textures { get; init; } = null!;
+    public Action<CanvasItem, Rect2>? WindowPainter { get; init; }
+    public int MinimumBodyWidth { get; init; }
+    public int TitleWidth { get; init; } = 248;
+    public int MapButtonWidth { get; init; } = 108;
     public Vector2 PortraitSize { get; init; } = new(64, 80);
     public Action<int>? Activated { get; init; }
     public Action<int>? CurrentChanged { get; init; }
@@ -70,10 +74,11 @@ public partial class CatalogView : FixedPage, IInformationPage
         _needsScroll = rows.Length > CatalogTableState.VisibleRows;
         int width = Math.Max(Pages.Max(p => p.Columns.Sum(c => c.Width)) + SelectionWidth + (_needsScroll ? 16 : 0),
             Math.Min(Pages.Count, 7) * 62 + 52) + 80;
+        width = Math.Max(width, MinimumBodyWidth);
         int height = 226 + 24 * _visibleRows + (Pages.Count > 7 ? 32 : 0);
         _body = new((1024 - width) / 2, (768 - height) / 2, width, height);
         _tableOrigin = _body.Position + new Vector2(40, Pages.Count > 7 ? 148 : 116);
-        var title = LabelAt(Title, _body.Position + new Vector2(-16, -8), new(248, 56), 24);
+        var title = LabelAt(Title, _body.Position + new Vector2(-16, -8), new(TitleWidth, 56), 24);
         title.HorizontalAlignment = HorizontalAlignment.Center;
         for (int i = 0; i < Pages.Count; i++)
         {
@@ -114,9 +119,9 @@ public partial class CatalogView : FixedPage, IInformationPage
         }
         if (ShowMap is not null)
         {
-            var map = new InformationActionButton { Title = "地图", MapToggle = true,
+            var map = new InformationActionButton { Name = "Map", Title = "地图", MapToggle = true,
                 TextRole = GameButtonTextRole.MapMode, Textures = Textures,
-                Position = new(_body.End.X - (HasPairedActions ? 440 : 352), _body.End.Y - 64), Size = new(108, 32) };
+                Position = new(_body.End.X - (HasPairedActions ? 332 : 244) - MapButtonWidth, _body.End.Y - 64), Size = new(MapButtonWidth, 32) };
             map.Pressed += ShowMap; AddChild(map);
         }
         IconButton("information-action-close", new(_body.End.X - 40, _body.Position.Y + 32), () => Closed?.Invoke());
@@ -448,20 +453,24 @@ public partial class CatalogView : FixedPage, IInformationPage
     public override void _Draw()
     {
         if (_grid is null) return;
-        DrawTextureRectRegion(Textures.Get("information-background", this), _body, new(Vector2.Zero,_body.Size));
-        float x=_body.Position.X,y=_body.Position.Y,right=_body.End.X,bottom=_body.End.Y;
-        Tile("information-frame-top",new(x+64,y-8,_body.Size.X-304,8));
-        Tile("information-frame-bottom",new(x+208,bottom-16,_body.Size.X-448,24));
-        Tile("information-frame-left",new(x-16,y+216,24,_body.Size.Y-432));
-        Tile("information-frame-right",new(right-8,y+216,16,_body.Size.Y-432));
-        DrawTexture(Textures.Get("information-frame-top-left", this),new(x-56,y-16));
-        DrawTexture(Textures.Get("information-frame-top-right", this),new(right-240,y-16));
-        DrawTexture(Textures.Get("information-frame-bottom-left", this),new(x-56,bottom-216));
-        DrawTexture(Textures.Get("information-frame-bottom-right", this),new(right-240,bottom-216));
-        Strip("information-title",new(x-40,y-16),264);
-        DrawTexture(Textures.Get("information-frame-ornament", this),new(x-56,y-16));
-        Strip("information-footer",new(right-(HasPairedActions ? 324 : 236),bottom-64),HasPairedActions ? 348 : 260);
-        var tabs = new Rect2(x+40,y+64,TabStripFollowsPage ? Pages[_page].Columns.Sum(c => c.Width) : _body.Size.X-80,Pages.Count>7?80:48);
+        if (WindowPainter is { } painter) painter(this, _body);
+        else
+        {
+            DrawTextureRectRegion(Textures.Get("information-background", this), _body, new(Vector2.Zero,_body.Size));
+            float x=_body.Position.X,y=_body.Position.Y,right=_body.End.X,bottom=_body.End.Y;
+            Tile("information-frame-top",new(x+64,y-8,_body.Size.X-304,8));
+            Tile("information-frame-bottom",new(x+208,bottom-16,_body.Size.X-448,24));
+            Tile("information-frame-left",new(x-16,y+216,24,_body.Size.Y-432));
+            Tile("information-frame-right",new(right-8,y+216,16,_body.Size.Y-432));
+            DrawTexture(Textures.Get("information-frame-top-left", this),new(x-56,y-16));
+            DrawTexture(Textures.Get("information-frame-top-right", this),new(right-240,y-16));
+            DrawTexture(Textures.Get("information-frame-bottom-left", this),new(x-56,bottom-216));
+            DrawTexture(Textures.Get("information-frame-bottom-right", this),new(right-240,bottom-216));
+            Strip("information-title",new(x-40,y-16),264);
+            DrawTexture(Textures.Get("information-frame-ornament", this),new(x-56,y-16));
+            Strip("information-footer",new(right-(HasPairedActions ? 324 : 236),bottom-64),HasPairedActions ? 348 : 260);
+        }
+        var tabs = new Rect2(_body.Position.X+40,_body.Position.Y+64,TabStripFollowsPage ? Pages[_page].Columns.Sum(c => c.Width) : _body.Size.X-80,Pages.Count>7?80:48);
         Tile("catalog-tabs-top",new(tabs.Position+new Vector2(12,0),new(tabs.Size.X-24,8)));
         Tile("catalog-tabs-bottom",new(tabs.Position+new Vector2(12,tabs.Size.Y-8),new(tabs.Size.X-24,8)));
         Tile("catalog-tabs-left",new(tabs.Position+new Vector2(0,24),new(12,tabs.Size.Y-48)));

@@ -12,6 +12,7 @@ public sealed record StartMenuPresentation(StartMenuSprite[] Background, StartMe
     StartMenuSprite[] Foreground, StartMenuSprite Help, StartMenuSprite Close, string Prompt,
     StartMenuEntry[] Entries)
 {
+    [System.Text.Json.Serialization.JsonRequired] public string QuitPrompt { get; init; } = "";
     [System.Text.Json.Serialization.JsonIgnore]
     public IEnumerable<string> Assets => Sprites.Select(s => s.Asset).Distinct();
     private IEnumerable<StartMenuSprite> Sprites => Background.Concat(Foreground)
@@ -24,7 +25,7 @@ public sealed record StartMenuPresentation(StartMenuSprite[] Background, StartMe
         var catalog = images.DistinctBy(i => i.Id).ToDictionary(i => i.Id);
         var animations = Animations;
         if (Entries.Length == 0 || Entries.Select(e => e.Id).Distinct().Count() != Entries.Length ||
-            string.IsNullOrWhiteSpace(Prompt) || Entries.Any(e => string.IsNullOrWhiteSpace(e.Id) ||
+            string.IsNullOrWhiteSpace(QuitPrompt) || string.IsNullOrWhiteSpace(Prompt) || Entries.Any(e => string.IsNullOrWhiteSpace(e.Id) ||
                 string.IsNullOrWhiteSpace(e.Label) || string.IsNullOrWhiteSpace(e.Hint) || e.Button.Columns != 4) ||
             Help.Columns != 4 || Close.Columns != 4 ||
             Sprites.Any(s => !catalog.TryGetValue(s.Asset, out var image) || s.Columns <= 0 || image.Width % s.Columns != 0) ||

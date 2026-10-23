@@ -87,6 +87,22 @@ public static class TextureLibraryCompiler
             var (palettes, images) = IndexedImageArchive.ReadArchive(bytes);
             if (paletteBytes is not null) palettes = IndexedImageArchive.ReadPalettes(paletteBytes, Int(paletteBytes, 0));
             var bindings = Bindings(exe, name, recipe, images.Length, palettes.Length);
+            Dictionary<int, PngImage> openingLayers = [];
+            if (name == "G_MMap")
+            {
+                var layers = OpeningIslandArtwork.Separate(
+                    IndexedImageArchive.Decode(images[168], palettes[12], true, false),
+                    IndexedImageArchive.Decode(images[165], palettes[10], true, false), 496, 320, 63, 106, images[166]);
+                openingLayers.Add(168, layers.Background); openingLayers.Add(165, layers.Island);
+            }
+            if (name == "G_Start2")
+            {
+                var layers = OpeningIslandArtwork.Separate(
+                    IndexedImageArchive.Decode(Interface.OpeningMapCompiler.AlignPreviewArtwork(exe, images[67], false), palettes[63], true, true),
+                    IndexedImageArchive.Decode(Interface.OpeningMapCompiler.AlignPreviewArtwork(exe, images[68], true), palettes[63], true, true),
+                    344, 214, 99, 80);
+                openingLayers.Add(67, layers.Background); openingLayers.Add(68, layers.Island);
+            }
             List<TextureVariant> variants = [];
             // Portraits, illustrations and CPU land are intentionally opaque. Other indexed display
             // sources use the complete palette-entry key. Palette-alpha consumers remain explicit
@@ -104,16 +120,19 @@ public static class TextureLibraryCompiler
                     // Health bars, bodies and additive particles have separate native modes.
                     // Zoom terrain, transitions, edges, facilities and both panels also use palette alpha.
                     // RE-0200/0201: opening and scenario-selection frames, previews and controls use mode 64.
-                    bool paletteAlpha = name == "G_LocSPK" || name == "G_StrtPK" && b.Image is 0 or 1 or 2 ||
-                        name == "G_Start" && (b.Image is 20 or 23 or 24 or 38 or 39 || b.Image is >= 27 and <= 36 || b.Image >= 45) ||
-                        name == "G_Start2" && b.Image is >= 67 and <= 72 ||
+                    // RE-0071: settings illustration, choice highlight/bars and expert dialog also use mode 64.
+                    bool paletteAlpha = name == "G_LocSPK" || name == "G_StrtPK" && b.Image is 0 or 1 or 2 or 15 ||
+                        name == "G_Start" && (b.Image is 20 or 21 or 23 or 24 or 38 or 39 || b.Image is >= 27 and <= 36 || b.Image >= 45) ||
+                        name == "G_Start2" && (b.Image == 52 || b.Image is >= 66 and <= 81 || b.Image >= 161) ||
                         name == "G_Ikki" && (b.Image < 9 || b.Image is >= 11 and <= 18) ||
                         name == "G_ZoomIn" && (b.Image < 58 || b.Image is 141 or 142) ||
                         name == "G_Gaikou" && b.Image >= 19 || name == "G_Ending" && b.Image is 1 or 2 or 7 or 8 or 9;
+                    bool openingLayer = openingLayers.TryGetValue(b.Image, out var layer);
                     return new TextureVariant(b.Image, b.Palette,
                         save($"library/{id}/variant-{b.Palette:D3}/{b.Image:D4}",
-                            TextureSourcePath.Image(name, b.Image, b.Palette, !opaque, paletteAlpha, recipe.Palette),
-                            IndexedImageArchive.Decode(images[b.Image], palettes[b.Palette], !opaque, paletteAlpha)));
+                            TextureSourcePath.Image(name, b.Image, b.Palette, !opaque, paletteAlpha, recipe.Palette,
+                                transform: openingLayer ? "opening-framed-island" : null),
+                            openingLayer ? layer! : IndexedImageArchive.Decode(images[b.Image], palettes[b.Palette], !opaque, paletteAlpha)));
                 }).ToArray();
                 variants.AddRange(converted);
             }

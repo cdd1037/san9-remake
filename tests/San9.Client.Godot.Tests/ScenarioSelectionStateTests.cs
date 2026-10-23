@@ -9,7 +9,7 @@ public sealed class ScenarioSelectionStateTests
     {
         var entries = Enumerable.Range(0, 13).Select(i => new ScenarioPreviewEntry($"a-{i}", "a", 184 + i, 1, "标题", "简介", []))
             .Append(new("b-0", "b", 281, 1, "英雄", "简介", [])).ToArray();
-        var scene = new ScenarioSelectionPresentation("选择", "提示", "返回", [], null!, null!, null!, null!, "", null!, null!, [], [], [],
+        var scene = new ScenarioSelectionPresentation("选择", "提示", "返回", [], null!, null!, null!, "", null!, null!, [],
             [new("a", "一般", "提示", new(0, 0)), new("b", "if", "提示", new(0, 0))], entries);
         var state = new ScenarioSelectionState(scene);
         Assert.Equal(13, state.Entries.Count);

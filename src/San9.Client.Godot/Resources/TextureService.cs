@@ -53,7 +53,8 @@ public partial class TextureService : Node
         LibraryAssets = library.Assets.ToDictionary(a => a.Id);
         AnimationClips = clips.ToDictionary(c => c.Id);
         var ui = skin.Assets.ToDictionary(a => a.Id);
-        Roles = skin.Roles.ToDictionary(p => p.Key, p => ui[p.Value]);
+        Roles = skin.Roles.Select(p => KeyValuePair.Create(p.Key, ui[p.Value]))
+            .Concat(portraits.Select(p => KeyValuePair.Create(p.Image.Id, p.Image))).ToDictionary();
         BuildingTargetOffsets = skin.BuildingTargetOffsets;
         BuildingArrowOffsets = skin.BuildingArrowOffsets;
         Cursors = skin.Cursors;

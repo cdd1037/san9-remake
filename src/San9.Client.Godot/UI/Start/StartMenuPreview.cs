@@ -1,4 +1,5 @@
 using Godot;
+using San9.Application.Presentation;
 using San9.Content.Packages;
 
 namespace San9.Client.Godot;
@@ -21,7 +22,14 @@ public partial class StartMenuPreview : Node
             token.ThrowIfCancellationRequested();
             opening.Menu.Validate(textures.Assets); opening.Selection.Validate(textures.Assets);
             var service = new TextureService(); service.Initialize(textures, PackageFiles.Resolve(root, catalog.Textures)); AddChild(service);
-            var view = new StartMenuView { Definition = opening.Menu, SelectionDefinition = opening.Selection, Service = service };
+            var view = new StartMenuView { Definition = opening.Menu, SelectionDefinition = opening.Selection, Service = service,
+                LoadScenario = (id, cancellation) => Task.Run(async () =>
+                {
+                    var entry = catalog.RequireScenario(id);
+                    var content = await ScenarioContentFiles.LoadSelectionAsync(PackageFiles.Resolve(root, entry.Package), cancellation);
+                    cancellation.ThrowIfCancellationRequested();
+                    return ScenarioForceSelection.Read(content.Scenario, content.Text, content.IllustrationRoles);
+                }, cancellation) };
             AddChild(view);
             while (!view.IsReady)
             {

@@ -27,6 +27,52 @@ public sealed class ScenarioContentFilesTests : IDisposable
         }, new() { ["portrait"] = "portrait/0" });
 
     [Fact]
+    public async Task ManifestPreviewRoundTripsAndRefreshesWithoutReadingOrChangingWorldData()
+    {
+        var preview = new San9.Content.Interface.ScenarioPreviewEntry("custom", "custom-category", 281, 1, "标题", "简介", []);
+        var content = Fixture() with { Preview = preview };
+        await ScenarioContentFiles.WriteAsync(_root, content);
+        Assert.Equal(preview.Title, (await ScenarioContentFiles.LoadPreviewAsync(_root)).Title);
+        Assert.Equal(preview.Title, (await ScenarioContentFiles.LoadAsync(_root)).Preview!.Title);
+        string scenarioPath = PublishedPath("scenario.json");
+        await File.WriteAllTextAsync(scenarioPath, "invalid world", System.Text.Encoding.UTF8);
+        await File.WriteAllTextAsync(Path.Combine(_root, "preview.json"), "obsolete preview", System.Text.Encoding.UTF8);
+
+        await ScenarioContentFiles.WritePreviewAsync(_root, preview with { Title = "新标题" });
+
+        Assert.Equal("新标题", (await ScenarioContentFiles.LoadPreviewAsync(_root)).Title);
+        Assert.Equal("invalid world", await File.ReadAllTextAsync(scenarioPath));
+        Assert.False(File.Exists(Path.Combine(_root, "preview.json")));
+    }
+
+    [Fact]
+    public async Task SelectionContentReadsOnlyRelevantStateAndDisplayDependencies()
+    {
+        var content = Fixture();
+        var shared = await MessageLibraryFiles.WriteAsync(_root, "shared/messages/library.json", content.Text.Messages);
+        await ScenarioContentFiles.WriteAsync(_root, content, sharedMessages: shared);
+        var full = await ScenarioContentFiles.LoadAsync(_root);
+        string scenarioPath = PublishedPath("scenario.json");
+        var authored = System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(scenarioPath))!;
+        authored["originalAi"] = "unused by force selection";
+        await File.WriteAllTextAsync(scenarioPath, authored.ToJsonString(), System.Text.Encoding.UTF8);
+        foreach (string name in new[] { "map.json", "presentation.json", "shared/messages/library.json" })
+            await File.WriteAllTextAsync(Path.Combine(_root, name), "invalid unused content", System.Text.Encoding.UTF8);
+
+        var initial = await ScenarioContentFiles.LoadSelectionAsync(_root);
+
+        Assert.Equal(JsonSerializer.Serialize(ScenarioSelectionState.From(full.Scenario), ScenarioContentFiles.DataJsonOptions), JsonSerializer.Serialize(initial.Scenario, ScenarioContentFiles.DataJsonOptions));
+        Assert.Equal(full.Text.Entries, initial.Text.Entries);
+        Assert.Equal(full.Text.MessagePeople, initial.Text.MessagePeople);
+        Assert.Equal(full.IllustrationRoles, initial.IllustrationRoles);
+        Assert.Empty(initial.Text.Messages);
+        await Assert.ThrowsAsync<JsonException>(() => ScenarioContentFiles.LoadAsync(_root));
+        authored["schemaVersion"] = ScenarioInitialState.CurrentSchemaVersion + 1;
+        await File.WriteAllTextAsync(scenarioPath, authored.ToJsonString(), System.Text.Encoding.UTF8);
+        await Assert.ThrowsAsync<InvalidDataException>(() => ScenarioContentFiles.LoadSelectionAsync(_root));
+    }
+
+    [Fact]
     public async Task SharedMessagesAllowPrivateAdditionsAndExplicitOverridesWithoutChangingOtherScenarios()
     {
         var content = Fixture();

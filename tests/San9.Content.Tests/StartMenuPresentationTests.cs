@@ -13,10 +13,11 @@ public sealed class StartMenuPresentationTests
         var button = new StartMenuSprite("button", 0, 0, 4);
         var animation = new StartMenuAnimation(["sky"], 1, 0, 0, .2);
         var entry = new StartMenuEntry("new-game", "开始", "开始游戏。", button, animation, []);
-        var scene = new StartMenuPresentation([], [animation], [], button, button, "请选择。", [entry]);
+        var scene = new StartMenuPresentation([], [animation], [], button, button, "请选择。", [entry]) { QuitPrompt = "确认结束？" };
         scene.Validate(images);
         foreach (var invalid in new[]
         {
+            scene with { QuitPrompt = "" },
             scene with { Entries = [entry, entry] },
             scene with { Entries = [entry with { Illustration = animation with { Frames = ["missing"] } }] },
             scene with { Ambience = [animation with { Frames = [] }] },

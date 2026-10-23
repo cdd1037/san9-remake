@@ -44,8 +44,13 @@ public sealed record TextureDependency(string Path);
 public sealed record ScenarioContent(int SchemaVersion, TextureDependency Textures,
     MapInstance Map, ScenarioInitialState Scenario, TextCatalog Text, Dictionary<string,string> IllustrationRoles)
 {
+    public San9.Content.Interface.ScenarioPreviewEntry? Preview { get; init; }
     [System.Text.Json.Serialization.JsonRequired]
     public San9.Content.Interface.CommandPresentation Presentation { get; init; } = San9.Content.Interface.CommandPresentation.Empty;
     [System.Text.Json.Serialization.JsonIgnore] public string ResourceRoot { get; init; } = "";
     public const int CurrentSchemaVersion = 225;
 }
+
+/// <summary>Selected scenario data and static display references, read from the authoritative content files.</summary>
+public sealed record ScenarioSelectionContent(ScenarioSelectionState Scenario, TextCatalog Text,
+    Dictionary<string, string> IllustrationRoles);

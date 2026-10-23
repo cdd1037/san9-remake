@@ -10,6 +10,8 @@ public partial class ScenarioSelectionView : Control
     public StartMenuSprite Help { get; init; } = null!;
     public StartMenuSprite Close { get; init; } = null!;
     public Action Closed { get; init; } = null!;
+    public Action QuitRequested { get; init; } = null!;
+    public Action<ScenarioPreviewEntry> Selected { get; init; } = null!;
     public ScenarioSelectionState State { get; private set; } = null!;
     public void FocusSelected() => _rows.GetNode<StartMenuButton>(State.Selected.Id).GrabFocus();
     private TextureScope _textures = null!;
@@ -20,12 +22,24 @@ public partial class ScenarioSelectionView : Control
     private Label _heading = null!;
     private Label _hint = null!;
     private GameRichTextLabel _description = null!;
+    private OpeningMapView _map = null!;
     public override void _Ready()
     {
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
         State = new(Definition);
         _textures = Service.CreateScope(Service.LibraryAssets);
         _textures.Request(Definition.Assets.Concat([Help.Asset, Close.Asset]));
+        _map = new OpeningMapView { Name = "PreviewMap", Definition = Definition.Map, Textures = _textures,
+            CityColors = State.Selected.CityColors, Preview = Definition.Preview, Position = new(Definition.Preview.Background.X, Definition.Preview.Background.Y) };
+        AddChild(_map);
+        var panels = new Control { MouseFilter = MouseFilterEnum.Ignore };
+        panels.Draw += () =>
+        {
+            if (!_textures.IsReady) { _textures.BindRedraw(panels); return; }
+            foreach (var sprite in new[] { Definition.DescriptionPanel, Definition.CategoryBar, Definition.PreviewHeading })
+                panels.DrawTexture(_textures.Get(sprite.Asset, panels), new(sprite.X, sprite.Y));
+        };
+        AddChild(panels);
         AddLabel(Definition.Title, new(48, 16), new(224, 32), 24, Colors.White);
         _heading = AddLabel("", new(548, 108), new(476, 24), 24, new("00f878"));
         _hint = AddLabel(Definition.Prompt, new(0, 736), new(1024, 24), 16, Colors.White, HorizontalAlignment.Center);
@@ -45,14 +59,10 @@ public partial class ScenarioSelectionView : Control
         _scroll = new ScrollContainer { Position = new(0, 180), Size = new(648, 420),
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, FollowFocus = true };
         AddChild(_scroll);
-        var back = AddButton(Definition.Back, "Back");
-        var caption = new Label { Text = Definition.BackLabel, Size = back.Size,
-            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-            MouseFilter = MouseFilterEnum.Ignore };
-        back.AddChild(caption); _text.Apply(caption, new(24, Colors.White, GameTextEffect.Outline, Colors.Black));
+        var back = AddButton(Definition.Back, "Back", Definition.BackLabel, GameButtonTextRole.ConfirmNo);
         back.Pressed += Closed;
         AddButton(Help, "Help");
-        AddButton(Close, "Close").Pressed += Closed;
+        AddButton(Close, "Close").Pressed += QuitRequested;
         BuildRows(); RefreshPreview();
     }
     private Label AddLabel(string text, Vector2 position, Vector2 size, int fontSize, Color color,
@@ -64,10 +74,10 @@ public partial class ScenarioSelectionView : Control
         AddChild(label); _text.Apply(label, new(fontSize, color, GameTextEffect.Outline, Colors.Black));
         return label;
     }
-    private StartMenuButton AddButton(StartMenuSprite sprite, string name, string title = "")
+    private StartMenuButton AddButton(StartMenuSprite sprite, string name, string title = "", GameButtonTextRole? textRole = null)
     {
         var image = Service.LibraryAssets[sprite.Asset];
-        var button = new StartMenuButton { Name = name, Textures = _textures, Sprite = sprite, Title = title,
+        var button = new StartMenuButton { Name = name, Textures = _textures, Sprite = sprite, Title = title, TextRole = textRole,
             Position = new(sprite.X, sprite.Y), Size = new(image.Width / sprite.Columns, image.Height) };
         AddChild(button); return button;
     }
@@ -91,7 +101,7 @@ public partial class ScenarioSelectionView : Control
             button.AddChild(year); _text.Apply(year, new(16, new Color("f8d860"), GameTextEffect.Outline, new("603000")));
             button.MouseEntered += () => button.GrabFocus();
             button.FocusEntered += () => Preview(entry.Id);
-            button.Pressed += () => Preview(entry.Id);
+            button.Pressed += () => { Preview(entry.Id); Selected(entry); };
             first ??= button;
         }
         first?.GrabFocus();
@@ -108,6 +118,7 @@ public partial class ScenarioSelectionView : Control
     private void RefreshPreview()
     {
         var entry = State.Selected;
+        _map.CityColors = entry.CityColors; _map.QueueRedraw();
         _heading.Text = $"{entry.Year}年{entry.Month}月 {entry.Title}";
         _description.Present(entry.Description, GameTextStyles.For(GameTextRole.Message));
         _description.AddThemeConstantOverride("line_separation", GameTextMetrics.LineSpacing(_description.GetThemeFont("normal_font"), 16) + 4);
@@ -119,21 +130,13 @@ public partial class ScenarioSelectionView : Control
         if (!_textures.IsReady) { _textures.BindRedraw(this); return; }
         void Draw(StartMenuSprite sprite) => DrawTexture(_textures.Get(sprite.Asset, this), new(sprite.X, sprite.Y));
         foreach (var sprite in Definition.Foreground) Draw(sprite);
-        Draw(Definition.Map);
-        var entry = State.Selected;
-        if (entry.CityColors.ContainsKey(Definition.Inset.CityId)) Draw(Definition.Inset.Sprite);
-        foreach (var city in entry.CityColors)
-        {
-            var position = Definition.CityPositions[city.Key];
-            DrawTexture(_textures.Get(Definition.MarkerAssets[city.Value], this),
-                new(Definition.Map.X + position.X, Definition.Map.Y + position.Y));
-        }
-        Draw(Definition.DescriptionPanel); Draw(Definition.CategoryBar); Draw(Definition.PreviewHeading);
     }
-    public override void _UnhandledKeyInput(InputEvent input)
+    public override void _Input(InputEvent input)
     {
-        if (!IsVisibleInTree() || input is not InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape }) return;
-        GetViewport().SetInputAsHandled(); Closed();
+        if (!IsVisibleInTree()) return;
+        if (input is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape } ||
+            input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right })
+        { GetViewport().SetInputAsHandled(); Closed(); }
     }
     public override void _ExitTree() { _textures.Dispose(); _text.Dispose(); }
 }

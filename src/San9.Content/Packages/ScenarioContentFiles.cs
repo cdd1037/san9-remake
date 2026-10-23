@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using San9.Content.Scenarios;
+using San9.Content.Interface;
 using San9.Content.Text;
 
 namespace San9.Content.Packages;
@@ -8,6 +9,7 @@ namespace San9.Content.Packages;
 public sealed record ScenarioContentManifest(int SchemaVersion,
     TextureDependency Textures, string Map, string Scenario, string Text, string[] Messages, string Illustrations)
 {
+    public ScenarioPreviewEntry? Preview { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public string ResourceRoot { get; init; } = ".";
     [System.Text.Json.Serialization.JsonRequired] public string Presentation { get; init; } = "presentation.json";
     [System.Text.Json.Serialization.JsonRequired] public string? SharedMessages { get; init; }
@@ -44,7 +46,37 @@ public static class ScenarioContentFiles
         return new(PackageFiles.JsonOptions) { WriteIndented = false, TypeInfoResolver = resolver };
     }
 
-    public static async Task<ScenarioContent> LoadAsync(string root, CancellationToken token = default)
+    /// <summary>Reads only the lightweight package entry, without following its data dependencies.</summary>
+    public static async Task<ScenarioPreviewEntry> LoadPreviewAsync(string root, CancellationToken token = default)
+    {
+        var manifest = await ReadManifestAsync(root, token);
+        return manifest.Preview ?? throw new InvalidDataException("Scenario package has no selection preview.");
+    }
+
+    /// <summary>Refreshes selection metadata without loading or rewriting the world dependencies.</summary>
+    public static async Task WritePreviewAsync(string root, ScenarioPreviewEntry preview, CancellationToken token = default)
+    {
+        var manifest = await ReadManifestAsync(root, token);
+        string target = Path.Combine(root, "content.json"), pending = target + ".pending";
+        try
+        {
+            await File.WriteAllTextAsync(pending, JsonSerializer.Serialize(manifest with { Preview = preview }, PackageFiles.JsonOptions),
+                System.Text.Encoding.UTF8, token);
+            token.ThrowIfCancellationRequested();
+            Publish([(pending, target)]);
+            File.Delete(Path.Combine(root, "preview.json"));
+        }
+        finally { File.Delete(pending); }
+    }
+
+    /// <summary>Reads the authored state needed for force selection without unrelated rules or presentation data.</summary>
+    public static async Task<ScenarioSelectionContent> LoadSelectionAsync(string root, CancellationToken token = default)
+    {
+        var manifest = await ReadManifestAsync(root, token);
+        return await ReadSelectionAsync(manifest, ResolveResourceRoot(root, manifest.ResourceRoot), token);
+    }
+
+    private static async Task<ScenarioContentManifest> ReadManifestAsync(string root, CancellationToken token)
     {
         // Check the version before interpreting the layout, including older monolithic files.
         await using var stream = File.OpenRead(Path.Combine(root, "content.json"));
@@ -55,15 +87,34 @@ public static class ScenarioContentFiles
         var manifest = document.Deserialize<ScenarioContentManifest>(PackageFiles.JsonOptions)
             ?? throw new InvalidDataException("Empty scenario manifest.");
         ContentStructure.Validate(manifest);
+        return manifest;
+    }
+
+    private static async Task<T> ReadDataAsync<T>(string resourceRoot, string relative, CancellationToken token)
+    {
+        await using var file = File.OpenRead(PackageFiles.Resolve(resourceRoot, relative));
+        var value = await JsonSerializer.DeserializeAsync<T>(file, DataJsonOptions, token)
+            ?? throw new InvalidDataException($"Empty content file: {relative}");
+        ContentStructure.Validate(value);
+        return value;
+    }
+
+    private static async Task<ScenarioSelectionContent> ReadSelectionAsync(ScenarioContentManifest manifest, string resourceRoot, CancellationToken token)
+    {
+        var scenario = await ReadDataAsync<ScenarioSelectionState>(resourceRoot, manifest.Scenario, token);
+        if (scenario.SchemaVersion != ScenarioInitialState.CurrentSchemaVersion)
+            throw new InvalidDataException("Unsupported scenario state version; reconvert the package.");
+        var text = await ReadDataAsync<StaticTextContent>(resourceRoot, manifest.Text, token);
+        var illustrations = await ReadDataAsync<Dictionary<string, string>>(resourceRoot, manifest.Illustrations, token);
+        return new(scenario, new(text.SchemaVersion, text.Entries)
+            { MessagePeople = text.MessagePeople, MessageTags = text.MessageTags }, illustrations);
+    }
+
+    public static async Task<ScenarioContent> LoadAsync(string root, CancellationToken token = default)
+    {
+        var manifest = await ReadManifestAsync(root, token);
         string resourceRoot = ResolveResourceRoot(root, manifest.ResourceRoot);
-        async Task<T> Read<T>(string relative)
-        {
-            await using var file = File.OpenRead(PackageFiles.Resolve(resourceRoot, relative));
-            var value = await JsonSerializer.DeserializeAsync<T>(file, DataJsonOptions, token)
-                ?? throw new InvalidDataException($"Empty content file: {relative}");
-            ContentStructure.Validate(value);
-            return value;
-        }
+        Task<T> Read<T>(string relative) => ReadDataAsync<T>(resourceRoot, relative, token);
         var mapManifest = await Read<ScenarioMapManifest>(manifest.Map);
         var mapDefinition = await Read<MapDefinition>(mapManifest.Definition);
         if (mapDefinition.SchemaVersion != MapDefinition.CurrentSchemaVersion)
@@ -71,6 +122,7 @@ public static class ScenarioContentFiles
         var map = new MapInstance(mapDefinition, mapManifest.Buildings);
         var scenario = await Read<ScenarioInitialState>(manifest.Scenario);
         var text = await Read<StaticTextContent>(manifest.Text);
+        var illustrations = await Read<Dictionary<string, string>>(manifest.Illustrations);
         Dictionary<string, MessageDefinition> messages = new(StringComparer.Ordinal);
         foreach (string path in manifest.Messages)
         foreach (var (key, definition) in await Read<Dictionary<string, MessageDefinition>>(path))
@@ -79,9 +131,8 @@ public static class ScenarioContentFiles
         var shared = manifest.SharedMessages is { } library
             ? await MessageLibraryFiles.LoadAsync(PackageFiles.Resolve(resourceRoot, library), token) : [];
         messages = ComposeMessages(shared, messages, manifest.MessageOverrides);
-        var illustrations = await Read<Dictionary<string, string>>(manifest.Illustrations);
         return new(ScenarioContent.CurrentSchemaVersion, manifest.Textures, map, scenario,
-            new(text.SchemaVersion, text.Entries) { Messages = messages, MessagePeople = text.MessagePeople, MessageTags = text.MessageTags }, illustrations) { Presentation = await Read<San9.Content.Interface.CommandPresentation>(manifest.Presentation), ResourceRoot = resourceRoot };
+            new(text.SchemaVersion, text.Entries) { Messages = messages, MessagePeople = text.MessagePeople, MessageTags = text.MessageTags }, illustrations) { Presentation = await Read<San9.Content.Interface.CommandPresentation>(manifest.Presentation), ResourceRoot = resourceRoot, Preview = manifest.Preview };
     }
 
     public static async Task WriteAsync(string root, ScenarioContent content, CancellationToken token = default,
@@ -120,7 +171,7 @@ public static class ScenarioContentFiles
         Directory.CreateDirectory(root);
         var manifest = new ScenarioContentManifest(ScenarioContent.CurrentSchemaVersion, content.Textures,
             ownPrefix + "map.json", ownPrefix + "scenario.json", ownPrefix + "messages/text.json", messageFiles.Keys.ToArray(), ownPrefix + "illustrations.json")
-            { Presentation = ownPrefix + "presentation.json", ResourceRoot = relativeRoot,
+            { Presentation = ownPrefix + "presentation.json", ResourceRoot = relativeRoot, Preview = content.Preview,
                 SharedMessages = sharedMessages?.Path, MessageOverrides = overrides.Order(StringComparer.Ordinal).ToArray() };
         string manifestPath = Path.Combine(root, "content.json");
         string[] previousFiles = [];
@@ -180,6 +231,7 @@ public static class ScenarioContentFiles
             await Stage("content.json", manifest, PackageFiles.JsonOptions);
             token.ThrowIfCancellationRequested();
             Publish(files);
+            File.Delete(Path.Combine(root, "preview.json"));
             var currentFiles = files.Select(file => file.Target).ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach (string obsolete in previousFiles.Distinct(StringComparer.OrdinalIgnoreCase))
             {

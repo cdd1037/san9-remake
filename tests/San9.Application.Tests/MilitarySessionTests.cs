@@ -12,6 +12,48 @@ namespace San9.Application.Tests;
 public sealed class MilitarySessionTests
 {
     [Fact]
+    public void UnresolvedReturnSurvivesSaveAndWaitsUntilAServicePlaceReopens()
+    {
+        var definition = Fixture();
+        var session = GameSession.Start(definition, 42);
+        Assert.True(session.Execute(new("player"), new TransportUnitCommand(Guid.NewGuid(), 1, 0, 1, [1], 400, 2, 0, 100)).Submission.Accepted);
+        var captured = session.Capture();
+        var unit = Assert.Single(captured.World.Units);
+        var pending = new MilitaryOrder(MilitaryOrderKind.Return, null, null);
+        Assert.Equal(CommandRejection.InvalidTask, session.Execute(new("player"),
+            new OrderUnitCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, unit.Id, pending)).Submission.Rejection);
+        captured = captured with { World = captured.World with
+        {
+            Units = [unit with { Order = pending, ServicePlaceId = null, Position = new(17, 7) }],
+            Settlements = captured.World.Settlements.Select(s => s with { Durability = 0 }).ToImmutableArray()
+        } };
+        session = SaveService.Decode(SaveService.EncodeSnapshot(captured), definition);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(session.Capture(), restored.Capture());
+        Assert.Equal(pending, Assert.Single(session.Snapshot.Units).Order);
+        var waiting = session.Capture();
+        var reopened = waiting with { World = waiting.World with
+        {
+            Settlements = waiting.World.Settlements.Select(s => s.Id == 1 ? s with { Durability = 100 } : s).ToImmutableArray()
+        } };
+        session = SaveService.Decode(SaveService.EncodeSnapshot(reopened), definition);
+        restored = SaveService.Decode(SaveService.Encode(session), definition);
+        List<DomainEvent> events = [];
+        for (int i = 0; i < 4 && session.Snapshot.Units.Count != 0; i++)
+        {
+            var result = session.AdvanceXun();
+            EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+            StateAssert.Equal(session.Capture(), restored.Capture());
+            events.AddRange(result.Events);
+        }
+        Assert.Empty(session.Snapshot.Units);
+        Assert.Single(events.OfType<UnitAbsorbedEvent>(), e => e.UnitId == unit.Id && e.SettlementId == 1);
+        Assert.Contains(events.OfType<ResourceChangedEvent>(), e => e.Reason == "transport-unload" &&
+            e.Account.Kind == ResourceOwnerKind.Corps && e.Resource == ResourceKind.Food && e.Actual == 100);
+    }
+
+    [Fact]
     public void ActualFacingSurvivesStrategicReassignmentAndBothSaveRestorationModes()
     {
         var definition = Fixture();

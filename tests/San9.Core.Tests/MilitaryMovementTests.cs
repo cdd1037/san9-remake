@@ -543,7 +543,7 @@ public sealed class MilitaryMovementTests
     }
 
     [Fact]
-    public void LosingBothDestinationAndHomeClearsOrderAndRetainsCargoAndMembers()
+    public void LosingBothDestinationAndHomeRetainsReturnIntentCargoAndMembers()
     {
         var world = World();
         var engine = Engine(world, Rules());
@@ -554,7 +554,7 @@ public sealed class MilitaryMovementTests
         world.Commit(mutation);
         var events = Advance(engine).Events;
         var unit = Assert.Single(engine.Snapshot.Units);
-        Assert.Null(unit.Order);
+        Assert.Equal(new(MilitaryOrderKind.Return, null, null), unit.Order);
         Assert.Equal(200u, unit.CargoMoney);
         Assert.Equal(300u, unit.CargoFood);
         Assert.Equal(unit.Id, engine.Snapshot.Officers[0].UnitId);

@@ -18,16 +18,16 @@ internal static class UnitOrderChanges
             {
                 MilitaryOrderKind.Transport => UnitPolicyResponse.TransportAborted,
                 MilitaryOrderKind.Construct => UnitPolicyResponse.ConstructionAborted,
-                MilitaryOrderKind.Return => UnitPolicyResponse.ReturnTargetChanged,
+                MilitaryOrderKind.Return when previousOrder.SettlementId is not null => UnitPolicyResponse.ReturnTargetChanged,
                 _ => UnitPolicyResponse.ReturnAfterAction
             },
             "target-captured-entry" => UnitPolicyResponse.EnterCapturedPlace,
-            "post-action-return" => UnitPolicyResponse.ReturnAfterAction,
-            "post-action-attack" when order?.UnitId is not null => UnitPolicyResponse.AttackUnitAfterAction,
-            "post-action-attack" when order?.SettlementId is not null => UnitPolicyResponse.AttackPlaceAfterAction,
+            "post-action-return" or "transfer-return" => UnitPolicyResponse.ReturnAfterAction,
+            "post-action-attack" or "transfer-attack" when order?.UnitId is not null => UnitPolicyResponse.AttackUnitAfterAction,
+            "post-action-attack" or "transfer-attack" when order?.SettlementId is not null => UnitPolicyResponse.AttackPlaceAfterAction,
             _ => null
         };
-        if (response is null || unit.CommanderId is null) return;
+        if (response is null || unit.CommanderId is null || order is { Kind: MilitaryOrderKind.Return, SettlementId: null }) return;
         int? other = order?.UnitId is int target ? world.Units.GetValueOrDefault(target)?.CommanderId : null;
         events.Add(new UnitPolicyRespondedEvent(world.Clock, BattleObjectContext.Capture(unit), response.Value,
             other, order?.SettlementId ?? unit.ServicePlaceId)

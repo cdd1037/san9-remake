@@ -20,8 +20,8 @@ internal static class UnitAffiliation
         unit = world.Units[unit.Id];
         foreach (var person in people.Where(p => !followers.Contains(p.Id)))
             PersonnelReturns.FromField(world, person.Id, unit.Position, rules, events, recruited);
-        world.Replace(unit with { OwnerId = recipient, CorpsId = root, ServicePlaceId = servicePlace,
-            Order = null, EngagementTargetId = null, AwaitingPostAction = false });
+        world.Replace(unit with { OwnerId = recipient, CorpsId = root, ServicePlaceId = servicePlace ?? unit.ServicePlaceId,
+            EngagementTargetId = null, ContactTarget = null, Lookahead = null });
         var ruler = world.Officers[world.Forces[recipient].LeaderId!.Value];
         foreach (int id in followers.Order())
         {
@@ -38,6 +38,7 @@ internal static class UnitAffiliation
                 PrisonerDepartureKind.Displaced, null, rules.Personnel, rules.Economy, events, unit.Position) == CommandRejection.None)
                 world.SetSimulation(world.Simulation with { NextSequence = checked(sequence + 1) });
         }
+        MilitaryPolicies.AfterTransfer(world, unit.Id, rules.Military, events);
         events.Add(new UnitTransferredEvent(world.Clock, unit.Id, owner, recipient));
     }
 }

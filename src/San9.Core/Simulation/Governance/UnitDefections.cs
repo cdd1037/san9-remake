@@ -33,7 +33,7 @@ internal static class UnitDefections
                 .Select(s => (int?)s.Id).FirstOrDefault();
             UnitAffiliation.Transfer(world, unit, recipient, home, followers, region, false, rules, events);
             GovernanceLifecycle.Reconcile(world, new HashSet<int> { owner }, rules, events, false, "unit-defected");
-            ForceTransfer.ClearFriendlyOrders(world, "unit-defected", events);
+            ForceTransfer.ReconcileOrders(world, rules.Military, events);
             CorpsDelegations.Cleanup(world, military, events);
             world.MaintainLeadership(events);
             events.Add(new UnitDefectedEvent(world.Clock, id, owner, recipient, commanderId, followers));

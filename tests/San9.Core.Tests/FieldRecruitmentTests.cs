@@ -118,7 +118,7 @@ public sealed class FieldRecruitmentTests
     }
 
     [Fact]
-    public void CaptiveRecoversAndOrdersAgainstNewFriendlyArmyAreCleared()
+    public void CaptiveRecoversAndAttackersOfNewFriendlyArmyReturn()
     {
         var (world, task) = Submit();
         world.Replace(Person(30, 1, null) with { Status = OfficerStatus.Captive });
@@ -128,8 +128,19 @@ public sealed class FieldRecruitmentTests
         var events = Complete(world, task);
         Assert.Equal(OfficerStatus.Serving, world.Officers[30].Status);
         Assert.Null(world.Officers[30].UnitId);
-        Assert.Null(world.Units[101].Order);
+        Assert.Equal(new(MilitaryOrderKind.Return, null, 1), world.Units[101].Order);
         Assert.Single(events.OfType<PrisonerDisplacedEvent>());
+    }
+
+    [Fact]
+    public void RecruitedArmyWithAnExistingMissionReturnsToItsNewServicePlace()
+    {
+        var (world, task) = Submit();
+        world.Replace(world.Units[100] with { Order = new(MilitaryOrderKind.Move, new(500, 2), null) });
+        var events = Complete(world, task);
+        Assert.Equal(1, world.Units[100].OwnerId);
+        Assert.Equal(new(MilitaryOrderKind.Return, null, 1), world.Units[100].Order);
+        Assert.Single(events.OfType<UnitOrderChangedEvent>(), e => e.UnitId == 100 && e.Reason == "transfer-return");
     }
 
     [Theory]

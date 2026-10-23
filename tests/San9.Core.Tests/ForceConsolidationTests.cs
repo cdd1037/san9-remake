@@ -250,6 +250,7 @@ public sealed class ForceConsolidationTests
             initial.Officers.Concat([Person(23, 2, 3) with { SettlementId = null, UnitId = 50 }]),
             units: [new(50, 2, new(12, 2), 1000) { FormationId = 9, ServicePlaceId = 3, CorpsId = 21, Morale = 70,
                 CommanderId = 23, CargoMoney = 99, CargoFood = 88,
+                Order = new(MilitaryOrderKind.Move, new(7, 2), null),
                 MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(23, BattleRank.Front) }],
             corps: [..initial.Corps.Where(c => c.OwnerId == 1), new(20, 2, 21, new(200, 300)) { IsRoot = true }, new(21, 2, 22, new(2000, 3000)), new(30, 3, 31, new(999900, 500)) { IsRoot = true }],
             relations: initial.Relations, controls: initial.Simulation.Controls);
@@ -274,6 +275,7 @@ public sealed class ForceConsolidationTests
         Assert.Equal(99u, unit.CargoMoney);
         Assert.Equal(88u, unit.CargoFood);
         Assert.Equal(100, unit.Morale);
+        Assert.Equal(new(MilitaryOrderKind.Return, null, 3), unit.Order);
         Assert.Contains(events.OfType<ResourceChangedEvent>(), e => e.SaturationLoss == 2100);
         Assert.Contains(events.OfType<ResourceChangedEvent>(), e => e.SaturationLoss == 5000);
         world.Commit(mutation);

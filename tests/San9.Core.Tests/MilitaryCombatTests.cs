@@ -694,7 +694,7 @@ public sealed class MilitaryCombatTests
     }
 
     [Fact]
-    public void RivalClaimantClearsOldAttackButCanReplyToNewOwnersAttack()
+    public void RivalClaimantContinuesAttackingTheNewOwnerAndCanReply()
     {
         var baseline = World().CreateSnapshot();
         var world = WorldState.Create(baseline.Clock, 42, baseline.Forces.Append(new ForceState(3, 100) { LeaderId = 33 }),
@@ -709,12 +709,8 @@ public sealed class MilitaryCombatTests
         Assert.Equal(1, engine.Snapshot.Settlements.Single(s => s.Id == 2).OwnerId);
         var captureDay = Assert.Single(result.Events.OfType<SettlementCapturedEvent>()).Clock;
         var damage = result.Events.OfType<BattleDamageEvent>().Where(e => e.Clock == captureDay).ToArray();
-        var reply = Assert.Single(damage, e => e.AttackerId == 1 && !e.AttackerIsSettlement);
-        Assert.Equal(2, reply.SettlementId);
-        var attack = damage[Array.IndexOf(damage, reply) - 1];
-        Assert.True(attack.AttackerIsSettlement);
-        Assert.Equal(2, attack.AttackerId);
-        Assert.Equal(1, attack.TargetUnitId);
-        Assert.Null(engine.Snapshot.Units.Single(u => u.Id == 1).Order);
+        Assert.Contains(damage, e => e.AttackerId == 1 && !e.AttackerIsSettlement && e.SettlementId == 2 && e.Target?.ForceId == 1);
+        Assert.Contains(damage, e => e.AttackerIsSettlement && e.AttackerId == 2 && e.TargetUnitId == 1 && e.Source?.ForceId == 1);
+        Assert.Equal(new(MilitaryOrderKind.AttackSettlement, null, 2), engine.Snapshot.Units.Single(u => u.Id == 1).Order);
     }
 }

@@ -432,6 +432,8 @@ public sealed record MilitaryOrder(MilitaryOrderKind Kind, WorldPosition? Positi
             Construction is { RegionId: >= 0, FacilityTypeId: >= 0, LeaderId: >= 0, Position.X: >= 0, Position.Y: >= 0 },
         MilitaryOrderKind.Move => Position is { X: >= 0, Y: >= 0 } && SettlementId is null && UnitId is null,
         MilitaryOrderKind.AttackUnit => Position is null && SettlementId is null && UnitId is >= 0,
+        // A return without a destination waits for service repair; public assignment still requires a usable place.
+        MilitaryOrderKind.Return => Position is null && SettlementId is not < 0 && UnitId is null,
         _ => Position is null && SettlementId is >= 0 && UnitId is null
     });
 }

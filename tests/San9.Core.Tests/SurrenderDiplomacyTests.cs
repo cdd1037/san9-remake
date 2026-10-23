@@ -120,6 +120,7 @@ public sealed class SurrenderDiplomacyTests
          Person(24, 2, 4, OfficerStatus.Governor), Person(25, 2, 3, OfficerStatus.Captive), Person(31, 3, 3, OfficerStatus.Ruler),
          Person(33, 3, units ? null : 2, OfficerStatus.Captive) with { UnitId = units ? 50 : null }],
         units: units ? [new UnitState(50, 2, new(102, 2), 1000) { FormationId = 9, Morale = 70, CorpsId = 20,
+            Order = new(MilitaryOrderKind.Move, new(152, 2), null),
             ServicePlaceId = 2, CommanderId = 22, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(22, BattleRank.Front).Add(23, BattleRank.Rear) }] : [],
         corps: [new(10, 1, 11, new(10000, 10000)) { IsRoot = true }, new(20, 2, 21, new(2000, 4000)) { IsRoot = true }, new(21, 2, 24, new(1000, 2000)), new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }],
         relations: [new(1, 2, 80), new(1, 3, 0), new(2, 3, 0)],
@@ -178,6 +179,7 @@ public sealed class SurrenderDiplomacyTests
             var unit = Assert.Single(engine.Snapshot.Units);
             Assert.Equal(1, unit.OwnerId);
             Assert.Equal(22, unit.CommanderId);
+            Assert.Equal(new(MilitaryOrderKind.Return, null, 2), unit.Order);
             Assert.Equal(50, engine.Snapshot.Officers.Single(p => p.Id == 33).UnitId);
         }
         // The first player force survives; surrender of the second player does not end the whole session.

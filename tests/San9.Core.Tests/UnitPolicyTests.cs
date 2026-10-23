@@ -94,7 +94,7 @@ public sealed class UnitPolicyTests
         Assert.Equal(Mission, mutation.Units[1].Order);
         Assert.Equal(Attack(2), mutation.Units[1].EffectiveOrder);
         Assert.Empty(mutation.Simulation.RandomStreams);
-        MilitaryPolicies.RemoveTarget(mutation, 2, false, events);
+        MilitaryOrders.RemoveTarget(mutation, 2, false, events);
         Assert.Null(mutation.Units[1].EngagementTargetId);
         Assert.Equal(Mission, mutation.Units[1].EffectiveOrder);
         Assert.False(mutation.Units[1].AwaitingPostAction);
@@ -190,11 +190,11 @@ public sealed class UnitPolicyTests
         var mutation = World(policies: new(AttackAfterAction: attack)).BeginMutation();
         mutation.Replace(mutation.Units[1] with { Order = null, AwaitingPostAction = true });
         var events = new List<DomainEvent>();
-        MilitaryPolicies.ResolveOrders(mutation, Rules(), events);
+        MilitaryOrders.ResolveOrders(mutation, Rules(), events);
         Assert.Equal(expected, mutation.Units[1].Order!.Kind);
         Assert.False(mutation.Units[1].AwaitingPostAction);
         Assert.Single(events.OfType<UnitOrderChangedEvent>());
-        MilitaryPolicies.ResolveOrders(mutation, Rules(), events);
+        MilitaryOrders.ResolveOrders(mutation, Rules(), events);
         Assert.Single(events.OfType<UnitOrderChangedEvent>());
     }
 
@@ -227,11 +227,11 @@ public sealed class UnitPolicyTests
         var nearbyBuilding = new MilitaryRulebook(definition);
         var events = new List<DomainEvent>();
         var before = mutation.Units[1];
-        MilitaryPolicies.ResolveOrders(mutation, nearbyBuilding, events);
+        MilitaryOrders.ResolveOrders(mutation, nearbyBuilding, events);
         Assert.Equal(before, mutation.Units[1]);
         Assert.DoesNotContain(events, e => e is UnitOrderChangedEvent { UnitId: 1 });
         mutation.Replace(mutation.Units[1] with { ServicePlaceId = 1 });
-        MilitaryPolicies.ResolveOrders(mutation, nearbyBuilding, events);
+        MilitaryOrders.ResolveOrders(mutation, nearbyBuilding, events);
         Assert.Equal(MilitaryOrderKind.Return, mutation.Units[1].Order!.Kind);
         Assert.False(mutation.Units[1].AwaitingPostAction);
     }

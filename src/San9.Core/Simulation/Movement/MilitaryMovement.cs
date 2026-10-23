@@ -275,11 +275,8 @@ internal static class MilitaryMovement
             var formation = rules.Formations[unit.FormationId!.Value];
             if (!ValidOrder(world, unit.OwnerId, order, formation, rules, unit.NavalFormationId, unit.Soldiers))
             {
-                MilitaryOrder? fallback = unit.ServicePlaceId is int home && home != order.SettlementId
-                    ? new(MilitaryOrderKind.Return, null, home) : null;
-                if (!ValidOrder(world, unit.OwnerId, fallback, formation, rules, unit.NavalFormationId, unit.Soldiers)) fallback = null;
-                world.Replace(unit with { Order = fallback });
-                UnitOrderChanges.Report(world, id, fallback, "target-invalid", events, previousOrder: order);
+                // Forced returns are projections over the stored mission, not replacements for it.
+                if (!unit.HasForcedReturn) MilitaryOrders.ResolveOrder(world, unit, rules, events);
                 continue;
             }
             var result = MilitaryNavigation.Advance(world, unit, unit.Id, rules, MilitaryNavigation.Budget(unit, rules));
@@ -352,7 +349,7 @@ internal static class MilitaryMovement
                 PersonnelReturns.FromTransport(world, officer.Id, unit, home.Id, returnHome, military, events);
         }
         world.RemoveUnit(unit.Id);
-        MilitaryPolicies.RemoveTarget(world, unit.Id, false, events);
+        MilitaryOrders.RemoveTarget(world, unit.Id, false, events);
         foreach (int previous in affected)
         {
             if (GovernanceMaintenance.RepairCorps(world, previous, governance, events) != CommandRejection.None)

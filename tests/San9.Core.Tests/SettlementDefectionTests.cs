@@ -307,7 +307,7 @@ public sealed class SettlementDefectionTests
         if (succeeds)
         {
             Assert.Equal(SettlementDefectionKind.Besieged, Assert.Single(events.OfType<SettlementDefectedEvent>()).Kind);
-            Assert.All(world.Units.Values, u => Assert.Null(u.Order));
+            Assert.All(world.Units.Values, u => Assert.Equal(new(MilitaryOrderKind.Return, null, 10), u.Order));
         }
     }
 

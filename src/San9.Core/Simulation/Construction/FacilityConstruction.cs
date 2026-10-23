@@ -82,11 +82,7 @@ internal static class FacilityConstruction
             world.Replace(place with { IsDestroyed = true, OwnerId = null, CorpsId = null, Durability = 0, Soldiers = 0,
                 Wounded = 0, Morale = 0, ConfusionDaysRemaining = 0, Facility = place.Facility! with { BuilderUnitId = null } });
             events.Add(new FacilityConstructionChangedEvent(world.Clock, place.Id, unitId, "cancelled", 0, null) { Result = world.Settlements[place.Id] });
-            foreach (var other in world.Units.Values.Where(u => u.Order?.SettlementId == place.Id).ToArray())
-            {
-                world.Replace(other with { Order = null, AwaitingPostAction = other.Order!.IsAttack });
-                UnitOrderChanges.Report(world, other.Id, null, "construction-cancelled", events);
-            }
+            MilitaryOrders.RemoveTarget(world, place.Id, true, events);
         }
     }
 
@@ -118,11 +114,7 @@ internal static class FacilityConstruction
             if (!CanContinue(world, unit, military, rules.Personnel.RegionCities, rules.Treasures))
             {
                 Cancel(world, id, events);
-                var returning = new MilitaryOrder(MilitaryOrderKind.Return, null, unit.ServicePlaceId);
-                MilitaryOrder? nextOrder = MilitaryMovement.ValidOrder(world, unit.OwnerId, returning,
-                    military.Formation(unit), military, unit.NavalFormationId) ? returning : null;
-                world.Replace(world.Units[id] with { Order = nextOrder });
-                UnitOrderChanges.Report(world, id, nextOrder, "construction-target-invalid", events, previousOrder: unit.Order);
+                MilitaryOrders.ReturnAfterTask(world, world.Units[id], military, events, "construction-target-invalid");
                 continue;
             }
             if (unit.Condition == UnitCondition.Confused) continue;
@@ -156,15 +148,15 @@ internal static class FacilityConstruction
             events.Add(new FacilityConstructionChangedEvent(world.Clock, existing.Id, id, complete ? "completed" : "progress", next, new(unit.OwnerId, type.Id, rules.Personnel.RegionCities[plan.RegionId], plan.Position)) { Result = world.Settlements[existing.Id] });
             Grow(world, unit, type, military, complete, events);
             if (!complete) continue;
-            unit = world.Units[id] with { Order = null };
-            world.Replace(unit);
-            if (type.CanHostPersons) MilitaryMovement.Absorb(world, unit, existing.Id, rules.Governance, rules.Personnel, rules.Military!, events);
+            unit = world.Units[id];
+            if (type.CanHostPersons)
+            {
+                MilitaryOrders.ChangeOrder(world, unit, new(MilitaryOrderKind.Return, null, existing.Id), events, "construction-completed-entry");
+                MilitaryMovement.Absorb(world, world.Units[id], existing.Id, rules.Governance, rules.Personnel, military, events);
+            }
             else
             {
-                var order = new MilitaryOrder(MilitaryOrderKind.Return, null, unit.ServicePlaceId);
-                if (MilitaryMovement.ValidOrder(world, unit.OwnerId, order, military.Formations[unit.FormationId!.Value], military, unit.NavalFormationId))
-                    world.Replace(unit with { Order = order });
-                UnitOrderChanges.Report(world, id, world.Units[id].Order, "construction-completed", events);
+                MilitaryOrders.ReturnAfterTask(world, unit, military, events, "construction-completed");
             }
         }
     }

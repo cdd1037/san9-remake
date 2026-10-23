@@ -41,16 +41,14 @@ internal static class ForceTransfer
         return (total, received);
     }
 
-    internal static void ClearFriendlyOrders(WorldMutation world, string reason, List<DomainEvent> events)
+    internal static void ReconcileOrders(WorldMutation world, MilitaryRulebook? rules, List<DomainEvent> events)
     {
+        if (rules is null) return;
         foreach (var unit in world.Units.Values.OrderBy(u => u.Id).ToArray())
         {
             bool main = unit.Order?.IsAttack == true && MilitaryDiplomacy.TargetOwner(world, unit.Order) == unit.OwnerId;
             bool temporary = unit.EngagementTargetId is int other && world.Units[other].OwnerId == unit.OwnerId;
-            if (main || temporary) world.Replace(unit with { Order = main ? null : unit.Order,
-                EngagementTargetId = temporary ? null : unit.EngagementTargetId, AwaitingPostAction = false });
-            if (main) UnitOrderChanges.Report(world, unit.Id, null, reason, events);
-            if (temporary) events.Add(new UnitEngagementChangedEvent(world.Clock, unit.Id, null, reason));
+            if (main || temporary) MilitaryOrders.ResolveOrder(world, unit, rules, events);
         }
     }
 }

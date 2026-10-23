@@ -125,15 +125,7 @@ internal static class MilitaryCombat
                     world.Replace(attacker with { ContactTarget = null });
                     continue;
                 }
-                world.Replace(attacker with
-                {
-                    Order = attacker.EngagementTargetId is null ? null : attacker.Order,
-                    AwaitingPostAction = attacker.EngagementTargetId is null,
-                    EngagementTargetId = null
-                });
-                if (attacker.EngagementTargetId is not null)
-                    events.Add(new UnitEngagementChangedEvent(world.Clock, id, null, "attack-target-invalid"));
-                else UnitOrderChanges.Report(world, id, null, "attack-target-invalid", events);
+                MilitaryOrders.ResolveOrder(world, attacker, military, events);
                 continue;
             }
             var targetArea = TargetArea(world, order, military);

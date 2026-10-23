@@ -107,7 +107,7 @@ public sealed class MovementContactTests
         Assert.Equal(MilitaryOrderKind.AttackSettlement, contact.EffectiveOrder!.Kind);
         Assert.Null(MilitaryContacts.AfterMovement(world, unit, collision with { Object = new(1, false) }, Rules()).ContactTarget);
         world.Replace(contact);
-        MilitaryPolicies.RemoveTarget(world, 1, true, []);
+        MilitaryOrders.RemoveTarget(world, 1, true, []);
         Assert.Equal(unit.Order, world.Units[0].EffectiveOrder);
     }
 

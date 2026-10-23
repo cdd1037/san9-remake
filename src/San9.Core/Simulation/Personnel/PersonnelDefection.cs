@@ -74,7 +74,7 @@ internal static class PersonnelDefection
         if (transfersPlace || target.UnitId is not null)
         {
             GovernanceLifecycle.Reconcile(world, new HashSet<int> { target.OwnerId!.Value }, rules, events, true, "personnel-recruited");
-            ForceTransfer.ClearFriendlyOrders(world, "personnel-recruited", events);
+            ForceTransfer.ReconcileOrders(world, rules.Military, events);
             world.MaintainLeadership(events);
             ResolutionPipeline.CheckConquest(world, events);
         }

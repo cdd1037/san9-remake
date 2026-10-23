@@ -24,8 +24,7 @@ internal static class FacilityDemolition
         if (facility.Facility?.BuilderUnitId is int builder)
         {
             FacilityConstruction.Cancel(world, builder, events);
-            world.Replace(world.Units[builder] with { Order = null });
-            UnitOrderChanges.Report(world, builder, null, "facility-demolished", events);
+            MilitaryOrders.ReturnAfterTask(world, world.Units[builder], military, events, "facility-demolished");
             facility = world.Settlements[facility.Id];
         }
 
@@ -42,12 +41,8 @@ internal static class FacilityDemolition
         foreach (var person in world.Officers.Values.Where(p => p.SettlementId == facility.Id && !traveling.Contains(p.Id)).OrderBy(p => p.Id).ToArray())
             world.Replace(person with { SettlementId = cityId, IsCommander = false });
         SettlementTasks.LocationChanged(world, facility.Id, "facility-demolished", rules, events);
-        foreach (var unit in world.Units.Values.Where(u => u.Order?.SettlementId == facility.Id).OrderBy(u => u.Id).ToArray())
-        {
-            world.Replace(unit with { Order = null, AwaitingPostAction = unit.Order!.IsAttack });
-            UnitOrderChanges.Report(world, unit.Id, null, "facility-demolished", events);
-        }
         GovernanceLifecycle.Reconcile(world, new HashSet<int> { command.IssuerId }, rules, events, false);
+        MilitaryOrders.SettlementChanged(world, facility.Id, military, events);
         events.Add(new FacilityDemolishedEvent(world.Clock, facility.Id, cityId, command.IssuerId, facility.Facility?.TypeId ?? definition.FacilityTypeId));
         return CommandRejection.None;
     }

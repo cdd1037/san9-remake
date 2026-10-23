@@ -61,7 +61,7 @@ internal static class RedCliffs
                 if (target.EngagementTargetId is not null)
                     MilitaryPolicies.Engage(world, world.Units[target.Id], null, events, "red-cliffs");
                 if (target.Order is not null && target.FormationId is not null)
-                    MilitaryPolicies.Return(world, world.Units[target.Id], military, events, "red-cliffs");
+                    MilitaryOrders.Return(world, world.Units[target.Id], military, events, "red-cliffs");
             }
         }
         if (terminated)

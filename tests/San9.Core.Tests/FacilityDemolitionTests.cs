@@ -57,7 +57,8 @@ public sealed class FacilityDemolitionTests
         Assert.Null(facility.OwnerId);
         Assert.Equal(0u, facility.Soldiers + facility.Wounded);
         var unit = Assert.Single(engine.Snapshot.Units);
-        Assert.Null(unit.Order);
+        Assert.Equal(new(MilitaryOrderKind.Return, null, 1), unit.Order);
+        Assert.Equal(1, unit.ServicePlaceId);
         Assert.Equal(100u, unit.CargoFood);
         Assert.DoesNotContain(result.Events, e => e is UnitAbsorbedEvent);
         Assert.All(result.Events.OfType<ResourceChangedEvent>().Where(e => e.Reason == "facility-demolished"), e => Assert.Equal(0, e.SaturationLoss));
@@ -76,6 +77,20 @@ public sealed class FacilityDemolitionTests
         var hash = engine.Snapshot;
         Assert.False(engine.Execute(Player, new DemolishFacilityCommand(Guid.NewGuid(), 1, 0, 2)).Submission.Accepted);
         StateAssert.Equal(hash, engine.Snapshot);
+    }
+
+    [Fact]
+    public void TransportReturnsAndUnloadsCargoAfterItsDestinationIsDemolished()
+    {
+        var engine = Engine();
+        Assert.True(engine.Execute(Player, new DemolishFacilityCommand(Guid.NewGuid(), 1, 0, 2)).Submission.Accepted);
+        engine.EndControl(Player);
+        var result = engine.AdvanceXun();
+        Assert.Empty(engine.Snapshot.Units);
+        Assert.Equal(1, engine.Snapshot.Officers.Single(p => p.Id == 13).SettlementId);
+        Assert.Single(result.Events.OfType<UnitAbsorbedEvent>(), e => e.UnitId == 0 && e.SettlementId == 1);
+        Assert.Contains(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "transport-unload" &&
+            e.Resource == ResourceKind.Food && e.Account.Kind == ResourceOwnerKind.Corps && e.Actual == 100);
     }
 
     [Fact]

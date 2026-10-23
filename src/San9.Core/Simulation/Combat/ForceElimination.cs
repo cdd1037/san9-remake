@@ -61,7 +61,7 @@ internal static class ForceElimination
             var result = world.Settlements[id] with { OwnerId = null, CorpsId = null, Soldiers = 0, Wounded = 0,
                 Morale = 0, ConfusionDaysRemaining = 0, CombatTargetUnitId = null };
             world.Replace(result);
-            MilitaryPolicies.RemoveTarget(world, id, true, events);
+            MilitaryOrders.RemoveTarget(world, id, true, events);
             events.Add(new SettlementNeutralizedEvent(world.Clock, id, forceId) { Result = result });
         }
         foreach (var corps in world.Corps.Values.Where(c => c.OwnerId == forceId).OrderBy(c => c.Id).ToArray())

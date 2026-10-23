@@ -85,7 +85,7 @@ internal static class SurrenderMerge
                 ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, unit.Id), ResourceKind.Wounded, "surrender-unit-dissolved", recipient,
                     -(long)unit.Wounded, -(long)unit.Wounded, events);
                 world.RemoveUnit(unit.Id);
-                MilitaryPolicies.RemoveTarget(world, unit.Id, false, events);
+                MilitaryOrders.RemoveTarget(world, unit.Id, false, events);
                 events.Add(new UnitTerminatedEvent(world.Clock, unit.Id, null, city is null ? troops : 0)
                     { Target = BattleObjectContext.Capture(unit), Source = null, Reason = UnitTerminationReason.Surrendered });
             }
@@ -94,7 +94,7 @@ internal static class SurrenderMerge
                 world.Replace(unit with { OwnerId = recipient, CorpsId = root,
                     CommanderId = unit.FormationId is null ? null : LeadershipMaintenance.SelectUnitCommander(world, members, rules.Governance),
                     MemberRanks = unit.MemberRanks.Where(p => joined.Contains(p.Key)).ToImmutableDictionary(),
-                    Order = null, EngagementTargetId = null, AwaitingPostAction = false });
+                    EngagementTargetId = null, ContactTarget = null, Lookahead = null });
                 events.Add(new UnitTransferredEvent(world.Clock, unit.Id, force, recipient));
             }
         }
@@ -111,7 +111,8 @@ internal static class SurrenderMerge
             events.Add(new CorpsDissolvedEvent(world.Clock, force, c.Id, root ?? -1));
         }
         ForceLifecycle.Retire(world, force, events);
-        ForceTransfer.ClearFriendlyOrders(world, "force-surrendered", events);
+        foreach (var unit in oldUnits) MilitaryPolicies.AfterTransfer(world, unit.Id, rules.Military, events, force);
+        ForceTransfer.ReconcileOrders(world, rules.Military, events);
         events.Add(new ForceSurrenderedEvent(world.Clock, force, recipient, money, receivedMoney, food, receivedFood,
             joined.Order().ToImmutableArray(), departed));
 

@@ -78,7 +78,7 @@ internal static class Guandu
             if (unit.EngagementTargetId is not null)
                 MilitaryPolicies.Engage(world, world.Units[unit.Id], null, events, "guandu");
             if (unit.EffectiveOrderClass == UnitOrderClass.Military && unit.FormationId is not null)
-                MilitaryPolicies.Return(world, world.Units[unit.Id], military, events, "guandu");
+                MilitaryOrders.Return(world, world.Units[unit.Id], military, events, "guandu");
         }
         if (terminated)
         {

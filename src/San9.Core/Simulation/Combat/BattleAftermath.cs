@@ -58,6 +58,8 @@ internal static class BattleAftermath
             foreach (int unitId in capture.Units)
                 if (world.Units.TryGetValue(unitId, out var unit))
                     MilitaryMovement.Absorb(world, unit, capture.Id, rules.Governance, rules.Personnel, rules.Military!, events);
+        GovernanceLifecycle.Reconcile(world, previousOwners.ToHashSet(), rules, events, world.CurrentDateCommandsConsumed);
+        foreach (int id in ids) MilitaryOrders.SettlementChanged(world, id, rules.Military!, events);
     }
 
     private static int[] CaptureUnits(WorldMutation world, int id, BattleSource winner, MilitaryRulebook military)
@@ -89,7 +91,7 @@ internal static class BattleAftermath
             if (!winner.IsSettlement) BattleLearning.DestroyedWork(world, winner.Id, definition, rules.Military, events);
             world.Replace(settlement with { IsDestroyed = true, OwnerId = null, CorpsId = null,
                 Soldiers = 0, Wounded = 0, Morale = 0, Durability = 0, ConfusionDaysRemaining = 0 });
-            MilitaryPolicies.RemoveTarget(world, id, true, events);
+            MilitaryOrders.RemoveTarget(world, id, true, events);
             events.Add(new FacilityDestroyedEvent(world.Clock, id, winner)
                 { Source = BattleObjectContext.Capture(world, winner), PreviousOwnerId = settlement.OwnerId,
                     Result = world.Settlements[id] });
@@ -137,8 +139,7 @@ internal static class BattleAftermath
         if (abandoned)
             foreach (var unit in world.Units.Values.Where(u => u.OwnerId == winner.Owner(world) && u.CorpsId == winner.Corps(world) &&
                 u.Order is { Kind: MilitaryOrderKind.AttackSettlement } order && order.SettlementId == id).OrderBy(u => u.Id).ToArray())
-                MilitaryPolicies.Return(world, unit, rules.Military!, events, "settlement-abandoned");
-        MilitaryPolicies.SettlementChanged(world, id, rules.Military!, events);
+                MilitaryOrders.Return(world, unit, rules.Military!, events, "settlement-abandoned");
         events.Add(new SettlementCapturedEvent(world.Clock, id, settlement.OwnerId, winner, destroyed)
             { Source = BattleObjectContext.Capture(world, winner), Result = world.Settlements[id] });
     }

@@ -64,14 +64,15 @@ internal static class ForceConsolidation
         }
         world.Replace(world.Forces[absorbed] with { LeaderId = null, AdviserId = null });
         ForceTransfer.Settlements(world, absorbed, survivor, root, events);
-        foreach (var original in world.Units.Values.Where(u => u.OwnerId == absorbed).OrderBy(u => u.Id).ToArray())
+        var transferred = world.Units.Values.Where(u => u.OwnerId == absorbed).OrderBy(u => u.Id).ToArray();
+        foreach (var original in transferred)
         {
             FacilityConstruction.Cancel(world, original.Id, events);
             var unit = world.Units[original.Id];
             var members = world.UnitMembers(unit.Id).Where(p => p.IsServing).Select(p => p.Id).Order().ToArray();
             world.Replace(unit with { OwnerId = survivor, CorpsId = root, CommanderId = unit.FormationId is null ? null :
-                LeadershipMaintenance.SelectUnitCommander(world, members, rules.Governance), Order = null,
-                EngagementTargetId = null, AwaitingPostAction = false });
+                LeadershipMaintenance.SelectUnitCommander(world, members, rules.Governance),
+                EngagementTargetId = null, ContactTarget = null, Lookahead = null });
             events.Add(new UnitTransferredEvent(world.Clock, unit.Id, absorbed, survivor));
         }
         foreach (var person in world.Officers.Values.Where(p => p.Status == OfficerStatus.Captive && p.OwnerId == survivor &&
@@ -92,7 +93,8 @@ internal static class ForceConsolidation
             events.Add(new CorpsDissolvedEvent(world.Clock, absorbed, corps.Id, root ?? -1));
         }
         ForceLifecycle.Retire(world, absorbed, events);
-        ForceTransfer.ClearFriendlyOrders(world, Reason, events);
+        foreach (var unit in transferred) MilitaryPolicies.AfterTransfer(world, unit.Id, rules.Military, events, absorbed);
+        ForceTransfer.ReconcileOrders(world, rules.Military, events);
         world.Replace(world.Forces[survivor] with { BaseTrust = Math.Min(1000,
             Math.Max(source.BaseTrust, target.BaseTrust) + Math.Min(source.BaseTrust, target.BaseTrust) / 2 + 10) });
         foreach (var place in world.Settlements.Values.Where(s => s.OwnerId == survivor && !s.IsDestroyed).OrderBy(s => s.Id).ToArray())

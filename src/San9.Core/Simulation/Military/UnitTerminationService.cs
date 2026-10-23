@@ -94,7 +94,7 @@ internal static class UnitTerminationService
             -(long)defeated.Wounded, -(long)defeated.Wounded, events);
         FacilityConstruction.Cancel(world, unitId, events);
         world.RemoveUnit(unitId);
-        MilitaryPolicies.RemoveTarget(world, unitId, false, events);
+        MilitaryOrders.RemoveTarget(world, unitId, false, events);
     }
 
     private static uint Wounded(WorldMutation world, SettlementState home, long requested, int unitId, List<DomainEvent> events)

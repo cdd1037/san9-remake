@@ -439,14 +439,14 @@ public sealed class FacilityConstructionTests
     }
 
     [Fact]
-    public void DemolishingUnfinishedFacilityClearsItsBuilderOrder()
+    public void DemolishingUnfinishedFacilityReturnsItsBuilder()
     {
         var engine = Engine();
         Assert.True(engine.Execute(Player, Command()).Submission.Accepted);
         Advance(engine);
         Assert.True(engine.Execute(Player, new DemolishFacilityCommand(Guid.NewGuid(), 1,
             engine.Snapshot.Simulation.NextSequence, 8000)).Submission.Accepted);
-        Assert.Null(engine.Snapshot.Units.Single().Order);
+        Assert.Equal(new(MilitaryOrderKind.Return, null, 1), engine.Snapshot.Units.Single().Order);
         Assert.Null(engine.Snapshot.Settlements.Single(s => s.Id == 8000).Facility!.BuilderUnitId);
         Assert.True(engine.Snapshot.Settlements.Single(s => s.Id == 8000).IsDestroyed);
         Assert.DoesNotContain(Advance(engine).Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "completed");
@@ -584,8 +584,17 @@ public sealed class FacilityConstructionTests
         Assert.Single(result.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "cancelled");
         Assert.DoesNotContain(result.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "completed");
         Assert.True(engine.Snapshot.Settlements.Single(s => s.Id == 8000).IsDestroyed);
-        Assert.Null(engine.Snapshot.Units.Single().Order);
+        Assert.Equal(new(MilitaryOrderKind.Return, null, null), engine.Snapshot.Units.Single().Order);
         Assert.Equal(9000u, engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
+        var waiting = engine.CaptureStableState();
+        engine = Engine(WorldState.Restore(waiting with
+        {
+            Settlements = waiting.Settlements.Select(s => s.Id == 1 ? s with { Durability = 100 } : s).ToImmutableArray()
+        }));
+        var returned = Advance(engine);
+        Assert.Empty(engine.Snapshot.Units);
+        Assert.True(engine.Snapshot.Settlements.Single(s => s.Id == 8000).IsDestroyed);
+        Assert.DoesNotContain(returned.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase is "started" or "completed");
     }
 
     [Theory]

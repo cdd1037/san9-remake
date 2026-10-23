@@ -55,8 +55,8 @@ public sealed class UnitDefectionTests
         Assert.Equal(21, returning.OfficerId);
         Assert.False(returning.Journey!.ReturnLeg!.AfterDailyCommands);
         Assert.Equal(before.Position, returning.Journey.Route.Origin);
-        Assert.Null(world.Units[101].Order);
-        Assert.Null(world.Units[102].Order);
+        Assert.Equal(new(MilitaryOrderKind.Return, null, 1), world.Units[101].Order);
+        Assert.Equal(new(MilitaryOrderKind.Return, null, 1), world.Units[102].Order);
         Assert.Empty(Apply(world).OfType<UnitDefectedEvent>());
     }
 

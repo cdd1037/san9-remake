@@ -19,7 +19,7 @@ public partial class ClientVerification
         var map = World.Package! with { Assets = [.. World.Package.Assets, .. extra],
             Animations = new([.. World.Package.Animations.Clips, clip], []) };
         var service = new TextureService();
-        service.Initialize(new ClientContentPackage(0, [], map, null!, Hud.Texts, Hud.Skin, null!), (file, token) =>
+        service.Initialize(new ClientContentPackage(0, map, null!, Hud.Texts, Hud.Skin, null!), (file, token) =>
         {
             if (file.Path == extra[1].Path) firstFrame.Wait(token);
             if (file.Path == extra[2].Path) lastFrame.Wait(token);

@@ -52,18 +52,19 @@ dotnet test tests/San9.Headless.Tests/San9.Headless.Tests.csproj
 选择包含 `San9PK.exe`、S9 数据及剧本文件的同一个原版游戏目录；本地统一使用 `private/游戏文件/`。当前支持已登记且通过指纹校验的繁中 PK 1.0.1.0：
 
 ```powershell
-dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游戏文件" --output "local/generated/content/textures-san9pk-tc101"
-dotnet run --project src/San9.Tools -- import-client --game-dir "private/游戏文件" --scenario "D_Sce002.S9" --texture-package "local/generated/content/textures-san9pk-tc101" --output "local/generated/content/scenario-190-live"
+dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游戏文件" --output "local/generated/content/shared/textures"
+dotnet run --project src/San9.Tools -- import-content --game-dir "private/游戏文件" --output "local/generated/content"
+dotnet run --project src/San9.Tools -- verify-content --content-root "local/generated/content"
 ```
 
-纹理由 `import-textures` 独立构建，按类别存入共享纹理包；`import-client` 只生成剧本、文本、地图实例及资源引用。增量复用与失效产物清理归纹理构建所有。入口见[内容管线](docs/client-content.md)。
+纹理由 `import-textures` 独立构建，按类别存入共享纹理包；`import-content` 按一般／if分类转换20个正式剧本，公共贴图、音频和开局界面放入`shared/`；目录摘要独立于完整世界。增量复用与失效产物清理归纹理构建所有。入口见[内容管线](docs/client-content.md)。
 
 ### 运行客户端
 
-用 Godot Mono 打开 `src/San9.Client.Godot/project.godot`，构建 C# 后运行主场景。客户端默认读取上述 `scenario-190-live` 包，也可从命令行指定：
+用 Godot Mono 打开 `src/San9.Client.Godot/project.godot`，构建 C# 后运行主场景。客户端无参进入开局菜单，浏览剧本时不创建世界，也不默认加载190年。需直接进入世界时显式指定剧本和玩家势力：
 
 ```powershell
-& "<Godot Mono可执行文件>" --path "src/San9.Client.Godot" -- --content-package "<客户端内容包绝对路径>"
+& "<Godot Mono可执行文件>" --path "src/San9.Client.Godot" -- --scenario scenario-4 --player-force 6
 ```
 
 中键拖动、滚轮缩放，左键选择、右键查看情报；小地图和设施列表可定位，F3 打开调试面板。完整交互与画面验收见[UI 文档](docs/ui/README.md)，纯地图转换与离线渲染见[大地图导入与运行](docs/map-import.md)。

@@ -2,9 +2,13 @@ using System.Globalization;
 
 namespace San9.Client.Godot;
 
-public sealed record ClientOptions(string PackageRoot, int? CenterX, int? CenterY, float Zoom, string? Season,
+public sealed record ClientOptions(string? PackageRoot, int? CenterX, int? CenterY, float Zoom, string? Season,
     double? AnimationTime, bool MapSmoke, bool UiSmoke, string? Screenshot, bool Quit)
 {
+    public string ContentRoot { get; init; } = "";
+    public string? ScenarioId { get; init; }
+    public int? PlayerForceId { get; init; }
+    public string? UserDataRoot { get; init; }
     public int ComputerDamageBonusPercent { get; init; }
     public bool PatrolSmoke { get; init; }
     public bool RuntimeSmoke { get; init; }
@@ -42,16 +46,22 @@ public sealed record ClientOptions(string PackageRoot, int? CenterX, int? Center
         double? time = Argument("--map-time-ms") is {} t ? double.Parse(t, CultureInfo.InvariantCulture) : null;
         if (time is {} ms && (!double.IsFinite(ms) || ms < 0)) throw new ArgumentException("Invalid animation capture time.");
         string? screenshot = Argument("--map-screenshot");
-        var options = new ClientOptions(Argument("--content-package") ?? Path.GetFullPath(Path.Combine(contentRoot, "scenario-190-live")),
+        var options = new ClientOptions(Argument("--content-package"),
             x, y, zoom, Argument("--map-season"), time, args.Contains("--map-smoke"),
             args.Contains("--ui-smoke"), screenshot is null ? null : Path.GetFullPath(screenshot), args.Contains("--map-quit"))
         {
+            ContentRoot = Path.GetFullPath(Argument("--content-root") ?? contentRoot),
+            ScenarioId = Argument("--scenario"),
+            PlayerForceId = Argument("--player-force") is { } player ? int.Parse(player, CultureInfo.InvariantCulture) : null,
+            UserDataRoot = Argument("--user-data-root") is { } dataRoot ? Path.GetFullPath(dataRoot) : null,
             ComputerDamageBonusPercent = bonus,
             PatrolSmoke = args.Contains("--patrol-smoke"),
             RuntimeSmoke = args.Contains("--runtime-smoke"),
             InformationSmoke = args.Contains("--information-smoke"),
             TextSmoke = args.Contains("--text-smoke")
         };
+        if (options.PackageRoot is not null && options.ScenarioId is not null)
+            throw new ArgumentException("Specify either --scenario or --content-package.");
         if (options.TextSmoke && options.RequiresWorldVerification)
             throw new ArgumentException("Text verification runs separately from world verification and map screenshots.");
         return options;

@@ -37,9 +37,19 @@ public partial class Main : Node
                 ? Path.Combine(ProjectSettings.GlobalizePath("res://"), "../../local/generated/content")
                 : Path.Combine(Path.GetDirectoryName(OS.GetExecutablePath())!, "content");
             var options = ClientOptions.Parse(OS.GetCmdlineUserArgs(), contentRoot);
+            if (options.PackageRoot is null && options.ScenarioId is null)
+            {
+                if (options.RequiresWorldVerification || options.TextSmoke)
+                    throw new ArgumentException("World verification requires an explicit --scenario or --content-package.");
+                world.ProcessMode = ProcessModeEnum.Disabled;
+                ui.AddChild(new StartMenuPreview { ContentRoot = options.ContentRoot });
+                return;
+            }
+            string packageRoot = options.PackageRoot ?? PackageFiles.Resolve(options.ContentRoot,
+                (await ContentCatalogFiles.LoadAsync(options.ContentRoot, token)).RequireScenario(options.ScenarioId!).Package);
             var loaded = await Task.Run(async () =>
             {
-                var package = await ClientContentFiles.LoadAsync(options.PackageRoot, token);
+                var package = await ClientContentFiles.LoadAsync(packageRoot, token);
                 double validationMs = startup.Elapsed.TotalMilliseconds;
                 return (Content: package, ValidationMs: validationMs);
             });
@@ -58,14 +68,14 @@ public partial class Main : Node
             if (options.TextSmoke)
             {
                 ui.AddChild(new TextVerification { Content = loaded.Content, Service = textures,
-                    Output = Path.GetFullPath(Path.Combine(options.PackageRoot,"../../verification/text")) });
+                    Output = Path.GetFullPath(Path.Combine(options.ContentRoot,"../verification/text")) });
                 return;
             }
             var content = loaded.Content;
             GD.Print($"CLIENT_PREPARE content_ms={loaded.ValidationMs:F2} ui_prepare_ms={startup.Elapsed.TotalMilliseconds - loaded.ValidationMs:F2}");
             void OnFirstMapReady() { GD.Print($"CLIENT_READY total_ms={startup.Elapsed.TotalMilliseconds:F2}"); world.MapReady -= OnFirstMapReady; }
             world.MapReady += OnFirstMapReady;
-            var initial = content.Scenario;
+            var initial = options.PlayerForceId is int player ? content.Scenario with { PlayerForceId = player } : content.Scenario;
             if (options.RuntimeSmoke) initial = ClientVerificationScenario.Create(initial);
             San9.Application.GameSession CreateNewSession()
             {
@@ -75,8 +85,8 @@ public partial class Main : Node
                 return San9.Application.GameSession.Start(initial, seed, options.ComputerDamageBonusPercent, enableXunStartCheckpoints: true);
             }
             var session = CreateNewSession();
-            var dataPaths = new Persistence.ClientDataPaths(OS.HasFeature("template"), OS.GetName(),
-                OS.GetExecutablePath(), ProjectSettings.GlobalizePath("user://"));
+            var dataPaths = new Persistence.ClientDataPaths(options.UserDataRoot is null && OS.HasFeature("template"), OS.GetName(),
+                OS.GetExecutablePath(), options.UserDataRoot ?? ProjectSettings.GlobalizePath("user://"));
             var saveStore = new Persistence.SlotSaveStore(dataPaths.SaveSlots, initial);
             var music = new SceneMusicPlayer { ContentRoot = content.ContentRoot, Tracks = content.Presentation.Sounds };
             AddChild(music);

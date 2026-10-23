@@ -37,21 +37,30 @@ public partial class TextureService : Node
         OverviewMap = new(map.Width, map.Height, map.Squares, package.Scenario.RegionCityIds);
         MinimapTerrain = CreateTexture(MinimapRenderer.Compile(map.Width, map.Height, map.Squares, map.MinimapColors));
     }
-    internal void Initialize(ClientContentPackage package, Func<ImageFile, CancellationToken, PngImage> load)
+    public void Initialize(TexturePackage package, string root) => Initialize(package.Portraits, package.Map.Assets,
+        package.Library, package.Map.Clips, package.Skin, package.Map.Units,
+        (file, token) => ClientImageFiles.LoadFile(root, file, token));
+
+    internal void Initialize(ClientContentPackage package, Func<ImageFile, CancellationToken, PngImage> load) =>
+        Initialize(package.Portraits, package.Map.Assets, package.Textures, package.Map.Animations.Clips, package.Skin, package.Map.Units, load);
+
+    private void Initialize(PortraitDefinition[] portraits, ImageAsset[] mapAssets, TextureLibrary library,
+        San9.Content.Maps.MapAnimationClip[] clips, InterfaceSkin skin, San9.Content.Maps.MapUnitCatalog units,
+        Func<ImageFile, CancellationToken, PngImage> load)
     {
-        _portraits = package.Portraits.ToDictionary(p => p.Image.Id);
-        MapAssets = package.Map.Assets.ToDictionary(a => a.Id);
-        LibraryAssets = package.Textures.Assets.ToDictionary(a => a.Id);
-        AnimationClips = package.Map.Animations.Clips.ToDictionary(c => c.Id);
-        var ui = package.Skin.Assets.ToDictionary(a => a.Id);
-        Roles = package.Skin.Roles.ToDictionary(p => p.Key, p => ui[p.Value]);
-        BuildingTargetOffsets = package.Skin.BuildingTargetOffsets;
-        BuildingArrowOffsets = package.Skin.BuildingArrowOffsets;
-        Cursors = package.Skin.Cursors;
+        _portraits = portraits.ToDictionary(p => p.Image.Id);
+        MapAssets = mapAssets.ToDictionary(a => a.Id);
+        LibraryAssets = library.Assets.ToDictionary(a => a.Id);
+        AnimationClips = clips.ToDictionary(c => c.Id);
+        var ui = skin.Assets.ToDictionary(a => a.Id);
+        Roles = skin.Roles.ToDictionary(p => p.Key, p => ui[p.Value]);
+        BuildingTargetOffsets = skin.BuildingTargetOffsets;
+        BuildingArrowOffsets = skin.BuildingArrowOffsets;
+        Cursors = skin.Cursors;
         CursorAssets = Cursors.ToDictionary(p => p.Key, p => ui[p.Value.Asset]);
-        var unitClips = package.Map.Units.Bodies.SelectMany(body => body.DirectionClips
+        var unitClips = units.Bodies.SelectMany(body => body.DirectionClips
             .Concat(body.Attacks.SelectMany(a => a.Actions).SelectMany(a => a.DirectionClips))).ToHashSet();
-        var unitFrames = package.Map.Animations.Clips.Where(clip => unitClips.Contains(clip.Id) ||
+        var unitFrames = clips.Where(clip => unitClips.Contains(clip.Id) ||
                 clip.Id.StartsWith("unit-flag-", StringComparison.Ordinal))
             .SelectMany(clip => clip.Frames.Concat(clip.SeasonFrames.Values.SelectMany(frames => frames)))
             .ToHashSet();

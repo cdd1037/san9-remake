@@ -12,7 +12,7 @@ public partial class ClientVerification
         var panel = Hud.Information;
         var before = World.Session.Snapshot;
         var selected = Selection.Square;
-        string directory = Path.GetDirectoryName(Options.Screenshot ?? Path.GetFullPath(Path.Combine(Options.PackageRoot, "../../verification/information/information.png")))!;
+        string directory = Path.GetDirectoryName(Options.Screenshot ?? Path.GetFullPath(Path.Combine(Options.ContentRoot, "../verification/information/information.png")))!;
         Task Frame() => Frames(this, 2);
         panel.OpenMenu(); await Frame();
         Check(Hud.IsBlockedPoint(new(512, 384)), "Information menu did not block map.");

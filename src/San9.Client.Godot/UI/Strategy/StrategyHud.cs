@@ -71,7 +71,7 @@ public partial class StrategyHud : Control
         BuildLayout();
         World.MapReady += Build;
         GetWindow().MouseExited += ClearHover;
-        _message = new GameMessageBar { Textures = _textures, Text = "正在准备190年地图…" };
+        _message = new GameMessageBar { Textures = _textures, Text = "正在准备地图…" };
         _bottomBar.AddChild(_message);
         _message.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _notice = new GameDialog { Textures = _textures, ZIndex = 60, Visible = false };

@@ -63,7 +63,7 @@
 - [BEH-RENDER-0002：可交互静态地图与现代地图包](BEH-RENDER-0002-interactive-static-map.md)（已确认）
 - [BEH-RENDER-0003：地图水面、建筑旗帜与守兵动画](BEH-RENDER-0003-map-ambient-animation.md)（已确认）
 - [BEH-RENDER-0004：单份头像与统一裁剪视图](BEH-RENDER-0004-shared-portrait-views.md)（已确认，已接入，画面待验收）
-- [BEH-UI-0001：190年董卓势力初始主界面](BEH-UI-0001-initial-strategy-screen.md)（已确认）
+- [BEH-UI-0001：开局菜单与初始战略界面](BEH-UI-0001-initial-strategy-screen.md)（已确认）
 
 维护条件与状态含义见[规格索引](../README.md#规格维护)；新增时按[行为规格模板](../templates/behavior-spec.md)裁剪栏目。原作事实的确认遵循[研究规范](../research-method.md#从证据到规格)。
 

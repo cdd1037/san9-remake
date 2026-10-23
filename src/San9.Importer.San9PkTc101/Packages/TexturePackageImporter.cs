@@ -8,7 +8,7 @@ namespace San9.Importer.San9PkTc101.Packages;
 
 public static class TexturePackageImporter
 {
-    public const int ConversionVersion = 53;
+    public const int ConversionVersion = 54;
 
     public static async Task<TexturePackage> ImportAsync(string gameDirectory, string output,
         Action<string>? progress = null, CancellationToken token = default, string? rebuild = null)

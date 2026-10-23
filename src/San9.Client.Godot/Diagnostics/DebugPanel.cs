@@ -72,7 +72,7 @@ public partial class DebugPanel : PanelContainer
         }
         var seat = _forces.Selected >= 0 && _forces.Selected < _forceIds.Length
             ? session.Snapshot.Simulation.Controls.FirstOrDefault(c => c.ForceId == _forceIds[_forces.Selected]) : null;
-        bool ready = !Host.IsBlocked && !Host.Hud.Turn.IsComputing && Host.Hud.CanQuickSave &&
+        bool ready = !Host.IsBlocked && Host.Hud.Turn is { IsComputing: false } && Host.Hud.CanQuickSave &&
             session.CanChangeForceControl;
         _handOver.Disabled = !ready || seat?.Kind != ControllerKind.Player;
         _takeOver.Disabled = !ready || seat?.Kind != ControllerKind.Automatic;

@@ -5,6 +5,27 @@ namespace San9.Client.Godot.Tests;
 public sealed class ClientOptionsTests
 {
     [Fact]
+    public void OpeningStartupHasNoImplicitScenarioAndExplicitSelectionHasNoYearConvention()
+    {
+        var opening = ClientOptions.Parse([], Environment.CurrentDirectory);
+        Assert.Null(opening.PackageRoot);
+        Assert.Null(opening.ScenarioId);
+        Assert.Null(opening.PlayerForceId);
+        var selected = ClientOptions.Parse(["--scenario", "custom-world", "--player-force", "73"], Environment.CurrentDirectory);
+        Assert.Equal("custom-world", selected.ScenarioId);
+        Assert.Equal(73, selected.PlayerForceId);
+        Assert.Throws<ArgumentException>(() => ClientOptions.Parse(["--scenario", "custom", "--content-package", "package"], Environment.CurrentDirectory));
+    }
+    [Fact]
+    public void IndependentUserDataIsAnExplicitStartupInput()
+    {
+        var root = Path.Combine(Environment.CurrentDirectory, "preview-userdata");
+        var options = ClientOptions.Parse(["--user-data-root", root], Environment.CurrentDirectory);
+        Assert.Equal(Path.GetFullPath(root), options.UserDataRoot);
+        Assert.Null(ClientOptions.Parse([], Environment.CurrentDirectory).UserDataRoot);
+    }
+
+    [Fact]
     public void MapCenterIsResolvedAgainstLoadedDimensionsInsteadOfTheOriginalMap()
     {
         var expanded = ClientOptions.Parse(["--map-center", "254,281"], Environment.CurrentDirectory);

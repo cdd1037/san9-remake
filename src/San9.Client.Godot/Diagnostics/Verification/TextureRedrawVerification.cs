@@ -14,8 +14,10 @@ public partial class TextureRedrawVerification : Node
         TextureScope? scope = null;
         try
         {
-            string root = Path.GetFullPath(Path.Combine(ProjectSettings.GlobalizePath("res://"),
-                "../../local/generated/content/scenario-190-live"));
+            var options = ClientOptions.Parse(OS.GetCmdlineUserArgs(), Path.GetFullPath(Path.Combine(ProjectSettings.GlobalizePath("res://"), "../../local/generated/content")));
+            string root = options.PackageRoot ?? (options.ScenarioId is { } id
+                ? PackageFiles.Resolve(options.ContentRoot, (await ContentCatalogFiles.LoadAsync(options.ContentRoot)).RequireScenario(id).Package)
+                : throw new ArgumentException("Texture verification requires an explicit scenario."));
             var package = await ClientContentFiles.LoadAsync(root);
             var service = new TextureService();
             service.Initialize(package, (file, token) =>

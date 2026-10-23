@@ -103,7 +103,11 @@ public static class TextureLibraryCompiler
                     // RE-SAN9PK-0194: arena, speech and panels use palette-alpha mode.
                     // Health bars, bodies and additive particles have separate native modes.
                     // Zoom terrain, transitions, edges, facilities and both panels also use palette alpha.
-                    bool paletteAlpha = name == "G_Ikki" && (b.Image < 9 || b.Image is >= 11 and <= 18) ||
+                    // RE-0200/0201: opening and scenario-selection frames, previews and controls use mode 64.
+                    bool paletteAlpha = name == "G_LocSPK" || name == "G_StrtPK" && b.Image is 0 or 1 or 2 ||
+                        name == "G_Start" && (b.Image is 20 or 23 or 24 or 38 or 39 || b.Image is >= 27 and <= 36 || b.Image >= 45) ||
+                        name == "G_Start2" && b.Image is >= 67 and <= 72 ||
+                        name == "G_Ikki" && (b.Image < 9 || b.Image is >= 11 and <= 18) ||
                         name == "G_ZoomIn" && (b.Image < 58 || b.Image is 141 or 142) ||
                         name == "G_Gaikou" && b.Image >= 19 || name == "G_Ending" && b.Image is 1 or 2 or 7 or 8 or 9;
                     return new TextureVariant(b.Image, b.Palette,

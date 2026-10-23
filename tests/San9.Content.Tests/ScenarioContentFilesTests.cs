@@ -88,8 +88,9 @@ public sealed class ScenarioContentFilesTests : IDisposable
             resourceRoot: _root, sharedMessages: library));
         await ScenarioContentFiles.WriteAsync(second, content, resourceRoot: _root, sharedMessages: library,
             messageOverrides: ["shared.answer"]);
-        var a = await ScenarioContentFiles.LoadAsync(first);
-        var b = await ScenarioContentFiles.LoadAsync(second);
+        var loaded = await Task.WhenAll(ScenarioContentFiles.LoadAsync(first), ScenarioContentFiles.LoadAsync(second));
+        var a = loaded[0];
+        var b = loaded[1];
         Assert.Equal("公共", a.Text.Resolve("shared.answer"));
         Assert.IsType<MessageReference>(Assert.Single(b.Text.Messages["shared.answer"].Nodes));
         Assert.Equal("私有", b.Text.Resolve("private.answer"));

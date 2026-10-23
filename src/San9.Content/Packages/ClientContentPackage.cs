@@ -110,10 +110,13 @@ public static class ClientContentFiles
 {
     public static async Task<ClientContentPackage> LoadAsync(string root, CancellationToken token = default)
     {
-        var instance = await ScenarioContentFiles.LoadAsync(root, token);
-        string textureRoot = Path.GetFullPath(Path.Combine(root, instance.Textures.Path));
-        var textures = await TexturePackageFiles.LoadAsync(textureRoot, token);
-        var content = Resolve(instance, textures, textureRoot) with { ContentRoot = instance.ResourceRoot };
+        var manifest = await ScenarioContentFiles.ReadManifestAsync(root, token);
+        string textureRoot = Path.GetFullPath(Path.Combine(root, manifest.Textures.Path));
+        var scenarioTask = ScenarioContentFiles.LoadAsync(root, manifest, token);
+        var texturesTask = Task.Run(() => TexturePackageFiles.LoadAsync(textureRoot, token), token);
+        await Task.WhenAll(scenarioTask, texturesTask);
+        var instance = await scenarioTask;
+        var content = Resolve(instance, await texturesTask, textureRoot) with { ContentRoot = instance.ResourceRoot };
         foreach (string path in content.Presentation.Sounds.Values)
             if (!File.Exists(PackageFiles.Resolve(content.ContentRoot, path))) throw new InvalidDataException($"Missing sound file: {path}.");
         return content;

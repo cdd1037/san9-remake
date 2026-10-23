@@ -76,7 +76,7 @@ public static class ScenarioContentFiles
         return await ReadSelectionAsync(manifest, ResolveResourceRoot(root, manifest.ResourceRoot), token);
     }
 
-    private static async Task<ScenarioContentManifest> ReadManifestAsync(string root, CancellationToken token)
+    internal static async Task<ScenarioContentManifest> ReadManifestAsync(string root, CancellationToken token)
     {
         // Check the version before interpreting the layout, including older monolithic files.
         await using var stream = File.OpenRead(Path.Combine(root, "content.json"));
@@ -110,29 +110,49 @@ public static class ScenarioContentFiles
             { MessagePeople = text.MessagePeople, MessageTags = text.MessageTags }, illustrations);
     }
 
-    public static async Task<ScenarioContent> LoadAsync(string root, CancellationToken token = default)
+    public static async Task<ScenarioContent> LoadAsync(string root, CancellationToken token = default) =>
+        await LoadAsync(root, await ReadManifestAsync(root, token), token);
+
+    internal static async Task<ScenarioContent> LoadAsync(string root, ScenarioContentManifest manifest, CancellationToken token)
     {
-        var manifest = await ReadManifestAsync(root, token);
         string resourceRoot = ResolveResourceRoot(root, manifest.ResourceRoot);
         Task<T> Read<T>(string relative) => ReadDataAsync<T>(resourceRoot, relative, token);
-        var mapManifest = await Read<ScenarioMapManifest>(manifest.Map);
-        var mapDefinition = await Read<MapDefinition>(mapManifest.Definition);
-        if (mapDefinition.SchemaVersion != MapDefinition.CurrentSchemaVersion)
-            throw new InvalidDataException("Unsupported map definition version; reconvert the package.");
-        var map = new MapInstance(mapDefinition, mapManifest.Buildings);
-        var scenario = await Read<ScenarioInitialState>(manifest.Scenario);
-        var text = await Read<StaticTextContent>(manifest.Text);
-        var illustrations = await Read<Dictionary<string, string>>(manifest.Illustrations);
-        Dictionary<string, MessageDefinition> messages = new(StringComparer.Ordinal);
-        foreach (string path in manifest.Messages)
-        foreach (var (key, definition) in await Read<Dictionary<string, MessageDefinition>>(path))
-            if (!messages.TryAdd(key, definition))
-                throw new InvalidDataException($"Duplicate message key {key} in {path}.");
-        var shared = manifest.SharedMessages is { } library
-            ? await MessageLibraryFiles.LoadAsync(PackageFiles.Resolve(resourceRoot, library), token) : [];
-        messages = ComposeMessages(shared, messages, manifest.MessageOverrides);
-        return new(ScenarioContent.CurrentSchemaVersion, manifest.Textures, map, scenario,
-            new(text.SchemaVersion, text.Entries) { Messages = messages, MessagePeople = text.MessagePeople, MessageTags = text.MessageTags }, illustrations) { Presentation = await Read<San9.Content.Interface.CommandPresentation>(manifest.Presentation), ResourceRoot = resourceRoot, Preview = manifest.Preview };
+        // Four independent branches keep CPU-heavy parsing off the caller thread without
+        // creating one worker for every small message file. Composition follows all branches.
+        var mapTask = Task.Run(async () =>
+        {
+            var mapManifest = await Read<ScenarioMapManifest>(manifest.Map);
+            var definition = await Read<MapDefinition>(mapManifest.Definition);
+            if (definition.SchemaVersion != MapDefinition.CurrentSchemaVersion)
+                throw new InvalidDataException("Unsupported map definition version; reconvert the package.");
+            return new MapInstance(definition, mapManifest.Buildings);
+        }, token);
+        var scenarioTask = Task.Run(() => Read<ScenarioInitialState>(manifest.Scenario), token);
+        var displayTask = Task.Run(async () =>
+        {
+            var text = await Read<StaticTextContent>(manifest.Text);
+            var illustrations = await Read<Dictionary<string, string>>(manifest.Illustrations);
+            var presentation = await Read<CommandPresentation>(manifest.Presentation);
+            return (Text: text, Illustrations: illustrations, Presentation: presentation);
+        }, token);
+        var messagesTask = Task.Run(async () =>
+        {
+            Dictionary<string, MessageDefinition> messages = new(StringComparer.Ordinal);
+            foreach (string path in manifest.Messages)
+            foreach (var (key, definition) in await Read<Dictionary<string, MessageDefinition>>(path))
+                if (!messages.TryAdd(key, definition))
+                    throw new InvalidDataException($"Duplicate message key {key} in {path}.");
+            var shared = manifest.SharedMessages is { } library
+                ? await MessageLibraryFiles.LoadAsync(PackageFiles.Resolve(resourceRoot, library), token) : [];
+            return ComposeMessages(shared, messages, manifest.MessageOverrides);
+        }, token);
+        // Observe every branch before returning, including when one fails or is cancelled.
+        await Task.WhenAll(mapTask, scenarioTask, displayTask, messagesTask);
+        var display = await displayTask;
+        var text = display.Text;
+        return new(ScenarioContent.CurrentSchemaVersion, manifest.Textures, await mapTask, await scenarioTask,
+            new(text.SchemaVersion, text.Entries) { Messages = await messagesTask, MessagePeople = text.MessagePeople, MessageTags = text.MessageTags }, display.Illustrations)
+            { Presentation = display.Presentation, ResourceRoot = resourceRoot, Preview = manifest.Preview };
     }
 
     public static async Task WriteAsync(string root, ScenarioContent content, CancellationToken token = default,

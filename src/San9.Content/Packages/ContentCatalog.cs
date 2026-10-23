@@ -8,12 +8,26 @@ public sealed record ScenarioCatalogEntry(string Id, string Package);
 public sealed record ContentCatalog(int SchemaVersion, string Textures, string Opening,
     ScenarioCatalogEntry[] Scenarios)
 {
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
     public ScenarioCatalogEntry RequireScenario(string id) => Scenarios.SingleOrDefault(s => s.Id == id)
         ?? throw new InvalidDataException($"Unknown scenario: {id}.");
 }
 
-public sealed record OpeningContent(StartMenuPresentation Menu, ScenarioSelectionPresentation Selection);
+public sealed record OpeningAudioDefinition(string Music, string GameStartSound, Dictionary<string, string> Sounds)
+{
+    public void Validate(string root)
+    {
+        foreach (string role in new[] { Music, GameStartSound })
+            if (string.IsNullOrWhiteSpace(role) || !Sounds.TryGetValue(role, out string? path) ||
+                AudioFileFormats.Identify(PackageFiles.Resolve(root, path)) is null || !File.Exists(PackageFiles.Resolve(root, path)))
+                throw new InvalidDataException("Missing or invalid opening audio asset: " + role);
+    }
+}
+
+public sealed record OpeningContent(StartMenuPresentation Menu, ScenarioSelectionPresentation Selection)
+{
+    [System.Text.Json.Serialization.JsonRequired] public OpeningAudioDefinition Audio { get; init; } = null!;
+}
 
 public static class ContentCatalogFiles
 {
@@ -45,6 +59,8 @@ public static class ContentCatalogFiles
     public static async Task<OpeningContent> LoadOpeningAsync(string root, ContentCatalog catalog, CancellationToken token = default)
     {
         var opening = await PackageFiles.ReadAsync<OpeningContent>(PackageFiles.Resolve(root, catalog.Opening), token);
+        if (opening.Audio is null) throw new InvalidDataException("Missing opening audio definition.");
+        opening.Audio.Validate(root);
         return opening with { Selection = opening.Selection with { Entries = await LoadPreviewsAsync(root, catalog, token) } };
     }
 }

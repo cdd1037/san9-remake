@@ -24,6 +24,9 @@ public partial class SessionUiHost : Node
     public SceneMusicPlayer Music { get; init; } = null!;
     public GameSession InitialSession { get; init; } = null!;
     public Func<GameSession> CreateNewSession { get; init; } = null!;
+    public SessionReplacementKind InitialSessionKind { get; init; } = SessionReplacementKind.Startup;
+    public Func<Task> ReturnToOpening { get; init; } = null!;
+    public Func<SlotSaveDocument, Task> LoadGame { get; init; } = null!;
     public GameSession Session => _session ?? InitialSession;
     public StrategySelection Selection { get; private set; } = null!;
     public MapMessageLog RecordsLog { get; private set; } = null!;
@@ -61,7 +64,7 @@ public partial class SessionUiHost : Node
         Music.SetEnabled(_settings.Current.MusicEnabled);
         _windowDisplay = new(GetWindow());
         _windowDisplay.Apply(_settings.Current.FullscreenEnabled, _settings.Current.MouseConfined);
-        Activate(InitialSession, SessionReplacementKind.Startup);
+        Activate(InitialSession, InitialSessionKind);
     }
 
     public void Activate(GameSession next, SessionReplacementKind kind)
@@ -108,7 +111,11 @@ public partial class SessionUiHost : Node
         {
             replacement.Advance(delta); _transition.Sample(replacement.Opacity);
             if (replacement.Phase == SceneReplacementPhase.Complete)
-            { _replacement = null; return; }
+            {
+                _replacement = null;
+                if (_sessionUi is not null) _sessionUi.ProcessMode = ProcessModeEnum.Inherit;
+                return;
+            }
             if (replacement.Phase != SceneReplacementPhase.WaitingForScene) return;
             if (!_bound) BindPendingScene();
         }
@@ -145,8 +152,9 @@ public partial class SessionUiHost : Node
             CommandPresentation = Content.Presentation, ContentRoot = Content.ContentRoot,
             SaveStore = SaveStore,
             StrategyReady = SavePendingCheckpoint,
-            SaveSummary = note => SaveSlotSummaryFactory.Create(Session, Definition, Content.Text, note),
+            SaveSummary = note => SaveSlotSummaryFactory.Create(Session, Definition, Content.Text, Content.Skin.Roles, note),
             ActivateSession = next => Activate(next, SessionReplacementKind.Load),
+            ReturnToOpening = ReturnToOpening, LoadGame = LoadSlot,
             ControlDelegated = () => Activate(Session, SessionReplacementKind.ControlDelegation),
             StartNewGame = () => Callable.From(() => Activate(CreateNewSession(), SessionReplacementKind.NewGame)).CallDeferred(),
             Music = Music, OverlayHost = overlayHost,
@@ -176,6 +184,7 @@ public partial class SessionUiHost : Node
         _autoSaveNotice.Hide();
         SavePendingCheckpoint();
         _replacement?.RevealPreparedScene();
+        if (_replacement is not null) _sessionUi.ProcessMode = ProcessModeEnum.Disabled;
         if (!Session.RulesVersionWarnings.IsEmpty)
             Hud.SystemMenu.ShowLoadWarning(string.Join("\n", Session.RulesVersionWarnings.Select(w => w.Message)));
         if (_pendingKind == SessionReplacementKind.ControlDelegation)
@@ -185,13 +194,26 @@ public partial class SessionUiHost : Node
     public void RequestQuickLoad() => Hud.SystemMenu.RequestLoad(() =>
         San9.Application.Persistence.SaveService.Load(DataPaths.QuickSave, Definition));
 
+    private async Task LoadSlot(SlotSaveDocument document)
+    {
+        if (document.Header.Summary.ScenarioId != Definition.ScenarioId)
+        {
+            await LoadGame(document);
+            return;
+        }
+        var token = _lifetime.Token;
+        var loaded = await Task.Run(() => SlotSaveStore.Restore(document, Definition), token);
+        token.ThrowIfCancellationRequested();
+        Callable.From(() => { if (!token.IsCancellationRequested) Activate(loaded, SessionReplacementKind.Load); }).CallDeferred();
+    }
+
     private async void SavePendingCheckpoint()
     {
         var session = Session;
         var token = _lifetime.Token;
         try
         {
-            long? sequence = await _autoSaves.Enqueue(session, view => SaveSlotSummaryFactory.Create(view, Definition, Content.Text, "旬开始自动存档"));
+            long? sequence = await _autoSaves.Enqueue(session, view => SaveSlotSummaryFactory.Create(view, Definition, Content.Text, Content.Skin.Roles, "旬开始自动存档"));
             if (sequence is null || token.IsCancellationRequested || !ReferenceEquals(session, Session)) return;
             session.MarkSaved(sequence.Value);
         }

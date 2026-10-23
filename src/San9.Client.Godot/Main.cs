@@ -1,5 +1,6 @@
 using Godot;
 using San9.Client.Godot.Diagnostics;
+using San9.Client.Godot.Persistence;
 using San9.Content.Images;
 using San9.Content.Interface;
 using San9.Content.Packages;
@@ -9,11 +10,15 @@ namespace San9.Client.Godot;
 
 public partial class Main : Node
 {
-    private TextureScope? _startupTextures;
+    private const double ViewFadeDuration = .5;
+    private Node? _scene;
+    private SceneTransitionOverlay _transition = null!;
+    private bool _switching;
+    private ClientOptions _options = null!;
     private readonly CancellationTokenSource _startup = new();
     public override void _ExitTree()
     {
-        _startup.Cancel(); _startup.Dispose(); _startupTextures?.Dispose();
+        _startup.Cancel(); _startup.Dispose();
     }
     private static async Task NextFrame(SceneTree tree, CancellationToken token)
     {
@@ -28,6 +33,9 @@ public partial class Main : Node
     {
         var token = _startup.Token;
         WindowStartup.Apply(GetWindow());
+        var transitionLayer = new CanvasLayer { Name = "SceneTransition", Layer = 100 };
+        _transition = new SceneTransitionOverlay { Color = new(0, 0, 0, 0), MouseFilter = Control.MouseFilterEnum.Stop };
+        AddChild(transitionLayer); transitionLayer.AddChild(_transition);
         var ui = GetNode<Control>("%UiRoot");
         try
         {
@@ -35,21 +43,15 @@ public partial class Main : Node
                 ? Path.Combine(ProjectSettings.GlobalizePath("res://"), "../../local/generated/content")
                 : Path.Combine(Path.GetDirectoryName(OS.GetExecutablePath())!, "content");
             var options = ClientOptions.Parse(OS.GetCmdlineUserArgs(), contentRoot);
+            _options = options;
             if (options.PackageRoot is null && options.ScenarioId is null)
             {
                 if (options.RequiresWorldVerification || options.TextSmoke)
                     throw new ArgumentException("World verification requires an explicit --scenario or --content-package.");
-                StartMenuPreview opening = null!;
-                opening = new StartMenuPreview { ContentRoot = options.ContentRoot,
-                    BeginGame = async (id, players, settings, damage) =>
-                    {
-                        await StartWorld(options with { ScenarioId = id, ComputerDamageBonusPercent = damage }, players, settings);
-                        opening.QueueFree();
-                    } };
-                ui.AddChild(opening);
+                await SwitchScene(PrepareOpening, transition: false);
                 return;
             }
-            await StartWorld(options);
+            await SwitchScene(() => PrepareWorld(options), transition: false);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         catch (Exception e)
@@ -60,7 +62,98 @@ public partial class Main : Node
             if (OS.GetCmdlineUserArgs().Contains("--map-quit")) GetTree().Quit(1);
         }
     }
-    private async Task StartWorld(ClientOptions options, int[]? players = null, San9.Core.Domain.NewGameSettings? settings = null)
+    private ClientDataPaths DataPaths => new(_options.UserDataRoot is null && OS.HasFeature("template"), OS.GetName(),
+        OS.GetExecutablePath(), _options.UserDataRoot ?? ProjectSettings.GlobalizePath("user://"));
+
+    public override void _Input(InputEvent input)
+    {
+        if (_switching) GetViewport().SetInputAsHandled();
+    }
+
+    private async Task<Node> PrepareOpening()
+    {
+        var opening = new StartMenuPreview { ContentRoot = _options.ContentRoot, DataPaths = DataPaths, InitiallyVisible = false,
+            BeginGame = (id, players, settings, damage) => SwitchScene(() => PrepareWorld(
+                _options with { PackageRoot = null, ScenarioId = id, ComputerDamageBonusPercent = damage }, players, settings)),
+            LoadGame = document => LoadGame(document, transition: true) };
+        GetNode<Control>("%UiRoot").AddChild(opening);
+        try { await opening.Prepared; return opening; }
+        catch { if (IsInstanceValid(opening)) opening.Free(); throw; }
+    }
+
+    private Task LoadGame(SlotSaveDocument document, bool transition) => SwitchScene(() => PrepareWorld(_options with
+        { PackageRoot = null, ScenarioId = document.Header.Summary.ScenarioId }, save: document), transition);
+
+    private async Task SwitchScene(Func<Task<Node>> prepare, bool transition = true)
+    {
+        if (_switching) throw new InvalidOperationException("A scene switch is already in progress.");
+        _switching = true;
+        var token = _startup.Token;
+        var previous = _scene;
+        var replacement = new SceneReplacementTransition(ViewFadeDuration, ViewFadeDuration);
+        Node? incoming = null;
+        if (previous is not null) previous.ProcessMode = ProcessModeEnum.Disabled;
+        async Task Animate(SceneReplacementPhase phase)
+        {
+            long sampledAt = System.Diagnostics.Stopwatch.GetTimestamp();
+            while (replacement.Phase == phase)
+            {
+                await NextFrame(GetTree(), token);
+                token.ThrowIfCancellationRequested();
+                long now = System.Diagnostics.Stopwatch.GetTimestamp();
+                replacement.Advance(System.Diagnostics.Stopwatch.GetElapsedTime(sampledAt, now).TotalSeconds);
+                sampledAt = now;
+                _transition.Sample(replacement.Opacity);
+            }
+        }
+        try
+        {
+            var darkening = transition ? Animate(SceneReplacementPhase.Darkening) : Task.CompletedTask;
+            try
+            {
+                incoming = await prepare();
+                incoming.ProcessMode = ProcessModeEnum.Disabled;
+            }
+            finally { await darkening; }
+            if (incoming is StartMenuPreview opening) opening.Activate();
+            else
+            {
+                incoming.GetNode<CanvasLayer>("UiLayer").Show();
+                var world = incoming.GetNode<MapWorld>("%MapWorld");
+                world.Show(); world.SetProcessInput(true); world.SetProcessUnhandledInput(true);
+            }
+            _scene = incoming;
+            previous?.Free();
+            if (transition)
+            {
+                replacement.RevealPreparedScene();
+                await Animate(SceneReplacementPhase.Revealing);
+            }
+            incoming.ProcessMode = ProcessModeEnum.Inherit;
+        }
+        catch
+        {
+            if (incoming is not null && _scene != incoming && IsInstanceValid(incoming)) incoming.Free();
+            if (!token.IsCancellationRequested && _scene == previous && IsInstanceValid(previous))
+            {
+                if (transition && replacement.Phase == SceneReplacementPhase.WaitingForScene)
+                {
+                    replacement.RevealPreparedScene();
+                    await Animate(SceneReplacementPhase.Revealing);
+                }
+                previous!.ProcessMode = ProcessModeEnum.Inherit;
+            }
+            throw;
+        }
+        finally
+        {
+            if (!token.IsCancellationRequested) _transition.Sample(0);
+            _switching = false;
+        }
+    }
+
+    private async Task<Node> PrepareWorld(ClientOptions options, int[]? players = null, San9.Core.Domain.NewGameSettings? settings = null,
+        SlotSaveDocument? save = null)
     {
         var token = _startup.Token;
         var startup = System.Diagnostics.Stopwatch.StartNew();
@@ -69,29 +162,46 @@ public partial class Main : Node
         var ui = runtime.GetNode<Control>("%UiRoot");
         var layer = runtime.GetNode<CanvasLayer>("UiLayer");
         layer.Hide();
+        world.Hide();
         AddChild(runtime);
         world.SetProcessInput(false);
         world.SetProcessUnhandledInput(false);
         try
         {
+            San9.Application.GameSession CreateNewSession(San9.Content.Scenarios.ScenarioInitialState definition)
+            {
+                ulong seed = options.RequiresWorldVerification ? 190UL
+                    : System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(
+                        System.Security.Cryptography.RandomNumberGenerator.GetBytes(sizeof(ulong)));
+                return San9.Application.GameSession.Start(definition, seed, options.ComputerDamageBonusPercent,
+                    enableXunStartCheckpoints: true, settings: settings, playerForceIds: players);
+            }
             string packageRoot = options.PackageRoot ?? PackageFiles.Resolve(options.ContentRoot,
                 (await ContentCatalogFiles.LoadAsync(options.ContentRoot, token)).RequireScenario(options.ScenarioId!).Package);
             var loaded = await Task.Run(async () =>
             {
                 var package = await ClientContentFiles.LoadAsync(packageRoot, token);
                 double validationMs = startup.Elapsed.TotalMilliseconds;
-                return (Content: package, ValidationMs: validationMs);
-            });
+                token.ThrowIfCancellationRequested();
+                if (options.ScenarioId is { } scenarioId && package.Scenario.ScenarioId != scenarioId)
+                    throw new InvalidDataException("所选剧本与内容包的身份不符。");
+                var initial = options.PlayerForceId is int player ? package.Scenario with { PlayerForceId = player } : package.Scenario;
+                if (options.RuntimeSmoke) initial = ClientVerificationScenario.Create(initial);
+                var session = save is null ? CreateNewSession(initial) : SlotSaveStore.Restore(save, initial);
+                token.ThrowIfCancellationRequested();
+                return (Content: package, Definition: initial, Session: session, ValidationMs: validationMs,
+                    SessionMs: startup.Elapsed.TotalMilliseconds - validationMs);
+            }, token);
             token.ThrowIfCancellationRequested();
             var textures = new TextureService(); textures.Initialize(loaded.Content, loaded.Content.TextureRoot); runtime.AddChild(textures);
             runtime.MoveChild(textures, 0);
             world.Textures = textures;
-            _startupTextures = textures.CreateScope();
-            // Keep shared UI skins resident; portraits and map resources remain demand-loaded.
-            _startupTextures.Request(InterfaceSkin.RequiredUiAssets.Where(k => !TextureGroups.IsPortrait(k)));
-            while (!_startupTextures.IsReady)
+            using var startupTextures = textures.CreateScope();
+            // Prewarm shared UI skins; active pages retain their own texture scopes.
+            startupTextures.Request(InterfaceSkin.RequiredUiAssets.Where(k => !TextureGroups.IsPortrait(k)));
+            while (!startupTextures.IsReady)
             {
-                if (_startupTextures.Error is { } error) throw error;
+                if (startupTextures.Error is { } error) throw error;
                 await NextFrame(GetTree(), token);
                 token.ThrowIfCancellationRequested();
             }
@@ -100,23 +210,14 @@ public partial class Main : Node
                 layer.Show();
                 ui.AddChild(new TextVerification { Content = loaded.Content, Service = textures,
                     Output = Path.GetFullPath(Path.Combine(options.ContentRoot,"../verification/text")) });
-                return;
+                return runtime;
             }
             var content = loaded.Content;
-            GD.Print($"CLIENT_PREPARE content_ms={loaded.ValidationMs:F2} ui_prepare_ms={startup.Elapsed.TotalMilliseconds - loaded.ValidationMs:F2}");
-            var initial = options.PlayerForceId is int player ? content.Scenario with { PlayerForceId = player } : content.Scenario;
-            if (options.RuntimeSmoke) initial = ClientVerificationScenario.Create(initial);
-            San9.Application.GameSession CreateNewSession()
-            {
-                ulong seed = options.RequiresWorldVerification ? 190UL
-                    : System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(
-                        System.Security.Cryptography.RandomNumberGenerator.GetBytes(sizeof(ulong)));
-                return San9.Application.GameSession.Start(initial, seed, options.ComputerDamageBonusPercent, enableXunStartCheckpoints: true, settings: settings, playerForceIds: players);
-            }
-            var session = CreateNewSession();
-            var dataPaths = new Persistence.ClientDataPaths(options.UserDataRoot is null && OS.HasFeature("template"), OS.GetName(),
-                OS.GetExecutablePath(), options.UserDataRoot ?? ProjectSettings.GlobalizePath("user://"));
-            var saveStore = new Persistence.SlotSaveStore(dataPaths.SaveSlots, initial);
+            GD.Print($"CLIENT_PREPARE content_ms={loaded.ValidationMs:F2} session_ms={loaded.SessionMs:F2} ui_prepare_ms={startup.Elapsed.TotalMilliseconds - loaded.ValidationMs - loaded.SessionMs:F2}");
+            var initial = loaded.Definition;
+            var session = loaded.Session;
+            var dataPaths = DataPaths;
+            var saveStore = new SlotSaveStore(dataPaths.SaveSlots);
             var music = new SceneMusicPlayer { ContentRoot = content.ContentRoot, Tracks = content.Presentation.Sounds };
             runtime.AddChild(music);
             runtime.MoveChild(music, 1);
@@ -139,7 +240,9 @@ public partial class Main : Node
             {
                 World = world, Textures = textures, Content = content, Definition = initial,
                 DataPaths = dataPaths, SaveStore = saveStore, Music = music, InitialSession = session,
-                CreateNewSession = CreateNewSession
+                CreateNewSession = () => CreateNewSession(initial), InitialSessionKind = save is null ? SessionReplacementKind.Startup : SessionReplacementKind.Load,
+                ReturnToOpening = () => SwitchScene(PrepareOpening),
+                LoadGame = document => LoadGame(document, transition: false)
             };
             ui.AddChild(sessions);
             if (!options.RequiresWorldVerification)
@@ -151,13 +254,10 @@ public partial class Main : Node
                 });
             if (options.RequiresWorldVerification)
                 ui.AddChild(new ClientVerification { World = world, Selection = sessions.Selection, Hud = sessions.Hud, Options = options });
-            layer.Show();
-            world.SetProcessInput(true);
-            world.SetProcessUnhandledInput(true);
+            return runtime;
         }
         catch
         {
-            _startupTextures?.Dispose(); _startupTextures = null;
             if (IsInstanceValid(runtime)) runtime.Free();
             throw;
         }

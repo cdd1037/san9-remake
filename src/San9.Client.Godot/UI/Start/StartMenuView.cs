@@ -26,6 +26,7 @@ public partial class StartMenuView : FixedPage
     private readonly GameTextPresenter _text = new();
     public bool IsReady => _textures.IsReady;
     public Exception? ResourceError => _textures.Error;
+    public void FocusDefault() => _controls.GetNode<StartMenuButton>("new-game").GrabFocus();
 
     public override void _Ready()
     {
@@ -50,6 +51,7 @@ public partial class StartMenuView : FixedPage
             var button = AddButton(entry.Button, entry.Label);
             button.Name = entry.Id;
             if (entry.Id == "new-game") button.Pressed += OpenScenarioSelection;
+            if (entry.Id == "load-game") button.Pressed += OpenLoad;
             if (entry.Id == "exit") button.Pressed += RequestQuit;
             button.MouseEntered += () => { button.GrabFocus(); Select(entry); };
             button.FocusEntered += () => Select(entry);
@@ -139,7 +141,12 @@ public partial class StartMenuView : FixedPage
     }
     public override void _Input(InputEvent input)
     {
-        if (_quit is null || input is not InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape }) return;
+        if (_loading) { GetViewport().SetInputAsHandled(); return; }
+        if (_loadView is not null && (input is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape } ||
+            input is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Right }))
+        { GetViewport().SetInputAsHandled(); _loadView.Back(); return; }
+        if (_quit is null || !(input is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape } ||
+            input is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Right })) return;
         GetViewport().SetInputAsHandled(); CancelQuit();
     }
     public override void _UnhandledInput(InputEvent input)
@@ -155,5 +162,9 @@ public partial class StartMenuView : FixedPage
         _hint.Text = entry.Hint;
     }
     private void RestorePrompt() => _hint.Text = Definition.Prompt;
-    public override void _ExitTree() { _textures.Dispose(); _dialogTextures.Dispose(); _text.Dispose(); }
+    public override void _ExitTree()
+    {
+        _lifetime.Cancel(); _lifetime.Dispose();
+        _textures.Dispose(); _dialogTextures.Dispose(); _loadTextures?.Dispose(); _text.Dispose();
+    }
 }

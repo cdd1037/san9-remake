@@ -14,9 +14,9 @@ public sealed record AutoSaveEntry(int Slot, SaveSlotListing Listing);
 public sealed record SaveSlotListing(SaveSlotSummary? Summary, SaveException? Error, SaveSlotFlag? Flag = null);
 
 /// <summary>One atomic JSON file: independently readable header first, authoritative save second.</summary>
-public sealed class SlotSaveStore(string directory, ScenarioInitialState definition)
+public sealed class SlotSaveStore(string directory)
 {
-    private const int FormatVersion = 4;
+    private const int FormatVersion = 6;
     public const int AutoSaveCount = 10;
     public const int MaximumPreviewBytes = 64 * 1024;
     private readonly BackgroundSaveQueue _writes = new();
@@ -111,15 +111,23 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         { throw new SaveException(SaveFailure.IoFailure, "Could not atomically write slot save.", error); }
     }
-    public GameSession Load(int slot) => LoadFile(PathFor(slot));
-    public GameSession LoadAutoSave(int slot) => LoadFile(AutoSavePathFor(slot));
-    private GameSession LoadFile(string path) => ReadFile(path, stream =>
+    public GameSession Load(int slot, ScenarioInitialState definition) => Restore(ReadDocument(slot), definition);
+    public GameSession LoadAutoSave(int slot, ScenarioInitialState definition) => Restore(ReadAutoSaveDocument(slot), definition);
+    public static GameSession Restore(SlotSaveDocument document, ScenarioInitialState definition)
+    {
+        if (document.Header.Summary.ScenarioId != definition.ScenarioId)
+            throw new SaveException(SaveFailure.InvalidState, "Slot save requires a different scenario.");
+        return SaveService.Load(document.Save, definition);
+    }
+    public SlotSaveDocument ReadDocument(int slot) => ReadDocumentFile(PathFor(slot));
+    public SlotSaveDocument ReadAutoSaveDocument(int slot) => ReadDocumentFile(AutoSavePathFor(slot));
+    private SlotSaveDocument ReadDocumentFile(string path) => ReadFile(path, stream =>
     {
         _ = ReadPreview(stream);
         stream.Position = 0;
         var document = StrictJson.Deserialize<SlotSaveDocument>(stream);
         ValidateHeader(document.Header);
-        return SaveService.Load(document.Save, definition);
+        return document;
     });
 
     /// <summary>Reads only the leading header (plus at most one buffer of read-ahead), never the save body.</summary>
@@ -162,7 +170,7 @@ public sealed class SlotSaveStore(string directory, ScenarioInitialState definit
             throw new SaveException(SaveFailure.UnsupportedVersion, "Unsupported slot or application save version.");
         if (string.IsNullOrWhiteSpace(header.RulesVersion))
             throw new JsonException("Missing slot rules version.");
-        if (header.Summary.Players < 0 || header.Flag.Color < 0 || header.Flag.Glyph < -1)
+        if (string.IsNullOrWhiteSpace(header.Summary.ScenarioId) || header.Summary.Players < 0 || header.Flag.Color < 0 || header.Flag.Glyph < -1)
             throw new JsonException("Invalid slot preview metadata.");
     }
     private static T ReadFile<T>(string path, Func<Stream, T> read)

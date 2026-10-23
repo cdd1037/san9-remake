@@ -5,14 +5,14 @@ using San9.Core.Simulation;
 
 namespace San9.Client.Godot;
 
-public enum TurnScreen { Strategy, Confirmation, Entering, Preparing, Playing, Returning, AwaitingDecision, Presenting, Terminal, Failed }
+public enum TurnScreen { Initializing, Strategy, Confirmation, Entering, Preparing, Playing, Returning, AwaitingDecision, Presenting, Terminal, Failed }
 
 /// <summary>The owner thread presents one committed step; isolated workers calculate the next.</summary>
-public sealed class TurnPresentation(GameSession session)
+public sealed class TurnPresentation(GameSession session, bool enterStrategy = false)
 {
     public const double TransitionDuration = 1.375;
     public int TitleFrame => Math.Clamp((int)((TransitionDuration - _remaining) / 0.125), 0, 3);
-    public TurnScreen Screen { get; private set; } = TurnScreen.Strategy;
+    public TurnScreen Screen { get; private set; } = enterStrategy ? TurnScreen.Initializing : TurnScreen.Strategy;
     public string? Error { get; private set; }
     public StrategySnapshot? Display { get; private set; }
     public TurnDayPresentation? Day { get; private set; }
@@ -46,7 +46,7 @@ public sealed class TurnPresentation(GameSession session)
     public bool IsComputing => _pending is { IsCompleted: false };
     public double Progress { get; private set; }
     public bool IsStrategy => Screen is TurnScreen.Strategy or TurnScreen.Confirmation;
-    public bool UsesExecutionMusic => Screen is not (TurnScreen.Strategy or TurnScreen.Confirmation or TurnScreen.Returning or TurnScreen.Terminal);
+    public bool UsesExecutionMusic => Screen is not (TurnScreen.Initializing or TurnScreen.Strategy or TurnScreen.Confirmation or TurnScreen.Returning or TurnScreen.Terminal);
     public bool IsExecutionPresentation => Screen is TurnScreen.Playing or TurnScreen.Presenting;
     public bool CanAdvance => Screen == TurnScreen.Strategy && session.Snapshot.Simulation.Boundary == SimulationBoundary.Stable;
     public bool CanBrowseMap => Screen is TurnScreen.Strategy or TurnScreen.Playing;
@@ -138,6 +138,7 @@ public sealed class TurnPresentation(GameSession session)
 
     public void Update(double seconds)
     {
+        if (Screen == TurnScreen.Initializing) { ReturnToStrategy(); return; }
         // Scale presentation only. Background operations and reading timers use their own clocks.
         seconds *= (int)PlaybackSpeed;
         if (Screen==TurnScreen.Terminal && _pending is not null) { Publish(); return; }

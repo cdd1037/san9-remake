@@ -75,6 +75,7 @@ public partial class OpeningSettingsView : Control
                 SoldierBonus = SoldierBonus, MoraleBonus = MoraleBonus
             }, DamageBonusPercent);
         }
+        catch (OperationCanceledException) when (!IsInstanceValid(this) || !IsInsideTree()) { }
         catch (Exception error)
         {
             GD.PushError($"创建新游戏失败：{error}");

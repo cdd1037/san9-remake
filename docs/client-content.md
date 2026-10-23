@@ -25,7 +25,7 @@ content/
       ...
 ```
 
-`catalog.json`（schema3）只负责发现剧本：每项保存稳定ID及包路径，共享纹理和开局界面另有入口。没有默认剧本，不回退到190年或第一项。剧本清单不保存`sources`来源列表；公共音频来源不在每个剧本中重复记录。
+`catalog.json`（schema4）只负责发现剧本：每项保存稳定ID及包路径，共享纹理和开局界面另有入口。没有默认剧本，不回退到190年或第一项。剧本清单不保存`sources`来源列表；公共音频来源不在每个剧本中重复记录。
 
 各剧本`content.json`入口中的`preview`仅服务选剧本页，包含ID、分类、年月、标题、简介和小地图城市颜色。运行时浏览20个剧本只读取这些轻量入口文件，不读取完整世界。分类由`categoryId`决定，不根据年份、顺序或编号区间推断；TC101的0–9／10–19映射只在版本Importer中。页面支持的分类和资源由共享开局定义声明。预览是发布时的选择页快照：独立作者维护各剧本入口中的`preview`；TC101从源剧本头和消息生成，改变这些输入后用`import-content --rebuild opening`刷新。该命令只读取20个已转换入口并更新其中的预览、目录和共享开局，不读取世界依赖；成功写入后清理旧的`preview.json`。目录所引用的剧本必须有预览，未参与选剧本页的独立包可以省略。
 
@@ -88,6 +88,8 @@ P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字
 组合包168新增 `presentation.progress` 的21类结算记录与25类战略情境消息绑定，运行时按语义角色加载，不引用原版地址和脚本编号。战后事件保留发生身份／位置；会话持有战略提示计划、已报告单位及已披露线索。原位运行 `import-client` 更新，纹理不需再次转换；190年包和第40号测试档已更新。存档101、日志105及录像11拒绝旧格式，规则v87不变。覆盖和现代实现选择见[RE-0185](../research/findings/RE-SAN9PK-0185.md)与[操作说明](ui/map-messages.md)。
 
 ## 现行版本与历史记录
+
+2026-10-23目录升级为4：目录及预览ID与世界`ScenarioId`统一，TC101目录使用无前缀的源剧本身份字符串；物理包目录保持原位。共享`opening.json`必需提供`audio`，声明循环音乐、进入游戏音效及语义角色到文件的引用。已有内容执行`dotnet run --project src/San9.Tools -- import-content --game-dir "private/游戏文件" --output local/generated/content --rebuild opening`，仅更新共享开局、20份轻量预览和目录，并复制所需的两份已准备音频；不重导世界、地图、贴图或转码音频。当前运行包已按该范围更新并通过`verify-content`，核对20份目录／世界身份、查询和资源引用。客户端栏位容器升级为6，保存剧本ID及共享头像资源ID；旧栏位文件保留但不载入，快速存档及Application存档封套不变。
 
 组合包171新增`presentation.battle`，提供27类主动兵法的消息、地图图集、特写身体动作、强化图与声音，以及建筑类型的烧夷／夺取有限火焰。发生事实保留身份、位置、阵型及实际损失／恢复／转移量，录像格式升为12；保存101、日志105和规则v87不变。190年运行包已原位更新并通过完整引用校验，复用纹理和已准备音频；其他旧组合包运行`import-client`，无需重转纹理。包校验包含消息角色、闭包、图片帧宽、透明度与声音引用；客户端不读取原版EXE或IDA。行为及验收见[兵法表现](../specs/behavior/BEH-UI-0008-battle-presentation.md)。
 
@@ -252,7 +254,7 @@ dotnet run --project src/San9.Tools -- import-content --game-dir "private/游戏
 dotnet run --project src/San9.Tools -- verify-content --content-root "local/generated/content"
 & "<Godot Mono可执行文件>" --path src/San9.Client.Godot
 # 显式直接进入某个剧本及玩家势力：
-& "<Godot Mono可执行文件>" --path src/San9.Client.Godot -- --scenario scenario-4 --player-force 6
+& "<Godot Mono可执行文件>" --path src/San9.Client.Godot -- --scenario 4 --player-force 6
 ```
 
 修正解析规则或补齐遗漏资源时，给 `import-textures` 加 `--rebuild`，直接按当前代码重转指定单元，不以原始文件变化为触发条件，也不创建持久中间缓存：

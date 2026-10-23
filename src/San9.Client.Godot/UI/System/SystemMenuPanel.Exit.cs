@@ -8,6 +8,19 @@ namespace San9.Client.Godot;
 
 public partial class SystemMenuPanel
 {
+    private void RequestReturnToOpening()
+    {
+        if (_busy) return;
+        void Return() => Load(_ => ReturnToOpening());
+        if (!Session.HasUnsavedChanges) { Return(); return; }
+        _textures!.RequestPrefixes("dialog-");
+        var dialog = MapDialog();
+        dialog.SetMessage("不储存现在的资料，\n而返回初始设定。\n您确定吗？");
+        dialog.Confirmed += Return;
+        dialog.Dismissed += Close;
+        dialog.FocusDefaultButton();
+    }
+
     private void OpenExit()
     {
         if (_busy) return;

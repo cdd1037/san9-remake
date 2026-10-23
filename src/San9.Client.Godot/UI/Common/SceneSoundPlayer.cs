@@ -19,6 +19,12 @@ public partial class SceneSoundPlayer : Node
         if (_player.Stream != stream) _player.Stream = stream;
         _player.Play();
     }
+    public void PlayAndFree(string role, bool enabled)
+    {
+        if (!enabled) { QueueFree(); return; }
+        _player.Finished += QueueFree;
+        Play(role, enabled: true);
+    }
     public void Stop() { _player.Stop(); _player.Stream = null; }
     public override void _ExitTree()
     {

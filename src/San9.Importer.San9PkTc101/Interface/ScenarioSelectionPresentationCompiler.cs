@@ -36,7 +36,7 @@ public static class ScenarioSelectionPresentationCompiler
         return headers.OrderBy(h => h.ScenarioId).Select(header =>
         {
             if (header.ScenarioId >= 20) throw new InvalidDataException("Unsupported TC101 scenario preview identity.");
-            return new ScenarioPreviewEntry($"scenario-{header.ScenarioId}", header.ScenarioId < 10 ? "historical" : "fictional",
+            return new ScenarioPreviewEntry(header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture), header.ScenarioId < 10 ? "historical" : "fictional",
                 header.StartDate.Year, header.StartDate.Month, MessageMarkup.Plain(Message(2 * header.ScenarioId)), Message(2 * header.ScenarioId + 1),
                 header.CityForceColorCodes.Select((color, city) => (color, city)).Where(c => c.color < 50)
                     .ToDictionary(c => c.city, c => $"color-{c.color}"));

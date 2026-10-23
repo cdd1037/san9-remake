@@ -9,6 +9,38 @@ namespace San9.Client.Godot.Tests;
 public sealed class TurnPresentationTests
 {
     [Fact]
+    public void NewGameWaitsForPresentationThenCompletesTheStrategyTitleBeforeEntrance()
+    {
+        var session = Session();
+        var before = session.Snapshot;
+        var sequence = session.NextOperationSequence;
+        List<string> events = [];
+        var turn = new TurnPresentation(session, enterStrategy: true)
+        {
+            StrategyTitleStarted = () => events.Add("title"),
+            StrategyReady = () => events.Add("ready")
+        };
+        Assert.Equal(TurnScreen.Initializing, turn.Screen);
+        Assert.Empty(events);
+        Assert.False(turn.CanAdvance);
+        // A long preparation frame must not consume a title that has not appeared yet.
+        turn.Update(5);
+        Assert.Equal(TurnScreen.Returning, turn.Screen);
+        Assert.Equal(0, turn.TitleFrame);
+        Assert.Equal(new[] { "title" }, events);
+        turn.Update(TurnPresentation.TransitionDuration / 2);
+        Assert.False(turn.IsStrategy);
+        turn.Update(TurnPresentation.TransitionDuration / 2);
+        Assert.Equal(TurnScreen.Strategy, turn.Screen);
+        Assert.Equal(new[] { "title", "ready" }, events);
+        turn.Update(10);
+        Assert.Equal(2, events.Count);
+        StateAssert.Equal(before, session.Snapshot);
+        Assert.Equal(sequence, session.NextOperationSequence);
+        Assert.Equal(TurnScreen.Strategy, new TurnPresentation(session).Screen);
+    }
+
+    [Fact]
     public void MultiplePlayersReturnToStrategyBeforeAdvancingTheDate()
     {
         var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "turn", 190, 1, 1, 1,

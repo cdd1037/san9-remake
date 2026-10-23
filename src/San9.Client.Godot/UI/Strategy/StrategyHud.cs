@@ -47,6 +47,8 @@ public partial class StrategyHud : Control
     public Func<string, Persistence.SaveSlotSummary> SaveSummary { get; init; } = null!;
     public Action<San9.Application.GameSession> ActivateSession { get; init; } = null!;
     public Action ControlDelegated { get; init; } = null!;
+    public Func<Task> ReturnToOpening { get; init; } = null!;
+    public Func<Persistence.SlotSaveDocument, Task> LoadGame { get; init; } = null!;
     public bool SoundEnabled => ReadSettings().SoundEnabled;
     public Func<Settings.UserSettings> ReadSettings { get; init; } = () => Settings.UserSettings.Default;
     public Action<Settings.UserSettings> ApplySettings { get; init; } = _ => { };
@@ -95,7 +97,7 @@ public partial class StrategyHud : Control
     private void Build()
     {
         if (_built) return;
-        Turn = new(Session)
+        Turn = new(Session, enterStrategy: IntroduceNewGame)
         {
             StrategyReady = StrategyReady,
             ExecutionTitleStarted = () => _sceneSounds.Play(CommandPresentation.MapAudio!.ExecutionTitleSound, SoundEnabled),
@@ -202,6 +204,7 @@ public partial class StrategyHud : Control
             CreateSummary = SaveSummary,
             ExitMessages = CommandPresentation.ExitMenu,
             ActivateSession = ActivateSession,
+            ReturnToOpening = ReturnToOpening, LoadGame = LoadGame,
             ControlDelegated = ControlDelegated,
             ReadSettings = ReadSettings,
             ApplySettings = ApplyUserSettings

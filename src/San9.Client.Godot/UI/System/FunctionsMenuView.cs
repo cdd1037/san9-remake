@@ -15,6 +15,7 @@ public partial class FunctionsMenuView : HudDropdown
     public Action OpenEnvironment { get; init; } = null!;
     public Action OpenPkSettings { get; init; } = null!;
     public Action OpenExit { get; init; } = null!;
+    public Action ReturnToOpening { get; init; } = null!;
     public Action<WorldEditorKind> OpenEditor { get; init; } = null!;
     public Func<WorldEditorKind, bool> CanEdit { get; init; } = null!;
     protected override Vector2 MenuSize => new(120, 296);
@@ -35,6 +36,7 @@ public partial class FunctionsMenuView : HudDropdown
                 "environment" => OpenEnvironment,
                 "pk" => OpenPkSettings,
                 "exit" => OpenExit,
+                "initial" => ReturnToOpening,
                 "edit-officers" when CanEdit(WorldEditorKind.Officers) => () => OpenEditor(WorldEditorKind.Officers),
                 "edit-corps" when CanEdit(WorldEditorKind.Corps) => () => OpenEditor(WorldEditorKind.Corps),
                 "edit-cities" when CanEdit(WorldEditorKind.Cities) => () => OpenEditor(WorldEditorKind.Cities),

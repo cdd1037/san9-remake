@@ -74,8 +74,8 @@ public partial class SaveLoadView : Control
                 if (State.Error(slot) is { } error) LabelAt(error, new(176, 24), new(650, 32), 24, content, new("f06850"));
                 continue;
             }
-            if (entry.PortraitRole is not null)
-                content.AddChild(new AsyncPortrait { Service = Service, Role = entry.PortraitRole,
+            if (entry.PortraitAssetId is not null)
+                content.AddChild(new AsyncPortrait { Service = Service, Role = entry.PortraitAssetId,
                     View = San9.Content.Images.PortraitView.Face, Position = new(80, 16), Size = new(64, 80), MouseFilter = MouseFilterEnum.Ignore });
             if (State.Flag(slot) is { } flag)
                 content.AddChild(new SaveSlotFlagView { Service = Service, Flag = flag, Position = new(-7, 44) });

@@ -22,6 +22,8 @@ public partial class SystemMenuPanel : Control
     public IReadOnlyDictionary<string, string> ExitMessages { get; init; } = null!;
     public Func<string, SaveSlotSummary> CreateSummary { get; init; } = null!;
     public Action<GameSession> ActivateSession { get; init; } = null!;
+    public Func<Task> ReturnToOpening { get; init; } = null!;
+    public Func<SlotSaveDocument, Task> LoadGame { get; init; } = null!;
     public Action ControlDelegated { get; init; } = null!;
     public Func<Settings.UserSettings> ReadSettings { get; init; } = null!;
     public Action<Settings.UserSettings> ApplySettings { get; init; } = null!;
@@ -49,6 +51,7 @@ public partial class SystemMenuPanel : Control
         Show();
         ReplacePage(new FunctionsMenuView { AnchorControl = MenuAnchor, Textures = _textures, Texts = Texts, Open = Open,
             OpenEnvironment = OpenEnvironment, OpenPkSettings = OpenPkSettings, OpenExit = OpenExit, Closed = Close,
+            ReturnToOpening = RequestReturnToOpening,
             OpenEditor = OpenEditor, CanEdit = kind => Session.CanEditWorld && WorldEditing.Candidates(Session.Snapshot, kind).Count > 0 });
     }
     private void OpenEditor(WorldEditorKind kind)
@@ -101,10 +104,21 @@ public partial class SystemMenuPanel : Control
     private void Request(SaveSlotRequest request)
     {
         if (request.Mode == SaveLoadMode.Save) Save(request);
-        else if (request.AutoSaveSlot is { } slot) RequestLoad(() => Store.LoadAutoSave(slot));
-        else RequestLoad(() => Store.Load(request.Slot));
+        else ConfirmLoad(() => Load(async token =>
+        {
+            var document = await Task.Run(() => request.AutoSaveSlot is { } slot
+                ? Store.ReadAutoSaveDocument(slot) : Store.ReadDocument(request.Slot), token);
+            token.ThrowIfCancellationRequested();
+            await LoadGame(document);
+        }));
     }
-    public void RequestLoad(Func<GameSession> read)
+    public void RequestLoad(Func<GameSession> read) => ConfirmLoad(() => Load(async token =>
+    {
+        var loaded = await Task.Run(read, token);
+        token.ThrowIfCancellationRequested();
+        Callable.From(() => { if (!token.IsCancellationRequested) ActivateSession(loaded); }).CallDeferred();
+    }));
+    private void ConfirmLoad(Action load)
     {
         if (_busy) return;
         Browser.Close();
@@ -112,10 +126,10 @@ public partial class SystemMenuPanel : Control
         _textures ??= Service.CreateScope();
         _textures.RequestPrefixes("dialog-");
         Show();
-        if (!Session.HasUnsavedChanges) { Load(read); return; }
+        if (!Session.HasUnsavedChanges) { load(); return; }
         var dialog = MapDialog();
         dialog.SetMessage("不储存现在的资料，\n而读取其他的进度。\n您确定吗？");
-        dialog.Confirmed += () => Load(read);
+        dialog.Confirmed += load;
         dialog.Dismissed += Close;
         dialog.FocusDefaultButton();
     }
@@ -138,7 +152,7 @@ public partial class SystemMenuPanel : Control
         notice.SetNotice(message);
         notice.FocusDefaultButton();
     }
-    private async void Load(Func<GameSession> read)
+    private async void Load(Func<CancellationToken, Task> activate)
     {
         if (_busy) return;
         var token = _lifetime.Token;
@@ -147,15 +161,18 @@ public partial class SystemMenuPanel : Control
         bool activating = false;
         try
         {
-            var loaded = await Task.Run(read, token);
-            if (token.IsCancellationRequested) return;
+            await activate(token);
             activating = true;
-            Callable.From(() => { if (!token.IsCancellationRequested) ActivateSession(loaded); }).CallDeferred();
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         catch (SaveException error)
         {
             if (!token.IsCancellationRequested) ShowLoadFailure(SaveFailureMessages.Describe(error));
+            GD.PushWarning(error.ToString());
+        }
+        catch (Exception error)
+        {
+            if (!token.IsCancellationRequested) ShowLoadFailure(error.Message);
             GD.PushWarning(error.ToString());
         }
         finally { if (!token.IsCancellationRequested && !activating) _busy = false; }

@@ -32,8 +32,8 @@ public static class ContentCatalogImporter
         SharedMapDefinition? sharedMap = null;
         foreach (var preview in selection.Entries)
         {
-            var header = headers.Single(h => $"scenario-{h.ScenarioId}" == preview.Id);
-            string path = $"scenarios/{preview.CategoryId}/{preview.Id}";
+            var header = headers.Single(h => h.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture) == preview.Id);
+            string path = $"scenarios/{preview.CategoryId}/scenario-{preview.Id}";
             entries.Add(new(preview.Id, path));
             if (openingOnly)
             {
@@ -49,7 +49,20 @@ public static class ContentCatalogImporter
             sharedMap ??= new("shared/maps/china/map.json", MapDefinition.From(package.Map));
             progress?.Invoke($"Published {preview.Id}: {preview.Year}/{preview.Month} ({preview.CategoryId}).");
         }
-        var opening = new OpeningContent(StartMenuPresentationCompiler.Compile(textures.Library, text), selection with { Entries = [] });
+        var preparedAudio = AudioAssetCompiler.Discover(source.Root);
+        Dictionary<string, string> sounds = [];
+        foreach (var (role, file) in new[] { ("setup", "BGM/BGM_02"), ("game-start", "SE/SE_S001") })
+        {
+            string original = AudioAssetCompiler.Resolve(preparedAudio, file);
+            string path = "shared/" + AudioAssetCompiler.Path(original)["audio/".Length..];
+            string target = PackageFiles.Resolve(output, path);
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(Path.Combine(source.Root, original), target, true);
+            sounds.Add(role, path);
+        }
+        var opening = new OpeningContent(StartMenuPresentationCompiler.Compile(textures.Library, text), selection with { Entries = [] })
+            { Audio = new("setup", "game-start", sounds) };
+        opening.Audio.Validate(output);
         await Publish("shared/opening.json", opening);
         await Publish("catalog.json", new ContentCatalog(ContentCatalog.CurrentSchemaVersion, "shared/textures", "shared/opening.json", entries.ToArray()));
 

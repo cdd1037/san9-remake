@@ -16,6 +16,7 @@ public sealed class ScenarioSelectionPresentationTests
             ["messages.39"] = new([new MessageLiteral("群雄争雄。\n这是目录简介。")])
         } };
         var entry = Assert.Single(ScenarioSelectionPresentationCompiler.CompileEntries([header], text));
+        Assert.Equal("19", entry.Id);
         Assert.Equal("fictional", entry.CategoryId);
         Assert.Equal((281, 1, "英雄集结"), (entry.Year, entry.Month, entry.Title));
         Assert.Contains("\n这是目录简介。", entry.Description);

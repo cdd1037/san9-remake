@@ -5,7 +5,7 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class SaveLoadBrowserTests
 {
-    private static readonly SaveSlotSummary Saved = new("君主", null, "190年1月", "剧本", "190年4月上旬",
+    private static readonly SaveSlotSummary Saved = new("scenario", "君主", null, "190年1月", "剧本", "190年4月上旬",
         DateTimeOffset.UnixEpoch, 1, true, "初级", "原备注");
 
     [Fact]

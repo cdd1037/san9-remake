@@ -3,7 +3,7 @@ namespace San9.Client.Godot.Persistence;
 public enum SaveLoadMode { Save, Load }
 
 /// <summary>Display metadata owned by the slot file; no world state or source-format fields.</summary>
-public sealed record SaveSlotSummary(string Ruler, string? PortraitRole, string StartDate, string Scenario,
+public sealed record SaveSlotSummary(string ScenarioId, string Ruler, string? PortraitAssetId, string StartDate, string Scenario,
     string CurrentDate, DateTimeOffset SavedAt, int Players, bool? Historical, string Difficulty, string Note);
 
 public sealed record SaveSlotRequest(SaveLoadMode Mode, int Slot, string Note, int? AutoSaveSlot = null);

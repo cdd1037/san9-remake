@@ -31,6 +31,8 @@ try
         foreach (var entry in catalog.Scenarios)
         {
             var scenario = await ScenarioContentFiles.LoadAsync(PackageFiles.Resolve(root, entry.Package));
+            if (scenario.Scenario.ScenarioId != entry.Id)
+                throw new InvalidDataException($"Scenario identity differs from catalog: {entry.Id}.");
             _ = ClientContentFiles.Resolve(scenario, textures, PackageFiles.Resolve(root, catalog.Textures));
             var preview = opening.Selection.Entries.Single(p => p.Id == entry.Id);
             if (scenario.Scenario.Year != preview.Year || scenario.Scenario.Month != preview.Month)

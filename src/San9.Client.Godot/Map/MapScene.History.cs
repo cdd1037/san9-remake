@@ -19,7 +19,8 @@ internal sealed partial class MapScene
 
     private void PrepareHistory(MapScene? previous)
     {
-        _stateSampler = StateSampler();
+        _stateSampler = previous is not null && ReferenceEquals(previous.Day, Day) && ReferenceEquals(previous.State, State) &&
+            ReferenceEquals(previous._unitStates, _unitStates) ? previous._stateSampler : StateSampler(previous);
         _idlePositionStart = _positionTime();
         if (previous is null || !ReferenceEquals(previous.Map, Map)) return;
         if (ReferenceEquals(previous.Day, Day) && ReferenceEquals(previous.State, State))

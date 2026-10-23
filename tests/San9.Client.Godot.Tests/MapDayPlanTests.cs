@@ -10,6 +10,55 @@ namespace San9.Client.Godot.Tests;
 public sealed class MapDayPlanTests
 {
     [Fact]
+    public void MovementVisionSurvivesDayHandoffsAndPreparationUntilMovementActuallyStops()
+    {
+        var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "vision", 190, 1, 1, 5,
+            [new(5, "player", 0, 100)], [new(1, "city", 5, 0, 0, 100, 100, 100, 60, [])], [], [])
+        {
+            Units = [new(10, 5, new(2, 2), 100) { FormationId = 10000 }],
+            Military = new(3, 1, [0, 0, 0], [new(0, 1, null)],
+                [new(10000, 1, 50, 1000, 5, new(1, 1), TravelMode.Land)], [new(1, new(2, 2), new(1, 1))]),
+            Information = new([], [], [], [new CorpsState(5, 5, null, new(100, 100)) { IsRoot = true }], [])
+                { Formations = [new(10000, "formation") { Presentation = new(1, 1, [], 1, 180, null, null) }] }
+        };
+        var session = GameSession.Start(definition, 1);
+        var catalog = UnitVisualFixture.Catalog with
+            { VisionSlices = Enumerable.Repeat(new MapUnitEffect("influence", 0, 0), 16).ToArray() };
+        var map = new MapPackage(MapPackage.CurrentSchemaVersion, "fixture", "vision", "spring", 3, 1, 13056, 6656,
+            Enumerable.Repeat(new MapSquare(0, 1, 0, 0), 3).ToArray(), [], [], [], [], [], [new(1, 0, 0, 0)],
+            Enumerable.Range(1, 14).Select(id => new MapComposition(id, [])).ToArray(),
+            [], [], [], [], new(UnitVisualFixture.Clips.Values.ToArray(), []), [])
+            { BuildingTypes = [new(0, 100)], Units = catalog };
+        var terrain = new San9.Rendering.TerrainRenderer(map, [], []);
+        var before = session.View;
+        var after = before.ForWorld(before.World with
+        {
+            Units = [before.World.Units.Single() with { Position = new(7, 2) }],
+            Simulation = before.World.Simulation with { Boundary = SimulationBoundary.Advancing }
+        });
+        DomainEvent[] events = [new UnitMovedEvent(before.World.Clock, 10, new(2, 2), new(7, 2), 1, NavigationStatus.Moving)];
+        var day = new TurnDayPresentation(before, after, events, new MapDayPlan(map, before, events));
+        MapScene Scene(San9.Application.Presentation.StrategySnapshot state, MapScene? previous = null, TurnDayPresentation? current = null) =>
+            new(map, terrain, "spring", state, new Dictionary<string, San9.Content.Images.ImageAsset>(), () => 0, previous, current);
+        static bool HasVision(MapScene scene) => scene.Sample(Assert.Single(scene.Units)).Animations.Any(a => a.Depth < 30000);
+
+        var moving = Scene(before, current: day);
+        Assert.False(HasVision(moving));
+        day.Advance(.5);
+        Assert.True(HasVision(moving));
+        day.Advance(.5);
+        Assert.True(HasVision(moving));
+        var published = Scene(after, moving);
+        Assert.True(HasVision(published));
+        var nextDay = new TurnDayPresentation(after, after, [], new MapDayPlan(map, after, []));
+        var prepared = Scene(after, published, nextDay);
+        Assert.True(HasVision(prepared));
+        nextDay.Advance(.1);
+        Assert.False(HasVision(prepared));
+        Assert.False(HasVision(Scene(before, published)));
+    }
+
+    [Fact]
     public void AdmittedWallArrowOutsideTheEndpointBoundsIsPreparedAndDrawn()
     {
         var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "wall", 190, 1, 1, 5,

@@ -105,6 +105,8 @@ public partial class MapSceneView : Node2D
     private int _drawnTerrainCount;
     private long _drawnAssetRevision;
     private double _drawnDayTime = -1;
+    private long _drawnSceneRevision = -1;
+    private long _drawnDayRevision = -1;
     private int _annotationFrame = -1;
     private long _annotationUiRevision = -1;
     private (MapScene Scene, MapViewport Camera, Vector2 Size, bool Boundaries)? _lastRequest;
@@ -268,6 +270,10 @@ public partial class MapSceneView : Node2D
         markerChanged |= Targets is not null && _routeFrame != (int)(AnimationTime() / 200) % 8;
         markerChanged |= Targets?.Waypoint is not null && _waypointFrame != (int)(AnimationTime() / 142) % 4;
         bool motion = frame.Region.Scene.Day is {} day && _drawnDayTime != day.VisualElapsed;
+        long dayRevision = frame.Region.Scene.Day?.PresentationRevision ?? 0;
+        bool presentationChanged = _drawnSceneRevision != frame.Region.Scene.PresentationRevision || _drawnDayRevision != dayRevision;
+        _drawnSceneRevision = frame.Region.Scene.PresentationRevision;
+        _drawnDayRevision = dayRevision;
         long unitRevision = frame.Region.Scene.UnitAnimationRevision;
         bool membersChanged = _drawnUnitRevision != unitRevision;
         _drawnUnitRevision = unitRevision;
@@ -281,12 +287,13 @@ public partial class MapSceneView : Node2D
         }
         if (water) _water.QueueRedraw();
         if (objects) RebuildObjects();
+        else if (presentationChanged) PrepareAnnotations();
         if (motion) { _drawnDayTime = frame.Region.Scene.Day!.VisualElapsed; Revision++; }
         int annotationFrame = MapInfoBarAnimation.Frame(AnimationTime());
         bool barsChanged = _annotationLayout.HasAnimatedBars && _annotationFrame != annotationFrame;
         bool annotationAssetsChanged = _annotationUiRevision != _ui.Revision;
         _annotationFrame = annotationFrame; _annotationUiRevision = _ui.Revision;
-        if (hoverChanged || motion || barsChanged || annotationAssetsChanged)
+        if (hoverChanged || motion || presentationChanged || barsChanged || annotationAssetsChanged)
         { AnnotationRevision++; _annotations.QueueRedraw(); }
     }
     public override void _Draw()

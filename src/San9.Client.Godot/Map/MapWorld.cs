@@ -216,7 +216,11 @@ public partial class MapWorld : Node2D
     public void RefreshRuntimeObjects()
     {
         if (Scene is null) return;
-        Scene = new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures.MapAssets, () => UnitPositionTime, Scene, Day); RequestDisplay();
+        var previous = Scene;
+        Scene = ReferenceEquals(Scene.State, View) && ReferenceEquals(Scene.Day, Day) && Day is not null
+            ? Scene.RefreshMapFrame()
+            : new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures.MapAssets, () => UnitPositionTime, Scene, Day);
+        if (!ReferenceEquals(previous, Scene)) RequestDisplay();
     }
     public void BindSession(San9.Application.GameSession session)
     {

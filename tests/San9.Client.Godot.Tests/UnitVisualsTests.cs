@@ -264,11 +264,13 @@ public sealed class UnitVisualsTests
     public void MovingVisionUsesAngleAndDisappearsInCombat()
     {
         var catalog = Catalog with { VisionSlices = Enumerable.Range(0,16).Select(_ => new MapUnitEffect("influence",0,0)).ToArray() };
-        var state = State with { IsMoving = true, Action = UnitVisualAction.Moving, VisionAngleDegrees = 180, HasCityInfluence = false };
+        var state = State with { IsMoving = true, Action = UnitVisualAction.Moving, MovementVisionVisible = true, VisionAngleDegrees = 180, HasCityInfluence = false };
         var moving = Sample(state, catalog);
         Assert.Equal(8, moving.Animations.Count(a => a.Depth < 30000));
         Assert.DoesNotContain(Sample(state with { IsEngaged = true }, catalog).Animations, a => a.Depth < 30000);
-        Assert.DoesNotContain(Sample(state with { Action = UnitVisualAction.Idle }, catalog).Animations, a => a.Depth < 30000);
+        Assert.Contains(Sample(state with { Action = UnitVisualAction.Idle, IsMoving = false }, catalog).Animations, a => a.Depth < 30000);
+        Assert.DoesNotContain(Sample(state with { MovementVisionVisible = false }, catalog).Animations, a => a.Depth < 30000);
+        Assert.DoesNotContain(Sample(state with { Action = UnitVisualAction.Melee }, catalog).Animations, a => a.Depth < 30000);
     }
 
     [Fact]

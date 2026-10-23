@@ -13,8 +13,10 @@ internal sealed partial class MapScene
     public TerrainRenderer Terrain { get; }
     public string Season { get; }
     public StrategySnapshot State { get; }
-    public BattleMapFrame? MapFrame { get; }
-    public IReadOnlyDictionary<int, SettlementView> Settlements { get; }
+    public BattleMapFrame? MapFrame { get; private set; }
+    public IReadOnlyDictionary<int, SettlementView> Settlements { get; private set; }
+    public long PresentationRevision { get; private set; }
+    private MapSceneProjection _projection;
     public MapBuilding[] Buildings { get; }
     public UnitOccluder[] Occluders { get; }
     public UnitVisual[] Units { get; }
@@ -32,7 +34,8 @@ internal sealed partial class MapScene
     private readonly IReadOnlyDictionary<string, San9.Content.Images.ImageAsset> _assets;
     private readonly Dictionary<(int X, int Y), int[]> _waterBuckets;
 
-    public MapScene(MapPackage map, TerrainRenderer terrain, string season, StrategySnapshot state, IReadOnlyDictionary<string, San9.Content.Images.ImageAsset> assets, Func<double> positionTime, MapScene? previous = null, TurnDayPresentation? day = null)
+    public MapScene(MapPackage map, TerrainRenderer terrain, string season, StrategySnapshot state, IReadOnlyDictionary<string, San9.Content.Images.ImageAsset> assets, Func<double> positionTime, MapScene? previous = null, TurnDayPresentation? day = null,
+        MapSceneProjection? projection = null)
     {
         Map = map; Terrain = terrain; Season = season; State = state; _assets = assets; _positionTime = positionTime;
         MapFrame = day?.MapFrame;
@@ -50,29 +53,46 @@ internal sealed partial class MapScene
                 }
             _waterBuckets = buckets.ToDictionary(p => p.Key, p => p.Value.ToArray());
         }
-        var projection = MapSceneProjection.Create(state, map, MapFrame);
-        var buildingStates = projection.BuildingStates;
+        _projection = projection ?? MapSceneProjection.Create(state, map, MapFrame, day?.After);
         if (day is not null)
         {
-            _combatBuildingAnimations = BuildingVisuals.Resolve(map, buildingStates.Select(s => s with
-                { IsEngaged = day.After.IsSettlementEngaged(s.Id) }).ToArray())
-                .Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
+            _combatBuildingAnimations = _projection.CombatAnimations
+                .GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
         }
-        _unitStates = projection.Units;
-        Buildings = projection.Buildings;
-        Occluders = Buildings.Select(b => (Building: b, Area: state.SettlementGeographicArea(b.Id)))
+        _unitStates = _projection.Units;
+        Buildings = _projection.Buildings;
+        bool sameBuildings = previous is not null && ReferenceEquals(previous.State, state) && ReferenceEquals(previous.Buildings, Buildings);
+        Occluders = sameBuildings ? previous!.Occluders : Buildings.Select(b => (Building: b, Area: state.SettlementGeographicArea(b.Id)))
             .Where(p => p.Area is not null).Select(p => UnitOccluder.FromGeographicArea(p.Area!.Value,
                 p.Building.FixedType is 0 or 2 or 3 or 4 or 5 ? 2 : 1, p.Building.FixedType == 0)).ToArray();
         var compositions = map.Compositions.ToDictionary(c => c.Id);
-        HighlightableBuildingAssets = Buildings.SelectMany(b => b.Sprites.Zip(compositions[b.CompositionId].Parts)
+        HighlightableBuildingAssets = sameBuildings ? previous!.HighlightableBuildingAssets : Buildings.SelectMany(b => b.Sprites.Zip(compositions[b.CompositionId].Parts)
             .Where(p => !p.Second.PaletteAlpha).Select(p => p.First.AssetId)).ToHashSet();
-        Animations = projection.Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
+        Animations = _projection.Animations.GroupBy(s => s.BuildingId).ToDictionary(g => g.Key, g => g.ToArray());
         Day = day;
         _motions = day?.Plan?.Motions ?? new();
         _attacks = day?.Plan?.Attacks.ToArray() ?? [];
+        PrepareMotionAssets(previous);
         PrepareHistory(previous);
         PrepareUnitPlayback(previous is not null && ReferenceEquals(previous.Map, Map) ? previous : null);
-        Units = _unitStates.Values.Select(s => UnitVisuals.Resolve(s, map.Units, Clips, elevationAt: ElevationAt)).ToArray();
+        Units = previous is not null && ReferenceEquals(previous.Map, map) && ReferenceEquals(previous._unitStates, _unitStates)
+            ? previous.Units : _unitStates.Values.Select(s => UnitVisuals.Resolve(s, map.Units, Clips, elevationAt: ElevationAt)).ToArray();
+    }
+    public MapScene RefreshMapFrame()
+    {
+        if (Day is not { } day || MapFrame is null) throw new InvalidOperationException("No prepared day map frame.");
+        var frame = day.MapFrame;
+        if (ReferenceEquals(frame, MapFrame)) return this;
+        var projection = _projection.WithFrame(State, Map, MapFrame, frame, day.After);
+        if (!ReferenceEquals(projection.Buildings, Buildings) || !ReferenceEquals(projection.Animations, _projection.Animations) ||
+            !ReferenceEquals(projection.CombatAnimations, _projection.CombatAnimations) || !ReferenceEquals(projection.Units, _unitStates) ||
+            frame.Settlements.Values.Any(s => !Settlements.TryGetValue(s.Id, out var old) || old.IsWork != s.IsWork))
+            return new(Map, Terrain, Season, State, _assets, _positionTime, this, Day, projection);
+
+        // Numeric feedback changes annotations; unchanged geometry keeps its resource leases and member playback.
+        _projection = projection; MapFrame = frame; Settlements = frame.Settlements;
+        PresentationRevision++;
+        return this;
     }
     public Rect2 Bounds(MapSprite sprite)
     {

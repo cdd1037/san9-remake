@@ -26,6 +26,7 @@ public sealed record UnitVisualState(int Id, double CellX, double CellY, int Ele
     public UnitVisualAction Action { get; init; }
     public bool IsEngaged { get; init; }
     public bool IsMoving { get; init; }
+    public bool MovementVisionVisible { get; init; }
     public bool ReceivesPositionUpdates { get; init; }
     public int VisionAngleDegrees { get; init; }
     public bool UsesImperialAppearance { get; init; }
@@ -104,7 +105,8 @@ public static class UnitVisuals
             .OrderBy(m => m.Pose.GroundY).ThenBy(m => m.Pose.X).ToArray();
         foreach (var m in members)
             if (bodies[m.Member.BodyId].Wake is {} wake) Add(wake.ClipId, m.Pose.X + wake.X, m.Pose.Y + wake.Y, m.Pose.GroundY + 20000);
-        if (state.Action == UnitVisualAction.Moving && !state.IsEngaged && catalog.VisionSlices.Length > 0)
+        if (state.MovementVisionVisible && !state.IsEngaged &&
+            state.Action is not (UnitVisualAction.Melee or UnitVisualAction.Ranged) && catalog.VisionSlices.Length > 0)
         {
             int sectors = Math.Clamp(state.VisionAngleDegrees / 45, 0, 8);
             int start = (2 * state.Direction - sectors + 17) % 16;

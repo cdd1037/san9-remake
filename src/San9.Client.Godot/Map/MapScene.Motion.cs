@@ -29,20 +29,36 @@ internal sealed partial class MapScene
         return new((float)gx, (float)(gy - 10 * (ElevationAt(gx, gy) - 1)));
     }
     // Captures immutable motion inputs, never the scene or its retained history.
-    private Func<int, double, UnitVisualState?> StateSampler()
+    private Func<int, double, UnitVisualState?> StateSampler(MapScene? previous)
     {
         var states = _unitStates; var motions = _motions;
         var snapshot = State; var map = Map; var day = Day;
-        return (id, time) => SampleState(id, time, states, motions, snapshot, map, day);
+        var runtimeUnits = _runtimeUnits;
+        // Keep the last presented movement vision while the next day is being prepared.
+        // Stable strategy views and independent maps start without a movement overlay.
+        HashSet<int> retainedVision = [];
+        if (previous is not null && ReferenceEquals(previous.Map, map) &&
+            (day is not null || snapshot.World.Simulation.Boundary is SimulationBoundary.Advancing or SimulationBoundary.AwaitingDecision))
+            foreach (int id in states.Keys)
+                if (previous._stateSampler(id, previous.LocalMotionTime)?.MovementVisionVisible == true)
+                    retainedVision.Add(id);
+        var visionAngles = snapshot.Information.Formations.ToDictionary(f => f.Id, f => f.Presentation?.VisionAngleDegrees ?? 0);
+        var values = day?.Battle?.Values.Where(v => !v.IsSettlement).GroupBy(v => v.TargetId)
+            .ToDictionary(g => g.Key, g => g.ToArray()) ?? [];
+        return (id, time) => SampleState(id, time, states, motions, snapshot, map, day, runtimeUnits, visionAngles, values, retainedVision);
     }
     private static UnitVisualState? SampleState(int id, double milliseconds,
         Dictionary<int, UnitVisualState> states, Dictionary<int, MapUnitMotion> motions,
         San9.Application.Presentation.StrategySnapshot snapshot,
-        MapPackage map, TurnDayPresentation? day)
+        MapPackage map, TurnDayPresentation? day, IReadOnlyDictionary<int, UnitState> runtimeUnits,
+        IReadOnlyDictionary<int, int> visionAngles, IReadOnlyDictionary<int, BattleValueCue[]> values, IReadOnlySet<int> retainedVision)
     {
         if (!states.TryGetValue(id, out var state)) return null;
+        state = state with { MovementVisionVisible = retainedVision.Contains(id) };
         // A prepared day can be visible while resources or UI are still blocking playback.
         if (day is { Elapsed: 0 }) return state;
+        if (day is not null)
+            state = state with { MovementVisionVisible = motions.TryGetValue(id, out var path) && path.HasDisplacement };
         state = state with
         {
             ReceivesPositionUpdates = day is not null && milliseconds >= 0 &&
@@ -52,7 +68,7 @@ internal sealed partial class MapScene
         {
             var p = motion.Sample(milliseconds);
             var position = new WorldPosition((int)Math.Round(p.X), (int)Math.Round(p.Y));
-            var runtime = snapshot.World.Units.Single(u => u.Id == id) with { Position = position };
+            var runtime = runtimeUnits[id] with { Position = position };
             int formation = snapshot.FormationId(runtime)!.Value;
             bool moving = motion.HasDisplacement && state.ReceivesPositionUpdates;
             state = state with
@@ -62,7 +78,7 @@ internal sealed partial class MapScene
                 Elevation = map.Squares[runtime.Cell.Y * map.Width + runtime.Cell.X].Elevation,
                 Direction = motion.HasDisplacement ? p.Direction : state.Direction,
                 FormationId = formation,
-                VisionAngleDegrees = snapshot.Information.Formations.Single(f => f.Id == formation).Presentation?.VisionAngleDegrees ?? 0,
+                VisionAngleDegrees = visionAngles[formation],
                 HasCityInfluence = runtime.EffectiveOrderClass == UnitOrderClass.Military && snapshot.HasCityInfluence(runtime.OwnerId, position),
                 IsMoving = moving,
                 Action = moving ? UnitVisualAction.Moving : UnitVisualAction.Idle
@@ -72,22 +88,25 @@ internal sealed partial class MapScene
         {
             state = state with { IsEngaged = day.After.IsUnitEngaged(id) };
         }
-        if (day?.Battle is { } battle)
+        if (day is not null && values.TryGetValue(id, out var changes))
         {
-            var changes = battle.Values.Where(v => !v.IsSettlement && v.TargetId == id && v.Time * 1000 <= milliseconds &&
-                day.IsFactReady(v.FactIndex) && day.IsDialogueComplete(v.AfterDialogueId)).ToArray();
             uint soldiers = state.Soldiers, lastLiving = soldiers;
+            int moraleDelta = 0;
+            var condition = state.Condition;
             foreach (var change in changes)
             {
+                if (change.Time * 1000 > milliseconds || !day.IsFactReady(change.FactIndex) || !day.IsDialogueComplete(change.AfterDialogueId)) continue;
                 soldiers = (uint)Math.Clamp((long)soldiers + change.Soldiers, 0, uint.MaxValue);
                 if (soldiers > 0) lastLiving = soldiers;
+                moraleDelta += change.Morale;
+                condition = change.Condition ?? condition;
             }
             state = state with
             {
                 Soldiers = soldiers,
                 RetainedBodySoldiers = soldiers == 0 ? lastLiving : null,
-                Morale = Math.Clamp(state.Morale + changes.Sum(v => v.Morale), 0, 100),
-                Condition = changes.LastOrDefault(v => v.Condition is not null)?.Condition ?? state.Condition
+                Morale = Math.Clamp(state.Morale + moraleDelta, 0, 100),
+                Condition = condition
             };
         }
         return state;
@@ -104,6 +123,14 @@ internal sealed partial class MapScene
     }
     private void PrepareUnitPlayback(MapScene? previous)
     {
+        // Building-only display revisions retain the same unit inputs and playback clock.
+        // A new world snapshot or unit set still receives independent member state.
+        if (previous is not null && ReferenceEquals(previous.Day, Day) && ReferenceEquals(previous.State, State) &&
+            ReferenceEquals(previous._unitStates, _unitStates))
+        {
+            _unitPlayback = previous._unitPlayback;
+            return;
+        }
         if (previous is not null)
         {
             previous.AdvanceUnitPlayback();
@@ -131,12 +158,15 @@ internal sealed partial class MapScene
         double time = MotionTime, visualTime = MotionVisualTime;
         long revision = Day?.PresentationRevision ?? 0;
         if (_playbackTime == time && _playbackVisualTime == visualTime && _playbackPresentationRevision == revision) return;
-        if (_playbackPresentationRevision != revision) _sampleTime = -1;
-        if (Day is { } day)
-            foreach (var attack in _attacks.Where(day.IsBodyPresented).GroupBy(a => a.SourceId).Select(g => g.MaxBy(a => a.FactIndex)!))
-                if (_unitPlayback.TryGetValue(attack.SourceId, out var playback))
-                    playback.PlayAttack(new($"{day.Before.World.Revision}:{attack.FactIndex}", attack.Action, attack.Direction,
-                        _visualStart + day.AttackVisualStart(attack), day.Plan!.BodyDuration(attack) * 1000, attack.BodyDelayMilliseconds));
+        if (_playbackPresentationRevision != revision)
+        {
+            _sampleTime = -1;
+            if (Day is { } day)
+                foreach (var attack in _attacks.Where(day.IsBodyPresented).GroupBy(a => a.SourceId).Select(g => g.MaxBy(a => a.FactIndex)!))
+                    if (_unitPlayback.TryGetValue(attack.SourceId, out var playback))
+                        playback.PlayAttack(new($"{day.Before.World.Revision}:{attack.FactIndex}", attack.Action, attack.Direction,
+                            _visualStart + day.AttackVisualStart(attack), day.Plan!.BodyDuration(attack) * 1000, attack.BodyDelayMilliseconds));
+        }
         foreach (var (id, playback) in _unitPlayback)
             playback.Advance(time, visualTime, Day is not { Elapsed: 0 }, t => HistoryState(id, t) ?? _unitStates[id],
                 Map.Units, Clips, EmissionTime);
@@ -153,42 +183,6 @@ internal sealed partial class MapScene
                 foreach (var p in previousPath.Segment(Math.Max(0, MotionTime - HistoryMilliseconds - segment.Start),
                     segment.End - segment.Start)) bounds = bounds.Expand(Project(p.X, p.Y));
         return bounds.Grow(256);
-    }
-    public IEnumerable<string> MotionAssets(IEnumerable<UnitVisual> units, Rect2 bounds)
-    {
-        foreach (var condition in Day?.Battle?.Values.Select(v => v.Condition).OfType<UnitCondition>().Distinct() ?? [])
-            if (Map.Units.Conditions.TryGetValue(condition, out var effect))
-                foreach (string frame in Clips[effect.ClipId].Frames) yield return frame;
-
-        foreach (var slice in Map.Units.VisionSlices)
-            foreach (string frame in Clips[slice.ClipId].Frames) yield return frame;
-        foreach (var unit in units)
-        {
-            var runtime = State.World.Units.Single(u => u.Id == unit.Id);
-            var formations = new[] { runtime.FormationId, runtime.NavalFormationId, State.FormationId(runtime) }.OfType<int>().ToHashSet();
-            foreach (var layout in Map.Units.Formations.Where(f => formations.Contains(f.FormationId)).SelectMany(f => f.Layouts))
-                foreach (string frame in Clips[layout.Influence.ClipId].Frames) yield return frame;
-            var bodyIds = Map.Units.Formations.Where(f => formations.Contains(f.FormationId)).SelectMany(f => f.Layouts)
-                .SelectMany(l => l.Members).Select(m => m.BodyId).ToHashSet();
-            foreach (var body in Map.Units.Bodies.Where(b => bodyIds.Contains(b.Id) || Map.Units.Bodies.Any(original => bodyIds.Contains(original.Id) && original.ImperialBodyId == b.Id)))
-                foreach (var clip in body.DirectionClips.Concat(body.Attacks.SelectMany(a => a.Actions).SelectMany(a => a.DirectionClips))
-                    .Concat(body.Wake is {} wake ? new[] { wake.ClipId } : [])
-                    .Concat(body.Trail is {} trail ? new[] { trail.ClipId } : []).Concat(body.Engagement.Select(e => e.ClipId)))
-                    foreach (string frame in Clips[clip].Frames) yield return frame;
-            // Facing can change anywhere along the day's path.
-            foreach (var clip in Clips.Values.Where(c => c.Id.StartsWith("unit-flag-", StringComparison.Ordinal) &&
-                (c.Id.EndsWith("pole-back", StringComparison.Ordinal) || c.Id.EndsWith("pole-front", StringComparison.Ordinal) ||
-                 c.Id.EndsWith($"cloth-{_unitStates[unit.Id].Color}", StringComparison.Ordinal) ||
-                 c.Id.EndsWith($"glyph-0-{(_unitStates[unit.Id].IsRulerCommander ? Map.Units.RulerFlagGlyph : _unitStates[unit.Id].Glyph)}", StringComparison.Ordinal) ||
-                 c.Id.EndsWith($"glyph-1-{(_unitStates[unit.Id].IsRulerCommander ? Map.Units.RulerFlagGlyph : _unitStates[unit.Id].Glyph)}", StringComparison.Ordinal))))
-                foreach (string frame in clip.Frames) yield return frame;
-        }
-        foreach (var attack in VisibleAttacks(bounds))
-        {
-            foreach (string frame in Map.Units.Projectiles[attack.Projectile].Frames) yield return frame;
-            if (Map.Units.Projectiles[attack.Projectile].Impact is {} impact)
-                foreach (string frame in Clips[impact.ClipId].Frames) yield return frame;
-        }
     }
     private IEnumerable<MapAttackMotion> VisibleAttacks(Rect2 bounds)
     {

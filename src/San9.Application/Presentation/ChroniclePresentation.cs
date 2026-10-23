@@ -8,13 +8,14 @@ public sealed record ChronicleLine(GameClock Clock, string BbCode, int? ForceCol
 public sealed record ChronicleDate(string Year, string Month, string Xun);
 public sealed record ChroniclePresentation(string RulerName, ChronicleLine[] Lines)
 {
-    public static ChroniclePresentation Read(GameSession session, TextCatalog texts, San9.Content.Interface.ChroniclePresentationDefinition definition)
+    public static ChroniclePresentation Read(GameSession session, TextCatalog texts, San9.Content.Interface.ChroniclePresentationDefinition definition, int? forceId = null)
     {
         var view = session.View;
-        if (view.PlayerForceId is null) return new("", []);
-        var force = view.World.Forces.Single(f => f.Id == view.PlayerForceId);
+        int? selected = forceId ?? view.PlayerForceId;
+        if (selected is null) return new("", []);
+        var force = view.World.Forces.Single(f => f.Id == selected);
         var context = session.Messages(texts);
-        string name = ReadName(session, texts);
+        string name = ReadName(session, texts, selected);
         var lines = session.History.Where(f => f.ForceId == force.Id)
             .Select(f => Render(f, context, view, texts, definition));
         var notes = session.Chronicle.Where(e => e.ForceId == force.Id).Select(e => new ChronicleLine(new(e.Year, e.Month, e.Day), MessageMarkup.Escape(e.Text), force.ColorCode));
@@ -36,17 +37,18 @@ public sealed record ChroniclePresentation(string RulerName, ChronicleLine[] Lin
         return new(fact.Clock, message.BbCode, fact.ForceColorCode);
     }
 
-    public static string Hint(GameSession session, TextCatalog texts, San9.Content.Interface.ChroniclePresentationDefinition definition, string role)
+    public static string Hint(GameSession session, TextCatalog texts, San9.Content.Interface.ChroniclePresentationDefinition definition, string role, int? forceId = null)
     {
-        string name = ReadName(session, texts);
+        string name = ReadName(session, texts, forceId);
         return ProgressMessageProducer.Produce(definition.Hints[role], session.Messages(texts), texts,
             new Dictionary<string, MessageBinding> { ["name"] = new(0, name) }, _ => 0).Message.BbCode;
     }
 
-    private static string ReadName(GameSession session, TextCatalog texts)
+    private static string ReadName(GameSession session, TextCatalog texts, int? forceId = null)
     {
-        if (session.View.PlayerForceId is null) return "";
-        var force = session.Snapshot.Forces.Single(f => f.Id == session.View.PlayerForceId);
+        int? selected = forceId ?? session.View.PlayerForceId;
+        if (selected is null) return "";
+        var force = session.Snapshot.Forces.Single(f => f.Id == selected);
         return force.CountryTitleId is int title ? texts.Resolve(session.View.Information.CountryTitles.Single(t => t.Id == title).NameKey)
             : force.LeaderId is int leader ? session.Messages(texts).Query("person.name", [MessageBinding.Reference(MessageEntityKind.Person, leader)]).Text!
             : texts.Resolve(session.View.Forces.Single(f => f.Id == force.Id).NameKey);

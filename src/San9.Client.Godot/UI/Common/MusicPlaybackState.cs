@@ -9,14 +9,14 @@ public sealed class MusicPlaybackState
         public bool Loop { get; } = loop;
     }
 
-    private readonly List<(long Id, Track Track)> _scenes = [];
-    private long _nextId;
+    private readonly List<Lease> _scenes = [];
     public event Action? Changed;
     public bool Enabled { get; private set; } = true;
     public Track? MapTrack { get; private set; }
     public bool HasScene => _scenes.Count > 0;
     private Track? Selected => HasScene ? _scenes[^1].Track : MapTrack;
     public Track? Audible => Enabled ? Selected : null;
+    public float SceneGain => HasScene ? _scenes[^1].Gain : 1;
     public IEnumerable<Track> Tracks => (MapTrack is { } map ? new[] { map } : [])
         .Concat(_scenes.Select(s => s.Track)).Distinct();
 
@@ -34,24 +34,61 @@ public sealed class MusicPlaybackState
         Changed?.Invoke();
     }
 
-    public IDisposable Begin(string resource, bool loop)
+    public Lease Begin(string resource, bool loop)
     {
-        long id = ++_nextId;
-        _scenes.Add((id, Acquire(resource, loop)));
+        var lease = new Lease(this, Acquire(resource, loop));
+        _scenes.Add(lease);
         Changed?.Invoke();
-        return new Lease(() =>
-        {
-            _scenes.RemoveAll(s => s.Id == id);
-            Changed?.Invoke();
-        });
+        return lease;
+    }
+
+    public void Advance(double seconds)
+    {
+        if (!double.IsFinite(seconds) || seconds < 0) throw new ArgumentOutOfRangeException(nameof(seconds));
+        foreach (var lease in _scenes.ToArray()) lease.Advance(seconds);
+    }
+
+    private void Release(Lease lease)
+    {
+        if (_scenes.Remove(lease)) Changed?.Invoke();
     }
 
     private Track Acquire(string resource, bool loop) => Selected is { } current &&
         current.Resource == resource && current.Loop == loop ? current : new(resource, loop);
 
-    private sealed class Lease(Action release) : IDisposable
+    /// <summary>A fade retains playback ownership until silence; disposal cancels its completion.</summary>
+    public sealed class Lease : IDisposable
     {
-        private Action? _release = release;
-        public void Dispose() => Interlocked.Exchange(ref _release, null)?.Invoke();
+        private MusicPlaybackState? _owner;
+        private double _fadeSeconds, _elapsed;
+        private Action? _completed;
+        internal Track Track { get; }
+        internal float Gain { get; private set; } = 1;
+
+        internal Lease(MusicPlaybackState owner, Track track) { _owner = owner; Track = track; }
+
+        public void FadeOut(double seconds, Action completed)
+        {
+            if (!double.IsFinite(seconds) || seconds <= 0) throw new ArgumentOutOfRangeException(nameof(seconds));
+            if (_owner is null || _fadeSeconds > 0) return;
+            _fadeSeconds = seconds; _completed = completed;
+        }
+
+        internal void Advance(double seconds)
+        {
+            if (_owner is null || _fadeSeconds == 0) return;
+            _elapsed = Math.Min(_elapsed + seconds, _fadeSeconds);
+            Gain = (float)(1 - _elapsed / _fadeSeconds);
+            if (_elapsed < _fadeSeconds) { _owner.Changed?.Invoke(); return; }
+            var completed = _completed;
+            Dispose();
+            completed?.Invoke();
+        }
+
+        public void Dispose()
+        {
+            _completed = null;
+            Interlocked.Exchange(ref _owner, null)?.Release(this);
+        }
     }
 }

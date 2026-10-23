@@ -30,6 +30,10 @@ public sealed record DecisionPresentations(Dictionary<string, DecisionPresentati
     public void Validate(TextCatalog texts, IReadOnlyDictionary<string, string> sounds, IEnumerable<int> people)
     {
         var ids = people.ToHashSet();
+        if (Shared.ContainsKey("ending-unification") &&
+            (new[] { "unification-music", "ending-music" }.Except(sounds.Keys).Any() ||
+             new[] { "ending-prepare-undersized", "ending-prepare-offices" }.Except(Shared.Keys).Any()))
+            throw new InvalidDataException("Incomplete ending preparation or music.");
         foreach (string role in new[] { "prisoner-return", "attack-request" })
             if (Events.ContainsKey(role) && NegotiationMessageRoles(role).Except(Shared.Keys).Any())
                 throw new InvalidDataException($"Incomplete negotiation messages: {role}.");

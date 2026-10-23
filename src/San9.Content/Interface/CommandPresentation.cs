@@ -25,6 +25,8 @@ public sealed record PersonnelPresentationDefinition(Dictionary<string, Decision
 public sealed record CommandPresentation(Dictionary<string, string> Sounds, PatrolPresentationDefinition? Patrol)
 {
     [System.Text.Json.Serialization.JsonRequired]
+    public EndingPresentationDefinition? Ending { get; init; }
+    [System.Text.Json.Serialization.JsonRequired]
     public DiplomacyPresentationDefinition? Diplomacy { get; init; }
     [System.Text.Json.Serialization.JsonRequired]
     public BattlePresentationDefinition? Battle { get; init; }
@@ -80,6 +82,8 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
     public static CommandPresentation Empty => new([], null);
     public void Validate(TextCatalog texts, IEnumerable<int> people, IEnumerable<int> settlements)
     {
+        if (Decisions.Shared.ContainsKey("ending-unification") && Ending is null)
+            throw new InvalidDataException("Missing ending scene.");
         if (Diplomacy is null && (Missions.ContainsKey("diplomacy-greeting") ||
             Decisions.Events.Values.Any(d => d.Window == DecisionWindowKind.Diplomacy)))
             throw new InvalidDataException("Missing diplomacy scene definition.");

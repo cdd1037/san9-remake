@@ -13,7 +13,7 @@ public partial class StrategyHud
             Skin = Skin, CommandPresentation = CommandPresentation, ContentRoot = ContentRoot,
             OverlayHost = OverlayHost, Music = Music, SceneMedia = SceneMedia, ReadSettings = ReadSettings,
             FocusIncomingPlayer = FocusIncomingPlayer,
-            StartNewGame = StartNewGame,
+            StartNewGame = StartNewGame, LoadGame = () => SystemMenu.Open(Persistence.SaveLoadMode.Load),
             PresentMapRecord = PresentMapRecord, PresentMapSpeech = PresentMapSpeech,
             PresentExecutionMessages = _feedback.PresentExecutionMessages,
             FocusRecord = _feedback.FocusRecord,

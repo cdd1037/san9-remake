@@ -21,24 +21,6 @@ public static partial class InterfaceSkinCompiler
                 bindings[id] = palette;
             }
         Dictionary<string, string> ui = [];
-        var ending=IndexedImageArchive.ReadArchive(read(Path.Combine(dataDirectory,"G_Ending.s9")));
-        int endingPalette=BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x264698+47*8+4));
-        if ((BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x264698+47*8))&65535)!=3047)
-            throw new InvalidDataException("Unconfirmed ending opening image.");
-        const string endingRole="decision-ending-opening";
-        assets.Add(save("ui-"+endingRole,TextureSourcePath.Image("G_Ending",47,endingPalette,true,false),
-            IndexedImageArchive.Decode(ending.Images[47],ending.Palettes[endingPalette],true,false)));
-        ui.Add(endingRole,"ui-"+endingRole);
-        foreach(var (role,index) in new[]{("expansion",0),("domestic",3),("army",22),("west",23),("trade",24),("trade-failure",25),
-            ("empire",26),("building",27),("government",28),("building-failure",29),("defense",30),("culture",31),("culture-failure",32),
-            ("military-failure",33),("empire-failure",34),("government-failure",36),("stable",48),("unstable",49)})
-        {
-            int palette=BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x264698+index*8+4));
-            string key="decision-ending-"+role;
-            assets.Add(save("ui-"+key,TextureSourcePath.Image("G_Ending",index,palette,true,false),
-                IndexedImageArchive.Decode(ending.Images[index],ending.Palettes[palette],true,false)));
-            ui.Add(key,"ui-"+key);
-        }
         void Export(string semantic, int index, int expectedPalette, int columns = 1, bool paletteAlpha = false)
         {
             if (bindings[5975 + index] != expectedPalette + 60) throw new InvalidDataException("Unconfirmed UI palette binding.");

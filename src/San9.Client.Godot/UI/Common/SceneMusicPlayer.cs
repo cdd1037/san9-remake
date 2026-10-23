@@ -23,7 +23,8 @@ public partial class SceneMusicPlayer : Node
 
     public void SetEnabled(bool enabled) => _state.SetEnabled(enabled);
     public void SetMapTrack(string? role) => _state.SetMapTrack(role is null ? null : Tracks[role]);
-    public IDisposable Begin(string role, bool loop) => _state.Begin(Tracks[role], loop);
+    public MusicPlaybackState.Lease Begin(string role, bool loop) => _state.Begin(Tracks[role], loop);
+    public override void _Process(double delta) => _state.Advance(delta);
     public void SetMapTransitionGain(float gain)
     {
         if (_mapGain == gain) return;
@@ -59,8 +60,11 @@ public partial class SceneMusicPlayer : Node
     private void UpdateGains()
     {
         foreach (var (track, player) in _players)
-            player.VolumeDb = Mathf.LinearToDb(ReferenceEquals(track, _state.MapTrack) &&
-                !(_state.HasScene && ReferenceEquals(track, _state.Audible)) ? _mapGain : 1);
+        {
+            float gain = _state.HasScene && ReferenceEquals(track, _state.Audible) ? _state.SceneGain :
+                ReferenceEquals(track, _state.MapTrack) ? _mapGain : 1;
+            player.VolumeDb = Mathf.LinearToDb(Math.Max(.00001f, gain));
+        }
     }
 
     public override void _ExitTree()

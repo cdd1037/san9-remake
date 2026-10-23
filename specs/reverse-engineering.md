@@ -17,6 +17,7 @@
 | `San9PK-TC-101.i64`（默认） | `SRC-SAN9PK-TC-101` |
 | `SanCalc-SAN9TC-001.i64` | `SRC-SANCALC-SAN9TC-001` |
 | `KOEIGrpX-SAN9TC-001.i64` | `SRC-KOEIGRPX-SAN9TC-001` |
+| `KoeiWma-SAN9TC-001.i64` | `SRC-KOEIWMA-SAN9TC-001` |
 
 仅在任务涉及DLL内部契约时处理对应DLL库。旧库原件放在 `private/ida/legacy/`，可再生副本与临时导出放在 `local/generated/research/`。已有样本登记可直接引用，不重复登记。
 

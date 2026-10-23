@@ -46,6 +46,7 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
                 throw new InvalidDataException($"Missing facility illustration: {facility.Id}");
         Presentation.Validate(Text, Scenario.Officers.Select(o => o.State.Id), Scenario.Settlements.Select(s => s.Id));
         Presentation.Diplomacy?.Validate(images);
+        Presentation.Ending?.Validate(images, Presentation.Decisions.Shared.Keys.Where(k => k.StartsWith("ending-", StringComparison.Ordinal)).Select(k => k[7..]), Scenario.Information.CountryTitles.Select(t => t.Id));
         foreach (string illustration in Presentation.Events?.Messages.Values.Select(m => m.Illustration)
             .OfType<string>().Where(r => r != "actor") ?? [])
             if (!Skin.Roles.ContainsKey(illustration)) throw new InvalidDataException($"Missing event illustration: {illustration}.");

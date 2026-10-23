@@ -3,6 +3,60 @@ namespace San9.Client.Godot.Tests;
 public sealed class MusicPlaybackStateTests
 {
     [Fact]
+    public void FadeRetainsTheSceneUntilSilenceThenRestoresItsLiveOwnerOnce()
+    {
+        var state = new MusicPlaybackState();
+        state.SetMapTrack("spring");
+        var map = state.Audible;
+        var scene = state.Begin("ending", true);
+        int completed = 0;
+        scene.FadeOut(2, () => completed++);
+        state.Advance(.5);
+        Assert.Equal("ending", state.Audible!.Resource);
+        Assert.Equal(.75f, state.SceneGain);
+        state.SetEnabled(false);
+        state.Advance(.5);
+        state.SetEnabled(true);
+        Assert.Equal(.5f, state.SceneGain);
+        state.Advance(1);
+        Assert.Same(map, state.Audible);
+        Assert.Equal(1, completed);
+        state.Advance(10); scene.Dispose();
+        Assert.Equal(1, completed);
+        Assert.Single(state.Tracks);
+    }
+
+    [Fact]
+    public void DisposingTheSceneCancelsItsPendingFadeCompletion()
+    {
+        var state = new MusicPlaybackState();
+        var scene = state.Begin("ending", true);
+        scene.FadeOut(2, () => Assert.Fail("Closed scene must not resume its presentation."));
+        state.Advance(1);
+        scene.Dispose();
+        state.Advance(2);
+        Assert.Null(state.Audible);
+        Assert.Empty(state.Tracks);
+    }
+
+    [Fact]
+    public void FadingOneLeaseDoesNotAttenuateOrReleaseAnotherOwnerOfTheSameStream()
+    {
+        var state = new MusicPlaybackState();
+        var outer = state.Begin("ending", true);
+        var track = state.Audible;
+        outer.FadeOut(2, () => { });
+        state.Advance(1);
+        using var inner = state.Begin("ending", true);
+        Assert.Same(track, state.Audible);
+        Assert.Equal(1, state.SceneGain);
+        state.Advance(1);
+        Assert.Same(track, state.Audible);
+        Assert.Equal(1, state.SceneGain);
+        Assert.Single(state.Tracks);
+    }
+
+    [Fact]
     public void SceneReleaseRestoresTheSameLiveMapPlayback()
     {
         var state = new MusicPlaybackState();

@@ -1,3 +1,4 @@
+using System.Text;
 using Godot;
 
 namespace San9.Client.Godot;
@@ -11,6 +12,7 @@ public partial class GamePagedText : Control
     public float MaximumPageLayoutHeight { get; private set; }
     public int PageCount => _pages.Count;
     public int PageIndex { get; private set; }
+    public int CurrentPageCharacterCells => _label.GetParsedText().EnumerateRunes().Sum(r => r.IsAscii ? 1 : 2);
     private GameRichTextLabel _label = null!;
     private string _document = "";
     private GameTextStyle _style;

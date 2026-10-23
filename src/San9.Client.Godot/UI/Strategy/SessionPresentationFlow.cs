@@ -24,6 +24,7 @@ public partial class SessionPresentationFlow : Node
     public Func<Settings.UserSettings> ReadSettings { get; init; } = null!;
     private bool SoundEnabled => ReadSettings().SoundEnabled;
     public Action? StartNewGame { get; init; }
+    public Action LoadGame { get; init; } = null!;
     public Func<MapMessageRecord, bool> PresentMapRecord { get; init; } = null!;
     public Func<MapSpeechMessage, bool> PresentMapSpeech { get; init; } = null!;
     public Func<IReadOnlyList<CommandMessage>, IReadOnlyList<CommandMessage>> PresentExecutionMessages { get; init; } = null!;
@@ -129,7 +130,7 @@ public partial class SessionPresentationFlow : Node
         if (Turn.Screen != TurnScreen.Terminal || _terminalPresented || _narration is not null) return;
         _terminalPresented = true;
         if (Session.GetEndingPrompt() is null) { ShowSessionEnd(); return; }
-        Scope.RequestPrefixes("decision-", "catalog-", "information-", "narration-", "dialog-");
+        Scope.RequestPrefixes("decision-", "catalog-", "information-", "narration-", "dialog-", "progress-record-", "detail-", "catalog-scroll-", "message-", "text-icon-");
         _endingPublication = Turn.Publication;
         _endingView = new()
         {
@@ -142,6 +143,13 @@ public partial class SessionPresentationFlow : Node
             SoundEnabled = SoundEnabled,
             ReadMessageSpeed = () => ReadSettings().MessageSpeed,
             Media = SceneMedia,
+            BeginMusic = Music.Begin,
+            Chronicle = closed => new InformationJournalView
+            {
+                Textures = Scope, Skin = Skin, Closed = closed,
+                Read = () => ChroniclePresentation.Read(Session, Texts, CommandPresentation.Chronicle!, Session.GetTerminalResult().WinningForceId),
+                Hint = role => ChroniclePresentation.Hint(Session, Texts, CommandPresentation.Chronicle!, role, Session.GetTerminalResult().WinningForceId)
+            },
             Submit = Turn.SelectEnding,
             Finished = () =>
             {
@@ -153,12 +161,9 @@ public partial class SessionPresentationFlow : Node
 
     private void ShowSessionEnd()
     {
-        var dialog = new GameDialog { Textures = Scope };
-        dialog.SetMessage("本局结束。", StartNewGame is null ? "结束" : "新游戏", "结束");
-        dialog.Confirmed += () => { if (StartNewGame is null) GetTree().Quit(); else StartNewGame(); };
-        dialog.Dismissed += () => GetTree().Quit();
-        ShowWindow(dialog);
-        dialog.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        Scope.RequestPrefixes("decision-", "dialog-");
+        ShowWindow(new ReturnToTitleView { Definition = CommandPresentation.Ending!, Textures = Scope, Service = Textures,
+            NewGame = StartNewGame, LoadGame = LoadGame });
     }
 
     private void UpdateDecision()

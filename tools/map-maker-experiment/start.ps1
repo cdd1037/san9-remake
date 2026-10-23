@@ -4,7 +4,7 @@ param([string] $GodotPath, [string] $TexturePackage, [string] $Project, [switch]
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
-if (-not $TexturePackage) { $TexturePackage = Join-Path $repositoryRoot 'local/generated/content/textures-san9pk-tc101' }
+if (-not $TexturePackage) { $TexturePackage = Join-Path $repositoryRoot 'local/generated/content/shared/textures' }
 $TexturePackage = (Resolve-Path -LiteralPath $TexturePackage).Path
 if (-not (Test-Path -LiteralPath (Join-Path $TexturePackage 'textures.json'))) { throw 'Select a converted texture package containing textures.json.' }
 if (-not $GodotPath) {

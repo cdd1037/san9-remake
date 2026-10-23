@@ -9,6 +9,21 @@ namespace San9.Application.Tests;
 public sealed class WorldMessageContextTests
 {
     [Fact]
+    public void SharedMessageSelectsTheScenarioDialogueAtRuntime()
+    {
+        var session = GameSession.Start(G01ScenarioTests.Fixture(), 17);
+        var texts = Texts();
+        texts.Messages.Add("opening", new([
+            new MessageConditional(new("query", "scenario.has-message-tag", Arguments: [new("text", "custom-opening")]),
+                [new MessageLiteral("剧本台词"), new MessageReturn()]),
+            new MessageLiteral("通用台词")]));
+        Assert.Equal("通用台词", session.Messages(texts).Produce("opening", new Dictionary<string, MessageBinding>(), _ => 0).BbCode);
+        var custom = session.Messages(texts with { MessageTags = ["custom-opening"] });
+        Assert.Equal("剧本台词", custom.Produce("opening", new Dictionary<string, MessageBinding>(), _ => 0).BbCode);
+        Assert.Throws<InvalidDataException>(() => custom.Query("scenario.has-message-tag", [new(0)]));
+        Assert.Throws<InvalidDataException>(() => custom.Query("scenario.has-message-tag", []));
+    }
+    [Fact]
     public void OccurrenceChangesDateWhileKeepingTheCapturedWorld()
     {
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 17);

@@ -9,10 +9,10 @@ using San9.Content.Scenarios;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
-if (args.Length < 5) throw new ArgumentException("Usage: scenario.json unit-count xun-count march|combat report-path [verify|navigation|quality|queries|full-route]");
+if (args.Length < 5) throw new ArgumentException("Usage: content-package-directory unit-count xun-count march|combat report-path [verify|navigation|quality|queries|full-route]");
 if (args.Skip(5).Any(option => option is not ("verify" or "navigation" or "quality" or "queries" or "full-route")))
     throw new ArgumentException("Unknown benchmark option.");
-var original = JsonSerializer.Deserialize<ScenarioInitialState>(File.ReadAllText(args[0], Encoding.UTF8), ScenarioContentFiles.DataJsonOptions)!;
+var original = await ScenarioContentFiles.LoadScenarioAsync(args[0]);
 int count = int.Parse(args[1]);
 int xuns = int.Parse(args[2]);
 if (count < 0 || xuns <= 0 || args[3] is not ("march" or "combat")) throw new ArgumentException("Invalid count, duration or mode.");

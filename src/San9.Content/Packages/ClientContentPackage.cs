@@ -5,7 +5,7 @@ using San9.Content.Interface;
 
 namespace San9.Content.Packages;
 
-public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sources, MapPackage Map, ScenarioInitialState Scenario, TextCatalog Text, InterfaceSkin Skin, San9.Content.Images.TextureLibrary Textures)
+public sealed record ClientContentPackage(int SchemaVersion, MapPackage Map, ScenarioInitialState Scenario, TextCatalog Text, InterfaceSkin Skin, San9.Content.Images.TextureLibrary Textures)
 {
     [System.Text.Json.Serialization.JsonIgnore] public string TextureRoot { get; init; } = "";
 
@@ -113,9 +113,9 @@ public static class ClientContentFiles
         var instance = await ScenarioContentFiles.LoadAsync(root, token);
         string textureRoot = Path.GetFullPath(Path.Combine(root, instance.Textures.Path));
         var textures = await TexturePackageFiles.LoadAsync(textureRoot, token);
-        var content = Resolve(instance, textures, textureRoot) with { ContentRoot = Path.GetFullPath(root) };
+        var content = Resolve(instance, textures, textureRoot) with { ContentRoot = instance.ResourceRoot };
         foreach (string path in content.Presentation.Sounds.Values)
-            if (!File.Exists(PackageFiles.Resolve(root, path))) throw new InvalidDataException($"Missing sound file: {path}.");
+            if (!File.Exists(PackageFiles.Resolve(content.ContentRoot, path))) throw new InvalidDataException($"Missing sound file: {path}.");
         return content;
     }
 
@@ -126,7 +126,7 @@ public static class ClientContentFiles
         var roles = new Dictionary<string,string>(textures.Skin.Roles);
         foreach (var role in instance.IllustrationRoles) roles.Add(role.Key, role.Value);
         var skin = textures.Skin with { Roles = roles, Assets = textures.Skin.Assets.Concat(textures.Library.Assets).Concat(textures.Portraits.Select(p => p.Image)).ToArray() };
-        var content = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, instance.Sources, instance.Map.Resolve(textures.Map), instance.Scenario,
+        var content = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, instance.Map.Resolve(textures.Map), instance.Scenario,
             instance.Text, skin, textures.Library)
         { TextureRoot = textureRoot, Portraits = textures.Portraits, Presentation = instance.Presentation };
         content.ValidateLinks();

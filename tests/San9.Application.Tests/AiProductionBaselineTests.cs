@@ -58,8 +58,8 @@ public sealed class AiProductionBaselineTests
         var player = GameSession.Start(content, 190);
         var automatic = GameSession.Start(content, 190,
             playerForceController: ControllerKind.Automatic);
-        var command = new DevelopCommand(Guid.NewGuid(), content.PlayerForceId, 0,
-            new(content.PlayerForceId, 1, [2], DomesticActivity.Commerce));
+        var command = new DevelopCommand(Guid.NewGuid(), content.PlayerForceId!.Value, 0,
+            new(content.PlayerForceId!.Value, 1, [2], DomesticActivity.Commerce));
         var a = player.Execute(new("player"), command);
         var b = automatic.Execute(new("ai:1"), command);
         Assert.True(a.Submission.Accepted);

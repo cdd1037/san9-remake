@@ -1,5 +1,34 @@
 # 客户端内容管线
 
+内容目录按剧本组织，共享内容独立保存。正常启动进入开局菜单，不预载任何剧本世界；“重新开始游戏”打开选剧本页。20个正式剧本均已转换，分类、悬停预览、返回／关闭／Esc可用；点击剧本后的选势力与创建会话仍未接入。需要直接进入世界时显式传入`--scenario`或`--content-package`，玩家势力由`--player-force`指定，未指定则为观察状态。开局资源来源见[RE-0200](../research/findings/RE-SAN9PK-0200.md)与[RE-0201](../research/findings/RE-SAN9PK-0201.md)。
+
+## 剧本目录与共享内容
+
+```text
+content/
+  catalog.json
+  shared/
+    opening.json
+    textures/
+    music/
+    sound-effects/
+  scenarios/
+    historical/scenario-0/ ... scenario-9/
+    fictional/scenario-10/ ... scenario-19/
+```
+
+`catalog.json`是独立的轻量剧本定义目录：每项保存稳定ID、分类、年月、标题、说明、城市颜色、世界ID及包路径，不包含人物、完整地图或初始世界。分类由定义中的`categoryId`决定，运行时不根据年份、顺序或编号区间推断。TC101的0–9／10–19映射只存在于版本Importer；原版头部没有独立的一般／if分类字段，模式码也不等同于此分类。目录没有默认剧本字段，不回退到190年或第一项。页面支持的分类和资源由共享开局定义声明。
+
+剧本清单不保存`sources`来源列表；公共音频来源不在每个剧本中重复记录。
+
+每个剧本的`content.json`独立引用同目录的`map.json`、`scenario.json`、`messages/text.json`、`messages/*.json`、`illustrations.json`和`presentation.json`，文件使用含义明确的名称。必填`resourceRoot`声明共同资源根，数据和音频路径相对该根并受包内路径校验；纹理依赖路径相对剧本包目录。公共贴图、音频、消息库与开局界面保存在`shared/`，文件归属不根据内容哈希或引用次数自动调整。
+
+`import-content`转换全部20个正式剧本，写入各自数据，再发布剧本入口、共享开局与目录；不自动去重或搬迁文件。`import-client`可显式转换一个独立包，不承担目录发布。数据直接写入剧本目录，使用`map.json`等明确文件名，暂存完成后逐个替换，失败时恢复已替换文件；不允许并发导入同一目录或运行中的客户端热加载。
+
+导入器不再锁定190年、董卓或默认玩家势力；`ScenarioInitialState.PlayerForceId`必填可空。TC101源文件中的派生大将标记可能重复，转换时使用现有Core任命规则重建初始任命，不把源缓存状态作为最终任命；独立作者明确给出的任命和存档恢复不重算。
+
+验收要求：目录读取无需打开世界包；每个条目的年月和世界ID与对应包一致；20个包均可加载并创建会话，势力、据点、人物身份完整进入世界及情报查询；共享文件不依赖任何一个剧本目录；无参启动进入开局菜单。
+
 2026-10-22地图schema16补齐身体八方向的多旗挂点及排序，斗舰保留两面旗；近战／远射改为各自声明动作候选、独立弹体与齐射发数，删除统一`FlagY`及动作级投射物。身体绘制、时长与发射位置共用变体选择，箭矢从实际身体帧中心发出。旧共享纹理原位执行下文`import-textures --rebuild map`，不必重转剧本或音频；其他纹理单元复用，地图实例结构不变。完整纹理转换版本50，定向重建保留现有包级转换版本；缺少必需字段的旧显示定义拒绝加载。190年依赖包已更新并通过`verify-client`，31625逻辑图片／6047物理文件；挂点、箭矢及场景交接的验收见[动画规格](../specs/behavior/BEH-RENDER-0003-map-ambient-animation.md#部队旗帜朝向)与[RE-0156](../research/findings/RE-SAN9PK-0156.md#同日实现水面地图挂旗与普通攻击)。
 
 剧本schema142／组合包212将兵法的个人机会与先行自动机会分开声明：`FormationTactics.OpportunityChance`为个人预选阶段基数，必填可空的`AutomaticOpportunityChance`为空时只执行个人阶段，非空时先尝试自动兵法，未发动后才进入个人阶段。非空自动兵法集合必须声明自动机会；自动机会也允许空集合。TC101个人基数15%、水上先行船型10%，原有独立支援机会保持。规则v173接入两阶段及智力结果后的水军追击，存档123／日志129结构不变。旧组合包原位执行下文`import-client`；190年运行包已更新并通过`verify-client`，复用31625逻辑图片／5272物理文件及准备音频，无需重建纹理或转码。规则与验收见[兵法机会链](../specs/behavior/BEH-WAR-0005-tactics.md#已接入的武力机会链)。
@@ -50,7 +79,7 @@ P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字
 
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 142，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 213，地图 [MapPackage](../src/San9.Content/Maps/MapPackage.cs) 为 17，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 60，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 51。会话规则、存档及命令日志版本以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准；录像已延期并撤下。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 143，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 222，文本 [TextCatalog](../src/San9.Content/Text/TextCatalog.cs) 为 8，地图 [MapPackage](../src/San9.Content/Maps/MapPackage.cs) 为 17，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 60，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 54。会话规则、存档及命令日志版本以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准；录像已延期并撤下。
 
 组合包178新增特殊国号／最高爵位来源身体、逐帧交锋／反应位移、末段移动与残影、局部粒子及其分组散布／透明度样式、船只尾波和受击水花、目标体型对应的损失音效。客户端只消费内容声明，不读取原作编号或研究库。190年运行包已原位重转并完整校验，复用未变共享纹理；旧组合包须运行`import-client`，无需重转纹理。自动化与真实包核对通过，画面和试听由用户验收。
 
@@ -76,13 +105,17 @@ P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字
 | --- | --- | --- |
 | Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
 | Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema129 |
-| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与保留原序号、按明确区段分文件的全量消息目录 | `text.json` / `messages/*.json`，文本schema6、剧本包schema163 |
+| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与保留原序号、按明确用途分文件的全量消息目录 | `messages/text.json` / `messages/*.json`，文本schema8、剧本包schema222 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema43 |
 | Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema163 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本37 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
-表中的数据文件名表示逻辑分工，实际路径以 `content.json` 的引用为准。生成数据写入 `data/<generation>/`，音频写入 `audio/<generation>/`，贴图打包也使用独立生成路径；文件就绪后最后替换入口清单，再清理旧引用，避免原位更新中途失败留下混合版本。既有有效包无需为这项发布实现变化重转。转换时不要并发写入同一目录或让运行中的客户端热加载该目录。
+表中的数据文件名表示逻辑分工，实际路径以`content.json`为准。目录型发布把每个剧本的初始世界和地图实例直接写入该剧本目录，静态词条`text.json`及可选私有消息放入其`messages/`，公共消息按显式归属统一发布到`shared/messages/`，公共贴图、音频和开局界面写入`shared/`；独立包可将资源根设为自身。现行入口为组合包222、剧本143；旧布局须重转，不提供运行时兼容分支。
+
+`content.json.sharedMessages`必填可空，非空时引用公共消息库清单（目录型TC101包为`shared/messages/library.json`）；`messages`只列出本剧本私有消息文件。公共库清单声明自身schema和相对该清单目录的分组文件；剧本清单中的路径仍相对`resourceRoot`。加载时先读取公共消息，再合并私有消息，私有同名键必须列入`messageOverrides`，不声明的重名、无对应公共／私有正文的覆盖声明、缺失引用和循环引用均拒绝。引用闭包在合并后校验，公共消息可引用被本剧本覆盖的键；同一剧本的私有消息不影响其他剧本。独立包可令`sharedMessages`为null并独立携带完整消息。
+
+`messages/text.json`保存静态词条及人物名称引用；`text`和`library`为保留文件名，不可用作消息分组名。公共消息按已确认的源绑定逐步分类：剧本标题及简介放入`scenario-catalog.json`，人物姓名放入`person-names.json`，兵法、阵型、官职、爵位、州名、国号分别放入`tactics.json`、`formations.json`、`offices.json`、`ranks.json`、`geography.json`、`country-titles.json`。消息键与节点不变，文件之间仍可互相引用；未确认用途的列继续留在`messages.json`，不按相邻编号扩大分类范围。已有列传正文保存在公共库的`biographies.json`，人物的`biographyKey`直接引用它，`text.json`不再复制一份列传。静态文本解析支持无运行时参数的消息正文，动态消息仍通过消息求值器处理。剧本私有`messages/text.json.messageTags`提供具名台词条件，公共模板通过`scenario.has-message-tag`在运行时查询。TC101将黄巾起义等开局语境及模式1的超时空人物台词条件转换为标签，原作剧本编号与模式值不进入运行时消息；势力判断保留实体比较，不因初始剧本中缺席就折叠为恒假。
 
 定向纹理重建只更新所选单元，保留整包 `Sources` 与转换版本；共享来源变化后，后续普通整包导入仍按既定大小／修改时间策略识别失效，不以局部读取的新来源戳替整包背书。
 
@@ -96,11 +129,11 @@ P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字
 
 地图内容不引用名称、势力摘要或皮肤。剧本和文本可独立于地图校验；组合层检查建筑稳定ID与据点一一对应、坐标一致以及文本键存在。`text.json`的`entries`直接保存文本键到显示字符串的映射，不再保存`text`／`sourceText`包装对象；设施名称已组合类型后缀，基础地域名另有文本项。原始字节保留在源文件和研究导出中，原文件以SHA-256追踪。文本schema6／剧本包schema145要求重新运行`import-client`；巡察新增对话资源需要先执行纹理`--rebuild skin`。
 
-共享纹理默认位于 `local/generated/content/textures-san9pk-tc101`。剧本包只引用共享包的目录和资源 ID，没有 `images` 目录。43个已确认非头像档案及836张正常色大头像转换为最终图片；未确认项只记录研究边界，不保留索引图和原始调色板副本。具体覆盖与透明规则见[纹理资源](texture-resources.md)。
+共享纹理位于 `local/generated/content/shared/textures`。剧本包只引用共享包的目录和资源 ID，没有 `images` 目录。43个已确认非头像档案及836张正常色大头像转换为最终图片；未确认项只记录研究边界，不保留索引图和原始调色板副本。具体覆盖与透明规则见[纹理资源](texture-resources.md)。
 
 图片契约、静态图集、GPU缓存和资源租约见[纹理资源文档](texture-resources.md)。头像上传后不保留CPU像素，窗口与地图按实际使用异步申请。
 
-清单保留缩进；数据子文件使用紧凑 JSON，保留完整字段名和内容。仅省略消息表达式及参数中默认值为 null 的可选字段，必填 nullable 状态字段仍显式保存。数据子文件必须位于包内，共享纹理目录允许相对引用包外目录。导入先校验、暂存全部文件，再替换数据并最后发布清单；不支持导入过程中并发读取。
+清单保留缩进；数据子文件使用紧凑 JSON，保留完整字段名和内容。仅省略消息表达式及参数中默认值为 null 的可选字段，必填 nullable 状态字段仍显式保存。数据子文件必须位于显式资源根内，共享纹理目录允许相对依赖引用。导入先校验、暂存全部文件，再替换数据并最后发布清单；不支持导入过程中并发读取。
 
 `MilitaryContentCompiler`将完整地形、硬阻挡、阵型移动预算和据点footprint导入剧本，Core直接消费该规范化规则，不读取`map.json`的显示资源。G06增加普通战斗参数、阵位、据点销毁能力及名马标记；部队成员、伤兵和当前命令随世界查询变化。数据核对见[G05](g05-verification.md)与[G06验收](g06-verification.md)，完整兵法、设施建设及水陆转换见[G07验收](g07-verification.md)。
 
@@ -196,16 +229,19 @@ Core按目标格实时选择：范围内更高且具备高处资格的邻格优�
 从仓库根目录执行，已有产物写回原目录。`import-textures`支持来源复用与下述单元重建；`import-client`目前没有局部或增量转换入口，会重新生成剧本组合包的全部JSON、重命名并复制私有目录中已准备的音效与音乐，共享纹理包仅被引用，不会随之重建。因此“原位更新”不表示只处理变化文件；确需`import-client`时集中运行一次，不为后续未改变产物的修正重复执行。只有明确需要独立对照时保留副本，不为旧包引入兼容分支：
 
 ```powershell
-dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游戏文件" --output "local/generated/content/textures-san9pk-tc101"
-dotnet run --project src/San9.Tools -- import-client --game-dir "private/游戏文件" --scenario "D_Sce002.S9" --texture-package "local/generated/content/textures-san9pk-tc101" --output "local/generated/content/scenario-190-live"
-& "<Godot Mono可执行文件>" --path src/San9.Client.Godot -- --content-package "<客户端内容包绝对路径>"
+dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游戏文件" --output "local/generated/content/shared/textures"
+dotnet run --project src/San9.Tools -- import-content --game-dir "private/游戏文件" --output "local/generated/content"
+dotnet run --project src/San9.Tools -- verify-content --content-root "local/generated/content"
+& "<Godot Mono可执行文件>" --path src/San9.Client.Godot
+# 显式直接进入某个剧本及玩家势力：
+& "<Godot Mono可执行文件>" --path src/San9.Client.Godot -- --scenario scenario-4 --player-force 6
 ```
 
 修正解析规则或补齐遗漏资源时，给 `import-textures` 加 `--rebuild`，直接按当前代码重转指定单元，不以原始文件变化为触发条件，也不创建持久中间缓存：
 
 ```powershell
 # 只重转光标；其他可选值见下表。
-dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游戏文件" --output "local/generated/content/textures-san9pk-tc101" --rebuild cursors
+dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游戏文件" --output "local/generated/content/shared/textures" --rebuild cursors
 ```
 
 | `--rebuild` 值 | 重新转换范围 |
@@ -219,12 +255,12 @@ dotnet run --project src/San9.Tools -- import-textures --game-dir "private/游�
 
 一次指定一个单元，按修正规则实际影响范围选择；共用解码规则影响多个消费者时须依次重转相关单元，或使用 `all`。当前不支持单按钮、单头像或单地图动画选择。定向重转要求已有可反序列化的同来源、同包 schema 纹理清单，允许被替换单元在当前校验下尚不完整，替换后对整个包校验；不迁移旧格式。原始输入应保持同一基线，切换源数据用整包转换。
 
-整单元定向重建先从源数据生成选定单元，再反序列化组合后的包；旧选定单元的必需字段不作为重建输入，未选单元仍严格按当前契约读取，发布前完整校验。定向转换保留其他单元的正式定义和图片，使用 `images/rebuilt/<单元>/` 独立打包，避免覆盖其他消费者仍引用的共享图集；整包清单成功发布后清理无引用图片及临时 `.sources/`。这可能保留其他消费者仍需使用的旧图集，不按像素合并不同规则的产物。局部更新不把全包 `ConversionVersion` 提升到当前版本；包级格式或全局转换升级继续用 `all`，不要把单元修复一律升级为全局版本变更。图片或皮肤修复不需要重转剧本；剧本数据、文本或引用生成规则修正才运行 `import-client`。
+整单元定向重建先从源数据生成选定单元，再反序列化组合后的包；旧选定单元的必需字段不作为重建输入，未选单元仍严格按当前契约读取，发布前完整校验。定向转换保留其他单元的正式定义和图片，使用 `images/rebuilt/<单元>/` 固定路径打包，同目录仍被引用的图片一同重打包并更新引用；整包清单成功发布后清理无引用图片及临时 `.sources/`。这可能保留其他消费者仍需使用的旧图集，不按像素合并不同规则的产物。局部更新不把全包 `ConversionVersion` 提升到当前版本；包级格式或全局转换升级继续用 `all`，不要把单元修复一律升级为全局版本变更。图片或皮肤修复不需要重转剧本；剧本数据、文本或引用生成规则修正才运行 `import-client`。
 
 
 新局可追加`--computer-damage-bonus 100`指定电脑对玩家直接兵损+100%，默认0。设置随存档和录像保存，加载时不覆盖已有值；此参数不修改内容包。
 
-客户端通过 Godot 的 `editor` 特性区分开发与导出运行：开发时默认读取仓库的 `local/generated/content/scenario-190-live`，导出后默认读取 EXE 同目录的 `content/scenario-190-live`，显式 `--content-package` 参数优先。发布时将 `scenario-190-live` 与 `textures-san9pk-tc101` 两个完整目录同级放入 EXE 旁的 `content/`，保持组合包中的相对纹理引用。客户端只加载转换结果。`render-map --content-package local/generated/content/scenario-190-live`也可直接消费组合包内的地图部分。源资源及生成包均被忽略，不提交。
+客户端通过Godot的`editor`特性区分开发与导出运行：开发读取`local/generated/content`，导出读取EXE旁的`content/`。无参数先进入开局菜单；`--content-root`指定其他目录，`--scenario ID`按目录定位明确剧本，`--content-package PATH`直接指定包，两种剧本选择互斥。发布时复制整个目录，保留`catalog.json`、`shared/`和`scenarios/`的相对位置。离线地图使用`render-map --content-package <剧本包目录>`。客户端只读取转换结果；源资源与生成物不提交。
 
 ## Windows 导出
 
@@ -365,7 +401,7 @@ TC101完整保留41项兵法和28项阵形的展示元数据，名称与说明�
 
 皮肤schema35／完整纹理转换版本31提供`deployment-*`外框、字段、设施装饰框、陆水标签、按钮与数字输入资源，并复用布阵和目录组件。字段采用标准九宫格及上下横沿；转换阶段裁掉源片外侧留白并统一中心平铺周期。多选目录增加独立勾选背景、绿色决定与金色总括按钮四态，重用正文选中帧。数字面板包含三段标题、滑块填充条与拖动标记。命令窗口增加三处背景裁切遮罩、原生边条及方针选项普通未选中／悬停未选中／选中三态素材；遮罩在Importer归一为Alpha覆盖，客户端按内容区尺寸生成临时背景，输入纹理就绪且尺寸变化时重建，窗口退出释放。客户端仅使用语义角色；布局和资源证据见[RE-0177](../research/findings/RE-SAN9PK-0177.md)。
 
-现有同源包先执行`import-textures --game-dir "private/游戏文件" --output "local/generated/content/textures-san9pk-tc101" --rebuild skin`，再按上方完整命令执行`import-client`。后续纯皮肤调整只需定向重建皮肤；定向重建保留全包转换版本，完整重建才更新它。
+现有同源包先执行`import-textures --game-dir "private/游戏文件" --output "local/generated/content/shared/textures" --rebuild skin`，再按上方完整命令执行`import-client`。后续纯皮肤调整只需定向重建皮肤；定向重建保留全包转换版本，完整重建才更新它。
 
 本地包已原位更新并完整加载校验；洛阳8名候选、长蛇／走舸、32000士兵及世界哈希不变通过核对，未改变原始190年部队数量。行为与验收边界见[设施出征准备](../specs/behavior/BEH-UI-0001-initial-strategy-screen.md#设施出征准备2026-09-27)，实际画面待用户验收。
 

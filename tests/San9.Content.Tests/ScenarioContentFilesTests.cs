@@ -13,10 +13,10 @@ public sealed class ScenarioContentFilesTests : IDisposable
     {
         var manifest = JsonSerializer.Deserialize<ScenarioContentManifest>(File.ReadAllText(Path.Combine(_root, "content.json")), PackageFiles.JsonOptions)!;
         var paths = new[] { manifest.Map, manifest.Scenario, manifest.Text, manifest.Illustrations, manifest.Presentation }.Concat(manifest.Messages);
-        return PackageFiles.Resolve(_root, paths.Single(p => p.EndsWith("/" + name, StringComparison.Ordinal)));
+        return PackageFiles.Resolve(_root, paths.Single(p => p == name || p.EndsWith("/" + name, StringComparison.Ordinal)));
     }
 
-    private static ScenarioContent Fixture() => new(ScenarioContent.CurrentSchemaVersion, [new("fixture", "hash")], new("../textures"),
+    private static ScenarioContent Fixture() => new(ScenarioContent.CurrentSchemaVersion, new("../textures"),
         new("source", "first", "spring", 200, 200, 13056, 6656,
             [], [], [], [], [], [], [], [], [], [], []),
         new(ScenarioInitialState.CurrentSchemaVersion, "first", 190, 1, 1, 0, [], [], [], []),
@@ -27,11 +27,108 @@ public sealed class ScenarioContentFilesTests : IDisposable
         }, new() { ["portrait"] = "portrait/0" });
 
     [Fact]
+    public async Task SharedMessagesAllowPrivateAdditionsAndExplicitOverridesWithoutChangingOtherScenarios()
+    {
+        var content = Fixture();
+        content.Text.Messages.Add("shared.entry", new([new MessageReference("shared.answer", false)]));
+        content.Text.Messages.Add("shared.answer", new([new MessageLiteral("公共") ]));
+        var library = await MessageLibraryFiles.WriteAsync(_root, "shared/messages/library.json", content.Text.Messages);
+        string first = Path.Combine(_root, "first"), second = Path.Combine(_root, "second");
+        await ScenarioContentFiles.WriteAsync(first, content, resourceRoot: _root, sharedMessages: library);
+        content.Text.Messages["shared.answer"] = new([new MessageReference("private.answer", false)]);
+        content.Text.Messages.Add("private.answer", new([new MessageLiteral("私有") ]));
+        content = content with { Text = content.Text with { MessageTags = ["custom-opening"] } };
+        await Assert.ThrowsAsync<InvalidDataException>(() => ScenarioContentFiles.WriteAsync(second, content,
+            resourceRoot: _root, sharedMessages: library));
+        await ScenarioContentFiles.WriteAsync(second, content, resourceRoot: _root, sharedMessages: library,
+            messageOverrides: ["shared.answer"]);
+        var a = await ScenarioContentFiles.LoadAsync(first);
+        var b = await ScenarioContentFiles.LoadAsync(second);
+        Assert.Equal("公共", a.Text.Resolve("shared.answer"));
+        Assert.IsType<MessageReference>(Assert.Single(b.Text.Messages["shared.answer"].Nodes));
+        Assert.Equal("私有", b.Text.Resolve("private.answer"));
+        Assert.Equal(["custom-opening"], b.Text.MessageTags);
+        var manifest = await PackageFiles.ReadAsync<ScenarioContentManifest>(Path.Combine(second, "content.json"));
+        Assert.Equal("shared/messages/library.json", manifest.SharedMessages);
+        Assert.Equal(["shared.answer"], manifest.MessageOverrides);
+        await File.WriteAllTextAsync(Path.Combine(second, "content.json"), JsonSerializer.Serialize(
+            manifest with { MessageOverrides = [] }, PackageFiles.JsonOptions));
+        await Assert.ThrowsAsync<InvalidDataException>(() => ScenarioContentFiles.LoadAsync(second));
+    }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("cycle")]
+    [InlineData("unused-override")]
+    public async Task InvalidPrivateCompositionIsRejected(string failure)
+    {
+        var content = Fixture();
+        var library = await MessageLibraryFiles.WriteAsync(_root, "shared/messages/library.json", content.Text.Messages);
+        content.Text.Messages["message"] = failure switch
+        {
+            "missing" => new([new MessageReference("missing", false)]),
+            "cycle" => new([new MessageReference("message", false)]),
+            _ => content.Text.Messages["message"]
+        };
+        await Assert.ThrowsAsync<InvalidDataException>(() => ScenarioContentFiles.WriteAsync(Path.Combine(_root, "scenario"), content,
+            resourceRoot: _root, sharedMessages: library, messageOverrides: [failure == "unused-override" ? "missing" : "message"]));
+    }
+
+    [Fact]
+    public async Task SharedLibraryRetiresOnlyOwnedGroupsAndRejectsCyclesBeforePublishing()
+    {
+        var messages = Fixture().Text.Messages;
+        const string index = "shared/messages/library.json";
+        await MessageLibraryFiles.WriteAsync(_root, index, messages);
+        string root = Path.Combine(_root, "shared", "messages");
+        await File.WriteAllTextAsync(Path.Combine(root, "notes.json"), "{}");
+        await MessageLibraryFiles.WriteAsync(_root, index, messages, messages.Keys.ToDictionary(k => k, _ => "dialogue"));
+        Assert.False(File.Exists(Path.Combine(root, "general.json")));
+        Assert.True(File.Exists(Path.Combine(root, "notes.json")));
+        string before = await File.ReadAllTextAsync(Path.Combine(_root, index));
+        messages["message"] = new([new MessageReference("message", false)]);
+        await Assert.ThrowsAsync<InvalidDataException>(() => MessageLibraryFiles.WriteAsync(_root, index, messages));
+        Assert.Equal(before, await File.ReadAllTextAsync(Path.Combine(_root, index)));
+        Assert.Equal(2, (await MessageLibraryFiles.LoadAsync(Path.Combine(_root, index))).Count);
+        Assert.Empty(Directory.GetFiles(root, "*.pending"));
+    }
+
+    [Fact]
+    public async Task ScenarioFilesStayInTheirAuthoredPackagesWithACommonResourceRoot()
+    {
+        string first = Path.Combine(_root, "scenarios", "history", "first");
+        string second = Path.Combine(_root, "scenarios", "fiction", "second");
+        var content = Fixture();
+        await ScenarioContentFiles.WriteAsync(first, content, resourceRoot: _root);
+        await ScenarioContentFiles.WriteAsync(second, content with
+        { Scenario = content.Scenario with { ScenarioId = "second", Year = 281, PlayerForceId = null } }, resourceRoot: _root);
+        var a = await PackageFiles.ReadAsync<ScenarioContentManifest>(Path.Combine(first, "content.json"));
+        var b = await PackageFiles.ReadAsync<ScenarioContentManifest>(Path.Combine(second, "content.json"));
+        Assert.NotEqual(a.Text, b.Text);
+        Assert.NotEqual(a.Messages, b.Messages);
+        Assert.NotEqual(a.Presentation, b.Presentation);
+        Assert.Equal("scenarios/fiction/second/messages/text.json", b.Text);
+        Assert.False(File.Exists(Path.Combine(second, "text.json")));
+        Assert.Equal("scenarios/fiction/second/map.json", b.Map);
+        Assert.False(Directory.Exists(Path.Combine(second, "data")));
+        Assert.Equal("scenario.json", Path.GetFileName(b.Scenario));
+        Directory.Delete(first, true);
+        var restored = await ScenarioContentFiles.LoadAsync(second);
+        Assert.Equal("second", restored.Scenario.ScenarioId);
+        Assert.Equal(281, restored.Scenario.Year);
+        Assert.Null(restored.Scenario.PlayerForceId);
+        Assert.Equal(JsonSerializer.Serialize(content.Scenario.OriginalAi), JsonSerializer.Serialize(restored.Scenario.OriginalAi));
+        Assert.Equal(content.Text.Entries, restored.Text.Entries);
+    }
+
+    [Fact]
     public async Task SplitFilesPreserveFullModelAndRequiredNulls()
     {
         var content = Fixture();
         content = content with { Map = content.Map with { LeftEdge = [null], RightEdge = [null] } };
         await ScenarioContentFiles.WriteAsync(_root, content);
+        using var manifestDocument = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(_root, "content.json")));
+        Assert.False(manifestDocument.RootElement.TryGetProperty("sources", out _));
         var restored = await ScenarioContentFiles.LoadAsync(_root);
         Assert.Equal(JsonSerializer.Serialize(content, PackageFiles.JsonOptions),
             JsonSerializer.Serialize(restored, PackageFiles.JsonOptions));
@@ -113,13 +210,14 @@ public sealed class ScenarioContentFilesTests : IDisposable
     public async Task RewriteRemovesOnlyPreviouslyReferencedObsoleteFiles()
     {
         await ScenarioContentFiles.WriteAsync(_root, Fixture());
-        File.Move(PublishedPath("map.json"), Path.Combine(_root, "old-map.json"));
+        Directory.CreateDirectory(Path.Combine(_root, "data", "old"));
+        File.Move(PublishedPath("map.json"), Path.Combine(_root, "data", "old", "map.json"));
         var manifest = await PackageFiles.ReadAsync<ScenarioContentManifest>(Path.Combine(_root, "content.json"));
         await File.WriteAllTextAsync(Path.Combine(_root, "content.json"),
-            JsonSerializer.Serialize(manifest with { Map = "old-map.json" }, PackageFiles.JsonOptions));
+            JsonSerializer.Serialize(manifest with { Map = "data/old/map.json" }, PackageFiles.JsonOptions));
         await File.WriteAllTextAsync(Path.Combine(_root, "notes.json"), "{}");
         await ScenarioContentFiles.WriteAsync(_root, Fixture());
-        Assert.False(File.Exists(Path.Combine(_root, "old-map.json")));
+        Assert.False(Directory.Exists(Path.Combine(_root, "data")));
         Assert.True(File.Exists(Path.Combine(_root, "notes.json")));
         Assert.Empty(Directory.GetFiles(_root, "*.pending"));
     }
@@ -183,6 +281,7 @@ public sealed class ScenarioContentFilesTests : IDisposable
     [Theory]
     [InlineData("missing", "help")]
     [InlineData("message", "../outside")]
+    [InlineData("message", "text")]
     public async Task InvalidExplicitGroupsAreRejectedBeforeWriting(string key, string group)
     {
         await Assert.ThrowsAsync<InvalidDataException>(() => ScenarioContentFiles.WriteAsync(_root, Fixture(),
@@ -215,7 +314,7 @@ public sealed class ScenarioContentFilesTests : IDisposable
     }
 
     [Fact]
-    public async Task FailedManifestReplacementKeepsTheEntirePreviousGeneration()
+    public async Task FailedManifestReplacementRestoresPreviouslyPublishedFiles()
     {
         var content = Fixture();
         await ScenarioContentFiles.WriteAsync(_root, content);

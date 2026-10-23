@@ -7,6 +7,23 @@ namespace San9.Importer.San9PkTc101.Tests;
 public sealed class San9MessageTableTests
 {
     [Theory]
+    [InlineData(0, "biographies.0")]
+    [InlineData(562, "biographies.562")]
+    [InlineData(563, null)]
+    [InlineData(569, null)]
+    [InlineData(570, "biographies.563")]
+    [InlineData(685, "biographies.678")]
+    public void BiographyUsesItsExplicitSourceReferenceWithoutCopyingText(int code, string? expected)
+    {
+        using var reader = new ScenarioTextReader(Archive(Table(Array.Empty<byte>())),
+            File.ReadAllBytes(typeof(ScenarioTextReader).Assembly.Location));
+        var biographies = new San9MessageTable(Archive(Table(Enumerable.Range(0, 679)
+            .Select(i => System.Text.Encoding.ASCII.GetBytes($"Biography {i}")).ToArray())));
+        Assert.Equal(expected, reader.Biography(code, biographies));
+        Assert.Empty(reader.Catalog.Entries);
+    }
+
+    [Theory]
     [InlineData(0, "Standard title")]
     [InlineData(1, "Standard title")]
     [InlineData(2, "Tutorial title")]

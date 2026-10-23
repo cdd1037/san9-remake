@@ -23,10 +23,11 @@ public sealed record MapInstance(string SourceBuild, string ScenarioId, string I
 
 public sealed record TextureDependency(string Path);
 
-public sealed record ScenarioContent(int SchemaVersion, ContentSource[] Sources, TextureDependency Textures,
+public sealed record ScenarioContent(int SchemaVersion, TextureDependency Textures,
     MapInstance Map, ScenarioInitialState Scenario, TextCatalog Text, Dictionary<string,string> IllustrationRoles)
 {
     [System.Text.Json.Serialization.JsonRequired]
     public San9.Content.Interface.CommandPresentation Presentation { get; init; } = San9.Content.Interface.CommandPresentation.Empty;
-    public const int CurrentSchemaVersion = 216;
+    [System.Text.Json.Serialization.JsonIgnore] public string ResourceRoot { get; init; } = "";
+    public const int CurrentSchemaVersion = 222;
 }

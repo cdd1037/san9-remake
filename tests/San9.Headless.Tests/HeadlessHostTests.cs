@@ -2,6 +2,7 @@ using San9.Tests;
 using San9.Application;
 using San9.Application.Persistence;
 using San9.Content.Scenarios;
+using San9.Content.Packages;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 using San9.Headless;
@@ -22,6 +23,27 @@ public sealed class HeadlessHostTests : IDisposable
     }
     private string FilePath(string name) => Path.Combine(_directory, name);
     private SessionSnapshot ReadSession(string name) => StrictJson.Deserialize<SaveEnvelope>(File.ReadAllBytes(FilePath(name))).Session;
+
+    [Fact]
+    public async Task PublishedPackageUsesDeclaredResourceRootAndExplicitPlayerSelection()
+    {
+        var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "custom-package", 281, 1, 1, null,
+            [new(73, "force", 1, 50)], [new(1, "city", 73, 0, 0, 0, 100, 100, 0, [])], [], [])
+        { Information = new([], [], [], [new(73, 73, null, new(1000, 1000)) { IsRoot = true }], []) };
+        string package = FilePath("scenarios/custom");
+        var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion, new("unused"),
+            new("fixture", "custom-package", "spring", 1, 1, 1, 1, [], [], [], [], [], [], [], [], [], [], []),
+            definition, new(San9.Content.Text.TextCatalog.CurrentSchemaVersion, []), []);
+        await ScenarioContentFiles.WriteAsync(package, content, resourceRoot: _directory);
+        var session = GameSession.Start(definition with { PlayerForceId = 73 }, 42);
+        CommandLogService.Write(FilePath("commands.jsonl"), CommandLogService.CreateHeader(session), []);
+        var result = Run("run", "--content-package", package, "--player-force", "73", "--log", FilePath("commands.jsonl"),
+            "--report", FilePath("report.json"), "--save", FilePath("result.save.json"));
+        Assert.True(result.Code == 0, result.Report.ToString());
+        var state = ReadSession("result.save.json");
+        Assert.Equal(281, state.World.Clock.Year);
+        Assert.Contains(state.World.Simulation.Controls, seat => seat.ForceId == 73 && seat.Kind == ControllerKind.Player);
+    }
 
     [Fact]
     public void DefaultRunDoesNotWriteAutomaticSavesAndOnlyExplicitSaveWritesAFile()

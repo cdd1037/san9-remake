@@ -8,6 +8,24 @@ namespace San9.Importer.San9PkTc101.Tests;
 public sealed class PublicationMessageCatalogTests
 {
     [Fact]
+    public void ReviewedBindingsLeaveUnconfirmedColumnsInTheLargeFile()
+    {
+        var groups = PublicationMessageCatalog.Groups;
+        Assert.Equal("scenario-catalog", groups["messages.0"]);
+        Assert.Equal("scenario-catalog", groups["messages.39"]);
+        Assert.Equal("person-names", groups["messages.1678"]);
+        Assert.Equal("person-names", groups["messages.1680"]);
+        Assert.Equal("tactics", groups["messages.1219"]);
+        Assert.Equal("formations", groups["messages.5365"]);
+        Assert.Equal("offices", groups["messages.7770"]);
+        Assert.Equal("ranks", groups["messages.7761"]);
+        Assert.Equal("geography", groups["messages.136"]);
+        Assert.Equal("country-titles", groups["messages.5315"]);
+        foreach (int id in new[] { 40, 1681, 1220, 5364 }) Assert.Equal("messages", groups[$"messages.{id}"]);
+        Assert.Equal("names", groups["messages.11455"]);
+    }
+
+    [Fact]
     public void CatalogPreservesCompleteArchiveIdentitiesInSourceOrder()
     {
         var expected = Enumerable.Range(0, 14209).Select(id => $"messages.{id}")

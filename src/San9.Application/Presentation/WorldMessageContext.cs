@@ -90,6 +90,13 @@ public sealed class WorldMessageContext
             : _forces[Id(index, MessageEntityKind.Force)];
         MessageBinding Text(string text) => new(0, text);
         MessageBinding Flag(bool value) => new(value ? 1 : 0);
+        if (name == "scenario.has-message-tag")
+        {
+            Count(1);
+            if (args[0].Text is not { Length: > 0 } tag || args[0].Entity is not null)
+                throw new InvalidDataException("Message tag requires a named tag.");
+            return Flag(_texts.MessageTags.Contains(tag, StringComparer.Ordinal));
+        }
         if (name is "year" or "month" or "day" or "season")
         {
             Count(0);

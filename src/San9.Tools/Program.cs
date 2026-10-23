@@ -8,15 +8,47 @@ using San9.Rendering;
 
 try
 {
-    if(args.Length==0)throw new ArgumentException("Commands: import-textures --game-dir PATH --output PATH [--rebuild all|cursors|skin|map|portraits|library/ARCHIVE]; import-client --game-dir PATH --scenario FILENAME --texture-package PATH --output PATH [--message-reports true|false]; verify-textures --texture-package PATH; verify-client --content-package PATH; import-text --game-dir PATH --output PATH; render-map --content-package PATH --output PATH");
+    if(args.Length==0)throw new ArgumentException("Commands: import-content --game-dir PATH --output PATH; verify-content --content-root PATH; import-textures --game-dir PATH --output PATH [--rebuild all|cursors|skin|map|portraits|library/ARCHIVE]; import-client --game-dir PATH --scenario FILENAME --texture-package PATH --output PATH [--message-reports true|false]; verify-textures --texture-package PATH; verify-client --content-package PATH; import-text --game-dir PATH --output PATH; render-map --content-package PATH --output PATH");
     Dictionary<string,string> options=[];
     for(int i=1;i<args.Length;i+=2)
         if(i+1>=args.Length||!args[i].StartsWith("--",StringComparison.Ordinal)||!options.TryAdd(args[i],args[i+1]))throw new ArgumentException("Invalid or duplicate option.");
-    string[] allowed=args[0] == "import-textures" ? ["--game-dir","--output","--rebuild"] : args[0] == "verify-textures" ? ["--texture-package"] : args[0] == "verify-client" ? ["--content-package"] : args[0] == "import-text" ? ["--game-dir","--output","--exe-evidence"] : args[0] == "import-client"?["--game-dir","--scenario","--texture-package","--output","--message-reports"]:["--content-package","--season","--output","--x","--y","--width","--height","--terrain-only"];
+    string[] allowed=args[0] == "import-content" ? ["--game-dir", "--output"] : args[0] == "verify-content" ? ["--content-root"] : args[0] == "import-textures" ? ["--game-dir","--output","--rebuild"] : args[0] == "verify-textures" ? ["--texture-package"] : args[0] == "verify-client" ? ["--content-package"] : args[0] == "import-text" ? ["--game-dir","--output","--exe-evidence"] : args[0] == "import-client"?["--game-dir","--scenario","--texture-package","--output","--message-reports"]:["--content-package","--season","--output","--x","--y","--width","--height","--terrain-only"];
     if(options.Keys.Any(k=>!allowed.Contains(k)))throw new ArgumentException("Unknown option.");
     string Required(string key)=>options.TryGetValue(key,out var value)?value:throw new ArgumentException($"Missing {key}.");
     var watch=Stopwatch.StartNew();
-    if(args[0]=="verify-client")
+    if (args[0] == "import-content")
+    {
+        await ContentCatalogImporter.ImportAsync(Required("--game-dir"), Required("--output"), Console.WriteLine);
+    }
+    else if (args[0] == "verify-content")
+    {
+        string root = Required("--content-root");
+        var catalog = await ContentCatalogFiles.LoadAsync(root);
+        var textures = await TexturePackageFiles.LoadAsync(PackageFiles.Resolve(root, catalog.Textures));
+        var opening = await ContentCatalogFiles.LoadOpeningAsync(root, catalog);
+        opening.Menu.Validate(textures.Assets); opening.Selection.Validate(textures.Assets);
+        foreach (var entry in catalog.Scenarios)
+        {
+            var scenario = await ScenarioContentFiles.LoadAsync(PackageFiles.Resolve(root, entry.Package));
+            _ = ClientContentFiles.Resolve(scenario, textures, PackageFiles.Resolve(root, catalog.Textures));
+            if (scenario.Scenario.ScenarioId != entry.WorldId || scenario.Scenario.Year != entry.Preview.Year || scenario.Scenario.Month != entry.Preview.Month)
+                throw new InvalidDataException($"Scenario summary differs from world: {entry.Preview.Id}");
+            foreach (string path in scenario.Presentation.Sounds.Values)
+                if (!File.Exists(PackageFiles.Resolve(scenario.ResourceRoot, path))) throw new InvalidDataException($"Missing sound: {path}");
+            var session = San9.Application.GameSession.Start(scenario.Scenario, 42);
+            if (!session.Snapshot.Forces.Select(f => f.Id).Order().SequenceEqual(scenario.Scenario.Forces.Select(f => f.Id).Order()) ||
+                !session.Snapshot.Settlements.Select(s => s.Id).Order().SequenceEqual(scenario.Scenario.Settlements.Select(s => s.Id).Order()) ||
+                !session.Snapshot.Officers.Select(o => o.Id).Order().SequenceEqual(scenario.Scenario.Officers.Select(o => o.State.Id).Order()))
+                throw new InvalidDataException($"Initial world lost scenario identities: {entry.Preview.Id}");
+            var query = new San9.Application.Presentation.InformationQuery(session, scenario.Text);
+            foreach (var category in new[] { San9.Application.Presentation.InformationCategory.Forces, San9.Application.Presentation.InformationCategory.Cities,
+                San9.Application.Presentation.InformationCategory.Regions, San9.Application.Presentation.InformationCategory.Officers, San9.Application.Presentation.InformationCategory.Treasures })
+                _ = query.Read(category);
+            Console.WriteLine($"Verified {entry.Preview.Id}: {scenario.Scenario.Forces.Length} forces; {scenario.Scenario.Settlements.Length} settlements; {scenario.Scenario.Officers.Length} officers; world and queries ready.");
+        }
+        await ImageAssetFiles.VerifyAsync(PackageFiles.Resolve(root, catalog.Textures), textures.Assets);
+    }
+    else if(args[0]=="verify-client")
     {
         string root = Required("--content-package");
         var package = await ClientContentFiles.LoadAsync(root);

@@ -63,16 +63,12 @@ public sealed class San9ScenarioArchiveTests
     }
 
     [Fact]
-    public void ReadInitialScenario190Header_RejectsAnotherValidScenario()
+    public void ReadHeader_AcceptsAnotherScenario()
     {
-        using MemoryStream stream = BuildScenarioArchiveWithHeader(
-            scenarioId: 2,
-            encodedStartDate: 23_190);
-
-        InvalidDataException exception = Assert.Throws<InvalidDataException>(
-            () => San9ScenarioArchive.ReadInitialScenario190Header(stream));
-
-        Assert.Contains("190-01-01", exception.Message, StringComparison.Ordinal);
+        using var stream = BuildScenarioArchiveWithHeader(scenarioId: 2, encodedStartDate: 23_190);
+        var header = San9ScenarioArchive.ReadHeader(stream);
+        Assert.Equal(2, header.ScenarioId);
+        Assert.Equal(new San9ScenarioDate(194, 6, 1), header.StartDate);
     }
 
     [Theory]

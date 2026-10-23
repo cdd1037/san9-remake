@@ -115,11 +115,12 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
         var source = _messages.PlainText(1680 + 4 * code);
         return AddOptional(key, source);
     }
-    public string? Biography(string key, int code, San9MessageTable biographies)
+    public string? Biography(int code, San9MessageTable biographies)
     {
         if (code is >= 563 and <= 569) return null;
-        var source = biographies.MultilineText(code >= 570 ? code - 7 : code);
-        return AddOptional(key, source);
+        int resource = code >= 570 ? code - 7 : code;
+        var value = _converter.Convert(biographies.MultilineText(resource));
+        return string.IsNullOrWhiteSpace(value) ? null : $"biographies.{resource}";
     }
     public string CountryTitle(string key, int id) => Add(key, _messages.PlainText(San9ScenarioCountryTitleArchive.GetNameMessageId(id)));
     // Rank 8 is the valid lowest rank, but its name resource 1668 is empty.

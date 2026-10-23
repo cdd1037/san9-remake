@@ -93,7 +93,7 @@ public sealed class ClientContentPackageTests
         text.Entries.Add(WorldEditorText.ConfirmDiscardKey, "Discard changes?");
         foreach (string role in SpecialDeploymentText.Roles) text.Entries.Add(SpecialDeploymentText.Key(role), "Hint");
         foreach (string column in ExecutionPanelSkin.Columns) text.Entries.Add(ExecutionPanelSkin.HeaderKey(column), "Header");
-        var p = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, [], map, Fixture(), text, skin, new(3, [])); p.ValidateLinks();
+        var p = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, map, Fixture(), text, skin, new(3, [])); p.ValidateLinks();
         Assert.Throws<InvalidDataException>(() => (p with { SchemaVersion = 15 }).ValidateLinks());
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { Settlements = [p.Scenario.Settlements[0]] } }).ValidateLinks());
         Assert.Throws<InvalidDataException>(() => (p with { Scenario = p.Scenario with { ScenarioId = "other" } }).ValidateLinks());

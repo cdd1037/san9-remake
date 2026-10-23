@@ -64,7 +64,7 @@ public static class OfficerContentCompiler
                 FlagGlyph = person.FlagCode < 186 ? person.FlagCode : -1,
                 AgeAtScenarioStart = StartingAge(person.BiographyResourceCode),
                 CourtesyNameKey = text.Courtesy($"officer-courtesy.{id}", person.CourtesyNameResourceCode),
-                BiographyKey = text.Biography($"officer-biography.{id}", person.BiographyResourceCode, biographies)
+                BiographyKey = text.Biography(person.BiographyResourceCode, biographies)
             });
         }
         return result.ToArray();

@@ -29,7 +29,7 @@ public partial class Editor : Control
     {
         outputDirectory = System.IO.Path.GetFullPath(ProjectSettings.GlobalizePath("res://../../local/generated/terrain-editor"));
         System.IO.Directory.CreateDirectory(outputDirectory);
-        packagePath = System.IO.Path.GetFullPath(ProjectSettings.GlobalizePath("res://../../local/generated/content/textures-san9pk-tc101"));
+        packagePath = System.IO.Path.GetFullPath(ProjectSettings.GlobalizePath("res://../../local/generated/content/shared/textures"));
         string[] args = OS.GetCmdlineUserArgs();
         int packageArg = Array.IndexOf(args, "--texture-package");
         if (packageArg >= 0 && packageArg + 1 < args.Length) packagePath = System.IO.Path.GetFullPath(args[packageArg + 1]);

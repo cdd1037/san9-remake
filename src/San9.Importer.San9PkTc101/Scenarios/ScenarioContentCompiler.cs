@@ -13,7 +13,7 @@ public static class ScenarioContentCompiler
     public static (ScenarioInitialState Scenario, TextCatalog Text) Compile(byte[] exe, byte[] scenario, byte[] messages, byte[] biographies)
     {
         T Read<T>(Func<Stream, T> parser) { using var stream = new MemoryStream(scenario); return parser(stream); }
-        var header = Read(San9ScenarioArchive.ReadInitialScenario190Header);
+        var header = Read(San9ScenarioArchive.ReadHeader);
         var cities = Read(San9ScenarioCityArchive.ReadKnownRecords);
         var zones = Read(San9ScenarioZoneArchive.ReadKnownRecords);
         var personPlaces = cities.Select((c, id) => new { Id = id, X = c.X, Y = c.Y })
@@ -73,7 +73,7 @@ public static class ScenarioContentCompiler
             settlements.Add(new(id, name, Root(z.ForceId), z.X, z.Y, z.Soldiers, z.Durability, fixedBuildings[type].MaxDurability, Morale(Root(z.ForceId), z.Soldiers), [])
             { SoldierCapacity = facilityRules[type].SoldierCapacity, ConsumesFood = facilityRules[type].ConsumesFood, Kind = San9.Core.Domain.SettlementKind.Facility, CanHostPersons = facilityRules[type].CanHostPersons, CorpsId = z.ForceId, IsFacilityListEntry = fixedBuildings[type].IsFacilityListEntry });
         }
-        var summaries = settlements.Where(s => s.OwnerId is not null).Select(s => s.OwnerId!.Value).Append(5).Distinct().Order().Select(id =>
+        var summaries = settlements.Where(s => s.OwnerId is not null).Select(s => s.OwnerId!.Value).Distinct().Order().Select(id =>
         {
             var f = forces[id];
             if (f.LeaderId is not int leader || leader >= persons.Count) throw new InvalidDataException("Missing force leader.");
@@ -135,11 +135,10 @@ public static class ScenarioContentCompiler
             text.MessagePerson(officer.State.Id, person.FamilyNameResourceCode, person.GivenNameResourceCode, person.PortraitResourceCode);
         }
         var catalog = text.Catalog;
-        if (catalog.Resolve(summaries.Single(f => f.Id == 5).NameKey) != "董卓") throw new InvalidDataException("Unexpected 190-year player force.");
         var units = UnitContentCompiler.Compile(sourceUnits, Root);
         var penglai = EventContentCompiler.Penglai(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id), summaries);
         var snapshot = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, 5, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
+            header.StartDate.Year, header.StartDate.Month, header.StartDate.Day, null, summaries, settlements.OrderBy(s => s.Id).ToArray(), regions, regionCities)
         { UnbuiltPlaces = personPlaces.Where(p => settlements.All(s => s.Id != p.Id)).Select(p => new San9.Core.Domain.PersonPlace(p.Id, San9.Core.Domain.MapCoordinates.Center(new(p.X, p.Y)))).ToImmutableArray(),
             FacilityNameSuffixKeys = suffixKeys,
             OriginalAi = OriginalAiContentCompiler.Compile(persons, officers.Select(o => o.State.Id)),
@@ -203,6 +202,7 @@ public static class ScenarioContentCompiler
             ImperialSealId = 79, ImperialCourt = ImperialCourtContentCompiler.Compile(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             ImperialCourtEnded = (header.ScenarioWorldFlagWords[0] & 1) != 0 };
         snapshot = EventContentCompiler.InitializePenglai(snapshot);
+        snapshot = InitialLeadershipCompiler.Compile(snapshot);
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);
     }
 }

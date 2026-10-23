@@ -6,6 +6,23 @@ namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class GameplayMessageCompilerTests
 {
+    [Fact]
+    public void SharedTemplatesKeepScenarioAndAbsentForceConditionsForRuntimeEvaluation()
+    {
+        var compiled = new GameplayMessageCompiler(Scenario(), []).Compile(new Dictionary<string, MessageDefinition>
+        {
+            ["opening"] = Message(new("=", Arguments: [new("query", "scenario"), new("constant", Number: 0)])),
+            ["mode"] = Message(new("query", "scenario-mode")),
+            ["force"] = Message(new("=", Arguments: [new("binding", "force.0.id"), new("constant", Number: 9001)]))
+        });
+        Assert.Equal("yellow-turban-rebellion", Assert.Single(Expression(compiled["opening"]).Arguments!).Binding);
+        Assert.Equal(ScenarioMessageTags.TimelessHeroes, Assert.Single(Expression(compiled["mode"]).Arguments!).Binding);
+        Assert.Equal(new MessageExpression("entity", "Force", 9001), Expression(compiled["force"]).Arguments![1]);
+        Assert.Contains("yellow-turban-rebellion", ScenarioMessageTags.For(0, 0));
+        Assert.DoesNotContain(ScenarioMessageTags.TimelessHeroes, ScenarioMessageTags.For(0, 0));
+        Assert.Equal([ScenarioMessageTags.TimelessHeroes], ScenarioMessageTags.For(18, 1));
+        Assert.Empty(ScenarioMessageTags.For(19, 0));
+    }
     [Theory]
     [InlineData(0x9E, "settlement.base-name-with-city")]
     [InlineData(0x9F, "settlement.name-with-city")]
@@ -15,7 +32,7 @@ public sealed class GameplayMessageCompilerTests
     {
         var source = new OriginalMessageParser().Parse([2, 41, selector, 5, 5, 5]);
         Assert.True(source.SemanticsConfirmed);
-        var messages = new GameplayMessageCompiler(Scenario(), [], 0, 0)
+        var messages = new GameplayMessageCompiler(Scenario(), [])
             .Compile(new Dictionary<string, MessageDefinition> { ["place"] = source.Definition });
         var expression = MessageGraph.Walk(messages["place"].Nodes).OfType<MessageValue>().Single().Expression;
         Assert.Equal(expected, expression.Binding);
@@ -26,12 +43,12 @@ public sealed class GameplayMessageCompilerTests
     public void SourceBiographyBecomesIdentityAndWorldBitsBecomeEventKeys()
     {
         var scenario = Scenario() with { Officers = [new("person", new(0, null, null, new(50, 50, 50, 50), false))] };
-        var compiler = new GameplayMessageCompiler(scenario, [Person(496)], 2, 0);
+        var compiler = new GameplayMessageCompiler(scenario, [Person(496)]);
         var compiled = compiler.Compile(new Dictionary<string, MessageDefinition>
         {
             ["identity"] = Message(new("=", Arguments: [new("binding", "person.0.biography-resource"), new("constant", Number: 496)])),
             ["history"] = Message(new("query", "world-flag", Arguments: [new("constant", Number: 12)])),
-            ["scenario"] = Message(new("query", "scenario"))
+            ["scenario"] = Message(new("=", Arguments: [new("query", "scenario"), new("constant", Number: 2)]))
         });
         var identity = Expression(compiled["identity"]);
         Assert.Equal(new MessageExpression("entity", "Person", 0), identity.Arguments![1]);
@@ -39,7 +56,8 @@ public sealed class GameplayMessageCompilerTests
         var history = Expression(compiled["history"]);
         Assert.Equal("event.occurred", history.Binding);
         Assert.Equal("qiao-marriage", Assert.Single(history.Arguments!).Binding);
-        Assert.Equal(2, Expression(compiled["scenario"]).Number);
+        Assert.Equal("scenario.has-message-tag", Expression(compiled["scenario"]).Binding);
+        Assert.Equal("warlord-expansion", Assert.Single(Expression(compiled["scenario"]).Arguments!).Binding);
         Assert.All(GameplayMessageCompiler.Audit(compiled), row => Assert.True(row.RuntimeReady));
     }
 
@@ -48,7 +66,7 @@ public sealed class GameplayMessageCompilerTests
     [InlineData(52, "Automatic")]
     public void ReturnMessagesRequireCapturedEventReasonInsteadOfInternalTaskCode(int code, string kind)
     {
-        var compiler = new GameplayMessageCompiler(Scenario(), [], 0, 0);
+        var compiler = new GameplayMessageCompiler(Scenario(), []);
         var messages = compiler.Compile(new Dictionary<string, MessageDefinition>
         { ["return"] = Message(new("=", Arguments: [new("binding", "unit.0.command-event-type"), new("constant", Number: code)])) });
         var expression = Expression(messages["return"]);
@@ -60,7 +78,7 @@ public sealed class GameplayMessageCompilerTests
     [Fact]
     public void UnknownRuntimePropertyStopsCompilationWithMessageIdentity()
     {
-        var compiler = new GameplayMessageCompiler(Scenario(), [], 0, 0);
+        var compiler = new GameplayMessageCompiler(Scenario(), []);
         var error = Assert.Throws<InvalidDataException>(() => compiler.Compile(new Dictionary<string, MessageDefinition>
         {
             ["parent"] = new([new MessageReference("child", false)]),

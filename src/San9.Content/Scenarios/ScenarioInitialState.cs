@@ -41,10 +41,10 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
     [JsonRequired] public uint Population { get; init; }
     [JsonRequired] public uint DraftPopulation { get; init; }
 }
-public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int PlayerForceId,
+public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int? PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 142;
+    public const int CurrentSchemaVersion = 143;
     [JsonRequired] public OriginalAiDefinition OriginalAi { get; init; } = OriginalAiDefinition.Default;
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
     [JsonRequired] public San9.Core.Domain.FoodMarketDefinition? FoodMarket { get; init; }
@@ -103,7 +103,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             throw new InvalidDataException("Invalid automatic scheduling keys.");
         if (SchemaVersion != CurrentSchemaVersion || string.IsNullOrWhiteSpace(ScenarioId) || Year < 1 || Month is < 1 or > 12 || Day is < 1 or > 30 ||
             SearchEvents.IsDefault || Forces.Select(f => f.Id).Distinct().Count() != Forces.Length ||
-            !Forces.Any(f => f.Id == PlayerForceId && (!f.IsDormant || SearchEvents.OfType<San9.Core.Domain.ForceActivationSearchEventDefinition>().Any(d => d.ForceId == f.Id))))
+            PlayerForceId is not null && !Forces.Any(f => f.Id == PlayerForceId && (!f.IsDormant || SearchEvents.OfType<San9.Core.Domain.ForceActivationSearchEventDefinition>().Any(d => d.ForceId == f.Id))))
             throw new InvalidDataException("Invalid scenario date or player force.");
         Information.Validate(this);
         try { Alliance?.Validate(Forces.Where(f => !f.IsDormant && !f.IsBarbarian).Select(f => f.Id).ToHashSet()); }

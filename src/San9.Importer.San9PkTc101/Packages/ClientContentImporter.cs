@@ -9,7 +9,8 @@ namespace San9.Importer.San9PkTc101.Packages;
 public static class ClientContentImporter
 {
     public static async Task<ClientContentPackage> ImportAsync(string gameDirectory, string scenarioFile,
-        string textureRoot, string output, Action<string>? progress = null, bool messageReports = false, CancellationToken token = default)
+        string textureRoot, string output, Action<string>? progress = null, bool messageReports = false, CancellationToken token = default, string? resourceRoot = null,
+        SharedMessageLibrary? sharedMessages = null, bool publishSharedMessages = false)
     {
         var sourceDirectory = new San9SourceDirectory(gameDirectory);
         string sourceExe = sourceDirectory.Executable, dataDirectory = sourceDirectory.Root;
@@ -20,7 +21,6 @@ public static class ClientContentImporter
         if (textureRoot == output) throw new InvalidDataException("Scenario and texture package directories must differ.");
         var textures = await TexturePackageFiles.LoadAsync(textureRoot, token);
         if (textures.SourceBuild != San9PkTc101Detector.SourceBuildId) throw new InvalidDataException("Texture source build differs.");
-        List<ContentSource> sources = [];
         var buffers = new Dictionary<string, byte[]>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         byte[] Read(string path)
         {
@@ -29,11 +29,12 @@ public static class ClientContentImporter
             if (buffers.TryGetValue(path, out var cached)) return cached;
             byte[] bytes = File.ReadAllBytes(path);
             buffers.Add(path, bytes);
-            sources.Add(new(Path.GetFileName(path), Convert.ToHexString(SHA256.HashData(bytes))));
             return bytes;
         }
         byte[] exe = Read(sourceExe), scenarioBytes = Read(scenarioPath);
-        var map = MapImporter.Build(scenarioBytes, textures.Map, sources.ToArray());
+        var map = MapImporter.Build(scenarioBytes, textures.Map,
+            [new(Path.GetFileName(sourceExe), Convert.ToHexString(SHA256.HashData(exe))),
+             new(Path.GetFileName(scenarioPath), Convert.ToHexString(SHA256.HashData(scenarioBytes)))]);
         var (scenario, text) = ScenarioContentCompiler.Compile(exe, scenarioBytes, Read(Path.Combine(dataDirectory, "M_MsgPK.s9")), Read(Path.Combine(dataDirectory, "M_RtdnPK.s9")));
         Dictionary<string, San9.Content.Text.MessageDefinition> messages = [];
         List<MessageContentAdaptation> adaptations = [];
@@ -47,14 +48,15 @@ public static class ClientContentImporter
         San9.Content.Interface.CommandPresentation presentation;
         using (var source = new MemoryStream(scenarioBytes))
         {
-            var header = San9ScenarioArchive.ReadInitialScenario190Header(source);
+            var header = San9ScenarioArchive.ReadHeader(source);
             source.Position = 0;
             var people = San9ScenarioPersonArchive.ReadKnownRecords(source);
             presentation = CommandPresentationCompiler.Compile(people, audioFiles) with
             {
                 Notices = new() { ["scroll-hover"] = "messages.8427", ["scroll-click"] = "messages.8428" }
             };
-            messages = new GameplayMessageCompiler(scenario, people, header.ScenarioId, header.ScenarioModeCode).Compile(messages);
+            messages = new GameplayMessageCompiler(scenario, people).Compile(messages);
+            text = text with { MessageTags = ScenarioMessageTags.For(header.ScenarioId, header.ScenarioModeCode) };
         }
         messages = PublicationMessageCatalog.Compile(messages);
         San9.Content.Text.NameMessages.AddTo(messages);
@@ -74,26 +76,36 @@ public static class ClientContentImporter
             sounds.Add(AudioAssetCompiler.Path(file), Read(Path.Combine(sourceDirectory.Root, file)));
         foreach (string path in presentation.Sounds.Values.Distinct())
             if (!sounds.ContainsKey(path)) throw new InvalidDataException("Missing prepared audio asset: " + path);
-        string audioGeneration = "audio/" + Guid.NewGuid().ToString("N") + "/";
-        string PublishedAudio(string path) => audioGeneration + Path.GetFileName(path);
+        resourceRoot = Path.GetFullPath(resourceRoot ?? output);
+        bool shared = resourceRoot != output;
+        string audioPrefix = shared ? "shared/" : "";
+        string PublishedAudio(string path) => audioPrefix + path["audio/".Length..];
         presentation = presentation with { Sounds = presentation.Sounds.ToDictionary(p => p.Key, p => PublishedAudio(p.Value), StringComparer.Ordinal) };
         sounds = sounds.ToDictionary(p => PublishedAudio(p.Key), p => p.Value, StringComparer.Ordinal);
-        var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion, sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(),
+        var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion,
             dependency, MapInstance.From(map), scenario, text, roles)
         { Presentation = presentation };
-        var loaded = ClientContentFiles.Resolve(content, textures, textureRoot) with { ContentRoot = output };
+        var loaded = ClientContentFiles.Resolve(content, textures, textureRoot) with { ContentRoot = resourceRoot };
         foreach (string key in messages.Keys)
             if (!San9.Content.Text.MessageGraph.ReferencesValid(key, messages))
                 throw new InvalidDataException($"Invalid or cyclic message references: {key}.");
         foreach (var (path, bytes) in sounds)
         {
-            string target = PackageFiles.Resolve(output, path);
+            string target = PackageFiles.Resolve(resourceRoot, path);
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            await File.WriteAllBytesAsync(target, bytes, token);
+            if (!File.Exists(target) || !File.ReadAllBytes(target).AsSpan().SequenceEqual(bytes))
+                await File.WriteAllBytesAsync(target, bytes, token);
         }
-        await ScenarioContentFiles.WriteAsync(output, content, token, PublicationMessageCatalog.Groups);
-        var currentAudio = sounds.Keys.Select(path => PackageFiles.Resolve(output, path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (string path in Directory.EnumerateFiles(Path.Combine(output, "audio"), "*", SearchOption.AllDirectories))
+        if (publishSharedMessages)
+        {
+            if (resourceRoot is null) throw new InvalidDataException("Publishing shared messages requires a content root.");
+            sharedMessages = await MessageLibraryFiles.WriteAsync(resourceRoot, "shared/messages/library.json", messages,
+                PublicationMessageCatalog.Groups, token);
+        }
+        await ScenarioContentFiles.WriteAsync(output, content, token, PublicationMessageCatalog.Groups, resourceRoot, sharedMessages);
+        var currentAudio = sounds.Keys.Select(path => PackageFiles.Resolve(resourceRoot, path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (string path in shared ? [] : new[] { "music", "sound-effects" }.SelectMany(directory =>
+            Directory.EnumerateFiles(Path.Combine(output, directory), "*", SearchOption.AllDirectories)))
             if (San9.Content.Interface.AudioFileFormats.Identify(path) is not null && !currentAudio.Contains(path)) File.Delete(path);
         File.Delete(Path.Combine(output, "message-id-map.json"));
         if (messageReports)

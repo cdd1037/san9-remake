@@ -7,8 +7,7 @@ public sealed record GameplayMessageAudit(string Key, bool SourceConfirmed, bool
     string[] RequiredArguments);
 
 /// <summary>Removes source identities and catalog sort encodings before messages enter the runtime package.</summary>
-public sealed class GameplayMessageCompiler(ScenarioInitialState scenario, IReadOnlyList<San9ScenarioPersonRecord> people,
-    int sourceScenarioId, int sourceScenarioMode)
+public sealed class GameplayMessageCompiler(ScenarioInitialState scenario, IReadOnlyList<San9ScenarioPersonRecord> people)
 {
     public Dictionary<string, MessageDefinition> Compile(IReadOnlyDictionary<string, MessageDefinition> source)
     {
@@ -31,6 +30,11 @@ public sealed class GameplayMessageCompiler(ScenarioInitialState scenario, IRead
             MessageExpression Translate(MessageExpression e)
             {
                 var a = e.Arguments ?? [];
+                if (e.Operation is "=" or "!" && a is [{ Operation: "query", Binding: "scenario" }, { Operation: "constant", Number: { } context }])
+                {
+                    var predicate = Query("scenario.has-message-tag", new MessageExpression("text", ScenarioMessageTags.Opening(checked((int)context))));
+                    return e.Operation == "=" ? predicate : new("=", Arguments: [predicate, Number(0)]);
+                }
                 if (e.Operation is "=" or "!" && a.Length == 2 && a[0] is { Operation: "binding", Binding: { } binding })
                 {
                     var parts = binding.Split('.');
@@ -58,7 +62,6 @@ public sealed class GameplayMessageCompiler(ScenarioInitialState scenario, IRead
                     }
                     if (parts.Length == 3 && parts[0] == "force" && parts[2] == "id" && a[1].Number is long force)
                     {
-                        if (!scenario.Forces.Any(f => f.Id == force)) return Number(e.Operation == "=" ? 0 : 1);
                         return e with { Arguments = [new("binding", $"force.{parts[1]}"), Entity("Force", checked((int)force))] };
                     }
                 }
@@ -100,8 +103,7 @@ public sealed class GameplayMessageCompiler(ScenarioInitialState scenario, IRead
                 }
                 if (e.Operation == "query")
                 {
-                    if (e.Binding == "scenario") return Number(sourceScenarioId);
-                    if (e.Binding == "scenario-mode") return Number(sourceScenarioMode == 1 ? 1 : 0);
+                    if (e.Binding == "scenario-mode") return Query("scenario.has-message-tag", new MessageExpression("text", ScenarioMessageTags.TimelessHeroes));
                     if (e.Binding == "world-flag")
                     {
                         string? history = a is [{ Operation: "constant", Number: 2 }] ? "chained-plot.completed" :

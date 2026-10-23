@@ -13,7 +13,7 @@
 ./tools/map-maker-experiment/start.ps1 -GodotPath '<Godot .NET 可执行文件>' -TexturePackage '<含 textures.json 的目录>'
 ```
 
-脚本先构建，再打开独立工具窗口。也可在 Godot .NET 中打开本目录 `project.godot`，构建 C# 后运行。默认素材包为 `local/generated/content/textures-san9pk-tc101`；缺少时界面提示，可点击「素材包…」重新选择。工具只读取转换包，不读取 EXE、S9 或研究数据，不修改游戏客户端。
+脚本先构建，再打开独立工具窗口。也可在 Godot .NET 中打开本目录 `project.godot`，构建 C# 后运行。默认素材包为 `local/generated/content/shared/textures`；缺少时界面提示，可点击「素材包…」重新选择。工具只读取转换包，不读取 EXE、S9 或研究数据，不修改游戏客户端。
 
 ## 编辑
 

@@ -11,8 +11,8 @@ public static class MapImporter
     {
         T Scenario<T>(Func<Stream, T> read) { using var stream = new MemoryStream(scenario); return read(stream); }
         var header = Scenario(San9ScenarioArchive.ReadHeader);
-        if (header.ScenarioId != 1 || header.StartDate != new San9ScenarioDate(190, 1, 1) || header.MapWidth != 200 || header.MapHeight != 200)
-            throw new InvalidDataException("This MVP importer supports the registered 190-year scenario only.");
+        if (header.MapWidth != 200 || header.MapHeight != 200)
+            throw new InvalidDataException("Unsupported TC101 map dimensions.");
         var rawSquares = Scenario(San9ScenarioSquareArchive.ReadKnownRecords);
         var cities = Scenario(San9ScenarioCityArchive.ReadKnownRecords);
         var zones = Scenario(San9ScenarioZoneArchive.ReadKnownRecords);

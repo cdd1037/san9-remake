@@ -2,18 +2,22 @@ namespace San9.Content.Text;
 
 public sealed record TextCatalog(int SchemaVersion, Dictionary<string, string> Entries)
 {
-    public const int CurrentSchemaVersion = 6;
+    public const int CurrentSchemaVersion = 8;
     public const string ScenarioTitleKey = "scenario.title";
     public Dictionary<string, MessageDefinition> Messages { get; init; } = [];
     public Dictionary<int, MessagePersonProfile> MessagePeople { get; init; } = [];
-    public string Resolve(string key) => Entries.TryGetValue(key, out var entry)
-        ? MessageMarkup.Plain(entry) : throw new InvalidDataException($"Missing text: {key}");
-    public string ResolveRich(string key) => Entries.TryGetValue(key, out var entry)
-        ? entry : throw new InvalidDataException($"Missing text: {key}");
+    [System.Text.Json.Serialization.JsonRequired]
+    public string[] MessageTags { get; init; } = [];
+    public string Resolve(string key) => MessageMarkup.Plain(ResolveRich(key));
+    public string ResolveRich(string key) => Entries.TryGetValue(key, out var entry) ? entry
+        : Messages.TryGetValue(key, out var message) ? MessageMarkup.Static(message.Nodes)
+        : throw new InvalidDataException($"Missing text: {key}");
 
     public void Validate()
     {
         MessageGraph.Validate(Messages);
+        if (MessageTags.Any(string.IsNullOrWhiteSpace) || MessageTags.Distinct(StringComparer.Ordinal).Count() != MessageTags.Length)
+            throw new InvalidDataException("Invalid message tags.");
         if (SchemaVersion != CurrentSchemaVersion || MessagePeople.Any(p => p.Key < 0 || p.Value is null) || Entries.Any(p => string.IsNullOrWhiteSpace(p.Key) ||
             string.IsNullOrWhiteSpace(p.Value)))
             throw new InvalidDataException("Invalid text catalog.");

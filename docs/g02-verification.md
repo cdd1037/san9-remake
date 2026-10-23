@@ -22,11 +22,11 @@
 
 ```powershell
 dotnet run --project src/San9.Headless -- verify --fixture --xuns 36 --output local/generated/verification/roadmap-g02/public
-dotnet run --project src/San9.Headless -- verify --scenario local/generated/content/scenario-190-live/scenario.json --xuns 36 --output local/generated/verification/roadmap-g02/private-190
+dotnet run --project src/San9.Headless -- verify --content-package local/generated/content/scenarios/historical/scenario-1 --player-force 5 --xuns 36 --output local/generated/verification/roadmap-g02/private-190
 dotnet run --project src/San9.Headless -- run --fixture --log local/generated/verification/roadmap-g02/public/commands.jsonl --report local/generated/verification/roadmap-g02/replay/report.json --save local/generated/verification/roadmap-g02/replay/final.save.json
 ```
 
-`run`执行显式JSONL脚本，可增加`--load PATH`玩家读档（换运行种子），或`--restore PATH`精确恢复；二者互斥。再次输入旧前缀按水位跳过。输入可选`--fixture`或`--scenario PATH`，新局种子取日志头；`verify`可设`--seed N`。`--save PATH`保存已接受前缀，不自动产生存档。
+`run`执行显式JSONL脚本，可增加`--load PATH`玩家读档（换运行种子），或`--restore PATH`精确恢复；二者互斥。再次输入旧前缀按水位跳过。输入三选一：`--fixture`、独立领域状态`--scenario PATH`或带共享引用的已发布剧本`--content-package DIR`；`--player-force ID`显式选择玩家势力，目录包不默认选玩家，新局种子取日志头；`verify`可设`--seed N`。`--save PATH`保存已接受前缀，不自动产生存档。
 
 录像的`replay`模式、`--record`和`--recording`已移除，使用会返回退出码2；没有旧录像读取或迁移入口。
 

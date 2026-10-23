@@ -149,21 +149,6 @@ public static class San9ScenarioArchive
             Array.AsReadOnly(cityForceColorCodes));
     }
 
-    public static San9ScenarioHeader ReadInitialScenario190Header(Stream stream)
-    {
-        San9ScenarioHeader header = ReadHeader(stream);
-        if (header.ScenarioId != 1 ||
-            header.EncodedStartDate != 21_600 ||
-            header.MapWidth != 200 ||
-            header.MapHeight != 200)
-        {
-            throw new InvalidDataException(
-                "Scenario does not match the registered 190-01-01 full-map content input.");
-        }
-
-        return header;
-    }
-
     public static San9ScenarioDate DecodeDate(ushort encodedDate)
     {
         const int EpochYear = 130;

@@ -5,16 +5,20 @@ using San9.Content.Text;
 
 namespace San9.Content.Packages;
 
-public sealed record ScenarioContentManifest(int SchemaVersion, ContentSource[] Sources,
+public sealed record ScenarioContentManifest(int SchemaVersion,
     TextureDependency Textures, string Map, string Scenario, string Text, string[] Messages, string Illustrations)
 {
+    [System.Text.Json.Serialization.JsonRequired] public string ResourceRoot { get; init; } = ".";
     [System.Text.Json.Serialization.JsonRequired] public string Presentation { get; init; } = "presentation.json";
+    [System.Text.Json.Serialization.JsonRequired] public string? SharedMessages { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public string[] MessageOverrides { get; init; } = [];
 }
 
 public sealed record StaticTextContent(int SchemaVersion, Dictionary<string, string> Entries)
 {
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<int, MessagePersonProfile> MessagePeople { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired] public string[] MessageTags { get; init; } = [];
 }
 
 /// <summary>Disk contract for a scenario; the assembled model remains independent of file layout.</summary>
@@ -22,7 +26,7 @@ public static class ScenarioContentFiles
 {
     public static JsonSerializerOptions DataJsonOptions { get; } = CreateDataOptions();
 
-    private static JsonSerializerOptions MessageJsonOptions { get; } = new(DataJsonOptions)
+    internal static JsonSerializerOptions MessageJsonOptions { get; } = new(DataJsonOptions)
     { WriteIndented = true, Converters = { new MessageFileJsonConverter() } };
 
     private static JsonSerializerOptions CreateDataOptions()
@@ -51,9 +55,10 @@ public static class ScenarioContentFiles
         var manifest = document.Deserialize<ScenarioContentManifest>(PackageFiles.JsonOptions)
             ?? throw new InvalidDataException("Empty scenario manifest.");
         ContentStructure.Validate(manifest);
+        string resourceRoot = ResolveResourceRoot(root, manifest.ResourceRoot);
         async Task<T> Read<T>(string relative)
         {
-            await using var file = File.OpenRead(PackageFiles.Resolve(root, relative));
+            await using var file = File.OpenRead(PackageFiles.Resolve(resourceRoot, relative));
             var value = await JsonSerializer.DeserializeAsync<T>(file, DataJsonOptions, token)
                 ?? throw new InvalidDataException($"Empty content file: {relative}");
             ContentStructure.Validate(value);
@@ -67,28 +72,46 @@ public static class ScenarioContentFiles
         foreach (var (key, definition) in await Read<Dictionary<string, MessageDefinition>>(path))
             if (!messages.TryAdd(key, definition))
                 throw new InvalidDataException($"Duplicate message key {key} in {path}.");
-        MessageGraph.Validate(messages);
+        var shared = manifest.SharedMessages is { } library
+            ? await MessageLibraryFiles.LoadAsync(PackageFiles.Resolve(resourceRoot, library), token) : [];
+        messages = ComposeMessages(shared, messages, manifest.MessageOverrides);
         var illustrations = await Read<Dictionary<string, string>>(manifest.Illustrations);
-        return new(ScenarioContent.CurrentSchemaVersion, manifest.Sources, manifest.Textures, map, scenario,
-            new(text.SchemaVersion, text.Entries) { Messages = messages, MessagePeople = text.MessagePeople }, illustrations) { Presentation = await Read<San9.Content.Interface.CommandPresentation>(manifest.Presentation) };
+        return new(ScenarioContent.CurrentSchemaVersion, manifest.Textures, map, scenario,
+            new(text.SchemaVersion, text.Entries) { Messages = messages, MessagePeople = text.MessagePeople, MessageTags = text.MessageTags }, illustrations) { Presentation = await Read<San9.Content.Interface.CommandPresentation>(manifest.Presentation), ResourceRoot = resourceRoot };
     }
 
     public static async Task WriteAsync(string root, ScenarioContent content, CancellationToken token = default,
-        IReadOnlyDictionary<string, string>? messageGroups = null)
+        IReadOnlyDictionary<string, string>? messageGroups = null, string? resourceRoot = null,
+        SharedMessageLibrary? sharedMessages = null, IReadOnlyCollection<string>? messageOverrides = null)
     {
         if (content.SchemaVersion != ScenarioContent.CurrentSchemaVersion) throw new InvalidDataException("Unsupported scenario content version.");
         if (messageGroups is not null && messageGroups.Keys.Any(key => !content.Text.Messages.ContainsKey(key)))
             throw new InvalidDataException("Message grouping contains an unknown message key.");
         root = Path.GetFullPath(root);
-        string generation = "data/" + Guid.NewGuid().ToString("N") + "/";
-        var messageFiles = content.Text.Messages.GroupBy(pair =>
+        resourceRoot = Path.GetFullPath(resourceRoot ?? root);
+        string relativeRoot = Path.GetRelativePath(root, resourceRoot).Replace('\\', '/');
+        _ = ResolveResourceRoot(root, relativeRoot);
+        string ownPrefix = resourceRoot == root ? "" : Path.GetRelativePath(resourceRoot, root).Replace('\\', '/') + "/";
+        var overrides = (messageOverrides ?? []).ToHashSet(StringComparer.Ordinal);
+        var privateMessages = content.Text.Messages.Where(p => sharedMessages is null || !sharedMessages.Messages.ContainsKey(p.Key) || overrides.Contains(p.Key))
+            .ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
+        if (sharedMessages is not null)
+        {
+            var composed = ComposeMessages(sharedMessages.Messages, privateMessages, messageOverrides ?? []);
+            if (JsonSerializer.Serialize(composed.OrderBy(p => p.Key, StringComparer.Ordinal), DataJsonOptions)
+                != JsonSerializer.Serialize(content.Text.Messages.OrderBy(p => p.Key, StringComparer.Ordinal), DataJsonOptions))
+                throw new InvalidDataException("Scenario differs from its shared message library; declare message overrides explicitly.");
+        }
+        else if (overrides.Count != 0) throw new InvalidDataException("Message overrides require a shared library.");
+        var messageFiles = privateMessages.GroupBy(pair =>
             ValidateCategory(messageGroups?.GetValueOrDefault(pair.Key) ?? Category(pair.Key)), StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
-            .ToDictionary(group => $"{generation}messages/{group.Key}.json", group => group.ToDictionary(pair => pair.Key, pair => pair.Value));
+            .ToDictionary(group => $"{ownPrefix}messages/{group.Key}.json", group => group.ToDictionary(pair => pair.Key, pair => pair.Value));
         Directory.CreateDirectory(root);
-        var manifest = new ScenarioContentManifest(ScenarioContent.CurrentSchemaVersion, content.Sources, content.Textures,
-            generation + "map.json", generation + "scenario.json", generation + "text.json", messageFiles.Keys.ToArray(), generation + "illustrations.json")
-            { Presentation = generation + "presentation.json" };
+        var manifest = new ScenarioContentManifest(ScenarioContent.CurrentSchemaVersion, content.Textures,
+            ownPrefix + "map.json", ownPrefix + "scenario.json", ownPrefix + "messages/text.json", messageFiles.Keys.ToArray(), ownPrefix + "illustrations.json")
+            { Presentation = ownPrefix + "presentation.json", ResourceRoot = relativeRoot,
+                SharedMessages = sharedMessages?.Path, MessageOverrides = overrides.Order(StringComparer.Ordinal).ToArray() };
         string manifestPath = Path.Combine(root, "content.json");
         string[] previousFiles = [];
         if (File.Exists(manifestPath))
@@ -107,45 +130,114 @@ public static class ScenarioContentFiles
                     else if (field == "messages" && value.ValueKind == JsonValueKind.Array)
                         paths.AddRange(value.EnumerateArray().Select(item => item.GetString()!));
                 }
-                previousFiles = paths.Select(path => PackageFiles.Resolve(root, path)).ToArray();
+                string oldRoot = previous.RootElement.TryGetProperty("resourceRoot", out var oldResourceRoot)
+                    ? ResolveResourceRoot(root, oldResourceRoot.GetString()!) : root;
+                previousFiles = paths.Select(path => PackageFiles.Resolve(oldRoot, path))
+                    .Where(path => IsInside(root, path)).ToArray();
             }
         }
         List<(string Pending, string Target)> files = [];
         async Task Stage<T>(string name, T value, JsonSerializerOptions options)
         {
-            string target = PackageFiles.Resolve(root, name);
+            string target = name == "content.json" ? manifestPath : PackageFiles.Resolve(resourceRoot, name);
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            string pending = target + "." + Guid.NewGuid().ToString("N") + ".pending";
+            string pending = target + ".pending";
             files.Add((pending, target));
             await using var file = File.Create(pending);
             await JsonSerializer.SerializeAsync(file, value, options, token);
         }
-        bool published = false;
         try
         {
             await Stage(manifest.Map, content.Map, DataJsonOptions);
             await Stage(manifest.Scenario, content.Scenario, DataJsonOptions);
-            await Stage(manifest.Text, new StaticTextContent(content.Text.SchemaVersion, content.Text.Entries) { MessagePeople = content.Text.MessagePeople }, DataJsonOptions);
+            await Stage(manifest.Text, new StaticTextContent(content.Text.SchemaVersion, content.Text.Entries)
+                { MessagePeople = content.Text.MessagePeople, MessageTags = content.Text.MessageTags }, DataJsonOptions);
             foreach (var (path, messages) in messageFiles) await Stage(path, messages, MessageJsonOptions);
             await Stage(manifest.Illustrations, content.IllustrationRoles, DataJsonOptions);
             await Stage(manifest.Presentation, content.Presentation, DataJsonOptions);
             await Stage("content.json", manifest, PackageFiles.JsonOptions);
             token.ThrowIfCancellationRequested();
-            foreach (var (pending, target) in files) File.Move(pending, target, true);
-            published = true;
+            Publish(files);
             var currentFiles = files.Select(file => file.Target).ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach (string obsolete in previousFiles.Distinct(StringComparer.OrdinalIgnoreCase))
-                if (!currentFiles.Contains(obsolete)) File.Delete(obsolete);
+            {
+                if (currentFiles.Contains(obsolete)) continue;
+                File.Delete(obsolete);
+                string? directory = Path.GetDirectoryName(obsolete);
+                while (directory is not null && IsInside(root, directory) && !directory.Equals(root, StringComparison.OrdinalIgnoreCase)
+                    && Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                {
+                    Directory.Delete(directory);
+                    directory = Path.GetDirectoryName(directory);
+                }
+            }
         }
         finally
         {
             foreach (var (pending, target) in files)
             {
                 File.Delete(pending);
-                if (!published && target != manifestPath) File.Delete(target);
             }
         }
     }
+
+    internal static void Publish(List<(string Pending, string Target)> files)
+    {
+        List<(string Target, string? Backup)> replaced = [];
+        List<string> backups = [];
+        bool complete = false;
+        try
+        {
+            foreach (var (pending, target) in files)
+            {
+                string? backup = File.Exists(target) ? target + ".previous" : null;
+                if (backup is not null)
+                {
+                    File.Copy(target, backup, true);
+                    backups.Add(backup);
+                }
+                File.Move(pending, target, true);
+                replaced.Add((target, backup));
+            }
+            complete = true;
+        }
+        catch
+        {
+            foreach (var (target, backup) in replaced.AsEnumerable().Reverse())
+                if (backup is null) File.Delete(target);
+                else File.Move(backup, target, true);
+            complete = true;
+            throw;
+        }
+        finally
+        {
+            if (complete) foreach (string backup in backups) File.Delete(backup);
+        }
+    }
+
+    public static async Task<ScenarioInitialState> LoadScenarioAsync(string root, CancellationToken token = default)
+    {
+        var manifest = await PackageFiles.ReadAsync<ScenarioContentManifest>(Path.Combine(root, "content.json"), token);
+        if (manifest.SchemaVersion != ScenarioContent.CurrentSchemaVersion)
+            throw new InvalidDataException("Unsupported scenario content version; reconvert the package.");
+        string resourceRoot = ResolveResourceRoot(root, manifest.ResourceRoot);
+        await using var stream = File.OpenRead(PackageFiles.Resolve(resourceRoot, manifest.Scenario));
+        var scenario = await JsonSerializer.DeserializeAsync<ScenarioInitialState>(stream, DataJsonOptions, token)
+            ?? throw new InvalidDataException("Empty scenario state.");
+        ContentStructure.Validate(scenario);
+        return scenario;
+    }
+
+    public static string ResolveResourceRoot(string scenarioRoot, string relative)
+    {
+        if (string.IsNullOrWhiteSpace(relative) || Path.IsPathRooted(relative)) throw new InvalidDataException("Invalid resource root.");
+        string root = Path.GetFullPath(Path.Combine(scenarioRoot, relative));
+        if (!IsInside(root, Path.GetFullPath(scenarioRoot))) throw new InvalidDataException("Resource root must contain its scenario package.");
+        return root;
+    }
+
+    private static bool IsInside(string root, string path) => path.Equals(root, StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith(Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
 
     private static string Category(string key)
     {
@@ -153,10 +245,30 @@ public static class ScenarioContentFiles
         return ValidateCategory(category);
     }
 
-    private static string ValidateCategory(string category)
+    internal static string ValidateCategory(string category)
     {
+        if (category is "text" or "library") throw new InvalidDataException($"Message category '{category}' is reserved.");
         if (!System.Text.RegularExpressions.Regex.IsMatch(category, "^[a-z][a-z0-9-]*$"))
             throw new InvalidDataException($"Invalid message category: {category}.");
         return category;
+    }
+
+    private static Dictionary<string, MessageDefinition> ComposeMessages(IReadOnlyDictionary<string, MessageDefinition> shared,
+        IReadOnlyDictionary<string, MessageDefinition> local, IReadOnlyCollection<string> overrides)
+    {
+        var declared = overrides.ToHashSet(StringComparer.Ordinal);
+        if (declared.Count != overrides.Count || declared.Any(k => !shared.ContainsKey(k) || !local.ContainsKey(k)))
+            throw new InvalidDataException("Invalid message override declaration.");
+        Dictionary<string, MessageDefinition> result = new(shared, StringComparer.Ordinal);
+        foreach (var (key, message) in local)
+        {
+            if (result.ContainsKey(key) && !declared.Contains(key))
+                throw new InvalidDataException($"Private message collides with shared key without an explicit override: {key}.");
+            result[key] = message;
+        }
+        MessageGraph.Validate(result);
+        foreach (string key in result.Keys)
+            if (!MessageGraph.ReferencesValid(key, result)) throw new InvalidDataException($"Invalid or cyclic message reference: {key}.");
+        return result;
     }
 }

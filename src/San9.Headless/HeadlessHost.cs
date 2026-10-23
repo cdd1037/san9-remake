@@ -441,8 +441,14 @@ public sealed class HeadlessHost
         try
         {
             var definition = options.ContainsKey("fixture") ? ScenarioFixture.Create() :
+                options.TryGetValue("content-package", out var package) ? ScenarioContentFiles.LoadScenarioAsync(package).GetAwaiter().GetResult() :
                 JsonSerializer.Deserialize<ScenarioInitialState>(File.ReadAllText(Required(options, "scenario"), Encoding.UTF8), ScenarioContentFiles.DataJsonOptions)
                     ?? throw new JsonException("Null scenario.");
+            if (options.TryGetValue("player-force", out var force))
+            {
+                if (!int.TryParse(force, CultureInfo.InvariantCulture, out int id)) throw new ArgumentException("Invalid player force.");
+                definition = definition with { PlayerForceId = id };
+            }
             definition.Validate();
             return definition;
         }
@@ -453,9 +459,9 @@ public sealed class HeadlessHost
     private static Dictionary<string, string> Parse(string[] args)
     {
         if (args.Length == 0 || args[0] is not ("run" or "verify"))
-            throw new UsageException("Use verify --fixture|--scenario PATH --output DIR [--xuns N] [--seed N] [--strategy simple|autonomous], or run --fixture|--scenario PATH --log PATH --report PATH [--load PATH|--restore PATH] [--save PATH].");
+            throw new UsageException("Use verify --fixture|--scenario PATH|--content-package DIR --output DIR [--xuns N] [--seed N] [--strategy simple|autonomous], or run --fixture|--scenario PATH|--content-package DIR --log PATH --report PATH [--load PATH|--restore PATH] [--save PATH].");
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
-        string[] allowed = args[0] == "verify" ? ["fixture", "scenario", "output", "xuns", "seed", "strategy"] : ["fixture", "scenario", "log", "report", "load", "restore", "save"];
+        string[] allowed = args[0] == "verify" ? ["fixture", "scenario", "content-package", "player-force", "output", "xuns", "seed", "strategy"] : ["fixture", "scenario", "content-package", "player-force", "log", "report", "load", "restore", "save"];
         for (int i = 1; i < args.Length; i++)
         {
             if (!args[i].StartsWith("--", StringComparison.Ordinal)) throw new UsageException("Expected named option.");
@@ -468,7 +474,7 @@ public sealed class HeadlessHost
                 values.Add(key, args[i]);
             }
         }
-        if (values.ContainsKey("fixture") == values.ContainsKey("scenario")) throw new UsageException("Select exactly one scenario source.");
+        if (new[] { "fixture", "scenario", "content-package" }.Count(values.ContainsKey) != 1) throw new UsageException("Select exactly one scenario source.");
         if (values.ContainsKey("load") && values.ContainsKey("restore")) throw new UsageException("Select player load or exact restoration, not both.");
         ValidatePaths(args[0], values);
         return values;

@@ -122,11 +122,11 @@ public static class ClientContentFiles
     public static ClientContentPackage Resolve(ScenarioContent instance, TexturePackage textures, string textureRoot)
     {
         if (instance.SchemaVersion != ScenarioContent.CurrentSchemaVersion) throw new InvalidDataException("Unsupported scenario content version.");
-        if (textures.SourceBuild != instance.Map.SourceBuild) throw new InvalidDataException("Texture source build differs.");
+        if (textures.SourceBuild != instance.Map.Definition.SourceBuild) throw new InvalidDataException("Texture source build differs.");
         var roles = new Dictionary<string,string>(textures.Skin.Roles);
         foreach (var role in instance.IllustrationRoles) roles.Add(role.Key, role.Value);
         var skin = textures.Skin with { Roles = roles, Assets = textures.Skin.Assets.Concat(textures.Library.Assets).Concat(textures.Portraits.Select(p => p.Image)).ToArray() };
-        var content = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, instance.Map.Resolve(textures.Map), instance.Scenario,
+        var content = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, instance.Map.Resolve(textures.Map, instance.Scenario), instance.Scenario,
             instance.Text, skin, textures.Library)
         { TextureRoot = textureRoot, Portraits = textures.Portraits, Presentation = instance.Presentation };
         content.ValidateLinks();

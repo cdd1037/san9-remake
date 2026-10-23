@@ -32,7 +32,7 @@ public sealed class HeadlessHostTests : IDisposable
         { Information = new([], [], [], [new(73, 73, null, new(1000, 1000)) { IsRoot = true }], []) };
         string package = FilePath("scenarios/custom");
         var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion, new("unused"),
-            new("fixture", "custom-package", "spring", 1, 1, 1, 1, [], [], [], [], [], [], [], [], [], [], []),
+            new(new(MapDefinition.CurrentSchemaVersion, "fixture", 1, 1, 1, 1, [], [], [], [], [], [], [], [], []), []),
             definition, new(San9.Content.Text.TextCatalog.CurrentSchemaVersion, []), []);
         await ScenarioContentFiles.WriteAsync(package, content, resourceRoot: _directory);
         var session = GameSession.Start(definition with { PlayerForceId = 73 }, 42);

@@ -64,7 +64,11 @@ public static class ScenarioContentFiles
             ContentStructure.Validate(value);
             return value;
         }
-        var map = await Read<MapInstance>(manifest.Map);
+        var mapManifest = await Read<ScenarioMapManifest>(manifest.Map);
+        var mapDefinition = await Read<MapDefinition>(mapManifest.Definition);
+        if (mapDefinition.SchemaVersion != MapDefinition.CurrentSchemaVersion)
+            throw new InvalidDataException("Unsupported map definition version; reconvert the package.");
+        var map = new MapInstance(mapDefinition, mapManifest.Buildings);
         var scenario = await Read<ScenarioInitialState>(manifest.Scenario);
         var text = await Read<StaticTextContent>(manifest.Text);
         Dictionary<string, MessageDefinition> messages = new(StringComparer.Ordinal);
@@ -82,9 +86,11 @@ public static class ScenarioContentFiles
 
     public static async Task WriteAsync(string root, ScenarioContent content, CancellationToken token = default,
         IReadOnlyDictionary<string, string>? messageGroups = null, string? resourceRoot = null,
-        SharedMessageLibrary? sharedMessages = null, IReadOnlyCollection<string>? messageOverrides = null)
+        SharedMessageLibrary? sharedMessages = null, IReadOnlyCollection<string>? messageOverrides = null,
+        SharedMapDefinition? sharedMap = null)
     {
         if (content.SchemaVersion != ScenarioContent.CurrentSchemaVersion) throw new InvalidDataException("Unsupported scenario content version.");
+        if (content.Map.Definition.SchemaVersion != MapDefinition.CurrentSchemaVersion) throw new InvalidDataException("Unsupported map definition version.");
         if (messageGroups is not null && messageGroups.Keys.Any(key => !content.Text.Messages.ContainsKey(key)))
             throw new InvalidDataException("Message grouping contains an unknown message key.");
         root = Path.GetFullPath(root);
@@ -92,6 +98,10 @@ public static class ScenarioContentFiles
         string relativeRoot = Path.GetRelativePath(root, resourceRoot).Replace('\\', '/');
         _ = ResolveResourceRoot(root, relativeRoot);
         string ownPrefix = resourceRoot == root ? "" : Path.GetRelativePath(resourceRoot, root).Replace('\\', '/') + "/";
+        if (sharedMap is not null && JsonSerializer.Serialize(sharedMap.Definition, DataJsonOptions)
+            != JsonSerializer.Serialize(content.Map.Definition, DataJsonOptions))
+            throw new InvalidDataException("Scenario geography differs from its explicitly referenced shared map.");
+        string mapDefinitionPath = sharedMap?.Path ?? ownPrefix + "map-definition.json";
         var overrides = (messageOverrides ?? []).ToHashSet(StringComparer.Ordinal);
         var privateMessages = content.Text.Messages.Where(p => sharedMessages is null || !sharedMessages.Messages.ContainsKey(p.Key) || overrides.Contains(p.Key))
             .ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
@@ -132,6 +142,17 @@ public static class ScenarioContentFiles
                 }
                 string oldRoot = previous.RootElement.TryGetProperty("resourceRoot", out var oldResourceRoot)
                     ? ResolveResourceRoot(root, oldResourceRoot.GetString()!) : root;
+                if (previous.RootElement.TryGetProperty("map", out var oldMap))
+                {
+                    string oldMapPath = PackageFiles.Resolve(oldRoot, oldMap.GetString()!);
+                    if (File.Exists(oldMapPath))
+                    {
+                        await using var oldMapStream = File.OpenRead(oldMapPath);
+                        using var oldMapDocument = await JsonDocument.ParseAsync(oldMapStream, cancellationToken: token);
+                        if (oldMapDocument.RootElement.TryGetProperty("definition", out var definition))
+                            paths.Add(definition.GetString()!);
+                    }
+                }
                 previousFiles = paths.Select(path => PackageFiles.Resolve(oldRoot, path))
                     .Where(path => IsInside(root, path)).ToArray();
             }
@@ -148,7 +169,8 @@ public static class ScenarioContentFiles
         }
         try
         {
-            await Stage(manifest.Map, content.Map, DataJsonOptions);
+            if (sharedMap is null) await Stage(mapDefinitionPath, content.Map.Definition, DataJsonOptions);
+            await Stage(manifest.Map, new ScenarioMapManifest(mapDefinitionPath, content.Map.Buildings), DataJsonOptions);
             await Stage(manifest.Scenario, content.Scenario, DataJsonOptions);
             await Stage(manifest.Text, new StaticTextContent(content.Text.SchemaVersion, content.Text.Entries)
                 { MessagePeople = content.Text.MessagePeople, MessageTags = content.Text.MessageTags }, DataJsonOptions);

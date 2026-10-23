@@ -27,14 +27,17 @@ public static class ContentCatalogImporter
         var selection = ScenarioSelectionPresentationCompiler.Compile(exe, textures.Library, text, headers);
         List<ScenarioCatalogEntry> entries = [];
         SharedMessageLibrary? sharedMessages = null;
+        SharedMapDefinition? sharedMap = null;
         foreach (var preview in selection.Entries)
         {
             var header = headers.Single(h => $"scenario-{h.ScenarioId}" == preview.Id);
             string path = $"scenarios/{preview.CategoryId}/{preview.Id}";
             var package = await ClientContentImporter.ImportAsync(gameDirectory, $"D_Sce{header.ScenarioId + 1:D3}.S9", textureRoot,
                 PackageFiles.Resolve(output, path), progress, token: token, resourceRoot: output,
-                sharedMessages: sharedMessages, publishSharedMessages: sharedMessages is null);
+                sharedMessages: sharedMessages, publishSharedMessages: sharedMessages is null,
+                sharedMap: sharedMap, publishSharedMap: sharedMap is null);
             sharedMessages ??= new("shared/messages/library.json", package.Text.Messages);
+            sharedMap ??= new("shared/maps/china/map.json", MapDefinition.From(package.Map));
             entries.Add(new(preview, path, header.ScenarioId.ToString(System.Globalization.CultureInfo.InvariantCulture)));
             progress?.Invoke($"Published {preview.Id}: {preview.Year}/{preview.Month} ({preview.CategoryId}).");
         }

@@ -3,6 +3,7 @@ using San9.Content.Images;
 using San9.Content.Interface;
 using San9.Content.Maps;
 using San9.Content.Packages;
+using San9.Content.Scenarios;
 
 namespace San9.Content.Tests;
 
@@ -30,19 +31,25 @@ public sealed class TextureDependencyTests
     {
         var image = new ImageAsset("building-5663-key", "images/buildings/one.png", 1, 1);
         var resources = new MapResources([], [image], [], [], [], new int[288], new int[16], [], new byte[32]);
-        var first = new MapInstance("source", "first", "spring", 200, 200, 13056, 6656,
-            [], [], [new(image.Id, 10, 20)], [], [], [], [], [], [], [], []);
-        var second = first with { ScenarioId = "second", Bridges = [new(image.Id, 30, 40)] };
-        var map1 = first.Resolve(resources);
-        var map2 = second.Resolve(resources);
+        var first = new MapInstance(new(MapDefinition.CurrentSchemaVersion, "source", 200, 200, 13056, 6656,
+            [], [], [new(image.Id, 10, 20)], [], [], [], [], [], []), []);
+        var second = first with { Definition = first.Definition with { Bridges = [new(image.Id, 30, 40)] } };
+        var scenario = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "first", 184, 2, 1, null, [], [], [], []);
+        var map1 = first.Resolve(resources, scenario);
+        var map2 = second.Resolve(resources, scenario with { ScenarioId = "second", Month = 7 });
         Assert.Same(map1.Assets, map2.Assets);
+        Assert.Equal("first", map1.ScenarioId);
+        Assert.Equal("second", map2.ScenarioId);
+        Assert.Equal("spring", map1.InitialSeason);
+        Assert.Equal("autumn", map2.InitialSeason);
+        Assert.Empty(map1.Sources);
         Assert.Equal(10, map1.Bridges[0].X);
         Assert.Equal(30, map2.Bridges[0].X);
         string json = JsonSerializer.Serialize(MapInstance.From(map1), PackageFiles.JsonOptions);
         Assert.DoesNotContain(".png", json);
         Assert.DoesNotContain("\"assets\"", json);
         Assert.DoesNotContain("\"seasons\"", json);
-        var restored = JsonSerializer.Deserialize<MapInstance>(json, PackageFiles.JsonOptions)!.Resolve(resources);
+        var restored = JsonSerializer.Deserialize<MapInstance>(json, PackageFiles.JsonOptions)!.Resolve(resources, scenario);
         Assert.Same(image, restored.Assets[0]);
         Assert.Equal(map1.Bridges, restored.Bridges);
     }
@@ -57,8 +64,8 @@ public sealed class TextureDependencyTests
         {
             // References contain only a directory; malformed dependency content still fails loading.
             await File.WriteAllTextAsync(Path.Combine(root, "textures", "textures.json"), "changed");
-            var map = new MapInstance("source", "first", "spring", 200, 200, 13056, 6656,
-                [], [], [], [], [], [], [], [], [], [], []);
+            var map = new MapInstance(new(MapDefinition.CurrentSchemaVersion, "source", 200, 200, 13056, 6656,
+                [], [], [], [], [], [], [], [], []), []);
             var scenario = new San9.Content.Scenarios.ScenarioInitialState(11, "first", 190, 1, 1, 0, [], [], [], []);
             var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion, new("../textures"), map, scenario,
                 new(3, []), []);

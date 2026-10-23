@@ -21,7 +21,7 @@ content/
 
 剧本清单不保存`sources`来源列表；公共音频来源不在每个剧本中重复记录。
 
-每个剧本的`content.json`独立引用同目录的`map.json`、`scenario.json`、`messages/text.json`、`messages/*.json`、`illustrations.json`和`presentation.json`，文件使用含义明确的名称。必填`resourceRoot`声明共同资源根，数据和音频路径相对该根并受包内路径校验；纹理依赖路径相对剧本包目录。公共贴图、音频、消息库与开局界面保存在`shared/`，文件归属不根据内容哈希或引用次数自动调整。
+每个剧本的`content.json`独立引用同目录的`map.json`、`scenario.json`、`messages/text.json`、`messages/*.json`、`illustrations.json`和`presentation.json`，文件使用含义明确的名称。必填`resourceRoot`声明共同资源根，数据和音频路径相对该根并受包内路径校验；纹理依赖路径相对剧本包目录。公共地图、贴图、音频、消息库与开局界面保存在`shared/`，文件归属不根据内容哈希或引用次数自动调整。
 
 `import-content`转换全部20个正式剧本，写入各自数据，再发布剧本入口、共享开局与目录；不自动去重或搬迁文件。`import-client`可显式转换一个独立包，不承担目录发布。数据直接写入剧本目录，使用`map.json`等明确文件名，暂存完成后逐个替换，失败时恢复已替换文件；不允许并发导入同一目录或运行中的客户端热加载。
 
@@ -79,7 +79,7 @@ P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字
 
 2026-09-27命令来源光圈：皮肤33／纹理转换26增加五帧`minimap-command-pulse`语义资源（首帧无后缀，其余为`-1..-4`），逐色透明度保留。客户端以当前命令菜单对象定位，兼用于城市、其他设施和部队；出征后续页面保留来源，整项结束清除。依据[RE-0158](../research/findings/RE-SAN9PK-0158.md#小地图命令来源光圈补证2026-09-27)。本地纹理及190年组合包已原位重转，五帧均32×36、首帧全透明，29064逻辑图片／5262物理文件完整校验通过。解决方案各测试项目合计3867项通过；未启动游戏，菜单开关、对象切换及后续命令页面往返的实际画面待用户验收。
 
-现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 143，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 222，文本 [TextCatalog](../src/San9.Content/Text/TextCatalog.cs) 为 8，地图 [MapPackage](../src/San9.Content/Maps/MapPackage.cs) 为 17，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 60，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 54。会话规则、存档及命令日志版本以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准；录像已延期并撤下。
+现行契约以代码校验为准：剧本 [ScenarioInitialState](../src/San9.Content/Scenarios/ScenarioInitialState.cs) 为 143，组合包 [ScenarioContent](../src/San9.Content/Packages/ScenarioContent.cs) 为 223，文本 [TextCatalog](../src/San9.Content/Text/TextCatalog.cs) 为 8，地图 [MapPackage](../src/San9.Content/Maps/MapPackage.cs) 为 17，界面皮肤 [InterfaceSkin](../src/San9.Content/Interface/InterfaceSkin.cs) 为 60，纹理转换 [TexturePackageImporter](../src/San9.Importer.San9PkTc101/Packages/TexturePackageImporter.cs) 为 54。会话规则、存档及命令日志版本以 [SessionProtocol](../src/San9.Application/SessionProtocol.cs) 为准；录像已延期并撤下。
 
 组合包178新增特殊国号／最高爵位来源身体、逐帧交锋／反应位移、末段移动与残影、局部粒子及其分组散布／透明度样式、船只尾波和受击水花、目标体型对应的损失音效。客户端只消费内容声明，不读取原作编号或研究库。190年运行包已原位重转并完整校验，复用未变共享纹理；旧组合包须运行`import-client`，无需重转纹理。自动化与真实包核对通过，画面和试听由用户验收。
 
@@ -103,15 +103,17 @@ P1 计略外交采用组合包 schema166，必需的 `presentation.missions` 字
 
 | 模块 | 职责 | 输出 |
 | --- | --- | --- |
-| Content.Maps / MapImporter | 当前地图方格、地貌及对象位置 | `map.json`（无图片文件） |
+| Content.Maps / MapImporter | 固定地图定义及剧本私有建筑布置 | `shared/maps/china/map.json` / 剧本`map.json`（无图片文件） |
 | Content.Scenarios / ScenarioContentCompiler | 剧本初始状态及军事规则拓扑 | `scenario.json`，schema129 |
-| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与保留原序号、按明确用途分文件的全量消息目录 | `messages/text.json` / `messages/*.json`，文本schema8、剧本包schema222 |
+| Content.Text / ScenarioTextReader / PublicationMessageCatalog | 静态词条与保留原序号、按明确用途分文件的全量消息目录 | `messages/text.json` / `messages/*.json`，文本schema8、剧本包schema223 |
 | Content.Interface / InterfaceSkinCompiler | 固定界面角色、颜色、装饰资源 | `textures.json.skin`，schema43 |
 | Content.Packages / ClientContentImporter | 剧本、文本、资源 ID 和依赖校验 | `content.json`，schema163 |
 | Content.Packages / TexturePackageImporter | 与剧本无关的完整纹理、图集及地图资源定义 | 独立 `textures.json`，schema5／转换版本37 |
 | Importer.Containers.Ls11Archive | LS11容器解码，不承担名称或地图语义 | 不直接输出文件 |
 
-表中的数据文件名表示逻辑分工，实际路径以`content.json`为准。目录型发布把每个剧本的初始世界和地图实例直接写入该剧本目录，静态词条`text.json`及可选私有消息放入其`messages/`，公共消息按显式归属统一发布到`shared/messages/`，公共贴图、音频和开局界面写入`shared/`；独立包可将资源根设为自身。现行入口为组合包222、剧本143；旧布局须重转，不提供运行时兼容分支。
+表中的数据文件名表示逻辑分工，实际路径以`content.json`为准。目录型发布把每个剧本的初始世界和地图实例直接写入该剧本目录，静态词条`text.json`及可选私有消息放入其`messages/`，公共消息按显式归属统一发布到`shared/messages/`，公共贴图、音频和开局界面写入`shared/`；独立包可将资源根设为自身。现行入口为组合包223、剧本143；旧布局须重转，不提供运行时兼容分支。
+
+剧本`map.json`只保存`definition`地图定义路径和`buildings`建筑布置，路径相对显式`resourceRoot`。目录型TC101包共用`shared/maps/china/map.json`，保存独立schema1、地图尺寸、方格、地形绘制、桥、云、地图边缘、水面、边界和建筑类型定义；每个剧本独立持有建筑身份、位置及固定类型。共享由转换器显式指定，写入时核对固定数据完全一致，差异不得静默复用。独立包可在自身目录携带`map-definition.json`，自定义内容也可引用自己的地图定义。运行时地图身份来自剧本定义，初始季节由开局月份计算，地图JSON不再保存重复的`scenarioId`、`initialSeason`或源文件`sources`。组合包schema223拒绝旧布局；原位重转保留公共纹理、消息及音频的既有归属，不要求纹理重建。
 
 `content.json.sharedMessages`必填可空，非空时引用公共消息库清单（目录型TC101包为`shared/messages/library.json`）；`messages`只列出本剧本私有消息文件。公共库清单声明自身schema和相对该清单目录的分组文件；剧本清单中的路径仍相对`resourceRoot`。加载时先读取公共消息，再合并私有消息，私有同名键必须列入`messageOverrides`，不声明的重名、无对应公共／私有正文的覆盖声明、缺失引用和循环引用均拒绝。引用闭包在合并后校验，公共消息可引用被本剧本覆盖的键；同一剧本的私有消息不影响其他剧本。独立包可令`sharedMessages`为null并独立携带完整消息。
 

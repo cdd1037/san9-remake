@@ -17,8 +17,8 @@ public sealed class ScenarioContentFilesTests : IDisposable
     }
 
     private static ScenarioContent Fixture() => new(ScenarioContent.CurrentSchemaVersion, new("../textures"),
-        new("source", "first", "spring", 200, 200, 13056, 6656,
-            [], [], [], [], [], [], [], [], [], [], []),
+        new(new(MapDefinition.CurrentSchemaVersion, "source", 200, 200, 13056, 6656,
+            [], [], [], [], [], [], [], [], []), []),
         new(ScenarioInitialState.CurrentSchemaVersion, "first", 190, 1, 1, 0, [], [], [], []),
         new(TextCatalog.CurrentSchemaVersion, new() { ["name"] = "简体" })
         {
@@ -122,17 +122,49 @@ public sealed class ScenarioContentFilesTests : IDisposable
     }
 
     [Fact]
+    public async Task SharedGeographyKeepsPrivateBuildingsAndRetiresTheStandaloneDefinition()
+    {
+        var content = Fixture();
+        var shared = await MapDefinitionFiles.WriteAsync(_root, "shared/maps/custom/map.json", content.Map.Definition);
+        string first = Path.Combine(_root, "first"), second = Path.Combine(_root, "second");
+        await ScenarioContentFiles.WriteAsync(first, content, resourceRoot: _root, sharedMap: shared);
+        var secondContent = content with
+        {
+            Map = content.Map with { Buildings = [new(9001, 7, 8, 2)] },
+            Scenario = content.Scenario with { ScenarioId = "second", Month = 7 }
+        };
+        await ScenarioContentFiles.WriteAsync(second, secondContent, resourceRoot: _root);
+        Assert.True(File.Exists(Path.Combine(second, "map-definition.json")));
+        await ScenarioContentFiles.WriteAsync(second, secondContent, resourceRoot: _root, sharedMap: shared);
+        Assert.False(File.Exists(Path.Combine(second, "map-definition.json")));
+        var a = await ScenarioContentFiles.LoadAsync(first);
+        var b = await ScenarioContentFiles.LoadAsync(second);
+        Assert.Empty(a.Map.Buildings);
+        Assert.Equal([new San9.Content.Maps.MapBuildingPlacement(9001, 7, 8, 2)], b.Map.Buildings);
+        Assert.Equal(JsonSerializer.Serialize(a.Map.Definition), JsonSerializer.Serialize(b.Map.Definition));
+        var manifest = await PackageFiles.ReadAsync<ScenarioMapManifest>(Path.Combine(second, "map.json"));
+        Assert.Equal("shared/maps/custom/map.json", manifest.Definition);
+        using var document = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(second, "map.json")));
+        Assert.Equal(new[] { "buildings", "definition" }, document.RootElement.EnumerateObject().Select(p => p.Name).Order());
+        var different = content with { Map = content.Map with { Definition = content.Map.Definition with { SourceBuild = "another-map" } } };
+        await Assert.ThrowsAsync<InvalidDataException>(() => ScenarioContentFiles.WriteAsync(first, different,
+            resourceRoot: _root, sharedMap: shared));
+        File.Delete(Path.Combine(_root, shared.Path));
+        await Assert.ThrowsAsync<FileNotFoundException>(() => ScenarioContentFiles.LoadAsync(first));
+    }
+
+    [Fact]
     public async Task SplitFilesPreserveFullModelAndRequiredNulls()
     {
         var content = Fixture();
-        content = content with { Map = content.Map with { LeftEdge = [null], RightEdge = [null] } };
+        content = content with { Map = content.Map with { Definition = content.Map.Definition with { LeftEdge = [null], RightEdge = [null] } } };
         await ScenarioContentFiles.WriteAsync(_root, content);
         using var manifestDocument = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(_root, "content.json")));
         Assert.False(manifestDocument.RootElement.TryGetProperty("sources", out _));
         var restored = await ScenarioContentFiles.LoadAsync(_root);
         Assert.Equal(JsonSerializer.Serialize(content, PackageFiles.JsonOptions),
             JsonSerializer.Serialize(restored, PackageFiles.JsonOptions));
-        Assert.Equal(7, Directory.GetFiles(_root, "*", SearchOption.AllDirectories).Length);
+        Assert.Equal(8, Directory.GetFiles(_root, "*", SearchOption.AllDirectories).Length);
         string messages = await File.ReadAllTextAsync(PublishedPath("messages/general.json"));
         Assert.DoesNotContain("\"format\"", messages);
         Assert.DoesNotContain("\"binding\"", messages);

@@ -10,7 +10,8 @@ public static class ClientContentImporter
 {
     public static async Task<ClientContentPackage> ImportAsync(string gameDirectory, string scenarioFile,
         string textureRoot, string output, Action<string>? progress = null, bool messageReports = false, CancellationToken token = default, string? resourceRoot = null,
-        SharedMessageLibrary? sharedMessages = null, bool publishSharedMessages = false)
+        SharedMessageLibrary? sharedMessages = null, bool publishSharedMessages = false,
+        SharedMapDefinition? sharedMap = null, bool publishSharedMap = false)
     {
         var sourceDirectory = new San9SourceDirectory(gameDirectory);
         string sourceExe = sourceDirectory.Executable, dataDirectory = sourceDirectory.Root;
@@ -102,7 +103,10 @@ public static class ClientContentImporter
             sharedMessages = await MessageLibraryFiles.WriteAsync(resourceRoot, "shared/messages/library.json", messages,
                 PublicationMessageCatalog.Groups, token);
         }
-        await ScenarioContentFiles.WriteAsync(output, content, token, PublicationMessageCatalog.Groups, resourceRoot, sharedMessages);
+        if (publishSharedMap)
+            sharedMap = await MapDefinitionFiles.WriteAsync(resourceRoot, "shared/maps/china/map.json", content.Map.Definition, token);
+        await ScenarioContentFiles.WriteAsync(output, content, token, PublicationMessageCatalog.Groups, resourceRoot, sharedMessages,
+            sharedMap: sharedMap);
         var currentAudio = sounds.Keys.Select(path => PackageFiles.Resolve(resourceRoot, path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (string path in shared ? [] : new[] { "music", "sound-effects" }.SelectMany(directory =>
             Directory.EnumerateFiles(Path.Combine(output, directory), "*", SearchOption.AllDirectories)))

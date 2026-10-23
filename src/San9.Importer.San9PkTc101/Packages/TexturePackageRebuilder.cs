@@ -98,9 +98,10 @@ internal static class TexturePackageRebuilder
                 break;
         }
         // Sources certifies the entire package. A local rebuild cannot certify retained units.
-        // Other definitions may still reference the old atlas. Never overwrite it during a local correction.
-        package = TexturePackagePacking.Pack(output, package, "images/rebuilt/" + scope, token);
-        await TexturePackageImporter.PublishAsync(output, package, token);
+        // Repack retained consumers of the selected output directory together with corrected images.
+        using var publication = new TexturePublication();
+        package = TexturePackagePacking.Pack(output, package, "images/rebuilt/" + scope, token, publication.Write);
+        await TexturePackageImporter.PublishAsync(output, package, token, publication);
         progress?.Invoke($"Rebuilt {scope}: {images.Count} source images; retained other published resource definitions.");
         return package;
     }

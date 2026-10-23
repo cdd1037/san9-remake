@@ -12,6 +12,30 @@ public sealed class TextureRebuildTests : IDisposable
     private readonly string root = Path.Combine(Path.GetTempPath(), "san9-rebuild-" + Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public async Task FailedPublicationRestoresFixedPathImagesAndRemovesNewImages()
+    {
+        Directory.CreateDirectory(root);
+        string image = Path.Combine(root, "image.png"), added = Path.Combine(root, "added.png");
+        string manifest = Path.Combine(root, "textures.json");
+        File.WriteAllBytes(image, [1, 2, 3]);
+        File.WriteAllText(manifest, "previous manifest");
+        using (var publication = new TexturePublication())
+        {
+            publication.Write(image, [4, 5, 6]);
+            publication.Write(added, [7, 8, 9]);
+            var invalid = new TexturePackage(0, 0, "test", [],
+                new([], [], [], [], [], new int[288], new int[16], [], new byte[32]),
+                new(InterfaceSkin.CurrentSchemaVersion, [], [], [], []), new(3, []), []);
+            await Assert.ThrowsAsync<InvalidDataException>(() => TexturePackageImporter.PublishAsync(root, invalid, default, publication));
+        }
+        Assert.Equal(new byte[] { 1, 2, 3 }, File.ReadAllBytes(image));
+        Assert.False(File.Exists(added));
+        Assert.Equal("previous manifest", File.ReadAllText(manifest));
+        Assert.Empty(Directory.GetFiles(root, "*.previous"));
+        Assert.Empty(Directory.GetFiles(root, "*.pending"));
+    }
+
+    [Fact]
     public void RebuildingSkinDiscardsItsObsoleteSchemaButRequiresRetainedUnitsToBeReadable()
     {
         var skin = new InterfaceSkin(35, [], [], [], []) { BuildingTargetOffsets = new() { [0] = new(-16, -58) } };
@@ -70,9 +94,16 @@ public sealed class TextureRebuildTests : IDisposable
         File.WriteAllBytes(Path.Combine(root, ".sources", "0.png"), new PngImage(1, 1, 3, [1, 2, 3]).Encode());
         var again = TexturePackagePacking.Pack(root, package, "images/rebuilt/skin", default);
         Assert.Equal(new byte[] { 1, 2, 3 }, ImageAssetFiles.Load(root, again.Skin.Assets)[rebuilt.Id].Pixels);
-        Assert.NotEqual(rebuilt.Path, Assert.Single(again.Skin.Assets).Path);
-        Assert.Equal(new byte[] { 90, 80, 70 }, ImageAssetFiles.Load(root, [rebuilt])[rebuilt.Id].Pixels);
+        Assert.Equal(rebuilt.Path, Assert.Single(again.Skin.Assets).Path);
+        Assert.Equal(new byte[] { 1, 2, 3 }, ImageAssetFiles.Load(root, [rebuilt])[rebuilt.Id].Pixels);
         Assert.Equal(oldBytes, File.ReadAllBytes(Path.Combine(root, "images", "shared.png")));
+        var retained = Assert.Single(again.Skin.Assets) with { Id = "library/retained" };
+        var next = package with { Library = package.Library with { Archives = [.. package.Library.Archives,
+            new("retained", "interface", [new(0, 0, retained)])] } };
+        File.WriteAllBytes(Path.Combine(root, ".sources", "0.png"), new PngImage(1, 1, 3, [4, 5, 6]).Encode());
+        var third = TexturePackagePacking.Pack(root, next, "images/rebuilt/skin", default);
+        Assert.Equal(new byte[] { 4, 5, 6 }, ImageAssetFiles.Load(root, third.Skin.Assets)[rebuilt.Id].Pixels);
+        Assert.Equal(new byte[] { 1, 2, 3 }, ImageAssetFiles.Load(root, third.Library.Assets)[retained.Id].Pixels);
     }
 
     [Fact]

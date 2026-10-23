@@ -8,7 +8,7 @@ namespace San9.Importer.San9PkTc101.Packages;
 
 public static class TexturePackageImporter
 {
-    public const int ConversionVersion = 52;
+    public const int ConversionVersion = 53;
 
     public static async Task<TexturePackage> ImportAsync(string gameDirectory, string output,
         Action<string>? progress = null, CancellationToken token = default, string? rebuild = null)
@@ -73,26 +73,23 @@ public static class TexturePackageImporter
         var library = TextureLibraryCompiler.Compile(exe, dataDirectory, Read, Save, progress, token);
         var package = new TexturePackage(5, ConversionVersion, San9PkTc101Detector.SourceBuildId,
             sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), map, skin, library, portraits);
-        package = TexturePackagePacking.Pack(output, package, "images", token);
-        await PublishAsync(output, package, token);
+        using var publication = new TexturePublication();
+        package = TexturePackagePacking.Pack(output, package, "images", token, publication.Write);
+        await PublishAsync(output, package, token, publication);
         progress?.Invoke($"Independent textures: {package.Assets.Count()} logical images, {package.Assets.Select(a => a.File).Distinct().Count()} physical files.");
         return package;
     }
 
-    internal static async Task PublishAsync(string output, TexturePackage package, CancellationToken token)
+    internal static async Task PublishAsync(string output, TexturePackage package, CancellationToken token, TexturePublication publication)
     {
         string manifest = Path.Combine(output, "textures.json");
         string staging = Path.Combine(output, ".sources");
         package.Validate();
         await ImageAssetFiles.VerifyAsync(output, package.Assets, token);
-        string pending = manifest + "." + Guid.NewGuid().ToString("N") + ".pending";
-        try
-        {
-            await File.WriteAllTextAsync(pending, JsonSerializer.Serialize(package, PackageFiles.JsonOptions), token);
-            token.ThrowIfCancellationRequested();
-            File.Move(pending, manifest, true);
-        }
-        finally { File.Delete(pending); }
+        token.ThrowIfCancellationRequested();
+        publication.Write(manifest, System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(package, PackageFiles.JsonOptions)));
+        publication.Commit();
+        publication.Dispose();
         // Only this builder owns these outputs. Cleanup follows a successfully published manifest.
         var retained = package.Assets.Select(a => PackageFiles.Resolve(output, a.Path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (string directory in new[] { PackageFiles.Resolve(output, "images"), staging })

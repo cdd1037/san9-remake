@@ -17,7 +17,8 @@ public static class TextureAtlasCompiler
         public bool Contains(Rect r) => X <= r.X && Y <= r.Y && Right >= r.Right && Bottom >= r.Bottom;
     }
 
-    public static ImageAsset[] Compile(string root, IEnumerable<Source> sources, string directory, CancellationToken token = default)
+    public static ImageAsset[] Compile(string root, IEnumerable<Source> sources, string directory, CancellationToken token = default,
+        Action<string, byte[]>? write = null)
     {
         var input = sources.ToArray();
         if (input.Any(s => s.FileId is < 0 || s.FileId is not null && s.Group is not null) ||
@@ -42,7 +43,8 @@ public static class TextureAtlasCompiler
             string path = $"{directory}/{category}/{filename}.png";
             string target = PackageFiles.Resolve(root, path);
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            if (!File.Exists(target) || !File.ReadAllBytes(target).AsSpan().SequenceEqual(bytes)) File.WriteAllBytes(target, bytes);
+            if (!File.Exists(target) || !File.ReadAllBytes(target).AsSpan().SequenceEqual(bytes))
+                (write ?? File.WriteAllBytes)(target, bytes);
             return new(path, image.Width, image.Height, image.Channels);
         }
         void Register(Item item, ImageFile file, int x, int y)

@@ -6,10 +6,9 @@ namespace San9.Importer.San9PkTc101.Packages;
 
 internal static class TexturePackagePacking
 {
-    public static TexturePackage Pack(string output, TexturePackage package, string directory, CancellationToken token)
+    public static TexturePackage Pack(string output, TexturePackage package, string directory, CancellationToken token,
+        Action<string, byte[]>? write = null)
     {
-        // Packing never overwrites files referenced by the currently published manifest.
-        directory += "/" + Guid.NewGuid().ToString("N");
         var map = package.Map;
         var skin = package.Skin;
         var portraits = package.Portraits;
@@ -64,13 +63,17 @@ internal static class TexturePackagePacking
             .Concat(portraits.Select(p => new TextureAtlasCompiler.Source(p.Image, null, "portraits", p.Id))).ToArray();
         // Resolve consumers to their declared source before packing. No pixel comparison occurs.
         // Display/CPU definitions own placement; the complete library references those definitions.
-        var selected = requests.Where(s => s.Asset.Path.StartsWith(".sources/", StringComparison.Ordinal)).ToArray();
-        var owners = selected.GroupBy(s => s.Asset.File).Select(g => g
+        var selected = requests.Where(s => s.Asset.Path.StartsWith(".sources/", StringComparison.Ordinal) ||
+            s.Asset.Path.StartsWith(directory + "/", StringComparison.Ordinal)).ToArray();
+        // Retained consumers in this output directory are repacked with corrected images.
+        // A source region, rather than an atlas file, identifies their unchanged pixels.
+        static (ImageFile File, int X, int Y, int Width, int Height) Region(ImageAsset image) => (image.File, image.X, image.Y, image.Width, image.Height);
+        var owners = selected.GroupBy(s => Region(s.Asset)).Select(g => g
             .OrderBy(s => s.Asset.Id.StartsWith("library/", StringComparison.Ordinal))
             .ThenBy(s => s.Asset.Id, StringComparer.Ordinal).First()).ToArray();
-        var pages = TextureAtlasCompiler.Compile(output, owners, directory, token).ToDictionary(a => a.Id);
-        var bySource = owners.ToDictionary(s => s.Asset.File, s => pages[s.Asset.Id]);
-        var packed = requests.ToDictionary(s => s.Asset.Id, s => bySource.TryGetValue(s.Asset.File, out var asset) ? asset with { Id = s.Asset.Id } : s.Asset);
+        var pages = TextureAtlasCompiler.Compile(output, owners, directory, token, write).ToDictionary(a => a.Id);
+        var bySource = owners.ToDictionary(s => Region(s.Asset), s => pages[s.Asset.Id]);
+        var packed = requests.ToDictionary(s => s.Asset.Id, s => bySource.TryGetValue(Region(s.Asset), out var asset) ? asset with { Id = s.Asset.Id } : s.Asset);
         map = map with { Assets = map.Assets.Select(a => packed[a.Id]).ToArray(),
             Seasons = map.Seasons.Select(s => s with { Textures = s.Textures.Select(a => packed[$"terrain/{s.Id}/{a.Id}"] with { Id = a.Id }).ToArray() }).ToArray() };
         skin = skin with { Assets = skin.Assets.Select(a => packed[a.Id]).ToArray() };

@@ -59,7 +59,7 @@ public partial class SystemMenuPanel : Control
         _textures!.RequestPrefixes("save-load-", "dialog-", "deployment-number-", "environment-", "editor-",
             "information-", "catalog-", "detail-", "roster-", "scroll-", "message-", "text-icon-", "overview-");
         ReplacePage(new WorldEditorView { Textures = _textures, Service = Service, Skin = Skin, Texts = Texts, Draft = new WorldEditorDraft(Session, kind, Texts),
-            MapPreview = id => World.CreateInformationPreview(id, Texts),
+            MapPreview = (id, readView) => World.CreateInformationPreview(id, Texts, readView: readView),
             Apply = edit => Session.Apply(Session.Request(edit)), Closed = Close });
     }
     private void OpenEnvironment()

@@ -1,4 +1,5 @@
 using Godot;
+using San9.Application.Presentation;
 using San9.Content.Text;
 using San9.Rendering;
 
@@ -6,8 +7,9 @@ namespace San9.Client.Godot;
 
 public partial class MapWorld
 {
-    public Control CreateInformationPreview(int regionId, TextCatalog texts, int? unitId = null) =>
-        new InformationMapPreview { World = this, RegionId = regionId, UnitId = unitId, Texts = texts };
+    public Control CreateInformationPreview(int regionId, TextCatalog texts, int? unitId = null,
+        Func<StrategySnapshot>? readView = null) =>
+        new InformationMapPreview { World = this, RegionId = regionId, UnitId = unitId, Texts = texts, ReadView = readView };
 }
 
 // Only preview framing and clipping live here; every map layer is drawn by MapSceneView.
@@ -17,9 +19,12 @@ public partial class InformationMapPreview : Control
     public int RegionId { get; init; }
     public int? UnitId { get; init; }
     public TextCatalog Texts { get; init; } = null!;
+    public Func<StrategySnapshot>? ReadView { get; init; }
     private MapSceneView _view = null!;
     private long _revision = -1;
     private MapScene? _requestedScene;
+    private MapScene? _sourceScene;
+    private MapScene? _previewScene;
     private Vector2 _requestedSize;
     private string? _error;
     public override void _Ready()
@@ -38,6 +43,18 @@ public partial class InformationMapPreview : Control
     public override void _Process(double delta)
     {
         if (World.Display?.Presented?.Region.Scene is not { } scene || Size.X <= 0 || Size.Y <= 0) return;
+        if (ReadView is { } readView)
+        {
+            var state = readView();
+            // Draft changes do not advance the world's revision; snapshot identity owns invalidation.
+            if (!ReferenceEquals(_sourceScene, scene) || !ReferenceEquals(_previewScene?.State, state))
+            {
+                _sourceScene = scene;
+                _previewScene = new(scene.Map, scene.Terrain, scene.Season, state, World.Textures.MapAssets,
+                    () => World.UnitPositionTime, _previewScene);
+            }
+            scene = _previewScene!;
+        }
         if (_error != _view.Error) { _error = _view.Error; QueueRedraw(); }
         if (ReferenceEquals(_requestedScene, scene) && _requestedSize == Size) return;
         _requestedScene = scene; _requestedSize = Size;

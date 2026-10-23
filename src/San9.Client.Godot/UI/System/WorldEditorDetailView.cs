@@ -23,6 +23,8 @@ public partial class WorldEditorDetailView : FixedPage
     private readonly GameTextPresenter _text = new();
     private readonly DetailSelectionState _selection = new();
     private Control _body = null!;
+    private Control? _mapPreview;
+    private int? _mapPreviewId;
     private DetailSidebar _sidebar = null!;
     private GameMessageBar _message = null!;
     private readonly List<Rect2> _panels = [];
@@ -258,7 +260,14 @@ public partial class WorldEditorDetailView : FixedPage
     }
     private void Preview(Vector2 at,Vector2 size)
     {
-        var preview=MapPreview(CurrentId); preview.Position=at;preview.Size=size;_body.AddChild(preview);
+        // Keep the camera and its resource leases alive while rebuilding the numeric controls.
+        if (_mapPreview is null || _mapPreviewId != CurrentId)
+        {
+            if (_mapPreview is not null) { RemoveChild(_mapPreview); _mapPreview.QueueFree(); }
+            _mapPreview = MapPreview(CurrentId); _mapPreviewId = CurrentId;
+            AddChild(_mapPreview);
+        }
+        _mapPreview.Position = Bounds.Position + at; _mapPreview.Size = size;
     }
     private void Field(IReadOnlyList<EditorField> fields,string name,Vector2 at,float labelWidth,float valueWidth,float gap=2,bool showMaximum=false)
     {

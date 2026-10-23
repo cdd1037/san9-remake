@@ -15,7 +15,7 @@ public partial class WorldEditorView : Control
     public InterfaceSkin Skin { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public WorldEditorDraft Draft { get; init; } = null!;
-    public Func<int, Control> MapPreview { get; init; } = null!;
+    public Func<int, Func<StrategySnapshot>, Control> MapPreview { get; init; } = null!;
     public Func<WorldEditOperation, SessionResult> Apply { get; init; } = null!;
     public Action Closed { get; init; } = null!;
     private Control? _page;
@@ -62,7 +62,7 @@ public partial class WorldEditorView : Control
         {
             Draft = Draft, CurrentId = Draft.TargetFromRow(rowId), Title = Title, Textures = Textures, Service = Service, Texts = Texts,
             Candidates = Draft.Catalog.Rows.Select(r => Draft.TargetFromRow(r.Id)).ToArray(),
-            MapPreview = MapPreview, Closed = () => { if (_mapMode) ShowMap(); else ShowCatalog(); },
+            MapPreview = id => MapPreview(id, () => Draft.Preview), Closed = () => { if (_mapMode) ShowMap(); else ShowCatalog(); },
             CurrentChanged = id => Draft.Catalog.SelectId(Draft.Kind == WorldEditorKind.Corps
                 ? Draft.Preview.World.Corps.Single(c => c.Id == id).OwnerId : id),
             NumberRequested = (field, refresh) =>

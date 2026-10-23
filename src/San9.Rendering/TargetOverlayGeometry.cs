@@ -20,7 +20,7 @@ public static class TargetOverlayGeometry
             bool red = influence.Contains(cell);
             if (!red && clear.Contains(cell)) continue;
             var square = map.Squares[y * map.Width + x];
-            var center = MapGeometry.Center(x, y);
+            var center = MapGeometry.Center(x, y, map.Height);
             // The 64x44 mesh's flat diamond begins at row 12, not at the texture origin.
             yield return new(square.ElevationMask,
                 center.X - 32, center.Y - 16 - 10 * square.Elevation, red ? (clear.Contains(cell) ? InfluenceOpacity : StrongInfluenceOpacity) : DimOpacity);
@@ -49,9 +49,9 @@ public static class TargetOverlayGeometry
 
     public static (int X, int Y) BuildingMarker(MapPackage map, MapBuilding building, int offsetX, int offsetY)
     {
-        var center = MapGeometry.Center(building.X, building.Y);
+        var center = MapGeometry.Center(building.X, building.Y, map.Height);
         int x = center.X + offsetX, y = center.Y + offsetY;
-        int height = MapGeometry.TrySquare(x, y, out int cellX, out int cellY)
+        int height = MapGeometry.TrySquare(x, y, out int cellX, out int cellY, map.Width, map.Height)
             ? 10 * (map.Squares[cellY * map.Width + cellX].Elevation - 1) : 0;
         return (x, y - height);
     }

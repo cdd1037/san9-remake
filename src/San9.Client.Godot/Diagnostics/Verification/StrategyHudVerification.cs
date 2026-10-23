@@ -91,7 +91,7 @@ public partial class StrategyHud
             "Facility activation changed map selection or retained a toggle.");
         Check(brown.TextColor == new Color(Skin.Colors["roster-unavailable"]), "Focus changed availability color.");
         var target = World.Package!.Buildings.Single(b => b.Id == last);
-        var center = San9.Rendering.MapGeometry.Center(target.X, target.Y);
+        var center = San9.Rendering.MapGeometry.Center(target.X, target.Y, World.Package!.Height);
         Check(World.CameraPosition.DistanceTo(new(center.X, center.Y)) < .01f, "Brown facility camera focus failed.");
         FocusFacility(first); await View();
         Motion(new(512, 400));
@@ -127,7 +127,7 @@ public partial class StrategyHud
         var officerEntry = _rosterList.Roster.Current.Visible.First();
         await Click(_rosterList.Rows[1].GetGlobalRect().GetCenter());
         var officerLocation = Scenario.Settlements.Single(s => s.Id == ((San9.Application.Presentation.RosterSettlementLocation)officerEntry.Location).Id);
-        var officerCenter = San9.Rendering.MapGeometry.Center(officerLocation.X, officerLocation.Y);
+        var officerCenter = San9.Rendering.MapGeometry.Center(officerLocation.X, officerLocation.Y, World.Package!.Height);
         Check(World.CameraPosition.DistanceTo(new(officerCenter.X, officerCenter.Y)) < .01f && Selection.BuildingId == oldSelection,
             "Officer activation did not navigate independently of map selection.");
         var bar = _rosterList.ScrollBar;
@@ -212,7 +212,7 @@ public partial class StrategyHud
         Check(World.ShowBoundaries == boundaries, "Boundary toggle did not restore.");
         var mini = new San9.Rendering.MinimapGeometry(World.Package!.Width, World.Package.Height).FromGrid(120, 95);
         await Click(_minimap!.Position + new Vector2((float)mini.X * _minimap.Size.X, (float)mini.Y * _minimap.Size.Y));
-        var expected = San9.Rendering.MapGeometry.Center(120, 95);
+        var expected = San9.Rendering.MapGeometry.Center(120, 95, World.Package!.Height);
         Check(World.CameraPosition.DistanceTo(new(expected.X, expected.Y)) < .1f, "GUI minimap navigation failed.");
         var camera = World.CameraPosition;
         Check(!_minimap.Navigate(Vector2.Zero) && World.CameraPosition == camera, "Minimap decoration navigated.");
@@ -222,14 +222,14 @@ public partial class StrategyHud
         foreach (int buildingId in new[] { 15, 99, 100 })
         {
             var facility = World.Package!.Buildings.Single(b => b.Id == buildingId);
-            var ground = San9.Rendering.MapGeometry.Center(facility.X, facility.Y);
+            var ground = San9.Rendering.MapGeometry.Center(facility.X, facility.Y, World.Package!.Height);
             World.FocusWorld(new(ground.X, ground.Y));
             await View();
             var point = World.WorldToViewport(new(ground.X, ground.Y));
             GetViewport().PushInput(new InputEventMouseMotion { Position = point, GlobalPosition = point }, true);
             UpdateHover(point);
             var expectedRegion = San9.Application.Presentation.RegionHoverInfo.Resolve(
-                World.Package.Squares[facility.Y * 200 + facility.X], Scenario, Texts);
+                World.Package, new(facility.X, facility.Y), Scenario, Texts);
             Check(_regionVisible && _footer.Text == expectedRegion.Region && _footerCity.Text == expectedRegion.City,
                 "Mouse region and parent city mismatch.");
             Selection.SelectBuilding(first);

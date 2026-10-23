@@ -45,7 +45,7 @@ public sealed record BuildingVisuals(MapBuilding[] Buildings, MapAnimatedSprite[
                 throw new InvalidDataException("Invalid runtime building visual state.");
             int id = CompositionId(type,state.Appearance,state.Durability,maximum);
             if (!compositions.TryGetValue(id,out var composition)) throw new InvalidDataException($"Unconfirmed composition {id}.");
-            var center = MapGeometry.Center(b.X,b.Y); int x = center.X, y = center.Y-10*(map.Squares[b.Y*map.Width+b.X].Elevation-1);
+            var center = MapGeometry.Center(b.X,b.Y, map.Height); int x = center.X, y = center.Y-10*(map.Squares[b.Y*map.Width+b.X].Elevation-1);
             int development = state.Development <= 300 ? 0 : state.Development <= 600 ? 1 : 2;
             var sprites = composition.Parts.Select(p => new MapSprite($"building-{p.ResourceId+(type==0 && p.DevelopmentVariant?development:0)}-{(p.PaletteAlpha?"alpha":"key")}",x+p.X,y+p.Y)
                 { Depth = p.PaletteAlpha && !p.DevelopmentVariant ? y + p.Y + 10000 : p.Ground && !p.DevelopmentVariant && !p.PaletteAlpha ? 1 :

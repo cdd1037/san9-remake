@@ -81,7 +81,10 @@ public partial class Main : Node
             var music = new SceneMusicPlayer { ContentRoot = content.ContentRoot, Tracks = content.Presentation.Sounds };
             AddChild(music);
             world.Session = session;
-            var center = MapGeometry.Center(options.CenterX, options.CenterY);
+            var initialCity = session.View.Settlements.FirstOrDefault(s => session.View.PlayerForceId is int player &&
+                s.OwnerId == player && s.Kind == San9.Core.Domain.SettlementKind.City);
+            var initialCell = options.ResolveMapCenter(content.Map.Width, content.Map.Height, initialCity is null ? null : new(initialCity.X, initialCity.Y));
+            var center = MapGeometry.Center(initialCell.X, initialCell.Y, content.Map.Height);
             world.FocusWorld(new(center.X, center.Y)); world.SetZoom(options.Zoom);
             world.LoadMap(content.Map, content.TextureRoot, options.Season, options.AnimationTime);
             ui.AddChild(new MapAnnotations { World = world, Texts = content.Text, UiFont = ui.GetThemeFont("font") });

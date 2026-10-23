@@ -73,7 +73,7 @@ public sealed class NavalMapAnimationTests
         Assert.Equal(UnitVisualAction.Melee, attack.Action);
         Assert.Equal(5, attack.Origins.Length);
         var visual = UnitVisuals.Resolve(UnitVisualFixture.State with { Id = id, CellX = 1, CellY = 1, Direction = attack.Direction,
-            Action = attack.Action }, catalog, clips.ToDictionary(c => c.Id));
+            Action = attack.Action, MapHeight = map.Height }, catalog, clips.ToDictionary(c => c.Id));
         var body = Assert.Single(visual.Animations, a => a.IsBody);
         Assert.All(attack.Origins, p => Assert.Equal(new MapMotionPoint(body.X + 64, body.Y + 64), p));
         double bodyDuration = body.ClipId == "long" ? 4 : .1;

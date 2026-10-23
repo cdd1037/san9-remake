@@ -18,7 +18,8 @@ public sealed class StrategySelection(GameSession session)
 
     public void SelectSquare(int x, int y)
     {
-        if (x is < 0 or >= 200 || y is < 0 or >= 200) throw new ArgumentOutOfRangeException(nameof(x));
+        if (x < 0 || y < 0 || scenario.MilitaryRules is { } rules && (x >= rules.Map.Width || y >= rules.Map.Height))
+            throw new ArgumentOutOfRangeException(nameof(x));
         Square = (x, y);
         BuildingId = scenario.Settlements.FirstOrDefault(s => s.X == x && s.Y == y)?.Id;
         Changed?.Invoke();

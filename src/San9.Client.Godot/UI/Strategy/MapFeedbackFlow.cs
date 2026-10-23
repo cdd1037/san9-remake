@@ -78,7 +78,7 @@ public partial class MapFeedbackFlow : Control
         if (!_mapSpeech.Publish(message)) return false;
         var view = new MapSpeechView { Message = message, Service = Textures, Textures = _speechTextures, Skin = Skin, Visible = false };
         _speechHost.AddChild(view);
-        var center = MapGeometry.Center(message.Location.X,message.Location.Y);
+        var center = MapGeometry.Center(message.Location.X,message.Location.Y, World.Package!.Height);
         _speechViews.Add(message.Id,(view,new(center.X,center.Y),false));
         return true;
     }

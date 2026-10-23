@@ -18,7 +18,7 @@ public sealed record UnitVisual(int Id, double CellX, double Depth, MapAnimatedS
     public int AnchorY { get; init; }
 }
 public sealed record UnitVisualState(int Id, double CellX, double CellY, int Elevation, uint Soldiers,
-    int FormationId, UnitCondition Condition, int Direction, bool HasCityInfluence, int Color, int Glyph)
+    int FormationId, UnitCondition Condition, int Direction, bool HasCityInfluence, int Color, int Glyph, int MapHeight)
 {
     // A terminal occurrence retains its last living pose until the outcome is presented.
     public uint? RetainedBodySoldiers { get; init; }
@@ -74,7 +74,7 @@ public static class UnitVisuals
         var formation = catalog.Formations.Single(f => f.FormationId == state.FormationId);
         var bodies = catalog.Bodies.ToDictionary(b => b.Id);
         var layout = formation.Layouts.Where(l => l.MinimumSoldiers <= state.BodySoldiers).MaxBy(l => l.MinimumSoldiers)!;
-        static (double X, double Y) Ground(UnitVisualState s) => (32 * (s.CellX + 200 - s.CellY) + 96, 16 * (s.CellX + s.CellY + 1) + 112);
+        static (double X, double Y) Ground(UnitVisualState s) => (32 * (s.CellX + s.MapHeight - s.CellY) + 96, 16 * (s.CellX + s.CellY + 1) + 112);
         var anchor = Ground(state);
         int x = (int)Math.Round(anchor.X), y = (int)Math.Round(anchor.Y - 10 * ((elevationAt?.Invoke(anchor.X, anchor.Y) ?? state.Elevation) - 1));
         uint MemberSeed(MapUnitMember m, int tick) => Seed(state.Id, m.Index, unchecked((int)Seed(m.Group, 0, tick)));

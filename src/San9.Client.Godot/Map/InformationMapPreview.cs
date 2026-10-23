@@ -47,11 +47,11 @@ public partial class InformationMapPreview : Control
         {
             double x = (unit.Position.X - San9.Core.Domain.MapCoordinates.UnitsPerCell / 2) / (double)San9.Core.Domain.MapCoordinates.UnitsPerCell;
             double y = (unit.Position.Y - San9.Core.Domain.MapCoordinates.UnitsPerCell / 2) / (double)San9.Core.Domain.MapCoordinates.UnitsPerCell;
-            center = new((float)(32 * (x + 200 - y) + 96), (float)(16 * (x + y + 1) + 112));
+            center = new((float)(32 * (x + scene.Map.Height - y) + 96), (float)(16 * (x + y + 1) + 112));
         }
         else if (settlement is not null)
         {
-            var p = MapGeometry.Center(settlement.X, settlement.Y);
+            var p = MapGeometry.Center(settlement.X, settlement.Y, scene.Map.Height);
             int elevation = scene.Map.Squares[settlement.Y * scene.Map.Width + settlement.X].Elevation;
             center = new(p.X, p.Y - 10 * (elevation - 1) - 20);
         }
@@ -62,7 +62,7 @@ public partial class InformationMapPreview : Control
             if (cells.Length == 0) return;
             var average = cells.Aggregate(Vector2.Zero, (a, b) => a + b) / cells.Length;
             var cell = cells.MinBy(p => p.DistanceSquaredTo(average));
-            var p = MapGeometry.Center((int)cell.X, (int)cell.Y); center = new(p.X, p.Y);
+            var p = MapGeometry.Center((int)cell.X, (int)cell.Y, scene.Map.Height); center = new(p.X, p.Y);
         }
         _view.Request(scene, new(center.X, center.Y, 1), Size, false);
         if (_revision != _view.Revision) { _revision = _view.Revision; QueueRedraw(); }

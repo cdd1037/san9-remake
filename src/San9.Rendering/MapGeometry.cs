@@ -5,14 +5,14 @@ namespace San9.Rendering;
 
 public static class MapGeometry
 {
-    public static (int X, int Y) Center(int x, int y) => (HalfCellWidth * (x + Height - y) + OriginX, HalfCellHeight * (x + y + 1) + OriginY);
-    public static bool TrySquare(double px, double py, out int x, out int y)
+    public static (int X, int Y) Center(int x, int y, int mapHeight) => (HalfCellWidth * (x + mapHeight - y) + OriginX, HalfCellHeight * (x + y + 1) + OriginY);
+    public static bool TrySquare(double px, double py, out int x, out int y, int width, int height)
     {
-        double difference = (px - OriginX) / HalfCellWidth - Height;
+        double difference = (px - OriginX) / HalfCellWidth - height;
         double sum = (py - OriginY) / HalfCellHeight - 1;
         x = (int)Math.Floor((sum + difference) / 2 + 0.5);
         y = (int)Math.Floor((sum - difference) / 2 + 0.5);
-        return x is >= 0 and < Width && y is >= 0 and < Height;
+        return x >= 0 && x < width && y >= 0 && y < height;
     }
     public static int Mod(int value, int period) => (value % period + period) % period;
 
@@ -20,7 +20,7 @@ public static class MapGeometry
     // still uses TrySquare; rounding a moving foot position would create steps.
     public static double SampleElevation(double px, double py, int width, int height, IReadOnlyList<MapSquare> squares)
     {
-        double difference = (px - OriginX) / HalfCellWidth - Height;
+        double difference = (px - OriginX) / HalfCellWidth - height;
         double sum = (py - OriginY) / HalfCellHeight - 1;
         double x = Math.Clamp((sum + difference) / 2, 0, width - 1);
         double y = Math.Clamp((sum - difference) / 2, 0, height - 1);

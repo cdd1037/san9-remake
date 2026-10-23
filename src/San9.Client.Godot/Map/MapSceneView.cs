@@ -469,12 +469,12 @@ public partial class MapSceneView : Node2D
             if (construction.Selected?.Position is { } selected)
             {
                 var cell = San9.Core.Domain.MapCoordinates.Cell(selected);
-                var center = MapGeometry.Center(cell.X,cell.Y);
+                var center = MapGeometry.Center(cell.X,cell.Y, frame.Region.Scene.Map.Height);
                 Preview(new(center.X,center.Y-10*(frame.Region.Scene.Map.Squares[cell.Y*frame.Region.Scene.Map.Width+cell.X].Elevation-1)),96f/256);
             }
             if (!construction.EditingPolicies && ConstructionPointer is { } cursor)
             {
-                bool valid = MapGeometry.TrySquare(cursor.X,cursor.Y,out int x,out int y) && construction.At(new(x,y)) is not null;
+                bool valid = MapGeometry.TrySquare(cursor.X,cursor.Y,out int x,out int y, frame.Region.Scene.Map.Width, frame.Region.Scene.Map.Height) && construction.At(new(x,y)) is not null;
                 Preview(cursor,(valid?192f:96f)/256);
             }
 

@@ -8,17 +8,17 @@ public static class MapCameraBoundary
     private readonly record struct Segment(double AX, double AY, double BX, double BY);
 
     /// <summary>Consumes relative travel along the surface and its boundary without losing tangential speed.</summary>
-    public static (double X, double Y) Move(double px, double py, double dx, double dy, IReadOnlyList<MapSquare> squares)
+    public static (double X, double Y) Move(double px, double py, double dx, double dy, IReadOnlyList<MapSquare> squares, int width, int height)
     {
         if (!double.IsFinite(px) || !double.IsFinite(py) || !double.IsFinite(dx) || !double.IsFinite(dy))
             throw new ArgumentOutOfRangeException(nameof(dx));
         double remaining = Math.Sqrt(dx * dx + dy * dy);
         if (!double.IsFinite(remaining)) throw new ArgumentOutOfRangeException(nameof(dx));
-        (px, py) = Clamp(px, py, squares);
+        (px, py) = Clamp(px, py, squares, width, height);
         const double epsilon = 1e-7;
         if (remaining <= epsilon) return (px, py);
         double ux = dx / remaining, uy = dy / remaining;
-        var edges = Perimeter(squares).ToArray();
+        var edges = Perimeter(squares, width, height).ToArray();
         // Every slide has positive progress along the requested direction, so an edge cannot be revisited.
         for (int step = 0; step <= edges.Length && remaining > epsilon; step++)
         {
@@ -35,7 +35,7 @@ public static class MapCameraBoundary
                 if (distance >= -epsilon && distance <= remaining && along >= -epsilon && along <= 1 + epsilon)
                     hit = Math.Min(hit, Math.Max(0, distance));
             }
-            if (double.IsPositiveInfinity(hit)) return Clamp(px + ux * remaining, py + uy * remaining, squares);
+            if (double.IsPositiveInfinity(hit)) return Clamp(px + ux * remaining, py + uy * remaining, squares, width, height);
             px += ux * hit; py += uy * hit; remaining -= hit;
             if (remaining <= epsilon) break;
 
@@ -59,18 +59,18 @@ public static class MapCameraBoundary
             double slide = Math.Min(remaining, available);
             px += tx * slide; py += ty * slide; remaining -= slide;
         }
-        return Clamp(px, py, squares);
+        return Clamp(px, py, squares, width, height);
     }
 
-    public static (double X, double Y) Clamp(double px, double py, IReadOnlyList<MapSquare> squares)
+    public static (double X, double Y) Clamp(double px, double py, IReadOnlyList<MapSquare> squares, int width, int height)
     {
         // Search the local height surface, independent of resource image bounds.
-        MapGeometry.TrySquare(px, py, out int x, out int y);
-        for (int row = Math.Max(0, y - 4); row <= Math.Min(LastRow, y + 4); row++)
-        for (int column = Math.Max(0, x - 4); column <= Math.Min(LastColumn, x + 4); column++)
+        MapGeometry.TrySquare(px, py, out int x, out int y, width, height);
+        for (int row = Math.Max(0, y - 4); row <= Math.Min((height - 1), y + 4); row++)
+        for (int column = Math.Max(0, x - 4); column <= Math.Min((width - 1), x + 4); column++)
         {
-            var square = squares[column + row * Width];
-            var center = MapGeometry.Center(column, row);
+            var square = squares[column + row * width];
+            var center = MapGeometry.Center(column, row, height);
             double dx = px - center.X;
             if (Math.Abs(dx) > HalfCellWidth) continue;
             int mask = square.ElevationMask;
@@ -85,7 +85,7 @@ public static class MapCameraBoundary
         // Constrain continuously to the perimeter; never snap the window to a square center.
         double best = double.PositiveInfinity;
         (double X, double Y) result = default;
-        foreach (var edge in Perimeter(squares))
+        foreach (var edge in Perimeter(squares, width, height))
         {
             var (ax, ay, bx, by) = edge;
             double vx = bx - ax, vy = by - ay;
@@ -97,12 +97,12 @@ public static class MapCameraBoundary
         return result;
     }
 
-    private static IEnumerable<Segment> Perimeter(IReadOnlyList<MapSquare> squares)
+    private static IEnumerable<Segment> Perimeter(IReadOnlyList<MapSquare> squares, int width, int height)
     {
         IEnumerable<Segment> Square(int column, int row)
         {
-            var square = squares[column + row * Width];
-            var center = MapGeometry.Center(column, row);
+            var square = squares[column + row * width];
+            var center = MapGeometry.Center(column, row, height);
             double cy = center.Y - ElevationStep * (square.Elevation - 1);
             int mask = square.ElevationMask;
             double top = cy - HalfCellHeight - ((mask & 1) != 0 ? ElevationStep : 0);
@@ -111,16 +111,20 @@ public static class MapCameraBoundary
             double right = cy - ((mask & 8) != 0 ? ElevationStep : 0);
             if (column == 0) yield return new(center.X - HalfCellWidth, left, center.X, top);
             if (row == 0) yield return new(center.X, top, center.X + HalfCellWidth, right);
-            if (column == LastColumn) yield return new(center.X + HalfCellWidth, right, center.X, bottom);
-            if (row == LastRow) yield return new(center.X, bottom, center.X - HalfCellWidth, left);
+            if (column == width - 1) yield return new(center.X + HalfCellWidth, right, center.X, bottom);
+            if (row == height - 1) yield return new(center.X, bottom, center.X - HalfCellWidth, left);
         }
-        for (int i = 0; i < Width; i++)
+        for (int x = 0; x < width; x++)
         {
-            foreach (var edge in Square(i, 0)) yield return edge;
-            foreach (var edge in Square(i, LastRow)) yield return edge;
-            if (i is 0 or LastColumn) continue;
-            foreach (var edge in Square(0, i)) yield return edge;
-            foreach (var edge in Square(LastColumn, i)) yield return edge;
+            foreach (var edge in Square(x, 0)) yield return edge;
+            if (height > 1)
+                foreach (var edge in Square(x, height - 1)) yield return edge;
+        }
+        for (int y = 1; y < height - 1; y++)
+        {
+            foreach (var edge in Square(0, y)) yield return edge;
+            if (width > 1)
+                foreach (var edge in Square(width - 1, y)) yield return edge;
         }
     }
 }

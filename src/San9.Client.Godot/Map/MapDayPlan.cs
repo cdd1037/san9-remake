@@ -52,7 +52,7 @@ public sealed class MapDayPlan
         double cy = (y - MapCoordinates.UnitsPerCell / 2) / MapCoordinates.UnitsPerCell;
         int cellX = Math.Clamp((int)x / MapCoordinates.UnitsPerCell, 0, Map.Width - 1);
         int cellY = Math.Clamp((int)y / MapCoordinates.UnitsPerCell, 0, Map.Height - 1);
-        return new((float)(32 * (cx + 200 - cy) + 96),
+        return new((float)(32 * (cx + Map.Height - cy) + 96),
             (float)(16 * (cx + cy + 1) + 112 - 10 * (Map.Squares[cellY * Map.Width + cellX].Elevation - 1)));
     }
     private WorldPosition? Position(int id, bool settlement)

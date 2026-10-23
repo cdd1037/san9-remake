@@ -10,7 +10,7 @@ public sealed class MapRenderingTests
     public void DisplayElevationPreservesCentersAndInterpolatesBothAxesAtMapEdges()
     {
         MapSquare[] squares = [new(0, 1, 0, 0), new(0, 3, 0, 0), new(0, 5, 0, 0), new(0, 9, 0, 0)];
-        var origin = MapGeometry.Center(0, 0);
+        var origin = MapGeometry.Center(0, 0, 2);
         double At(double x, double y) => MapGeometry.SampleElevation(origin.X + 32 * (x - y), origin.Y + 16 * (x + y), 2, 2, squares);
         Assert.Equal(1, At(0, 0)); Assert.Equal(9, At(1, 1));
         Assert.Equal(4.5, At(.5, .5));
@@ -43,15 +43,18 @@ public sealed class MapRenderingTests
             Assert.Equal(expected[i], chunk.Pixels[offset..(offset + 3)]);
         }
     }
-    [Fact]
-    public void EverySquareCenterRoundTripsAndOutsideDiamondIsRejected()
+    [Theory]
+    [InlineData(200, 200)]
+    [InlineData(300, 300)]
+    [InlineData(347, 183)]
+    public void EverySquareCenterRoundTripsAndOutsideDiamondIsRejected(int width, int height)
     {
-        for (int y = 0; y < 200; y++) for (int x = 0; x < 200; x++)
+        for (int y = 0; y < height; y++) for (int x = 0; x < width; x++)
         {
-            var p = MapGeometry.Center(x, y); Assert.True(MapGeometry.TrySquare(p.X, p.Y, out int rx, out int ry));
+            var p = MapGeometry.Center(x, y, height); Assert.True(MapGeometry.TrySquare(p.X, p.Y, out int rx, out int ry, width, height));
             Assert.Equal(x, rx); Assert.Equal(y, ry);
         }
-        Assert.False(MapGeometry.TrySquare(0, 0, out _, out _));
+        Assert.False(MapGeometry.TrySquare(0, 0, out _, out _, width, height));
     }
     [Fact]
     public void StampCrossingChunkBoundaryKeepsGlobalSamplePhaseAndCenterSpan()

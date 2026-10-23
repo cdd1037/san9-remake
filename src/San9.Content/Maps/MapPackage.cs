@@ -74,8 +74,10 @@ public static class MapPackageFiles
 {
     public static void Validate(MapPackage map)
     {
-        if (map.SchemaVersion != MapPackage.CurrentSchemaVersion || map.Width != MapDisplayMetrics.Width || map.Height != MapDisplayMetrics.Height || map.Squares.Length != MapDisplayMetrics.Width * MapDisplayMetrics.Height ||
-            map.CanvasWidth != MapDisplayMetrics.CanvasWidth || map.CanvasHeight != MapDisplayMetrics.CanvasHeight) throw new InvalidDataException("Unsupported map dimensions or schema.");
+        if (map.SchemaVersion != MapPackage.CurrentSchemaVersion || map.Width <= 0 || map.Height <= 0 ||
+            (long)map.Width * map.Height != map.Squares.Length ||
+            MapDisplayMetrics.CanvasSize(map.Width, map.Height) != (map.CanvasWidth, map.CanvasHeight))
+            throw new InvalidDataException("Unsupported map dimensions or schema.");
         if (!map.Seasons.Select(s => s.Id).Order().SequenceEqual(new[] { "autumn", "spring", "summer", "winter" }) ||
             !map.Seasons.Any(s => s.Id == map.InitialSeason)) throw new InvalidDataException("Invalid seasons.");
         ImageAssetFiles.ValidateCatalog(map.Assets.Concat(map.Seasons.SelectMany(s => s.Textures)));
@@ -106,7 +108,7 @@ public static class MapPackageFiles
             if (square.Terrain is < 0 or > 16 || square.Elevation is < 0 or > 7 || square.ElevationMask is < 0 or > 15 || square.TextureVariant < 0)
                 throw new InvalidDataException("Invalid square.");
         foreach (var building in map.Buildings)
-            if (building.X is < 0 or >= MapDisplayMetrics.Width || building.Y is < 0 or >= MapDisplayMetrics.Height)
+            if (building.X < 0 || building.X >= map.Width || building.Y < 0 || building.Y >= map.Height)
                 throw new InvalidDataException("Invalid building.");
         var types = map.BuildingTypes.ToDictionary(t => t.Id);
         for (int resource = 5663; resource <= 5974; resource++)

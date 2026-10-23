@@ -7,6 +7,27 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class MapNavigationTests
 {
+    [Theory]
+    [InlineData(300, 300)]
+    [InlineData(347, 183)]
+    public void SelectionUsesMilitaryMapBoundsAndKeepsItsStateAfterRejection(int width, int height)
+    {
+        var position = San9.Core.Domain.MapCoordinates.Center(new(width - 1, height - 1));
+        var scenario = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "expanded", 190, 1, 1, 1,
+            [new(1, "player", 0, 100)], [new(1, "city", 1, width - 1, height - 1, 0, 100, 100, 0, [])], [], [])
+        {
+            Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, null, new(100, 100)) { IsRoot = true }], []),
+            Military = new(width, height, System.Collections.Immutable.ImmutableArray.CreateRange(Enumerable.Repeat(0, width * height)),
+                [new(0, 1, null)], [], [new(1, position, new(1, 1))])
+        };
+        var selection = new StrategySelection(San9.Application.GameSession.Start(scenario, 1));
+        selection.SelectSquare(width - 1, height - 1);
+        Assert.Equal(1, selection.BuildingId);
+        Assert.Throws<ArgumentOutOfRangeException>(() => selection.SelectSquare(width, height - 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => selection.SelectSquare(width - 1, height));
+        Assert.Equal((width - 1, height - 1), selection.Square);
+    }
+
     [Fact]
     public void SelectionAndFilteredFacilitiesUseBuildingIdentityNotRegionMembership()
     {

@@ -94,7 +94,7 @@ public partial class ClientVerification
         foreach (var (suffix, id) in new[] { ("-region-gate", 99), ("-region-port", 100) })
         {
             var building = World.Package!.Buildings.Single(b => b.Id == id);
-            var ground = MapGeometry.Center(building.X, building.Y);
+            var ground = MapGeometry.Center(building.X, building.Y, World.Package!.Height);
             World.FocusWorld(new(ground.X, ground.Y));
             await WaitForView();
             var pointer = World.WorldToViewport(new(ground.X, ground.Y));
@@ -102,7 +102,7 @@ public partial class ClientVerification
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await Capture(Variant(suffix));
         }
-        var initial = MapGeometry.Center(89, 64); World.FocusWorld(new(initial.X, initial.Y));
+        var initial = MapGeometry.Center(89, 64, World.Package!.Height); World.FocusWorld(new(initial.X, initial.Y));
         await WaitForView();
         GetViewport().PushInput(new InputEventMouseMotion { Position = new(512, 400), GlobalPosition = new(512, 400) }, true);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);

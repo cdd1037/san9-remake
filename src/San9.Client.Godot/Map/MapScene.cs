@@ -90,7 +90,7 @@ internal sealed partial class MapScene
     public Vector2 Anchor(MapBuilding building)
     {
         var p = BuildingInfoGeometry.Anchor(building.X, building.Y, building.FixedType,
-            Map.Squares[building.Y * Map.Width + building.X].Elevation);
+            Map.Squares[building.Y * Map.Width + building.X].Elevation, Map.Height);
         return new(p.X, p.Y);
     }
     public Rect2 AnnotationBounds(MapBuilding building) =>
@@ -159,7 +159,7 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
                 MapAnimationClock.Asset(clip, Scene.Season, clock, sprite.Phase);
             var position = new Vector2(sprite.X, sprite.Y);
             draws.Add((sprite.Depth, () => emit(asset, position, target, clip.BlendMode, highlight)));
-            if (sprite.IsBody && UnitOcclusion.IsOccluded(sprite.GroundX, sprite.GroundY, Scene.Occluders)) outlines.Add((asset, position));
+            if (sprite.IsBody && UnitOcclusion.IsOccluded(sprite.GroundX, sprite.GroundY, Scene.Occluders, Scene.Map.Width, Scene.Map.Height)) outlines.Add((asset, position));
         }
         foreach (var building in Buildings)
         {

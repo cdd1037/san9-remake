@@ -109,8 +109,7 @@ public partial class MapWorld : Node2D
     public override void _Ready()
     {
         _camera = GetNode<Camera2D>("%MapCamera");
-        var center = MapGeometry.Center(89, 64);
-        _requested = new(center.X, center.Y, 1); _camera.Position = new(center.X, center.Y);
+        _camera.Position = Vector2.Zero;
         GetWindow().MouseExited += ResetNavigation;
         GetWindow().FocusExited += ResetNavigation;
         GetViewport().SizeChanged += OnViewportResized;
@@ -125,7 +124,7 @@ public partial class MapWorld : Node2D
     public void LoadMap(MapPackage map, string root, string? season = null, double? animationTime = null)
     {
         _map = map; _packageRoot = root; _fixedAnimationTime = animationTime;
-        _requested = _requested.Clamp(map.Squares);
+        _requested = _requested.Clamp(map.Squares, map.Width, map.Height);
         _terrain ??= new(Textures.UploadGenerated, texture => Textures.Defer(texture.Dispose));
         if (_display is null)
         {
@@ -169,7 +168,7 @@ public partial class MapWorld : Node2D
                 IsInputBlocked?.Invoke(_pointer) != true)
             {
                 var point = ViewportToWorld(_pointer);
-                if (MapGeometry.TrySquare(point.X, point.Y, out int x, out int y))
+                if (MapGeometry.TrySquare(point.X, point.Y, out int x, out int y, _map!.Width, _map.Height))
                     _display.PersonnelHoverPlace = search.PlaceAt(new(x, y));
             }
         }
@@ -275,23 +274,23 @@ public partial class MapWorld : Node2D
     }
     public void FocusWorld(Vector2 point) => RequestView(new(point.X, point.Y, RequestedZoom));
     public void FocusCell(San9.Core.Domain.MapCell cell)
-    { var point = MapGeometry.Center(cell.X,cell.Y); FocusWorld(new(point.X,point.Y)); }
+    { var point = MapGeometry.Center(cell.X,cell.Y, _map!.Height); FocusWorld(new(point.X,point.Y)); }
     // All relative navigation uses world-space displacement; absolute focus and zoom remain separate.
     public void MoveWorld(double dx, double dy)
     {
         if (_map is null) return;
-        var point = MapCameraBoundary.Move(_requested.X, _requested.Y, dx, dy, _map.Squares);
+        var point = MapCameraBoundary.Move(_requested.X, _requested.Y, dx, dy, _map.Squares, _map.Width, _map.Height);
         RequestView(_requested with { X = point.X, Y = point.Y });
     }
     public void FocusBuilding(int id)
     {
-        var b = Session.View.Settlements.Single(b => b.Id == id); var c = MapGeometry.Center(b.X, b.Y); FocusWorld(new(c.X, c.Y));
+        var b = Session.View.Settlements.Single(b => b.Id == id); var c = MapGeometry.Center(b.X, b.Y, _map!.Height); FocusWorld(new(c.X, c.Y));
     }
     public void FocusUnit(int id)
     {
         var unit = Session.View.World.Units.SingleOrDefault(u => u.Id == id);
         if (unit is null) return;
-        var center = MapGeometry.Center(unit.Cell.X, unit.Cell.Y);
+        var center = MapGeometry.Center(unit.Cell.X, unit.Cell.Y, _map!.Height);
         FocusWorld(new(center.X, center.Y));
     }
     public Vector2 WorldToViewport(Vector2 world) => GetViewport().CanvasTransform * world;
@@ -303,7 +302,7 @@ public partial class MapWorld : Node2D
     }
     private void RequestView(MapViewport view)
     {
-        view = _map is null ? view : view.Clamp(_map.Squares);
+        view = _map is null ? view : view.Clamp(_map.Squares, _map.Width, _map.Height);
         if (_requested == view && LoadError is null) return;
         _requested = view; _error = null; _display?.RetryFailedRequest(); _navigation.Restart(); RequestDisplay();
     }
@@ -326,13 +325,13 @@ public partial class MapWorld : Node2D
                         if (SitePicked is { } sitePick)
                         {
                             var point = ViewportToWorld(button.Position);
-                            if (MapGeometry.TrySquare(point.X, point.Y, out int x, out int y)) sitePick(new(x,y));
+                            if (MapGeometry.TrySquare(point.X, point.Y, out int x, out int y, _map!.Width, _map.Height)) sitePick(new(x,y));
                         }
                         else if (ObjectAtViewport(button.Position) is { } target) pick(target);
                         else
                         {
                             var point = ViewportToWorld(button.Position);
-                            if (MapGeometry.TrySquare(point.X, point.Y, out int x, out int y)) WaypointPicked?.Invoke(new(x, y));
+                            if (MapGeometry.TrySquare(point.X, point.Y, out int x, out int y, _map!.Width, _map.Height)) WaypointPicked?.Invoke(new(x, y));
                         }
                     }
                 }

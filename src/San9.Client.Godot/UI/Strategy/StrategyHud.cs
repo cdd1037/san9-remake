@@ -500,7 +500,7 @@ public partial class StrategyHud : Control
     private void UpdateRegion(int x, int y)
     {
         if (World.Package is not { } map) return;
-        var info = RegionHoverInfo.Resolve(map.Squares[y * 200 + x], Scenario, Texts);
+        var info = RegionHoverInfo.Resolve(map, new(x, y), Scenario, Texts);
         _footer.Text = info.Region; _footerCity.Text = info.City;
     }
 
@@ -538,7 +538,7 @@ public partial class StrategyHud : Control
             {
                 hovered = World.ObjectAtViewport(mouse);
                 var world = World.ViewportToWorld(mouse);
-                if (MapGeometry.TrySquare(world.X, world.Y, out int x, out int y))
+                if (MapGeometry.TrySquare(world.X, world.Y, out int x, out int y, World.Package!.Width, World.Package.Height))
                 { UpdateRegion(x, y); visible = true; }
             }
         }

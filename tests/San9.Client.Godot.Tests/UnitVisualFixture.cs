@@ -27,7 +27,7 @@ internal static class UnitVisualFixture
     public static readonly MapUnitCatalog OverlappingCatalog = Catalog with { Formations = Catalog.Formations.Select(f => f with
             { Layouts = f.Layouts.Select(l => l with { Members = l.Members.Select(m => m with { X = 0, Y = 0 }).ToArray() }).ToArray() }).ToArray() };
 
-    public static UnitVisualState State => new(10000, 89, 64, 1, 1000, 10000, UnitCondition.Normal, 0, false, 0, 2);
+    public static UnitVisualState State => new(10000, 89, 64, 1, 1000, 10000, UnitCondition.Normal, 0, false, 0, 2, 200);
     public static UnitVisual Sample(UnitVisualState state, MapUnitCatalog catalog,
         double milliseconds = 0,
         Func<double, UnitVisualState>? history = null, Func<double, double>? visualAge = null,

@@ -25,7 +25,7 @@ internal sealed partial class MapScene
     {
         double cx = (x - MapCoordinates.UnitsPerCell / 2) / MapCoordinates.UnitsPerCell;
         double cy = (y - MapCoordinates.UnitsPerCell / 2) / MapCoordinates.UnitsPerCell;
-        double gx = 32 * (cx + 200 - cy) + 96, gy = 16 * (cx + cy + 1) + 112;
+        double gx = 32 * (cx + Map.Height - cy) + 96, gy = 16 * (cx + cy + 1) + 112;
         return new((float)gx, (float)(gy - 10 * (ElevationAt(gx, gy) - 1)));
     }
     // Captures immutable motion inputs, never the scene or its retained history.

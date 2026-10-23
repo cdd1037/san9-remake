@@ -70,7 +70,7 @@ public sealed class UnitMotionPlayback
     private static uint Seed(int unit, MapUnitMember m, int tick) =>
         UnitVisuals.Seed(unit, m.Index, unchecked((int)UnitVisuals.Seed(m.Group, 0, tick)));
     private static (double X, double Y) Point(UnitVisualState s, MapUnitMember m) =>
-        (32 * (s.CellX + 200 - s.CellY) + 96 + m.X, 16 * (s.CellX + s.CellY + 1) + 112 + m.Y);
+        (32 * (s.CellX + s.MapHeight - s.CellY) + 96 + m.X, 16 * (s.CellX + s.CellY + 1) + 112 + m.Y);
     private static MapUnitLayout Layout(UnitVisualState s, MapUnitCatalog catalog) => catalog.Formations
         .Single(f => f.FormationId == s.FormationId).Layouts.Where(l => l.MinimumSoldiers <= s.BodySoldiers)
         .MaxBy(l => l.MinimumSoldiers)!;

@@ -15,9 +15,9 @@ public readonly record struct UnitOccluder(double Left, double Top, double Right
 public static class UnitOcclusion
 {
     // Screen ground coordinates are independent of sprite anchors and terrain-height displacement.
-    public static bool IsOccluded(double groundX, double groundY, IEnumerable<UnitOccluder> buildings)
+    public static bool IsOccluded(double groundX, double groundY, IEnumerable<UnitOccluder> buildings, int width, int height)
     {
-        if (!MapGeometry.TrySquare(groundX, groundY, out int x, out int y)) return false;
+        if (!MapGeometry.TrySquare(groundX, groundY, out int x, out int y, width, height)) return false;
         foreach (var b in buildings)
             for (int step = 1; step <= b.Reach; step++)
             {

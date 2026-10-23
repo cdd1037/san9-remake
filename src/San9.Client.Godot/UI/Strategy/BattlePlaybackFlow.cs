@@ -56,7 +56,7 @@ public partial class BattlePlaybackFlow : Control
                 if (!obj.IsSettlement && World.TrySpeechUnitAnchor(obj.Id, out var anchor, out _)) point = anchor;
                 else
                 {
-                    var cell = BattleCell(obj); var center = MapGeometry.Center(cell.X, cell.Y);
+                    var cell = BattleCell(obj); var center = MapGeometry.Center(cell.X, cell.Y, World.Package!.Height);
                     point = new(center.X, center.Y - 10 * (World.Package!.Squares[cell.Y * World.Package.Width + cell.X].Elevation - 1));
                 }
                 return GetGlobalTransformWithCanvas().AffineInverse() * (World.GetGlobalTransformWithCanvas() * point);

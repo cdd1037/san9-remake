@@ -2,12 +2,12 @@ namespace San9.Rendering;
 
 public readonly record struct MapViewport(double X, double Y, double Zoom)
 {
-    public MapViewport Clamp(IReadOnlyList<San9.Content.Maps.MapSquare> squares)
+    public MapViewport Clamp(IReadOnlyList<San9.Content.Maps.MapSquare> squares, int width, int height)
     {
         if (!double.IsFinite(X) || !double.IsFinite(Y) || !double.IsFinite(Zoom) || Zoom <= 0)
             throw new ArgumentOutOfRangeException(nameof(Zoom));
         double zoom = Math.Clamp(Zoom, .25, 2);
-        var center = MapCameraBoundary.Clamp(X, Y, squares);
+        var center = MapCameraBoundary.Clamp(X, Y, squares, width, height);
         return new(center.X, center.Y, zoom);
     }
 

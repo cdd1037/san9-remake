@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace San9.Client.Godot;
 
-public sealed record ClientOptions(string PackageRoot, int CenterX, int CenterY, float Zoom, string? Season,
+public sealed record ClientOptions(string PackageRoot, int? CenterX, int? CenterY, float Zoom, string? Season,
     double? AnimationTime, bool MapSmoke, bool UiSmoke, string? Screenshot, bool Quit)
 {
     public int ComputerDamageBonusPercent { get; init; }
@@ -11,6 +11,14 @@ public sealed record ClientOptions(string PackageRoot, int CenterX, int CenterY,
     public bool InformationSmoke { get; init; }
     public bool TextSmoke { get; init; }
     public bool RequiresWorldVerification => PatrolSmoke || MapSmoke || UiSmoke || RuntimeSmoke || InformationSmoke || Screenshot is not null;
+    public San9.Core.Domain.MapCell ResolveMapCenter(int width, int height, San9.Core.Domain.MapCell? preferred = null)
+    {
+        var cell = new San9.Core.Domain.MapCell(CenterX ?? preferred?.X ?? width / 2, CenterY ?? preferred?.Y ?? height / 2);
+        if (cell.X < 0 || cell.X >= width || cell.Y < 0 || cell.Y >= height)
+            throw new ArgumentException("Map center is outside the loaded map.");
+        return cell;
+    }
+
     public static ClientOptions Parse(string[] args, string contentRoot)
     {
         string? Argument(string name)
@@ -21,12 +29,13 @@ public sealed record ClientOptions(string PackageRoot, int CenterX, int CenterY,
         }
         int bonus = Argument("--computer-damage-bonus") is { } b ? int.Parse(b, CultureInfo.InvariantCulture) : 0;
         ArgumentOutOfRangeException.ThrowIfNegative(bonus);
-        int x = 89, y = 64;
+        int? x = null, y = null;
         if (Argument("--map-center") is {} center)
         {
             var pair = center.Split(',');
-            if (pair.Length != 2 || !int.TryParse(pair[0], out x) || !int.TryParse(pair[1], out y) || x is < 0 or >= 200 || y is < 0 or >= 200)
+            if (pair.Length != 2 || !int.TryParse(pair[0], out int centerX) || !int.TryParse(pair[1], out int centerY) || centerX < 0 || centerY < 0)
                 throw new ArgumentException("Invalid map center.");
+            x = centerX; y = centerY;
         }
         float zoom = Argument("--map-zoom") is {} z ? float.Parse(z, CultureInfo.InvariantCulture) : 1;
         if (!float.IsFinite(zoom) || zoom <= 0) throw new ArgumentException("Invalid zoom.");

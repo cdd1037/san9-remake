@@ -8,6 +8,25 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class RegionHoverTests
 {
+    [Theory]
+    [InlineData(300, 300)]
+    [InlineData(347, 183)]
+    public void HoverAtTheFarCornerReadsTheCurrentMapRowWidth(int width, int height)
+    {
+        var scenario = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "hover", 190, 1, 1, 5,
+            [new(5, "player", 5, 100)], [new(15, "city", 5, 0, 0, 0, 100, 100, 0, [])],
+            new() { [99] = "region" }, new() { [99] = 15 })
+        { Information = new([], [], [], [new San9.Core.Domain.CorpsState(5, 5, null, new(100, 100)) { IsRoot = true }], []) };
+        var view = San9.Application.GameSession.Start(scenario, 1).View;
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, new() { ["city"] = "城市", ["region"] = "边角地域" });
+        var squares = Enumerable.Repeat(new MapSquare(0, 1, 0, -1), width * height).ToArray();
+        squares[^1] = new(0, 1, 0, 99);
+        var map = new MapPackage(MapPackage.CurrentSchemaVersion, "fixture", "hover", "spring", width, height,
+            0, 0, squares, [], [], [], [], [], [], [], [], [], [], [], new([], []), []);
+        Assert.Equal(new("边角地域", "城市"), RegionHoverInfo.Resolve(map, new(width - 1, height - 1), view, texts));
+        Assert.Throws<ArgumentOutOfRangeException>(() => RegionHoverInfo.Resolve(map, new(width, height - 1), view, texts));
+    }
+
     [Fact]
     public void RegionAndCityAreIndependentEvenWhenTheyAreTheSame()
     {

@@ -35,7 +35,7 @@ internal sealed record MapSceneProjection(BuildingVisualState[] BuildingStates,
                     map.Squares[u.Cell.Y * map.Width + u.Cell.X].Elevation, u.Soldiers, state.FormationId(u)!.Value,
                     u.Condition, (int)u.Facing,
                     u.EffectiveOrderClass == UnitOrderClass.Military && state.HasCityInfluence(u.OwnerId, u.Position),
-                    force.ColorCode, commander?.FlagGlyph ?? -1)
+                    force.ColorCode, commander?.FlagGlyph ?? -1, map.Height)
                 {
                     IsEngaged = state.IsUnitEngaged(u.Id),
                     VisionAngleDegrees = state.Information.Formations.Single(f => f.Id == state.FormationId(u)).Presentation?.VisionAngleDegrees ?? 0,

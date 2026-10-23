@@ -5,6 +5,19 @@ namespace San9.Client.Godot.Tests;
 public sealed class ClientOptionsTests
 {
     [Fact]
+    public void MapCenterIsResolvedAgainstLoadedDimensionsInsteadOfTheOriginalMap()
+    {
+        var expanded = ClientOptions.Parse(["--map-center", "254,281"], Environment.CurrentDirectory);
+        Assert.Equal(new(254, 281), expanded.ResolveMapCenter(300, 300));
+        Assert.Throws<ArgumentException>(() => expanded.ResolveMapCenter(200, 200));
+        Assert.Throws<ArgumentException>(() => ClientOptions.Parse(["--map-center", "-1,281"], Environment.CurrentDirectory));
+        var normal = ClientOptions.Parse([], Environment.CurrentDirectory);
+        Assert.Equal(new(0, 0), normal.ResolveMapCenter(1, 1));
+        Assert.Equal(new(20, 15), normal.ResolveMapCenter(40, 30));
+        Assert.Equal(new(7, 9), normal.ResolveMapCenter(40, 30, new(7, 9)));
+    }
+
+    [Fact]
     public void NormalStartupDoesNotEnableHistoricalVerification()
     {
         var options = ClientOptions.Parse([], Environment.CurrentDirectory);

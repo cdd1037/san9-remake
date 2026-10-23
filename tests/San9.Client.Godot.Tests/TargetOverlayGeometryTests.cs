@@ -60,7 +60,7 @@ public sealed class TargetOverlayGeometryTests
         Assert.Equal(0.5f, meshes[0].Opacity);
         Assert.Equal(5, meshes[1].ElevationMask);
         Assert.Equal(51f / 256, meshes[1].Opacity);
-        var center = MapGeometry.Center(2, 0);
+        var center = MapGeometry.Center(2, 0, map.Height);
         Assert.Equal((center.X - 32, center.Y - 46), (meshes[1].X, meshes[1].Y));
         var overlapping = TargetOverlayGeometry.Meshes(map, new HashSet<MapCell>(), new HashSet<MapCell> { new(2, 0) }).Last();
         Assert.InRange(overlapping.Opacity, 0.358f, 0.36f);

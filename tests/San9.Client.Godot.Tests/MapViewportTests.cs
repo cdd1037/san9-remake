@@ -4,6 +4,23 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class MapViewportTests
 {
+    [Theory]
+    [InlineData(300, 300)]
+    [InlineData(347, 183)]
+    [InlineData(1, 1)]
+    [InlineData(1, 17)]
+    [InlineData(23, 1)]
+    public void ExpandedRectangularMapKeepsTheFarCornerReachable(int width, int height)
+    {
+        var squares = Enumerable.Repeat(new San9.Content.Maps.MapSquare(0, 1, 0, 0), width * height).ToArray();
+        var center = MapGeometry.Center(width - 1, height - 1, height);
+        var view = new MapViewport(center.X, center.Y, 1);
+        Assert.Equal(view, view.Clamp(squares, width, height));
+        var outside = new MapViewport(center.X, 100000, 1).Clamp(squares, width, height);
+        Assert.InRange(outside.Y, center.Y, center.Y + 16);
+        Assert.Equal(outside, outside.Clamp(squares, width, height));
+    }
+
     [Fact]
     public void IncompleteAndSupersededTargetsNeverReplacePresentedView()
     {
@@ -57,9 +74,9 @@ public sealed class MapViewportTests
         var squares = Enumerable.Repeat(new San9.Content.Maps.MapSquare(0, 4, 0, 0), 40000).ToArray();
         foreach (double zoom in new[] { .25, 1, 2 })
         {
-            var result = new MapViewport(x, y, zoom).Clamp(squares);
+            var result = new MapViewport(x, y, zoom).Clamp(squares, 200, 200);
             Assert.Equal(new MapViewport(expectedX, expectedY, zoom), result);
-            Assert.Equal(result, result.Clamp(squares));
+            Assert.Equal(result, result.Clamp(squares, 200, 200));
         }
     }
 
@@ -67,22 +84,22 @@ public sealed class MapViewportTests
     public void WindowSlidesContinuouslyAlongSlopedBoundaryWithoutGridSnap()
     {
         var squares = Enumerable.Repeat(new San9.Content.Maps.MapSquare(0, 1, 0, 0), 40000).ToArray();
-        var center = MapGeometry.Center(0, 100);
-        var a = new MapViewport(center.X - 20.25, center.Y - 15.5, 1).Clamp(squares);
-        var b = new MapViewport(center.X - 20, center.Y - 15.625, 1).Clamp(squares);
+        var center = MapGeometry.Center(0, 100, 200);
+        var a = new MapViewport(center.X - 20.25, center.Y - 15.5, 1).Clamp(squares, 200, 200);
+        var b = new MapViewport(center.X - 20, center.Y - 15.625, 1).Clamp(squares, 200, 200);
         Assert.Equal(.25, b.X - a.X, 8);
         Assert.Equal(-.125, b.Y - a.Y, 8);
         Assert.NotEqual((double)center.X, a.X);
-        Assert.Equal(a.X, a.Clamp(squares).X, 8);
-        Assert.Equal(a.Y, a.Clamp(squares).Y, 8);
+        Assert.Equal(a.X, a.Clamp(squares, 200, 200).X, 8);
+        Assert.Equal(a.Y, a.Clamp(squares, 200, 200).Y, 8);
     }
 
     [Fact]
     public void InteriorPixelPositionIsPreserved()
     {
         var squares = Enumerable.Repeat(new San9.Content.Maps.MapSquare(0, 1, 0, 0), 40000).ToArray();
-        var center = MapGeometry.Center(80, 70);
+        var center = MapGeometry.Center(80, 70, 200);
         var view = new MapViewport(center.X + 3.5, center.Y + 1.25, 1);
-        Assert.Equal(view, view.Clamp(squares));
+        Assert.Equal(view, view.Clamp(squares, 200, 200));
     }
 }

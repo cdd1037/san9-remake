@@ -10,6 +10,21 @@ public sealed class UnitVisualsTests
     private static UnitVisual Resolve(UnitVisualState state) => Sample(state, Catalog);
 
     [Fact]
+    public void UnitBodiesAndLabelsUseTheSameProjectionOnARectangularMap()
+    {
+        var original = Resolve(State);
+        var rectangular = Resolve(State with { MapHeight = 183 });
+        Assert.Equal(original.AnchorX - 544, rectangular.AnchorX);
+        Assert.Equal(original.LabelX - 544, rectangular.LabelX);
+        Assert.Equal(original.AnchorY, rectangular.AnchorY);
+        Assert.All(original.Animations.Zip(rectangular.Animations), pair =>
+        {
+            Assert.Equal(pair.First.X - 544, pair.Second.X);
+            Assert.Equal(pair.First.Y, pair.Second.Y);
+        });
+    }
+
+    [Fact]
     public void TerminalPresentationShowsZeroSoldiersWhileRetainingTheLastLivingBodyLayout()
     {
         var living = State with { Soldiers = 1001 };
@@ -30,7 +45,7 @@ public sealed class UnitVisualsTests
         var squares = Enumerable.Range(0, 40000).Select(i => new MapSquare(0, i % 200 < 90 ? 1 : 3, 0, 0)).ToArray();
         var state = State with { CellX = 89.25, Soldiers = 1001, Morale = 0 };
         double Smooth(double x, double y) => MapGeometry.SampleElevation(x, y, 200, 200, squares);
-        double Stepped(double x, double y) => MapGeometry.TrySquare(x, y, out int cx, out int cy) ? squares[cy * 200 + cx].Elevation : 1;
+        double Stepped(double x, double y) => MapGeometry.TrySquare(x, y, out int cx, out int cy, 200, 200) ? squares[cy * 200 + cx].Elevation : 1;
         var smoothPlayback = new UnitMotionPlayback();
         var steppedPlayback = new UnitMotionPlayback();
         MapAnimatedSprite Member(UnitMotionPlayback playback, double time, Func<double, double, double> height) =>
@@ -89,7 +104,7 @@ public sealed class UnitVisualsTests
     {
         var state=State with { Soldiers=1001, Morale=100 };
         var flat=Sample(state,Catalog);
-        double middle=MapGeometry.Center(89,64).X;
+        double middle=MapGeometry.Center(89,64, 200).X;
         var slope=Sample(state,Catalog,elevationAt:(x,y)=>x<middle?1:3);
         var a=flat.Animations.Where(s=>s.IsBody).ToArray();
         var b=slope.Animations.Where(s=>s.IsBody).ToArray();
@@ -119,7 +134,7 @@ public sealed class UnitVisualsTests
     [Fact]
     public void FinePositionAndElevationShareTheBuildingProjection()
     {
-        var center = MapGeometry.Center(89, 64);
+        var center = MapGeometry.Center(89, 64, 200);
         var unit = Resolve(State);
         Assert.Equal(center.X - 18, unit.Animations[0].X);
         Assert.Equal(center.Y - 30, unit.Animations[0].Y);
@@ -196,7 +211,7 @@ public sealed class UnitVisualsTests
     {
         var small = Resolve(State with { HasCityInfluence = true });
         var large = Resolve(State with { Morale = 100, Soldiers = 1001, HasCityInfluence = true, Direction = 6 });
-        var center = MapGeometry.Center(89, 64);
+        var center = MapGeometry.Center(89, 64, 200);
         var soldiers = large.Animations.Where(s => s.ClipId.StartsWith("body-")).ToArray();
         Assert.Equal(new[] { center.X - 30, center.X - 6 }, soldiers.Select(s => s.X));
         Assert.All(soldiers, s => Assert.Equal(center.Y - 30, s.Y));
@@ -271,11 +286,11 @@ public sealed class UnitVisualsTests
         var position = MapCoordinates.Center(new(12, 12));
         var city = UnitOccluder.FromGeographicArea(new(position, new(25, 25)), 2, true);
         var battle = UnitOccluder.FromGeographicArea(new(position, new(5, 5)), 2, true);
-        var side = MapGeometry.Center(13, 9);
-        Assert.True(UnitOcclusion.IsOccluded(side.X, side.Y, [city]));
-        Assert.False(UnitOcclusion.IsOccluded(side.X, side.Y, [battle]));
-        var courtyard = MapGeometry.Center(12, 12);
-        Assert.False(UnitOcclusion.IsOccluded(courtyard.X, courtyard.Y, [city]));
+        var side = MapGeometry.Center(13, 9, 200);
+        Assert.True(UnitOcclusion.IsOccluded(side.X, side.Y, [city], 200, 200));
+        Assert.False(UnitOcclusion.IsOccluded(side.X, side.Y, [battle], 200, 200));
+        var courtyard = MapGeometry.Center(12, 12, 200);
+        Assert.False(UnitOcclusion.IsOccluded(courtyard.X, courtyard.Y, [city], 200, 200));
         var shifted = UnitOccluder.FromGeographicArea(new(new(63, 63), new(25, 25)), 2, true);
         Assert.Equal((10d, 10d, 16d, 16d), (shifted.Left, shifted.Top, shifted.Right, shifted.Bottom));
     }
@@ -284,15 +299,15 @@ public sealed class UnitVisualsTests
     public void OcclusionMarksRearApproachButExcludesCityCourtyard()
     {
         UnitOccluder city = new(10,10,15,15,2,true);
-        var rear = MapGeometry.Center(9,9);
-        Assert.True(UnitOcclusion.IsOccluded(rear.X,rear.Y,[city]));
-        var near = MapGeometry.Center(7,7);
-        Assert.False(UnitOcclusion.IsOccluded(near.X,near.Y + 15,[city]));
-        Assert.True(UnitOcclusion.IsOccluded(near.X,near.Y + 17,[city]));
-        var inside = MapGeometry.Center(11,11);
-        Assert.False(UnitOcclusion.IsOccluded(inside.X,inside.Y,[city]));
-        var front = MapGeometry.Center(15,15);
-        Assert.False(UnitOcclusion.IsOccluded(front.X,front.Y,[city]));
-        Assert.False(UnitOcclusion.IsOccluded(rear.X,rear.Y,[]));
+        var rear = MapGeometry.Center(9,9, 200);
+        Assert.True(UnitOcclusion.IsOccluded(rear.X,rear.Y,[city], 200, 200));
+        var near = MapGeometry.Center(7,7, 200);
+        Assert.False(UnitOcclusion.IsOccluded(near.X,near.Y + 15,[city], 200, 200));
+        Assert.True(UnitOcclusion.IsOccluded(near.X,near.Y + 17,[city], 200, 200));
+        var inside = MapGeometry.Center(11,11, 200);
+        Assert.False(UnitOcclusion.IsOccluded(inside.X,inside.Y,[city], 200, 200));
+        var front = MapGeometry.Center(15,15, 200);
+        Assert.False(UnitOcclusion.IsOccluded(front.X,front.Y,[city], 200, 200));
+        Assert.False(UnitOcclusion.IsOccluded(rear.X,rear.Y,[], 200, 200));
     }
 }

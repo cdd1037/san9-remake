@@ -50,7 +50,7 @@ public sealed class BuildingVisualTests
         };
         map = map with { Compositions = map.Compositions.Select(c => c with { Parts=parts }).ToArray() };
         var building = Assert.Single(BuildingVisuals.Resolve(map,[new(0,1000,2,0,0,5,-1)]).Buildings);
-        double ground = MapGeometry.Center(89,64).Y;
+        double ground = MapGeometry.Center(89,64, 200).Y;
         var depths = building.Sprites.Select(s => s.Depth).ToArray();
         Assert.True(depths[0] < ground+30000 && depths[1] > ground+30000);
         Assert.Equal(ground+10000,depths[2]);

@@ -92,6 +92,8 @@ public sealed record ClientContentPackage(int SchemaVersion, ContentSource[] Sou
         foreach (string role in Scenario.Officers.SelectMany(o => new[] { $"information-person-{o.State.Id}", $"catalog-person-{o.State.Id}" })
                      .Concat(Scenario.Information.Treasures.Select(t => $"information-treasure-{t.Id}")))
             if (!Skin.Roles.ContainsKey(role)) throw new InvalidDataException($"Missing information illustration: {role}");
+        if (Scenario.Military is { } geography && (geography.Width != Map.Width || geography.Height != Map.Height))
+            throw new InvalidDataException("Scenario and map dimensions differ.");
         if (Map.ScenarioId != Scenario.ScenarioId ||
             !Map.Buildings.Select(b => b.Id).Order().SequenceEqual(Scenario.Settlements.Select(s => s.Id).Order()))
             throw new InvalidDataException("Scenario and map identities differ.");

@@ -8,13 +8,13 @@ public static class RoutePreviewGeometry
     // Converted flags place the pole's foot at the bottom-center pixel.
     public static (int X, int Y) Waypoint(MapPackage map, MapCell cell, int width, int height)
     {
-        var center = MapGeometry.Center(cell.X, cell.Y);
+        var center = MapGeometry.Center(cell.X, cell.Y, map.Height);
         return (center.X - width / 2, center.Y - 10 * (map.Squares[cell.Y * map.Width + cell.X].Elevation - 1) - (height - 1));
     }
 
     public static (int X, int Y) Glow(MapPackage map, MapCell cell)
     {
-        var center = MapGeometry.Center(cell.X, cell.Y);
+        var center = MapGeometry.Center(cell.X, cell.Y, map.Height);
         return (center.X - 16, center.Y - 12 - 10 * map.Squares[cell.Y * map.Width + cell.X].Elevation);
     }
 

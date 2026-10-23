@@ -55,7 +55,7 @@ public partial class MapWorld
         if (!direction.IsNone && _map is not null)
         {
             // Cursor availability follows the same movement rule as drag and edge scrolling.
-            var probe = MapCameraBoundary.Move(_requested.X, _requested.Y, direction.X, direction.Y, _map.Squares);
+            var probe = MapCameraBoundary.Move(_requested.X, _requested.Y, direction.X, direction.Y, _map.Squares, _map.Width, _map.Height);
             if (Math.Abs(probe.X - _requested.X) + Math.Abs(probe.Y - _requested.Y) < .001) direction = default;
         }
         _edgeCursor.Show(direction, active);

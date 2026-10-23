@@ -11,7 +11,7 @@ public partial class ClientVerification
         try
         {
             await RunMapResourceChecks();
-            var origin = MapGeometry.Center(89, 64); World.FocusWorld(new(origin.X, origin.Y));
+            var origin = MapGeometry.Center(89, 64, World.Package!.Height); World.FocusWorld(new(origin.X, origin.Y));
             await WaitForView();
             World._UnhandledInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = new(512, 384) });
             Check(Selection.Square == (89, 64), "Center picking failed.");

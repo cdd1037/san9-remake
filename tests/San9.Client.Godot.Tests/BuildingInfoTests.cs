@@ -22,10 +22,10 @@ public sealed class BuildingInfoTests
     [Fact]
     public void BuildingTypesHaveDistinctAnchorsAndElevationMovesTheWholePanel()
     {
-        var center = MapGeometry.Center(89, 64);
-        Assert.Equal((center.X + 12, center.Y - 128), BuildingInfoGeometry.Anchor(89, 64, 0, 1));
-        Assert.Equal((center.X + 80, center.Y - 106), BuildingInfoGeometry.Anchor(89, 64, 4, 1));
-        Assert.Equal((center.X + 12, center.Y - 148), BuildingInfoGeometry.Anchor(89, 64, 0, 3));
+        var center = MapGeometry.Center(89, 64, 200);
+        Assert.Equal((center.X + 12, center.Y - 128), BuildingInfoGeometry.Anchor(89, 64, 0, 1, 200));
+        Assert.Equal((center.X + 80, center.Y - 106), BuildingInfoGeometry.Anchor(89, 64, 4, 1, 200));
+        Assert.Equal((center.X + 12, center.Y - 148), BuildingInfoGeometry.Anchor(89, 64, 0, 3, 200));
         Assert.Equal(68, BuildingInfoGeometry.FillWidth(int.MaxValue, 100));
         Assert.Throws<ArgumentOutOfRangeException>(() => BuildingInfoGeometry.FillWidth(1, 0));
     }

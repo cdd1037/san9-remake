@@ -7,9 +7,9 @@ public static class BuildingInfoGeometry
          (36, -64), (48, -56), (40, -70), (16, -78), (25, -74), (-63, -81),
          (16, -80), (-76, -78), (10, -68), (-63, -72), (-2, -97)];
 
-    public static (int X, int Y) Anchor(int x, int y, int type, int elevation)
+    public static (int X, int Y) Anchor(int x, int y, int type, int elevation, int mapHeight)
     {
-        var center = MapGeometry.Center(x, y);
+        var center = MapGeometry.Center(x, y, mapHeight);
         var offset = Offsets[type];
         return (center.X + offset.X, center.Y - 10 * (elevation - 1) + offset.Y);
     }

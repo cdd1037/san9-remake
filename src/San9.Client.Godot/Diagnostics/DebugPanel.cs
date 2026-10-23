@@ -88,6 +88,8 @@ public partial class DebugPanel : PanelContainer
             return;
         }
         // Rebuild presentation and selection from the new perspective after this input callback.
-        Callable.From(() => Host.Activate(Host.Session, SessionReplacementKind.Load)).CallDeferred();
+        var replacementKind = kind == ControllerKind.Automatic
+            ? SessionReplacementKind.ControlDelegation : SessionReplacementKind.Load;
+        Callable.From(() => Host.Activate(Host.Session, replacementKind)).CallDeferred();
     }
 }

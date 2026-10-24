@@ -167,7 +167,7 @@ internal static class DecisionPresentationCompiler
                 Results = role == "attack-request" ? new() { ["success"] = [M(6486, sound: good)], ["failure"] = [M(6488, sound: bad)] } :
                     new() { ["success"] = [M(6375, sound: good, inputs: [("person.0", "other")])], ["failure"] = [M(6558, sound: bad, inputs: [("person.0", "host"), ("person.1", "other")])] }
             };
-        Add("alliance", DecisionWindowKind.Confirmation, M(9390), [], yesNo, ("decline", [M(9394)]));
+        Add("alliance", DecisionWindowKind.Confirmation, M(9390), [], yesNo, ("decline", [M(9394, inputs: [("force.0", "target-force")])]));
         foreach (var (role, prompt, proposal, accepted, refused) in new[]
             { ("gift", 6098, 6559, 6568, 6581), ("surrender", 6101, 6596, 6605, 6618) })
         {

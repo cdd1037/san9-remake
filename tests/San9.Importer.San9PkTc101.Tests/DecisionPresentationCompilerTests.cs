@@ -5,7 +5,7 @@ namespace San9.Importer.San9PkTc101.Tests;
 public sealed class DecisionPresentationCompilerTests
 {
     [Fact]
-    public void DecisionNumbersBindToTheirDomainMeaning()
+    public void DecisionSlotsBindToTheirDomainMeaning()
     {
         var people = new ushort[] { 671, 670, 666, 667 }.Select(biography => new San9ScenarioPersonRecord(
             0, 6000, 0, 0, 0, 0, 0, biography, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -23,5 +23,9 @@ public sealed class DecisionPresentationCompilerTests
             .Single(m => m.Key == "messages.7855").Bindings["number.0"]);
         Assert.Equal("dynasty-years", decisions.Events["emperor-transfer"].Results["decline"][0].Bindings["number.0"]);
         Assert.Equal("amount", decisions.Events["bribe"].Prompt.Bindings["number.0"]);
+        var alliance = decisions.Events["alliance"];
+        Assert.Equal("force", alliance.Prompt.Bindings["force.0"]);
+        Assert.Equal("target-force", alliance.Prompt.Bindings["force.1"]);
+        Assert.Equal("target-force", Assert.Single(alliance.Results["decline"]).Bindings["force.0"]);
     }
 }

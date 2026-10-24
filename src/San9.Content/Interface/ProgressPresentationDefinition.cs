@@ -19,7 +19,7 @@ public sealed record ProgressPresentationDefinition(Dictionary<string, DecisionM
         "unit-commander-changed", "corps-leader-changed", "corps-reorganized", "appearance-introduction", "appearance-greeting", "appearance-result",
         "treasury-captured", "prisoner-escape-speech", "prisoner-escape-result", "battle-capture-speech", "battle-capture-dialogue"];
     public static readonly string[] MapSpeechRoles = ["policy-construction-aborted", "policy-transport-aborted", "policy-return-target-changed",
-        "policy-enter-captured-place", "policy-return-after-action", "policy-attack-unit-after-action", "policy-attack-place-after-action", "waypoint-reached", "contact-attack", "contact-defense",
+        "policy-enter-captured-place", "policy-return-after-action", "policy-attack-unit-after-action", "policy-attack-place-after-action", "unit-defeat", "waypoint-reached", "contact-attack", "contact-defense",
         "contact-attack-strong", "contact-attack-weak", "contact-defense-strong", "contact-defense-weak", "contact-building",
         "policy-attack-ordered", "policy-attack-despite-orders", "policy-avoid-ordered", "policy-avoid-despite-orders", "policy-retreat-ordered", "policy-retreat-outnumbered",
         "policy-retreat-low-morale", "policy-retreat-despite-orders", "policy-pursue-ordered", "policy-pursue-despite-orders", "policy-resume-orders", "policy-return-home"];

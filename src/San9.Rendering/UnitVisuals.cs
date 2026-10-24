@@ -38,6 +38,9 @@ public enum UnitVisualAction { Idle, Moving, Melee, Ranged }
 
 public static class UnitVisuals
 {
+    public static int ScreenDirection(double x, double y) =>
+        ((int)Math.Round(Math.Atan2(2 * y, x) * 4 / Math.PI) + 9) % 8;
+
     public static int Direction(WorldPosition position, WorldPosition? target)
     {
         // Clockwise screen directions: northeast, east, southeast, south, southwest, west, northwest, north.

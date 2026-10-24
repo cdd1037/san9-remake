@@ -17,7 +17,7 @@ internal static class MapAudioCompiler
         // RE-0187: cover each complete variant family instead of reproducing the source's off-by-one.
         int count = first switch
         {
-            30 or 33 or 36 or 39 or 42 or 45 or 56 or 59 or 64 or 67 => 3,
+            30 or 33 or 36 or 39 or 42 or 45 or 56 or 59 or 64 or 67 or 85 => 3,
             _ => 1
         };
         return Enumerable.Range(first, count).ToArray();
@@ -50,8 +50,12 @@ internal static class MapAudioCompiler
             return ActionVariants(first).Select(i => Sound($"map-body-{body}-{action}-{i - first}", i)).ToArray();
         }
         // RE-0186: action table columns are movement, melee and ranged; source IDs stay here.
+        string retirementEnd = Sound("map-unit-retirement-end", 92);
         var bodies = Enumerable.Range(0, 20).ToDictionary(i => $"unit-body-{i}",
-            i => new MapBodySounds(Action(i, 0), Action(i, 1), Action(i, 2)));
+            i => new MapBodySounds(Action(i, 0), Action(i, 1), Action(i, 2))
+            {
+                Retirement = new(Action(i, 3), Int(0x615820 + 8 * (i + 60) + 4) * 100, retirementEnd)
+            });
         string construction = Sound("map-construction", 21), fortification = Sound("map-fortification-construction", 22);
         var definition = new MapAudioDefinition(Sound("execution-title", 11),
             MusicSources.Take(4).Select(s => s.Role).ToArray(), MusicSources.Skip(4).Take(4).Select(s => s.Role).ToArray(),

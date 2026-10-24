@@ -36,7 +36,9 @@ internal sealed partial class MapScene
         foreach (var body in Map.Units.Bodies.Where(b => bodyIds.Contains(b.Id) || imperialIds.Contains(b.Id)))
             foreach (string clip in body.DirectionClips.Concat(body.Attacks.SelectMany(a => a.Actions).SelectMany(a => a.DirectionClips))
                 .Concat(body.Wake is {} wake ? new[] { wake.ClipId } : [])
-                .Concat(body.Trail is {} trail ? new[] { trail.ClipId } : []).Concat(body.Engagement.Select(e => e.ClipId)))
+                .Concat(body.Trail is {} trail ? new[] { trail.ClipId } : []).Concat(body.Engagement.Select(e => e.ClipId))
+                .Concat(body.Retirement?.DirectionClips ?? [])
+                .Concat(body.Retirement?.Effect is {} effect ? new[] { effect.ClipId } : []))
                 foreach (string frame in Clips[clip].Frames) yield return frame;
         int glyph = state.IsRulerCommander ? Map.Units.RulerFlagGlyph : state.Glyph;
         foreach (int direction in Enumerable.Range(0, 8))

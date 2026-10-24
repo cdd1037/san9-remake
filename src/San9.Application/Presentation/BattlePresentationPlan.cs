@@ -45,7 +45,10 @@ public sealed record BattleValueCue(double Time, int TargetId, bool IsSettlement
     public string? AfterDialogueId { get; init; }
 }
 public sealed record BattleMapChangeCue(double Time, int FactIndex, int? RemovedUnitId, SettlementView? Settlement,
-    string? AfterDialogueId = null);
+    string? AfterDialogueId = null)
+{
+    public UnitTerminatedEvent? Retirement { get; init; }
+}
 public sealed record BattleMapEffectCue(string Id, double Start, BattleObjectContext Target, BattleSprite Sprite)
 {
     public int FactIndex { get; init; }

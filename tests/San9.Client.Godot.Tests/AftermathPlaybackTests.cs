@@ -189,4 +189,74 @@ public sealed class AftermathPlaybackTests
         day.SkipVisual();
         Assert.True(day.MapFrame.Settlements[2].IsDestroyed);
     }
+
+    [Theory]
+    [InlineData(UnitTerminationReason.Defeated, true, true)]
+    [InlineData(UnitTerminationReason.MoraleCollapsed, true, true)]
+    [InlineData(UnitTerminationReason.Defeated, false, false)]
+    [InlineData(UnitTerminationReason.ForceEliminated, true, false)]
+    [InlineData(UnitTerminationReason.Surrendered, true, false)]
+    public void RetiredBodiesLeaveSelectionAndSurvivePauseDailyPublicationAndTheNextDay(
+        UnitTerminationReason reason, bool visible, bool retires)
+    {
+        var basis = Scenario();
+        var session = GameSession.Start(basis with
+        {
+            Units = basis.Units.Select(u => u with { Morale = 70 }).ToArray(),
+            Information = basis.Information! with { Formations = [new(7, "formation")] }
+        }, 42);
+        var before = session.View;
+        var after = before.ForWorld(before.World with
+        {
+            Units = before.World.Units.Where(u => u.Id != 20).ToImmutableArray(),
+            Officers = before.World.Officers.Select(p => p.UnitId == 20 ? p with { UnitId = null, SettlementId = 2 } : p).ToImmutableArray()
+        });
+        var target = new BattleObjectContext(20, false, 2, 23, new(42, 7), 2, false);
+        DomainEvent[] facts = [new UnitTerminatedEvent(before.World.Clock, 20,
+            reason == UnitTerminationReason.MoraleCollapsed ? null : new(10, false), 0)
+            { Reason = reason, Target = target, Source = null }];
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, []);
+        var battle = BattlePresentationPlan.Create(before, after, facts, session.Messages(texts), texts, new([], null));
+        var catalog = UnitRetirementPlaybackTests.Catalog with
+        {
+            Formations = [UnitRetirementPlaybackTests.Catalog.Formations[0] with { FormationId = 7 }],
+            Bodies = UnitRetirementPlaybackTests.Catalog.Bodies.Select(b => b with
+                { Flags = Enumerable.Range(0, 8).Select(_ => Array.Empty<MapUnitFlagPlacement>()).ToArray() }).ToArray()
+        };
+        var assets = UnitRetirementPlaybackTests.Assets;
+        var map = new MapPackage(MapPackage.CurrentSchemaVersion, "fixture", "retirement", "spring", 11, 2, 13056, 6656,
+            Enumerable.Repeat(new MapSquare(0, 1, 0, 0), 22).ToArray(), [], assets.Values.ToArray(), [], [], [],
+            [new(1, 0, 1, 0), new(2, 10, 1, 0)], Enumerable.Range(1, 14).Select(id => new MapComposition(id, [])).ToArray(),
+            [], [], [], [], new(UnitRetirementPlaybackTests.Clips.Values.ToArray(), []), [])
+            { BuildingTypes = [new(0, 100)], Units = catalog };
+        var terrain = new San9.Rendering.TerrainRenderer(map, [], []);
+        var day = new TurnDayPresentation(before, after, facts, new MapDayPlan(map, before, facts), battle: battle)
+            { Viewport = () => visible ? new(-100000, -100000, 200000, 200000) : null };
+        double clock = 0;
+        var scene = new MapScene(map, terrain, "spring", before, assets, () => clock, day: day);
+        day.Advance(1);
+        scene = scene.RefreshMapFrame();
+        Assert.DoesNotContain(scene.Units, u => u.Id == 20);
+        Assert.Equal(retires, scene.HasRetirements);
+        if (!retires) { Assert.Empty(scene.RetiringSprites); return; }
+        Assert.NotEmpty(scene.RetiringSprites);
+        var targets = new List<MapObjectTarget?>();
+        scene.Select(new(-100000, -100000, 200000, 200000), false)
+            .Objects(0, (_, _, targetObject, _, _, _) => targets.Add(targetObject));
+        Assert.DoesNotContain(new MapObjectTarget(20, true), targets);
+        var first = Assert.Single(scene.RetiringSprites);
+        day.Advance(.4, paused: true);
+        Assert.True(Assert.Single(scene.RetiringSprites).Frame > first.Frame);
+        var published = new MapScene(map, terrain, "spring", after, assets, () => clock, scene);
+        Assert.Equal(scene.RetiringSprites.ToArray(), published.RetiringSprites.ToArray());
+        var nextDay = new TurnDayPresentation(after, after, [], new MapDayPlan(map, after, []));
+        var next = new MapScene(map, terrain, "spring", after, assets, () => clock, published, nextDay);
+        nextDay.Advance(1);
+        Assert.True(nextDay.IsComplete);
+        Assert.NotEmpty(next.RetiringSprites);
+        var stable = new MapScene(map, terrain, "spring", after, assets, () => clock, next);
+        clock = 1000;
+        Assert.Empty(stable.RetiringSprites);
+        Assert.False(stable.PruneRetirements().HasRetirements);
+    }
 }

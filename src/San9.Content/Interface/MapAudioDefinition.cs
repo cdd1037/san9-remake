@@ -7,7 +7,11 @@ public sealed record ExecutionMusicDefinition(string Battle, string RankedBattle
     internal IEnumerable<string> Roles => [Battle, RankedBattle, March, RankedMarch, Domestic];
 }
 
-public sealed record MapBodySounds(string[] Movement, string[] Melee, string[] Ranged);
+public sealed record MapRetirementSounds(string[] Start, int DelayMilliseconds, string? End);
+public sealed record MapBodySounds(string[] Movement, string[] Melee, string[] Ranged)
+{
+    [System.Text.Json.Serialization.JsonRequired] public MapRetirementSounds? Retirement { get; init; }
+}
 public sealed record MapAudioDefinition(string ExecutionTitleSound, string[] SeasonalMusic,
     string[] RankedSeasonalMusic, int[] RankedMusicRankIds, Dictionary<string, MapBodySounds> Bodies,
     Dictionary<int, string> ConstructionSounds, string[] BattleAmbience)
@@ -19,7 +23,8 @@ public sealed record MapAudioDefinition(string ExecutionTitleSound, string[] Sea
     public IEnumerable<string> SoundRoles => new[] { ExecutionTitleSound, RecordNotificationSound }.Concat(ConstructionSounds.Values)
         .Concat(FacilityArrowSounds).Concat(RockfallImpactSounds)
         .Concat(SeasonalMusic).Concat(RankedSeasonalMusic).Concat(ExecutionMusic.Roles).Concat(BattleAmbience)
-        .Concat(Bodies.Values.SelectMany(b => b.Movement.Concat(b.Melee).Concat(b.Ranged)));
+        .Concat(Bodies.Values.SelectMany(b => b.Movement.Concat(b.Melee).Concat(b.Ranged)
+            .Concat(b.Retirement?.Start ?? []).Concat(b.Retirement?.End is {} end ? new[] { end } : [])));
 
     public void Validate(IReadOnlyDictionary<string, string> sounds)
     {
@@ -28,6 +33,7 @@ public sealed record MapAudioDefinition(string ExecutionTitleSound, string[] Sea
             SeasonalMusic.Length != 4 || RankedSeasonalMusic.Length != 4 || BattleAmbience.Length == 0 ||
             RankedMusicRankIds.Any(r => r < 0) || RankedMusicRankIds.Distinct().Count() != RankedMusicRankIds.Length ||
             Bodies.Any(b => string.IsNullOrWhiteSpace(b.Key) || b.Value is null || b.Value.Movement is null || b.Value.Melee is null || b.Value.Ranged is null) ||
+            Bodies.Values.Any(b => b.Retirement is {} retirement && (retirement.Start is null || retirement.DelayMilliseconds < 0)) ||
             ConstructionSounds.Keys.Any(id => id < 0) ||
             SoundRoles.Any(r => string.IsNullOrWhiteSpace(r) || !sounds.ContainsKey(r)))
             throw new InvalidDataException("Invalid map audio presentation.");

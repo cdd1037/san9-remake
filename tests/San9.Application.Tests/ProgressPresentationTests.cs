@@ -380,7 +380,8 @@ public sealed class ProgressPresentationTests
         var texts = MissionScenario.Texts(before) with { Messages = new()
             { ["loss"] = new([new MessageLiteral("loss")]) } };
         var content = CommandPresentation.Empty with
-            { Progress = new(new() { ["unit-lost"] = new("loss",[]) },[]) };
+            { Progress = new(new() { ["unit-lost"] = new("loss",[]) },[])
+                { MapSpeeches = new() { ["unit-defeat"] = new("loss", [], "actor") } } };
         var loss = new UnitTerminatedEvent(clock,10,null,5000)
             { Reason = UnitTerminationReason.Defeated, Target = new(10,false,1,2,new(62,12),1,false), Source = null };
         var surrender = new ForceSurrenderedEvent(clock,1,2,0,0,0,0,[],[]);

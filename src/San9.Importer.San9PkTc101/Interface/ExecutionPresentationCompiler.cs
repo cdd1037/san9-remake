@@ -90,6 +90,7 @@ internal static class ExecutionPresentationCompiler
         {
             MapSpeeches = new()
             {
+                ["unit-defeat"] = M(11105, "actor", ("person.0", "actor")),
                 ["waypoint-reached"] = M(11348, "actor", ("person.0", "actor")),
                 ["contact-attack"] = M(10441, "actor", ("person.0", "actor"), ("person.1", "other")),
                 ["contact-defense"] = M(10508, "actor", ("person.0", "actor"), ("person.1", "other")),

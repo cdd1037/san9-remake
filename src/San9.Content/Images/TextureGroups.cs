@@ -23,6 +23,7 @@ public static class TextureGroups
             "building" when parts[1] == "smoke" => "buildings/smoke",
             "unit" when parts[1] == "idle" => "units/bodies/" + parts[2],
             "unit" when parts[1] == "action" => "units/actions/" + parts[2],
+            "unit" when parts[1] == "retirement" => "units/retirement/" + parts[2],
             "unit" when parts[1] is "condition" or "influence" or "wake" or "trail" or "engagement" or "vision" => "units/" + parts[1],
             "rockfall" when parts[1] == "impact" => "projectiles/rockfall-impact",
             "unit" when parts[1] == "flag" && parts[3] == "pole" => "units/flags/" + parts[2] + "/poles",

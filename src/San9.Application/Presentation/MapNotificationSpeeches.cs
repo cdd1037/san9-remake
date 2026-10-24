@@ -17,6 +17,9 @@ internal static class MapNotificationSpeeches
         BattleObjectContext? opponent = null;
         switch (fact)
         {
+            case UnitTerminatedEvent { Reason: UnitTerminationReason.Defeated or UnitTerminationReason.MoraleCollapsed, Winner: not null } terminated:
+                participant = terminated.Target; clock = terminated.Clock; role = "unit-defeat";
+                break;
             case UnitPolicyRespondedEvent policy:
                 if (!before.World.Simulation.Controls.Any(c => c.Kind == ControllerKind.Player && c.ForceId == policy.Unit.ForceId)) return [];
                 participant = policy.Unit; clock = policy.Clock; role = ProgressFeedback.PolicyRole(policy.Response);

@@ -70,6 +70,7 @@ public partial class BattlePlaybackFlow : Control
         SceneSounds.SetTransitionGain(_battleView.SceneAudioGain);
         Music.SetMapTransitionGain(_battleView.MapAudioGain);
         UpdateMapAudio();
+        UpdateRetirementAudio();
     }
     public override void _ExitTree()
     {
@@ -94,6 +95,9 @@ public partial class BattlePlaybackFlow : Control
             _dialogueSnapshot = null; _speechSnapshot = null; _recordSnapshot = null;
         }
         if (day.Battle is not { } plan) return;
+        // A complete day may be released by TurnPresentation in this same callback.
+        // Detach retirement poses before the before-world scene is replaced.
+        World.RefreshRuntimeObjects();
         _battleView.PublishMapFeedback(day);
         var pending = day.PendingDialogues;
         var dialogues = ReferenceEquals(_dialogueSnapshot, pending) ? [] : pending.Where(c => !_battleMessagesPlayed.Contains(c.Id)).ToArray();
@@ -140,7 +144,7 @@ public partial class BattlePlaybackFlow : Control
         var frame = World.Display?.Presented;
         if (!SoundEnabled() || !Turn.IsExecutionPresentation || NarrationActive() || World.LoadError is not null || _battleView.IsZoomActive)
         {
-            if (!SoundEnabled() || !Turn.IsExecutionPresentation || World.LoadError is not null) _mapSounds.StopOneShots();
+            if (!SoundEnabled() || World.LoadError is not null) _mapSounds.StopOneShots();
             _mapSounds.UpdateVoices([], Turn.Day);
             _mapAudioPlayback.Clear();
             return;
@@ -156,6 +160,20 @@ public partial class BattlePlaybackFlow : Control
         });
         _mapSounds.UpdateVoices(_mapAudioPlayback.Update(sources, Size.X, Size.Y, audio.BattleAmbience,
             frame.Region.Scene.PlaybackMilliseconds, Turn.Day.Elapsed * 1000 < MapMovementCadence.ArrivalMilliseconds), Turn.Day);
+    }
+
+    private void UpdateRetirementAudio()
+    {
+        if (World.Display?.Presented is not {} frame || !World.IsVisibleReady || CommandPresentation.MapAudio is not {} audio) return;
+        var transform = GetGlobalTransformWithCanvas().AffineInverse() * World.GetGlobalTransformWithCanvas();
+        var sources = frame.Region.Scene.TakeRetirementSounds(audio).Select((sound, i) =>
+        {
+            var point = transform * new Vector2((float)sound.X, (float)sound.Y);
+            return new MapSoundSource($"retirement:{i}", sound.Role, point.X, point.Y)
+                { Resource = CommandPresentation.Sounds[sound.Role] };
+        });
+        foreach (var voice in MapAudioMix.Select(sources, Size.X, Size.Y))
+            _mapSounds.PlayOnce(voice.Role, new((float)voice.X, (float)voice.Y), SoundEnabled(), voice.Gain);
     }
 
 }

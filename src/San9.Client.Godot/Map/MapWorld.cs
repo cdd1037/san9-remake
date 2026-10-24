@@ -192,6 +192,7 @@ public partial class MapWorld : Node2D
         }
         if (Scene is not null && (!ReferenceEquals(Scene.State, View) || !ReferenceEquals(Scene.Day, Day) ||
             !ReferenceEquals(Scene.MapFrame, Day?.MapFrame))) RefreshRuntimeObjects();
+        if (Scene is { HasExpiredRetirements: true }) { Scene = Scene.PruneRetirements(); RequestDisplay(); }
         _terrain?.Pump(() => Textures.CanUpload);
         if (_display?.Error is not null) _awaitingSeason = false;
         UpdateEdgeScrolling(delta);

@@ -33,7 +33,10 @@ internal sealed partial class BattlePresentationBuilder
         switch (fact)
         {
             case UnitTerminatedEvent terminated:
-                _mapChanges.Add(new(_impact, _index, terminated.UnitId, null, _mapDialogue));
+                _mapChanges.Add(new(_impact, _index, terminated.UnitId, null, _mapDialogue)
+                {
+                    Retirement = terminated.Reason is UnitTerminationReason.Defeated or UnitTerminationReason.MoraleCollapsed ? terminated : null
+                });
                 break;
             case SettlementNeutralizedEvent neutralized:
                 _mapChanges.Add(new(_impact, _index, null, Project(neutralized.SettlementId), _mapDialogue));

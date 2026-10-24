@@ -42,7 +42,7 @@ public sealed class MapSceneProjectionTests
         for (int pass = 0; pass < 2; pass++)
         {
             var order = new List<string>();
-            region.Objects(0, (asset, _, _, _, _) => order.Add(asset),
+            region.Objects(0, (asset, _, _, _, _, _) => order.Add(asset),
                 () => order.Add("ground"), (-8, () => order.Add("overlay")));
             Assert.Equal(["bridge", "ground", "early", "tie-a", "tie-b", "overlay", "cloud"], order);
         }

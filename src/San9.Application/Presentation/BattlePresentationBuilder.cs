@@ -320,7 +320,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
     private void PresentAftermath()
     {
         _cursor = Math.Max(_cursor, _impact);
-        PublishFeedback(_cursor, FeedbackKind.Report, FeedbackKind.Capture);
+        PublishFeedback(_cursor, FeedbackKind.Report, FeedbackKind.Capture, FeedbackKind.MapSpeech);
     }
 
     private void PresentOutcome()

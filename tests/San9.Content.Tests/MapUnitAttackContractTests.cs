@@ -51,10 +51,22 @@ public sealed class MapUnitAttackContractTests
     [InlineData("flags")]
     [InlineData("meleeAttack")]
     [InlineData("rangedAttack")]
+    [InlineData("retirement")]
     public void MissingVisualDefinitionsAreRejectedInsteadOfReadingTheOldActionContract(string field)
     {
         var node = JsonSerializer.SerializeToNode(Body, PackageFiles.JsonOptions)!.AsObject();
         node.Remove(field);
         Assert.Throws<JsonException>(() => node.Deserialize<MapUnitBody>(PackageFiles.JsonOptions));
+    }
+
+    [Fact]
+    public void RetirementDefinitionsValidateTheirOwnClipsEffectsAndLifetime()
+    {
+        var retirement = new MapUnitRetirement(Enumerable.Repeat("body", 8).ToArray(), new("body", -4, -5), 500, 1000, 100);
+        var body = Body with { Retirement = retirement };
+        Catalog(body).Validate(Clips);
+        Assert.Throws<InvalidDataException>(() => Catalog(body with { Retirement = retirement with { DirectionClips = ["body"] } }).Validate(Clips));
+        Assert.Throws<InvalidDataException>(() => Catalog(body with { Retirement = retirement with { Effect = new("absent", 0, 0) } }).Validate(Clips));
+        Assert.Throws<InvalidDataException>(() => Catalog(body with { Retirement = retirement with { FadeMilliseconds = 0 } }).Validate(Clips));
     }
 }

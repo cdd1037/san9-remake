@@ -20,6 +20,44 @@ public sealed class BattlePresentationTests
         Assert.Equal(occurrence.Source.Id, Assert.Single(plan.MapChanges).RemovedUnitId);
         Assert.Empty(plan.Records);
         Assert.Empty(plan.Messages);
+        Assert.Null(Assert.Single(plan.MapChanges).Retirement);
+    }
+
+    [Fact]
+    public void DefeatSpeechRetainsTheDefeatedCommanderAndPositionWithoutAReadingWaitOrSound()
+    {
+        var (session, texts, content, occurrence) = Fixture();
+        texts.Messages["retreat"] = new([new MessageValue(new("property", "person.name", Arguments: [new("binding", "person.0")]))]);
+        texts.Messages["loss"] = new([new MessageLiteral("loss")]);
+        content = content with { Progress = new(new()
+        {
+            ["unit-defeated"] = new("loss", []), ["unit-lost-other"] = new("loss", []), ["unit-lost"] = new("loss", [])
+        }, []) { MapSpeeches = new() { ["unit-defeat"] = new("retreat", new() { ["person.0"] = "actor" }, "actor") } } };
+        var lost = new UnitTerminatedEvent(session.Snapshot.Clock, occurrence.Target.Id, new(occurrence.Source.Id, false), 0)
+            { Target = occurrence.Target, Source = occurrence.Source, Reason = UnitTerminationReason.Defeated };
+        var after = session.View.ForWorld(session.View.World with
+        {
+            Units = session.View.World.Units.Where(u => u.Id != lost.UnitId).ToImmutableArray(),
+            Officers = session.View.World.Officers.Select(o => o.UnitId == lost.UnitId ? o with { UnitId = null, SettlementId = 2 } : o).ToImmutableArray()
+        });
+        var plan = BattlePresentationPlan.Create(session.View, after, [lost], session.Messages(texts), texts, content);
+        var cue = Assert.Single(plan.Messages);
+        var speech = Assert.IsType<MapSpeechMessage>(cue.Message.MapSpeech);
+        Assert.Equal(lost.Target.CommanderId, speech.SpeakerId);
+        Assert.Equal(MapCoordinates.Cell(lost.Target.Position!.Value), speech.Location);
+        Assert.Equal(lost.Target.Id, speech.UnitId);
+        Assert.Equal(BattleMessageChannel.MapSpeech, cue.Channel);
+        Assert.Null(cue.Message.SoundRole);
+        Assert.Equal(0, speech.DelaySeconds);
+        Assert.Equal(1, plan.Duration);
+        Assert.NotNull(Assert.Single(plan.MapChanges).Retirement);
+        var spectator = session.View.ForWorld(session.View.World with
+            { Simulation = session.View.World.Simulation with { Controls = [] } });
+        Assert.Single(BattlePresentationPlan.Create(spectator, after, [lost], session.Messages(texts), texts, content).Messages);
+        Assert.Empty(ExecutionPublication.Read(session.View, after, session.Messages(texts), texts, content,
+            [lost], presentedFeedback: plan.PresentedFeedback).Messages);
+        var noWinner = lost with { Winner = null, Source = null };
+        Assert.Empty(BattlePresentationPlan.Create(session.View, after, [noWinner], session.Messages(texts), texts, content).Messages);
     }
 
     [Fact]
@@ -45,9 +83,10 @@ public sealed class BattlePresentationTests
     public void DefeatRemovesAtImpactAndAdditionalCaptivesDoNotExtendTheDay()
     {
         var (session, texts, content, occurrence) = Fixture();
-        string[] roles = ["enemy-captured", "person-captured", "unit-defeated"];
+        string[] roles = ["enemy-captured", "person-captured", "unit-defeated", "unit-defeat"];
         foreach (string role in roles) texts.Messages[role] = new([new MessageLiteral(role)]);
-        content = content with { Progress = new(roles.ToDictionary(r => r, r => new DecisionMessageDefinition(r, [])), []) };
+        content = content with { Progress = new(roles.ToDictionary(r => r, r => new DecisionMessageDefinition(r, [])), [])
+            { MapSpeeches = new() { ["unit-defeat"] = new("unit-defeat", [], "actor") } } };
         BattlePresentationPlan Plan(int count)
         {
             List<DomainEvent> facts = [new BattleDamageEvent(session.Snapshot.Clock, 10, 20, null, 500, 0, 500, 0, 0)

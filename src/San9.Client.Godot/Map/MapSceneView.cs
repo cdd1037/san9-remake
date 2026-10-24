@@ -130,6 +130,7 @@ public partial class MapSceneView : Node2D
                 return step(0.01, alpha);
             }
             void fragment() {
+                float opacity = COLOR.a;
                 vec2 p = TEXTURE_PIXEL_SIZE;
                 vec2 left = UV - vec2(p.x, 0), right = UV + vec2(p.x, 0);
                 vec2 above = UV - vec2(0, p.y), below = UV + vec2(0, p.y);
@@ -137,7 +138,7 @@ public partial class MapSceneView : Node2D
                     max(solid(texture(TEXTURE, above).a, above), solid(texture(TEXTURE, below).a, below)));
                 float edge = (1.0-solid(texture(TEXTURE, UV).a, UV)) * neighbors;
                 // The original's opaque RGB555 outline resolves to pale cyan after channel quantization.
-                COLOR = vec4(vec3(152.0,240.0,240.0)/255.0, edge);
+                COLOR = vec4(vec3(152.0,240.0,240.0)/255.0, edge * opacity);
             }
             """ } };
         _hoverMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(round(c.rgb * 255.0 * 0.6875 + vec3(240.0 * 0.3125)) / 255.0, round(c.a * 255.0 * 0.9375) / 255.0); }" } };
@@ -277,7 +278,7 @@ public partial class MapSceneView : Node2D
         long unitRevision = frame.Region.UnitAnimationRevision(frame.ViewportBounds);
         bool membersChanged = _drawnUnitRevision != unitRevision;
         _drawnUnitRevision = unitRevision;
-        bool water = resourcesChanged, objects = membersChanged || motion || hoverChanged || resourcesChanged || targetsChanged || markerChanged || _drawnUiRevision != _ui.Revision;
+        bool water = resourcesChanged, objects = frame.Region.Scene.HasRetirements || membersChanged || motion || hoverChanged || resourcesChanged || targetsChanged || markerChanged || _drawnUiRevision != _ui.Revision;
         foreach (string id in frame.WaterClips.Concat(frame.ObjectClips).Distinct())
         {
             int current = MapAnimationClock.Frame(frame.Region.Scene.Clips[id], AnimationTime());
@@ -378,10 +379,10 @@ public partial class MapSceneView : Node2D
         _routeFrame = (int)(AnimationTime() / 200) % 8;
         _routeRevision = Targets?.Revision ?? -1;
         _waypointFrame = (int)(AnimationTime() / 142) % 4;
-        void Add(Texture2D texture, Vector2 position, Material? material = null)
+        void Add(Texture2D texture, Vector2 position, Material? material = null, double opacity = 1)
         {
             if (!frame.ViewportBounds.Intersects(new Rect2(position, texture.GetSize()))) return;
-            _objects.Add(texture, position, material);
+            _objects.Add(texture, position, material, new Color(1, 1, 1, (float)opacity));
         }
         (double Depth, Action Draw)? waypointOverlay = null;
         if (Targets?.Waypoint is { } via)
@@ -393,7 +394,7 @@ public partial class MapSceneView : Node2D
                 waypointOverlay = (via.X + via.Y, () => Add(flag, new(p.X, p.Y)));
             }
         }
-        frame.Region.Objects(AnimationTime(), (id, position, building, blend, highlightable) =>
+        frame.Region.Objects(AnimationTime(), (id, position, building, blend, highlightable, opacity) =>
         {
             if (!frame.Assets.TryGetReadyResource(id, out var texture)) return;
             if (!frame.ViewportBounds.Intersects(new Rect2(position, texture.GetSize()))) return;
@@ -404,7 +405,7 @@ public partial class MapSceneView : Node2D
             Add(texture, position, blend == MapBlendMode.Additive ? _additiveMaterial :
                 highlightable && candidate ? _candidateMaterial :
                 highlightable && (CommandTargets is not null && building is not null || building is { IsUnit: false } && PersonnelTargets?.Kind == "move") ? _unavailableMaterial :
-                highlightable && building is not null && building == Hovered ? _hoverMaterial : null);
+                highlightable && building is not null && building == Hovered ? _hoverMaterial : null, opacity);
         }, () =>
         {
             foreach (var mesh in _visibleTargetMeshes)
@@ -423,9 +424,9 @@ public partial class MapSceneView : Node2D
                 }
 
             }
-        }, waypointOverlay, (id, position) =>
+        }, waypointOverlay, (id, position, opacity) =>
         {
-            if (frame.Assets.TryGetReadyResource(id, out var texture)) Add(texture, position, _outlineMaterial);
+            if (frame.Assets.TryGetReadyResource(id, out var texture)) Add(texture, position, _outlineMaterial, opacity);
         }, frame.ViewportBounds);
         if (Targets is { } selection)
         {

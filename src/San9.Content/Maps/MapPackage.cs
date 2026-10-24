@@ -54,6 +54,7 @@ public sealed record MapAnimatedSprite(string ClipId, int X, int Y, int Phase, i
     [JsonIgnore] public bool IsBody { get; init; }
     [JsonIgnore] public double GroundX { get; init; }
     [JsonIgnore] public double GroundY { get; init; }
+    [JsonIgnore] public double Opacity { get; init; } = 1;
 }
 public sealed record MapAnimations(MapAnimationClip[] Clips, MapAnimatedSprite[] Water);
 public sealed record MapPackage(
@@ -64,7 +65,7 @@ public sealed record MapPackage(
     MapComposition[] Compositions, MapSprite[] Clouds, int?[] LeftEdge, int?[] RightEdge,
     ContentSource[] Sources, MapAnimations Animations, MapSprite[] Boundaries)
 {
-    public const int CurrentSchemaVersion = 17;
+    public const int CurrentSchemaVersion = 18;
     [JsonRequired] public MapUnitCatalog Units { get; init; } = MapUnitCatalog.Empty;
     public byte[] MinimapColors { get; init; } = new byte[32];
     [JsonRequired] public MapBuildingType[] BuildingTypes { get; init; } = [];

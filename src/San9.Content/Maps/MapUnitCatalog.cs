@@ -14,7 +14,10 @@ public sealed record MapUnitBody(string Id, string[] DirectionClips, int AnchorX
     [JsonRequired] public MapUnitEffect? Trail { get; init; }
     [JsonRequired] public double TrailChance { get; init; }
     [JsonRequired] public MapUnitParticle[] Engagement { get; init; } = [];
+    [JsonRequired] public MapUnitRetirement? Retirement { get; init; }
 }
+public sealed record MapUnitRetirement(string[] DirectionClips, MapUnitEffect? Effect,
+    int EffectDelayMilliseconds, int FadeMilliseconds, int FadeStepMilliseconds);
 public sealed record MapUnitParticle(string ClipId, int X, int Y, int DepthOffset);
 public sealed record MapUnitAction(string[] DirectionClips)
 {
@@ -64,6 +67,11 @@ public sealed record MapUnitCatalog(MapUnitBody[] Bodies, MapUnitFormation[] For
                 b.Wake is {} wake && !clips.ContainsKey(wake.ClipId) ||
                 b.Trail is {} trail && !clips.ContainsKey(trail.ClipId) || !double.IsFinite(b.TrailChance) || b.TrailChance is < 0 or > 100 ||
                 b.Engagement.Any(e => !clips.ContainsKey(e.ClipId)) ||
+                b.Retirement is {} retirement && (retirement.DirectionClips.Length != 8 ||
+                    retirement.DirectionClips.Any(c => !clips.ContainsKey(c)) ||
+                    retirement.Effect is {} effect && !clips.ContainsKey(effect.ClipId) ||
+                    retirement.EffectDelayMilliseconds < 0 || retirement.FadeMilliseconds <= 0 ||
+                    retirement.FadeStepMilliseconds <= 0 || retirement.FadeStepMilliseconds > retirement.FadeMilliseconds) ||
                 b.ImperialBodyId is {} imperial && !bodies.ContainsKey(imperial)) ||
             Formations.Any(f => f.FormationId < 0 || f.Layouts.Length == 0 ||
                 !f.Layouts.Any(l => l.MinimumSoldiers == 1) ||

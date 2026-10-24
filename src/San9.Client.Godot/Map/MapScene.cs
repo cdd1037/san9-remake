@@ -75,6 +75,7 @@ internal sealed partial class MapScene
         _attacks = day?.Plan?.Attacks.ToArray() ?? [];
         PrepareMotionAssets(previous);
         PrepareHistory(previous);
+        PrepareRetirements(previous);
         PrepareUnitPlayback(previous is not null && ReferenceEquals(previous.Map, Map) ? previous : null);
         Units = previous is not null && ReferenceEquals(previous.Map, map) && ReferenceEquals(previous._unitStates, _unitStates)
             ? previous.Units : _unitStates.Values.Select(s => UnitVisuals.Resolve(s, map.Units, Clips, elevationAt: ElevationAt)).ToArray();
@@ -146,10 +147,10 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
     MapSprite[] Bridges, MapSprite[] Boundaries, MapSprite[] Clouds, MapAnimatedSprite[] Water)
 {
     private readonly record struct DrawCommand(double Depth, int Order, string? Asset, Vector2 Position,
-        MapObjectTarget? Target = null, MapBlendMode Blend = MapBlendMode.Alpha, bool Highlight = false);
+        MapObjectTarget? Target = null, MapBlendMode Blend = MapBlendMode.Alpha, bool Highlight = false, double Opacity = 1);
     // Scratch belongs to this camera region; immutable scene inputs can still be shared by other cameras.
     private readonly List<DrawCommand> _draws = [];
-    private readonly List<(string Asset, Vector2 Position)> _outlines = [];
+    private readonly List<(string Asset, Vector2 Position, double Opacity)> _outlines = [];
     private readonly long[] _unitRevisions = Enumerable.Repeat(-1L, Units.Length).ToArray();
     private long _unitRevision;
     public long UnitAnimationRevision(Rect2 viewport)
@@ -177,6 +178,7 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
         .Where(s => Bounds.Intersects(Scene.Bounds(s)))
         .Concat(Units.SelectMany(u => u.Animations));
     public IEnumerable<string> Assets => new[] { "cloud-fill" }
+        .Concat(Scene.RetirementAssets)
         .Concat(Bridges.Concat(Boundaries).Concat(Clouds).Concat(Buildings.SelectMany(b => b.Sprites))
             .Where(s => Bounds.Intersects(Scene.Bounds(s))).Select(s => s.AssetId))
         .Concat(Water.Concat(ObjectAnimations).SelectMany(Scene.Frames))
@@ -185,11 +187,11 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
             .Select(s => Scene.Clips[s.ClipId]).Where(c => c.SeasonFrames.TryGetValue("autumn", out var frames) && frames.Length > 2)
             .Select(c => c.SeasonFrames["autumn"][2])).Distinct();
 
-    public void Objects(double time, Action<string, Vector2, MapObjectTarget?, MapBlendMode, bool> emit,
+    public void Objects(double time, Action<string, Vector2, MapObjectTarget?, MapBlendMode, bool, double> emit,
         Action? groundOverlay = null, (double Depth, Action Draw)? objectOverlay = null,
-        Action<string, Vector2>? outline = null, Rect2? viewport = null)
+        Action<string, Vector2, double>? outline = null, Rect2? viewport = null)
     {
-        foreach (var s in Bridges.Concat(Boundaries)) emit(s.AssetId, new(s.X, s.Y), null, MapBlendMode.Alpha, false);
+        foreach (var s in Bridges.Concat(Boundaries)) emit(s.AssetId, new(s.X, s.Y), null, MapBlendMode.Alpha, false, 1);
         groundOverlay?.Invoke();
         _draws.Clear(); _outlines.Clear();
         void Animated(MapAnimatedSprite sprite, MapObjectTarget? target, double clock, bool highlight)
@@ -198,8 +200,8 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
             string asset = sprite.Frame is int frame ? clip.SeasonFrames.GetValueOrDefault(Scene.Season, clip.Frames)[frame] :
                 MapAnimationClock.Asset(clip, Scene.Season, clock, sprite.Phase);
             var position = new Vector2(sprite.X, sprite.Y);
-            _draws.Add(new(sprite.Depth, _draws.Count, asset, position, target, clip.BlendMode, highlight));
-            if (sprite.IsBody && UnitOcclusion.IsOccluded(sprite.GroundX, sprite.GroundY, Scene.Occluders, Scene.Map.Width, Scene.Map.Height)) _outlines.Add((asset, position));
+            _draws.Add(new(sprite.Depth, _draws.Count, asset, position, target, clip.BlendMode, highlight, sprite.Opacity));
+            if (sprite.IsBody && UnitOcclusion.IsOccluded(sprite.GroundX, sprite.GroundY, Scene.Occluders, Scene.Map.Width, Scene.Map.Height)) _outlines.Add((asset, position, sprite.Opacity));
         }
         foreach (var building in Buildings)
         {
@@ -215,24 +217,25 @@ internal sealed record MapSceneRegion(MapScene Scene, Rect2 Bounds, MapBuilding[
                 if (sprite.IsBody && unit.AttackMilliseconds is { } attackTime) clock = attackTime;
                 Animated(sprite, new(unit.Id, true), clock, sprite.IsBody);
             }
+        foreach (var sprite in Scene.RetiringSprites) Animated(sprite, null, time, false);
         if (objectOverlay is {} overlay) _draws.Add(new(16 * overlay.Depth + 128 + 30000, _draws.Count, null, default));
         foreach (var projectile in Scene.Projectiles(viewport ?? Bounds))
             _draws.Add(new(projectile.Depth, _draws.Count, projectile.AssetId, new((float)projectile.X, (float)projectile.Y)));
         bool outlined = false;
         void Outlines()
         {
-            foreach (var item in _outlines) outline?.Invoke(item.Asset, item.Position);
+            foreach (var item in _outlines) outline?.Invoke(item.Asset, item.Position, item.Opacity);
             outlined = true;
         }
         _draws.Sort(static (a, b) => a.Depth == b.Depth ? a.Order.CompareTo(b.Order) : a.Depth.CompareTo(b.Depth));
         foreach (var draw in _draws)
         {
             if (!outlined && draw.Depth >= 40000) Outlines();
-            if (draw.Asset is { } asset) emit(asset, draw.Position, draw.Target, draw.Blend, draw.Highlight);
+            if (draw.Asset is { } asset) emit(asset, draw.Position, draw.Target, draw.Blend, draw.Highlight, draw.Opacity);
             else objectOverlay!.Value.Draw();
         }
         if (!outlined) Outlines();
-        foreach (var s in Clouds) emit(s.AssetId, new(s.X, s.Y), null, MapBlendMode.Alpha, false);
+        foreach (var s in Clouds) emit(s.AssetId, new(s.X, s.Y), null, MapBlendMode.Alpha, false, 1);
     }
 
 }

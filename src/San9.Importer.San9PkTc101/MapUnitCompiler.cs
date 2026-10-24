@@ -90,6 +90,23 @@ public static class MapUnitCompiler
                 cy + (category == 1 ? local[i * 2 + 1] : At(tables[category] + i * 8 + 4)),
                 i < behind[category] ? -1 : 1)).ToArray();
         }
+        MapUnitRetirement Retirement(int type)
+        {
+            var directions = Enumerable.Range(0, 8).Select(direction => Export($"unit-retirement-{type}-{direction}",
+                At(0x664a40 + 4 * (40 + type)) + direction, 100)).ToArray();
+            MapUnitEffect? effect = null;
+            if (type >= 12)
+            {
+                bool water = type >= 16;
+                int resource = water ? 5640 + (type <= 17 ? 0 : type - 17) : 5639;
+                string key = $"unit-retirement-effect-{resource}";
+                if (!clips.Any(c => c.Id == key)) Export(key, resource, 125, water ? 128 : 0,
+                    frameCount: water ? 8 : 4, paletteAlpha: !water);
+                var sheet = effects.Images[resource - 5611];
+                effect = new(key, -sheet.Width / (water ? 16 : 8), -sheet.Height / 2);
+            }
+            return new(directions, effect, 500, 1000, 100);
+        }
         var bodies = Enumerable.Range(0, 20).Select(type => new MapUnitBody($"unit-body-{type}",
             Enumerable.Range(0, 8).Select(direction => Export($"unit-idle-{type}-{direction}",
                 Int(0x263240 + 4 * type) + direction, 100)).ToArray(),
@@ -103,6 +120,7 @@ public static class MapUnitCompiler
                 units.Images[Int(0x263240 + 4 * type) - 5000].Width / 16 - Int(0x214980 + 8 * type) - 12,
                 units.Images[Int(0x263240 + 4 * type) - 5000].Height / 2 - Int(0x214984 + 8 * type) - 10),
             Engagement = Engagement(type),
+            Retirement = Retirement(type),
             Wake = type is 16 or 17 ? wakes[0] : type == 18 ? wakes[1] : type == 19 ? wakes[2] : null
         }).ToArray();
         var influenceClips = Enumerable.Range(0, 4).Select(i =>

@@ -51,9 +51,10 @@ internal static class MilitaryPolicies
         foreach (int id in ids)
         {
             var unit = world.Units[id];
-            if (!Active(unit) || rules.Purpose(unit.FormationId!.Value) != UnitPurpose.Combat || unit.Order?.Kind is MilitaryOrderKind.Construct or MilitaryOrderKind.Transport or MilitaryOrderKind.Return ||
+            if (!Active(unit) || unit.AutonomousReturn || rules.Purpose(unit.FormationId!.Value) != UnitPurpose.Combat ||
+                unit.Order?.Kind is MilitaryOrderKind.Construct or MilitaryOrderKind.Transport ||
                 unit.EffectiveOrder?.UnitId is not int targetId || !world.Units.TryGetValue(targetId, out var target) ||
-                target.Order?.Kind != MilitaryOrderKind.Return || Commander(world, unit) is not { } leader) continue;
+                !target.AutonomousReturn || Commander(world, unit) is not { } leader) continue;
             bool mainTarget = unit.Order?.UnitId == targetId;
             if (unit.Policies.Pursue && (mainTarget || leader.Personality == 0) ||
                 !unit.Policies.Pursue && mainTarget && leader.Personality == 0 && !Nearby(world, unit, rules, false).Any(u => u.Id != targetId))
@@ -83,8 +84,8 @@ internal static class MilitaryPolicies
         foreach (int id in world.Units.Keys.Order().ToArray())
         {
             var unit = world.Units[id];
-            if (!Active(unit) || unit.EngagementTargetId is not null || unit.Order is null ||
-                rules.Purpose(unit.FormationId!.Value) != UnitPurpose.Combat || unit.Order.Kind is MilitaryOrderKind.Construct or MilitaryOrderKind.Transport or MilitaryOrderKind.Return ||
+            if (!Active(unit) || unit.AutonomousReturn || unit.EngagementTargetId is not null || unit.Order is null ||
+                rules.Purpose(unit.FormationId!.Value) != UnitPurpose.Combat || unit.Order.Kind is MilitaryOrderKind.Construct or MilitaryOrderKind.Transport ||
                 Commander(world, unit) is not { } leader) continue;
             if (unit.Order.IsAttack && MilitaryCombat.ValidTarget(world, unit.OwnerId, unit.Order, rules.Formation(unit), rules) &&
                 Distance(unit, unit.Order, world, rules) <= rules.PolicyRadius) continue;
@@ -95,6 +96,7 @@ internal static class MilitaryPolicies
                 continue;
             }
             world.Replace(unit with { ApproachNotificationPending = false });
+            if (MilitaryEngagements.Engaged(world, unit, rules)) continue;
             if (UnitPolicyDecisions.Attack(unit.Policies.AttackApproachingEnemies, leader.Personality, Ratio(world, unit, candidate)))
             {
                 Engage(world, unit with { ApproachNotificationPending = false }, candidate.Id, events, "enemy-approach");

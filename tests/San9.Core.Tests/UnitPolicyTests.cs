@@ -5,7 +5,7 @@ using San9.Core.Simulation;
 
 namespace San9.Core.Tests;
 
-public sealed class UnitPolicyTests
+public sealed partial class UnitPolicyTests
 {
     [Theory]
     [InlineData(false, UnitPolicyResponse.AvoidOrdered)]
@@ -152,7 +152,7 @@ public sealed class UnitPolicyTests
     {
         var mutation = World(personality, new(AttackApproachingEnemies: true, Pursue: permitted), main ? Attack(2) : Mission).BeginMutation();
         if (!main) mutation.Replace(mutation.Units[1] with { EngagementTargetId = 2 });
-        mutation.Replace(mutation.Units[2] with { Order = new(MilitaryOrderKind.Return, null, 2) });
+        mutation.Replace(mutation.Units[2] with { Order = new(MilitaryOrderKind.Return, null, 2), AutonomousReturn = true });
         MilitaryPolicies.AdvanceDay(mutation, Rules(), []);
         Assert.Equal(chasing, mutation.Units[1].EffectiveOrder?.UnitId == 2);
         Assert.Equal(returning, mutation.Units[1].Order?.Kind == MilitaryOrderKind.Return);

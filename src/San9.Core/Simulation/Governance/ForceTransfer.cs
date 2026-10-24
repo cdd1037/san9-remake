@@ -18,13 +18,15 @@ internal static class ForceTransfer
         }
     }
 
-    internal static void Settlements(WorldMutation world, int force, int recipient, int? root, List<DomainEvent> events)
+    internal static int[] Settlements(WorldMutation world, int force, int recipient, int? root, List<DomainEvent> events)
     {
-        foreach (var place in world.Settlements.Values.Where(s => s.OwnerId == force).OrderBy(s => s.Id).ToArray())
+        var places = world.Settlements.Values.Where(s => s.OwnerId == force).OrderBy(s => s.Id).ToArray();
+        foreach (var place in places)
         {
             world.Replace(place with { OwnerId = recipient, CorpsId = root });
             events.Add(new SettlementTransferredEvent(world.Clock, place.Id, force, recipient));
         }
+        return places.Select(s => s.Id).ToArray();
     }
 
     internal static (long Removed, uint Received) Treasury(WorldMutation world, int force, int recipient,

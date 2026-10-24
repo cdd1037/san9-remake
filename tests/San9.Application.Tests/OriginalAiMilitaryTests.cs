@@ -8,7 +8,7 @@ using San9.Tests;
 
 namespace San9.Application.Tests;
 
-public sealed class OriginalAiMilitaryTests
+public sealed partial class OriginalAiMilitaryTests
 {
     private static ScenarioInitialState Fixture(int people = 12)
     {
@@ -690,6 +690,62 @@ public sealed class OriginalAiMilitaryTests
 
         Assert.Equal(blocked ? 0 : 1, h.Run(OriginalAiWork.FulfillRequest, 1).Submitted);
         if (blocked) Assert.Empty(h.Commands);
+    }
+
+    [Theory]
+    [InlineData(false, false, 1)]
+    [InlineData(true, false, 0)]
+    [InlineData(true, true, 5)]
+    public void FulfillmentFiltersHostileBuildingsBeforeAllocatingSources(bool blocked, bool alternative, int sourceId)
+    {
+        var content = Fixture();
+        content = content with
+        {
+            Forces = content.Forces.Append(new(3, "requester", 3, 50) { LeaderId = 101 }).ToArray(),
+            Settlements = [.. content.Settlements,
+                content.Settlements[1] with { Id = 3, OwnerId = 3, CorpsId = 3, X = 17 },
+                content.Settlements[1] with { Id = 4, X = 7, OwnerId = blocked ? 2 : 1, Soldiers = 0, Morale = 0 }],
+            Officers = content.Officers.Append(new("requester", new(101, 3, 3, new(30, 30, 30, 30), false)
+                { Status = OfficerStatus.Ruler })).ToArray(),
+            RegionCityIds = new(content.RegionCityIds) { [3] = 3, [4] = 2 },
+            RegionNameKeys = new(content.RegionNameKeys) { [3] = "requester", [4] = "blocker" },
+            Information = content.Information with
+                { Corps = content.Information.Corps.Append(new(3, 3, 101, new(1000, 1000)) { IsRoot = true }).ToArray() },
+            Military = content.Military! with
+            {
+                Terrains = [new(0, 1, null), new(1, null, null)],
+                TerrainIds = Enumerable.Range(0, 60).Select(i => i / 20 == 1 ? 0 : 1).ToImmutableArray(),
+                RegionIds = Enumerable.Range(0, 60).Select(i => (int?)(i % 20 < 6 ? 1 : i % 20 < 9 ? 4 : i % 20 < 16 ? 2 : 3)).ToImmutableArray(),
+                Places = content.Military.Places.Add(new(3, new(87, 7), new(1, 1))).Add(new(4, new(37, 7), new(1, 1)))
+            }
+        };
+        if (alternative)
+            content = content with
+            {
+                Settlements = [.. content.Settlements, content.Settlements[0] with { Id = 5, X = 11, Soldiers = 50000 }],
+                Officers = content.Officers.Select(p => p.State.Id is >= 7 and <= 12
+                    ? p with { State = p.State with { SettlementId = 5 } } : p).ToArray(),
+                RegionCityIds = new(content.RegionCityIds) { [5] = 1 },
+                RegionNameKeys = new(content.RegionNameKeys) { [5] = "alternative" },
+                Military = content.Military with { Places = content.Military.Places.Add(new(5, new(57, 7), new(1, 1))) }
+            };
+        var h = new Harness(content, w => w with
+            { Simulation = w.Simulation with { AttackRequests = [new(1, 3, 2, 2, 19)] } });
+        var before = h.Engine.Snapshot;
+        var report = h.Run(OriginalAiWork.FulfillRequest, 1);
+        Assert.Equal(sourceId == 0 ? 0 : 1, report.Submitted);
+        if (sourceId == 0)
+        {
+            Assert.Equal(0, report.Attempts);
+            Assert.Empty(h.Commands);
+            StateAssert.Equal(before, h.Engine.Snapshot);
+        }
+        else
+        {
+            var command = Assert.IsType<DeployUnitCommand>(Assert.Single(h.Commands));
+            Assert.Equal(sourceId, command.SettlementId);
+            Assert.Equal(2, command.Order.SettlementId);
+        }
     }
 
     [Fact]
@@ -1473,14 +1529,14 @@ public sealed class OriginalAiMilitaryTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void AttackBuildsInAnUnbuiltFriendlyCityRegionThroughThePublicConstructionCommand(bool reverse)
+    public void AttackConvertsItsRouteToConstructionWithStableSiteTies(bool reverse)
     {
         var content = Fixture();
         var sites = new[] { new ConstructionSite(3, new(27, 6), [700]), new ConstructionSite(3, new(27, 8), [700]) };
         if (reverse) Array.Reverse(sites);
         content = content with
         {
-            Information = content.Information with { Relations = [new(1, 2, 100)] },
+            Settlements = content.Settlements.Select(s => s.Id == 2 ? s with { Soldiers = 60000 } : s).ToArray(),
             UnbuiltPlaces = [new(3, new(27, 7))],
             RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 1 },
             RegionNameKeys = new() { [1] = "region.1", [2] = "region.2", [3] = "region.3" },
@@ -1490,7 +1546,8 @@ public sealed class OriginalAiMilitaryTests
                 ConstructionFormations = new(600, null),
                 Facilities = [new(700, 1000, 100, new(1, 1), 0, true, true, true, 30000, null, null, null, [])],
                 Places = content.Military.Places.Select(p => p with { FacilityTypeId = 700 }).ToImmutableArray(),
-                ConstructionSites = sites.ToImmutableArray()
+                ConstructionSites = sites.ToImmutableArray(),
+                RegionIds = Enumerable.Range(0, 60).Select(i => (int?)(i % 20 < 4 ? 1 : i % 20 < 10 ? 3 : 2)).ToImmutableArray()
             },
             OriginalAi = content.OriginalAi with { Military = content.OriginalAi.Military with { OrdinaryFacilityIds = [700] } }
         };
@@ -1546,6 +1603,64 @@ public sealed class OriginalAiMilitaryTests
         var world = hosts[1].Engine.Snapshot;
         StateAssert.Equal(hosts[0].Engine.Snapshot, world with
             { Simulation = world.Simulation with { OtherForceTacticsVisible = true } });
+    }
+
+    private static ScenarioInitialState WithNavalFormations(ScenarioInitialState content, bool slow, bool harbor = false) => content with
+    {
+        Settlements = content.Settlements.Select(s => s.Id == 2 && harbor ? s with { Kind = SettlementKind.Facility } : s).ToArray(),
+        RegionCityIds = harbor ? new() { [1] = 1, [2] = 1 } : content.RegionCityIds,
+        CityConnections = harbor ? [] : content.CityConnections,
+        Military = content.Military! with
+        {
+            BasicNavalFormationId = 800,
+            Formations = content.Military.Formations.Add(content.Military.Formations[0] with { Id = 800, TravelMode = TravelMode.Water })
+                .Add(content.Military.Formations[0] with { Id = 801, TravelMode = TravelMode.Water }),
+            Facilities = [new(700, 0, 500, new(1, 1), 0, false, true, true, 500000, null, null, null, []) { IsHarbor = true },
+                new(701, 0, 500, new(1, 1), 0, false, true, true, 500000, null, null, null, [])],
+            Places = content.Military.Places.Select(p => p with { FacilityTypeId = p.Id == 2 && harbor ? 700 : 701 }).ToImmutableArray()
+        },
+        OriginalAi = content.OriginalAi with { Military = content.OriginalAi.Military with { SlowTerrainIds = slow ? [0] : [], NavalPriority = [801] } }
+    };
+
+    [Theory]
+    [InlineData(OriginalAiWork.Attack, false, false, 800)]
+    [InlineData(OriginalAiWork.Attack, false, true, 800)]
+    [InlineData(OriginalAiWork.Attack, true, false, 800)]
+    [InlineData(OriginalAiWork.Attack, true, true, 801)]
+    [InlineData(OriginalAiWork.FulfillRequest, false, false, 800)]
+    [InlineData(OriginalAiWork.FulfillRequest, false, true, 800)]
+    [InlineData(OriginalAiWork.FulfillRequest, true, false, 800)]
+    [InlineData(OriginalAiWork.FulfillRequest, true, true, 801)]
+    public void AttackSelectsAdvancedShipsOnlyForSlowHarborRoutes(OriginalAiWork work, bool slow, bool harbor, int naval)
+    {
+        var content = WithNavalFormations(Fixture(), slow, harbor);
+        if (work == OriginalAiWork.FulfillRequest)
+            content = content with
+            {
+                Forces = content.Forces.Append(new(3, "requester", 3, 50) { LeaderId = 101 }).ToArray(),
+                Settlements = [.. content.Settlements, content.Settlements[0] with { Id = 3, OwnerId = 3, X = 17 }],
+                Officers = [.. content.Officers, new("requester", new(101, 3, 3, new(30, 30, 30, 30), false) { Status = OfficerStatus.Ruler })],
+                RegionCityIds = new(content.RegionCityIds) { [3] = 3 },
+                RegionNameKeys = new(content.RegionNameKeys) { [3] = "requester" },
+                Information = content.Information with
+                    { Corps = content.Information.Corps.Append(new(3, 3, 101, new(1000, 1000)) { IsRoot = true }).ToArray() },
+                Military = content.Military! with { Places = content.Military.Places.Add(new(3, new(87, 7), new(1, 1)) { FacilityTypeId = 701 }) }
+            };
+        var h = new Harness(content, w => work == OriginalAiWork.FulfillRequest ? w with
+            { Simulation = w.Simulation with { AttackRequests = [new(1, 3, 2, 2, 19)] } } : w);
+        Assert.Equal(1, h.Run(work, 1).Submitted);
+        Assert.Equal(naval, Assert.IsType<DeployUnitCommand>(Assert.Single(h.Commands)).NavalFormationId);
+    }
+
+    [Theory]
+    [InlineData(false, 800)]
+    [InlineData(true, 801)]
+    public void DefensiveDeploymentKeepsItsIndependentSlowRouteShipSelection(bool slow, int naval)
+    {
+        var content = WithNavalFormations(Fixture(), slow);
+        var h = new Harness(content, w => EnemyArmy(w));
+        Assert.Equal(1, h.Run(OriginalAiWork.Deploy, 1).Submitted);
+        Assert.Equal(naval, Assert.IsType<DeployUnitCommand>(Assert.Single(h.Commands)).NavalFormationId);
     }
 
     [Theory]

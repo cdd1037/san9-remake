@@ -63,7 +63,7 @@ internal static class ForceConsolidation
                 Reason, rules.Personnel, events);
         }
         world.Replace(world.Forces[absorbed] with { LeaderId = null, AdviserId = null });
-        ForceTransfer.Settlements(world, absorbed, survivor, root, events);
+        var transferredPlaces = ForceTransfer.Settlements(world, absorbed, survivor, root, events);
         var transferred = world.Units.Values.Where(u => u.OwnerId == absorbed).OrderBy(u => u.Id).ToArray();
         foreach (var original in transferred)
         {
@@ -94,6 +94,11 @@ internal static class ForceConsolidation
         }
         ForceLifecycle.Retire(world, absorbed, events);
         foreach (var unit in transferred) MilitaryPolicies.AfterTransfer(world, unit.Id, rules.Military, events, absorbed);
+        if (rules.Military is { } military)
+        {
+            foreach (int place in transferredPlaces) MilitaryOrders.SettlementChanged(world, place, military, events);
+            foreach (var unit in transferred) MilitaryOrders.UnitChanged(world, unit.Id, military, events);
+        }
         ForceTransfer.ReconcileOrders(world, rules.Military, events);
         world.Replace(world.Forces[survivor] with { BaseTrust = Math.Min(1000,
             Math.Max(source.BaseTrust, target.BaseTrust) + Math.Min(source.BaseTrust, target.BaseTrust) / 2 + 10) });

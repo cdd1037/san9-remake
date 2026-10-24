@@ -39,6 +39,7 @@ internal static class UnitAffiliation
                 world.SetSimulation(world.Simulation with { NextSequence = checked(sequence + 1) });
         }
         MilitaryPolicies.AfterTransfer(world, unit.Id, rules.Military, events);
+        if (rules.Military is { } military) MilitaryOrders.UnitChanged(world, unit.Id, military, events);
         events.Add(new UnitTransferredEvent(world.Clock, unit.Id, owner, recipient));
     }
 }

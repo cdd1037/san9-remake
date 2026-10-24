@@ -34,9 +34,18 @@ internal sealed partial class OriginalAiActions
                         u.Condition != UnitCondition.HighSpirits && u.Morale <= 80)
                     .OrderBy(u => u.Morale).Select(u => new Target(u.Id)).ToArray();
             case OriginalAiWork.Reinforce:
-                return military is null ? [] : World.Units.Where(u => Direct(u) && !u.IsPersonnel && !u.IsEmbedded && u.FormationId is not null &&
+                if (military is not { } reliefRules) return [];
+                MilitaryEngagementSnapshot? reliefEngagements = null;
+                bool ReliefMission(UnitState unit) => (unit.HasForcedReturn ? MilitaryOrderKind.Return : unit.Order?.Kind) switch
+                {
+                    MilitaryOrderKind.Transport => false,
+                    MilitaryOrderKind.Return or MilitaryOrderKind.Construct =>
+                        (reliefEngagements ??= MilitaryEngagementQuery.Capture(World, reliefRules)).Units.Contains(unit.Id),
+                    _ => true,
+                };
+                return World.Units.Where(u => Direct(u) && !u.IsPersonnel && !u.IsEmbedded && u.FormationId is not null &&
                         u.HasEnteredDailyCycle &&
-                        u.Morale >= 25 && u.Order?.Kind != MilitaryOrderKind.Transport && military.Capacity(u) >= (long)u.Soldiers + 3000)
+                        u.Morale >= 25 && ReliefMission(u) && reliefRules.Capacity(u) >= (long)u.Soldiers + 3000)
                     .OrderBy(u => u.Soldiers).Select(u => new Target(u.Id)).ToArray();
             case OriginalAiWork.Alienate:
                 var targets = World.Officers.Where(p => p.OwnerId == opponent && p.IsVisible && p.IsServing && !p.IsDormant &&
@@ -149,8 +158,11 @@ internal sealed partial class OriginalAiActions
     private bool ReliefSourceReady(OfficerState actor)
     {
         var source = World.Settlements.Single(s => s.Id == actor.SettlementId);
-        return source.Soldiers >= 6000 && (!Geography.Frontier(source.Id, Owner) || source.Soldiers >= 13000);
+        return source.Soldiers >= Math.Max(6000, ReliefBaseReserve(source) + 3000);
     }
+
+    // Available actors for these missions come from cities, so no facility-role branch is needed.
+    private long ReliefBaseReserve(SettlementState source) => Geography.Priority(source.Id, Owner) ? 10000 : 0;
 
     private bool RetainsRelief(OfficerState actor)
     {
@@ -165,7 +177,7 @@ internal sealed partial class OriginalAiActions
             var travel = military.Travel(unit);
             pathQueries++;
             var route = travel.Map.FindRouteIntoRange(from, new MapOccupancy(unit.Position, military.UnitFootprint(unit)), travel.Shape, travel.Mode, []);
-            if (!route.Reachable) return false;
+            if (!route.Reachable) continue;
             bool excluded = false;
             foreach (var point in route.Steps)
             {
@@ -179,6 +191,6 @@ internal sealed partial class OriginalAiActions
             }
             if (!excluded) count++;
         }
-        return source.Soldiers >= Math.Max(10000L, 8000L + Math.Min(20000L, 4000L * count)) + 3000;
+        return source.Soldiers >= Math.Max(ReliefBaseReserve(source), 8000L + Math.Min(20000L, 4000L * count)) + 3000;
     }
 }

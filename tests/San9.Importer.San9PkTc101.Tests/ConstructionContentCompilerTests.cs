@@ -57,6 +57,23 @@ public sealed class ConstructionContentCompilerTests
         Assert.Throws<InvalidDataException>(() => ConstructionContentCompiler.Facilities(buildings[..16], Formations()));
     }
 
+    [Theory]
+    [InlineData(0, ConstructionDirection.None)]
+    [InlineData(1 << 12, ConstructionDirection.Horizontal)]
+    [InlineData(1 << 13, ConstructionDirection.Vertical)]
+    [InlineData((1 << 12) | (1 << 13), ConstructionDirection.Horizontal | ConstructionDirection.Vertical)]
+    public void DirectionPreferenceIsPreservedEvenWhenTheEligibleFacilitiesAreIdentical(int directions, ConstructionDirection expected)
+    {
+        var squares = Enumerable.Range(0, 40000).Select(i => new San9ScenarioSquareRecord(i, (ushort)i, 0, 65535, 0, 0, 0, 3, 0, 0, 0, 0)).ToArray();
+        for (int y = 9; y <= 11; y++)
+        for (int x = 9; x <= 11; x++)
+            squares[y * 200 + x] = squares[y * 200 + x] with { ZoneCode = 600, SquareFlags = 1 };
+        squares[2010] = squares[2010] with { SquareFlags = (ushort)(1 | directions) };
+        var site = Assert.Single(ConstructionContentCompiler.Sites(squares, Buildings(), new HashSet<int> { 600 }));
+        Assert.Equal(new[] { 6, 7, 8, 9, 16 }, site.FacilityIds);
+        Assert.Equal(expected, site.PreferenceDirections);
+    }
+
     [Fact]
     public void PlacementUsesCompleteFootprintRegionAndShapeSpecificFlagsWithoutFilteringByCurrentBuildings()
     {

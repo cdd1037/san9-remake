@@ -53,7 +53,7 @@ internal static class SurrenderMerge
             }
         }
         world.Replace(world.Forces[force] with { LeaderId = null, AdviserId = null });
-        ForceTransfer.Settlements(world, force, recipient, root, events);
+        var transferredPlaces = ForceTransfer.Settlements(world, force, recipient, root, events);
         foreach (var original in oldUnits)
         {
             FacilityConstruction.Cancel(world, original.Id, events);
@@ -112,6 +112,11 @@ internal static class SurrenderMerge
         }
         ForceLifecycle.Retire(world, force, events);
         foreach (var unit in oldUnits) MilitaryPolicies.AfterTransfer(world, unit.Id, rules.Military, events, force);
+        if (rules.Military is { } military)
+        {
+            foreach (int place in transferredPlaces) MilitaryOrders.SettlementChanged(world, place, military, events);
+            foreach (var unit in oldUnits) MilitaryOrders.UnitChanged(world, unit.Id, military, events);
+        }
         ForceTransfer.ReconcileOrders(world, rules.Military, events);
         events.Add(new ForceSurrenderedEvent(world.Clock, force, recipient, money, receivedMoney, food, receivedFood,
             joined.Order().ToImmutableArray(), departed));

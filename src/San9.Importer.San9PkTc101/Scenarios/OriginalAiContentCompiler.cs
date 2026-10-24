@@ -19,8 +19,13 @@ public static class OriginalAiContentCompiler
                 Formations = Enum.GetValues<OriginalAiFormationRole>().ToImmutableDictionary(role => role, role => (int)role),
                 NavalPriority = [23, 22, 21], OrdinaryFacilityIds = [6, 7, 8, 9],
                 HarborReliefTacticId = 13,
-                FortifiedFacilityIds = [2], RouteObstacleFacilityIds = [7, 8, 9, 10], SlowTerrainIds = [10, 15, 16],
-                FrontierFacilityReserves = new Dictionary<int, uint> { [1] = 3000, [2] = 30000, [3] = 10000, [5] = 15000, [6] = 15000 }.ToImmutableDictionary(),
+                // Policy references use facility definitions, not the executable's grouped categories.
+                FortifiedFacilityIds = [2, 3, 4, 5], RouteObstacleFacilityIds = [10, 11, 12, 13, 14, 15, 16], SlowTerrainIds = [10, 15, 16],
+                FrontierFacilityReserves = new Dictionary<int, uint>
+                {
+                    [1] = 3000, [2] = 30000, [3] = 30000, [4] = 30000, [5] = 30000,
+                    [6] = 10000, [8] = 15000, [9] = 15000
+                }.ToImmutableDictionary(),
                 AggressiveRulerIds = people.Select((p, id) => (Person: p, Id: id))
                     .Where(p => supported.Contains(p.Id) && p.Person.BiographyResourceCode == 3).Select(p => p.Id).ToImmutableArray(),
             },

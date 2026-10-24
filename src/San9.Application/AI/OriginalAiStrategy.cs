@@ -37,7 +37,8 @@ internal static class OriginalAiStrategy
         {
             var players = world.Simulation.Controls.Where(c => c.ControllerId == "player").Select(c => c.ForceId).ToHashSet();
             var ordinary = valid.Where(f => !f.IsBarbarian && !players.Contains(f.Id)).ToArray();
-            long Troops(ForceState f) => world.Units.Where(u => u.OwnerId == f.Id).Sum(u => (long)u.Soldiers);
+            long Troops(ForceState f) => world.Settlements.Where(s => s.OwnerId == f.Id && !s.IsDormant && !s.IsDestroyed)
+                .Sum(s => (long)s.Soldiers) + world.Units.Where(u => u.OwnerId == f.Id).Sum(u => (long)u.Soldiers);
             var chosen = new Dictionary<int, OriginalAiGroup>();
             foreach (var f in valid) chosen[f.Id] = OriginalAiGroup.Unassigned;
             if (valid.Count(f => !f.IsBarbarian) >= 4)
@@ -96,7 +97,7 @@ internal static class OriginalAiStrategy
             OriginalAiMode.Domestic => metrics.Economy > 50 || random.Percent(8),
             OriginalAiMode.MilitaryPreparation => metrics.Military > 50 || random.Percent(8),
             OriginalAiMode.TargetForce => previous.TargetForceId is not int target || !Opponent(target) ||
-                valid.Any(f => Opponent(f.Id) && Relation(f.Id, owner.Id) / 20 < Relation(target, owner.Id) / 20) ||
+                valid.Any(f => Relation(f.Id, owner.Id) / 20 < Relation(target, owner.Id) / 20) ||
                 allianceTarget is int desired && desired != target || random.Percent(8),
             OriginalAiMode.TargetSettlement => !world.Settlements.Any(s => s.Id == previous.TargetSettlementId && !s.IsDestroyed && !s.IsDormant && s.OwnerId != owner.Id) ||
                 requestTarget is int requested && requested != previous.TargetSettlementId || random.Percent(8),

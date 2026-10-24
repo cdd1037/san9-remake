@@ -12,24 +12,31 @@ internal static class MilitaryOrders
             ResolveOrder(world, world.Units[id], rules, events);
     }
 
-    internal static void ResolveOrder(WorldMutation world, UnitState unit, MilitaryRulebook rules, List<DomainEvent> events)
+    internal static void ResolveOrder(WorldMutation world, UnitState unit, MilitaryRulebook rules, List<DomainEvent> events,
+        MapObjectReference? changedTarget = null)
     {
         int id = unit.Id;
         if (unit.FormationId is null || unit.IsEmbedded || unit.IsPersonnel) return;
         if (unit.ServicePlaceId is not null) unit = UnitServicePlaces.Repair(world, unit, rules);
-        if (unit.HasForcedReturn) return;
+        // Temporary return defers autonomous decisions, but a changed target must
+        // still invalidate the saved mission without changing the condition timer.
+        if (unit.HasForcedReturn && changedTarget is null) return;
         var formation = rules.Formation(unit);
-        if (unit.ContactTarget is { } contact && !MilitaryContacts.Valid(world, unit, contact, rules))
+        bool lostChangedTarget = changedTarget is { } target && !RetainsChangedTarget(world, unit.OwnerId, target, rules);
+        if (unit.ContactTarget is { } contact && (!MilitaryContacts.Valid(world, unit, contact, rules) ||
+            contact == changedTarget && lostChangedTarget))
         {
             world.Replace(unit with { ContactTarget = null });
             unit = world.Units[id];
         }
-        if (unit.EngagementTargetId is not null && !MilitaryCombat.ValidTarget(world, unit.OwnerId, unit.CommandOrder!, formation, rules))
+        if (unit.EngagementTargetId is int engaged && (!MilitaryCombat.ValidTarget(world, unit.OwnerId, unit.CommandOrder!, formation, rules) ||
+            changedTarget == new MapObjectReference(engaged, false) && lostChangedTarget))
         {
             MilitaryPolicies.Engage(world, unit, null, events, "engagement-target-invalid");
             unit = world.Units[id];
         }
-        if (unit.Order is { } order && !ValidMission(world, unit, order, rules))
+        if (unit.Order is { } order && (!ValidMission(world, unit, order, rules) ||
+            order.IsAttack && Matches(order, changedTarget) && lostChangedTarget))
         {
             if (!order.IsAttack)
             {
@@ -42,7 +49,7 @@ internal static class MilitaryOrders
                 ChangeOrder(world, unit, new(MilitaryOrderKind.Return, null, place), events, "target-captured-entry");
                 return;
             }
-            unit = unit with { Order = null, AwaitingPostAction = true, Waypoint = null, Lookahead = null,
+            unit = unit with { Order = null, AutonomousReturn = false, AwaitingPostAction = true, Waypoint = null, Lookahead = null,
                 MovementRemainder = 0, DepartureDaysRemaining = 0 };
             world.Replace(unit);
         }
@@ -54,6 +61,15 @@ internal static class MilitaryOrders
         MilitaryMovement.ValidOrder(world, unit.OwnerId, order, rules.Formations[unit.FormationId!.Value], rules,
             unit.NavalFormationId, unit.Soldiers);
 
+    private static bool Matches(MilitaryOrder? order, MapObjectReference? target) => target is { } reference &&
+        (reference.IsSettlement ? order?.SettlementId == reference.Id : order?.UnitId == reference.Id);
+
+    // A changed target is reconsidered as an automatic continuation, independently of explicit strong-attack legality.
+    private static bool RetainsChangedTarget(WorldMutation world, int owner, MapObjectReference target, MilitaryRulebook rules) =>
+        target.IsSettlement ? world.Settlements.TryGetValue(target.Id, out var place) &&
+            (MilitaryDiplomacy.Work(world, target.Id, rules) || MilitaryDiplomacy.AutomaticEnemy(world, owner, place.OwnerId)) :
+            world.Units.TryGetValue(target.Id, out var unit) && MilitaryDiplomacy.AutomaticEnemy(world, owner, unit.OwnerId);
+
     internal static bool Return(WorldMutation world, UnitState unit, MilitaryRulebook rules, List<DomainEvent> events, string reason)
     {
         if (unit.Order is null && !unit.AwaitingPostAction) return false;
@@ -61,7 +77,7 @@ internal static class MilitaryOrders
         var order = unit.ServicePlaceId is int home ? new MilitaryOrder(MilitaryOrderKind.Return, null, home) : null;
         if (!MilitaryMovement.ValidOrder(world, unit.OwnerId, order, rules.Formations[unit.FormationId!.Value], rules, unit.NavalFormationId)) return false;
         FacilityConstruction.Cancel(world, unit.Id, events);
-        ChangeOrder(world, world.Units[unit.Id], order, events, reason);
+        ChangeOrder(world, world.Units[unit.Id], order, events, reason, autonomousReturn: true);
         return true;
     }
 
@@ -71,16 +87,19 @@ internal static class MilitaryOrders
         var order = new MilitaryOrder(MilitaryOrderKind.Return, null, unit.ServicePlaceId);
         if (!ValidMission(world, unit, order, rules)) order = order with { SettlementId = null };
         FacilityConstruction.Cancel(world, unit.Id, events);
-        ChangeOrder(world, world.Units[unit.Id], order, events, reason);
+        ChangeOrder(world, world.Units[unit.Id], order, events, reason, autonomousReturn: true);
     }
 
-    internal static void ChangeOrder(WorldMutation world, UnitState unit, MilitaryOrder? order, List<DomainEvent> events, string reason)
+    internal static void ChangeOrder(WorldMutation world, UnitState unit, MilitaryOrder? order, List<DomainEvent> events, string reason,
+        bool autonomousReturn = false)
     {
-        var next = unit with { Order = order, EngagementTargetId = null, ContactTarget = null, AwaitingPostAction = false,
+        var next = unit with { Order = order, AutonomousReturn = autonomousReturn && order?.Kind == MilitaryOrderKind.Return,
+            EngagementTargetId = null, ContactTarget = null, AwaitingPostAction = false,
             Waypoint = null, Lookahead = null, MovementRemainder = 0, DepartureDaysRemaining = 0 };
         if (next == unit) return;
         world.Replace(next);
-        if (unit.Order != order) UnitOrderChanges.Report(world, unit.Id, order, reason, events, previousOrder: unit.Order);
+        if (unit.Order != order || unit.AutonomousReturn != next.AutonomousReturn)
+            UnitOrderChanges.Report(world, unit.Id, order, reason, events, previousOrder: unit.Order);
         if (unit.EngagementTargetId is not null) events.Add(new UnitEngagementChangedEvent(world.Clock, unit.Id, null, reason));
     }
 
@@ -94,7 +113,7 @@ internal static class MilitaryOrders
             if (!main && !temporary && !contact) continue;
             bool endedAttack = main && unit.Order!.IsAttack;
             var order = !main ? unit.Order : endedAttack ? null : new MilitaryOrder(MilitaryOrderKind.Return, null, null);
-            world.Replace(unit with { Order = order,
+            world.Replace(unit with { Order = order, AutonomousReturn = main ? order?.Kind == MilitaryOrderKind.Return : unit.AutonomousReturn,
                 AwaitingPostAction = unit.AwaitingPostAction || endedAttack,
                 EngagementTargetId = temporary ? null : unit.EngagementTargetId,
                 ContactTarget = contact ? null : unit.ContactTarget,
@@ -105,10 +124,17 @@ internal static class MilitaryOrders
         }
     }
 
-    internal static void SettlementChanged(WorldMutation world, int id, MilitaryRulebook rules, List<DomainEvent> events)
+    internal static void SettlementChanged(WorldMutation world, int id, MilitaryRulebook rules, List<DomainEvent> events) =>
+        TargetChanged(world, new(id, true), rules, events);
+
+    internal static void UnitChanged(WorldMutation world, int id, MilitaryRulebook rules, List<DomainEvent> events) =>
+        TargetChanged(world, new(id, false), rules, events);
+
+    private static void TargetChanged(WorldMutation world, MapObjectReference target, MilitaryRulebook rules, List<DomainEvent> events)
     {
-        foreach (var unit in world.Units.Values.Where(u => u.Order?.SettlementId == id ||
-                u.Order is { Kind: MilitaryOrderKind.Return, SettlementId: null }).OrderBy(u => u.Id).ToArray())
-            ResolveOrder(world, unit, rules, events);
+        foreach (var unit in world.Units.Values.Where(u => Matches(u.Order, target) || u.ContactTarget == target ||
+                (target.IsSettlement ? u.Order is { Kind: MilitaryOrderKind.Return, SettlementId: null }
+                    : u.EngagementTargetId == target.Id)).OrderBy(u => u.Id).ToArray())
+            ResolveOrder(world, unit, rules, events, target);
     }
 }

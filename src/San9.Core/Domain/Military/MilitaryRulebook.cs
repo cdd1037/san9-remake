@@ -175,7 +175,8 @@ public sealed partial class MilitaryRulebook
         ConstructionSites = definition.ConstructionSites.ToImmutableDictionary(s => (s.RegionId, s.Position));
         foreach (var site in ConstructionSites.Values)
         {
-            if (site.RegionId < 0 || site.FacilityIds.IsDefaultOrEmpty || site.FacilityIds.Distinct().Count() != site.FacilityIds.Length ||
+            if (site.RegionId < 0 || (site.PreferenceDirections & ~(ConstructionDirection.Horizontal | ConstructionDirection.Vertical)) != 0 ||
+                site.FacilityIds.IsDefaultOrEmpty || site.FacilityIds.Distinct().Count() != site.FacilityIds.Length ||
                 site.FacilityIds.Any(id => !Facilities.TryGetValue(id, out var facility) || !facility.Buildable ||
                     FacilityArea(site.Position, facility.Id) is var area &&
                         (area.Left < 0 || area.Top < 0 || area.Right > Map.FineWidth || area.Bottom > Map.FineHeight)))

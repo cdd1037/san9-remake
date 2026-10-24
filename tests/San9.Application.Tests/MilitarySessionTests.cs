@@ -24,11 +24,12 @@ public sealed class MilitarySessionTests
             new OrderUnitCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, unit.Id, pending)).Submission.Rejection);
         captured = captured with { World = captured.World with
         {
-            Units = [unit with { Order = pending, ServicePlaceId = null, Position = new(17, 7) }],
+            Units = [unit with { Order = pending, AutonomousReturn = true, ServicePlaceId = null, Position = new(17, 7) }],
             Settlements = captured.World.Settlements.Select(s => s with { Durability = 0 }).ToImmutableArray()
         } };
         session = SaveService.Decode(SaveService.EncodeSnapshot(captured), definition);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        Assert.True(Assert.Single(restored.Snapshot.Units).AutonomousReturn);
         EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);
         StateAssert.Equal(session.Capture(), restored.Capture());
         Assert.Equal(pending, Assert.Single(session.Snapshot.Units).Order);

@@ -25,11 +25,13 @@ internal sealed partial class OriginalAiMilitary
             .Concat(Geography.Neighbors(target.Id).Where(p => neighbors.Contains(p.CityId))
                 .Select(p => places.GetValueOrDefault(p.Id)).OfType<SettlementState>())
             .DistinctBy(s => s.Id);
-        return candidates.Where(s => s.Soldiers > 0 && s.Morale >= 90)
-            .Where(s => Commanders(People(s.Id)).FirstOrDefault() is { } commander && Basic([commander]) is { } pair &&
-                RouteFrom(s, pair.Land, pair.Naval, new(MilitaryOrderKind.AttackSettlement, null, target.Id), Policies()) is
-                    { HostileBuilding: false }).ToArray();
+        return candidates.Where(s => s.Soldiers > 0 && s.Morale >= 90 && HasClearAttackRoute(s, target)).ToArray();
     }
+
+    private bool HasClearAttackRoute(SettlementState source, SettlementState target) =>
+        Commanders(People(source.Id)).FirstOrDefault() is { } commander && Basic([commander]) is { } pair &&
+        RouteFrom(source, pair.Land, pair.Naval, new(MilitaryOrderKind.AttackSettlement, null, target.Id), Policies()) is
+            { HostileBuilding: false };
 
     private long AttackUsableStrength(SettlementState[] sources, SettlementState target, OriginalAiGroup group)
     {
@@ -47,11 +49,13 @@ internal sealed partial class OriginalAiMilitary
         }
         return sources.Sum(source =>
         {
+            // Estimate against the same garrison and pressure reserve as allocation.
+            // A weak source may still contribute its defensive shortfall.
             long reserve = Reserve(source);
             if (enemyReserves is not null && Fortified(source))
                 reserve = Math.Max(reserve, Geography.NearbyCities(City(source.Id))
                     .Max(city => enemyReserves.GetValueOrDefault(city)));
-            return Math.Max(0L, source.Soldiers - reserve);
+            return source.Soldiers - reserve;
         });
     }
 
@@ -98,7 +102,7 @@ internal sealed partial class OriginalAiMilitary
 
     private void Attack(OriginalAiState state, OriginalAiCorpsState strategy, bool request)
     {
-        if (Corps.Treasury.Money < 500) return;
+        if (!request && Corps.Treasury.Money < 500) return;
         var obligation = World.Simulation.AttackRequests.FirstOrDefault(r => r.RequestedForceId == Owner && r.RemainingXun > 0);
         if (request && (obligation is null || !World.Forces.Any(f => f.Id == obligation.RequesterForceId && !f.IsEliminated))) return;
         var group = state.Forces.FirstOrDefault(f => f.ForceId == Owner)?.Group ?? OriginalAiGroup.Unassigned;
@@ -118,58 +122,59 @@ internal sealed partial class OriginalAiMilitary
                     : s.Soldiers >= 50000 && random.Percent(40))).OrderByDescending(s => s.Soldiers);
             else
             {
-                bool Desired(SettlementState s) => s.Id == strategy.TargetSettlementId || s.OwnerId == strategy.TargetForceId && strategy.TargetForceId is not null;
-                targets = all.Where(s => s.Kind == SettlementKind.City && Desired(s)).OrderBy(s => Related(s.Id).Where(Target).Sum(Defense))
+                bool Desired(SettlementState s) => s.OwnerId == strategy.TargetForceId && strategy.TargetForceId is not null;
+                targets = all.Where(s => s.Id == strategy.TargetSettlementId)
+                    .Concat(all.Where(s => s.Kind == SettlementKind.City && Desired(s)).OrderBy(s => Related(s.Id).Where(Target).Sum(Defense)))
                     .Concat(all.Where(s => s.Kind == SettlementKind.City && s.OwnerId is not null && !Desired(s)).OrderBy(s => Related(s.Id).Where(Target).Sum(Defense)))
                     .Concat(all.Where(s => s.Kind == SettlementKind.City && s.OwnerId is null))
                     .Concat(all.Where(s => s.Kind != SettlementKind.City).OrderBy(Defense));
             }
-            bool planned = false;
-            foreach (var originalTarget in targets)
+            // Target selection returns one candidate for this city. A failed plan
+            // consumes the city; it does not reopen the city's fallback target list.
+            var originalTarget = targets.FirstOrDefault();
+            if (originalTarget is null) continue;
+            var target = World.Settlements.FirstOrDefault(s => s.Id == originalTarget.Id && Target(s));
+            if (target is null) continue;
+            var sources = WorkSources.Where(s => (request ? Near(s.Id, target.Id) : City(s.Id) == city) && s.Soldiers >= (request ? 10000 : 1) &&
+                s.Morale >= (request ? 70 : 90) && People(s.Id).Length >= (request ? 2 : 1)).OrderByDescending(s => s.Soldiers).ToArray();
+            // City requests may reinforce an existing attack; other buildings reject an existing friendly assignment.
+            if (request && sources.Length > 0 && target.Kind != SettlementKind.City && World.Units.Any(u =>
+                FieldUnit(u) && u.OwnerId == Owner && u.EffectiveOrder?.SettlementId == target.Id)) return;
+            ImmutableArray<int> routeRegions = [];
+            SettlementState? routeSource = null;
+            if (request)
+                sources = sources.Where(s => HasClearAttackRoute(s, target)).ToArray();
+            else if (sources.Length > 0)
             {
-                if (!More || planned) break;
-                var target = World.Settlements.FirstOrDefault(s => s.Id == originalTarget.Id && Target(s));
+                routeSource = sources[0];
+                target = AttackTargetAlongRoute(routeSource, target, out routeRegions);
                 if (target is null) continue;
-                var sources = WorkSources.Where(s => (request ? Near(s.Id, target.Id) : City(s.Id) == city) && s.Soldiers >= (request ? 10000 : 1) &&
-                    s.Morale >= (request ? 70 : 90) && People(s.Id).Length >= (request ? 2 : 1)).OrderByDescending(s => s.Soldiers).ToArray();
-                // City requests may reinforce an existing attack; other buildings reject an existing friendly assignment.
-                if (request && sources.Length > 0 && target.Kind != SettlementKind.City && World.Units.Any(u =>
-                    FieldUnit(u) && u.OwnerId == Owner && u.EffectiveOrder?.SettlementId == target.Id)) return;
-                ImmutableArray<int> routeRegions = [];
-                if (!request && sources.Length > 0)
-                {
-                    target = AttackTargetAlongRoute(sources[0], target, out routeRegions);
-                    if (target is null) continue;
-                    sources = AttackSources(target);
-                }
-                if (sources.Length == 0 || !request && !Strength(target, sources, group)) continue;
-                if (!request && AlternateConstructionRegion(sources[0], routeRegions) is int region)
-                {
-                    Construct(city, group, region);
-                    planned = true;
-                    break;
-                }
-                var allocations = Allocate(target, sources, request);
-                if (allocations.Length == 0) continue;
-                planned = true;
-                long assigned = 0;
-                foreach (var allocation in allocations)
-                {
-                    if (!More || request && assigned > 2 * Demand(target)) break;
-                    if (request && !World.Simulation.AttackRequests.Contains(obligation!)) break;
-                    var source = WorkSources.FirstOrDefault(s => s.Id == allocation.SourceId);
-                    target = World.Settlements.FirstOrDefault(s => s.Id == target.Id && Target(s));
-                    if (target is null) break;
-                    if (source is null) continue;
-                    var people = AttackPeople(source.Id, request);
-                    if (people.Length == 0) { Send(null); continue; }
-                    uint soldiers = (uint)Math.Max(0, Math.Min(allocation.Soldiers, Math.Min(source.Soldiers - Reserve(source), Capacity(people[0]))));
-                    if (soldiers < MinimumAttack(source)) { Send(null); continue; }
-                    var command = Deployment(source, people, soldiers, new(MilitaryOrderKind.AttackSettlement, null, target.Id), target, null, false);
-                    if (Send(command)) assigned += command!.Soldiers;
-                }
+                sources = AttackSources(target);
             }
-            if (!planned && !request && !Force.IsBarbarian) Construct(city, group);
+            if (sources.Length == 0 || !request && !Strength(target, sources, group)) continue;
+            if (routeSource is not null && AlternateConstructionRegion(routeSource, routeRegions) is int region)
+            {
+                Construct(city, group, region);
+                continue;
+            }
+            var allocations = Allocate(target, sources, request);
+            if (allocations.Length == 0) continue;
+            long assigned = 0;
+            foreach (var allocation in allocations)
+            {
+                if (!More || request && assigned > 2 * Demand(target)) break;
+                if (request && !World.Simulation.AttackRequests.Contains(obligation!)) break;
+                var source = WorkSources.FirstOrDefault(s => s.Id == allocation.SourceId);
+                target = World.Settlements.FirstOrDefault(s => s.Id == target.Id && Target(s));
+                if (target is null) break;
+                if (source is null) continue;
+                var people = AttackPeople(source.Id, request);
+                if (people.Length == 0) { Send(null); continue; }
+                uint soldiers = (uint)Math.Max(0, Math.Min(allocation.Soldiers, Math.Min(source.Soldiers - Reserve(source), Capacity(people[0]))));
+                if (soldiers < MinimumAttack(source)) { Send(null); continue; }
+                var command = Deployment(source, people, soldiers, new(MilitaryOrderKind.AttackSettlement, null, target.Id), target, null, false);
+                if (Send(command)) assigned += command!.Soldiers;
+            }
         }
     }
 
@@ -185,29 +190,38 @@ internal sealed partial class OriginalAiMilitary
         paths++;
         var path = terrainRoutes.FindRouteIntoRange(travel.Map, origin.Position, rules.SettlementArea(target), travel.Shape, travel.Mode);
         if (!path.Reachable) return null;
-        regions = path.Steps.Select(rules.RegionAt).OfType<int>().Distinct().ToImmutableArray();
+        var encountered = ImmutableArray.CreateBuilder<int>();
+        var visited = new HashSet<int>();
         foreach (var step in path.Steps)
         {
+            if (rules.RegionAt(step) is int region && visited.Add(region)) encountered.Add(region);
             var building = BuildingAlongRoute(step, s => s.Id != source.Id && !s.IsDestroyed && !s.IsDormant &&
                 rules.TryPlace(s, out var place) && !(place.FacilityTypeId is int type && Policy.RouteObstacleFacilityIds.Contains(type)));
             if (building is null) continue;
             if (ConstructionConflict(building.Id)) return null;
-            if (Target(building)) return building;
+            if (Target(building))
+            {
+                regions = encountered.ToImmutable();
+                return building;
+            }
         }
+        regions = encountered.ToImmutable();
         return target;
     }
 
     private int? AlternateConstructionRegion(SettlementState source, ImmutableArray<int> regions)
     {
-        if (regions.Length <= 2 || source.Kind != SettlementKind.City ||
-            !content.UnbuiltPlaces.Any(p => p.Id == regions[^1]) ||
-            World.Settlements.Any(s => s.Id == regions[^1] && !s.IsDestroyed)) return null;
-        var next = World.Settlements.FirstOrDefault(s => s.Id == regions[1] && !s.IsDestroyed && !s.IsDormant);
-        if (next is null || next.Soldiers <= source.Soldiers / 2 ||
-            World.Units.Any(u => Direct(u) && Active(u) && ProjectedOrder(u)?.SettlementId == next.Id) ||
-            World.Units.Any(u => Active(u) && rules.RegionAt(u.Position) == regions[^1]) ||
-            regions.Skip(1).Any(id => World.Settlements.Any(s => s.Id == id && s.OwnerId == Owner && !s.IsDestroyed))) return null;
-        return random.Percent(25 * regions.Length) ? regions[^1] : null;
+        if (regions.Length <= 2 || source.Kind != SettlementKind.City) return null;
+        var intermediate = regions[1..^1];
+        int candidate = intermediate[^1];
+        if (!content.UnbuiltPlaces.Any(p => p.Id == candidate) ||
+            World.Settlements.Any(s => s.Id == candidate && !s.IsDestroyed)) return null;
+        var target = World.Settlements.FirstOrDefault(s => s.Id == regions[^1] && !s.IsDestroyed && !s.IsDormant);
+        if (target is null || target.Soldiers <= source.Soldiers / 2 ||
+            World.Units.Any(u => Direct(u) && Active(u) && ProjectedOrder(u)?.SettlementId == target.Id) ||
+            World.Units.Any(u => Active(u) && rules.RegionAt(u.Position) == candidate) ||
+            intermediate.Any(id => World.Settlements.Any(s => s.Id == id && s.OwnerId == Owner && !s.IsDestroyed))) return null;
+        return random.Percent(25 * intermediate.Length) ? candidate : null;
     }
 
     private OfficerState[] AttackPeople(int home, bool request)
@@ -215,7 +229,7 @@ internal sealed partial class OriginalAiMilitary
         var ordered = Commanders(People(home));
         if (ordered.Length < 2) return [];
         var selected = new List<OfficerState> { ordered[0] };
-        foreach (var p in ordered.Skip(1).Take(ordered.Length / 2))
+        foreach (var p in ordered.Skip(1).Take((ordered.Length - 1) / 2))
         {
             if (selected.Count >= 5) break;
             if (random.Percent(request ? Ability(p).War + Ability(p).Leadership : Math.Max(0, 100 - PersonnelRulebook.AffinityDistance(p, ordered[0])))) selected.Add(p);
@@ -223,7 +237,7 @@ internal sealed partial class OriginalAiMilitary
         return selected.ToArray();
     }
 
-    private void Construct(int city, OriginalAiGroup group, int? targetRegion = null)
+    private void Construct(int city, OriginalAiGroup group, int targetRegion)
     {
         if (!More || rules.ConstructionFormations is not { } fixedPair) return;
         var source = WorkSources.Where(s => City(s.Id) == city && s.Morale >= 90 && People(s.Id).Length >= 2)
@@ -233,34 +247,35 @@ internal sealed partial class OriginalAiMilitary
         if (people.Length == 0) return;
         uint soldiers = (uint)Math.Max(0, Math.Min(source.Soldiers - Reserve(source), Capacity(people[0])));
         if (soldiers < MinimumAttack(source)) return;
-        var regions = content.UnbuiltPlaces.Where(p => (targetRegion is int selected ? p.Id == selected : Near(city, p.Id)) &&
-            !World.Settlements.Any(s => s.Id == p.Id && !s.IsDestroyed)).ToArray();
-        foreach (var region in regions)
+        var region = content.UnbuiltPlaces.FirstOrDefault(p => p.Id == targetRegion &&
+            !World.Settlements.Any(s => s.Id == p.Id && !s.IsDestroyed));
+        if (region is null) return;
+        // Preserve authored order when site scores tie; dictionary order is not a tie-breaker.
+        var site = content.Military!.ConstructionSites.Where(s => s.RegionId == region.Id)
+            .Select(s => (Site: s, Route: RouteFrom(source, fixedPair.LandFormationId, fixedPair.NavalFormationId,
+                new(MilitaryOrderKind.Move, s.Position, null))))
+            .Where(p => p.Route is not null)
+            .OrderBy(p => p.Route!.CellCount + MapCoordinates.Distance(region.Position, p.Site.Position) / MapCoordinates.UnitsPerCell)
+            .Select(p => p.Site).FirstOrDefault();
+        if (site is null) return;
+        var facilities = site.FacilityIds.Select(id => rules.Facilities[id]).Where(f => f.Buildable &&
+            f.ConstructionCost <= Corps.Treasury.Money && (f.RequiredTacticId is not int required ||
+                TacticAvailability.HasForMembers(required, people, Force, World.Treasures, Treasures))).ToArray();
+        FacilityRule[] shape = [];
+        if (group == OriginalAiGroup.ReducedActivity && random.Percent(33))
         {
-            // The lookup uses tuple hashes; only authored order can break equal site scores.
-            var sites = content.Military!.ConstructionSites.Where(s => s.RegionId == region.Id)
-                .Select(s => (Site: s, Route: RouteFrom(source, fixedPair.LandFormationId, fixedPair.NavalFormationId,
-                    new(MilitaryOrderKind.Move, s.Position, null))))
-                .Where(p => p.Route is not null).OrderBy(p => p.Route!.CellCount + MapCoordinates.Distance(region.Position, p.Site.Position) / MapCoordinates.UnitsPerCell).ToArray();
-            foreach (var candidate in sites.Take(1))
-            {
-                var facilities = candidate.Site.FacilityIds.Select(id => rules.Facilities[id]).Where(f => f.Buildable &&
-                    f.ConstructionCost <= Corps.Treasury.Money && (f.RequiredTacticId is not int required ||
-                        TacticAvailability.HasForMembers(required, people, Force, World.Treasures, Treasures))).ToArray();
-                bool preferred = group == OriginalAiGroup.ReducedActivity && random.Percent(33);
-                var horizontal = facilities.Where(f => f.Footprint.Width > f.Footprint.Height || f.Footprint == new Footprint(3, 3)).ToArray();
-                var shape = preferred ? horizontal.Length > 0 ? horizontal : facilities.Where(f =>
-                    f.Footprint.Height > f.Footprint.Width || f.Footprint == new Footprint(3, 3)).ToArray() : [];
-                if (shape.Length == 0) shape = facilities.Where(f => Policy.OrdinaryFacilityIds.Contains(f.Id)).ToArray();
-                var top = (Corps.Treasury.Money <= 5000 ? shape.OrderBy(f => f.ConstructionCost) : shape.OrderByDescending(f => f.ConstructionCost)).Take(3).ToArray();
-                if (top.Length == 0) continue;
-                var facility = top[random.Next(top.Length)];
-                var command = Command((id, owner, sequence) => new ConstructFacilityCommand(id, owner, sequence, source.Id,
-                    people.Select(p => p.Id).ToImmutableArray(), Math.Min(soldiers, rules.Formations[fixedPair.LandFormationId].SoldierCapacity),
-                    region.Id, facility.Id, candidate.Site.Position) { Policies = Policies() });
-                Send(Legal(command) ? command : null);
-                return;
-            }
+            if (site.PreferenceDirections.HasFlag(ConstructionDirection.Horizontal))
+                shape = facilities.Where(f => f.Footprint.Width > f.Footprint.Height || f.Footprint == new Footprint(3, 3)).ToArray();
+            else if (site.PreferenceDirections.HasFlag(ConstructionDirection.Vertical))
+                shape = facilities.Where(f => f.Footprint.Height > f.Footprint.Width || f.Footprint == new Footprint(3, 3)).ToArray();
         }
+        if (shape.Length == 0) shape = facilities.Where(f => Policy.OrdinaryFacilityIds.Contains(f.Id)).ToArray();
+        var top = (Corps.Treasury.Money <= 5000 ? shape.OrderBy(f => f.ConstructionCost) : shape.OrderByDescending(f => f.ConstructionCost)).Take(3).ToArray();
+        if (top.Length == 0) return;
+        var facility = top[random.Next(top.Length)];
+        var command = Command((id, owner, sequence) => new ConstructFacilityCommand(id, owner, sequence, source.Id,
+            people.Select(p => p.Id).ToImmutableArray(), Math.Min(soldiers, rules.Formations[fixedPair.LandFormationId].SoldierCapacity),
+            region.Id, facility.Id, site.Position) { Policies = Policies() });
+        Send(Legal(command) ? command : null);
     }
 }

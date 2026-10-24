@@ -130,7 +130,7 @@ internal static class AllianceFormation
                 order = unit.ServicePlaceId is int home && world.Settlements.TryGetValue(home, out var place) &&
                     !place.IsDestroyed && place.OwnerId == unit.OwnerId && place.CanHostPersons && place.Durability > 0
                     ? new(MilitaryOrderKind.Return, null, home) : null;
-            world.Replace(unit with { Order = order,
+            world.Replace(unit with { Order = order, AutonomousReturn = conflict.ChangesOrder ? order?.Kind == MilitaryOrderKind.Return : unit.AutonomousReturn,
                 EngagementTargetId = conflict.ClearsContact ? null : unit.EngagementTargetId,
                 AwaitingPostAction = conflict.ChangesOrder ? false : unit.AwaitingPostAction });
             if (conflict.ChangesOrder) UnitOrderChanges.Report(world, unit.Id, order, "alliance-formed", events);

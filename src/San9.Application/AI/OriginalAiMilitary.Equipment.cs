@@ -28,7 +28,7 @@ internal sealed partial class OriginalAiMilitary
         if (fallback)
         {
             if (Effect(TacticEffect.Inspire) is { } inspire) return inspire.Id;
-            var categories = new[] { 0, 1, 2, 3, 7, 8 }.Where(c => person.TacticProficiencies[c] > 0 && all.Any(t => t.Category == c))
+            var categories = new[] { 0, 1, 2, 3, 7, 8 }.Where(c => all.Any(t => t.Category == c))
                 .OrderByDescending(c => person.TacticProficiencies[c]).ToArray();
             return categories.Length > 0 ? all.Where(t => t.Category == categories[0]).OrderByDescending(t => t.Id).First().Id : Draw(all)?.Id;
         }
@@ -77,6 +77,7 @@ internal sealed partial class OriginalAiMilitary
         FormationRule? First(params OriginalAiFormationRole[] roles) => roles.Select(Role).OfType<FormationRule>().FirstOrDefault();
         FormationRule? selected = null;
         var categories = tactics.Values.OfType<int>().Select(id => rules.Tactics[id].Category).ToArray();
+        bool harbor = building is not null && rules.TryPlace(building, out var place) && place.FacilityTypeId is int type && rules.Facilities[type].IsHarbor;
         if (fallback)
         {
             selected = Role(OriginalAiFormationRole.March);
@@ -101,23 +102,30 @@ internal sealed partial class OriginalAiMilitary
         }
         else
         {
-            bool siege = route.Obstacle;
-            if (!siege && building is not null && First(OriginalAiFormationRole.Elephant, OriginalAiFormationRole.Ram, OriginalAiFormationRole.Catapult) is not null)
-                foreach (var u in World.Units.Where(u => Departed(u) && ProjectedOrder(u)?.Kind == MilitaryOrderKind.AttackSettlement &&
-                    ProjectedOrder(u)?.SettlementId == building.Id && Policy.Formations.Any(p =>
-                        p.Key is OriginalAiFormationRole.Elephant or OriginalAiFormationRole.Ram && p.Value == u.FormationId)))
-                    siege = random.Percent((500 - building.Durability) / 5);
-            if (siege) selected = First(OriginalAiFormationRole.Elephant, OriginalAiFormationRole.Ram, OriginalAiFormationRole.Catapult);
-            bool harbor = building is not null && rules.TryPlace(building, out var place) && place.FacilityTypeId is int type && rules.Facilities[type].IsHarbor;
-            if (selected is null && route.Slow && harbor) selected = Role(OriginalAiFormationRole.March);
-            if (selected is null && categories.Contains(3)) selected = First(OriginalAiFormationRole.SiegeTower, OriginalAiFormationRole.Catapult, OriginalAiFormationRole.MixedRanged);
-            if (selected is null && categories.Contains(2)) selected = First(OriginalAiFormationRole.SiegeTower, OriginalAiFormationRole.Catapult, OriginalAiFormationRole.Mobile);
+            if (!route.Obstacle && route.Slow && harbor)
+                selected = Role(OriginalAiFormationRole.March);
+            else
+            {
+                bool siege = route.Obstacle;
+                if (!siege && building is not null && First(OriginalAiFormationRole.Elephant, OriginalAiFormationRole.Ram, OriginalAiFormationRole.Catapult) is not null)
+                    foreach (var u in World.Units.Where(u => Departed(u) && ProjectedOrder(u)?.Kind == MilitaryOrderKind.AttackSettlement &&
+                        ProjectedOrder(u)?.SettlementId == building.Id && Policy.Formations.Any(p =>
+                            p.Key is OriginalAiFormationRole.Elephant or OriginalAiFormationRole.Ram && p.Value == u.FormationId)))
+                        siege = random.Percent((500 - building.Durability) / 5);
+                if (siege) selected = First(OriginalAiFormationRole.Elephant, OriginalAiFormationRole.Ram, OriginalAiFormationRole.Catapult);
+            }
+            if (selected is null)
+            {
+                if (categories.Contains(3)) selected = First(OriginalAiFormationRole.SiegeTower, OriginalAiFormationRole.Catapult, OriginalAiFormationRole.MixedRanged);
+                else if (categories.Contains(2)) selected = First(OriginalAiFormationRole.SiegeTower, OriginalAiFormationRole.Catapult, OriginalAiFormationRole.Mobile);
+            }
         }
         selected ??= land.OrderByDescending(f => f.Combat?.AgainstGarrison ?? 0).FirstOrDefault();
         if (selected is null) return null;
         var water = AvailableFormations(people, true, Corps.Treasury.Money - (long)selected.DeploymentCost)
             .Where(f => rules.ValidFormationPair(selected.Id, f.Id)).ToArray();
-        int? naval = route.Slow ? Policy.NavalPriority.Select(id => water.FirstOrDefault(f => f.Id == id)).OfType<FormationRule>().FirstOrDefault()?.Id : null;
+        int? naval = !fallback && route.Slow && (deployment || harbor)
+            ? Policy.NavalPriority.Select(id => water.FirstOrDefault(f => f.Id == id)).OfType<FormationRule>().FirstOrDefault()?.Id : null;
         naval ??= water.FirstOrDefault(f => f.Id == rules.BasicNavalFormationId)?.Id;
         if (Force.IsBarbarian && !fallback)
         {

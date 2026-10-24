@@ -89,8 +89,15 @@ public sealed record FacilityTactics(int OpportunityChance, int MartialCooldown,
     }
 }
 
+[Flags]
+public enum ConstructionDirection { None = 0, Horizontal = 1, Vertical = 2 }
+
 /// <summary>Static eligibility for a facility at an exact position; runtime ownership and occupancy are separate.</summary>
-public sealed record ConstructionSite(int RegionId, WorldPosition Position, ImmutableArray<int> FacilityIds);
+public sealed record ConstructionSite(int RegionId, WorldPosition Position, ImmutableArray<int> FacilityIds)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public ConstructionDirection PreferenceDirections { get; init; }
+}
 
 public sealed record FacilityInstance(int TypeId, WorldPosition Position,
     [property: JsonRequired] int? BuilderUnitId = null);

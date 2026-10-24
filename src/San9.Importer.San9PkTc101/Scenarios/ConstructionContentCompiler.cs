@@ -53,7 +53,11 @@ public static class ConstructionContentCompiler
             if (square.RegionCode is not int region || !configuredRegions.Contains(region) ||
                 square.GridX == 0 || square.GridY == 0 || square.GridX == width - 1 || square.GridY == height - 1) continue;
             var eligible = facilities.Where(f => Eligible(square, f)).Select(f => f.Id).ToImmutableArray();
-            if (!eligible.IsEmpty) result.Add(new(region, MapCoordinates.Center(new(square.GridX, square.GridY)), eligible));
+            if (!eligible.IsEmpty) result.Add(new(region, MapCoordinates.Center(new(square.GridX, square.GridY)), eligible)
+            {
+                PreferenceDirections = ((square.SquareFlags & (1 << 12)) != 0 ? ConstructionDirection.Horizontal : ConstructionDirection.None) |
+                    ((square.SquareFlags & (1 << 13)) != 0 ? ConstructionDirection.Vertical : ConstructionDirection.None)
+            });
         }
         return result.ToImmutable();
 

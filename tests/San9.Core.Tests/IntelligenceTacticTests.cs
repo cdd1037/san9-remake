@@ -5,7 +5,7 @@ using San9.Core.Simulation;
 
 namespace San9.Core.Tests;
 
-public sealed class IntelligenceTacticTests
+public sealed partial class IntelligenceTacticTests
 {
     private static readonly CommandContext Player = new("player");
     private static SimulationEngine Engine(TacticEffect effect, bool settlement = false, bool counter = false,

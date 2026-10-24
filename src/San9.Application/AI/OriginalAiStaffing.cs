@@ -56,8 +56,9 @@ internal static class OriginalAiStaffing
             used++;
             if (submit(create(SimulationIdentity.Command(seq, owner), seq))) submitted++; else rejected++;
         }
-        var rootCities = initial.Settlements.Where(s => s.OwnerId == owner && s.Kind == SettlementKind.City &&
-            !s.IsDormant && !s.IsDestroyed && (s.CorpsId == corpsId || s.CorpsId is null)).ToArray();
+        var cities = initial.Settlements.Where(s => s.OwnerId == owner && s.Kind == SettlementKind.City &&
+            !s.IsDormant && !s.IsDestroyed).ToArray();
+        var rootCities = cities.Where(s => s.CorpsId == corpsId || s.CorpsId is null).ToArray();
         var children = initial.Corps.Where(c => c.OwnerId == owner && !c.IsRoot).ToArray();
         int maximum = Math.Min(rootCities.Length / 7 + 1, 7);
         if (rootCities.Length >= 7 && children.Length >= maximum)
@@ -66,14 +67,14 @@ internal static class OriginalAiStaffing
         var own = world.Officers.Where(p => !p.IsDormant && p.IsServing && p.OwnerId == owner).ToArray();
         int? City(OfficerState p) => ServicePlace(world, p) is int home ?
             geography.Places.FirstOrDefault(s => s.Id == home)?.CityId : null;
-        var groups = rootCities.Where(s => content.CityProvinceIds.ContainsKey(s.Id)).GroupBy(s => content.CityProvinceIds[s.Id])
+        var groups = cities.Where(s => content.CityProvinceIds.ContainsKey(s.Id)).GroupBy(s => content.CityProvinceIds[s.Id])
             .Select(g =>
             {
                 var ids = g.Select(s => s.Id).ToHashSet();
                 var people = own.Where(p => City(p) is int city && ids.Contains(city)).ToArray();
                 int frontier = people.Count(p => City(p) is int city && geography.Frontier(city, owner));
                 var governor = people.Where(p => p.UnitId is null && p.IsCommander &&
-                        rootCities.Any(s => s.Id == p.SettlementId) && !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id))
+                        cities.Any(s => s.Id == p.SettlementId) && !world.Simulation.Tasks.Any(t => t.OfficerId == p.Id))
                     .OrderByDescending(p => content.Information.Offices.FirstOrDefault(o => o.Id == p.OfficeId)?.GovernorPriority ?? 0)
                     .FirstOrDefault();
                 return (Cities: g.ToArray(), People: people, Frontier: frontier, Governor: governor);
@@ -92,10 +93,19 @@ internal static class OriginalAiStaffing
                     (s.CorpsId == corpsId || s.CorpsId is null)).ToArray();
                 long people = current.Officers.LongCount(p => !p.IsDormant && p.IsServing && p.OwnerId == owner &&
                     ServicePlace(current, p) is int home && places.Any(s => s.Id == home));
-                long soldiers = places.Sum(s => (long)s.Soldiers + s.Wounded) + current.Units.Where(u => u.OwnerId == owner &&
-                    (u.CorpsId == corpsId || u.CorpsId is null)).Sum(u => (long)u.Soldiers + u.Wounded);
+                long soldiers = current.Settlements.Where(s => s.OwnerId == owner && !s.IsDormant && !s.IsDestroyed)
+                    .Sum(s => (long)s.Soldiers + s.Wounded) + current.Units.Where(u => u.OwnerId == owner)
+                    .Sum(u => (long)u.Soldiers + u.Wounded);
+                var cityIds = group.Cities.Select(s => s.Id).ToHashSet();
+                var districtIds = geography.Places.Where(p => cityIds.Contains(p.CityId)).Select(p => p.Id).ToHashSet();
+                var districtPlaces = current.Settlements.Where(s => s.OwnerId == owner && !s.IsDormant && !s.IsDestroyed &&
+                    s.CanHostPersons && s.Facility?.BuilderUnitId is null && districtIds.Contains(s.Id)).ToArray();
+                var serviceIds = districtPlaces.Select(s => s.Id).ToHashSet();
+                long districtSoldiers = districtPlaces.Sum(s => (long)s.Soldiers + s.Wounded) +
+                    current.Units.Where(u => u.OwnerId == owner && u.ServicePlaceId is int home && serviceIds.Contains(home))
+                        .Sum(u => (long)u.Soldiers + u.Wounded);
                 uint money = people == 0 ? 0 : (uint)(root.Treasury.Money * ((double)group.People.Length / people));
-                uint food = (uint)(root.Treasury.Food * (soldiers == 0 ? (double)group.Cities.Length / places.Count(s => s.Kind == SettlementKind.City) : group.Cities.Sum(s => (long)s.Soldiers + s.Wounded) / (double)soldiers));
+                uint food = (uint)(root.Treasury.Food * (soldiers == 0 ? (double)group.Cities.Length / places.Count(s => s.Kind == SettlementKind.City) : districtSoldiers / (double)soldiers));
                 Send((id, seq) => new CreateCorpsCommand(id, owner, seq, group.Cities.Select(s => s.Id).ToImmutableArray(), money, food, new GeneralDelegation())
                     { GovernorId = group.Governor!.Id });
             }

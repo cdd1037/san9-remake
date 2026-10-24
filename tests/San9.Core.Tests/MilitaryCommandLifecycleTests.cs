@@ -4,7 +4,7 @@ using San9.Core.Simulation;
 
 namespace San9.Core.Tests;
 
-public sealed class MilitaryCommandLifecycleTests
+public sealed partial class MilitaryCommandLifecycleTests
 {
     [Theory]
     [InlineData(MilitaryOrderKind.Return)]
@@ -174,6 +174,9 @@ public sealed class MilitaryCommandLifecycleTests
          new(4, new(77, 2), new(1, 1)) { Combat = new(10, 10, 10, 10, 50) }]) { TransportFormations = new(3, null) });
 
     private static WorldMutation World(MilitaryOrder order, bool enemyUnit = false, WorldPosition? position = null, bool naval = false)
+        => CreateWorld(order, enemyUnit, position, naval).BeginMutation();
+
+    private static WorldState CreateWorld(MilitaryOrder order, bool enemyUnit = false, WorldPosition? position = null, bool naval = false)
     {
         OfficerState Person(int id, int owner, int? home) => new(id, owner, home, new(80, 80, 80, 80), false);
         UnitState unit = new(1, 1, position ?? new(22, 7), 5000)
@@ -195,6 +198,6 @@ public sealed class MilitaryCommandLifecycleTests
             relations: [new(1, 2, 0), new(1, 3, 0), new(2, 3, 0)], controls: [new("player", 1, ControllerKind.Player)],
             corps: [new CorpsState(1, 1, 101, new(10000, 10000)) { IsRoot = true },
                 new CorpsState(2, 2, 201, new(10000, 10000)) { IsRoot = true },
-                new CorpsState(3, 3, 301, new(10000, 10000)) { IsRoot = true }]).BeginMutation();
+                new CorpsState(3, 3, 301, new(10000, 10000)) { IsRoot = true }]);
     }
 }

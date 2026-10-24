@@ -398,6 +398,44 @@ public sealed partial class OriginalAiActionsTests
     }
 
     [Theory]
+    [InlineData(false, false, 13000u, 1)]
+    [InlineData(true, false, 13000u, 1)]
+    [InlineData(true, true, 13000u, 0)]
+    [InlineData(true, true, 15000u, 1)]
+    public void ReliefExcludesUnreachablePressureWithoutRejectingTheSource(bool unreachable, bool nearby, uint soldiers, int submitted)
+    {
+        var content = Fixture();
+        content = content with
+        {
+            Settlements = content.Settlements.Select(s => s.Id == 1 ? s with { Soldiers = soldiers } : s).ToArray(),
+            Military = content.Military! with
+            {
+                Terrains = [new(0, 1, null), new(1, null, null)],
+                TerrainIds = Enumerable.Range(0, 60).Select(i => unreachable && i % 20 == 10 ? 1 : 0).ToImmutableArray()
+            }
+        };
+        var h = new Harness(content, w =>
+        {
+            var world = w with { Units = w.Units.Select(u => u.Id == 20 ? u with { Position = new(87, 7) } : u).ToImmutableArray() };
+            return nearby ? world with
+            {
+                Units = [.. world.Units, w.Units.Single(u => u.Id == 20) with { Id = 21, CommanderId = 19,
+                    MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(19, BattleRank.Middle) }],
+                Officers = [.. world.Officers, w.Officers.Single(p => p.Id == 9) with { Id = 19, UnitId = 21 }],
+                Simulation = world.Simulation with { NextUnitId = 22 }
+            } : world;
+        });
+        Assert.Equal(submitted, h.Run(OriginalAiWork.Reinforce).Submitted);
+        if (submitted == 0) Assert.Empty(h.Commands);
+        else
+        {
+            var command = Assert.IsType<UnitStrategyCommand>(Assert.Single(h.Commands));
+            Assert.Equal(10, command.TargetUnitId);
+            Assert.Equal(soldiers - 3000, h.Engine.Snapshot.Settlements.Single(s => s.Id == 1).Soldiers);
+        }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void ReliefConsumesFailedTargetAndRetriesRemainingTargetWithinSameAttempt(bool secondTarget)

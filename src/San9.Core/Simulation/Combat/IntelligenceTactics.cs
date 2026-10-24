@@ -51,8 +51,7 @@ internal static class IntelligenceTactics
         var military = rules.Military!;
         var area = MilitaryCombat.TargetArea(world, primary, military);
         List<MilitaryOrder> targets = [primary];
-        bool SecondaryOpponent(int? owner) => MilitaryDiplomacy.CanFight(world, source.Owner(world), owner) &&
-            (owner is null || world.Simulation.Alliance?.Protects(source.Owner(world), owner.Value) != true);
+        bool SecondaryOpponent(int? owner) => MilitaryDiplomacy.AutomaticEnemy(world, source.Owner(world), owner);
         if (tactic.EffectRadius > 0 && tactic.Effect is TacticEffect.Illusion or TacticEffect.Sorcery)
         {
             targets.AddRange(world.Units.Values.Where(u => u.Id != primary.UnitId && SecondaryOpponent(u.OwnerId) &&

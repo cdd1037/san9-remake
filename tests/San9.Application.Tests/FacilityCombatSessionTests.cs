@@ -56,6 +56,18 @@ public sealed class FacilityCombatSessionTests
         Assert.True(session.View.HasCityInfluence(1, new(7, 2)));
         Assert.False(session.View.HasCityInfluence(1, new(17, 2)));
         Assert.True(session.View.HasCityInfluence(2, new(17, 2)));
+        // Same-cell motion shares membership, while invalid coordinates and a new world do not.
+        Assert.True(session.View.HasCityInfluence(1, new(0, 0)));
+        Assert.False(session.View.HasCityInfluence(1, new(-1, 0)));
+        Assert.True(session.View.HasCityInfluence(1, new(9, 4)));
+        Assert.False(session.View.HasCityInfluence(1, new(20, 2)));
+        var changed = session.View.ForWorld(beforeQuery with
+        {
+            Settlements = [.. beforeQuery.Settlements.Select(s => s.Id == 1 ? s with { OwnerId = 2 } : s)]
+        });
+        Assert.False(changed.HasCityInfluence(1, new(7, 2)));
+        Assert.True(changed.HasCityInfluence(2, new(7, 2)));
+        Assert.True(session.View.HasCityInfluence(1, new(7, 2)));
         StateAssert.Equal(beforeQuery, session.Snapshot);
         var query = session.View.Settlements.Single(s => s.Id == 1);
         Assert.Equal(8000, query.FacilityTypeId);

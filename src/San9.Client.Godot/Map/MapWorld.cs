@@ -11,6 +11,7 @@ public partial class MapWorld : Node2D
 {
     private Camera2D _camera = null!;
     private MapPackage? _map;
+    private readonly MapSceneProjectionCache _projections = new();
     private MapViewport _requested = new(0, 0, 1);
     private MapSceneView? _display;
     private TerrainChunkCache<ImageTexture>? _terrain;
@@ -183,7 +184,8 @@ public partial class MapWorld : Node2D
             try
             {
                 var loaded = completed.GetAwaiter().GetResult(); _common = loaded.Common;
-                Scene = new(_map!, loaded.Renderer, loaded.Season, View, Textures.MapAssets, () => UnitPositionTime, Scene, Day);
+                Scene = new(_map!, loaded.Renderer, loaded.Season, View, Textures.MapAssets, () => UnitPositionTime, Scene, Day,
+                    projection: _projections.Get(View, _map!, Day));
                 RequestDisplay();
             }
             catch (Exception error) { _error = error.Message; _awaitingSeason = false; GD.PushError(_error); }
@@ -213,13 +215,16 @@ public partial class MapWorld : Node2D
     {
         if (Scene is not null) _display!.Request(Scene, _requested, ViewportSize, ShowBoundaries, true);
     }
+    internal MapDayPlan PrepareDay(San9.Application.Presentation.StrategySnapshot state, IReadOnlyList<San9.Core.Simulation.DomainEvent> events) =>
+        new(_map!, state, events, _projections.Get(state, _map!));
     public void RefreshRuntimeObjects()
     {
         if (Scene is null) return;
         var previous = Scene;
         Scene = ReferenceEquals(Scene.State, View) && ReferenceEquals(Scene.Day, Day) && Day is not null
             ? Scene.RefreshMapFrame()
-            : new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures.MapAssets, () => UnitPositionTime, Scene, Day);
+            : new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures.MapAssets, () => UnitPositionTime, Scene, Day,
+                projection: _projections.Get(View, Scene.Map, Day));
         if (!ReferenceEquals(previous, Scene)) RequestDisplay();
     }
     public void BindSession(San9.Application.GameSession session)
@@ -233,7 +238,8 @@ public partial class MapWorld : Node2D
         if (_display is not null) { _display.Targets = null; _display.PersonnelTargets = null; _display.CommandTargets = null; }
         if (Scene is null) return;
         // Retain terrain resources, but never carry motion history across player loads.
-        Scene = new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures.MapAssets, () => UnitPositionTime);
+        Scene = new(Scene.Map, Scene.Terrain, Scene.Season, View, Textures.MapAssets, () => UnitPositionTime,
+            projection: _projections.Get(View, Scene.Map));
         RequestDisplay();
     }
     public void PreviewSeason(string? season)

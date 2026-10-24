@@ -2,11 +2,52 @@ using San9.Application;
 using San9.Application.Presentation;
 using San9.Content.Maps;
 using San9.Content.Scenarios;
+using San9.Rendering;
 
 namespace San9.Client.Godot.Tests;
 
 public sealed class MapSceneProjectionTests
 {
+    [Fact]
+    public void SharedBaseProjectionIsIsolatedByBothInputsAndPresentationFramesDoNotMutateIt()
+    {
+        var (state, map) = Fixture();
+        var cache = new MapSceneProjectionCache();
+        var baseline = cache.Get(state, map);
+        Assert.Same(baseline, cache.Get(state, map));
+        Assert.NotSame(baseline, cache.Get(state, map with { Height = 2 }));
+        Assert.NotSame(baseline, cache.Get(state.ForWorld(state.World with { }), map));
+        var frame = new BattleMapFrame(state, [], [new(0, 1, true, -10, -5, -50)]);
+        var projected = baseline.ForDay(state, map, frame, state);
+        var expected = MapSceneProjection.Create(state, map, frame, state);
+        Assert.Equal(expected.BuildingStates.OrderBy(s => s.Id), projected.BuildingStates.OrderBy(s => s.Id));
+        Assert.Equal(expected.Buildings.Select(b => (b.Id, b.CompositionId)), projected.Buildings.Select(b => (b.Id, b.CompositionId)));
+        Assert.Equal(expected.Animations, projected.Animations);
+        Assert.Equal(expected.CombatAnimations, projected.CombatAnimations);
+        Assert.Same(baseline.Units, projected.Units);
+        Assert.Equal(100u, baseline.BuildingStates.Single(s => s.Id == 1).Soldiers);
+        Assert.Same(baseline, new MapDayPlan(map, state, [], baseline).Projection);
+    }
+
+    [Fact]
+    public void ReusedObjectPlanPreservesStableDepthOrderAndOverlayPlacement()
+    {
+        var (state, map) = Fixture();
+        var scene = new MapScene(map, new TerrainRenderer(map, [], []), "spring", state,
+            new Dictionary<string, San9.Content.Images.ImageAsset>(), () => 0);
+        var region = new MapSceneRegion(scene, new(0, 0, 100, 100),
+            [new(1, 0, 0, 0, 1, [new("tie-a", 0, 0) { Depth = 30000 },
+                new("early", 0, 0) { Depth = 1 }, new("tie-b", 0, 0) { Depth = 30000 }])],
+            [], [new("bridge", 0, 0)], [], [new("cloud", 0, 0)], []);
+        for (int pass = 0; pass < 2; pass++)
+        {
+            var order = new List<string>();
+            region.Objects(0, (asset, _, _, _, _) => order.Add(asset),
+                () => order.Add("ground"), (-8, () => order.Add("overlay")));
+            Assert.Equal(["bridge", "ground", "early", "tie-a", "tie-b", "overlay", "cloud"], order);
+        }
+    }
+
     [Fact]
     public void NumericFeedbackRetainsGeometryAndUnitProjection()
     {

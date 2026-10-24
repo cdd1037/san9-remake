@@ -33,7 +33,7 @@ public partial class ExecutionPanels : Control
     public void SetReportMode(Settings.ProgressReportMode mode)
     {
         RecordsLog.ReportMode = mode;
-        RefreshRecords(); QueueRedraw();
+        _recordsDirty = true; QueueRedraw();
     }
 
     public override void _Ready()
@@ -44,6 +44,14 @@ public partial class ExecutionPanels : Control
         AddChild(layout);
         _recordsMotion = layout.GetNode<Control>("%RecordsMotion");
         _commandsMotion = layout.GetNode<Control>("%CommandsMotion");
+        _recordRows = new() { MouseFilter = MouseFilterEnum.Ignore };
+        _recordsMotion.AddChild(_recordRows);
+        for (int i = 0; i < 10; i++)
+        {
+            var row = new MapRecordRow { Textures = Textures, Skin = Skin, Visible = false,
+                LocationRequested = cell => LocationRequested?.Invoke(cell) };
+            _recordRows.AddChild(row); _availableRecords.Enqueue(row);
+        }
         layout.Resized += QueueRedraw;
         _headers = new Control { MouseFilter = MouseFilterEnum.Ignore };
         _commandsMotion.AddChild(_headers);
@@ -64,7 +72,7 @@ public partial class ExecutionPanels : Control
     {
         if (!RecordsLog.Append(entry)) return false;
         if (!RecordsLog.Allows(entry)) return false;
-        RefreshRecords();
+        _recordsDirty = true;
         return true;
     }
 
@@ -74,39 +82,35 @@ public partial class ExecutionPanels : Control
         ApplyOffset();
     }
 
-    private Control? _recordRows;
+    private Control _recordRows = null!;
+    private readonly Dictionary<string, MapRecordRow> _recordBindings = [];
+    private readonly Queue<MapRecordRow> _availableRecords = new();
+    private readonly List<string> _releasedRecords = [];
+    private bool _recordsDirty = true;
+    public override void _Process(double delta)
+    {
+        if (_recordsDirty) RefreshRecords();
+    }
     private void RefreshRecords()
     {
-        if (!IsNodeReady()) return;
-        if (_recordRows is not null) { _recordsMotion.RemoveChild(_recordRows); _recordRows.QueueFree(); }
-        _recordRows=new Control { MouseFilter=MouseFilterEnum.Ignore, Visible = ReportsVisible }; _recordsMotion.AddChild(_recordRows);
-        var visible=RecordsLog.Visible.ToArray();
-        for (int i=0;i<visible.Length;i++)
+        _recordsDirty = false; _recordRows.Visible = ReportsVisible;
+        var visible = RecordsLog.Visible.ToArray();
+        foreach (var pair in _recordBindings)
+            if (!visible.Any(entry => entry.Id == pair.Key)) _releasedRecords.Add(pair.Key);
+        foreach (string id in _releasedRecords)
+        {
+            var row = _recordBindings[id]; row.Release();
+            _recordBindings.Remove(id); _availableRecords.Enqueue(row);
+        }
+        _releasedRecords.Clear();
+        for (int i = 0; i < visible.Length; i++)
         {
             var entry = visible[i];
-            var row = new Control { Position = Records.Position + new Vector2(21,21+16*(10-visible.Length+i)), Size = new(376,16),
-                MouseFilter = MouseFilterEnum.Stop, MouseDefaultCursorShape = entry.Location is null ? CursorShape.Arrow : CursorShape.PointingHand };
-            _recordRows.AddChild(row);
-            var label=new GameRichTextLabel { Textures=Textures,Position=new(16,0),Size=new(360,16),
-                MouseFilter=MouseFilterEnum.Ignore,ClipContents=true };
-            row.AddChild(label);
-            void Style(string role) => label.Present(entry.Message.BbCode.Replace('\n',' '),new(12,new Color(Skin.Colors[role]),GameTextEffect.Outline,Colors.Black),
-                San9.Rendering.MessageEmphasisMode.Foreground);
-            Style("map-record-normal");
-            row.MouseEntered += () => Style("map-record-hover");
-            row.MouseExited += () => Style("map-record-normal");
-            row.GuiInput += input =>
+            if (!_recordBindings.TryGetValue(entry.Id, out var row))
             {
-                if (input is not InputEventMouseButton { ButtonIndex: MouseButton.Left } mouse) return;
-                Style(mouse.Pressed ? "map-record-pressed" : "map-record-hover");
-                if (!mouse.Pressed && entry.Location is { } location) LocationRequested?.Invoke(location);
-                row.AcceptEvent();
-            };
-            if (entry.ForceColorCode is int color)
-            {
-                row.AddChild(new ColorRect { Position = new(2,2), Size = new(12,12), Color = new("080808"), MouseFilter = MouseFilterEnum.Ignore });
-                row.AddChild(new ColorRect { Position = new(3,3), Size = new(10,10), Color = new(Skin.Colors[$"overview-force-{color}"]), MouseFilter = MouseFilterEnum.Ignore });
+                row = _availableRecords.Dequeue(); _recordBindings.Add(entry.Id, row);
             }
+            row.Bind(entry); row.Position = Records.Position + new Vector2(21, 21 + 16 * (10 - visible.Length + i)); row.Show();
         }
     }
 

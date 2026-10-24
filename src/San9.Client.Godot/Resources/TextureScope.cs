@@ -7,15 +7,24 @@ namespace San9.Client.Godot;
 public sealed class TextureScope(TextureService service, IReadOnlyDictionary<string, ImageAsset> assets, bool prefetch = false)
     : IDisposable
 {
-    private sealed record Binding(ImageAsset Asset, AtlasTexture View, TextureCache<ImageTexture>.Lease Lease)
-    { public bool Installed; public bool Reported; }
+    private sealed class Binding(ImageAsset asset, AtlasTexture view, TextureCache<ImageTexture>.Lease lease)
+    {
+        public readonly ImageAsset Asset = asset;
+        public readonly AtlasTexture View = view;
+        public TextureCache<ImageTexture>.Lease Lease = lease;
+        public bool Installed;
+        public Exception? Error;
+    }
     private readonly Dictionary<string, Binding> _bindings = [];
+    private readonly List<Binding> _pending = [], _failed = [];
+    private int _remaining;
     private bool _disposed;
     private readonly Dictionary<CanvasItem, Action> _consumers = [];
     public long Revision { get; private set; }
     public TextureService Service => service;
-    public bool IsReady => _bindings.Values.All(b => b.Installed);
-    public Exception? Error => _bindings.Values.Select(b => b.Lease.Error).FirstOrDefault(e => e is not null);
+    public bool IsReady => _remaining == 0;
+    public Exception? Error => _failed.Count == 0 ? null : _failed[0].Error;
+    internal bool NeedsRefresh => _pending.Count > 0;
     public IReadOnlyDictionary<string, ImageAsset> Assets => assets;
     public int BindingCount => _bindings.Count;
     internal int RedrawConsumerCount => _consumers.Count;
@@ -55,12 +64,18 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
         var asset = assets[key];
         var view = new AtlasTexture { Region = new(asset.X, asset.Y, asset.Width, asset.Height), FilterClip = true };
         var binding = new Binding(asset, view, service.Cache.Acquire([asset.File], prefetch));
-        _bindings.Add(key, binding); Refresh(binding);
+        _bindings.Add(key, binding); _remaining++;
+        if (!Install(binding)) { _pending.Add(binding); service.ScheduleRefresh(this); }
     }
     public void RequestPrefixes(params string[] prefixes) => Request(assets.Keys.Where(key =>
         !TextureGroups.IsPortrait(key) && prefixes.Any(prefix => key.StartsWith(prefix, StringComparison.Ordinal))));
     public bool AreReady(IEnumerable<string> keys) => keys.All(k => _bindings.TryGetValue(k, out var b) && b.Installed);
-    public Exception? ErrorFor(IEnumerable<string> keys) => keys.Select(k => _bindings.GetValueOrDefault(k)?.Lease.Error).FirstOrDefault(e => e is not null);
+    public Exception? ErrorFor(IEnumerable<string> keys)
+    {
+        foreach (string key in keys)
+            if (_bindings.TryGetValue(key, out var binding) && binding.Error is { } error) return error;
+        return null;
+    }
     public bool TryGetReady(string key, CanvasItem consumer, out Texture2D texture)
     {
         BindRedraw(consumer);
@@ -83,27 +98,58 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
     public void RetryFailed()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        service.Cache.RetryFailed(_bindings.Values.Select(b => b.Asset.File));
-        foreach (var binding in _bindings.Values.Where(b => !b.Installed)) binding.Reported = false;
+        service.RetryFailed(_failed.Select(b => b.Asset.File));
+    }
+    internal void RetryFailed(IReadOnlySet<ImageFile> files)
+    {
+        for (int i = _failed.Count - 1; i >= 0; i--)
+        {
+            var binding = _failed[i];
+            if (!files.Contains(binding.Asset.File)) continue;
+            binding.Error = null;
+            // A completed prefetch released its lease; a visible request still owns its failed lease.
+            if (prefetch)
+            {
+                binding.Lease = service.Cache.Acquire([binding.Asset.File], prefetch: true);
+                binding.Installed = false; _remaining++;
+            }
+            _pending.Add(binding); _failed.RemoveAt(i);
+        }
+        if (NeedsRefresh) service.ScheduleRefresh(this);
     }
     public void Refresh()
     {
         bool changed = false;
-        foreach (var binding in _bindings.Values) changed |= Refresh(binding);
+        for (int i = _pending.Count - 1; i >= 0; i--)
+        {
+            if (!Install(_pending[i])) continue;
+            _pending.RemoveAt(i); changed = true;
+        }
         if (changed)
             foreach (var consumer in _consumers.Keys)
                 if (GodotObject.IsInstanceValid(consumer) && consumer.IsInsideTree()) consumer.QueueRedraw();
     }
-    private bool Refresh(Binding binding)
+    // A binding leaves the pending set once installed or failed; ready leases never need polling.
+    private bool Install(Binding binding)
     {
-        if (prefetch && !binding.Installed && binding.Lease.IsComplete)
-        { binding.Installed = true; binding.Lease.Dispose(); return false; }
-        bool changed = false;
-        if (!binding.Installed && binding.Lease.IsReady)
-        { binding.View.Atlas = service.Cache.Get(binding.Asset.File); binding.Installed = true; Revision++; changed = true; }
-        if (!binding.Reported && binding.Lease.Error is { } error)
-        { GD.PushError($"Texture {binding.Asset.Id}: {error.Message}"); binding.Reported = true; changed = true; }
-        return changed;
+        if (prefetch)
+        {
+            if (!binding.Lease.IsComplete) return false;
+            binding.Error = binding.Lease.Error;
+            if (binding.Error is not null) _failed.Add(binding);
+            binding.Installed = true; _remaining--; binding.Lease.Dispose();
+            return true;
+        }
+        if (binding.Lease.IsReady)
+        {
+            binding.View.Atlas = service.Cache.Get(binding.Asset.File);
+            binding.Installed = true; _remaining--; Revision++;
+            return true;
+        }
+        if (binding.Lease.Error is not { } error) return false;
+        binding.Error = error; _failed.Add(binding);
+        GD.PushError($"Texture {binding.Asset.Id}: {error.Message}");
+        return true;
     }
     public void Dispose()
     {
@@ -117,5 +163,6 @@ public sealed class TextureScope(TextureService service, IReadOnlyDictionary<str
             { b.View.Atlas = null; b.View.Dispose(); b.Lease.Dispose(); }
             _bindings.Clear();
         });
+        _pending.Clear(); _failed.Clear();
     }
 }

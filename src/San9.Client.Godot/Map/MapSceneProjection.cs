@@ -59,11 +59,15 @@ internal sealed record MapSceneProjection(BuildingVisualState[] BuildingStates,
         { CombatAnimations = Combat(map, buildingStates, after) };
     }
 
+    public MapSceneProjection ForDay(StrategySnapshot state, MapPackage map, BattleMapFrame frame, StrategySnapshot after) =>
+        (this with { CombatAnimations = Combat(map, BuildingStates, after) }).WithFrame(state, map, null, frame, after);
+
     // A presentation boundary changes local building inputs, not the world's unit projection.
-    public MapSceneProjection WithFrame(StrategySnapshot state, MapPackage map, BattleMapFrame previous,
+    public MapSceneProjection WithFrame(StrategySnapshot state, MapPackage map, BattleMapFrame? previous,
         BattleMapFrame frame, StrategySnapshot after)
     {
-        var changed = frame.Settlements.Values.Where(s => !previous.Settlements.TryGetValue(s.Id, out var old) || old != s).ToArray();
+        var previousPlaces = previous?.Settlements ?? state.Settlements.ToDictionary(s => s.Id);
+        var changed = frame.Settlements.Values.Where(s => !previousPlaces.TryGetValue(s.Id, out var old) || old != s).ToArray();
         var changedIds = changed.Select(s => s.Id).ToHashSet();
         var forces = state.Forces.ToDictionary(f => f.Id);
         var states = changed.Select(s => BuildingState(state, s, forces)).ToArray();
@@ -71,7 +75,8 @@ internal sealed record MapSceneProjection(BuildingVisualState[] BuildingStates,
         var buildings = Replace(Buildings, visuals.Buildings, changedIds, b => b.Id,
             (a, b) => (a with { Sprites = b.Sprites }) == b && a.Sprites.SequenceEqual(b.Sprites));
         if (!ReferenceEquals(buildings, Buildings)) buildings = buildings.OrderBy(b => b.X + b.Y).ThenBy(b => b.X).ToArray();
-        var units = previous.RemovedUnits.SetEquals(frame.RemovedUnits) ? Units :
+        bool sameRemoved = previous is null ? frame.RemovedUnits.Count == 0 : previous.RemovedUnits.SetEquals(frame.RemovedUnits);
+        var units = sameRemoved ? Units :
             Units.Where(p => !frame.RemovedUnits.Contains(p.Key)).ToDictionary(p => p.Key, p => p.Value);
         return new(BuildingStates.Where(s => !changedIds.Contains(s.Id)).Concat(states).ToArray(), buildings,
             Replace(Animations, visuals.Animations, changedIds, s => s.BuildingId), units)

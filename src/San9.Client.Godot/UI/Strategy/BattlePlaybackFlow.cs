@@ -88,30 +88,50 @@ public partial class BattlePlaybackFlow : Control
 
     public void PresentDay(TurnDayPresentation day)
     {
-        if (!ReferenceEquals(_battleMessagesDay, day)) { _battleMessagesDay = day; _battleMessagesPlayed.Clear(); }
+        if (!ReferenceEquals(_battleMessagesDay, day))
+        {
+            _battleMessagesDay = day; _battleMessagesPlayed.Clear();
+            _dialogueSnapshot = null; _speechSnapshot = null; _recordSnapshot = null;
+        }
         if (day.Battle is not { } plan) return;
         _battleView.PublishMapFeedback(day);
-        var dialogues = day.PendingDialogues.Where(c => !_battleMessagesPlayed.Contains(c.Id)).ToArray();
+        var pending = day.PendingDialogues;
+        var dialogues = ReferenceEquals(_dialogueSnapshot, pending) ? [] : pending.Where(c => !_battleMessagesPlayed.Contains(c.Id)).ToArray();
         if (dialogues.Length > 0)
         {
             Narrate(dialogues.Select(c => c.Message).ToArray(), day.Before,
                 () => { foreach (var cue in dialogues) day.CompleteDialogue(cue.Id); });
             foreach (var cue in dialogues) _battleMessagesPlayed.Add(cue.Id);
         }
-        foreach (var cue in day.ReadyMapSpeeches)
+        _dialogueSnapshot = pending;
+        var speeches = day.ReadyMapSpeeches;
+        if (!ReferenceEquals(_speechSnapshot, speeches))
         {
-            if (!_battleMessagesPlayed.Add(cue.Id)) continue;
-            var message = cue.Message;
-            if (message.MapSpeech is { } speech) Speech(speech);
-            if (message.SoundRole is { } sound) SceneSounds.Play(sound, SoundEnabled());
+            foreach (var cue in speeches)
+            {
+                if (!_battleMessagesPlayed.Add(cue.Id)) continue;
+                var message = cue.Message;
+                if (message.MapSpeech is { } speech) Speech(speech);
+                if (message.SoundRole is { } sound) SceneSounds.Play(sound, SoundEnabled());
+            }
         }
-        foreach (var cue in day.ReadyRecords)
+        _speechSnapshot = speeches;
+        var records = day.ReadyRecords;
+        if (!ReferenceEquals(_recordSnapshot, records))
         {
-            if (!_battleMessagesPlayed.Add(cue.Record.Id)) continue;
-            Record(cue.Record);
-            if (cue.SoundRole is { } sound) SceneSounds.Play(sound, SoundEnabled());
+            foreach (var cue in records)
+            {
+                if (!_battleMessagesPlayed.Add(cue.Record.Id)) continue;
+                Record(cue.Record);
+                if (cue.SoundRole is { } sound) SceneSounds.Play(sound, SoundEnabled());
+            }
         }
+        _recordSnapshot = records;
     }
+
+    private IReadOnlyList<BattleMessageCue>? _dialogueSnapshot;
+    private IReadOnlyList<BattleMessageCue>? _speechSnapshot;
+    private IReadOnlyList<BattleRecordCue>? _recordSnapshot;
 
     private void UpdateMapAudio()
     {

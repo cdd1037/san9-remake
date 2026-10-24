@@ -274,7 +274,7 @@ public partial class MapSceneView : Node2D
         bool presentationChanged = _drawnSceneRevision != frame.Region.Scene.PresentationRevision || _drawnDayRevision != dayRevision;
         _drawnSceneRevision = frame.Region.Scene.PresentationRevision;
         _drawnDayRevision = dayRevision;
-        long unitRevision = frame.Region.Scene.UnitAnimationRevision;
+        long unitRevision = frame.Region.UnitAnimationRevision(frame.ViewportBounds);
         bool membersChanged = _drawnUnitRevision != unitRevision;
         _drawnUnitRevision = unitRevision;
         bool water = resourcesChanged, objects = membersChanged || motion || hoverChanged || resourcesChanged || targetsChanged || markerChanged || _drawnUiRevision != _ui.Revision;

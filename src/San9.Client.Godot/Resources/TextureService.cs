@@ -13,6 +13,7 @@ public partial class TextureService : Node
     private readonly Dictionary<ImageAsset, AlphaMask> _masks = [];
     private readonly Dictionary<ImageFile, ImageAsset[]> _maskSources = [];
     private readonly HashSet<TextureScope> _scopes = [];
+    private readonly List<TextureScope> _refreshing = [];
     private readonly List<(long Frame, Action Release)> _retired = [];
     private long _frame;
     private bool _closed;
@@ -121,19 +122,40 @@ public partial class TextureService : Node
     public bool ActiveReady => _scopes.All(s => s.IsReady);
     public Exception? ActiveError => _scopes.Select(s => s.Error).FirstOrDefault(e => e is not null);
     public void Defer(Action release) { if (_closed) release(); else _retired.Add((_frame + 2, release)); }
+    internal void ScheduleRefresh(TextureScope scope)
+    {
+        if (!_refreshing.Contains(scope)) _refreshing.Add(scope);
+    }
+    internal void RetryFailed(IEnumerable<ImageFile> failedFiles)
+    {
+        var files = failedFiles.ToHashSet();
+        _cache.RetryFailed(files);
+        // Leases share file requests, so every failed consumer must observe the same retry.
+        foreach (var scope in _scopes) scope.RetryFailed(files);
+    }
     internal void Retire(TextureScope scope, Action release)
     {
         _scopes.Remove(scope);
+        _refreshing.Remove(scope);
         if (_closed) release(); else _retired.Add((_frame + 2, release));
     }
     public override void _Process(double delta)
     {
         _frame++;
-        foreach (var item in _retired.Where(r => r.Frame <= _frame).ToArray()) { item.Release(); _retired.Remove(item); }
+        for (int i = 0; i < _retired.Count;)
+        {
+            var item = _retired[i];
+            if (item.Frame > _frame) { i++; continue; }
+            _retired.RemoveAt(i); item.Release();
+        }
         double previousUploads = _cache.UploadMilliseconds;
         _cache.Pump();
         _frameUploadMilliseconds = _cache.UploadMilliseconds - previousUploads;
-        foreach (var scope in _scopes.ToArray()) scope.Refresh();
+        for (int i = _refreshing.Count - 1; i >= 0; i--)
+        {
+            var scope = _refreshing[i]; scope.Refresh();
+            if (!scope.NeedsRefresh) _refreshing.RemoveAt(i);
+        }
     }
     public string Statistics => $"GPU估算 {_cache.Bytes / 1048576.0:F1} MiB（固定 {_cache.PinnedBytes / 1048576.0:F1} / 闲置 {(_cache.Bytes - _cache.PinnedBytes) / 1048576.0:F1}）\n" +
         $"纹理 {_cache.Count} 命中 {_cache.Hits} 缺失 {_cache.Misses} 淘汰 {_cache.Evictions} 待上传 {_cache.PendingBytes / 1048576.0:F1} MiB\n" +

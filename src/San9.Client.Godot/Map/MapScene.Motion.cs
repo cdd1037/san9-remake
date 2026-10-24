@@ -14,6 +14,7 @@ internal sealed partial class MapScene
     private Dictionary<int, MapUnitMotion> _motions = [];
     private MapAttackMotion[] _attacks = [];
     private Dictionary<int, UnitVisual> _sampledUnits = [];
+    private readonly Dictionary<int, (long Revision, UnitVisual Visual)> _stationarySamples = [];
     private Dictionary<int, UnitMotionPlayback> _unitPlayback = [];
     private readonly Func<double> _positionTime;
     private double _sampleTime = -1, _sampleVisualTime = -1;
@@ -114,12 +115,19 @@ internal sealed partial class MapScene
     public UnitVisual Sample(UnitVisual unit)
     {
         AdvanceUnitPlayback();
+        var playback = _unitPlayback[unit.Id];
+        bool stationary = Day is null && _history.Length == 0 && playback.Trails.Count == 0 &&
+            (playback.BodyAttack is not { } attack || playback.VisualTime >= attack.Start + attack.Duration);
+        if (stationary && _stationarySamples.TryGetValue(unit.Id, out var previous) && previous.Revision == playback.Revision)
+            return previous.Visual;
         double time = MotionTime, visualTime = MotionVisualTime;
         if (_sampleTime != time || _sampleVisualTime != visualTime)
         { _sampleTime = time; _sampleVisualTime = visualTime; _sampledUnits.Clear(); }
         if (_sampledUnits.TryGetValue(unit.Id, out var cached)) return cached;
         var state = _stateSampler(unit.Id, time - _motionStart)!;
-        return _sampledUnits[unit.Id] = UnitVisuals.Resolve(state, Map.Units, Clips, _unitPlayback[unit.Id], ElevationAt);
+        var visual = UnitVisuals.Resolve(state, Map.Units, Clips, playback, ElevationAt);
+        if (stationary) _stationarySamples[unit.Id] = (playback.Revision, visual);
+        return _sampledUnits[unit.Id] = visual;
     }
     private void PrepareUnitPlayback(MapScene? previous)
     {
@@ -146,14 +154,14 @@ internal sealed partial class MapScene
                     _motionStart, _visualStart, _motions.TryGetValue(id, out var motion) && motion.HasDisplacement);
         }
     }
-    public long UnitAnimationRevision
+    public long UnitAnimationRevision(UnitVisual unit, Rect2 viewport)
     {
-        get { AdvanceUnitPlayback(); return _unitPlayback.Values.Sum(p => p.Revision); }
+        return IsUnitVisible(unit, viewport) ? _unitPlayback[unit.Id].Revision : -1;
     }
     public double PlaybackMilliseconds => MotionVisualTime;
     private double _playbackTime = -1, _playbackVisualTime = -1;
     private long _playbackPresentationRevision = -1;
-    private void AdvanceUnitPlayback()
+    public void AdvanceUnitPlayback()
     {
         double time = MotionTime, visualTime = MotionVisualTime;
         long revision = Day?.PresentationRevision ?? 0;

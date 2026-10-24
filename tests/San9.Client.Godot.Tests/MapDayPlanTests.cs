@@ -43,6 +43,12 @@ public sealed class MapDayPlanTests
         static bool HasVision(MapScene scene) => scene.Sample(Assert.Single(scene.Units)).Animations.Any(a => a.Depth < 30000);
 
         var moving = Scene(before, current: day);
+        var region = new MapSceneRegion(moving, new(-10000, -10000, 100000, 100000), [], moving.Units, [], [], [], []);
+        long visibleRevision = region.UnitAnimationRevision(region.Bounds);
+        Assert.Equal(visibleRevision, region.UnitAnimationRevision(region.Bounds));
+        long hiddenRevision = region.UnitAnimationRevision(new(200000, 200000, 10, 10));
+        Assert.True(hiddenRevision > visibleRevision);
+        Assert.True(region.UnitAnimationRevision(region.Bounds) > hiddenRevision);
         Assert.False(HasVision(moving));
         day.Advance(.5);
         Assert.True(HasVision(moving));

@@ -112,7 +112,7 @@ public partial class StrategyHud : Control
             CanPlayDay = () => Interaction.CanPlay && _textures.IsReady && _feedback.ResourcesReady && _battle.Prepare(Turn.Day) && ReferenceEquals(World.Day, Turn.Day) && World.IsDayReady && _executionPanels.IsExpanded,
             PresentDay = day => _battle.PresentDay(day),
             RetryPresentation = () => _battle.RetryResources(),
-            CreateDay = (before, after, events) => new(before, after, events, new MapDayPlan(World.Package!, before, events),
+            CreateDay = (before, after, events) => new(before, after, events, World.PrepareDay(before, events),
                 battle: BattlePresentationPlan.Create(before, after, events, Session.Messages(Texts, before.World), Texts, CommandPresentation,
                     World.Package!.Buildings.ToDictionary(b => b.Id, b => b.FixedType), World.Package,
                     ReadSettings().TacticScenesEnabled, ReadSettings().DuelScenesEnabled))

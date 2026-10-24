@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -312,8 +313,15 @@ public sealed class StrategySnapshot
     internal IReadOnlyList<TerritoryConnection> TerritoryConnections() => military?.TerritoryConnections(World.Settlements) ?? [];
     internal int? TacticCategory(int id) => military?.Tactics.GetValueOrDefault(id)?.Category;
     internal int? RegionAt(WorldPosition position) => military?.RegionAt(position);
-    public bool HasCityInfluence(int forceId, WorldPosition position) =>
-        military?.HasCityInfluence(forceId, position, World.Settlements) == true;
+    // A snapshot owns immutable settlements and rules. Membership depends on the cell, not subcell motion.
+    private readonly ConcurrentDictionary<(int Force, MapCell Cell), bool> cityInfluence = new();
+    public bool HasCityInfluence(int forceId, WorldPosition position)
+    {
+        if (military?.CityInfluence is null || position.X < 0 || position.Y < 0 ||
+            position.X >= military.Map.FineWidth || position.Y >= military.Map.FineHeight) return false;
+        return cityInfluence.GetOrAdd((forceId, MapCoordinates.Cell(position)), static (key, view) =>
+            view.military!.HasCityInfluence(key.Force, MapCoordinates.Center(key.Cell), view.World.Settlements), this);
+    }
 }
 
 public sealed class InformationCatalog(InformationDefinitions definitions)

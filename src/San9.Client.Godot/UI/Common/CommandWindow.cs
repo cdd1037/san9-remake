@@ -24,7 +24,8 @@ public partial class CommandWindow : Control
     public string? HelpHint { get; init; }
     public string? CloseHint { get; init; }
     private readonly GameTextPresenter _text = new();
-    private ImageTexture? _background;
+    private Node2D _background = null!;
+    private ShaderMaterial? _backgroundMaterial;
     private Vector2 _backgroundSize;
     private bool SmallFrame => Size.X < 416 || Size.Y < 312;
     private string FrameKey(string role) => "deployment-" + (SmallFrame && role is not ("left-edge" or "right-edge") ? "small-" : "") + role;
@@ -32,6 +33,9 @@ public partial class CommandWindow : Control
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
+        _background = new() { ShowBehindParent = true, Visible = false };
+        _background.Draw += () => _background.DrawRect(new(new(-32, -64), Size + new Vector2(64, 128)), Colors.White);
+        AddChild(_background);
         var title = new Label { Text = Title, Position = new(16, -60), Size = new(Title.Length * 24 + 8, 32),
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
         AddChild(title);
@@ -74,39 +78,25 @@ public partial class CommandWindow : Control
     public override void _Process(double delta)
     {
         // Derived from the current skin and content size; never persisted as content.
-        if (_background is not null && _backgroundSize == Size) return;
+        if (_backgroundMaterial is not null && _backgroundSize == Size) return;
         // The command base selects background 270 independently of the frame size.
         string[] roles = ["deployment-background", FrameKey("cutout-top-left"), FrameKey("cutout-top-right"), FrameKey("cutout-bottom-left")];
         if (!Textures.AreReady(roles)) return;
-        using var source = Textures.Get(roles[0], this).GetImage();
-        source.Convert(Image.Format.Rgba8);
-        byte[] sourcePixels = source.GetData();
-        int width = (int)Size.X + 64, height = (int)Size.Y + 128;
-        int sourceWidth = source.GetWidth(), sourceHeight = source.GetHeight();
-        byte[] pixels = new byte[width * height * 4];
-        for (int y = 0; y < height; y++)
-        for (int x = 0; x < width; x++)
-            sourcePixels.AsSpan(((y % sourceHeight) * sourceWidth + x % sourceWidth) * 4, 4)
-                .CopyTo(pixels.AsSpan((y * width + x) * 4, 4));
-        foreach (var (role, at) in new (string, Vector2I)[] { (roles[1], Vector2I.Zero),
-            (roles[2], new(width - 144, 0)), (roles[3], new(0, height - 160)) })
+        _backgroundMaterial ??= new() { Shader = GD.Load<Shader>("res://shaders/command_window_background.gdshader") };
+        string[] names = ["background", "top_left", "top_right", "bottom_left"];
+        for (int i = 0; i < roles.Length; i++)
         {
-            using var mask = Textures.Get(role, this).GetImage();
-            mask.Convert(Image.Format.Rgba8);
-            byte[] maskPixels = mask.GetData();
-            int maskWidth = mask.GetWidth(), maskHeight = mask.GetHeight();
-            for (int y = 0; y < maskHeight; y++)
-            for (int x = 0; x < maskWidth; x++)
-                if (x + at.X >= 0 && x + at.X < width && y + at.Y >= 0 && y + at.Y < height &&
-                    maskPixels[(y * maskWidth + x) * 4 + 3] != 0)
-                    pixels[((y + at.Y) * width + x + at.X) * 4 + 3] = 0;
+            var texture = (AtlasTexture)Textures.Get(roles[i], _background);
+            var region = texture.Region;
+            _backgroundMaterial.SetShaderParameter(names[i] + "_texture", texture.Atlas);
+            _backgroundMaterial.SetShaderParameter(names[i] + "_region", new Vector4(region.Position.X, region.Position.Y, region.Size.X, region.Size.Y));
         }
-        using var image = Image.CreateFromData(width, height, false, Image.Format.Rgba8, pixels);
-        _background?.Dispose(); _background = ImageTexture.CreateFromImage(image); _backgroundSize = Size; QueueRedraw();
+        _backgroundMaterial.SetShaderParameter("surface_size", Size + new Vector2(64, 128));
+        _background.Material = _backgroundMaterial; _backgroundSize = Size;
+        _background.Show(); _background.QueueRedraw(); QueueRedraw();
     }
     public override void _Draw()
     {
-        if (_background is not null) DrawTexture(_background, new(-32, -64));
         float titleWidth = 160 + Title.Length * 16;
         Strip("title", new(-24, -72, titleWidth, 56));
         Tile("top-edge", new(-24 + titleWidth, -72, Size.X - (SmallFrame ? 88 : 112) - (-24 + titleWidth), Textures.Get(FrameKey("top-edge"), this).GetHeight()));
@@ -123,5 +113,5 @@ public partial class CommandWindow : Control
     private void Tile(string role, Rect2 rect) => SkinPainter.Tile(this, Textures.Get(FrameKey(role), this), rect);
     private void Strip(string role, Rect2 rect) => SkinPainter.Strip(this, Textures.Get(FrameKey(role + "-left"), this),
         Textures.Get(FrameKey(role + "-middle"), this), Textures.Get(FrameKey(role + "-right"), this), rect);
-    public override void _ExitTree() { _text.Dispose(); _background?.Dispose(); }
+    public override void _ExitTree() { _text.Dispose(); _backgroundMaterial?.Dispose(); }
 }

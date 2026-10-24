@@ -49,11 +49,14 @@ public sealed class MapDayPlan
     private readonly IReadOnlyDictionary<string, ImageAsset> Assets;
     private Dictionary<int, MapUnitMotion> _motions = [];
     private MapAttackMotion[] _attacks = [];
+    internal MapSceneProjection Projection { get; }
     public MapDayPlan(MapPackage map, StrategySnapshot state, IReadOnlyList<DomainEvent> events)
+        : this(map, state, events, MapSceneProjection.Create(state, map)) { }
+    internal MapDayPlan(MapPackage map, StrategySnapshot state, IReadOnlyList<DomainEvent> events, MapSceneProjection projection)
     {
         Map = map; State = state; _events = events;
         Settlements = state.Settlements.ToDictionary(s => s.Id);
-        var projection = MapSceneProjection.Create(state, map);
+        Projection = projection;
         Buildings = projection.Buildings; _units = projection.Units;
         Clips = map.Animations.Clips.ToDictionary(c => c.Id);
         Assets = map.Assets.ToDictionary(a => a.Id);

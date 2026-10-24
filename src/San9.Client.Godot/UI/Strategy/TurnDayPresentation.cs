@@ -53,15 +53,31 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
     public IReadOnlySet<int> PresentedShots(MapAttackMotion attack) => _attacks.TryGetValue(attack, out var state) ? state.Admission.Shots : new HashSet<int>();
     public bool IsCombatBlocking => _batchActive && VisualElapsed < _batchEnd - 1e-9;
     public BattlePresentationPlan? Battle { get; } = battle;
+    private readonly PresentationCueTimeline<BattleMapChangeCue> _changes = new(battle?.MapChanges ?? [], c => c.Time, c => c.FactIndex, c => c.AfterDialogueId);
+    private readonly PresentationCueTimeline<BattleValueCue> _values = new(battle?.Values.Where(c => c.IsSettlement) ?? [], c => c.Time, c => c.FactIndex, c => c.AfterDialogueId);
+    private readonly PresentationCueTimeline<BattleMessageCue> _dialogues = Messages(battle, BattleMessageChannel.Dialogue);
+    private readonly PresentationCueTimeline<BattleMessageCue> _duelDialogues = Messages(battle, BattleMessageChannel.DuelDialogue);
+    private readonly PresentationCueTimeline<BattleMessageCue> _speeches = Messages(battle, BattleMessageChannel.MapSpeech);
+    private readonly PresentationCueTimeline<BattleRecordCue> _records = new(battle?.Records ?? [], c => c.Time, c => c.FactIndex, c => c.AfterDialogueId);
+    private static PresentationCueTimeline<BattleMessageCue> Messages(BattlePresentationPlan? plan, BattleMessageChannel channel)
+    {
+        var cues = plan?.Messages.Where(c => c.Channel == channel) ?? [];
+        if (channel != BattleMessageChannel.MapSpeech) cues = cues.OrderBy(c => c.Time);
+        return new(cues,
+            c => c.Time, c => c.FactIndex, c => c.AfterDialogueId, channel == BattleMessageChannel.MapSpeech ? null : c => c.Id);
+    }
+    private int LastReadyFact => NextBatch?.LastFactIndex ?? int.MaxValue;
+    private readonly BattleMessageCue[] _dialogueOrder = (battle?.Messages.Where(c => c.Channel != BattleMessageChannel.MapSpeech) ?? []).OrderBy(c => c.Time).ToArray();
+    private int _nextDialogue;
     private BattleMapFrame? _mapFrame;
     private (int Changes, int Values) _mapVersion = (-1, -1);
     public BattleMapFrame MapFrame
     {
         get
         {
-            var changes = Battle?.MapChanges.Where(c => c.Time <= Elapsed && IsFactReady(c.FactIndex) && IsDialogueComplete(c.AfterDialogueId)) ?? [];
-            var values = Battle?.Values.Where(c => c.IsSettlement && c.Time <= Elapsed && IsFactReady(c.FactIndex) && IsDialogueComplete(c.AfterDialogueId)) ?? [];
-            var version = (changes.Count(), values.Count());
+            var changes = _changes.Read(Elapsed, LastReadyFact, _completedDialogues);
+            var values = _values.Read(Elapsed, LastReadyFact, _completedDialogues);
+            var version = (changes.Count, values.Count);
             if (_mapFrame is null || _mapVersion != version)
             {
                 _mapFrame = new(Before, changes, values);
@@ -73,19 +89,18 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
     private readonly HashSet<string> _completedDialogues = [];
     public bool IsDialogueComplete(string? id) => id is null || _completedDialogues.Contains(id);
     public double DuelDialogueElapsed { get; private set; }
-    public IReadOnlyList<BattleMessageCue> PendingDialogues => Battle?.Messages
-        .Where(c => c.Channel == BattleMessageChannel.Dialogue && !_completedDialogues.Contains(c.Id) && IsFactReady(c.FactIndex) && IsDialogueComplete(c.AfterDialogueId) && c.Time <= Elapsed + 1e-9)
-        .OrderBy(c => c.Time).ToArray() ?? [];
-    public IReadOnlyList<BattleMessageCue> PendingDuelDialogues => Battle?.Messages
-        .Where(c => c.Channel == BattleMessageChannel.DuelDialogue && !_completedDialogues.Contains(c.Id) && IsFactReady(c.FactIndex) && IsDialogueComplete(c.AfterDialogueId) && c.Time <= Elapsed + 1e-9)
-        .OrderBy(c => c.Time).ToArray() ?? [];
-    private double? NextDialogueTime => Battle?.Messages
-        .Where(c => c.Channel != BattleMessageChannel.MapSpeech && !_completedDialogues.Contains(c.Id))
-        .Select(c => (double?)c.Time).Min();
-    public IReadOnlyList<BattleMessageCue> ReadyMapSpeeches => Battle?.Messages
-        .Where(c => c.Channel == BattleMessageChannel.MapSpeech && (c.Time <= Elapsed || IsComplete) && IsFactReady(c.FactIndex) && IsDialogueComplete(c.AfterDialogueId)).ToArray() ?? [];
-    public IReadOnlyList<BattleRecordCue> ReadyRecords => Battle?.Records
-        .Where(c => (c.Time <= Elapsed || IsComplete) && IsFactReady(c.FactIndex) && IsDialogueComplete(c.AfterDialogueId)).ToArray() ?? [];
+    public IReadOnlyList<BattleMessageCue> PendingDialogues => _dialogues.Read(Elapsed + 1e-9, LastReadyFact, _completedDialogues);
+    public IReadOnlyList<BattleMessageCue> PendingDuelDialogues => _duelDialogues.Read(Elapsed + 1e-9, LastReadyFact, _completedDialogues);
+    private double? NextDialogueTime
+    {
+        get
+        {
+            while (_nextDialogue < _dialogueOrder.Length && _completedDialogues.Contains(_dialogueOrder[_nextDialogue].Id)) _nextDialogue++;
+            return _nextDialogue < _dialogueOrder.Length ? _dialogueOrder[_nextDialogue].Time : null;
+        }
+    }
+    public IReadOnlyList<BattleMessageCue> ReadyMapSpeeches => _speeches.Read(IsComplete ? double.PositiveInfinity : Elapsed, LastReadyFact, _completedDialogues);
+    public IReadOnlyList<BattleRecordCue> ReadyRecords => _records.Read(IsComplete ? double.PositiveInfinity : Elapsed, LastReadyFact, _completedDialogues);
     public bool IsComplete => Elapsed >= Duration && NextBatch is null && NextDialogueTime is null &&
         !IsMapEffectBlocking && _mapEffectStarts.Count == _mapEffects.Length;
     public void CompleteDialogue(string id)

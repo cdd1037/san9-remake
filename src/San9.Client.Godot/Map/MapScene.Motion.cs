@@ -46,13 +46,16 @@ internal sealed partial class MapScene
         var visionAngles = snapshot.Information.Formations.ToDictionary(f => f.Id, f => f.Presentation?.VisionAngleDegrees ?? 0);
         var values = day?.Battle?.Values.Where(v => !v.IsSettlement).GroupBy(v => v.TargetId)
             .ToDictionary(g => g.Key, g => g.ToArray()) ?? [];
-        return (id, time) => SampleState(id, time, states, motions, snapshot, map, day, runtimeUnits, visionAngles, values, retainedVision);
+        var displacements = day?.Battle?.MapChanges.Where(c => c.Displacement is not null).GroupBy(c => c.Displacement!.UnitId)
+            .ToDictionary(g => g.Key, g => g.ToArray()) ?? [];
+        return (id, time) => SampleState(id, time, states, motions, snapshot, map, day, runtimeUnits, visionAngles, values, displacements, retainedVision);
     }
     private static UnitVisualState? SampleState(int id, double milliseconds,
         Dictionary<int, UnitVisualState> states, Dictionary<int, MapUnitMotion> motions,
         San9.Application.Presentation.StrategySnapshot snapshot,
         MapPackage map, TurnDayPresentation? day, IReadOnlyDictionary<int, UnitState> runtimeUnits,
-        IReadOnlyDictionary<int, int> visionAngles, IReadOnlyDictionary<int, BattleValueCue[]> values, IReadOnlySet<int> retainedVision)
+        IReadOnlyDictionary<int, int> visionAngles, IReadOnlyDictionary<int, BattleValueCue[]> values,
+        IReadOnlyDictionary<int, BattleMapChangeCue[]> displacements, IReadOnlySet<int> retainedVision)
     {
         if (!states.TryGetValue(id, out var state)) return null;
         state = state with { MovementVisionVisible = retainedVision.Contains(id) };
@@ -65,29 +68,49 @@ internal sealed partial class MapScene
             ReceivesPositionUpdates = day is not null && milliseconds >= 0 &&
             milliseconds < MapMovementCadence.DayMilliseconds
         };
+        if (day is not null && milliseconds >= MapMovementCadence.DayMilliseconds)
+            state = state with { IsEngaged = day.After.IsUnitEngaged(id) };
+        (double X, double Y, int Direction)? point = null;
         if (motions.TryGetValue(id, out var motion))
         {
             var p = motion.Sample(milliseconds);
-            var position = new WorldPosition((int)Math.Round(p.X), (int)Math.Round(p.Y));
-            var runtime = runtimeUnits[id] with { Position = position };
-            int formation = snapshot.FormationId(runtime)!.Value;
+            point = (p.X, p.Y, motion.HasDisplacement ? p.Direction : state.Direction);
             bool moving = motion.HasDisplacement && state.ReceivesPositionUpdates;
             state = state with
             {
-                CellX = (p.X - MapCoordinates.UnitsPerCell / 2) / MapCoordinates.UnitsPerCell,
-                CellY = (p.Y - MapCoordinates.UnitsPerCell / 2) / MapCoordinates.UnitsPerCell,
-                Elevation = map.Squares[runtime.Cell.Y * map.Width + runtime.Cell.X].Elevation,
-                Direction = motion.HasDisplacement ? p.Direction : state.Direction,
-                FormationId = formation,
-                VisionAngleDegrees = visionAngles[formation],
-                HasCityInfluence = runtime.EffectiveOrderClass == UnitOrderClass.Military && snapshot.HasCityInfluence(runtime.OwnerId, position),
                 IsMoving = moving,
                 Action = moving ? UnitVisualAction.Moving : UnitVisualAction.Idle
             };
         }
-        if (day is not null && milliseconds >= MapMovementCadence.DayMilliseconds)
+        if (day is not null && displacements.TryGetValue(id, out var relocations))
         {
-            state = state with { IsEngaged = day.After.IsUnitEngaged(id) };
+            var cue = relocations.LastOrDefault(c => c.Time * 1000 <= milliseconds &&
+                day.IsFactReady(c.FactIndex) && day.IsDialogueComplete(c.AfterDialogueId));
+            if (cue is not null)
+            {
+                point = cue.SampleDisplacement(milliseconds / 1000);
+                bool moving = milliseconds < cue.End * 1000;
+                state = state with
+                {
+                    IsEngaged = false, MovementVisionVisible = false, PositionMode = UnitPositionMode.Formation,
+                    ReceivesPositionUpdates = false,
+                    IsMoving = moving, Action = moving ? UnitVisualAction.Moving : UnitVisualAction.Idle
+                };
+            }
+        }
+        if (point is { } sample)
+        {
+            var position = new WorldPosition((int)Math.Round(sample.X), (int)Math.Round(sample.Y));
+            var runtime = runtimeUnits[id] with { Position = position };
+            int formation = snapshot.FormationId(runtime)!.Value;
+            state = state with
+            {
+                CellX = (sample.X - MapCoordinates.UnitsPerCell / 2) / MapCoordinates.UnitsPerCell,
+                CellY = (sample.Y - MapCoordinates.UnitsPerCell / 2) / MapCoordinates.UnitsPerCell,
+                Elevation = map.Squares[runtime.Cell.Y * map.Width + runtime.Cell.X].Elevation,
+                Direction = sample.Direction, FormationId = formation, VisionAngleDegrees = visionAngles[formation],
+                HasCityInfluence = runtime.EffectiveOrderClass == UnitOrderClass.Military && snapshot.HasCityInfluence(runtime.OwnerId, position)
+            };
         }
         if (day is not null && values.TryGetValue(id, out var changes))
         {
@@ -186,6 +209,9 @@ internal sealed partial class MapScene
         var bounds = new Rect2(unit.AnchorX, unit.AnchorY, 1, 1);
         if (_motions.TryGetValue(unit.Id, out var motion))
             foreach (var p in motion.Points) bounds = bounds.Expand(Project(p.X, p.Y));
+        foreach (var change in Day?.Battle?.MapChanges ?? [])
+            if (change.Displacement is { } displacement && displacement.UnitId == unit.Id)
+                bounds = bounds.Expand(Project(displacement.From.X, displacement.From.Y)).Expand(Project(displacement.To.X, displacement.To.Y));
         foreach (var segment in _history)
             if (segment.Paths.TryGetValue(unit.Id, out var previousPath))
                 foreach (var p in previousPath.Segment(Math.Max(0, MotionTime - HistoryMilliseconds - segment.Start),

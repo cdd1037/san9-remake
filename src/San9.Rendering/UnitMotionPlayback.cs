@@ -140,10 +140,10 @@ public sealed class UnitMotionPlayback
         {
             double tick = _members.Count == 0 ? double.PositiveInfinity : _members.Values.Min(m => m.NextTick);
             // Preparation retains the first callback; deferred effects begin at the current visual time.
-            double positionTick = motionEnabled && _nextPosition <= time
+            double positionTick = motionEnabled && _nextPosition <= time + 1e-6
                 ? Math.Max(_visualTime, emissionTime(_nextPosition)) : double.PositiveInfinity;
             double next = Math.Min(tick, positionTick);
-            if (next > visualTime) break;
+            if (next > visualTime + 1e-6) break;
             double motionTime = tick <= positionTick ? AtMotionTime(next) : _nextPosition;
             var state = stateAt(motionTime);
             Reconcile(state, catalog, next);
@@ -160,14 +160,16 @@ public sealed class UnitMotionPlayback
                 _nextPosition += MapMovementCadence.StepMilliseconds;
             }
         }
-        Reconcile(stateAt(time), catalog, visualTime);
+        var current = stateAt(time);
+        Reconcile(current, catalog, visualTime);
+        if (current.PositionMode == UnitPositionMode.Formation) SynchronizeFormation(current);
         _trails.RemoveAll(t => visualTime - t.Emitted >= clips[t.ClipId].Frames.Length * clips[t.ClipId].FrameMilliseconds);
         _time = time; _visualTime = visualTime;
     }
 
     private static void AdvanceMember(Member member, UnitVisualState state, bool advancing)
     {
-        if (advancing)
+        if (advancing && state.PositionMode == UnitPositionMode.Follow)
         {
             if (!state.IsMoving && member.Pending)
             {
@@ -197,6 +199,7 @@ public sealed class UnitMotionPlayback
 
     private void PublishPositions(UnitVisualState state, MapUnitCatalog catalog, double motionTime, double visualTime)
     {
+        if (state.PositionMode == UnitPositionMode.Formation) SynchronizeFormation(state);
         if (state.ReceivesPositionUpdates || state.IsMoving)
             foreach (var member in _members.Values)
             {
@@ -218,6 +221,21 @@ public sealed class UnitMotionPlayback
                 _trails.Add(new(trail.ClipId, pose.X + trail.X, pose.Y + trail.Y,
                     pose.Y + 30000 - (body.Wake is null ? 0 : 1), visualTime, state.Elevation));
             }
+    }
+
+    private void SynchronizeFormation(UnitVisualState state)
+    {
+        // A formation correction owns every member position. Marching queues must not
+        // defer followers or survive into the next snapshot after the correction ends.
+        foreach (var member in _members.Values)
+        {
+            var point = Point(state, member.Definition);
+            if (member.Base == point && member.Waiting.Count == 0 && !member.Pending) continue;
+            member.Base = point;
+            member.Waiting.Clear();
+            member.Pending = false;
+            Revision++;
+        }
     }
 
     private static void AdvanceDirection(Member member, UnitVisualState state)

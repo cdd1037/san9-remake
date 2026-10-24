@@ -47,7 +47,18 @@ public sealed record BattleValueCue(double Time, int TargetId, bool IsSettlement
 public sealed record BattleMapChangeCue(double Time, int FactIndex, int? RemovedUnitId, SettlementView? Settlement,
     string? AfterDialogueId = null)
 {
+    // A brief display correction, independent of daily marching time and movement cost.
+    public const double DisplacementDuration = .1;
+    public UnitDisplacedEvent? Displacement { get; init; }
     public UnitTerminatedEvent? Retirement { get; init; }
+    public double End => Time + (Displacement is null ? 0 : DisplacementDuration);
+    public (double X, double Y, int Direction) SampleDisplacement(double time)
+    {
+        var move = Displacement ?? throw new InvalidOperationException("No unit displacement in this cue.");
+        double t = Math.Clamp((time - Time) / (End - Time), 0, 1);
+        return (move.From.X + ((double)move.To.X - move.From.X) * t,
+            move.From.Y + ((double)move.To.Y - move.From.Y) * t, UnitVisuals.Direction(move.From, move.To));
+    }
 }
 public sealed record BattleMapEffectCue(string Id, double Start, BattleObjectContext Target, BattleSprite Sprite)
 {

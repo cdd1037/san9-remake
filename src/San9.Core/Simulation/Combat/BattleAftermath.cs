@@ -60,6 +60,7 @@ internal static class BattleAftermath
                     MilitaryMovement.Absorb(world, unit, capture.Id, rules.Governance, rules.Personnel, rules.Military!, events);
         GovernanceLifecycle.Reconcile(world, previousOwners.ToHashSet(), rules, events, world.CurrentDateCommandsConsumed);
         foreach (int id in ids) MilitaryOrders.SettlementChanged(world, id, rules.Military!, events);
+        foreach (int id in ids) UnitDisplacement.Resolve(world, id, rules.Military!, events);
     }
 
     private static int[] CaptureUnits(WorldMutation world, int id, BattleSource winner, MilitaryRulebook military)

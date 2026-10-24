@@ -17,6 +17,8 @@ public sealed record UnitVisual(int Id, double CellX, double Depth, MapAnimatedS
     public int AnchorX { get; init; }
     public int AnchorY { get; init; }
 }
+public enum UnitPositionMode { Follow, Formation }
+
 public sealed record UnitVisualState(int Id, double CellX, double CellY, int Elevation, uint Soldiers,
     int FormationId, UnitCondition Condition, int Direction, bool HasCityInfluence, int Color, int Glyph, int MapHeight)
 {
@@ -28,6 +30,7 @@ public sealed record UnitVisualState(int Id, double CellX, double CellY, int Ele
     public bool IsMoving { get; init; }
     public bool MovementVisionVisible { get; init; }
     public bool ReceivesPositionUpdates { get; init; }
+    public UnitPositionMode PositionMode { get; init; }
     public int VisionAngleDegrees { get; init; }
     public bool UsesImperialAppearance { get; init; }
     public bool IsRulerCommander { get; init; }

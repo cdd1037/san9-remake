@@ -71,10 +71,11 @@ public sealed class MapDayPlan
         return new((float)(32 * (cx + Map.Height - cy) + 96),
             (float)(16 * (cx + cy + 1) + 112 - 10 * (Map.Squares[cellY * Map.Width + cellX].Elevation - 1)));
     }
-    private WorldPosition? Position(int id, bool settlement)
+    private WorldPosition? Position(int id, bool settlement, int factIndex = int.MaxValue)
     {
         if (settlement) return Settlements.TryGetValue(id, out var s) ? MapCoordinates.Center(new(s.X, s.Y)) : null;
-        return _motions.TryGetValue(id, out var motion) ? motion.Points.LastOrDefault() : State.World.Units.FirstOrDefault(u => u.Id == id)?.Position;
+        var displaced = _events.Take(factIndex).OfType<UnitDisplacedEvent>().LastOrDefault(e => e.UnitId == id);
+        return displaced?.To ?? (_motions.TryGetValue(id, out var motion) ? motion.Points.LastOrDefault() : State.World.Units.FirstOrDefault(u => u.Id == id)?.Position);
     }
     private MapUnitLayout AttackLayout(UnitVisualState state, WorldPosition position)
     {
@@ -98,7 +99,7 @@ public sealed class MapDayPlan
             if (fact is not BattleDamageEvent { TacticId: null } hit || hit.SoldierLoss == 0 && hit.DurabilityLoss == 0 && hit.MoraleLoss == 0) continue;
             bool targetSettlement = hit.SettlementId is not null;
             int targetId = hit.TargetUnitId ?? hit.SettlementId!.Value;
-            if (Position(hit.AttackerId, hit.AttackerIsSettlement) is not {} from || Position(targetId, targetSettlement) is not {} to) continue;
+            if (Position(hit.AttackerId, hit.AttackerIsSettlement, factIndex) is not {} from || Position(targetId, targetSettlement, factIndex) is not {} to) continue;
             var source = Project(from.X, from.Y); var target = Project(to.X, to.Y);
             var bodyPosition = source;
             var timing = new MapAttackTiming(0, 0);
@@ -176,7 +177,7 @@ public sealed class MapDayPlan
             double duration = 0, blocking = 0;
             if (!attack.SourceIsSettlement && _units.TryGetValue(attack.SourceId, out var state))
             {
-                var layout = AttackLayout(state, Position(attack.SourceId, false)!.Value);
+                var layout = AttackLayout(state, Position(attack.SourceId, false, attack.FactIndex)!.Value);
                 foreach (var member in layout.Members)
                 {
                     var body = AttackBody(state, member);

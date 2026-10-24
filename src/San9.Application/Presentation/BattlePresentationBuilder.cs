@@ -44,7 +44,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
 
     private double LastBlockingCueTime() => _visuals.Where(c => !c.IsMapEffect).Select(c => c.End)
         .Concat(_messages.Where(c => c.Channel != BattleMessageChannel.MapSpeech).Select(c => c.Time))
-        .Concat(_mapChanges.Select(c => c.Time)).Concat(_duels.Select(c => c.End)).DefaultIfEmpty(0).Max();
+        .Concat(_mapChanges.Select(c => c.End)).Concat(_duels.Select(c => c.End)).DefaultIfEmpty(0).Max();
 
     private IEnumerable<FeedbackBatch> Feedback(params FeedbackKind[] kinds)
     {

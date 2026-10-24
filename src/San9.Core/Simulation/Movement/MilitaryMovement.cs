@@ -39,6 +39,7 @@ public sealed record UnitMovedEvent(GameClock Clock, int UnitId, WorldPosition F
     [System.Text.Json.Serialization.JsonRequired] public ImmutableArray<WorldPosition> Steps { get; init; } = [];
 }
 public sealed record UnitWaypointReachedEvent(GameClock Clock, BattleObjectContext Unit, WorldPosition Position) : DomainEvent;
+public sealed record UnitDisplacedEvent(GameClock Clock, int UnitId, int SettlementId, WorldPosition From, WorldPosition To) : DomainEvent;
 public sealed record UnitAbsorbedEvent(GameClock Clock, int UnitId, int SettlementId) : DomainEvent
 {
     [JsonRequired] public required BattleObjectContext Source { get; init; }

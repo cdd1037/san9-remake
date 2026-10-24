@@ -52,6 +52,14 @@ internal sealed partial class BattlePresentationBuilder
                 _mapChanges.Add(new(_captureTimes.GetValueOrDefault(absorbed.SettlementId, 1), _index,
                     absorbed.UnitId, Project(absorbed.SettlementId), _mapDialogue));
                 break;
+            case UnitDisplacedEvent displaced:
+                // Consecutive displacements at one ownership boundary play together.
+                double start = _mapChanges.LastOrDefault() is { Displacement: { } previous } last &&
+                    last.FactIndex == _index - 1 && previous.SettlementId == displaced.SettlementId ? last.Time : Math.Max(_cursor, _impact);
+                var relocation = new BattleMapChangeCue(start, _index, null, null, _mapDialogue) { Displacement = displaced };
+                _mapChanges.Add(relocation);
+                _cursor = Math.Max(_cursor, relocation.End);
+                break;
             case FacilityDestroyedEvent destroyed:
                 _mapChanges.Add(new(_impact, _index, null, Project(destroyed.SettlementId), _mapDialogue));
                 break;

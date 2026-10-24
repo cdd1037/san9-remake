@@ -49,6 +49,7 @@ internal static class SettlementAffiliation
         ForceTransfer.ReconcileOrders(world, rules.Military, events);
         CorpsDelegations.Cleanup(world, rules.Military, events);
         world.MaintainLeadership(events);
+        if (rules.Military is { } displacementRules) UnitDisplacement.Resolve(world, place.Id, displacementRules, events);
         events.Add(new SettlementDefectedEvent(world.Clock, place.Id, owner, recipient, kind, commander?.Id, followers.Order().ToImmutableArray()));
         ResolutionPipeline.CheckConquest(world, events);
     }

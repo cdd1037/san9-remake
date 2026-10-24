@@ -71,9 +71,10 @@ internal sealed partial class MapScene
             if (a > b) return;
             if (paths.TryGetValue(unit.Id, out var path))
                 foreach (var p in path.Segment(a - start, b - start)) Include(p.X, p.Y);
-            else if (sample(unit.Id, 0) is {} state)
-                Include(state.CellX * MapCoordinates.UnitsPerCell + MapCoordinates.UnitsPerCell / 2,
-                    state.CellY * MapCoordinates.UnitsPerCell + MapCoordinates.UnitsPerCell / 2);
+            foreach (double time in new[] { a - start, b - start })
+                if (sample(unit.Id, time) is {} state)
+                    Include(state.CellX * MapCoordinates.UnitsPerCell + MapCoordinates.UnitsPerCell / 2,
+                        state.CellY * MapCoordinates.UnitsPerCell + MapCoordinates.UnitsPerCell / 2);
         }
         foreach (var segment in _history)
             IncludeSegment(segment.Start, segment.End, segment.Sample, segment.Paths);

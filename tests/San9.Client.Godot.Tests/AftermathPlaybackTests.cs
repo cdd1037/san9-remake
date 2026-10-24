@@ -1,12 +1,14 @@
 using San9.Application;
 using San9.Application.Presentation;
 using San9.Content.Interface;
+using San9.Content.Images;
 using San9.Core.Simulation;
 using San9.Content.Text;
 using System.Collections.Immutable;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
 using San9.Tests;
+using San9.Content.Maps;
 
 namespace San9.Client.Godot.Tests;
 
@@ -60,7 +62,7 @@ public sealed class AftermathPlaybackTests
         day.Advance(10);
         Assert.Single(day.PendingDialogues);
         Assert.Equal(2, day.MapFrame.Settlements[2].OwnerId);
-        Assert.Equal(before.Settlements.Single(s => s.Id == 2).Soldiers - 100, day.MapFrame.Settlements[2].Soldiers);
+        Assert.Equal(before.Settlements.Single(s => s.Id == 2).Soldiers, day.MapFrame.Settlements[2].Soldiers);
         Assert.DoesNotContain(10, day.MapFrame.RemovedUnits);
         day.CompleteDialogue(Assert.Single(day.PendingDialogues).Id);
         Assert.Equal(1, day.MapFrame.Settlements[2].OwnerId);
@@ -71,6 +73,88 @@ public sealed class AftermathPlaybackTests
         day.Advance(10, paused: true);
         Assert.Same(frame, day.MapFrame);
         Assert.False(day.IsComplete);
+    }
+
+    [Theory]
+    [InlineData("unit")]
+    [InlineData("morale")]
+    [InlineData("capture")]
+    [InlineData("destroy")]
+    public void TerminalLossAndLifecyclePublishTogetherAfterTheAttackBatch(string outcome)
+    {
+        var basis = Scenario();
+        var session = GameSession.Start(basis with
+        {
+            Units = basis.Units.Select(u => u with { Morale = 70 }).ToArray(),
+            Information = basis.Information! with { Formations = [new(7, "formation")] }
+        }, 42);
+        var before = session.View;
+        bool settlement = outcome is "capture" or "destroy";
+        int targetId = settlement ? 2 : 20;
+        var source = new BattleObjectContext(10, false, 1, 3, new(12, 7), 1, false);
+        var target = new BattleObjectContext(targetId, settlement, 2, 23,
+            settlement ? null : new WorldPosition(42, 7), 2, settlement);
+        var result = before.World.Settlements.Single(s => s.Id == 2) with
+        {
+            OwnerId = outcome == "destroy" ? null : 1,
+            Soldiers = outcome == "destroy" ? 0u : 300u,
+            IsDestroyed = outcome == "destroy", Durability = outcome == "destroy" ? 0 : 100
+        };
+        DomainEvent terminal = outcome switch
+        {
+            "capture" => new SettlementCapturedEvent(before.World.Clock, 2, 2, new(10, false), false)
+                { Source = source, Result = result },
+            "destroy" => new FacilityDestroyedEvent(before.World.Clock, 2, new(10, false))
+                { Source = source, PreviousOwnerId = 2, Result = result },
+            _ => new UnitTerminatedEvent(before.World.Clock, 20, new(10, false), 0)
+                { Source = source, Target = target, Reason = outcome == "morale" ? UnitTerminationReason.MoraleCollapsed : UnitTerminationReason.Defeated }
+        };
+        uint soldiers = settlement ? before.Settlements.Single(s => s.Id == 2).Soldiers : before.World.Units.Single(u => u.Id == 20).Soldiers;
+        DomainEvent[] facts = [
+            new BattleDamageEvent(before.World.Clock, 10, settlement ? null : 20, settlement ? 2 : null, 10, 0, 10, 0, 0),
+            new BattleDamageEvent(before.World.Clock, 10, settlement ? null : 20, settlement ? 2 : null,
+                outcome == "morale" ? 0 : soldiers - 10, 0, 0, outcome == "destroy" ? 100 : 0, outcome == "morale" ? 100 : 0),
+            terminal,
+            new BattleDamageEvent(before.World.Clock, 10, null, 1, 1, 0, 1, 0, 0)];
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion,
+            new() { ["home"] = "home", ["enemy"] = "enemy", ["commander"] = "commander", ["other"] = "other" });
+        var battle = BattlePresentationPlan.Create(before, before, facts, session.Messages(texts), texts, new([], null));
+        var catalog = UnitVisualFixture.Catalog with
+        {
+            Formations = [UnitVisualFixture.Catalog.Formations[0] with { FormationId = 7 }],
+            Bodies = UnitVisualFixture.Catalog.Bodies.Select(b => b with
+            {
+                MeleeAttack = new([new(Enumerable.Repeat("attack", 8).ToArray()) { BlocksDayProgress = true }], MapProjectileKind.None, 0),
+                RangedAttack = null, Flags = Enumerable.Range(0, 8).Select(_ => Array.Empty<MapUnitFlagPlacement>()).ToArray()
+            }).ToArray()
+        };
+        var map = new MapPackage(MapPackage.CurrentSchemaVersion, "fixture", "aftermath", "spring", 11, 2, 13056, 6656,
+            Enumerable.Repeat(new MapSquare(0, 1, 0, 0), 22).ToArray(), [], [], [], [], [],
+            [new(1, 0, 1, 0), new(2, 10, 1, 0)], Enumerable.Range(1, 14).Select(id => new MapComposition(id, [])).ToArray(),
+            [], [], [], [], new([.. UnitVisualFixture.Clips.Values, new("attack", ["body", "body"], 1000, [])], []), [])
+            { BuildingTypes = [new(0, 100)], Units = catalog };
+        var mapPlan = new MapDayPlan(map, before, facts);
+        var day = new TurnDayPresentation(before, before, facts, mapPlan, battle: battle)
+            { Viewport = () => new(-100000, -100000, 200000, 200000) };
+        var scene = new MapScene(map, new San9.Rendering.TerrainRenderer(map, [], []), "spring", before,
+            new Dictionary<string, ImageAsset>(), () => 0, day: day);
+        day.Advance(1);
+        Assert.True(day.IsCombatBlocking);
+        scene = scene.RefreshMapFrame();
+        Assert.Equal(soldiers - 10, settlement ? scene.Settlements[2].Soldiers : scene.Sample(scene.Units.Single(u => u.Id == 20)).Soldiers);
+        if (!settlement) Assert.True(scene.Sample(scene.Units.Single(u => u.Id == 20)).Morale > 0);
+        Assert.DoesNotContain(20, day.MapFrame.RemovedUnits);
+        Assert.Equal(2, day.MapFrame.Settlements[2].OwnerId);
+        Assert.False(day.MapFrame.Settlements[2].IsDestroyed);
+        day.Advance(2);
+        scene = scene.RefreshMapFrame();
+        if (settlement)
+        {
+            Assert.Equal(result.Soldiers, scene.Settlements[2].Soldiers);
+            Assert.Equal(result.OwnerId, scene.Settlements[2].OwnerId);
+            Assert.Equal(result.IsDestroyed, scene.Settlements[2].IsDestroyed);
+        }
+        else Assert.DoesNotContain(scene.Units, u => u.Id == 20);
     }
 
     [Fact]

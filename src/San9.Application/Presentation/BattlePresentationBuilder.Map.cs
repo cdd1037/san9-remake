@@ -10,6 +10,24 @@ internal sealed partial class BattlePresentationBuilder
 
     private SettlementView Project(int id) => _identities.View.Settlements.Single(s => s.Id == id);
 
+    private void PublishTerminalLoss(BattleMapChangeCue result)
+    {
+        bool settlement = result.Settlement is not null;
+        int id = result.Settlement?.Id ?? result.RemovedUnitId!.Value;
+        int checkpoint = _mapChanges.Take(_mapChanges.Count - 1)
+            .Where(c => settlement ? c.Settlement?.Id == id : c.RemovedUnitId == id)
+            .Select(c => c.FactIndex).DefaultIfEmpty(-1).Max();
+        int loss = _stateValues.FindLastIndex(c => c.TargetId == id && c.IsSettlement == settlement &&
+            c.FactIndex > checkpoint && (c.Soldiers < 0 || c.Morale < 0 || c.Durability < 0));
+        if (loss < 0) return;
+        // The final loss and its lifecycle result form one map publication. Keep the
+        // living state until that result is admitted, including its capture dialogue.
+        _stateValues[loss] = _stateValues[loss] with
+        {
+            Time = result.Time, FactIndex = result.FactIndex, AfterDialogueId = result.AfterDialogueId
+        };
+    }
+
     private void PresentMapChange(DomainEvent fact)
     {
         switch (fact)

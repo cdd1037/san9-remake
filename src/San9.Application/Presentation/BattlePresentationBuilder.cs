@@ -143,7 +143,12 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             _identities.Apply(events[_index]);
             PresentMapChange(events[_index]);
             for (int i = firstChange; i < _mapChanges.Count; i++)
+            {
                 _mapChanges[i] = _mapChanges[i] with { AfterDialogueId = DialogueBefore(_mapChanges[i].Time) ?? _mapChanges[i].AfterDialogueId };
+                if (events[_index] is UnitTerminatedEvent { Reason: UnitTerminationReason.Defeated or UnitTerminationReason.MoraleCollapsed }
+                    or SettlementCapturedEvent or FacilityDestroyedEvent)
+                    PublishTerminalLoss(_mapChanges[i]);
+            }
             // A batch includes state publication and live map effects. Only a modal or
             // lifecycle boundary separates attacks; the client admits and waits live visuals.
             if (!ordinaryDamage && (BlockingCueCount != firstCue || _cursor != firstCursor)) _batchOpen = false;

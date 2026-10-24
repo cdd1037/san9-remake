@@ -182,7 +182,7 @@ public sealed class EconomyTests
     [Fact]
     public void TreasurySaturationAndMissingCorpsAreNotSilentlyAccepted()
     {
-        var world=World(999999);
+        var world=World(TreasuryRules.Capacity - 1);
         var mutation=world.BeginMutation();
         List<DomainEvent> events=[];
         ResourceAccounts.Change(mutation,new(ResourceOwnerKind.Corps,2),ResourceKind.Money,10,"test-income",2,events);
@@ -190,6 +190,27 @@ public sealed class EconomyTests
         Assert.Equal(1,change.Actual);Assert.Equal(9,change.SaturationLoss);
         mutation.Replace(mutation.Settlements[2] with { CorpsId=999 });
         Assert.Throws<ArgumentException>(()=>WorldInvariants.Validate(mutation));
+    }
+
+    [Theory]
+    [InlineData(ResourceKind.Money, 1_000_000u, 10, 0)]
+    [InlineData(ResourceKind.Food, 1_000_000u, 10, 0)]
+    [InlineData(ResourceKind.Money, 9_999_999u, 1, 9)]
+    [InlineData(ResourceKind.Food, 9_999_999u, 1, 9)]
+    [InlineData(ResourceKind.Money, 10_000_050u, 0, 10)]
+    [InlineData(ResourceKind.Food, 10_000_050u, 0, 10)]
+    [InlineData(ResourceKind.Money, uint.MaxValue, 0, 10)]
+    [InlineData(ResourceKind.Food, uint.MaxValue, 0, 10)]
+    public void TreasuryCreditsUseTenMillionCapacityAndPreserveExcessInventory(ResourceKind resource, uint balance, long actual, long loss)
+    {
+        var mutation = World(balance, balance).BeginMutation();
+        var account = new ResourceAccount(ResourceOwnerKind.Corps, 2);
+        List<DomainEvent> events = [];
+        uint after = ResourceAccounts.Change(mutation, account, resource, 10, "test-income", null, events);
+        Assert.Equal((long)balance + actual, after);
+        var change = Assert.Single(events.OfType<ResourceChangedEvent>());
+        Assert.Equal(actual, change.Actual);
+        Assert.Equal(loss, change.SaturationLoss);
     }
 
     [Fact]

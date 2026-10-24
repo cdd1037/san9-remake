@@ -89,11 +89,11 @@ public sealed class FacilityCommandAvailabilityTests
     public void BuyingChecksMoneyAndStorageBeforeMerchantAndSharedTradeUsage()
     {
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 7);
-        var world = City(Funds(session.Snapshot, 0, 1000000), s => s with { MerchantPresent = false, FoodTradeUsed = true });
+        var world = City(Funds(session.Snapshot, 0, TreasuryRules.Capacity), s => s with { MerchantPresent = false, FoodTradeUsed = true });
         Check(world, "buy", "no-funds");
-        world = Funds(world, 1, 1000000);
+        world = Funds(world, 1, TreasuryRules.Capacity);
         Check(world, "buy", "food-max");
-        world = Funds(world, 1, 999999);
+        world = Funds(world, 1, TreasuryRules.Capacity - 1);
         Check(world, "buy", "merchant-absent");
         world = City(world, s => s with { MerchantPresent = true });
         Check(world, "buy", "trade-used");
@@ -104,14 +104,14 @@ public sealed class FacilityCommandAvailabilityTests
     public void SellingDistinguishesEmptyFoodFromLessThanOneUnitOfProceeds()
     {
         var session = GameSession.Start(G01ScenarioTests.Fixture(), 7);
-        var world = City(Funds(session.Snapshot, 1000000, 0), s => s with { MerchantPresent = false, FoodTradeUsed = true });
+        var world = City(Funds(session.Snapshot, TreasuryRules.Capacity, 0), s => s with { MerchantPresent = false, FoodTradeUsed = true });
         world = world with { Simulation = world.Simulation with { FoodExchangeRate = 7 } };
         Check(world, "sell", "no-food");
-        world = Funds(world, 1000000, 6);
+        world = Funds(world, TreasuryRules.Capacity, 6);
         Check(world, "sell", "insufficient-food");
-        world = Funds(world, 1000000, 7);
+        world = Funds(world, TreasuryRules.Capacity, 7);
         Check(world, "sell", "money-max");
-        world = Funds(world, 999999, 7);
+        world = Funds(world, TreasuryRules.Capacity - 1, 7);
         Check(world, "sell", "merchant-absent");
         world = City(world, s => s with { MerchantPresent = true });
         Check(world, "sell", "trade-used");

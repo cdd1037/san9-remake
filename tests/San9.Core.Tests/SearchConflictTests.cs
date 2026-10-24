@@ -119,7 +119,7 @@ public sealed class SearchConflictTests
         switch (reason)
         {
             case "season": d = d with { Months = [1] }; break;
-            case "full": world.Replace(world.Corps[7] with { Treasury = new(1000000, 0) }); break;
+            case "full": world.Replace(world.Corps[7] with { Treasury = new(TreasuryRules.Capacity, 0) }); break;
             case "money": world.Replace(world.Corps[7] with { Treasury = new(2000, 0) }); break;
             case "dead": world.Replace(world.Officers[3] with { Status = OfficerStatus.Dead }); world.Replace(world.Officers[4] with { Status = OfficerStatus.Dead }); break;
             case "history": world.Replace(world.Forces[1] with { EventHistory = [new("scholar.visited")] }); break;

@@ -6,7 +6,7 @@ namespace San9.Core.Tests;
 
 public sealed class NewGameInitializationTests
 {
-    private static WorldState Create(NewGameSettings settings, ulong seed = 19) => WorldState.Create(new(190, 1, 1), seed,
+    private static WorldState Create(NewGameSettings settings, ulong seed = 19, uint reserve = 900001) => WorldState.Create(new(190, 1, 1), seed,
         [new(1, 100), new(2, 100), new(3, 100) { IsBarbarian = true }, new(4, 100) { IsDormant = true }],
         [Place(1, 1), Place(2, 2), Place(3, 3), Place(4, 4) with { IsDormant = true },
             Place(5, null), Place(6, 2) with { Kind = SettlementKind.Facility }, Place(7, null) with { Kind = SettlementKind.Facility }],
@@ -15,8 +15,8 @@ public sealed class NewGameInitializationTests
             new OfficerState(9004, 2, 2, new(40, 30, 20, 10), false),
             new OfficerState(9003, null, 2, new(10, 20, 30, 40), false) { Status = OfficerStatus.NotAppeared }],
         [new(10, 2, new(0, 0), 100) { Morale = 95 }],
-        corps: [new(1, 1, null, new(10001, 900001)) { IsRoot = true, ControlMode = CorpsControlMode.Automatic }, new(2, 2, null, new(10001, 900001)) { IsRoot = true },
-            new(3, 3, null, new(10001, 900001)) { IsRoot = true }, new(4, 4, null, new(10001, 900001)) { IsRoot = true }, new(20, 2, 9004, new(900001, 100))],
+        corps: [new(1, 1, null, new(10001, 900001)) { IsRoot = true, ControlMode = CorpsControlMode.Automatic }, new(2, 2, null, new(10001, reserve)) { IsRoot = true },
+            new(3, 3, null, new(10001, 900001)) { IsRoot = true }, new(4, 4, null, new(10001, 900001)) { IsRoot = true }, new(20, 2, 9004, new(reserve, 100))],
         controls: [new("player", 1, ControllerKind.Player), new("ai:2", 2, ControllerKind.Automatic), new("ai:3", 3, ControllerKind.Automatic)],
         newGame: settings, officerStartingPlaces: [1, 2]);
 
@@ -31,8 +31,8 @@ public sealed class NewGameInitializationTests
         var world = Create(new() { Difficulty = difficulty, MoneyBonus = 0, FoodBonus = 50,
             DomesticBonus = 100, SoldierBonus = 1000, MoraleBonus = 20 }).CreateSnapshot();
         Assert.Equal(money, world.Corps.Single(c => c.Id == 2).Treasury.Money);
-        Assert.Equal(1000000u, world.Corps.Single(c => c.Id == 2).Treasury.Food);
-        Assert.Equal(1000000u, world.Corps.Single(c => c.Id == 20).Treasury.Money);
+        Assert.Equal(difficulty == GameDifficulty.Beginner ? 1080051u : 1260051u, world.Corps.Single(c => c.Id == 2).Treasury.Food);
+        Assert.Equal(difficulty == GameDifficulty.Beginner ? 1080001u : 1260001u, world.Corps.Single(c => c.Id == 20).Treasury.Money);
         Assert.Equal(difficulty == GameDifficulty.Beginner ? 170u : 190u, world.Corps.Single(c => c.Id == 20).Treasury.Food);
         Assert.Equal(soldiers, world.Settlements.Single(s => s.Id == 2).Soldiers);
         Assert.Equal(16000u, world.Settlements.Single(s => s.Id == 3).Soldiers);
@@ -45,6 +45,17 @@ public sealed class NewGameInitializationTests
         Assert.Equal(95, world.Settlements.Single(s => s.Id == 5).Morale);
         Assert.Equal(100, Assert.Single(world.Units).Morale);
         Assert.All(world.Settlements, s => Assert.Equal(1234u, s.DraftPopulation));
+    }
+
+    [Theory]
+    [InlineData(GameDifficulty.Beginner)]
+    [InlineData(GameDifficulty.Advanced)]
+    public void ComputerStartingBonusesSaturateAtTenMillion(GameDifficulty difficulty)
+    {
+        var world = Create(new() { Difficulty = difficulty, MoneyBonus = 50000, FoodBonus = 500000 },
+            reserve: 9_000_001).CreateSnapshot();
+        Assert.Equal(10_000_000u, world.Corps.Single(c => c.Id == 2).Treasury.Food);
+        Assert.Equal(10_000_000u, world.Corps.Single(c => c.Id == 20).Treasury.Money);
     }
 
     [Fact]

@@ -243,7 +243,7 @@ public sealed class GiftSessionTests
     public void TargetCapacityReportsEveryUndeliveredUnitAsSpent()
     {
         var content = Content();
-        content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f.IsRoot && f.OwnerId == 2 ? f with { Treasury = f.Treasury with { Money = 999950 } } : f).ToArray() } };
+        content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(f => f.IsRoot && f.OwnerId == 2 ? f with { Treasury = f.Treasury with { Money = TreasuryRules.Capacity - 50 } } : f).ToArray() } };
         var session = GameSession.Start(content, 42);
         Assert.True(session.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2,
             new(GiftKind.Money, 10000, null))).Submission.Accepted);
@@ -255,7 +255,7 @@ public sealed class GiftSessionTests
                 t with { Journey = t.Journey! with { SuccessRoll = 0 } }).ToImmutableArray() }
         }));
         foreach (var seat in engine.Snapshot.Simulation.Controls) engine.EndControl(new(seat.ControllerId));
-        uint room = 1000000 - engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money;
+        uint room = TreasuryRules.Capacity - engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money;
         var result = Assert.Single(engine.AdvanceXun().Events.OfType<GiftResolvedEvent>());
         Assert.True(result.Accepted);
         Assert.Equal(room, result.Received);
@@ -278,7 +278,7 @@ public sealed class GiftSessionTests
         var engine = GameSession.EngineFactory(content)(WorldState.Restore(saved with
         {
             Corps = saved.Corps.Select(c => !c.IsRoot || c.OwnerId != 2 ? c : c with { Treasury = kind == GiftKind.Money
-                ? c.Treasury with { Money = 999900 } : c.Treasury with { Food = 999900 } }).ToArray()
+                ? c.Treasury with { Money = TreasuryRules.Capacity - 100 } : c.Treasury with { Food = TreasuryRules.Capacity - 100 } }).ToArray()
         }));
         var pending = engine.Snapshot.Simulation.PendingDailyTask!;
         var result = engine.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,
@@ -380,7 +380,7 @@ public sealed class GiftSessionTests
         Assert.Empty(redirect.OfType<ReturnCargoDeliveredEvent>());
         Assert.Empty(redirect.OfType<PersonnelJourneyInterruptedEvent>());
         var root = world.Corps[1];
-        world.Replace(root with { Treasury = root.Treasury with { Money = 999900 } });
+        world.Replace(root with { Treasury = root.Treasury with { Money = TreasuryRules.Capacity - 100 } });
         session = GameSession.Restore(content, state with { World = world.CapturePresentation() });
         var arrival = session.AdvanceXun();
         var delivered = Assert.Single(arrival.Events.OfType<ReturnCargoDeliveredEvent>());
@@ -428,7 +428,7 @@ public sealed class GiftSessionTests
     {
         var content = Content();
         content = content with { Information = content.Information with { Corps = content.Information.Corps
-            .Select(c => c.OwnerId == 1 ? c with { Treasury = new(999900, 999900) } : c).ToArray() } };
+            .Select(c => c.OwnerId == 1 ? c with { Treasury = new(TreasuryRules.Capacity - 100, TreasuryRules.Capacity - 100) } : c).ToArray() } };
         var session = GameSession.Start(content, 42);
         session.EndControl(new("player"));
         var command = new GiftCommand(Guid.NewGuid(), 2, 0, 22, 1, new(kind, GiftOffer.MinimumAmount(kind), null));
@@ -438,7 +438,7 @@ public sealed class GiftSessionTests
         var preview = Assert.IsType<GiftReceiptPreview>(session.GetGiftReceiptPreview(command.CommandId));
         Assert.Equal(preview, session.GetGiftReceiptPreview(command.CommandId));
         StateAssert.Equal(before, session.Snapshot);
-        Assert.Equal(1000000u, kind == GiftKind.Money ? preview.MoneyAfter : preview.FoodAfter);
+        Assert.Equal(TreasuryRules.Capacity, kind == GiftKind.Money ? preview.MoneyAfter : preview.FoodAfter);
         var pending = session.Snapshot.Simulation.Tasks.Single(t => t.Id == command.CommandId);
         var result = session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, pending.Id, pending.ResolutionStep, true));

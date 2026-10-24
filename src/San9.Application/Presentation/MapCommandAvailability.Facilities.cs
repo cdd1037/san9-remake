@@ -25,10 +25,10 @@ internal sealed partial class MapCommandAvailability
                 : treasury.Money == 0 ? "recruit-no-funds" : null,
             "train" => home.Soldiers == 0 ? "no-soldiers" : home.TrainUsed ? "already-used"
                 : home.Morale >= 100 ? "morale-max" : null,
-            "buy" => treasury.Money == 0 ? "no-funds" : treasury.Food >= 1000000 ? "food-max"
+            "buy" => treasury.Money == 0 ? "no-funds" : treasury.Food >= TreasuryRules.Capacity ? "food-max"
                 : !home.MerchantPresent ? "merchant-absent" : home.FoodTradeUsed ? "trade-used" : null,
             "sell" => treasury.Food == 0 ? "no-food" : treasury.Food < view.World.Simulation.FoodExchangeRate ? "insufficient-food"
-                : treasury.Money >= 1000000 ? "money-max" : !home.MerchantPresent ? "merchant-absent"
+                : treasury.Money >= TreasuryRules.Capacity ? "money-max" : !home.MerchantPresent ? "merchant-absent"
                 : home.FoodTradeUsed ? "trade-used" : null,
             _ => "unavailable"
         };

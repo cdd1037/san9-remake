@@ -80,13 +80,13 @@ public sealed class SunMarriageTests
     public void GovernorTransferDissolvesOldCorpsEvenWithRemainingMembersAndReturnsItsResources()
     {
         var state = World(); var world = state.BeginMutation(Rules().Abilities);
-        { world.Replace(world.Forces[2] with { AdviserId = null }); world.Replace(ResourceAccounts.Root(world, 2) with { Treasury = ResourceAccounts.Root(world, 2).Treasury with { Money = 999999 } }); }
+        { world.Replace(world.Forces[2] with { AdviserId = null }); world.Replace(ResourceAccounts.Root(world, 2) with { Treasury = ResourceAccounts.Root(world, 2).Treasury with { Money = TreasuryRules.Capacity - 1 } }); }
         world.Replace(world.Officers[22] with { Status = OfficerStatus.Governor });
         var rootTreasury20 = ResourceAccounts.Root(world, 2).Treasury; world.RemoveCorps(ResourceAccounts.Root(world, 2).Id); world.AddCorps(new(20, 2, 21, rootTreasury20) { IsRoot = true }); world.AddCorps(new(24, 2, 22, new(100, 200)));
         world.Replace(world.Settlements[2] with { CorpsId = 20 }); world.Replace(world.Settlements[4] with { CorpsId = 24 });
         List<DomainEvent> events = []; SunMarriage.Apply(world, Rules(), events);
         Assert.False(world.Corps.ContainsKey(24)); Assert.Equal(20, world.Settlements[4].CorpsId);
-        Assert.Equal(2, world.Officers[23].OwnerId); Assert.Equal(1000000u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money);
+        Assert.Equal(2, world.Officers[23].OwnerId); Assert.Equal(TreasuryRules.Capacity, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money);
         Assert.Equal(10200u, world.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Food); Assert.Single(events.OfType<CorpsDissolvedEvent>());
         state.Commit(world);
     }

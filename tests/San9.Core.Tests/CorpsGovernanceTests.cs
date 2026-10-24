@@ -22,7 +22,7 @@ public sealed class CorpsGovernanceTests
     [Fact]
     public void DissolutionTransfersEveryReferenceAndDoesNotCapCombinedResources()
     {
-        var engine = Engine();
+        var engine = Engine(TreasuryRules.Capacity - 100000);
         var before = engine.Snapshot;
         var command = new DissolveCorpsCommand(Guid.NewGuid(), 1, 0, 11);
         Assert.True(engine.Validate(new("player"), command).Accepted);
@@ -39,7 +39,7 @@ public sealed class CorpsGovernanceTests
         Assert.Equal(2, person.SettlementId);
         Assert.Equal(before.Corps.Single(c => c.IsRoot).Treasury.Money + before.Corps.Single(c => c.Id == 11).Treasury!.Money, result.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
         Assert.Equal(before.Corps.Single(c => c.IsRoot).Treasury.Food + before.Corps.Single(c => c.Id == 11).Treasury!.Food, result.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Food);
-        Assert.True(result.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money > 1000000);
+        Assert.True(result.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money > TreasuryRules.Capacity);
         Assert.All(result.Events.OfType<ResourceChangedEvent>(), e => Assert.Equal(0, e.SaturationLoss));
         Assert.Equal(0, result.Events.OfType<ResourceChangedEvent>().Sum(e => e.Actual));
         Assert.Single(result.Events.OfType<CorpsDissolvedEvent>());

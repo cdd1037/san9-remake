@@ -46,7 +46,7 @@ public sealed record EconomicOutlook(ResourceOutlook Money, ResourceOutlook Food
     {
         long remaining = Math.Max(0, balance - costs);
         return replacement is long target ? new(balance, costs, target - remaining, target) :
-            new(balance, costs, income, Math.Min(1000000, remaining + income));
+            new(balance, costs, income, TreasuryRules.Project(remaining, income));
     }
     private static ResourceOutlook Sum(IEnumerable<ResourceOutlook> values) => new(values.Sum(v=>v.Balance), values.Sum(v=>v.Expenditure), values.Sum(v=>v.Income), values.Sum(v=>v.Forecast));
 }

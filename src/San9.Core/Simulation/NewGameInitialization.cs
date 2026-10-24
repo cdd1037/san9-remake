@@ -15,8 +15,8 @@ internal static class NewGameInitialization
         foreach (var corps in world.Corps.Values.OrderBy(c => c.Id).ToArray())
             if (Ordinary(corps.OwnerId))
                 world.Replace(corps with { Treasury = new(
-                    (uint)Math.Min(1000000L, (long)corps.Treasury.Money * multiplier / 10 + settings.MoneyBonus),
-                    (uint)Math.Min(1000000L, (long)corps.Treasury.Food * multiplier / 10 + settings.FoodBonus)) });
+                    (uint)Math.Min(TreasuryRules.Capacity, (long)corps.Treasury.Money * multiplier / 10 + settings.MoneyBonus),
+                    (uint)Math.Min(TreasuryRules.Capacity, (long)corps.Treasury.Food * multiplier / 10 + settings.FoodBonus)) });
         foreach (var place in world.Settlements.Values.OrderBy(s => s.Id).ToArray())
         {
             bool eligible = place.Kind == SettlementKind.City ? Computer(place.OwnerId) : place.OwnerId is null || Computer(place.OwnerId);

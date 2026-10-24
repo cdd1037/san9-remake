@@ -141,9 +141,9 @@ public sealed class SeizeStrategyTests
         Assert.Equal(4000u, state.Settlements[2].Wounded);
         Assert.Equal(0, events.OfType<ResourceChangedEvent>().Sum(e => e.Actual));
 
-        var capped = Find(r => !r.ItemGatePassed, 10, captive: false, actorMoney: 1000000);
+        var capped = Find(r => !r.ItemGatePassed, 10, captive: false, actorMoney: TreasuryRules.Capacity);
         Assert.Equal(1u, capped.Result.Money);
-        Assert.Equal(1000000u, capped.State.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
+        Assert.Equal(TreasuryRules.Capacity, capped.State.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 1).Treasury.Money);
         Assert.Equal(9998u, capped.State.Corps.Values.Single(c => c.IsRoot && c.OwnerId == 2).Treasury.Money);
     }
 

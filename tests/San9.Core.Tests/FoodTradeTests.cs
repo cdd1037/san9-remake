@@ -53,13 +53,13 @@ public sealed class FoodTradeTests
 
     [Theory]
     [InlineData(FoodTradeDirection.Buy, 3, 10000, 21)]
-    [InlineData(FoodTradeDirection.Buy, 10000, 999997, 3)]
-    [InlineData(FoodTradeDirection.Sell, 999997, 10000, 21)]
+    [InlineData(FoodTradeDirection.Buy, 10000, TreasuryRules.Capacity - 3, 3)]
+    [InlineData(FoodTradeDirection.Sell, TreasuryRules.Capacity - 3, 10000, 21)]
     [InlineData(FoodTradeDirection.Sell, 10000, 9, 9)]
     [InlineData(FoodTradeDirection.Sell, 10000, 6, 0)]
     [InlineData(FoodTradeDirection.Buy, 0, 0, 0)]
-    [InlineData(FoodTradeDirection.Buy, 10000, 1000000, 0)]
-    [InlineData(FoodTradeDirection.Sell, 1000000, 10000, 0)]
+    [InlineData(FoodTradeDirection.Buy, 10000, TreasuryRules.Capacity, 0)]
+    [InlineData(FoodTradeDirection.Sell, TreasuryRules.Capacity, 10000, 0)]
     public void LimitsRespectCurrentBalancesAndCapacities(FoodTradeDirection direction, uint money, uint food, uint expected)
     {
         var world = World(money, food);

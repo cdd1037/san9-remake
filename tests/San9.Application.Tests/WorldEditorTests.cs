@@ -167,7 +167,7 @@ public sealed class WorldEditorTests
         var before = session.Snapshot;
         foreach (var (kind, id, label, value) in new[]
         {
-            (WorldEditorKind.Officers, 1, "武力", 99u), (WorldEditorKind.Corps, 2, "资金", 999999u),
+            (WorldEditorKind.Officers, 1, "武力", 99u), (WorldEditorKind.Corps, 2, "资金", TreasuryRules.Capacity),
             (WorldEditorKind.Cities, 1, "城防：落石", 1u), (WorldEditorKind.Facilities, 10, "士兵", 0u),
             (WorldEditorKind.Obstacles, 11, "耐久", 50u)
         })
@@ -175,6 +175,7 @@ public sealed class WorldEditorTests
             var draft = new WorldEditorDraft(session, kind, Texts());
             Set(draft, id, label, value);
             if (kind == WorldEditorKind.Officers) Set(draft, id, "寿命", 7);
+            if (kind == WorldEditorKind.Corps) Set(draft, id, "兵粮", TreasuryRules.Capacity);
             var request = session.Request(draft.Operation);
             Assert.Equal(SessionDisposition.Accepted, ApplyInput(request).Disposition);
             Assert.Equal(SessionDisposition.AlreadyProcessed, ApplyInput(request).Disposition);
@@ -183,7 +184,8 @@ public sealed class WorldEditorTests
         Assert.Equal(7, session.Snapshot.Officers.Single(p => p.Id == 1).LifespanTier);
         Assert.Equal(before.Officers.Single(p => p.Id == 1).Injury,
             session.Snapshot.Officers.Single(p => p.Id == 1).Injury);
-        Assert.Equal(999999u, session.Snapshot.Corps.Single(c => c.Id == 2).Treasury.Money);
+        Assert.Equal(TreasuryRules.Capacity, session.Snapshot.Corps.Single(c => c.Id == 2).Treasury.Money);
+        Assert.Equal(TreasuryRules.Capacity, session.Snapshot.Corps.Single(c => c.Id == 2).Treasury.Food);
         Assert.Equal([7000, 7001], session.Snapshot.Settlements.Single(s => s.Id == 1).EnabledTacticIds.ToArray());
         Assert.Equal(0, session.Snapshot.Settlements.Single(s => s.Id == 10).Morale);
         Assert.Equal(50, session.Snapshot.Settlements.Single(s => s.Id == 11).Durability);
@@ -211,7 +213,7 @@ public sealed class WorldEditorTests
     {
         var session = GameSession.Start(Fixture(), 190);
         var before = session.Capture();
-        var operation = new WorldEditOperation(WorldEditorKind.Corps, [new CorpsEdit(1, 100, 200), new CorpsEdit(2, 1000001, 200)]);
+        var operation = new WorldEditOperation(WorldEditorKind.Corps, [new CorpsEdit(1, 100, 200), new CorpsEdit(2, TreasuryRules.Capacity + 1, 200)]);
         Assert.Equal(SessionRejection.InvalidRequest, session.Apply(session.Request(operation)).Rejection);
         StateAssert.Equal(before, session.Capture());
         operation = operation with { Edits = [new CorpsEdit(2, 100, 200)] };

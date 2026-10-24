@@ -32,8 +32,7 @@ internal static class ResourceAccounts
 
     internal static uint Receivable(WorldMutation world, ResourceAccount account, ResourceKind resource)
     {
-        uint balance = Balance(world, account, resource);
-        return balance >= 1000000 ? 0 : 1000000 - balance;
+        return TreasuryRules.Receivable(Balance(world, account, resource));
     }
 
     internal static uint Change(WorldMutation world, ResourceAccount account, ResourceKind resource,
@@ -50,7 +49,7 @@ internal static class ResourceAccounts
 
     internal static uint Project(uint before, long requested, bool requireFull = false) =>
         requested < 0 && requireFull && before < -requested ? before :
-            (uint)(requested > 0 ? before + Math.Min(requested, Math.Max(0, 1000000L - before)) : Math.Max(0, (long)before + requested));
+            (uint)TreasuryRules.Project(before, requested);
 
     internal static void Report(WorldMutation world, ResourceAccount account, ResourceKind resource,
         string reason, int? sourceId, long requested, long actual, List<DomainEvent> events) =>

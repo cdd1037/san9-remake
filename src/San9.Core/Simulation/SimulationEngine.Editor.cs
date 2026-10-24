@@ -45,7 +45,7 @@ public sealed partial class SimulationEngine
                         break;
                     case CorpsEdit c when kind == WorldEditorKind.Corps:
                         var treasury = mutation.Corps[c.Id].Treasury;
-                        if (ChangedOutside(c.Money, treasury.Money, 0, 1000000) || ChangedOutside(c.Food, treasury.Food, 0, 1000000))
+                        if (ChangedOutside(c.Money, treasury.Money, 0, TreasuryRules.Capacity) || ChangedOutside(c.Food, treasury.Food, 0, TreasuryRules.Capacity))
                             throw new ArgumentException("Invalid treasury edit.");
                         mutation.Replace(c.ApplyTo(mutation.Corps[c.Id]));
                         break;

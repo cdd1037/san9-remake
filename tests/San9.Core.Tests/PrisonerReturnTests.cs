@@ -64,7 +64,7 @@ public sealed class PrisonerReturnTests
          new OfficerState(13, 1, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Captive },
          new OfficerState(14, 1, 1, new(50, 100, 50, 50), false) { Status = OfficerStatus.Strategist },
          new OfficerState(21, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-        controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(999900, 0)) { IsRoot = true }]);
+        controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(TreasuryRules.Capacity - 100, 0)) { IsRoot = true }]);
 
     private static SimulationEngine Arrive()
     {

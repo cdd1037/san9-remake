@@ -85,7 +85,7 @@ public static class FoodSupplyForecast
         long remaining = Math.Max(0, input.Balance - expenditure);
         return input.ReplacementSupply is long replacement
             ? new(input.Balance, expenditure, replacement - remaining, replacement)
-            : new(input.Balance, expenditure, input.Harvest, Math.Min(1000000, remaining + input.Harvest));
+            : new(input.Balance, expenditure, input.Harvest, TreasuryRules.Project(remaining, input.Harvest));
     }
 
     /// <summary>Projection of the observer's own account; all carried values have public economic meaning.</summary>

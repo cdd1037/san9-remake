@@ -104,16 +104,31 @@ public sealed class EconomicOutlookTests
         Assert.Equal(1000u, mutation.Corps[10].Treasury.Food);
     }
 
-    [Fact]
-    public void ForecastCapsEachAccountBeforeSummingTheForce()
+    [Theory]
+    [InlineData(9_999_999u, 10_000_000L)]
+    [InlineData(10_000_000u, 10_000_000L)]
+    [InlineData(11_000_000u, 11_000_000L)]
+    public void ForecastCapsEachAccountBeforeSummingTheForceAndMatchesSettlement(uint balance, long expected)
     {
-        var clock=new GameClock(190,1,1);
-        var world=new WorldSnapshot(clock,new(clock,1))
+        var clock=new GameClock(190,6,21);
+        var world=new WorldSnapshot(clock,new(new(190,1,1),1))
         {
-            Forces=[new(5,100)], Corps=[new(10,5,1,new(999999, 0)) { IsRoot = true },new(11,5,2,new(999999,0))],
-            Settlements=[new(15,5,0,1000,1000,50,100,100,1000,0,1000) { CorpsId=10,Kind=SettlementKind.City },new(16,5,0,1000,1000,50,100,100,1000,0,1000) { CorpsId=11,Kind=SettlementKind.City }]
+            Forces=[new(5,100)], Corps=[new(10,5,null,new(balance, balance)) { IsRoot = true },new(11,5,2,new(balance,balance))],
+            Officers=[new(2,5,16,new(50,50,50,50),false) { OfficeId=7 }],
+            Settlements=[new(15,5,0,1000,1000,0,100,100,1000,100,1000) { CorpsId=10,Kind=SettlementKind.City },new(16,5,0,1000,1000,0,100,100,1000,100,1000) { CorpsId=11,Kind=SettlementKind.City }]
         };
-        Assert.Equal(2000000,EconomicOutlook.Read(world,new Dictionary<int,int>(),5).Money.Forecast);
-        Assert.Equal(1000000,EconomicOutlook.Read(world,new Dictionary<int,int>(),5,11).Money.Forecast);
+        var salaries = new Dictionary<int,int> { [7] = 0 };
+        var forecast = EconomicOutlook.Read(world, salaries, 5);
+        Assert.Equal(2 * expected, forecast.Money.Forecast);
+        Assert.Equal(2 * expected, forecast.Food.Forecast);
+        var branch = EconomicOutlook.Read(world, salaries, 5, 11);
+        Assert.Equal(expected, branch.Money.Forecast);
+        Assert.Equal(expected, branch.Food.Forecast);
+        var mutation = WorldState.Create(world.Simulation.Started, 1, world.Forces, world.Settlements,
+            world.Officers, corps: world.Corps).BeginMutation();
+        mutation.SetClock(new(190,7,1));
+        EconomicCycle.Apply(ResolutionStage.QuarterUpdate, mutation, EconomyRulebook.Empty, []);
+        Assert.Equal(branch.Money.Forecast, mutation.Corps[11].Treasury.Money);
+        Assert.Equal(branch.Food.Forecast, mutation.Corps[11].Treasury.Food);
     }
 }

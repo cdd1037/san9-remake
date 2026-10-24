@@ -197,8 +197,8 @@ public sealed class WorldEditorDraft
         }
         else if (_edits[id] is CorpsEdit)
         {
-            Number<CorpsEdit>("资金", 0, 1000000, c => c.Money, (c, v) => c with { Money = v });
-            Number<CorpsEdit>("兵粮", 0, 1000000, c => c.Food, (c, v) => c with { Food = v });
+            Number<CorpsEdit>("资金", 0, TreasuryRules.Capacity, c => c.Money, (c, v) => c with { Money = v });
+            Number<CorpsEdit>("兵粮", 0, TreasuryRules.Capacity, c => c.Food, (c, v) => c with { Food = v });
         }
         else
         {

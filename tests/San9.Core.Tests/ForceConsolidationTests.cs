@@ -252,7 +252,7 @@ public sealed class ForceConsolidationTests
                 CommanderId = 23, CargoMoney = 99, CargoFood = 88,
                 Order = new(MilitaryOrderKind.Move, new(7, 2), null),
                 MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(23, BattleRank.Front) }],
-            corps: [..initial.Corps.Where(c => c.OwnerId == 1), new(20, 2, 21, new(200, 300)) { IsRoot = true }, new(21, 2, 22, new(2000, 3000)), new(30, 3, 31, new(999900, 500)) { IsRoot = true }],
+            corps: [..initial.Corps.Where(c => c.OwnerId == 1), new(20, 2, 21, new(200, 300)) { IsRoot = true }, new(21, 2, 22, new(2000, 3000)), new(30, 3, 31, new(TreasuryRules.Capacity - 100, 500)) { IsRoot = true }],
             relations: initial.Relations, controls: initial.Simulation.Controls);
         var mutation = Pending(world);
         // Keep force 3 as survivor despite force 2's additional field troops.

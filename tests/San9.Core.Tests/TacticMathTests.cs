@@ -19,10 +19,10 @@ public sealed class TacticMathTests
     public void MartialMembersTruncateBeforeLinkDoubleAndTargetModifiers()
     {
         MartialTacticMember[] members = [new(13, 501, 80, false), new(16, 300, 60, true)];
-        // T(80)=60, T(60)=40: 1706 + 1564/2 = 2488; final result 9942.
-        Assert.Equal(new MartialTacticDamage(9942, 9942), TacticMath.MartialDamage(members, true, 123, 15, true, 50000));
-        Assert.Equal(new MartialTacticDamage(9942, 300), TacticMath.MartialDamage(members, true, 123, 15, true, 300));
-        Assert.Equal(new MartialTacticDamage(261, 261), TacticMath.MartialDamage(members, false, 123, 1, false, 50000));
+        // T(80)=60, T(60)=40: 1706 + 1564/2 = 2488; final result 9703.
+        Assert.Equal(new MartialTacticDamage(9703, 9703), TacticMath.MartialDamage(members, true, 15, true, 50000));
+        Assert.Equal(new MartialTacticDamage(9703, 300), TacticMath.MartialDamage(members, true, 15, true, 300));
+        Assert.Equal(new MartialTacticDamage(248, 248), TacticMath.MartialDamage(members, false, 1, false, 50000));
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class TacticMathTests
     public void WideLegalInputsSaturateWithoutOverflow()
     {
         int max = int.MaxValue;
-        Assert.Equal(new MartialTacticDamage(uint.MaxValue, uint.MaxValue), TacticMath.MartialDamage([new(max, max, max, false)], true, uint.MaxValue, 15, true, uint.MaxValue));
+        Assert.Equal(new MartialTacticDamage(uint.MaxValue, uint.MaxValue), TacticMath.MartialDamage([new(max, max, max, false)], true, 15, true, uint.MaxValue));
         Assert.Equal(uint.MaxValue, TacticMath.TrapDamage(max, max, 19, 10, uint.MaxValue));
         Assert.Equal(uint.MaxValue, TacticMath.Defection(max, max, 29, 10, uint.MaxValue, false));
         Assert.Equal(uint.MaxValue, TacticMath.HealSoldiers(max, max, 19, uint.MaxValue, uint.MaxValue));

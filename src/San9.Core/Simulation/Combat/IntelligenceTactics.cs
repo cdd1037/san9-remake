@@ -7,7 +7,6 @@ public sealed record IntelligenceEffectResolvedEvent(GameClock Clock, BattleSour
 {
     public int? ActorId { get; init; }
     public TacticOccurrence? Occurrence { get; init; }
-    public bool IsAttempt { get; init; }
 }
 public sealed record TacticMoraleChangedEvent(GameClock Clock, int TargetId, bool TargetIsSettlement, int Previous, int Current,
     int TacticId) : DomainEvent;
@@ -46,8 +45,15 @@ internal static class IntelligenceTactics
     }
 
     internal static MilitaryOrder Resolve(WorldMutation world, BattleSource source, OfficerState actor, TacticRule tactic, MilitaryOrder primary,
-        int primaryEffect, SimulationRules rules, List<DomainEvent> events)
+        int primaryEffect, SimulationRules rules, List<DomainEvent> events, bool deferPrimaryDefeat = false)
     {
+        if (primaryEffect == 0)
+        {
+            events.Add(new IntelligenceEffectResolvedEvent(world.Clock, source, primary.UnitId ?? primary.SettlementId!.Value,
+                primary.UnitId is null, tactic.Id, 0)
+            { ActorId = actor.Id, Occurrence = TacticOccurrence.Capture(world, source, primary, tactic, rules.Military!, rules.Treasures) });
+            return primary;
+        }
         var military = rules.Military!;
         var area = MilitaryCombat.TargetArea(world, primary, military);
         List<MilitaryOrder> targets = [primary];
@@ -77,10 +83,10 @@ internal static class IntelligenceTactics
                 target.UnitId is null, tactic.Id, effect)
             { ActorId = actor.Id, Occurrence = TacticOccurrence.Capture(world, source, target, tactic, military, rules.Treasures) });
             if (effect == 0) continue;
-            Apply(world, source, actor, tactic, target, effect, rules, events, defeatedSettlements);
+            Apply(world, source, actor, tactic, target, effect, rules, events, defeatedSettlements, deferPrimaryDefeat && target == primary);
             var learning = tactic.Effect == TacticEffect.Trap
                 ? military.Tactics.Values.FirstOrDefault(t => t.Effect == TacticEffect.TrapSelection) ?? tactic : tactic;
-            var survivors = target.UnitId is int survived ? world.Units.ContainsKey(survived) :
+            var survivors = target.UnitId is int survived ? world.Units.TryGetValue(survived, out var survivor) && survivor.Soldiers > 0 && survivor.Morale > 0 :
                 !MilitaryCombat.Defeated(world.Settlements[target.SettlementId!.Value]);
             var targetMembers = survivors ? Defenders(world, target) : [];
             if (learning.Selectable) BattleLearning.Learn(world, targetMembers, learning, events);
@@ -99,14 +105,15 @@ internal static class IntelligenceTactics
                 BattleLearning.Passive(world, sourceMembers, TacticEffect.CounterConfusion, military, events);
             }
         }
-        BattleAftermath.ResolveSettlementDefeats(world, defeatedSettlements, source, rules, events);
+        if (!MilitaryCombat.IsDefeated(world, source))
+            BattleAftermath.ResolveSettlementDefeats(world, defeatedSettlements, source, rules, events);
         GovernanceLifecycle.Reconcile(world, forces, rules, events, world.CurrentDateCommandsConsumed);
         ResolutionPipeline.CheckConquest(world, events);
         return primary;
     }
 
     private static void Apply(WorldMutation world, BattleSource source, OfficerState actor, TacticRule tactic, MilitaryOrder target,
-        int effect, SimulationRules rules, List<DomainEvent> events, List<int> defeatedSettlements)
+        int effect, SimulationRules rules, List<DomainEvent> events, List<int> defeatedSettlements, bool deferDefeat)
     {
         var military = rules.Military!;
         int proficiency = actor.TacticProficiencies[tactic.Category!.Value];
@@ -163,8 +170,9 @@ internal static class IntelligenceTactics
                 throw new InvalidOperationException("Not an offensive intelligence effect.");
         }
         ApplySecondary(world, source, actor, tactic, target, effect, rules, events);
+        if (deferDefeat) return;
         if (target.UnitId is int id && world.Units[id] is var victim && (victim.Soldiers == 0 || victim.Morale == 0))
-            BattleAftermath.TerminateUnit(world, id, source, rules, events);
+            BattleAftermath.TerminateUnit(world, id, MilitaryCombat.IsDefeated(world, source) ? null : source, rules, events);
         else if (target.UnitId is null && world.Settlements[target.SettlementId!.Value] is var place &&
             MilitaryCombat.Defeated(place))
             defeatedSettlements.Add(place.Id);

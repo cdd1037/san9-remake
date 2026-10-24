@@ -43,7 +43,8 @@ internal static class TacticSupport
     }
 
     internal static void Resolve(WorldMutation world, BattleSource source, OfficerState actor, TacticRule tactic,
-        int[] targets, OfficerState[] members, MilitaryRulebook military, List<DomainEvent> events)
+        int[] targets, OfficerState[] members, MilitaryRulebook military, List<DomainEvent> events,
+        BattleSource? opponent = null, CombatExchangeDamage? damage = null)
     {
         world.Replace(world.Officers[actor.Id] with { TacticCooldown = tactic.MinimumInterval });
         events.Add(new TacticActivatedEvent(world.Clock, source.Id, source.IsSettlement, targets[0],
@@ -54,6 +55,8 @@ internal static class TacticSupport
                 null, source.IsSettlement && tactic.Effect == TacticEffect.Inspire ? source.Id : null)
             { UnitId = source.IsSettlement && tactic.Effect == TacticEffect.Inspire ? null : targets[0] }, tactic, military)
         });
+        if (opponent is { } enemy)
+            MilitaryCombat.CommitOrdinary(world, source, enemy, damage, military, events);
         int proficiency = actor.TacticProficiencies[tactic.Category!.Value];
         int intelligence = world.Abilities(actor).Intelligence;
         foreach (int targetId in targets)

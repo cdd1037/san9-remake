@@ -96,7 +96,7 @@ public sealed class MapDayPlan
         List<MapAttackMotion> attacks = [];
         foreach (var (fact, factIndex) in _events.Select((e, i) => (e, i)))
         {
-            if (fact is not BattleDamageEvent { TacticId: null } hit || hit.SoldierLoss == 0 && hit.DurabilityLoss == 0 && hit.MoraleLoss == 0) continue;
+            if (fact is not BattleDamageEvent { TacticId: null, IsTacticExchange: false, ContinuesSiege: false } hit || hit.SoldierLoss == 0 && hit.DurabilityLoss == 0 && hit.MoraleLoss == 0) continue;
             bool targetSettlement = hit.SettlementId is not null;
             int targetId = hit.TargetUnitId ?? hit.SettlementId!.Value;
             if (Position(hit.AttackerId, hit.AttackerIsSettlement, factIndex) is not {} from || Position(targetId, targetSettlement, factIndex) is not {} to) continue;

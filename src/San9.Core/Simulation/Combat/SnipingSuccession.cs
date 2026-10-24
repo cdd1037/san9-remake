@@ -13,7 +13,7 @@ public sealed record SnipingSuccessionRequestedEvent(GameClock Clock, int RulerI
 public sealed record TacticAftermathContinuation(BattleSource Source, MilitaryOrder Target, int TacticId,
     int? LearningTacticId, ImmutableArray<OfficerState> Members, ImmutableArray<int> Participants);
 public sealed record CombatExchangeContinuation(GameClock XunStarted, CombatDayContinuation Day,
-    BattleSource Source, BattleSource Target, ImmutableArray<int> AffectedForces, bool CounterPending,
+    BattleSource Source, BattleSource Target, ImmutableArray<int> AffectedForces,
     int? PreviousSettlementOwnerId = null);
 public sealed record SnipingCombatDecision(int RulerId, int RespondingForceId,
     TacticAftermathContinuation? Tactic = null, CombatExchangeContinuation? Exchange = null);

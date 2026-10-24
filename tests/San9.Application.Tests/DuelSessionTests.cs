@@ -11,7 +11,7 @@ public sealed class DuelSessionTests
 {
     private static ScenarioInitialState Scenario()
     {
-        var combat = new CombatProfile(0, 0, 0, 1000, 50);
+        var combat = new CombatProfile(10, 10, 0, 10, 50);
         OfficerInitialState Person(int id, int force, int war, OfficerStatus status = OfficerStatus.Serving) =>
             new($"officer.{id}", new(id, force, null, new(war, 50, 50, 50), false) { UnitId = force, Status = status });
         return new(ScenarioInitialState.CurrentSchemaVersion, "duel-session", 190, 1, 1, 2,
@@ -47,6 +47,8 @@ public sealed class DuelSessionTests
         EventAssert.Equal(arrival.Events, restored.AdvanceXun().Events);
         var prompt = Assert.IsType<DuelSuccessionPrompt>(session.GetDuelSuccessionPrompt());
         Assert.Equal(22, prompt.RulerId);
+        var precomputed = session.Snapshot.Simulation.PendingDuel!.Damage;
+        Assert.True(precomputed.Outgoing > 0 && precomputed.Incoming > 0);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var answer = new ChooseDuelSuccessorCommand(Guid.NewGuid(), 2, session.Snapshot.Simulation.NextSequence, 22, 21);
         var result = session.Execute(new("player"), answer);

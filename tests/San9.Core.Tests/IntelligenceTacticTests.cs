@@ -139,7 +139,7 @@ public sealed partial class IntelligenceTacticTests
     [Theory]
     [InlineData(false, false, 9200, true)]
     [InlineData(true, false, 9200, true)]
-    [InlineData(false, true, 9200, false)]
+    [InlineData(false, true, 9200, true)]
     [InlineData(false, false, null, false)]
     public void TrapSelectionUsesTargetMappingAndConcreteCooldownWithoutLearningTheConcreteTrap(bool settlement, bool counter, int? trap, bool fires)
     {
@@ -182,12 +182,13 @@ public sealed partial class IntelligenceTacticTests
         var engine = Engine(TacticEffect.Confusion, counter: counter, bypass: bypass, formationResistance: resistance);
         var result = engine.AdvanceXun();
         var events = result.Events.OfType<TacticActivatedEvent>().ToArray();
-        Assert.Equal(succeeds, events.Length > 0);
+        Assert.NotEmpty(events);
+        Assert.Equal(succeeds, events.Any(e => e.Effect > 0));
         if (!succeeds)
         {
-            Assert.Equal(0, engine.Snapshot.Officers.Single(p => p.Id == 11).TacticCooldown);
+            Assert.True(engine.Snapshot.Officers.Single(p => p.Id == 11).TacticCooldown > 0);
             var attempt = Assert.IsType<IntelligenceEffectResolvedEvent>(result.Events.First(e => e is IntelligenceEffectResolvedEvent));
-            Assert.True(attempt.IsAttempt); Assert.Equal(0, attempt.Effect); Assert.Equal(11, attempt.ActorId);
+            Assert.Equal(0, attempt.Effect); Assert.Equal(11, attempt.ActorId);
             Assert.Equal(counter ? 21 : (int?)null, attempt.Occurrence!.CounterOfficerId);
             Assert.Equal(1, attempt.Occurrence.Target.Id);
         }

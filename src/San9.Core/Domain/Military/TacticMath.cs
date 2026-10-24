@@ -24,7 +24,7 @@ public static class TacticMath
     }
 
     public static MartialTacticDamage MartialDamage(IEnumerable<MartialTacticMember> members, bool doubled,
-        uint ordinaryDamage, int effect, bool abnormalTarget, uint targetSoldiers)
+        int effect, bool abnormalTarget, uint targetSoldiers)
     {
         ArgumentNullException.ThrowIfNull(members);
         if (effect is not (1 or 10 or 15)) throw new ArgumentOutOfRangeException(nameof(effect));
@@ -39,7 +39,7 @@ public static class TacticMath
             total += member.Linked ? damage / 2 : damage;
         }
         if (doubled) total *= 2;
-        uint calculated = Cap((total + ordinaryDamage) * effect / 10 * (abnormalTarget ? 13 : 10) / 10, uint.MaxValue);
+        uint calculated = Cap(total * effect / 10 * (abnormalTarget ? 13 : 10) / 10, uint.MaxValue);
         return new(calculated, Math.Min(calculated, targetSoldiers));
     }
 

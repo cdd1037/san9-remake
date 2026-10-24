@@ -530,6 +530,7 @@ public sealed class BattlePresentationTests
     public void LinkedBattleRetainsOccurrenceAfterRemovalAndFinishesResponsesBeforePublication(bool blocked)
     {
         var (session, texts, content, occurrence) = Fixture();
+        content = content with { Battle = content.Battle! with { MapNumbers = new("digits", 12, 20, 125, 8, 4) } };
         var before = session.View;
         var after = new StrategySnapshot(MissionScenario.Create(), before.World with
         {
@@ -537,16 +538,24 @@ public sealed class BattlePresentationTests
             Officers = before.World.Officers.Select(p => p.UnitId == 20 ? p with { UnitId = null, SettlementId = 2 } : p).ToImmutableArray()
         });
         DomainEvent[] facts = [new TacticActivatedEvent(before.World.Clock,10,false,20,false,99, [new(3, 99), new(2, 99)],true,blocked?1:10) { Occurrence=occurrence },
-            new BattleDamageEvent(before.World.Clock,10,20,null,500,0,500,0,0)
-            { TacticId=99,CalculatedSoldierLoss=6000,Source=occurrence.Source,Target=occurrence.Target }];
+            new BattleDamageEvent(before.World.Clock,10,20,null,200,0,200,0,0)
+            { IsTacticExchange=true,Source=occurrence.Source,Target=occurrence.Target },
+            new BattleDamageEvent(before.World.Clock,10,20,null,300,0,300,0,0)
+            { TacticId=99,CalculatedSoldierLoss=6000,Source=occurrence.Source,Target=occurrence.Target },
+            new BattleDamageEvent(before.World.Clock,20,10,null,200,0,200,0,0)
+            { IsTacticExchange=true,Source=occurrence.Target,Target=occurrence.Source }];
         var hash = before.World;
         var plan = BattlePresentationPlan.Create(before, after, facts, session.Messages(texts, before.World), texts, content);
         var repeated = BattlePresentationPlan.Create(before, after, facts, session.Messages(texts, before.World), texts, content);
         var visual = Assert.Single(plan.Visuals);
         Assert.Equal(20, visual.Target.Id); Assert.Equal(new WorldPosition(67, 12), visual.Target.Position);
-        Assert.Equal(500u, visual.SoldierLoss);
+        Assert.Equal(300u, visual.SoldierLoss);
+        Assert.Equal(-500L, plan.Values.Where(v => v.TargetId == 20).Sum(v => v.Soldiers));
+        Assert.Equal(-200L, Assert.Single(plan.Values, v => v.TargetId == 10).Soldiers);
+        Assert.Single(plan.Values.Select(v => v.Time).Distinct());
+        Assert.Equal(-300L, Assert.Single(plan.MapNumbers).Amount);
         Assert.Equal(blocked ? 3 : 4, visual.Playback!.Impacts.Length);
-        Assert.Equal(blocked ? 0L : 500L, visual.Playback.Impacts.Sum(p => (long)p.Amount));
+        Assert.Equal(blocked ? 0L : 300L, visual.Playback.Impacts.Sum(p => (long)p.Amount));
         Assert.Equal(blocked, visual.Blocked); Assert.True(visual.Doubled);
         Assert.Equal("formation-advance", visual.Zoom!.AdvanceSound);
         Assert.Equal("formation-attack", visual.Zoom.AttackSound);
@@ -602,18 +611,20 @@ public sealed class BattlePresentationTests
     [InlineData(UnitCondition.HighSpirits, 22, true, "united", 23)]
     [InlineData(UnitCondition.Normal, 22, true, "counter-confusion", 22)]
     [InlineData(UnitCondition.Normal, null, true, "failed", 21)]
-    public void FailedAttemptUsesCapturedResponsePriorityWithoutInventingActivation(UnitCondition condition, int? counter, bool defensive, string role, int speaker)
+    public void FailedActivationUsesCapturedResponsePriority(UnitCondition condition, int? counter, bool defensive, string role, int speaker)
     {
         var (session, texts, content, occurrence) = Fixture(false);
         occurrence = occurrence with { TargetCondition = condition, CounterOfficerId = counter, DefensiveFormation = defensive };
         var fact = new IntelligenceEffectResolvedEvent(session.Snapshot.Clock, new(10, false), 20, false, 99, 0)
-        { ActorId = 3, Occurrence = occurrence, IsAttempt = true };
-        var plan = BattlePresentationPlan.Create(session.View, session.View, [fact], session.Messages(texts), texts, content);
+        { ActorId = 3, Occurrence = occurrence };
+        var plan = BattlePresentationPlan.Create(session.View, session.View,
+            [new TacticActivatedEvent(session.Snapshot.Clock,10,false,20,false,99,[new(3,99)],false,0) { Occurrence=occurrence }, fact],
+            session.Messages(texts), texts, content);
         Assert.Empty(plan.Visuals);
         var announcement = Assert.Single(plan.Messages, c => c.Channel == BattleMessageChannel.Dialogue);
         Assert.Equal("announcement", announcement.Message.Message.Key);
         Assert.True(Assert.Single(plan.Messages, c => c.Message.Message.Key == "action").Time == announcement.Time);
-        Assert.Empty(plan.Records);
+        Assert.Equal("activation-own", Assert.Single(plan.Records).Record.Message.Key);
         Assert.DoesNotContain(plan.Messages, c => c.Message.Message.Key.StartsWith("activation", StringComparison.Ordinal));
         Assert.Equal(3, plan.Messages.First().Message.SpeakerId);
         var response = Assert.Single(plan.Messages, c => c.Message.Message.Key == role);
@@ -658,14 +669,16 @@ public sealed class BattlePresentationTests
     }
 
     [Fact]
-    public void FailedAreaAttemptStillPlaysItsPreludeBeforeTheFailureResponse()
+    public void FailedAreaActivationStillPlaysItsPreludeBeforeTheFailureResponse()
     {
         var (session, texts, content, occurrence) = Fixture(false);
         content.Battle!.Tactics[99] = content.Battle.Tactics[99] with
         { Prelude = [new("first", 1, 500, Sound: "screen"), new("last", 1, 500), new("last", 1, 125) { Opacity = .5f }] };
         var fact = new IntelligenceEffectResolvedEvent(session.Snapshot.Clock, new(10, false), 20, false, 99, 0)
-        { ActorId = 3, Occurrence = occurrence, IsAttempt = true };
-        var plan = BattlePresentationPlan.Create(session.View, session.View, [fact], session.Messages(texts), texts, content);
+        { ActorId = 3, Occurrence = occurrence };
+        var plan = BattlePresentationPlan.Create(session.View, session.View,
+            [new TacticActivatedEvent(session.Snapshot.Clock,10,false,20,false,99,[new(3,99)],false,0) { Occurrence=occurrence }, fact],
+            session.Messages(texts), texts, content);
         Assert.Equal(3, plan.Visuals.Count);
         Assert.All(plan.Visuals, v => Assert.True(v.ScreenEffect));
         Assert.Equal("screen", plan.Visuals[0].Effect!.Sound);
@@ -673,7 +686,7 @@ public sealed class BattlePresentationTests
         Assert.True(Assert.Single(plan.Messages, c => c.Message.Message.Key == "failed").Time >= plan.Visuals[^1].End);
         Assert.Equal(plan.Visuals[^1].End, plan.Duration);
         Assert.Equal(1, Assert.Single(plan.Messages, c => c.Message.Message.Key == "failed").Message.MapSpeech!.DelaySeconds);
-        Assert.Empty(plan.Records);
+        Assert.Equal("activation-own", Assert.Single(plan.Records).Record.Message.Key);
     }
 
     [Theory]

@@ -370,6 +370,12 @@ public sealed class MapDayPlanTests
         var plan = new MapDayPlan(map, session.View, events);
         var tacticPlan = new MapDayPlan(map, session.View, [((BattleDamageEvent)events[0]) with { TacticId = 99 }]);
         Assert.Empty(tacticPlan.Attacks);
+        var ordinaryInTactic = new MapDayPlan(map, session.View,
+            [((BattleDamageEvent)events[0]) with { IsTacticExchange = true }]);
+        Assert.Empty(ordinaryInTactic.Attacks);
+        var siegeContinuation = new MapDayPlan(map, session.View,
+            [((BattleDamageEvent)events[0]) with { ContinuesSiege = true }]);
+        Assert.Empty(siegeContinuation.Attacks);
         var attack = Assert.Single(plan.Attacks);
         double blocking = plan.Admit(attack, new(-100000, -100000, 200000, 200000)).BlockingDuration;
         Assert.True(blocking > 4);

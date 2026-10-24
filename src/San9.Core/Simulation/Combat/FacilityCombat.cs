@@ -33,119 +33,76 @@ internal static class FacilityCombat
             world.MaintainLeadership(events);
             if (world.Simulation.TerminalReason is not null) return;
             var settlement = world.Settlements[id];
-            if (settlementsUsed.Contains(id) || !Active(settlement) || !military.TryPlace(settlement, out var place)) continue;
+            if (settlementsUsed.Contains(id) || !Active(settlement) || !military.TryPlace(settlement, out _)) continue;
             var target = MilitaryEngagements.FacilityTarget(world, settlement, military);
             settlementsUsed.Add(id);
             if (target is null) { TryTactic(world, id, null, rules, events); continue; }
             var source = new BattleSource(id, true);
             MilitaryEngagements.Open(world, source, new(target.Id, false), military);
-            settlement = world.Settlements[id];
-            target = world.Units[target.Id];
-            var area = source.Area(world, military);
-            var formation = military.Formation(target);
             MilitaryDiplomacy.CombatOpened(world, settlement.OwnerId!.Value, target.OwnerId, false, events);
-            uint outgoing = MilitaryCombat.NormalDamage(world, source, new(target.Id, false), military);
-            uint incoming = 0;
-            int walls = 0;
-            if (target.Condition is not (UnitCondition.Confused or UnitCondition.Routed) && formation.Attack is { } retaliation &&
-                MilitaryCombat.Area(target, military).IntersectsExpanded(area, MilitaryCombat.UnitRange(world, target, new(MilitaryOrderKind.AttackSettlement, null, id), military)))
-            {
-                incoming = MilitaryCombat.NormalDamage(world, new(target.Id, false), source, military);
-                walls = MilitaryCombat.WallDamage(world, target, settlement, military);
-            }
-            MilitaryCombat.DamageUnit(world, target, outgoing, military.CombatFormation(target)!, id, events, true);
-            MilitaryCombat.DamageSettlement(world, settlement, incoming, place.Combat!, target.Id, events, walls);
-            if (walls > 0 && world.Settlements[id].Durability > 0) BattleLearning.Siege(world, target.Id, events);
-            bool unitLost = world.Units[target.Id].Soldiers == 0 || world.Units[target.Id].Morale == 0;
-            bool settlementLost = MilitaryCombat.Defeated(world.Settlements[id]);
-            if (unitLost) BattleAftermath.TerminateUnit(world, target.Id, settlementLost ? null : source, rules, events);
-            if (!unitLost && settlementLost) BattleAftermath.ResolveSettlementDefeat(world, id, new(target.Id, false), rules, events);
-            if (!unitLost && !settlementLost)
-            {
-                CombatExchangeContinuation CaptureExchange(bool counterPending) => new(xunStarted ?? world.Clock,
-                    new([], unitsUsed.Order().ToImmutableArray(), settlementsUsed.Order().ToImmutableArray())
-                        { RemainingBuildings = buildings.Skip(index + 1).ToImmutableArray() },
-                    source, new(target.Id, false), new[] { settlement.OwnerId!.Value, target.OwnerId }.Distinct().Order().ToImmutableArray(), counterPending);
-                TryTactic(world, id, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = target.Id }, rules, events);
-                if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, CaptureExchange(true))) return;
-                TacticCombat.TryUnit(world, target.Id, new(MilitaryOrderKind.AttackSettlement, null, id), rules, events, true);
-                if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, CaptureExchange(false))) return;
-            }
-            BattleRouting.CompleteExchange(world, new(id, true), new(target.Id, false), rules, events);
-            GovernanceLifecycle.Reconcile(world, new HashSet<int> { settlement.OwnerId!.Value, target.OwnerId }, rules, events, world.CurrentDateCommandsConsumed);
-            ResolutionPipeline.CheckConquest(world, events);
+            CombatDayContinuation CaptureDay() => new([], unitsUsed.Order().ToImmutableArray(), settlementsUsed.Order().ToImmutableArray())
+                { RemainingBuildings = buildings.Skip(index + 1).ToImmutableArray() };
+            if (!MilitaryCombat.BeginExchange(world, source, new(target.Id, false), rules, events, xunStarted ?? world.Clock, CaptureDay)) return;
         }
     }
 
-    internal static void TryTactic(WorldMutation world, int settlementId, MilitaryOrder? target, SimulationRules rules,
-        List<DomainEvent> events, bool counter = false)
+    internal static bool TryTactic(WorldMutation world, int settlementId, MilitaryOrder? target, SimulationRules rules,
+        List<DomainEvent> events, bool counter = false, CombatExchangeDamage? damage = null)
     {
         var military = rules.Military!;
         var settlement = world.Settlements[settlementId];
         if (!Active(settlement) || !military.TryPlace(settlement, out var place) || place.FacilityTypeId is not int typeId ||
-            military.Facilities[typeId].Tactics is not { } profile) return;
+            military.Facilities[typeId].Tactics is not { } profile) return false;
         var selected = military.FacilityTactic(settlement);
-        if (selected is null) return;
+        if (selected is null) return false;
         var source = new BattleSource(settlementId, true);
         if (selected.Effect is TacticEffect.Heal or TacticEffect.Inspire)
         {
             var targets = TacticSupport.Targets(world, source, selected, military);
-            if (targets.Length == 0) return;
+            if (targets.Length == 0) return false;
             var supportActor = TacticActor(world, settlementId);
-            if (supportActor is null || !PassesOpportunity(world, profile, military, counter)) return;
+            if (supportActor is null || !PassesOpportunity(world, profile, military, counter)) return false;
             TacticSupport.Resolve(world, source, supportActor, selected, targets,
-                IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackSettlement, null, settlementId)), military, events);
-            return;
+                IntelligenceTactics.Defenders(world, MilitaryCombat.TargetOrder(source)), military, events,
+                target?.UnitId is int opponent ? new BattleSource(opponent, false) : null, damage);
+            if (target?.UnitId is int victim)
+                MilitaryCombat.CompleteLosses(world, source, new(victim, false), rules, events);
+            return true;
         }
         if (target?.UnitId is not int targetId || !world.Units.TryGetValue(targetId, out var unit) ||
-            !MilitaryDiplomacy.CanFight(world, settlement.OwnerId!.Value, unit.OwnerId) || unit.FormationId is not int f ||
+            !MilitaryDiplomacy.CanFight(world, settlement.OwnerId!.Value, unit.OwnerId) || unit.FormationId is null ||
             military.Formation(unit).Combat is null || place.Attack is null ||
-            !source.Area(world, military).IntersectsExpanded(MilitaryCombat.Area(unit, military), MilitaryCombat.FacilityRange(world, settlement, unit, military))) return;
+            !source.Area(world, military).IntersectsExpanded(MilitaryCombat.Area(unit, military), MilitaryCombat.FacilityRange(world, settlement, unit, military))) return false;
         var tactic = selected.Effect == TacticEffect.TrapSelection ? military.TrapAt(unit.Position) : selected;
-        if (tactic is null) return;
+        if (tactic is null) return false;
         var actor = TacticActor(world, settlementId);
-        if (actor is null || !PassesOpportunity(world, profile, military, counter)) return;
+        if (actor is null || !PassesOpportunity(world, profile, military, counter)) return false;
+        if (tactic.Effect != TacticEffect.Martial)
+        {
+            int intelligenceEffect = IntelligenceTactics.Effect(world, actor, tactic, target, rules);
+            TacticCombat.ActivateIntelligence(world, source, actor, tactic, target, intelligenceEffect, rules, events, damage);
+            return true;
+        }
         int proficiency = actor.TacticProficiencies[tactic.Category!.Value];
-        int effect;
-        bool doubled = false;
-        if (tactic.Effect == TacticEffect.Martial)
-        {
-            effect = TacticCombat.MartialEffect(world, actor, tactic, target, military);
-            doubled = TacticCombat.Roll(world, "military-tactic-double", 1 + 2 * (proficiency / 100));
-        }
-        else
-        {
-            effect = IntelligenceTactics.Effect(world, actor, tactic, target, rules);
-            if (effect == 0)
-            {
-                events.Add(new IntelligenceEffectResolvedEvent(world.Clock, source, targetId, false, tactic.Id, 0)
-                { ActorId = actor.Id, IsAttempt = true, Occurrence = TacticOccurrence.Capture(world, source, target, tactic, military, rules.Treasures) });
-                return;
-            }
-        }
-        var members = tactic.Effect == TacticEffect.Martial
-            ? IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackSettlement, null, settlementId)) : [];
-        world.Replace(world.Officers[actor.Id] with { TacticCooldown = tactic.Effect == TacticEffect.Martial ? profile.MartialCooldown : tactic.MinimumInterval });
+        int effect = TacticCombat.MartialEffect(world, actor, tactic, target, military);
+        bool doubled = TacticCombat.Roll(world, "military-tactic-double", 1 + 2 * (proficiency / 100));
+        var members = IntelligenceTactics.Defenders(world, MilitaryCombat.TargetOrder(source));
+        world.Replace(world.Officers[actor.Id] with { TacticCooldown = profile.MartialCooldown });
         events.Add(new TacticActivatedEvent(world.Clock, settlementId, true, targetId, false, tactic.Id, [new(actor.Id, tactic.Id)], doubled, effect)
         { Occurrence = TacticOccurrence.Capture(world, source, target, tactic, military, rules.Treasures) });
-        int? captured = null;
-        var sniping = tactic.Effect == TacticEffect.Martial
-            ? TacticSniping.Select(world, source, tactic, target, [actor.Id], effect, military) : null;
-        if (tactic.Effect == TacticEffect.Martial)
-            captured = TacticCombat.ResolveMartial(world, source, actor.Id, tactic, target, [new(tactic.Power, proficiency, world.Abilities(actor).War, false)], doubled, effect, rules, events);
-        else IntelligenceTactics.Resolve(world, source, actor, tactic, target, effect, rules, events);
+        var sniping = TacticSniping.Select(world, source, tactic, target, [actor.Id], effect, military);
+        MilitaryCombat.CommitOrdinary(world, source, new(targetId, false), damage, military, events);
+        TacticCombat.ResolveMartial(world, source, actor.Id, tactic, target,
+            [new(tactic.Power, proficiency, world.Abilities(actor).War, false)], doubled, effect, rules, events);
         if (!TacticSniping.Apply(world, sniping, !world.Units.ContainsKey(targetId), rules, events))
         {
             SnipingSuccession.CaptureTactic(world, new(source, target, selected.Id, selected.Id,
                 members.ToImmutableArray(), [actor.Id]));
-            return;
+            return true;
         }
-        if (tactic.Effect == TacticEffect.Martial)
-        {
-            if (world.Units.ContainsKey(targetId)) BattleLearning.Learn(world, IntelligenceTactics.Defenders(world, target), selected, events);
-            TacticCombat.Grow(world, members, [actor.Id], selected, events);
-        }
-        if (captured is int capturedId) BattleAftermath.ResolveSettlementDefeat(world, capturedId, source, rules, events);
+        if (world.Units.ContainsKey(targetId)) BattleLearning.Learn(world, IntelligenceTactics.Defenders(world, target), selected, events);
+        TacticCombat.Grow(world, members, [actor.Id], selected, events);
+        return true;
     }
 
     // Garrison defensive opportunities use the global entrance before their authored base chance.

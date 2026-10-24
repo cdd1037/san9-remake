@@ -13,27 +13,30 @@ public sealed record CombatDayContinuation(ImmutableArray<int> RemainingUnits, I
 {
     public ImmutableArray<int>? RemainingBuildings { get; init; }
 }
+internal sealed record DuelOpportunityResult(DuelAftermathProgress? Progress, bool TacticReady, bool Resolved);
+
 public sealed record DuelCombatDecision(GameClock XunStarted, CombatDayContinuation Day, int AttackingUnitId,
     int DefendingUnitId, ImmutableArray<int> AffectedForces, bool Counter, bool TacticReady,
-    DuelAftermathProgress Aftermath, int RespondingForceId);
+    DuelAftermathProgress Aftermath, int RespondingForceId, [property: JsonRequired] CombatExchangeDamage Damage);
 
 internal static class DuelCombat
 {
-    internal static (DuelAftermathProgress Progress, bool TacticReady)? TryOpportunity(WorldMutation world,
-        int sourceId, int targetId, SimulationRules rules, List<DomainEvent> events, bool counter)
+    internal static DuelOpportunityResult TryOpportunity(WorldMutation world,
+        int sourceId, int targetId, SimulationRules rules, List<DomainEvent> events, bool counter, CombatExchangeDamage damage)
     {
         var order = new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = targetId };
-        bool? tacticReady = TacticCombat.PrepareOpportunity(world, sourceId, order, rules, events, counter);
-        if (tacticReady is null) return null;
+        var opportunity = TacticCombat.PrepareOpportunity(world, sourceId, order, rules, events, counter, damage);
+        if (opportunity is TacticOpportunity.Unavailable or TacticOpportunity.Resolved)
+            return new(null, false, opportunity == TacticOpportunity.Resolved);
+        bool tacticReady = opportunity == TacticOpportunity.Ready;
         var roster = DuelParticipants.Select(world, world.Units[sourceId], world.Units[targetId], rules.Military!);
         if (roster is not null)
         {
             var outcome = DuelContest.Resolve(world, roster, events);
             var progress = DuelAftermath.Advance(world, DuelAftermath.Begin(world, outcome), rules, events);
-            if (progress is not null) return (progress, tacticReady.Value);
+            if (progress is not null) return new(progress, tacticReady, false);
         }
-        if (tacticReady == true) TacticCombat.ResolveOpportunity(world, sourceId, order, rules, events);
-        return null;
+        return new(null, tacticReady, tacticReady && TacticCombat.ResolveOpportunity(world, sourceId, order, rules, events, damage));
     }
 
     internal static void ValidatePending(WorldMutation world)

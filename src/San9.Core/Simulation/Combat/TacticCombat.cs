@@ -19,123 +19,126 @@ public sealed record TacticLearnedEvent(GameClock Clock, int OfficerId, int Tact
     [System.Text.Json.Serialization.JsonRequired] public PersonOccurrence Occurrence { get; init; } = null!;
 }
 
+internal enum TacticOpportunity { Unavailable, Missed, Ready, Resolved }
+
 internal static class TacticCombat
 {
     private sealed record Participant(OfficerState Officer, TacticRule Tactic);
 
-    internal static void TryUnit(WorldMutation world, int sourceId, MilitaryOrder target, SimulationRules rules,
-        List<DomainEvent> events, bool counter = false)
+    internal static bool TryUnit(WorldMutation world, int sourceId, MilitaryOrder target, SimulationRules rules,
+        List<DomainEvent> events, bool counter = false, CombatExchangeDamage? damage = null)
     {
-        if (PrepareOpportunity(world, sourceId, target, rules, events, counter) == true)
-            ResolveOpportunity(world, sourceId, target, rules, events);
+        var opportunity = PrepareOpportunity(world, sourceId, target, rules, events, counter, damage);
+        return opportunity == TacticOpportunity.Resolved || opportunity == TacticOpportunity.Ready &&
+            ResolveOpportunity(world, sourceId, target, rules, events, damage);
     }
 
     // Resolve the automatic phase first; only an unspent opportunity reaches personal equipment and duels.
-    internal static bool? PrepareOpportunity(WorldMutation world, int sourceId, MilitaryOrder target, SimulationRules rules,
-        List<DomainEvent> events, bool counter)
+    internal static TacticOpportunity PrepareOpportunity(WorldMutation world, int sourceId, MilitaryOrder target, SimulationRules rules,
+        List<DomainEvent> events, bool counter, CombatExchangeDamage? damage = null)
     {
         var military = rules.Military!;
         if (!world.Units.TryGetValue(sourceId, out var unit) || unit.Soldiers == 0 || unit.Morale == 0 ||
             military.TacticFormation(unit) is not { Tactics: { } profile } formation ||
             !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military) ||
-            !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), MilitaryCombat.UnitRange(world, unit, target, military))) return null;
+            !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), MilitaryCombat.UnitRange(world, unit, target, military))) return TacticOpportunity.Unavailable;
         if (!world.ServingUnitMembers(sourceId).Any(p => p.OwnerId == unit.OwnerId &&
-            p.Injury == 0 && p.TacticCooldown == 0 && !p.Acted)) return null;
+            p.Injury == 0 && p.TacticCooldown == 0 && !p.Acted)) return TacticOpportunity.Unavailable;
         if (counter && (unit.Condition is not (UnitCondition.Normal or UnitCondition.HighSpirits) ||
-            !Roll(world, "military-tactic-counter", military.DefensiveTacticChance))) return null;
+            !Roll(world, "military-tactic-counter", military.DefensiveTacticChance))) return TacticOpportunity.Unavailable;
         if (profile.AutomaticOpportunityChance is int automaticChance &&
             Roll(world, "military-tactic-automatic-opportunity", automaticChance) &&
-            TryAutomatic(world, unit, formation, target, rules, events)) return null;
+            TryAutomatic(world, unit, formation, target, rules, events, damage)) return TacticOpportunity.Resolved;
         int cityBonus = formation.TravelMode == TravelMode.Land && military.HasCityInfluence(unit.OwnerId, unit.Position, world.Settlements.Values)
             ? military.CityInfluence!.LandTacticBonus : 0;
         return Roll(world, "military-tactic-opportunity", Math.Min(100, profile.OpportunityChance + cityBonus +
-            (unit.Condition == UnitCondition.HighSpirits ? 5 : 0)));
+            (unit.Condition == UnitCondition.HighSpirits ? 5 : 0))) ? TacticOpportunity.Ready : TacticOpportunity.Missed;
     }
 
-    internal static void ResolveOpportunity(WorldMutation world, int sourceId, MilitaryOrder target, SimulationRules rules,
-        List<DomainEvent> events)
+    internal static bool ResolveOpportunity(WorldMutation world, int sourceId, MilitaryOrder target, SimulationRules rules,
+        List<DomainEvent> events, CombatExchangeDamage? damage = null)
     {
         var military = rules.Military!;
         if (!world.Units.TryGetValue(sourceId, out var unit) || unit.Soldiers == 0 || unit.Morale == 0 ||
             military.TacticFormation(unit) is not { Tactics: { } profile } formation ||
             !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military) ||
-            !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), MilitaryCombat.UnitRange(world, unit, target, military))) return;
-        if (world.Simulation.TerminalReason is not null) return;
+            !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), MilitaryCombat.UnitRange(world, unit, target, military))) return false;
+        if (world.Simulation.TerminalReason is not null) return false;
         var members = IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = unit.Id });
         var candidates = members.OrderBy(p => military.Rank(unit, p.Id)).ThenBy(p => p.Id)
             .Where(p => p.Injury == 0 && p.TacticCooldown == 0 && !p.Acted)
             .Select(p => new { Officer = p, Tactic = ChooseEquippedTactic(world, p, unit.OwnerId, formation, target, rules) })
             .Where(p => p.Tactic is not null).Select(p => new Participant(p.Officer, p.Tactic!)).ToArray();
-        if (candidates.Length == 0) return;
+        if (candidates.Length == 0) return false;
         Participant? primary = null;
-        int intelligenceEffect = 0;
         foreach (var candidate in candidates)
         {
             if (!Roll(world, "military-tactic-member", TacticMath.AllocationChance(military.Rank(unit, candidate.Officer.Id),
                 members.Length, candidate.Tactic.Effect == TacticEffect.Martial && profile.FavoredCategories.Contains(candidate.Tactic.Category!.Value)))) continue;
-            if (candidate.Tactic.Effect != TacticEffect.Martial)
-            {
-                intelligenceEffect = IntelligenceTactics.Effect(world, candidate.Officer, candidate.Tactic, target, rules);
-                if (intelligenceEffect == 0)
-                {
-                    events.Add(new IntelligenceEffectResolvedEvent(world.Clock, new(unit.Id, false),
-                        target.UnitId ?? target.SettlementId!.Value, target.UnitId is null, candidate.Tactic.Id, 0)
-                    { ActorId = candidate.Officer.Id, IsAttempt = true, Occurrence = TacticOccurrence.Capture(world, new(unit.Id, false), target, candidate.Tactic, military, rules.Treasures) });
-                    continue;
-                }
-            }
             primary = candidate;
             break;
         }
-        if (primary is null) return;
+        if (primary is null) return false;
         if (primary.Tactic.Effect != TacticEffect.Martial)
         {
-            bool canStartChain = primary.Tactic.Effect is TacticEffect.Trap or TacticEffect.Defection or TacticEffect.Illusion ||
-                primary.Tactic.Effect == TacticEffect.Confusion &&
-                (target.UnitId is int previousTarget ? world.Units[previousTarget].Condition is not (UnitCondition.Confused or UnitCondition.Routed) :
-                    world.Settlements[target.SettlementId!.Value].ConfusionDaysRemaining == 0);
-            world.Replace(world.Officers[primary.Officer.Id] with { TacticCooldown = primary.Tactic.MinimumInterval });
-            events.Add(new TacticActivatedEvent(world.Clock, unit.Id, false, target.UnitId ?? target.SettlementId!.Value,
-                target.UnitId is null, primary.Tactic.Id, [new(primary.Officer.Id, primary.Tactic.Id)], false, intelligenceEffect)
-            { Occurrence = TacticOccurrence.Capture(world, new(unit.Id, false), target, primary.Tactic, military, rules.Treasures) });
-            IntelligenceTactics.Resolve(world, new(unit.Id, false), primary.Officer, primary.Tactic, target, intelligenceEffect, rules, events);
-            if (canStartChain) TryMartialChain(world, unit.Id, primary, target, rules, events);
-            return;
+            int effect = IntelligenceTactics.Effect(world, primary.Officer, primary.Tactic, target, rules);
+            ActivateIntelligence(world, new(unit.Id, false), primary.Officer, primary.Tactic, target, effect, rules, events, damage);
+            return true;
         }
-        ActivateMartial(world, unit, members, candidates, primary, target, rules, events);
+        ActivateMartial(world, unit, members, candidates, primary, target, rules, events, damage);
+        return true;
     }
 
-    private static void TryMartialChain(WorldMutation world, int sourceId, Participant original, MilitaryOrder target,
+    internal static void ActivateIntelligence(WorldMutation world, BattleSource source, OfficerState actor,
+        TacticRule tactic, MilitaryOrder target, int effect, SimulationRules rules, List<DomainEvent> events,
+        CombatExchangeDamage? damage)
+    {
+        var victim = new BattleSource(target.UnitId ?? target.SettlementId!.Value, target.UnitId is null);
+        bool canStartChain = !source.IsSettlement && (tactic.Effect is TacticEffect.Trap or TacticEffect.Defection or TacticEffect.Illusion ||
+            tactic.Effect == TacticEffect.Confusion && (target.UnitId is int unit
+                ? world.Units[unit].Condition is not (UnitCondition.Confused or UnitCondition.Routed)
+                : world.Settlements[target.SettlementId!.Value].ConfusionDaysRemaining == 0));
+        world.Replace(world.Officers[actor.Id] with { TacticCooldown = tactic.MinimumInterval });
+        events.Add(new TacticActivatedEvent(world.Clock, source.Id, source.IsSettlement, victim.Id, victim.IsSettlement,
+            tactic.Id, [new(actor.Id, tactic.Id)], false, effect)
+        { Occurrence = TacticOccurrence.Capture(world, source, target, tactic, rules.Military!, rules.Treasures) });
+        MilitaryCombat.CommitOrdinary(world, source, victim, damage, rules.Military!, events);
+        IntelligenceTactics.Resolve(world, source, actor, tactic, target, effect, rules, events, deferPrimaryDefeat: true);
+        bool chained = effect > 0 && canStartChain && TryMartialChain(world, source.Id, new(actor, tactic), target, rules, events);
+        if (!chained) MilitaryCombat.CompleteLosses(world, source, victim, rules, events);
+    }
+
+    private static bool TryMartialChain(WorldMutation world, int sourceId, Participant original, MilitaryOrder target,
         SimulationRules rules, List<DomainEvent> events)
     {
         var military = rules.Military!;
         if (world.Simulation.TerminalReason is not null || !world.Units.TryGetValue(sourceId, out var unit) ||
             unit.Soldiers == 0 || unit.Morale == 0 || military.TacticFormation(unit) is not { Tactics: { } profile } formation ||
-            !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military)) return;
+            !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military)) return false;
         bool triggered = target.UnitId is int id
             ? world.Units[id].Soldiers > 0 && world.Units[id].Morale > 0 && world.Units[id].Condition ==
                 (original.Tactic.Effect == TacticEffect.Defection ? UnitCondition.NoFormation : UnitCondition.Confused)
             : original.Tactic.Effect != TacticEffect.Defection && world.Settlements[target.SettlementId!.Value] is var place &&
                 place.Soldiers > 0 && place.Morale > 0 && place.ConfusionDaysRemaining > 0;
-        if (!triggered) return;
+        if (!triggered) return false;
         if (profile.AutomaticOpportunityChance is not null)
         {
-            TryAutomatic(world, unit, formation, target, rules, events, original.Officer.Id);
-            return;
+            return TryAutomatic(world, unit, formation, target, rules, events, default, original.Officer.Id);
         }
         var members = IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = unit.Id });
         var candidates = members.Where(p => p.Id != original.Officer.Id && p.Injury == 0 && p.TacticCooldown == 0)
             .Select(p => new { Officer = p, Tactic = ChooseEquippedTactic(world, p, unit.OwnerId, formation, target, rules) })
             .Where(p => p.Tactic?.Effect == TacticEffect.Martial).Select(p => new Participant(p.Officer, p.Tactic!)).ToArray();
-        if (candidates.Length == 0) return;
+        if (candidates.Length == 0) return false;
         var primary = candidates[(int)(world.NextRandom("military-tactic-chain-member") % (uint)candidates.Length)];
         if (!Roll(world, "military-tactic-chain-allocation", TacticMath.AllocationChance(military.Rank(unit, primary.Officer.Id), members.Length,
-            profile.FavoredCategories.Contains(primary.Tactic.Category!.Value)))) return;
-        ActivateMartial(world, unit, members, candidates, primary, target, rules, events, isChain: true);
+            profile.FavoredCategories.Contains(primary.Tactic.Category!.Value)))) return false;
+        ActivateMartial(world, unit, members, candidates, primary, target, rules, events, default, isChain: true);
+        return true;
     }
 
     private static bool TryAutomatic(WorldMutation world, UnitState unit, FormationRule formation, MilitaryOrder target,
-        SimulationRules rules, List<DomainEvent> events, int? originalActorId = null)
+        SimulationRules rules, List<DomainEvent> events, CombatExchangeDamage? damage, int? originalActorId = null)
     {
         var members = IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = unit.Id });
         // Original naval follow-ups exclude the intelligence actor but do not gate their new primary on cooldown.
@@ -148,13 +151,13 @@ internal static class TacticCombat
             formation.Tactics!.AutomaticTactics.Select(id => rules.Military!.Tactics[id]));
         if (tactic is null) return false;
         var candidates = actors.Where(p => p.TacticCooldown == 0).Select(p => new Participant(p, tactic)).ToArray();
-        ActivateMartial(world, unit, members, candidates, new(actor, tactic), target, rules, events,
+        ActivateMartial(world, unit, members, candidates, new(actor, tactic), target, rules, events, damage,
             isChain: originalActorId is not null);
         return true;
     }
 
     private static void ActivateMartial(WorldMutation world, UnitState unit, OfficerState[] members, Participant[] candidates,
-        Participant primary, MilitaryOrder target, SimulationRules rules, List<DomainEvent> events, bool isChain = false)
+        Participant primary, MilitaryOrder target, SimulationRules rules, List<DomainEvent> events, CombatExchangeDamage? damage, bool isChain = false)
     {
         var military = rules.Military!;
         var profile = military.Formation(unit).Tactics!;
@@ -178,6 +181,8 @@ internal static class TacticCombat
             p.Officer.TacticProficiencies[category], world.Abilities(p.Officer).War, p.Officer.Id != primary.Officer.Id)).ToArray();
         var sniping = TacticSniping.Select(world, new(unit.Id, false), primary.Tactic, target,
             participants.Select(p => p.Officer.Id), effect, military);
+        MilitaryCombat.CommitOrdinary(world, new(unit.Id, false),
+            new(target.UnitId ?? target.SettlementId!.Value, target.UnitId is null), damage, military, events);
         int? captured = ResolveMartial(world, new(unit.Id, false), primary.Officer.Id, primary.Tactic, target, damageMembers, doubled, effect, rules, events);
         var learning = primary.Tactic.Selectable ? primary.Tactic :
             military.Formation(unit).AutomaticTacticLearningId is int related ? military.Tactics[related] : null;
@@ -220,33 +225,21 @@ internal static class TacticCombat
         int? rescued = TacticRescue.Select(world, source, tactic, target, effect, military);
         if (rescued is int selected)
             events.Add(new TacticPrisonerRescuedEvent(world.Clock, source, actorId, tactic.Id, target.UnitId!.Value, selected));
-        if (target.UnitId is int targetId)
-        {
-            var defender = world.Units[targetId];
-            var defense = military.CombatFormation(defender)!;
-            uint ordinary = MilitaryCombat.NormalDamage(world, source, new(targetId, false), military);
-            var damage = TacticMath.MartialDamage(members, doubled, ordinary, effect,
-                defender.Condition is UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed, defender.Soldiers);
-            MilitaryCombat.DamageUnit(world, defender, damage.Applied, defense, source.Id, events, source.IsSettlement, tactic.Id, damage.Calculated);
-            var current = world.Units[targetId];
-            if (current.Soldiers == 0 || current.Morale == 0)
-                BattleAftermath.TerminateUnit(world, targetId, source, rules, events,
-                    doubled ? UnitDefeatCause.DoubledMartialTactic : UnitDefeatCause.Other);
-            else if (rescued is int prisonerId)
-                TacticRescue.Release(world, targetId, prisonerId, rules, events);
-        }
-        else
-        {
-            var defender = world.Settlements[target.SettlementId!.Value];
-            var defense = military.Place(defender).Combat!;
-            uint ordinary = MilitaryCombat.NormalDamage(world, source, new(defender.Id, true), military);
-            var damage = TacticMath.MartialDamage(members, doubled, ordinary, effect, false, defender.Soldiers);
-            MilitaryCombat.DamageSettlement(world, defender, damage.Applied, defense, source.Id, events, attackerIsSettlement: source.IsSettlement,
-                tacticId: tactic.Id, calculatedSoldierLoss: damage.Calculated);
-            var current = world.Settlements[defender.Id];
-            if (MilitaryCombat.Defeated(current)) return defender.Id;
-        }
-        return null;
+        var victim = new BattleSource(target.UnitId ?? target.SettlementId!.Value, target.UnitId is null);
+        bool abnormal = !victim.IsSettlement && world.Units[victim.Id].Condition is
+            UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed;
+        bool alreadyDefeated = MilitaryCombat.IsDefeated(world, victim);
+        uint soldiers = victim.Soldiers(world);
+        var damage = TacticMath.MartialDamage(members, doubled, effect, abnormal, soldiers);
+        int? owner = victim.IsSettlement ? world.Settlements[victim.Id].OwnerId : victim.Owner(world);
+        uint calculated = MilitaryCombat.FinalDamage(world, source, owner, damage.Calculated, uint.MaxValue);
+        MilitaryCombat.ApplyDamage(world, source, victim, damage.Calculated, military, events, tactic.Id, calculated);
+        bool targetLost = MilitaryCombat.IsDefeated(world, victim);
+        int? captured = MilitaryCombat.CompleteLosses(world, source, victim, rules, events,
+            doubled && !alreadyDefeated ? UnitDefeatCause.DoubledMartialTactic : UnitDefeatCause.Other, deferTargetCapture: true);
+        if (!targetLost && rescued is int prisonerId && world.Units.ContainsKey(victim.Id))
+            TacticRescue.Release(world, victim.Id, prisonerId, rules, events);
+        return captured;
     }
 
     internal static int MartialEffect(WorldMutation world, OfficerState actor, TacticRule tactic,

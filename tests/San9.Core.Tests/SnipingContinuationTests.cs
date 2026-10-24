@@ -7,7 +7,7 @@ namespace San9.Core.Tests;
 public sealed class SnipingContinuationTests
 {
     [Fact]
-    public void CounterFinishesOnceAndUsesCurrentCommanderProtection()
+    public void MartialSnipingResumeDoesNotOpenTheDefensiveOpportunity()
     {
         var (original, rules, _) = TacticSnipingTests.Create(defensiveChance: 100);
         var initial = original.CreateSnapshot();
@@ -35,7 +35,7 @@ public sealed class SnipingContinuationTests
         MilitaryCombat.AdvanceDay(m, rules, events, initial.Clock);
         if (m.Simulation.PendingSniping is null) Assert.Fail(CanonicalJson.Text(events));
         Assert.Equal(22, m.Simulation.PendingSniping!.RulerId);
-        Assert.True(m.Simulation.PendingSniping.Exchange!.CounterPending);
+        Assert.NotNull(m.Simulation.PendingSniping.Exchange);
         world.Commit(m);
         m = world.BeginMutation();
         MilitaryCombat.ResumeSniping(m, rules, events, 23);
@@ -43,13 +43,13 @@ public sealed class SnipingContinuationTests
         Assert.Equal(OfficerStatus.Dead, m.Officers[22].Status);
         Assert.Equal(OfficerStatus.Ruler, m.Officers[11].Status);
         Assert.Equal(11, m.Units[1].CommanderId);
-        Assert.True(m.Officers[11].Injury > 0);
+        Assert.Equal(0, m.Officers[11].Injury);
         Assert.Equal(11, m.Forces[1].LeaderId);
         Assert.Equal(23, m.Forces[2].LeaderId);
         Assert.Single(events.OfType<SnipingSuccessionRequestedEvent>());
         Assert.Single(events.OfType<OfficerDiedEvent>());
         Assert.Single(events.OfType<TacticActivatedEvent>(), e => e.SourceId == 1);
-        Assert.Single(events.OfType<TacticActivatedEvent>(), e => e.SourceId == 2);
-        Assert.Equal(4, events.OfType<BattleDamageEvent>().Count(e => !e.AttackerIsSettlement && e.TargetUnitId is not null));
+        Assert.DoesNotContain(events.OfType<TacticActivatedEvent>(), e => e.SourceId == 2);
+        Assert.Equal(3, events.OfType<BattleDamageEvent>().Count(e => !e.AttackerIsSettlement && e.TargetUnitId is not null));
     }
 }

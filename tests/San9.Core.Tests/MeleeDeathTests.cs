@@ -74,6 +74,27 @@ public sealed class MeleeDeathTests
         Assert.Equal(expected, MeleeDeaths.Chance(war, rank));
 
     [Fact]
+    public void OrdinaryDefeatDoesNotBecomeAMeleeDeathWhenTheChosenMartialTacticIsDoubled()
+    {
+        var (world, rules, _) = TacticSnipingTests.Create();
+        var m = world.BeginMutation();
+        m.SetSimulation(m.Simulation with { BattleDeathsEnabled = true });
+        m.Replace(m.Units[2] with { Soldiers = 1 });
+        m.Replace(m.Officers[22] with { BaseAbilities = new(40, 40, 40, 40) });
+        Roll(m, "military-tactic-double", 0);
+        Roll(m, "battle-melee-death", 0);
+        var deathRandom = m.Simulation.RandomStreams.Single(r => r.Name == "battle-melee-death");
+        List<DomainEvent> events = [];
+        Assert.True(TacticCombat.TryUnit(m, 1, Target, rules, events, damage: new(1, 0)));
+        Assert.True(Assert.Single(events.OfType<TacticActivatedEvent>()).Doubled);
+        Assert.Equal(0u, Assert.Single(events.OfType<BattleDamageEvent>(), e => e.TacticId is not null).SoldierLoss);
+        Assert.Single(events.OfType<UnitTerminatedEvent>());
+        Assert.DoesNotContain(events.OfType<OfficerDiedEvent>(), e => e.Cause == OfficerDeathCause.Melee);
+        Assert.Equal(deathRandom, m.Simulation.RandomStreams.Single(r => r.Name == deathRandom.Name));
+        world.Commit(m);
+    }
+
+    [Fact]
     public void FacilityMartialDefeatUsesTheSameDeathPath()
     {
         var (world, rules, _) = TacticSnipingTests.Create(); var m = world.BeginMutation(); List<DomainEvent> events = [];

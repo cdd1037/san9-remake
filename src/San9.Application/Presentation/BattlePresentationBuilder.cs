@@ -102,7 +102,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             _conditions[(place.Id, true)] = place.ConfusionDaysRemaining > 0 ? UnitCondition.Confused : UnitCondition.Normal;
         for (_index = 0; _index < events.Count; _index++)
         {
-            bool ordinaryDamage = events[_index] is BattleDamageEvent { TacticId: null };
+            bool ordinaryDamage = events[_index] is BattleDamageEvent { TacticId: null, IsTacticExchange: false };
             int firstCue = BlockingCueCount;
             double firstCursor = _cursor;
             int firstValue = _stateValues.Count;
@@ -224,7 +224,8 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
         var damageTarget = damage.Target ?? TargetContext(damage.TargetUnitId ?? damage.SettlementId!.Value, damage.SettlementId is not null);
         var damageSource = damage.Source ?? TargetContext(damage.AttackerId, damage.AttackerIsSettlement);
         if (damageSource is not null && damageTarget is not null) Capture(damageSource, damageTarget);
-        if (damage.TacticId is null)
+        bool ordinary = damage.TacticId is null && !damage.IsTacticExchange;
+        if (ordinary)
         {
             if (!_batchOpen)
             {
@@ -234,7 +235,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             }
             else _batches[^1] = _batches[^1] with { LastFactIndex = _index };
         }
-        double time = damage.TacticId is null ? _cursor : _impact;
+        double time = ordinary ? _cursor : _impact;
         _impact = time;
         _stateValues.Add(new(time, damage.TargetUnitId ?? damage.SettlementId!.Value,
             damage.SettlementId is not null, -(long)damage.SoldierLoss, -damage.MoraleLoss, -damage.DurabilityLoss));
@@ -371,7 +372,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
         // Area tactics announce once at the first affected target visible to the player.
         if (fact is TacticActivatedEvent && definition.Zoom is null && !definition.Support)
             occurrence = events.Skip(_index + 1)
-                .TakeWhile(e => e is not TacticActivatedEvent and not IntelligenceEffectResolvedEvent { IsAttempt: true })
+                .TakeWhile(e => e is not TacticActivatedEvent)
                 .OfType<IntelligenceEffectResolvedEvent>()
                 .Where(e => e.TacticId == tacticId && e.Source.Id == occurrence.Source.Id && e.Source.IsSettlement == occurrence.Source.IsSettlement)
                 .Select(e => e.Occurrence).FirstOrDefault(o => o is not null && Visible(o)) ?? occurrence;
@@ -546,14 +547,6 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
         }
         else
         {
-            // A failed candidate has no activation fact; it still owns an attempted action and response.
-            if (fact is IntelligenceEffectResolvedEvent { IsAttempt: true })
-            {
-                Add("announcement", definition.Messages["announcement"], _cursor, BattleMessageChannel.Dialogue, true);
-                Add("action", definition.Messages["action"], _cursor, BattleMessageChannel.MapSpeech, true);
-                _cursor = Prelude();
-                _impact = _cursor;
-            }
             string role = effect >= 10 ? "hit" : effect > 0 ? "reduced" : "failed";
             values["responder"] = ProgressMessageProducer.Person((effect == 0 ? occurrence.IntelligenceOfficerId : occurrence.ResistanceOfficerId) ?? Soldier);
             if (effect == 0)

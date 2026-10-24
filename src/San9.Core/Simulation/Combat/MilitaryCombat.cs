@@ -7,6 +7,8 @@ public sealed record BattleDamageEvent(GameClock Clock, int AttackerId, int? Tar
     uint SoldierLoss, uint AddedWounded, uint Dead, int DurabilityLoss, int MoraleLoss, bool AttackerIsSettlement = false) : DomainEvent
 {
     public int? TacticId { get; init; }
+    public bool IsTacticExchange { get; init; }
+    public bool ContinuesSiege { get; init; }
     public uint? CalculatedSoldierLoss { get; init; }
     public BattleObjectContext? Source { get; init; }
     public BattleObjectContext? Target { get; init; }
@@ -14,6 +16,14 @@ public sealed record BattleDamageEvent(GameClock Clock, int AttackerId, int? Tar
 
 internal static class MilitaryCombat
 {
+    // Copy the remaining day only when a decision actually suspends this exchange.
+    private sealed record Exchange(GameClock XunStarted, BattleSource Source, BattleSource Target,
+        ImmutableArray<int> AffectedForces, Func<CombatDayContinuation> CaptureDay, int? PreviousSettlementOwnerId = null)
+    {
+        internal CombatExchangeContinuation Capture() => new(XunStarted, CaptureDay(), Source, Target,
+            AffectedForces, PreviousSettlementOwnerId);
+    }
+
     internal static bool CanInitiate(UnitState unit) => !unit.IsEmbedded && !unit.IsPersonnel &&
         unit.FormationId is not null && unit.Soldiers > 0 && unit.Morale > 0 && unit.DepartureDaysRemaining == 0 &&
         unit.Condition is not (UnitCondition.Confused or UnitCondition.Routed);
@@ -136,98 +146,126 @@ internal static class MilitaryCombat
             if (order.SettlementId is int requestTarget) AttackRequests.Fulfill(world, attacker.OwnerId, requestTarget, events);
             MilitaryDiplomacy.CombatOpened(world, attacker.OwnerId, MilitaryDiplomacy.TargetOwner(world, order),
                 order.SettlementId is int attackedPlace && MilitaryDiplomacy.Work(world, attackedPlace, military), events);
-            var affectedForces = new HashSet<int> { attacker.OwnerId };
-            if (order.UnitId is int targetId)
-            {
-                var defender = world.Units[targetId];
-                affectedForces.Add(defender.OwnerId);
-                var defense = military.Formation(defender);
-                uint outgoing = NormalDamage(world, new(id, false), new(targetId, false), military);
-                uint incoming = 0;
-                if (defender.Condition is not (UnitCondition.Confused or UnitCondition.Routed) && defense.Attack is not null &&
-                    targetArea.IntersectsExpanded(Area(attacker, military), UnitRange(world, defender, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id }, military)))
-                {
-                    incoming = NormalDamage(world, new(targetId, false), new(id, false), military);
-                }
-                DamageUnit(world, defender, outgoing, military.CombatFormation(defender)!, id, events);
-                DamageUnit(world, attacker, incoming, military.CombatFormation(attacker)!, targetId, events);
-                bool attackerLost = Defeated(world.Units[id]), defenderLost = Defeated(world.Units[targetId]);
-                if (defenderLost) BattleAftermath.TerminateUnit(world, targetId, attackerLost ? null : new BattleSource(id, false), rules, events);
-                if (attackerLost) BattleAftermath.TerminateUnit(world, id, defenderLost ? null : new BattleSource(targetId, false), rules, events);
-                if (!attackerLost && !defenderLost)
-                {
-                    CombatDayContinuation CaptureDay() => new(units.Skip(index + 1).ToImmutableArray(),
-                        used.Order().ToImmutableArray(), buildingsUsed.Order().ToImmutableArray());
-                    if (!FinishOpportunities(world, rules, events, xunStarted ?? world.Clock, CaptureDay, id, targetId,
-                        affectedForces.Order().ToImmutableArray())) return;
-                }
-                BattleRouting.CompleteExchange(world, new(id, false), new(targetId, false), rules, events);
-            }
-            else
-            {
-                var settlement = world.Settlements[order.SettlementId!.Value];
-                if (settlement.OwnerId is int defenderOwner) affectedForces.Add(defenderOwner);
-                var definition = military.Place(settlement);
-                var capability = military.FacilityAttack(settlement);
-                var defense = GarrisonStrength(world, settlement);
-                uint outgoing = NormalDamage(world, new(id, false), new(settlement.Id, true), military);
-                int walls = WallDamage(world, attacker, settlement, military);
-                uint incoming = 0;
-                bool retaliated = false;
-                if (settlement.OwnerId is not null && settlement.Morale > 0 && settlement.ConfusionDaysRemaining == 0 && capability.Attack is { } retaliation &&
-                    targetArea.IntersectsExpanded(Area(attacker, military), FacilityRange(world, settlement, attacker, military)))
-                {
-                    retaliated = true;
-                    incoming = NormalDamage(world, new(settlement.Id, true), new(id, false), military);
-                }
-                DamageSettlement(world, settlement, outgoing, definition.Combat!, id, events, walls);
-                DamageUnit(world, attacker, incoming, military.CombatFormation(attacker)!, settlement.Id, events, attackerIsSettlement: true);
-                if (walls > 0 && world.Settlements[settlement.Id].Durability > 0) BattleLearning.Siege(world, id, events);
-                if (walls > 0 && !Defeated(world.Units[id]) && !Defeated(world.Settlements[settlement.Id]) &&
-                    definition.FacilityTypeId is int type && military.Facilities[type].Reprisal is { } reprisal)
-                    FacilityCombat.ApplyReprisal(world, world.Settlements[settlement.Id], world.Units[id], reprisal, military.CombatFormation(attacker)!, events);
-                if (Defeated(world.Units[id])) BattleAftermath.TerminateUnit(world, id,
-                    Defeated(world.Settlements[settlement.Id]) || !settlement.CanHostPersons ? null : new BattleSource(settlement.Id, true), rules, events);
-                else if (Defeated(world.Settlements[settlement.Id]))
-                    BattleAftermath.ResolveSettlementDefeat(world, settlement.Id, new(id, false), rules, events);
-                CombatExchangeContinuation CaptureAssault(bool counterPending) => new(xunStarted ?? world.Clock,
-                    new(units.Skip(index + 1).ToImmutableArray(), used.Order().ToImmutableArray(), buildingsUsed.Order().ToImmutableArray()),
-                    new(id, false), new(settlement.Id, true), affectedForces.Order().ToImmutableArray(), counterPending, settlement.OwnerId);
-                TacticCombat.TryUnit(world, id, order, rules, events);
-                if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, CaptureAssault(retaliated))) return;
-                if (retaliated) FacilityCombat.TryTactic(world, settlement.Id,
-                    new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id }, rules, events, counter: true);
-                if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, CaptureAssault(false))) return;
-                BattleRouting.CompleteExchange(world, new(id, false), new(settlement.Id, true), rules, events);
-                CityBattleEffects.CompleteAttack(world, id, settlement.Id, settlement.OwnerId, events);
-            }
-            GovernanceLifecycle.Reconcile(world, affectedForces, rules, events, world.CurrentDateCommandsConsumed);
-            ResolutionPipeline.CheckConquest(world, events);
+            var source = new BattleSource(id, false);
+            var target = new BattleSource(order.UnitId ?? order.SettlementId!.Value, order.UnitId is null);
+            CombatDayContinuation CaptureDay() => new(units.Skip(index + 1).ToImmutableArray(),
+                used.Order().ToImmutableArray(), buildingsUsed.Order().ToImmutableArray());
+            if (!BeginExchange(world, source, target, rules, events, xunStarted ?? world.Clock, CaptureDay)) return;
         }
         FacilityCombat.AdvanceDay(world, rules, used, buildingsUsed, events, xunStarted, continuation?.RemainingBuildings);
     }
 
-    private static bool FinishOpportunities(WorldMutation world, SimulationRules rules, List<DomainEvent> events,
-        GameClock xunStarted, Func<CombatDayContinuation> captureDay, int attacker, int defender, ImmutableArray<int> affectedForces,
-        bool counterOnly = false)
+    internal static bool BeginExchange(WorldMutation world, BattleSource source, BattleSource target,
+        SimulationRules rules, List<DomainEvent> events, GameClock xunStarted, Func<CombatDayContinuation> captureDay)
     {
-        for (int opportunity = counterOnly ? 1 : 0; opportunity < 2 && world.Simulation.TerminalReason is null; opportunity++)
+        var military = rules.Military!;
+        int? previousOwner = target.IsSettlement ? world.Settlements[target.Id].OwnerId : null;
+        var affected = new[] { source.IsSettlement ? world.Settlements[source.Id].OwnerId : source.Owner(world),
+            target.IsSettlement ? world.Settlements[target.Id].OwnerId : target.Owner(world) }.OfType<int>().Distinct().Order().ToImmutableArray();
+        var exchange = new Exchange(xunStarted, source, target, affected, captureDay, previousOwner);
+        bool counter = CanReply(world, target, source, military);
+        // The pair is captured before any casualty, condition change, duel or succession.
+        var damage = new CombatExchangeDamage(NormalDamage(world, source, target, military),
+            counter ? NormalDamage(world, target, source, military) : 0);
+        var siegeUnit = source.IsSettlement ? target : source;
+        var siegeTarget = source.IsSettlement ? source : target;
+        if (siegeTarget.IsSettlement && (!source.IsSettlement || counter))
+        {
+            var unit = world.Units[siegeUnit.Id];
+            var settlement = world.Settlements[siegeTarget.Id];
+            int walls = WallDamage(world, unit, settlement, military);
+            if (walls > 0)
+            {
+                DamageSettlement(world, settlement, 0, military.Place(settlement).Combat!, unit.Id, events, walls);
+                damage = source.IsSettlement ? damage with { IncomingContinuesSiege = true } :
+                    damage with { OutgoingContinuesSiege = true };
+                if (world.Settlements[settlement.Id].Durability > 0) BattleLearning.Siege(world, unit.Id, events);
+                if (!source.IsSettlement && !IsDefeated(world, siegeTarget) &&
+                    military.Place(settlement).FacilityTypeId is int type && military.Facilities[type].Reprisal is { } reprisal)
+                    FacilityCombat.ApplyReprisal(world, world.Settlements[settlement.Id], world.Units[unit.Id],
+                        reprisal, military.CombatFormation(unit)!, events);
+            }
+        }
+        if (!IsDefeated(world, source) && !IsDefeated(world, target))
+        {
+            if (!FinishOpportunities(world, rules, events, exchange, damage, counter)) return false;
+        }
+        else
+        {
+            if (IsDefeated(world, siegeUnit) && !IsDefeated(world, siegeTarget))
+                CommitOrdinary(world, source, target, damage, military, events, isTacticExchange: false);
+            CompleteLosses(world, source, target, rules, events);
+        }
+        CompleteExchange(world, exchange, rules, events);
+        return true;
+    }
+
+    private static bool CanReply(WorldMutation world, BattleSource source, BattleSource target, MilitaryRulebook military)
+    {
+        if (source.IsSettlement)
+        {
+            var place = world.Settlements[source.Id];
+            return place.OwnerId is not null && place.Morale > 0 && place.ConfusionDaysRemaining == 0 &&
+                military.FacilityAttack(place).Attack is not null && source.Area(world, military).IntersectsExpanded(
+                    target.Area(world, military), FacilityRange(world, place, world.Units[target.Id], military));
+        }
+        var unit = world.Units[source.Id];
+        return unit.Condition is not (UnitCondition.Confused or UnitCondition.Routed) && military.Formation(unit).Attack is not null &&
+            source.Area(world, military).IntersectsExpanded(target.Area(world, military), UnitRange(world, unit,
+                TargetOrder(target), military));
+    }
+
+    internal static MilitaryOrder TargetOrder(BattleSource target) => target.IsSettlement
+        ? new(MilitaryOrderKind.AttackSettlement, null, target.Id)
+        : new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = target.Id };
+
+    private static bool FinishOpportunities(WorldMutation world, SimulationRules rules, List<DomainEvent> events,
+        Exchange exchange, CombatExchangeDamage damage, bool counterAllowed, bool counterOnly = false)
+    {
+        for (int opportunity = counterOnly ? 1 : 0; opportunity < (counterAllowed ? 2 : 1) && world.Simulation.TerminalReason is null; opportunity++)
         {
             bool counter = opportunity == 1;
-            var paused = DuelCombat.TryOpportunity(world, counter ? defender : attacker, counter ? attacker : defender, rules, events, counter);
-            if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world,
-                new(xunStarted, captureDay(), new(attacker, false), new(defender, false), affectedForces, !counter))) return false;
-            if (paused is not { } waiting) continue;
-            int owner = world.Officers[waiting.Progress.PendingRulerId!.Value].OwnerId!.Value;
-            world.SetSimulation(world.Simulation with
+            var source = counter ? exchange.Target : exchange.Source;
+            var target = counter ? exchange.Source : exchange.Target;
+            if (IsDefeated(world, source) || IsDefeated(world, target) || !source.Exists(world) || !target.Exists(world)) break;
+            var oriented = counter ? damage.Reverse() : damage;
+            bool resolved;
+            if (!source.IsSettlement && !target.IsSettlement)
             {
-                Boundary = SimulationBoundary.AwaitingDecision,
-                PendingDuel = new(xunStarted, captureDay(), attacker, defender, affectedForces, counter,
-                    waiting.TacticReady, waiting.Progress, owner)
-            });
-            return false;
+                var result = DuelCombat.TryOpportunity(world, source.Id, target.Id, rules, events, counter, oriented);
+                resolved = result.Resolved;
+                if (result.Progress is { } progress)
+                {
+                    int owner = world.Officers[progress.PendingRulerId!.Value].OwnerId!.Value;
+                    world.SetSimulation(world.Simulation with
+                    {
+                        Boundary = SimulationBoundary.AwaitingDecision,
+                        PendingDuel = new(exchange.XunStarted, exchange.CaptureDay(), exchange.Source.Id, exchange.Target.Id,
+                            exchange.AffectedForces, counter, result.TacticReady, progress, owner, damage)
+                    });
+                    return false;
+                }
+            }
+            else resolved = source.IsSettlement
+                ? FacilityCombat.TryTactic(world, source.Id, TargetOrder(target), rules, events, counter, oriented)
+                : TacticCombat.TryUnit(world, source.Id, TargetOrder(target), rules, events, counter, oriented);
+            // Sniping is an aftermath of an already committed martial exchange.
+            if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, exchange.Capture())) return false;
+            if (resolved) return true;
         }
+        CommitOrdinary(world, exchange.Source, exchange.Target, damage, rules.Military!, events, isTacticExchange: false);
+        CompleteLosses(world, exchange.Source, exchange.Target, rules, events);
         return true;
+    }
+
+    private static void CompleteExchange(WorldMutation world, Exchange exchange,
+        SimulationRules rules, List<DomainEvent> events)
+    {
+        BattleRouting.CompleteExchange(world, exchange.Source, exchange.Target, rules, events);
+        if (exchange.Target.IsSettlement)
+            CityBattleEffects.CompleteAttack(world, exchange.Source.Id, exchange.Target.Id, exchange.PreviousSettlementOwnerId, events);
+        GovernanceLifecycle.Reconcile(world, exchange.AffectedForces.ToHashSet(), rules, events, world.CurrentDateCommandsConsumed);
+        ResolutionPipeline.CheckConquest(world, events);
     }
 
     internal static void ResumeDuel(WorldMutation world, SimulationRules rules, List<DomainEvent> events, int successorId)
@@ -249,55 +287,84 @@ internal static class MilitaryCombat
         world.SetSimulation(world.Simulation with { PendingDuel = null, Boundary = SimulationBoundary.Stable });
         int source = pending.Counter ? pending.DefendingUnitId : pending.AttackingUnitId;
         int target = pending.Counter ? pending.AttackingUnitId : pending.DefendingUnitId;
-        if (pending.TacticReady) TacticCombat.ResolveOpportunity(world, source,
-            new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = target }, rules, events);
-        if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, new(pending.XunStarted, pending.Day,
-            new(pending.AttackingUnitId, false), new(pending.DefendingUnitId, false), pending.AffectedForces, !pending.Counter))) return;
-        if (!pending.Counter && !FinishOpportunities(world, rules, events, pending.XunStarted, () => pending.Day,
-            pending.AttackingUnitId, pending.DefendingUnitId, pending.AffectedForces, counterOnly: true)) return;
-        BattleRouting.CompleteExchange(world, new(pending.AttackingUnitId, false), new(pending.DefendingUnitId, false), rules, events);
-        GovernanceLifecycle.Reconcile(world, pending.AffectedForces.ToHashSet(), rules, events, world.CurrentDateCommandsConsumed);
-        ResolutionPipeline.CheckConquest(world, events);
+        var exchange = new Exchange(pending.XunStarted, new(pending.AttackingUnitId, false),
+            new(pending.DefendingUnitId, false), pending.AffectedForces, () => pending.Day);
+        bool resolved = pending.TacticReady && TacticCombat.ResolveOpportunity(world, source,
+            new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = target }, rules, events,
+            pending.Counter ? pending.Damage.Reverse() : pending.Damage);
+        if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, exchange.Capture())) return;
+        if (!resolved && !FinishOpportunities(world, rules, events, exchange, pending.Damage,
+            counterAllowed: !pending.Counter, counterOnly: true)) return;
+        CompleteExchange(world, exchange, rules, events);
         AdvanceDay(world, rules, events, pending.XunStarted, pending.Day);
     }
 
     internal static void ResumeSniping(WorldMutation world, SimulationRules rules, List<DomainEvent> events, int successorId)
     {
         var pending = world.Simulation.PendingSniping!;
-        var exchange = pending.Exchange!;
+        var continuation = pending.Exchange!;
+        var exchange = new Exchange(continuation.XunStarted, continuation.Source, continuation.Target,
+            continuation.AffectedForces, () => continuation.Day, continuation.PreviousSettlementOwnerId);
         world.SetSimulation(world.Simulation with { PendingSniping = null, Boundary = SimulationBoundary.Stable });
         OfficerDeath.Resolve(world, pending.RulerId, OfficerDeathCause.Sniping, rules, events,
             afterDailyCommands: world.CurrentDateCommandsConsumed, successorId: successorId);
         if (!ResolutionPipeline.CheckTerminal(world, events)) return;
         TacticCombat.ResumeAfterSniping(world, pending.Tactic!, rules, events);
-        if (exchange.CounterPending)
-        {
-            if (!exchange.Source.IsSettlement && !exchange.Target.IsSettlement)
-            {
-                if (!FinishOpportunities(world, rules, events, exchange.XunStarted, () => exchange.Day,
-                    exchange.Source.Id, exchange.Target.Id, exchange.AffectedForces, counterOnly: true)) return;
-            }
-            else if (exchange.Source.IsSettlement)
-                TacticCombat.TryUnit(world, exchange.Target.Id, new(MilitaryOrderKind.AttackSettlement, null, exchange.Source.Id),
-                    rules, events, counter: true);
-            else FacilityCombat.TryTactic(world, exchange.Target.Id,
-                new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = exchange.Source.Id }, rules, events, counter: true);
-            if (world.Simulation.PendingSniping is not null && SnipingSuccession.CaptureExchange(world, exchange with { CounterPending = false })) return;
-        }
-        BattleRouting.CompleteExchange(world, exchange.Source, exchange.Target, rules, events);
-        if (exchange.Target.IsSettlement)
-            CityBattleEffects.CompleteAttack(world, exchange.Source.Id, exchange.Target.Id, exchange.PreviousSettlementOwnerId, events);
-        GovernanceLifecycle.Reconcile(world, exchange.AffectedForces.ToHashSet(), rules, events, world.CurrentDateCommandsConsumed);
-        ResolutionPipeline.CheckConquest(world, events);
+        CompleteExchange(world, exchange, rules, events);
         if (!ResolutionPipeline.CheckTerminal(world, events)) return;
-        AdvanceDay(world, rules, events, exchange.XunStarted, exchange.Day);
+        AdvanceDay(world, rules, events, exchange.XunStarted, continuation.Day);
+    }
+
+    internal static bool IsDefeated(WorldMutation world, BattleSource source) => source.IsSettlement
+        ? Defeated(world.Settlements[source.Id]) : !world.Units.TryGetValue(source.Id, out var unit) || Defeated(unit);
+
+    internal static int? CompleteLosses(WorldMutation world, BattleSource source, BattleSource target,
+        SimulationRules rules, List<DomainEvent> events, UnitDefeatCause cause = UnitDefeatCause.Other, bool deferTargetCapture = false)
+    {
+        bool sourceLost = IsDefeated(world, source), targetLost = IsDefeated(world, target);
+        if (targetLost && !target.IsSettlement && world.Units.ContainsKey(target.Id))
+            BattleAftermath.TerminateUnit(world, target.Id, sourceLost ? null : source, rules, events, cause);
+        if (sourceLost && !source.IsSettlement && world.Units.ContainsKey(source.Id))
+            BattleAftermath.TerminateUnit(world, source.Id, targetLost || !target.Exists(world) ? null : target, rules, events);
+        if (sourceLost && source.IsSettlement && !targetLost && target.Exists(world))
+            BattleAftermath.ResolveSettlementDefeat(world, source.Id, target, rules, events);
+        if (targetLost && target.IsSettlement && !sourceLost && source.Exists(world))
+        {
+            if (deferTargetCapture) return target.Id;
+            BattleAftermath.ResolveSettlementDefeat(world, target.Id, source, rules, events);
+        }
+        return null;
+    }
+
+    internal static void CommitOrdinary(WorldMutation world, BattleSource source, BattleSource target,
+        CombatExchangeDamage? damage, MilitaryRulebook military, List<DomainEvent> events, bool isTacticExchange = true)
+    {
+        if (damage is not { } pair) return;
+        ApplyDamage(world, source, target, pair.Outgoing, military, events, isTacticExchange: isTacticExchange, continuesSiege: pair.OutgoingContinuesSiege);
+        ApplyDamage(world, target, source, pair.Incoming, military, events, isTacticExchange: isTacticExchange, continuesSiege: pair.IncomingContinuesSiege);
+    }
+
+    internal static void ApplyDamage(WorldMutation world, BattleSource source, BattleSource target, uint damage,
+        MilitaryRulebook military, List<DomainEvent> events, int? tacticId = null, uint? calculatedLoss = null,
+        bool isTacticExchange = false, bool continuesSiege = false)
+    {
+        bool Present(BattleSource actor) => actor.IsSettlement
+            ? world.Settlements.TryGetValue(actor.Id, out var place) && !place.IsDestroyed
+            : world.Units.ContainsKey(actor.Id);
+        if (!Present(source) || !Present(target)) return;
+        if (target.IsSettlement)
+            DamageSettlement(world, world.Settlements[target.Id], damage, military.Place(world.Settlements[target.Id]).Combat!, source.Id,
+                events, attackerIsSettlement: source.IsSettlement, tacticId: tacticId,
+                calculatedSoldierLoss: calculatedLoss, isTacticExchange: isTacticExchange, continuesSiege: continuesSiege);
+        else DamageUnit(world, world.Units[target.Id], damage, military.CombatFormation(world.Units[target.Id])!, source.Id, events,
+            source.IsSettlement, tacticId, calculatedLoss, isTacticExchange, continuesSiege);
     }
 
     private static bool Defeated(UnitState unit) => unit.Soldiers == 0 || unit.Morale == 0;
     internal static bool Defeated(SettlementState settlement) => !settlement.IsDestroyed && settlement.Facility?.BuilderUnitId is null &&
         (settlement.Durability == 0 || settlement.CanHostPersons && (settlement.Soldiers == 0 || settlement.Morale == 0));
     internal static void DamageSettlement(WorldMutation world, SettlementState settlement, uint damage, CombatProfile profile,
-        int attacker, List<DomainEvent> events, int walls = 0, bool attackerIsSettlement = false, int? tacticId = null, uint? calculatedSoldierLoss = null)
+        int attacker, List<DomainEvent> events, int walls = 0, bool attackerIsSettlement = false, int? tacticId = null, uint? calculatedSoldierLoss = null, bool isTacticExchange = false, bool continuesSiege = false)
     {
         damage = FinalDamage(world, new(attacker, attackerIsSettlement), settlement.OwnerId, damage, settlement.Soldiers);
         var loss = CombatMath.Loss(settlement.Soldiers, damage, profile.WoundedPercent, settlement.Wounded, MilitaryRulebook.WoundedCapacity);
@@ -313,28 +380,30 @@ internal static class MilitaryCombat
             loss.AddedWounded, loss.Dead, walls, morale, attackerIsSettlement)
         {
             TacticId = tacticId,
+            IsTacticExchange = isTacticExchange,
+            ContinuesSiege = continuesSiege,
             CalculatedSoldierLoss = calculatedSoldierLoss,
             Source = BattleObjectContext.Capture(world, new(attacker, attackerIsSettlement)),
             Target = BattleObjectContext.Capture(world, new(settlement.Id, true))
         });
     }
     internal static void DamageUnit(WorldMutation world, UnitState unit, uint damage, CombatProfile profile, int attacker, List<DomainEvent> events,
-        bool attackerIsSettlement = false, int? tacticId = null, uint? calculatedSoldierLoss = null)
+        bool attackerIsSettlement = false, int? tacticId = null, uint? calculatedSoldierLoss = null, bool isTacticExchange = false, bool continuesSiege = false)
     {
         damage = FinalDamage(world, new(attacker, attackerIsSettlement), unit.OwnerId, damage, unit.Soldiers);
         int morale = 0;
-        ApplyUnitLoss(world, unit, damage, morale, profile, new(attacker, attackerIsSettlement), events, tacticId, calculatedSoldierLoss);
+        ApplyUnitLoss(world, unit, damage, morale, profile, new(attacker, attackerIsSettlement), events, tacticId, calculatedSoldierLoss, isTacticExchange, continuesSiege);
     }
     internal static void ApplyUnitLoss(WorldMutation world, UnitState unit, uint damage, int morale, CombatProfile profile,
-        BattleSource source, List<DomainEvent> events, int? tacticId = null, uint? calculatedSoldierLoss = null)
+        BattleSource source, List<DomainEvent> events, int? tacticId = null, uint? calculatedSoldierLoss = null, bool isTacticExchange = false, bool continuesSiege = false)
     {
         damage = Math.Min(damage, unit.Soldiers);
         var loss = CombatMath.Loss(unit.Soldiers, damage, profile.WoundedPercent, unit.Wounded, MilitaryRulebook.WoundedCapacity);
         world.Replace(unit with { Soldiers = loss.RemainingSoldiers, Wounded = unit.Wounded + loss.AddedWounded, Morale = unit.Morale - morale });
         events.Add(new BattleDamageEvent(world.Clock, source.Id, unit.Id, null, damage, loss.AddedWounded, loss.Dead, 0, morale, source.IsSettlement)
-        { TacticId = tacticId, CalculatedSoldierLoss = calculatedSoldierLoss, Source = BattleObjectContext.Capture(world, source), Target = BattleObjectContext.Capture(unit) });
+        { TacticId = tacticId, IsTacticExchange = isTacticExchange, ContinuesSiege = continuesSiege, CalculatedSoldierLoss = calculatedSoldierLoss, Source = BattleObjectContext.Capture(world, source), Target = BattleObjectContext.Capture(unit) });
     }
-    private static uint FinalDamage(WorldMutation world, BattleSource source, int? targetOwner, uint damage, uint soldiers)
+    internal static uint FinalDamage(WorldMutation world, BattleSource source, int? targetOwner, uint damage, uint soldiers)
     {
         int? sourceOwner = source.IsSettlement ? world.Settlements[source.Id].OwnerId : world.Units[source.Id].OwnerId;
         bool Player(int? owner) => owner is int id && world.Simulation.Controls.Any(c => c.ForceId == id && c.Kind == ControllerKind.Player);

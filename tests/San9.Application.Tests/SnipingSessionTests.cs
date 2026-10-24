@@ -108,12 +108,11 @@ public sealed class SnipingSessionTests
             new ChooseSnipingSuccessorCommand(Guid.NewGuid(), 2, sequence, 22, 11)).Submission.Rejection);
         StateAssert.Equal(hash, session.Snapshot);
         var pending = session.Snapshot.Simulation.PendingSniping!;
-        if (path == "facility-counter") Assert.Equal(counterRoll >= 50, pending.Exchange!.Combat.Source.IsSettlement);
+        if (path == "facility-counter") Assert.Equal(counterRoll >= 50, pending.Exchange!.Source.IsSettlement);
         var snapshot = new SessionSnapshot(session.Snapshot, [], [], session.NextOperationSequence);
         foreach (var invalid in new[] {
             pending with { RulerId = 21 }, pending with { Exchange = null }, pending with { Tactic = null },
             pending with { Exchange = pending.Exchange! with { XunStarted = new(190, 1, 11) } },
-            pending with { Exchange = pending.Exchange! with { Combat = pending.Exchange.Combat with { Committed = false } } },
             pending with { Tactic = pending.Tactic! with { Target = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 99 } } } })
             Assert.Throws<ArgumentException>(() => GameSession.Restore(scenario, snapshot with {
                 World = snapshot.World with { Simulation = snapshot.World.Simulation with { PendingSniping = invalid } } }));

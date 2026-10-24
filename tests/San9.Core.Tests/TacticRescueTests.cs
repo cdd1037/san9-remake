@@ -48,8 +48,7 @@ public sealed class TacticRescueTests
     {
         var (world, rules, _) = Create(own: own);
         var m = world.BeginMutation(); RollValue(m, (uint)roll); List<DomainEvent> events = [];
-        TacticCombat.TryUnit(m, 1, Target, rules, events,
-            CombatExchange.Calculate(m, new(1, false), CombatExchange.TargetOf(Target), rules.Military!));
+        TacticCombat.TryUnit(m, 1, Target, rules, events);
         Assert.Single(events.OfType<TacticActivatedEvent>());
         Assert.Equal(rescued ? 1 : 0, events.OfType<TacticPrisonerRescuedEvent>().Count());
         Assert.Equal(rescued ? 1 : 2, m.Officers.Values.Count(p => p.Status == OfficerStatus.Captive));
@@ -96,8 +95,7 @@ public sealed class TacticRescueTests
         if (tacticKill)
         {
             m.Replace(m.Units[2] with { Soldiers = 1 });
-            TacticCombat.ResolveMartial(m, new(1, false), 11, tactic, Target, [new(10000, 1000, 100, false)], false, 10, rules, events,
-                CombatExchange.Calculate(m, new(1, false), CombatExchange.TargetOf(Target), rules.Military!));
+            TacticCombat.ResolveMartial(m, new(1, false), 11, tactic, Target, [new(10000, 1000, 100, false)], false, 10, rules, events);
         }
         else BattleAftermath.TerminateUnit(m, 2, new(1, false), rules, events);
         Assert.False(m.Units.ContainsKey(2));
@@ -121,8 +119,7 @@ public sealed class TacticRescueTests
         string Run(WorldState state)
         {
             var m = state.BeginMutation(); List<DomainEvent> events = [];
-            TacticCombat.TryUnit(m, 1, Target, rules, events,
-                CombatExchange.Calculate(m, new(1, false), CombatExchange.TargetOf(Target), rules.Military!)); state.Commit(m);
+            TacticCombat.TryUnit(m, 1, Target, rules, events); state.Commit(m);
             string json = System.Text.Json.JsonSerializer.Serialize(events, CanonicalJson.Options);
             Assert.Contains(System.Text.Json.JsonSerializer.Deserialize<DomainEvent[]>(json, CanonicalJson.Options)!, e => e is TacticPrisonerRescuedEvent);
             return json;

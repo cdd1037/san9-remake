@@ -15,10 +15,9 @@ public sealed class DuelCombatIntegrationTests
         return seed;
     }
 
-    private static SimulationEngine Engine(bool deaths = false, int opportunity = 0, int defensiveChance = 0,
-        bool counterOnly = false, bool laterBattle = false, int cooldown = 0, bool normalPower = false, WorldSnapshot? restoredState = null)
+    private static SimulationEngine Engine(bool deaths = false, int opportunity = 0, int defensiveChance = 0, bool counterOnly = false, bool laterBattle = false, int cooldown = 0)
     {
-        var combat = normalPower ? new CombatProfile(10, 10, 0, 10, 50) : new CombatProfile(0, 0, 0, 1000, 50);
+        var combat = new CombatProfile(0, 0, 0, 1000, 50);
         var military = new MilitaryRulebook(new(4, 1, [0, 0, 0, 0], [new(0, 1, null)],
             [new(1, 5, 0, 100000, 3, new(1, 1), TravelMode.Land)
                 { CaptureRanks = [BattleRank.Front, BattleRank.Front, BattleRank.Rear], Combat = combat, Attack = new(1, false), Tactics = new(opportunity, 2, [], []) }],
@@ -27,8 +26,6 @@ public sealed class DuelCombatIntegrationTests
             DefensiveTacticChance = defensiveChance, BattleDeathsAllowed = true, DuelCapturesAllowed = false,
             Tactics = [new(9000, 7, TacticEffect.CounterConfusion, 0, 0, 0, false, false, [])]
         });
-        if (restoredState is not null) return new SimulationEngine(WorldState.Restore(restoredState),
-            EconomyRulebook.Empty, PersonnelRulebook.Empty, TreasureRulebook.Empty, military: military);
         var people = new[]
         {
             DuelContestTests.Person(11, 1, 79) with { Status = OfficerStatus.Ruler, TacticCooldown = cooldown, LearnedTactics = [9000], EquippedTacticId = 9000 },
@@ -101,46 +98,12 @@ public sealed class DuelCombatIntegrationTests
         var engine = Engine(deaths: true, laterBattle: true);
         var paused = engine.AdvanceXun();
         Assert.NotNull(engine.GetDuelSuccessionPrompt());
-        Assert.Empty(paused.Events.OfType<BattleDamageEvent>());
-        Assert.False(engine.Snapshot.Simulation.PendingDuel!.Exchange.Committed);
+        Assert.Equal(new[] { 1, 2 }, paused.Events.OfType<BattleDamageEvent>().Where(e => e.Clock.Day == 2).Select(e => e.AttackerId).Order());
         var response = engine.Execute(new("player"), new ChooseDuelSuccessorCommand(Guid.NewGuid(), 2,
             engine.Snapshot.Simulation.NextSequence, 22, 21));
         Assert.True(response.Submission.Accepted);
-        Assert.Equal(new[] { 1, 2, 3, 4 }, response.Events.OfType<BattleDamageEvent>().Where(e => e.Clock.Day == 2).Select(e => e.AttackerId).Order());
+        Assert.Equal(new[] { 3, 4 }, response.Events.OfType<BattleDamageEvent>().Where(e => e.Clock.Day == 2).Select(e => e.AttackerId).Order());
         Assert.Single(response.Events.OfType<StageCompletedEvent>(), e => e.Clock.Day == 2 && e.Stage == ResolutionStage.DailyMapUpdate);
-    }
-
-    [Fact]
-    public void DuelSuccessionRestoresTheFrozenNonzeroDamagePair()
-    {
-        var engine = Engine(deaths: true, normalPower: true);
-        var arrival = engine.AdvanceXun();
-        var paused = engine.Snapshot;
-        var pending = Assert.IsType<DuelCombatDecision>(paused.Simulation.PendingDuel);
-        Assert.True(pending.Exchange.DamageToTarget > 0 && pending.Exchange.DamageToSource > 0);
-        Assert.Empty(arrival.Events.OfType<BattleDamageEvent>());
-        var restored = Engine(normalPower: true, restoredState: paused);
-        foreach (var invalid in new[]
-        {
-            pending.Exchange with { Committed = true },
-            pending.Exchange with { Target = pending.Exchange.Source },
-            pending.Exchange with { SourceOwnerId = 2 },
-            pending.Exchange with { CounterAllowed = false }
-        })
-            Assert.Throws<ArgumentException>(() => Engine(normalPower: true, restoredState: paused with
-            {
-                Simulation = paused.Simulation with { PendingDuel = pending with { Exchange = invalid } }
-            }));
-
-        var answer = new ChooseDuelSuccessorCommand(Guid.NewGuid(), 2, paused.Simulation.NextSequence, 22, 21);
-        var result = engine.Execute(new("player"), answer);
-        Assert.True(result.Submission.Accepted);
-        EventAssert.Equal(result.Events, restored.Execute(new("player"), answer).Events);
-        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
-        var damage = result.Events.OfType<BattleDamageEvent>().Where(e => e.Clock.Day == 2).ToArray();
-        Assert.Equal(2, damage.Length);
-        Assert.Equal(pending.Exchange.DamageToTarget, damage.Single(e => e.AttackerId == 1).SoldierLoss);
-        Assert.Equal(pending.Exchange.DamageToSource, damage.Single(e => e.AttackerId == 2).SoldierLoss);
     }
 
     [Fact]
@@ -207,8 +170,7 @@ public sealed class DuelCombatIntegrationTests
         Assert.Equal(automatic ? 23 : 21, engine.Snapshot.Forces.Single(f => f.Id == 2).LeaderId);
         Assert.Equal(OfficerStatus.Dead, engine.Snapshot.Officers.Single(p => p.Id == 22).Status);
         Assert.Equal(deathRandom, engine.Snapshot.Simulation.RandomStreams.Single(s => s.Name == "duel-death"));
-        Assert.Empty(arrival.Events.OfType<BattleDamageEvent>());
-        Assert.Equal(new[] { 1, 2 }, result.Events.OfType<BattleDamageEvent>().Where(e => e.Clock.Day == 2).Select(e => e.AttackerId).Order());
+        Assert.DoesNotContain(result.Events.OfType<BattleDamageEvent>(), e => e.Clock.Day == 2);
         Assert.DoesNotContain(result.Events.OfType<DuelStartedEvent>(), e => e.Clock.Day == 2);
         Assert.Single(result.Events.OfType<DuelCompletedEvent>(), e => e.Clock.Day == 2);
         Assert.Equal(10, arrival.Events.Concat(result.Events).OfType<StageCompletedEvent>().Count(e => e.Stage == ResolutionStage.DailyMapUpdate));

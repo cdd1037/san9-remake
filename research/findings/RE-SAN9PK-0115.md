@@ -10,6 +10,8 @@
 - 前置记录：[RE-SAN9PK-0067](RE-SAN9PK-0067.md)、[RE-SAN9PK-0070](RE-SAN9PK-0070.md)、[RE-SAN9PK-0089](RE-SAN9PK-0089.md)、[RE-SAN9PK-0102](RE-SAN9PK-0102.md)、[RE-SAN9PK-0113](RE-SAN9PK-0113.md)、[RE-SAN9PK-0114](RE-SAN9PK-0114.md)
 - IDA 写入计划：[`alienate-burn-seize-gossip-lifecycle-batch-1.json`](../archive/ida-write-records/alienate-burn-seize-gossip-lifecycle-batch-1.json)
 
+2026-10-24补证：“阿会喃系统”在当前繁中样本的离间链表现为人物编号保序与首个可行目标短路，而非运行时姓名比较；修正前重制也有同类低ID偏向，后续v184已按[B18](../../specs/original-ai/behavior.md#b18)采用独立规划随机线性洗牌。原作证据、重制核对、版本限制及两项IDA注释回读见[原版AI权威研究](../ai.md#akainan-target-order)。
+
 ## 对象、状态、输入、输出与不变量
 
 对象是交互/自动 code 29 离间、code 30 烧夷、code 31 夺取、code 32 流言、执行人物、来源部队、人物/地域建筑/势力目标和类型 29..32 命令事件。输入包括人物当前有效智力或武力、目标人物原始字段与忠诚写回入口、建筑耐久与部队兵力/伤兵、势力资金与关系、稳定随机种子及提交时保存的 `0..99` 结果。输出包括人物忠诚/伤病/所属变化、建筑耐久、兵粮、资金、宝物持有者、势力关系、能力成长、策略熟练度和任务占用。

@@ -39,8 +39,15 @@ internal sealed partial class OriginalAiActions
                         u.Morale >= 25 && u.Order?.Kind != MilitaryOrderKind.Transport && military.Capacity(u) >= (long)u.Soldiers + 3000)
                     .OrderBy(u => u.Soldiers).Select(u => new Target(u.Id)).ToArray();
             case OriginalAiWork.Alienate:
-                return World.Officers.Where(p => p.OwnerId == opponent && p.IsVisible && p.IsServing && !p.IsDormant &&
+                var targets = World.Officers.Where(p => p.OwnerId == opponent && p.IsVisible && p.IsServing && !p.IsDormant &&
                     p.Loyalty >= 70 && Ability(p).Intelligence <= 90).Select(p => new Target(p.Id)).ToArray();
+                // Remove record-order bias before the existing first-feasible-target selection.
+                for (int i = targets.Length - 1; i > 0; i--)
+                {
+                    int selected = random.Next(i + 1);
+                    (targets[i], targets[selected]) = (targets[selected], targets[i]);
+                }
+                return targets;
             case OriginalAiWork.Burn:
             case OriginalAiWork.Seize:
                 if (forces.FirstOrDefault(f => f.Id == opponent)?.IsBarbarian != false) return [];

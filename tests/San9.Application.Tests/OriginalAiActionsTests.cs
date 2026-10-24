@@ -8,7 +8,7 @@ using San9.Tests;
 
 namespace San9.Application.Tests;
 
-public sealed class OriginalAiActionsTests
+public sealed partial class OriginalAiActionsTests
 {
     private static ScenarioInitialState Fixture()
     {

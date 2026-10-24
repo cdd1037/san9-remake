@@ -15,6 +15,7 @@
 | 数据库 | 样本 |
 | --- | --- |
 | `San9PK-TC-101.i64`（默认） | `SRC-SAN9PK-TC-101` |
+| `San9PK-JP-130.i64` | `SRC-SAN9PK-JP-130`，日版定向对照，不替代默认繁中库 |
 | `SanCalc-SAN9TC-001.i64` | `SRC-SANCALC-SAN9TC-001` |
 | `KOEIGrpX-SAN9TC-001.i64` | `SRC-KOEIGRPX-SAN9TC-001` |
 | `KoeiWma-SAN9TC-001.i64` | `SRC-KOEIWMA-SAN9TC-001` |

@@ -35,6 +35,7 @@ public sealed class BattleZoomPlayback
     private readonly ImmutableArray<double> _waves;
     private readonly ImmutableArray<int> _combatPhases;
     private readonly ImmutableArray<double> _damageStarts;
+    private readonly ImmutableArray<(double Start, double End)> _continuousFire = [];
     public ImmutableArray<BattleZoomLocalCue> LocalEffects { get; }
     public double FightStop { get; }
 
@@ -58,7 +59,7 @@ public sealed class BattleZoomPlayback
             double dx = targetX - x, dy = targetY - y;
             double travel = Math.Max(4, Math.Floor(Math.Sqrt(dx * dx + 4 * dy * dy) / 32)) * sprite.FrameMilliseconds / 1000.0;
             projectiles.Add(new(start, start + travel, x, y, targetX, targetY)
-            { Path = BattleProjectilePath.Prepare(x, y, targetX, targetY, (int)Math.Round(travel * 1000 / sprite.FrameMilliseconds), sprite.FrameMilliseconds == 32, next) });
+            { Path = BattleProjectilePath.Prepare(x, y, targetX, targetY, (int)Math.Round(travel * 1000 / sprite.FrameMilliseconds), definition.Source.ProjectileArcHeight, next) });
         }
         if (action.Kind == BattleZoomActionKind.Melee)
         {
@@ -76,44 +77,62 @@ public sealed class BattleZoomPlayback
             ActionEnd = Source.Select((m, i) => SourceReset(m, i)).DefaultIfEmpty(FightStop).Max();
             sounds.Add(new(0, definition.AdvanceSound)); sounds.Add(new(FightStart, definition.AttackSound));
         }
-        else if (action.Kind == BattleZoomActionKind.Volley)
+        else if (action.Kind is BattleZoomActionKind.Volley or BattleZoomActionKind.ContinuousVolley)
         {
             double time = 0;
+            bool continuous = action.Kind == BattleZoomActionKind.ContinuousVolley;
+            var members = Enumerable.Range(0, Source.Length).ToArray();
+            var groups = members.GroupBy(i => Source[i].Group).OrderBy(g => g.Key).Select(g => g.ToArray()).ToArray();
+            var targets = Target.ToArray();
+            var targetBands = targets.GroupBy(m => m.Band).ToDictionary(g => g.Key, g => g.ToArray());
+            var body = definition.Source;
+            int count = action.ProjectilesPerMember > 1 ? action.ProjectilesPerMember : body.Projectiles * action.ProjectileMultiplier;
             int batch = action.AlternateGroups ? Math.Max(1, Source.Length / 2) : Math.Max(1, Source.Length);
-            int[] selected = Enumerable.Range(0, Source.Length).ToArray();
-            for (int remaining = action.Rounds; remaining > 0; remaining--)
+            for (int round = 0; round < action.Rounds; round++)
             {
+                var candidates = members;
+                if (action.AlternateGroups && groups.Length > 0 && (continuous || round > 0))
+                    candidates = groups[(continuous ? round : round - 1) % groups.Length];
+                int[] selected = [.. candidates];
                 for (int i = selected.Length - 1; i > 0; i--)
                 { int other = next(i + 1); (selected[i], selected[other]) = (selected[other], selected[i]); }
-                for (int start = 0; start < selected.Length; start += batch)
+                time += action.IntervalMilliseconds / 1000.0;
+                for (int i = 0; i < selected.Length; i++)
                 {
-                    time += action.IntervalMilliseconds / 1000.0;
-                    foreach (int index in selected.Skip(start).Take(batch))
+                    if (!continuous && i > 0 && i % batch == 0) time += action.MovementFrameMilliseconds / 1000.0;
+                    int index = selected[i];
+                    shots.Add(new(time, index));
+                    if (definition.Projectile is not { } projectile || targets.Length == 0) continue;
+                    var member = Source[index];
+                    var band = targetBands.GetValueOrDefault(member.Band, targets);
+                    for (int arrow = 0; arrow < count; arrow++)
                     {
-                        shots.Add(new(time, index));
-                        if (definition.Projectile is not { } projectile || Target.Length == 0) continue;
-                        var member = Source[index]; var body = definition.Source;
-                        int count = action.ProjectilesPerMember > 1 ? action.ProjectilesPerMember : body.Projectiles * action.ProjectileMultiplier;
-                        for (int arrow = 0; arrow < count; arrow++)
-                        {
-                            var candidates = Target.Where(m => m.Band == member.Band).ToArray();
-                            var target = candidates.Length > 0 ? candidates[next(candidates.Length)] : Target[next(Target.Length)];
-                            double x = member.X + body.ImpactX + next(Math.Max(1, body.ImpactX / 2)) - body.ImpactX / 4;
-                            double y = member.Y + body.ImpactY + next(Math.Max(1, body.ImpactY / 2)) - body.ImpactY / 4;
-                            int emitFrame = body.ProjectileStartFrame;
-                            if (next(100) >= 50) { emitFrame++; if (next(100) >= 75) emitFrame++; }
-                            double startTime = time + emitFrame * action.MovementFrameMilliseconds / 1000.0 + (30 + next(3) * 20) / 1000.0;
-                            Projectile(startTime, x, y, target, projectile);
-                        }
+                        var target = band[next(band.Length)];
+                        double x = member.X + body.ImpactX + next(Math.Max(1, body.ImpactX / 2)) - body.ImpactX / 4;
+                        double y = member.Y + body.ImpactY + next(Math.Max(1, body.ImpactY / 2)) - body.ImpactY / 4;
+                        int emitFrame = body.ProjectileStartFrame;
+                        if (next(100) >= 50) { emitFrame++; if (next(100) >= 75) emitFrame++; }
+                        double startTime = time + (emitFrame + (continuous ? arrow : 0)) * action.MovementFrameMilliseconds / 1000.0 + (30 + next(3) * 20) / 1000.0;
+                        Projectile(startTime, x, y, target, projectile);
                     }
                 }
-                // Native rounds end at the next empty firing pulse, then play their impact sound 500 ms later.
-                time += action.IntervalMilliseconds / 1000.0;
                 sounds.Add(new(time + .5, definition.AttackSound));
-                selected = Enumerable.Range(0, Source.Length).Where(i => !action.AlternateGroups || Source[i].Group == (remaining - 1) % 2).ToArray();
             }
             FightStart = shots.Select(s => s.Time).DefaultIfEmpty(0).Min();
             ActionEnd = Math.Max(time + action.RecoveryMilliseconds / 1000.0, projectiles.Select(p => p.End).DefaultIfEmpty(0).Max());
+            if (body.Ranged is { } ranged)
+            {
+                double cycle = ranged.Columns * action.MovementFrameMilliseconds / 1000.0;
+                var firingWindows = Enumerable.Repeat((Start: double.PositiveInfinity, End: double.NegativeInfinity), Source.Length).ToArray();
+                foreach (var firing in shots.GroupBy(s => s.Member))
+                {
+                    double start = firing.First().Time, end = firing.Last().Time + cycle;
+                    if (continuous) end = start + Math.Ceiling((end - start) / cycle - 1e-9) * cycle;
+                    firingWindows[firing.Key] = (start, end);
+                    ActionEnd = Math.Max(ActionEnd, end);
+                }
+                if (continuous) _continuousFire = firingWindows.ToImmutableArray();
+            }
         }
         else
         {
@@ -233,10 +252,22 @@ public sealed class BattleZoomPlayback
                     if (elapsed < FeedbackStart + duration) { sprite = body.Advance ?? body.Idle; combatFrame = null; age = elapsed - FeedbackStart; milliseconds = body.Motion.ExitFrameMilliseconds; }
                 }
             }
-            else if (action.Kind == BattleZoomActionKind.Volley && body.Ranged is { } ranged)
+            else if (action.Kind is BattleZoomActionKind.Volley or BattleZoomActionKind.ContinuousVolley && body.Ranged is { } ranged)
             {
-                var shot = Shots.LastOrDefault(s => s.Member == i && elapsed >= s.Time && elapsed < s.Time + ranged.Columns * action.MovementFrameMilliseconds / 1000.0);
-                if (shot is not null) { sprite = ranged; age -= shot.Time; milliseconds = action.MovementFrameMilliseconds; }
+                double? start;
+                if (action.Kind == BattleZoomActionKind.ContinuousVolley)
+                {
+                    var window = _continuousFire[i];
+                    start = elapsed >= window.Start && elapsed < window.End ? window.Start : null;
+                }
+                else start = Shots.LastOrDefault(s => s.Member == i && elapsed >= s.Time && elapsed < s.Time + ranged.Columns * action.MovementFrameMilliseconds / 1000.0)?.Time;
+                if (start is { } firingStart)
+                {
+                    sprite = ranged;
+                    age -= firingStart;
+                    milliseconds = action.MovementFrameMilliseconds;
+                    combatFrame = (int)(age * 1000 / milliseconds) % ranged.Columns;
+                }
             }
             var current = Frame(sprite, member, x, y, age, milliseconds);
             yield return combatFrame is int phase ? current with { Frame = phase } : current;
@@ -423,7 +454,8 @@ public sealed class BattleZoomPlayback
                 for (double t = 0; t < travel; t += action.MovementFrameMilliseconds / 1000.0)
                     foreach (var effect in Definition.WaveEffects)
                         Emit(effect, start + t, action.WaveStartX + (action.WaveEndX - action.WaveStartX) * t / travel,
-                            action.WaveStartY + (action.WaveEndY - action.WaveStartY) * t / travel, action.WaveStartY - 1);
+                            action.WaveStartY + (action.WaveEndY - action.WaveStartY) * t / travel,
+                            action.WaveStartY + (action.WaveEndY - action.WaveStartY) * t / travel - 1);
         }
         for (int i = 0; i < Target.Length; i++)
             if (double.IsFinite(_damageStarts[i]))

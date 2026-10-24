@@ -5,16 +5,16 @@ namespace San9.Rendering;
 public sealed record BattleProjectileFrame(double X, double Y, int Direction);
 public static class BattleProjectilePath
 {
-    public static ImmutableArray<BattleProjectileFrame> Prepare(double x, double y, double targetX, double targetY, int steps, bool flat, Func<int, int> next)
+    public static ImmutableArray<BattleProjectileFrame> Prepare(double x, double y, double targetX, double targetY, int steps, double arcHeight, Func<int, int> next)
     {
         var frames = ImmutableArray.CreateBuilder<BattleProjectileFrame>(steps + 1);
         double dx = targetX - x, dy = targetY - y;
         double span = Math.Max(4, Math.Sqrt(dx * dx + 4 * dy * dy));
+        double lift = span / 8 * arcHeight * (80 + next(41)) / 100;
         for (int i = 0; i <= steps; i++)
         {
             double t = i / (double)steps;
-            double lift = (flat ? .5 : span / 8) * (80 + next(41)) / 100;
-            double slope = dy / 2 - 4 * lift * (1 - 2 * t);
+            double slope = dy - 4 * lift * (1 - 2 * t);
             frames.Add(new(Math.Truncate(x + dx * t), Math.Truncate(y + dy * t - 4 * lift * t * (1 - t)), Direction(dx, slope)));
         }
         return frames.MoveToImmutable();

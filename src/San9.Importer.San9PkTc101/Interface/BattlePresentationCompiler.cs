@@ -65,6 +65,7 @@ internal static class BattlePresentationCompiler
                 ImpactY = type is 7 or 8 or 9 ? 50 : type is 13 or 14 or 19 or 20 ? 69 : type is 15 or 21 ? 100 : type is 16 or 22 ? 136 : 44,
                 Projectiles = type == 13 ? 2 : type == 15 ? 5 : type == 16 ? 8 : 1,
                 ProjectileStartFrame = type == 10 ? 4 : type == 12 ? 0 : 3,
+                ProjectileArcHeight = type == 10 || mode == 11 ? 0 : 1,
                 BlockPoints = Enumerable.Range(0, 3).Select(i => new BattlePoint(Int(blockTable - (3 - i) * 8), Int(blockTable + 4 - (3 - i) * 8))).ToArray()
             };
         }

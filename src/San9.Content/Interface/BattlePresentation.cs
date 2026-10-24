@@ -42,7 +42,7 @@ public sealed record BattleBodyMotion(BattlePoint[] FightingSteps, BattlePoint D
     public int ExitSpeed { get; init; } = 1;
     public int ExitFrameMilliseconds { get; init; } = 125;
 }
-public enum BattleZoomActionKind { Melee, Volley, AssaultWave }
+public enum BattleZoomActionKind { Melee, Volley, AssaultWave, ContinuousVolley }
 public sealed record BattleWaveEmission(BattlePoint[][] Origins, int ProjectilesPerOrigin,
     int FrameInterval, int MinimumDelayMilliseconds, int DelayStepMilliseconds);
 public sealed record BattleZoomAction(BattleZoomActionKind Kind)
@@ -89,6 +89,8 @@ public sealed record BattleZoomBody(BattleSprite Idle, BattleSprite? Attack, Bat
     public int ImpactY { get; init; } = 44;
     public int Projectiles { get; init; } = 1;
     public int ProjectileStartFrame { get; init; } = 3;
+    [System.Text.Json.Serialization.JsonRequired]
+    public double ProjectileArcHeight { get; init; } = 1;
     [System.Text.Json.Serialization.JsonRequired]
     public BattlePoint[] BlockPoints { get; init; } = [];
 }
@@ -188,7 +190,8 @@ public sealed record BattlePresentationDefinition(Dictionary<string, DecisionMes
                 throw new InvalidDataException("Invalid battle body motion.");
             foreach (var effect in body.Effects.Concat(body.DamageEffects)) LocalEffect(effect);
             if (body.Formation.Any(line => line.Count <= 0 || line.Group < 0 || line.Jitter < 0) ||
-                body.Projectiles <= 0 || body.ProjectileStartFrame is < 0 or > 5 || body.BlockPoints.Length == 0)
+                body.Projectiles <= 0 || body.ProjectileStartFrame is < 0 or > 5 ||
+                !double.IsFinite(body.ProjectileArcHeight) || body.ProjectileArcHeight < 0 || body.BlockPoints.Length == 0)
                 throw new InvalidDataException("Invalid battle body layout.");
         }
         void LocalEffect(BattleLocalEffect effect)

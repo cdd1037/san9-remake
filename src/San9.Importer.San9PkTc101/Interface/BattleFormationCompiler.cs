@@ -63,13 +63,15 @@ internal static class BattleFormationCompiler
             WaveEmission = new([[new(43,19),new(65,47)],[new(79,13),new(24,50)]],
                 mode == 7 ? 2 : 3, 2, mode == 7 ? 30 : 45, mode == 7 ? 20 : 30)
         },
-        6 or 9 or 10 or 11 or 12 or 13 => new(BattleZoomActionKind.Volley)
+        11 => new(BattleZoomActionKind.ContinuousVolley)
         {
-            Rounds = mode == 11 ? 8 : 4, IntervalMilliseconds = mode == 11 ? 550 : 1100,
-            RecoveryMilliseconds = mode == 11 ? 1100 : 2200, AlternateGroups = mode is 10 or 11,
-            ProjectilesPerMember = mode == 10 ? 3 : mode == 11 ? 2 : 1,
-            ProjectileMultiplier = mode == 13 ? 3 : 1,
-            MovementFrameMilliseconds = mode == 11 ? 64 : 125
+            Rounds = 24, IntervalMilliseconds = 128, RecoveryMilliseconds = 0,
+            AlternateGroups = true, ProjectilesPerMember = 2, MovementFrameMilliseconds = 64
+        },
+        6 or 9 or 10 or 12 or 13 => new(BattleZoomActionKind.Volley)
+        {
+            AlternateGroups = mode == 10, ProjectilesPerMember = mode == 10 ? 3 : 1,
+            ProjectileMultiplier = mode == 13 ? 3 : 1
         },
         _ => new(BattleZoomActionKind.Melee)
         {

@@ -41,9 +41,9 @@ public sealed class BattleFormationCompilerTests
     {
         Assert.Equal(BattleZoomActionKind.Melee, BattleFormationCompiler.Action(14).Kind);
         Assert.Equal(BattleZoomActionKind.AssaultWave, BattleFormationCompiler.Action(7).Kind);
-        Assert.Equal(BattleZoomActionKind.Volley, BattleFormationCompiler.Action(11).Kind);
+        Assert.Equal(BattleZoomActionKind.ContinuousVolley, BattleFormationCompiler.Action(11).Kind);
         Assert.True(BattleFormationCompiler.Action(11).AlternateGroups);
-        Assert.Equal(8, BattleFormationCompiler.Action(11).Rounds);
+        Assert.True(BattleFormationCompiler.Action(11).IntervalMilliseconds < BattleFormationCompiler.Action(10).IntervalMilliseconds);
     }
 
     [Theory]

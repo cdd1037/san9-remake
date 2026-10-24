@@ -71,7 +71,8 @@ public sealed class BattleZoomPlaybackTests
         Assert.Equal(4, scene.Sounds.Count(s => s.Role == "attack"));
         Assert.Equal("shoot", scene.SampleBodies(scene.Shots[0].Time + .1).First().Sprite.Asset);
         Assert.Empty(scene.SampleProjectiles(scene.ActionEnd));
-        Assert.True(scene.ActionEnd > 7.2);
+        Assert.All(scene.Shots.Select(s => s.Time).Distinct().Select((time, i) => (time, i)),
+            pulse => Assert.Equal((pulse.i + 1) * scene.Definition.Action.IntervalMilliseconds / 1000.0, pulse.time, 6));
     }
 
     [Fact]
@@ -81,8 +82,69 @@ public sealed class BattleZoomPlaybackTests
         { Source = Definition(new(BattleZoomActionKind.Volley)).Source with { Formation = [new(200, 300, 24, 12, 12, 0, 0), new(300, 200, 24, 12, 12, 1, 0), new(400, 100, 24, 12, 12, 2, 0)] } };
         var scene = new BattleZoomPlayback(definition, false, 500, _ => 0, "hit", "block");
         Assert.Equal(72, scene.Shots.Length);
-        Assert.Equal(12, scene.Shots.Count(s => scene.Source[s.Member].Group == 2));
+        Assert.All(scene.Source.Select(m => m.Group).Distinct(), group =>
+            Assert.Equal(24, scene.Shots.Count(s => scene.Source[s.Member].Group == group)));
         Assert.True(scene.Projectiles.Length > scene.Shots.Length);
+    }
+
+    [Fact]
+    public void ContinuousVolleyCyclesEveryGroupWithoutInterruptingTheArrowStream()
+    {
+        var action = new BattleZoomAction(BattleZoomActionKind.ContinuousVolley)
+        { Rounds = 24, IntervalMilliseconds = 128, MovementFrameMilliseconds = 64, AlternateGroups = true, ProjectilesPerMember = 2, RecoveryMilliseconds = 0 };
+        var definition = Definition(action);
+        definition = definition with { Source = definition.Source with
+        {
+            ProjectileStartFrame = 0, ProjectileArcHeight = 0,
+            Formation = [new(100, 200, 0, 0, 1, 0, 0), new(100, 200, 0, 0, 1, 1, 0), new(100, 200, 0, 0, 1, 2, 0)]
+        } };
+        var scene = new BattleZoomPlayback(definition, false, 500, _ => 0, "hit", "block");
+        Assert.All(Enumerable.Range(0, scene.Source.Length), i => Assert.Equal(8, scene.Shots.Count(s => s.Member == i)));
+        var launches = scene.Projectiles.Select(p => p.Start).Distinct().Order().ToArray();
+        Assert.All(launches.Zip(launches.Skip(1)), pair =>
+            Assert.InRange(pair.Second - pair.First, 0, action.IntervalMilliseconds / 1000.0 + 1e-9));
+        for (double time = scene.Projectiles[0].Start; time < scene.Projectiles[^1].Start; time += .064)
+            Assert.NotEmpty(scene.SampleProjectiles(time));
+        Assert.All(scene.Projectiles, p => Assert.True(p.End <= scene.FeedbackStart));
+        Assert.Empty(scene.SampleProjectiles(scene.ActionEnd));
+        Assert.Equal(scene.SampleProjectiles(.5), scene.SampleProjectiles(.5));
+        Assert.DoesNotContain(scene.SampleBodies(scene.FeedbackStart), frame => frame.Sprite.Asset == "shoot");
+    }
+
+    [Fact]
+    public void ShootingStartsAtFrameZeroRegardlessOfTheIdlePhase()
+    {
+        var definition = Definition(new(BattleZoomActionKind.Volley));
+        var scene = new BattleZoomPlayback(definition, false, 500, n => n - 1, "hit", "block");
+        Assert.NotEqual(0, scene.Source[0].Frame);
+        var shot = scene.Shots.First(s => s.Member == 0);
+        var frame = scene.SampleBodies(shot.Time + .001).First();
+        Assert.Equal("shoot", frame.Sprite.Asset);
+        Assert.Equal(0, frame.Frame);
+        Assert.Equal(definition.Source.ProjectileStartFrame,
+            scene.SampleBodies(shot.Time + definition.Source.ProjectileStartFrame * .125 + .001).First().Frame);
+    }
+
+    [Theory]
+    [InlineData(BattleZoomActionKind.Volley)]
+    [InlineData(BattleZoomActionKind.ContinuousVolley)]
+    public void RangedActionsCompleteTheirBodyCycleBeforeFeedbackWithoutRecovery(BattleZoomActionKind kind)
+    {
+        var action = new BattleZoomAction(kind)
+        { Rounds = 3, IntervalMilliseconds = 128, MovementFrameMilliseconds = 64, AlternateGroups = true, ProjectilesPerMember = 2, RecoveryMilliseconds = 0 };
+        var definition = Definition(action);
+        definition = definition with
+        {
+            Source = definition.Source with { Formation = [new(100, 200, 0, 0, 1, 4, 0)], ProjectileStartFrame = 0 },
+            Target = definition.Target with { Formation = [new(130, 200, 0, 0, 1, 0, 0)] },
+            Projectile = definition.Projectile! with { FrameMilliseconds = 32 }
+        };
+        var scene = new BattleZoomPlayback(definition, false, 500, _ => 0, "hit", "block");
+        var last = scene.SampleBodies(scene.ActionEnd - .001).First();
+        Assert.Equal("shoot", last.Sprite.Asset);
+        Assert.Equal(last.Sprite.Columns - 1, last.Frame);
+        Assert.Equal("idle", scene.SampleBodies(scene.ActionEnd).First().Sprite.Asset);
+        Assert.All(scene.Projectiles, p => Assert.True(p.End <= scene.FeedbackStart));
     }
 
     [Theory]
@@ -217,12 +279,26 @@ public sealed class BattleZoomPlaybackTests
     [Fact]
     public void ProjectileCurvesReachBothEndpointsAndKeepPreparedDirections()
     {
-        var curve = BattleProjectilePath.Prepare(100, 200, 500, 100, 12, false, _ => 0);
+        var curve = BattleProjectilePath.Prepare(100, 200, 500, 100, 12, 1, _ => 0);
         Assert.Equal((100d, 200d), (curve[0].X, curve[0].Y));
         Assert.Equal((500d, 100d), (curve[^1].X, curve[^1].Y));
         Assert.True(curve[6].Y < 150);
+        Assert.Equal(BattleProjectilePath.Direction(400, -100), curve[6].Direction);
         Assert.NotEqual(curve[0].Direction, curve[^1].Direction);
         Assert.All(curve, f => Assert.InRange(f.Direction, 0, 15));
+    }
+
+    [Theory]
+    [InlineData(100, 200)]
+    [InlineData(200, 100)]
+    public void DirectFireTracksTheElevationBetweenShooterAndTarget(int sourceY, int targetY)
+    {
+        int calls = 0;
+        var direct = BattleProjectilePath.Prepare(100, sourceY, 500, targetY, 12, 0, n => { calls++; return n - 1; });
+        Assert.Equal(1, calls);
+        Assert.Equal((sourceY + targetY) / 2d, direct[6].Y);
+        Assert.Single(direct.Select(f => f.Direction).Distinct());
+        Assert.All(direct, f => Assert.InRange(f.Y, Math.Min(sourceY, targetY), Math.Max(sourceY, targetY)));
     }
 
     [Fact]
@@ -237,5 +313,23 @@ public sealed class BattleZoomPlaybackTests
         Assert.All(frames.Where(f => f.Depth is not null), f =>
         { Assert.True(f.X > main.X); Assert.InRange(f.Opacity, 0, 96 / 256f); });
         Assert.DoesNotContain(scene.SampleBodies(scene.Duration), f => f.Sprite.Asset == "wave");
+    }
+
+    [Fact]
+    public void MovingWaveDustUsesTheCurrentWaveDepth()
+    {
+        var definition = Definition(new(BattleZoomActionKind.AssaultWave) { Rounds = 1 });
+        definition = definition with
+        {
+            Source = definition.Source with { Formation = [] },
+            WaveEffects = [new(new("dust", 4, 100), [new(10, 20)], 100, true, false)]
+        };
+        var scene = new BattleZoomPlayback(definition, false, 500, _ => 0, "hit", "block");
+        Assert.NotEmpty(scene.LocalEffects);
+        Assert.All(scene.LocalEffects, cue =>
+        {
+            var wave = Assert.Single(scene.SampleBodies(cue.Start), f => f.Sprite.Asset == "wave" && f.Depth is null);
+            Assert.Equal(wave.Y - 1, cue.Depth, 6);
+        });
     }
 }

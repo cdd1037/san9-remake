@@ -1,4 +1,3 @@
-using San9.Application.Presentation;
 using San9.Content.Interface;
 using San9.Content.Maps;
 using San9.Rendering;
@@ -19,7 +18,7 @@ internal sealed partial class MapScene
     {
         if (previous is null || !ReferenceEquals(previous.Map, Map)) return;
         _retirements.AddRange(previous._retirements.Where(r => !r.IsComplete(MotionVisualTime)));
-        if (Day?.Battle is not {} battle || MapFrame is null) return;
+        if (Day?.Battle is not {} battle || MapFrame is null || Day.Viewport?.Invoke() is not {} viewport) return;
         var due = battle.MapChanges.Where(c => c.Retirement is not null &&
             MapFrame.RemovedUnits.Contains(c.Retirement.UnitId) && previous._unitStates.ContainsKey(c.Retirement.UnitId));
         foreach (var cue in due)
@@ -28,7 +27,7 @@ internal sealed partial class MapScene
             string id = $"retirement:{Day.Before.World.Revision}:{cue.FactIndex}";
             if (_retirements.Any(r => r.Id == id)) continue;
             var point = fact.Target.Position is {} position ? previous.Project(position.X, position.Y) : default;
-            if (Day.Viewport?.Invoke() is not {} viewport || !viewport.ContainsBody(new(point.X, point.Y))) continue;
+            if (!viewport.ContainsBody(new(point.X, point.Y))) continue;
             previous.AdvanceUnitPlayback();
             var state = previous._stateSampler(fact.UnitId, previous.LocalMotionTime)!;
             var retirement = new UnitRetirementPlayback(id, MotionVisualTime, state, previous._unitPlayback[fact.UnitId],

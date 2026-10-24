@@ -42,6 +42,7 @@ public sealed class UnitRetirementPlaybackTests
         Assert.DoesNotContain(retirement.Sample(1499), s => s.ClipId == "splash");
         Assert.Equal(2, retirement.Sample(1500).Count(s => s.ClipId == "splash"));
         Assert.Contains(retirement.Sample(2000), s => s.IsBody && s.Opacity is > 0 and < 1);
+        Assert.Equal(.9, retirement.Sample(1900).First(s => s.IsBody).Opacity, 6);
         Assert.Empty(retirement.TakeSounds(1499, Audio));
         Assert.Equal("defeat", Assert.Single(retirement.TakeSounds(1500, Audio)).Role);
         Assert.Empty(retirement.TakeSounds(1500, Audio));
@@ -56,10 +57,26 @@ public sealed class UnitRetirementPlaybackTests
     {
         var state = UnitVisualFixture.State with { Soldiers = 1001, Morale = 0, Direction = 3 };
         var motion = new UnitMotionPlayback(); motion.Begin(state, Catalog, 0, 0, false);
+        motion.PlayAttack(new("counterattack", UnitVisualAction.Melee, 6, 0, 1000, 0));
         var defeated = new UnitRetirementPlayback("defeat", 0, state, motion, Catalog, Clips, Assets, false, (_, _) => 1);
         var collapsed = new UnitRetirementPlayback("collapse", 0, state, motion, Catalog, Clips, Assets, true, (_, _) => 1);
-        Assert.All(defeated.Sample(0), s => Assert.Equal("retire-3", s.ClipId));
-        Assert.Contains(collapsed.Sample(0), s => s.ClipId != "retire-3");
+        Assert.All(defeated.Sample(0), s => Assert.Equal("retire-6", s.ClipId));
+        Assert.Contains(collapsed.Sample(0), s => s.ClipId != "retire-6");
         Assert.Equal(defeated.Sample(0).Select(s => (s.X, s.Y)), collapsed.Sample(0).Select(s => (s.X, s.Y)));
+    }
+
+    [Fact]
+    public void DetachedBodiesRetainSeasonalFramesForTheirAnimationAndEffect()
+    {
+        var state = UnitVisualFixture.State;
+        var clips = Clips;
+        clips["retire-0"] = clips["retire-0"] with { SeasonFrames = new()
+            { ["winter"] = Enumerable.Range(0, 8).Select(i => $"winter-{i}").ToArray() } };
+        clips["splash"] = clips["splash"] with { SeasonFrames = new() { ["winter"] = ["winter-splash-0", "winter-splash-1"] } };
+        var motion = new UnitMotionPlayback();
+        motion.Begin(state, Catalog, 0, 0, false);
+        var retirement = new UnitRetirementPlayback("defeat", 0, state, motion, Catalog, clips, Assets, false, (_, _) => 1);
+        Assert.All(clips["retire-0"].SeasonFrames["winter"].Concat(clips["splash"].SeasonFrames["winter"]),
+            frame => Assert.Contains(frame, retirement.Assets));
     }
 }

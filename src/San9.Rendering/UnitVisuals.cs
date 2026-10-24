@@ -89,7 +89,7 @@ public static class UnitVisuals
             playback.Begin(state, catalog, 0, 0, false);
         }
         double? attackAge = null;
-        if (playback.BodyAttack is { } attack && playback.VisualTime >= attack.Start + attack.Delay && playback.VisualTime < attack.Start + attack.Duration)
+        if (playback.ActiveAttack is { } attack)
         {
             state = state with { Action = attack.Action, Direction = attack.Direction };
             attackAge = playback.VisualTime - attack.Start - attack.Delay;

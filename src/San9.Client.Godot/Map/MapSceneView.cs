@@ -125,12 +125,13 @@ public partial class MapSceneView : Node2D
         _ui.RequestPrefixes("bar-", "icon-");
         _outlineMaterial = new ShaderMaterial { Shader = new Shader { Code = """
             shader_type canvas_item;
+            varying float opacity;
+            void vertex() { opacity = COLOR.a; }
             float solid(float alpha, vec2 uv) {
                 if (any(lessThan(uv, vec2(0.0))) || any(greaterThanEqual(uv, vec2(1.0)))) return 0.0;
                 return step(0.01, alpha);
             }
             void fragment() {
-                float opacity = COLOR.a;
                 vec2 p = TEXTURE_PIXEL_SIZE;
                 vec2 left = UV - vec2(p.x, 0), right = UV + vec2(p.x, 0);
                 vec2 above = UV - vec2(0, p.y), below = UV + vec2(0, p.y);

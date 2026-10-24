@@ -39,7 +39,7 @@ internal sealed partial class MapScene
                 .Concat(body.Trail is {} trail ? new[] { trail.ClipId } : []).Concat(body.Engagement.Select(e => e.ClipId))
                 .Concat(body.Retirement?.DirectionClips ?? [])
                 .Concat(body.Retirement?.Effect is {} effect ? new[] { effect.ClipId } : []))
-                foreach (string frame in Clips[clip].Frames) yield return frame;
+                foreach (string frame in Clips[clip].Frames.Concat(Clips[clip].SeasonFrames.Values.SelectMany(frames => frames))) yield return frame;
         int glyph = state.IsRulerCommander ? Map.Units.RulerFlagGlyph : state.Glyph;
         foreach (int direction in Enumerable.Range(0, 8))
             foreach (string idClip in FlagVisuals.Layers(direction, state.Color, glyph))

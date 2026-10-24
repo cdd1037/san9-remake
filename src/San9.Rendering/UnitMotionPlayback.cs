@@ -8,6 +8,8 @@ public sealed class UnitMotionPlayback
 {
     public sealed record Attack(string Id, UnitVisualAction Action, int Direction, double Start, double Duration, double Delay);
     public Attack? BodyAttack { get; private set; }
+    public Attack? ActiveAttack => BodyAttack is {} attack && _visualTime >= attack.Start + attack.Delay &&
+        _visualTime < attack.Start + attack.Duration ? attack : null;
     public void PlayAttack(Attack attack)
     {
         if (BodyAttack?.Id == attack.Id || BodyAttack is { } previous && previous.Start > attack.Start) return;

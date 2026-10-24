@@ -202,7 +202,7 @@ public static class ScenarioContentCompiler
                     BattleDeathsAllowed = header.ScenarioModeCode is not (2 or 9), DuelCapturesAllowed = header.ScenarioModeCode != 9 },
             Officers = officers, Units = units, Information = information, DomesticPairs = DomesticContentCompiler.Compile(persons),
             ImperialSealId = 79, ImperialCourt = ImperialCourtContentCompiler.Compile(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
-            ImperialCourtEnded = (header.ScenarioWorldFlagWords[0] & 1) != 0 };
+            ImperialCourtEnded = ImperialCourtContentCompiler.IsInitiallyEnded(header.ScenarioWorldFlagWords, header.StartDate) };
         snapshot = EventContentCompiler.InitializePenglai(snapshot);
         snapshot = InitialLeadershipCompiler.Compile(snapshot);
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);

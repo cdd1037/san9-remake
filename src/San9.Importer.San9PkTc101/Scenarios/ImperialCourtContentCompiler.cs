@@ -1,10 +1,19 @@
 using System.Collections.Immutable;
 using San9.Core.Domain;
+using San9.Core.Simulation;
 
 namespace San9.Importer.San9PkTc101.Scenarios;
 
 public static class ImperialCourtContentCompiler
 {
+    public static bool IsInitiallyEnded(IReadOnlyList<uint> flagWords, San9ScenarioDate startDate)
+    {
+        if (flagWords.Count != 4) throw new InvalidDataException("Expected four scenario flag words.");
+        // TC101 applies this start-date flag after loading the serialized flags (RE-SAN9PK-0023).
+        return (flagWords[0] & 1) != 0 ||
+            new GameClock(startDate.Year, startDate.Month, startDate.Day).DayNumber >= new GameClock(220, 10, 24).DayNumber;
+    }
+
     public static ImperialCourtDefinition Compile(byte mode, IReadOnlyList<San9ScenarioPersonRecord> people,
         IEnumerable<int> retainedOfficerIds)
     {

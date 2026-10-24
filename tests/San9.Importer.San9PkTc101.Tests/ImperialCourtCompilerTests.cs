@@ -5,6 +5,25 @@ namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class ImperialCourtCompilerTests
 {
+    [Theory]
+    [InlineData(190, 1, 1, 0u, false)]
+    [InlineData(190, 1, 1, 1u, true)]
+    [InlineData(220, 10, 23, 2u, false)]
+    [InlineData(220, 10, 24, 0u, true)]
+    [InlineData(220, 10, 25, 0u, true)]
+    [InlineData(225, 1, 1, 129342u, true)]
+    [InlineData(234, 1, 1, 129342u, true)]
+    [InlineData(281, 1, 1, 128830u, true)]
+    public void InitialCourtStateCombinesSerializedFlagWithScenarioStartDate(int year, int month, int day, uint flags, bool ended)
+    {
+        var court = ImperialCourtContentCompiler.Compile(1, [Person(563), Person(564), Person(565)], [0, 1, 2]);
+        bool actual = ImperialCourtContentCompiler.IsInitiallyEnded([flags, 0, 0, 0], new(year, month, day));
+        Assert.Equal(ended, actual);
+        var people = Enumerable.Range(0, 3).Select(id => new San9.Core.Domain.OfficerState(id, null, 15, new(0, 0, 0, 0), false)
+            { Status = San9.Core.Domain.OfficerStatus.Special });
+        Assert.Equal(ended ? (int?)null : 0, court.Resolve(actual, people)?.Id);
+    }
+
     private static San9ScenarioPersonRecord Person(ushort biography) => new(
         0, 6000, 0, 0, 0, 0, 0, biography, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         [], 0, 0, [], 0);

@@ -19,8 +19,10 @@ public sealed class TacticFormationTests
         mutation.SetSimulation(mutation.Simulation with { RandomStreams =
             [new("military-tactic-counter", TestSeeds.StateForRoll(roll))] });
         var target = new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 2 };
-        Assert.Equal(allowed ? true : (bool?)null, TacticCombat.PrepareOpportunity(mutation, 1, target, rules, [], true));
-        Assert.True(TacticCombat.PrepareOpportunity(mutation, 1, target, rules, [], false));
+        Assert.Equal(allowed ? true : (bool?)null, TacticCombat.PrepareOpportunity(mutation, 1, target, rules, [], true,
+            CombatExchange.Calculate(mutation, new(1, false), CombatExchange.TargetOf(target), rules.Military!)));
+        Assert.True(TacticCombat.PrepareOpportunity(mutation, 1, target, rules, [], false,
+            CombatExchange.Calculate(mutation, new(1, false), CombatExchange.TargetOf(target), rules.Military!)));
     }
 
     [Theory]
@@ -49,7 +51,8 @@ public sealed class TacticFormationTests
         mutation.SetSimulation(mutation.Simulation with { RandomStreams = [new("military-tactic-counter", counterState)] });
         var target = new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 2 };
 
-        Assert.Equal(allowed ? true : (bool?)null, TacticCombat.PrepareOpportunity(mutation, 1, target, rules, [], true));
+        Assert.Equal(allowed ? true : (bool?)null, TacticCombat.PrepareOpportunity(mutation, 1, target, rules, [], true,
+            CombatExchange.Calculate(mutation, new(1, false), CombatExchange.TargetOf(target), rules.Military!)));
         Assert.Equal(allowed, mutation.Simulation.RandomStreams.Single().State != counterState);
     }
 
@@ -89,8 +92,10 @@ public sealed class TacticFormationTests
         var originalOfficer = mutation.Officers[11];
         var target = new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 2 };
         List<DomainEvent> events = [];
-        Assert.Null(TacticCombat.PrepareOpportunity(mutation, 1, target, rules, events, false));
-        TacticCombat.ResolveOpportunity(mutation, 1, target, rules, events);
+        Assert.Null(TacticCombat.PrepareOpportunity(mutation, 1, target, rules, events, false,
+            CombatExchange.Calculate(mutation, new(1, false), CombatExchange.TargetOf(target), rules.Military!)));
+        TacticCombat.ResolveOpportunity(mutation, 1, target, rules, events,
+            CombatExchange.Calculate(mutation, new(1, false), CombatExchange.TargetOf(target), rules.Military!));
         TacticSupport.AdvanceDay(mutation, rules, events);
         Assert.Empty(events);
         Assert.Empty(mutation.Simulation.RandomStreams);

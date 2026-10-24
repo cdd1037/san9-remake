@@ -46,7 +46,8 @@ public sealed class MeleeDeathTests
         Roll(m, "military-tactic-double", gate == "not-doubled" ? 99u : 0u);
         Roll(m, "battle-melee-death", gate == "failed-roll" ? 25u : 0u);
         string before = CanonicalJson.Text(m.Simulation.RandomStreams.Single(s => s.Name == "battle-melee-death"));
-        TacticCombat.TryUnit(m, 1, Target, rules, events);
+        TacticCombat.TryUnit(m, 1, Target, rules, events,
+            CombatExchange.Calculate(m, new(1, false), CombatExchange.TargetOf(Target), rules.Military!));
         Assert.Single(events.OfType<TacticActivatedEvent>());
         Assert.False(m.Units.ContainsKey(2));
         Assert.Equal(dies, events.OfType<OfficerDiedEvent>().Any(e => e.OfficerId == 22 && e.Cause == OfficerDeathCause.Melee));
@@ -83,7 +84,8 @@ public sealed class MeleeDeathTests
         m.Replace(m.Units[2] with { Position = new(6, 7), Soldiers = 1 });
         m.Replace(m.Officers[22] with { BaseAbilities = new(40, 40, 40, 40) });
         Roll(m, "military-tactic-double", 0); Roll(m, "battle-melee-death", 0);
-        FacilityCombat.TryTactic(m, 1, Target, rules, events);
+        FacilityCombat.TryTactic(m, 1, Target, rules, events,
+            CombatExchange.Calculate(m, new(1, true), CombatExchange.TargetOf(Target), rules.Military!));
         Assert.Equal(OfficerDeathCause.Melee, Assert.Single(events.OfType<OfficerDiedEvent>()).Cause);
         world.Commit(m);
     }
@@ -96,7 +98,8 @@ public sealed class MeleeDeathTests
         m.Replace(m.Settlements[2] with { Soldiers = 1 });
         m.Replace(m.Officers[22] with { BaseAbilities = new(40, 40, 40, 40) });
         Roll(m, "military-tactic-double", 0);
-        TacticCombat.TryUnit(m, 1, new(MilitaryOrderKind.AttackSettlement, null, 2), rules, events);
+        TacticCombat.TryUnit(m, 1, new(MilitaryOrderKind.AttackSettlement, null, 2), rules, events,
+            CombatExchange.Calculate(m, new(1, false), new(2, true), rules.Military!));
         Assert.Equal(1, m.Settlements[2].OwnerId);
         Assert.DoesNotContain(events.OfType<OfficerDiedEvent>(), e => e.Cause == OfficerDeathCause.Melee);
         Assert.DoesNotContain(m.Simulation.RandomStreams, s => s.Name == "battle-melee-death");
@@ -126,7 +129,8 @@ public sealed class MeleeDeathTests
         m.Replace(m.Units[2] with { Soldiers = 1, MemberRanks = m.Units[2].MemberRanks.SetItem(22, BattleRank.Rear) });
         m.Replace(m.Officers[22] with { BaseAbilities = new(60, 40, 40, 40) });
         Roll(m, "military-tactic-double", 0); Roll(m, "battle-melee-death", 0);
-        TacticCombat.TryUnit(m, 1, Target, rules, events);
+        TacticCombat.TryUnit(m, 1, Target, rules, events,
+            CombatExchange.Calculate(m, new(1, false), CombatExchange.TargetOf(Target), rules.Military!));
         Assert.Equal(dies, events.OfType<OfficerDiedEvent>().Any(e => e.Cause == OfficerDeathCause.Melee));
         world.Commit(m);
     }
@@ -149,7 +153,8 @@ public sealed class MeleeDeathTests
         foreach (var (state, events) in new[] { (world, first), (restored, second) })
         {
             var m = state.BeginMutation(rules.Abilities);
-            TacticCombat.TryUnit(m, 1, Target, rules, events);
+            TacticCombat.TryUnit(m, 1, Target, rules, events,
+                CombatExchange.Calculate(m, new(1, false), CombatExchange.TargetOf(Target), rules.Military!));
             Assert.Equal(21, m.Treasures[99].HolderId);
             Assert.Equal(OfficerDeathCause.Melee, Assert.Single(events.OfType<OfficerDiedEvent>()).Cause);
             state.Commit(m);

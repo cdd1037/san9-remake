@@ -1,12 +1,12 @@
 # 战斗行为扩大核对（2026-10-24）
 
-**当前结论：已修复两类规则遗漏，另有两项已确认bug待修复。**已修项为目标变更生命周期及幻术／妖术次要对象外交筛选；后续专项确认普通分量重复（S1）、同轮防守兵法机会未短路（S2），用户已明确均按bug处理。另更正一处兵法规格中的旧状态表述。已采用差异、历史已修项和待验证线索分别维护。
+**当前结论：目标变更生命周期、幻术／妖术次要对象外交筛选，以及后续确认的普通分量重复（S1）、同轮防守兵法机会未短路（S2）均已修复。**S1／S2修复见[专项记录v187](2026-10-24-normal-attack-scheduling-audit.md#用户确认后的修复v187)。另更正一处兵法规格中的旧状态表述。已采用差异、历史已修项和待验证线索分别维护。
 
 作者Codex，日期2026-10-24，规则基线v179、交付v180。研究身份沿[SRC-SAN9PK-TC-101](../sources/SRC-SAN9PK-TC-101.md)：繁中PK1.0.1.0、x86、基址0x400000，EXE大小2636800、SHA-256 `d20794aeff67301ec2bf8c3becb1e9944c68c6c0588fbfd4bf04e8597f0e5028`，项目主库`research/analysis/San9PK-TC-101.i64`，IDA9.4／Hex-Rays9.4.0.260915。产品验证环境为Windows／.NET10。
 
-**普攻分类更正：**[专项调查](2026-10-24-normal-attack-scheduling-audit.md)闭合了原版兵法结果返回普通交战的分支。S1／S2状态均为已确认、待修复bug，撤销“是否保留待裁定”和整组调度后果属于已明确重制选择的表述。
+**普攻分类更正：**[专项调查](2026-10-24-normal-attack-scheduling-audit.md)闭合了原版兵法结果返回普通交战的分支。S1／S2确认为实现bug，已于v187修复；撤销“是否保留待裁定”和整组调度后果属于已明确重制选择的表述。
 
-**后续采用修正（v181）。**用户授权[合理性复审R1／R2／R3](2026-10-24-original-ai-rationality-review.md#用户确认后的实现v181)后，进攻估值与实际基础留兵统一，高昂返城队正常计入回援预算，目标变化不再清异常状态。v180的异常状态归一已被替代，外交目标复验仍保留。v181最终6113例通过，产物位于`local/generated/verification/rationality-fixes-20261024/`；S1／S2仍待修。
+**后续采用修正（v181）。**用户授权[合理性复审R1／R2／R3](2026-10-24-original-ai-rationality-review.md#用户确认后的实现v181)后，进攻估值与实际基础留兵统一，高昂返城队正常计入回援预算，目标变化不再清异常状态。v180的异常状态归一已被替代，外交目标复验仍保留。v181最终6113例通过，产物位于`local/generated/verification/rationality-fixes-20261024/`；S1／S2随后于v187独立修复。
 
 ## 已修复的遗漏
 
@@ -28,7 +28,7 @@ F1事实、原档时间线、调用链和实际回放见[袁绍背盟定向核�
 | --- | --- | --- | --- | --- |
 | 目标与外交 | 新敌人／己方／盟友／中立、请求保护、保存／临时目标、异常状态、强攻与处罚 | [RE-0119](../findings/RE-SAN9PK-0119.md)、[RE-0137](../findings/RE-SAN9PK-0137.md)、WAR-0001 | `MilitaryOrders`、`MilitaryDiplomacy`、各换属入口；生命周期、外交、方针测试 | F1已修；旬开始背盟处罚本身正确 |
 | 移动与接敌 | 陆水生效阵形、预算与余量、中继、接触／迎敌、碰撞、跨岸、强制返回 | WAR-0001、[寻路设计](../../specs/navigation-redesign.md)、[RE-0029](../findings/RE-SAN9PK-0029.md) | `MilitaryNavigation`、`MovementOccupancy`、`MilitaryContacts`、`MilitaryEngagements`、`UnitFormations`；Navigation、WaterCombatContact、Movement测试 | 未新增确认遗漏；几何与随机调度的明确选择保留 |
-| 普攻与反击 | 能否发起、混乱／溃败、反向射程、同时伤害、野战／设施、零守军、墙剩1门、单次强度修正 | [RE-0068](../findings/RE-SAN9PK-0068.md)、WAR-0002／0004 | `CombatMath`、`MilitaryCombat`、`FacilityCombat`；CombatMath、MilitaryCombat、FacilityCombat、OriginalCombatAlignment测试 | 后续专项确认S1／S2，均待修复；动态转攻后的日内次数仍待验证 |
+| 普攻与反击 | 能否发起、混乱／溃败、反向射程、同时伤害、野战／设施、零守军、墙剩1门、单次强度修正 | [RE-0068](../findings/RE-SAN9PK-0068.md)、WAR-0002／0004 | `CombatMath`、`MilitaryCombat`、`FacilityCombat`；CombatMath、MilitaryCombat、FacilityCombat、OriginalCombatAlignment测试 | 后续专项确认S1／S2，已于v187修复；动态转攻后的日内次数仍待验证 |
 | 射程与地理修正 | 高差、射台、落石传播／水域／障碍、船型限制、都市地利 | RE-0068、WAR-0004／0005 | `FacilityAttackRange`、`UnitRange`及当前地理查询；RockfallGeography、WaterCombatContact、CombatApproach测试 | 未新增确认遗漏；先前已修设施防守50%门仍在 |
 | 兵法资格与机会 | 建设／输送禁主动、健康／冷却、有效陆水阵、个人预选、船型先行后回退、防守50%、设施负责人 | [RE-0101](../findings/RE-SAN9PK-0101.md)、RE-0068、WAR-0005 | `TacticCombat`、`FacilityCombat`、`TacticFormation`；TacticFormation、NavalTacticOpportunity、TacticAvailability测试 | 未新增确认遗漏；旧研究中的来源用途／支援适配缺口已修，未重复报错 |
 | 武力／智力／支援效果 | 公式截断、连携与加倍、抵抗、状态、范围、攻心容量、鼓舞／治疗候选与恢复、成长 | RE-0068、RE-0101、[RE-0125](../findings/RE-SAN9PK-0125.md)、WAR-0005 | `TacticMath`、`IntelligenceTactics`、`TacticSupport`、`BattleLearning`、`TacticOccurrence`；TacticCombat、IntelligenceTactic、TacticLink、TrapGeography测试 | F2已修，D1文档更正；已采用差异见下节 |
@@ -42,7 +42,7 @@ F1事实、原档时间线、调用链和实际回放见[袁绍背盟定向核�
 
 以下均有现行规格依据，本次没有改回原版。列表只列本轮直接碰到、容易误报为遗漏的差别；完整采用行为仍由对应BEH维护。
 
-- [WAR-0004](../../specs/behavior/BEH-WAR-0004-normal-combat.md)：每日一次主动攻击，反击独立；武力兵法内嵌普攻不再插入额外反击；电脑强度每个伤害方向只修正一次。普通攻防统率取现场最高有效统率，不限主将。
+- [WAR-0004](../../specs/behavior/BEH-WAR-0004-normal-combat.md)：每日一次主动攻击，反击独立；电脑强度每个伤害方向只修正一次。普通攻防统率取现场最高有效统率，不限主将。
 - WAR-0001／0004：确定性的现代日级调度与独立导航随机；当前矩形、严格相交、接敌距离和水域连通规则，不声称复刻原作每个内部时间片或代理对象。
 - [WAR-0005](../../specs/behavior/BEH-WAR-0005-tactics.md)：武力兵法同类别可连携，允许不同名；加倍概率取成长前主发动者，不取原作参与列表末项。
 - WAR-0005：无驻将设施可受五种智力兵法；攻心超额回收目标地域都市兵役，不转伤兵；治疗保留高昂并取消独立到期扣士气标记。
@@ -60,4 +60,4 @@ F1事实、原档时间线、调用链和实际回放见[袁绍背盟定向核�
 - 原作侧为静态证据，不是同局面原游戏动态双端回放。完整原版调度次数、随机消费顺序、全部阵形×地形×目标组合的穷举、异常存档／强制内部调用不在“已等价”的结论内。
 - 战斗画面、声音、镜头和逐帧表现没有在本轮重新验收；现有消费者测试通过不能代替画面验收。育成、教学、挑战等未支持模式也未因本次战斗核对自动接入。
 
-当前已知未修复项为S1／S2，不将其归为保留差异；没有证据支持“所有原版战斗分支均已穷尽、完全一致”的声明。
+S1／S2已独立修复，不将旧错误归为保留差异；没有证据支持“所有原版战斗分支均已穷尽、完全一致”的声明。

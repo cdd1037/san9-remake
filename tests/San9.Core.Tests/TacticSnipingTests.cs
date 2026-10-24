@@ -135,7 +135,8 @@ public sealed class TacticSnipingTests
             if (settlement) m.Replace(m.Settlements[2] with { Soldiers = 1 });
             else m.Replace(m.Units[2] with { Soldiers = 1 });
         }
-        TacticCombat.TryUnit(m, 1, settlement ? PlaceTarget : UnitTarget, rules, events);
+        TacticCombat.TryUnit(m, 1, settlement ? PlaceTarget : UnitTarget, rules, events,
+            CombatExchange.Calculate(m, new(1, false), CombatExchange.TargetOf(settlement ? PlaceTarget : UnitTarget), rules.Military!));
         Assert.Single(events.OfType<TacticActivatedEvent>());
         var hit = Assert.Single(events.OfType<TacticSnipingResolvedEvent>());
         Assert.Equal(22, hit.OfficerId); Assert.Equal(hit.Injury, m.Officers[22].Injury);
@@ -175,7 +176,8 @@ public sealed class TacticSnipingTests
         m.RemoveUnit(1);
         m.Replace(m.Units[2] with { Position = new(6, 7) });
         Roll(m, "military-sniping", 49);
-        FacilityCombat.TryTactic(m, 1, UnitTarget, rules, events);
+        FacilityCombat.TryTactic(m, 1, UnitTarget, rules, events,
+            CombatExchange.Calculate(m, new(1, true), CombatExchange.TargetOf(UnitTarget), rules.Military!));
         Assert.Equal(11, Assert.Single(events.OfType<TacticSnipingResolvedEvent>()).ActorId);
         Assert.True(m.Officers[22].Injury > 0);
     }
@@ -190,7 +192,8 @@ public sealed class TacticSnipingTests
             TacticProficiencies = [0, 0, 0, 1000, 0, 0, 0, 0, 0] });
         m.Replace(m.Units[1] with { MemberRanks = m.Units[1].MemberRanks.Add(21, BattleRank.Middle) });
         m.Replace(m.Units[2] with { CommanderId = 22, MemberRanks = m.Units[2].MemberRanks.Remove(21) });
-        TacticCombat.TryUnit(m, 1, UnitTarget, rules, events);
+        TacticCombat.TryUnit(m, 1, UnitTarget, rules, events,
+            CombatExchange.Calculate(m, new(1, false), CombatExchange.TargetOf(UnitTarget), rules.Military!));
         Assert.Equal(new[] { 11, 21 }, Assert.Single(events.OfType<TacticActivatedEvent>()).Participants.Select(p => p.OfficerId));
         Assert.Equal(21, Assert.Single(events.OfType<TacticSnipingResolvedEvent>()).ActorId);
     }

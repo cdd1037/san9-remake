@@ -76,8 +76,8 @@ public sealed class FacilityCombatTests
         m.SetSimulation(m.Simulation with { RandomStreams =
             [new("military-tactic-counter", state), new("military-facility-tactic-opportunity", baseState)] });
         List<DomainEvent> events = [];
-        FacilityCombat.TryTactic(m, 1, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 },
-            new() { Military = military }, events, counter);
+        FacilityCombat.TryTactic(m, 1, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 }, new() { Military = military }, events,
+            CombatExchange.Calculate(m, new(1, true), new(1, false), military), counter);
         Assert.Equal(fires, events.OfType<TacticActivatedEvent>().Any());
         Assert.Equal(fires ? 3 : 0, m.Officers[11].TacticCooldown);
         Assert.Equal(counter && chance is > 0 and < 100, m.Simulation.RandomStreams.Single(r => r.Name == "military-tactic-counter").State != state);
@@ -106,7 +106,7 @@ public sealed class FacilityCombatTests
         Assert.All(activations, e => { Assert.True(e.SourceIsSettlement); Assert.Equal(1, e.SourceId); Assert.Equal(11, Assert.Single(e.Participants).OfficerId); });
         Assert.Null(engine.Snapshot.Officers.Single(p => p.Id == 11).EquippedTacticId);
         Assert.True(engine.Snapshot.Units.Single().Soldiers < 10000);
-        Assert.Equal(attacking ? 20 : 10, result.Events.OfType<BattleDamageEvent>().Count(e => e.AttackerIsSettlement && e.SoldierLoss == 0));
+        Assert.Equal(activations.Length, result.Events.OfType<BattleDamageEvent>().Count(e => e.AttackerIsSettlement && e.TacticId is not null));
     }
 
     [Theory]
@@ -243,8 +243,8 @@ public sealed class FacilityCombatTests
             { IsCommander = p.Id == appointed, TacticCooldown = p.Id == appointed ? cooldown : 0 }).ToArray() };
         var mutation = WorldState.Restore(snapshot).BeginMutation();
         List<DomainEvent> events = [];
-        FacilityCombat.TryTactic(mutation, 1, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 },
-            new SimulationRules { Military = military }, events);
+        FacilityCombat.TryTactic(mutation, 1, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 }, new SimulationRules { Military = military }, events,
+            CombatExchange.Calculate(mutation, new(1, true), new(1, false), military));
         var activations = events.OfType<TacticActivatedEvent>().ToArray();
         if (fires) Assert.Equal(appointed, Assert.Single(Assert.Single(activations).Participants).OfficerId);
         else Assert.Empty(activations);
@@ -271,7 +271,7 @@ public sealed class FacilityCombatTests
         var officersBefore = mutation.Officers;
         List<DomainEvent> events = [];
         FacilityCombat.TryTactic(mutation, 1, reason is "missing" or "support-empty" ? null :
-            new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 }, new() { Military = military }, events);
+            new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 }, new() { Military = military }, events, null);
         Assert.Empty(events);
         Assert.Equal(randomBefore, mutation.Simulation.RandomStreams);
         Assert.Same(officersBefore, mutation.Officers);

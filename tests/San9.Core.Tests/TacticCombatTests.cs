@@ -7,6 +7,33 @@ namespace San9.Core.Tests;
 
 public sealed class TacticCombatTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void EachInitiatedExchangeCommitsOnePairAndOneMartialResult(bool mutual)
+    {
+        var engine = Engine(counter: true, normalPower: true);
+        if (mutual)
+        {
+            var snapshot = engine.Snapshot;
+            engine = Engine(counter: true, normalPower: true, restoredState: snapshot with
+            {
+                Units = snapshot.Units.Select(u => u.Id == 1 ? u with
+                {
+                    Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 0 }
+                } : u).ToImmutableArray()
+            });
+        }
+        var facts = engine.AdvanceXun().Events.Where(e => e is TacticActivatedEvent { Clock.Day: 2 }
+            or BattleDamageEvent { Clock.Day: 2 }).ToArray();
+        Assert.Equal(mutual ? 6 : 3, facts.Length);
+        for (int round = 0; round < (mutual ? 2 : 1); round++)
+        {
+            Assert.Equal(round, Assert.IsType<TacticActivatedEvent>(facts[round * 3]).SourceId);
+            Assert.IsType<BattleDamageEvent>(facts[round * 3 + 1]);
+            Assert.IsType<BattleDamageEvent>(facts[round * 3 + 2]);
+        }
+    }
 
     [Theory]
     [InlineData(false)]

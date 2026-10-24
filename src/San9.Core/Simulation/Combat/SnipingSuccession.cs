@@ -13,8 +13,7 @@ public sealed record SnipingSuccessionRequestedEvent(GameClock Clock, int RulerI
 public sealed record TacticAftermathContinuation(BattleSource Source, MilitaryOrder Target, int TacticId,
     int? LearningTacticId, ImmutableArray<OfficerState> Members, ImmutableArray<int> Participants);
 public sealed record CombatExchangeContinuation(GameClock XunStarted, CombatDayContinuation Day,
-    BattleSource Source, BattleSource Target, ImmutableArray<int> AffectedForces, bool CounterPending,
-    int? PreviousSettlementOwnerId = null);
+    CombatExchangeState Combat, ImmutableArray<int> AffectedForces);
 public sealed record SnipingCombatDecision(int RulerId, int RespondingForceId,
     TacticAftermathContinuation? Tactic = null, CombatExchangeContinuation? Exchange = null);
 
@@ -48,14 +47,13 @@ internal static class SnipingSuccession
             exchange.Day.RemainingBuildings is { } buildings && !Ordered(buildings) ||
             !Ordered(exchange.AffectedForces) || exchange.AffectedForces.IsEmpty ||
             exchange.AffectedForces.Any(id => !world.Forces.ContainsKey(id)) ||
-            exchange.Source.IsSettlement && exchange.Target.IsSettlement ||
-            !exchange.Source.Exists(world) || !exchange.Target.Exists(world) ||
-            tactic.Source != exchange.Source && tactic.Source != exchange.Target ||
+            !exchange.Combat.Committed || !CombatExchange.ValidContinuation(world, exchange.Combat) ||
+            tactic.Source != exchange.Combat.Source && tactic.Source != exchange.Combat.Target ||
             tactic.TacticId < 0 || tactic.LearningTacticId is < 0 || tactic.Members.IsDefaultOrEmpty ||
             tactic.Members.Select(p => p.Id).Distinct().Count() != tactic.Members.Length ||
             tactic.Participants.IsDefaultOrEmpty || tactic.Participants.Distinct().Count() != tactic.Participants.Length ||
             tactic.Participants.Any(id => !tactic.Members.Any(p => p.Id == id)) ||
-            !Targets(tactic, tactic.Source == exchange.Source ? exchange.Target : exchange.Source))
+            !Targets(tactic, tactic.Source == exchange.Combat.Source ? exchange.Combat.Target : exchange.Combat.Source))
             throw new ArgumentException("Invalid pending sniping succession.");
     }
 }

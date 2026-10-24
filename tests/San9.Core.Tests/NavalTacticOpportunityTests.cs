@@ -65,7 +65,9 @@ public sealed class NavalTacticOpportunityTests
         var m = World().BeginMutation();
         Rolls(m, automatic, personal);
         List<DomainEvent> events = [];
-        TacticCombat.TryUnit(m, 1, Target, new() { Military = new(Definition()) }, events);
+        var rules = new SimulationRules { Military = new(Definition()) };
+        TacticCombat.TryUnit(m, 1, Target, rules, events,
+            CombatExchange.Calculate(m, new(1, false), CombatExchange.TargetOf(Target), rules.Military!));
         Assert.Equal(expected is int id ? [id] : Array.Empty<int>(), events.OfType<TacticActivatedEvent>().Select(e => e.TacticId));
         Assert.Equal(expected == 5000, m.Simulation.RandomStreams.Single(s => s.Name == "military-tactic-opportunity").State == TestSeeds.StateForRoll(personal));
         Assert.Equal(expected is null ? 0 : 9, m.Officers[11].TacticCooldown);
@@ -80,7 +82,9 @@ public sealed class NavalTacticOpportunityTests
         m.Replace(m.Units[1] with { Condition = UnitCondition.HighSpirits, ConditionDaysRemaining = 3 });
         Rolls(m, 10, personal);
         List<DomainEvent> events = [];
-        TacticCombat.TryUnit(m, 1, Target, new() { Military = new(Definition()) }, events);
+        var rules = new SimulationRules { Military = new(Definition()) };
+        TacticCombat.TryUnit(m, 1, Target, rules, events,
+            CombatExchange.Calculate(m, new(1, false), CombatExchange.TargetOf(Target), rules.Military!));
         Assert.DoesNotContain(events.OfType<TacticActivatedEvent>(), e => e.TacticId == 5000);
         Assert.Equal(expected, events.OfType<TacticActivatedEvent>().Any(e => e.TacticId == 6100));
     }
@@ -95,7 +99,9 @@ public sealed class NavalTacticOpportunityTests
         ulong seed = TestSeeds.StateForRoll(roll);
         m.SetSimulation(m.Simulation with { RandomStreams = m.Simulation.RandomStreams.Add(new("military-tactic-counter", seed)) });
         List<DomainEvent> events = [];
-        TacticCombat.TryUnit(m, 1, Target, new() { Military = new(Definition() with { DefensiveTacticChance = 50 }) }, events, counter: true);
+        var rules = new SimulationRules { Military = new(Definition() with { DefensiveTacticChance = 50 }) };
+        TacticCombat.TryUnit(m, 1, Target, rules, events,
+            CombatExchange.Calculate(m, new(1, false), CombatExchange.TargetOf(Target), rules.Military!), counter: true);
         Assert.Equal(expected, events.OfType<TacticActivatedEvent>().Any(e => e.TacticId == 6100));
         var random = new StableRandom(seed);
         random.NextUInt64();
@@ -113,12 +119,14 @@ public sealed class NavalTacticOpportunityTests
         Rolls(m, 0);
         var rules = new SimulationRules { Military = new(Definition()) };
         List<DomainEvent> events = [];
-        TacticCombat.TryUnit(m, 1, Target, rules, events);
+        TacticCombat.TryUnit(m, 1, Target, rules, events,
+            CombatExchange.Calculate(m, new(1, false), CombatExchange.TargetOf(Target), rules.Military!));
         var activation = Assert.Single(events.OfType<TacticActivatedEvent>());
         Assert.Equal(5000, activation.TacticId);
         Assert.Equal(1, activation.Effect);
         TacticSupport.AdvanceDay(m, rules, events);
-        TacticCombat.TryUnit(m, 1, Target, rules, events);
+        TacticCombat.TryUnit(m, 1, Target, rules, events,
+            CombatExchange.Calculate(m, new(1, false), CombatExchange.TargetOf(Target), rules.Military!));
         Assert.Single(events.OfType<TacticActivatedEvent>());
         Assert.Equal(79, m.Units[1].Morale);
         Assert.Equal(TestSeeds.StateForRoll(14), m.Simulation.RandomStreams.Single(s => s.Name == "military-tactic-opportunity").State);
@@ -135,7 +143,9 @@ public sealed class NavalTacticOpportunityTests
         var m = World(settlement: true).BeginMutation();
         Rolls(m, 0);
         List<DomainEvent> events = [];
-        TacticCombat.TryUnit(m, 1, new(MilitaryOrderKind.AttackSettlement, null, 2), new() { Military = new(definition) }, events);
+        var rules = new SimulationRules { Military = new(definition) };
+        TacticCombat.TryUnit(m, 1, new(MilitaryOrderKind.AttackSettlement, null, 2), rules, events,
+            CombatExchange.Calculate(m, new(1, false), new(2, true), rules.Military!));
         Assert.Equal(6100, Assert.Single(events.OfType<TacticActivatedEvent>()).TacticId);
     }
 
@@ -147,7 +157,9 @@ public sealed class NavalTacticOpportunityTests
         var m = World().BeginMutation();
         Rolls(m, 0);
         List<DomainEvent> events = [];
-        TacticCombat.TryUnit(m, 1, Target, new() { Military = new(Definition(water)) }, events);
+        var rules = new SimulationRules { Military = new(Definition(water)) };
+        TacticCombat.TryUnit(m, 1, Target, rules, events,
+            CombatExchange.Calculate(m, new(1, false), CombatExchange.TargetOf(Target), rules.Military!));
         Assert.Equal(expected, Assert.Single(events.OfType<TacticActivatedEvent>()).TacticId);
         Assert.Equal(!water, m.Simulation.RandomStreams.Single(s => s.Name == "military-tactic-automatic-opportunity").State == TestSeeds.StateForRoll(0));
     }
@@ -164,7 +176,9 @@ public sealed class NavalTacticOpportunityTests
         m.Replace(m.Officers[12] with { TacticCooldown = cooldown, Injury = injury });
         Rolls(m);
         List<DomainEvent> events = [];
-        TacticCombat.TryUnit(m, 1, Target, new() { Military = new(Definition()) }, events);
+        var rules = new SimulationRules { Military = new(Definition()) };
+        TacticCombat.TryUnit(m, 1, Target, rules, events,
+            CombatExchange.Calculate(m, new(1, false), CombatExchange.TargetOf(Target), rules.Military!));
         var activations = events.OfType<TacticActivatedEvent>().ToArray();
         Assert.Equal(6000, activations[0].TacticId);
         Assert.Equal(11, Assert.Single(activations[0].Participants).OfficerId);

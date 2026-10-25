@@ -79,4 +79,4 @@
 
 复现：`python research/scripts/audit_font_glyph_occurrences.py private/游戏文件 local/generated/research/unified-text`。精确原文字节、源文／简体、节点路径和偏移写入 `accepted-glyph-occurrences.json`。
 
-重制选择：用户明确决定不增补字体文件并接受这四个缺字。移除 BabelStone Han 回退和其字体文件，当前主字体仍为 GB Lite；用户补入的 GB 字体不自动切换。保留文本 Unicode 与原文对照，验收报告区分已接受缺字和其他新增缺字。此决定替代此前为了零缺字而补入 BabelStone Han 的选择。
+2026-09-11的处理记录：当时接受上述四个缺字并移除BabelStone Han回退，主字体沿用GB Lite。本节保留当时的字符出现位置、字节及验证结果；现行姓名、词汇和字体采用规则统一见[文字与翻译规范](../../specs/text-and-translation.md)，不能把历史缺字输出作为最终姓名要求。

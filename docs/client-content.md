@@ -227,7 +227,7 @@ CommandText及RemakeCommandText.json集中维护必需语义角色／参数（�
 
 `Resolve`是严格纯文本读取，遇到图标/格式标签拒绝，供名称排序和查询使用；`ResolveRich`供提示、列传和说明使用。侧栏城市名称由通用消息模板求值，再交给`GameRichTextLabel`；控件不判断城市前缀。图片由客户端按逻辑标识选择转换包中的最近有效尺寸、同距优先较大图并保持比例，Godot负责行内排版。缺图明确报错。
 
-FA40..FA45依次映射伷/璝/寗/勑/𩅦/儁；不使用HKSCS猜测。CP950是来源编码，繁简转换仅作用于文字片段。四十条日文占位记录按索引和精确原始字节签名识别CP932，不做宽松编码回退。未知字形、未确认属性及异常尾部保留在诊断，并阻止消息执行；所有引用和依赖确认度另行统计。璝按OpenCC词典显示为𪻺，见[DEC-UI-0005](../specs/decisions/DEC-UI-0005-officer-name-normalization.md)。
+解码、繁简转换、姓名及词汇校订统一以[文字与翻译规范](../specs/text-and-translation.md)为准。本页维护转换命令与产物；原始字节、未确认属性及异常尾部保留在诊断，所有引用和依赖确认度另行统计。
 
 ```powershell
 dotnet run --project src/San9.Tools -- import-text --game-dir "private/游戏文件" --output "local/generated/research/unified-text" --exe-evidence "local/generated/research/unified-text/exe-evidence.json"

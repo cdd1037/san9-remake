@@ -26,7 +26,7 @@ internal static class OriginalMessageStyles
                 [Styled("green", Property("office-name")), new MessageLiteral("‧")]), Styled("blue", Property("name"))];
         if (parts is ["unit", _, "display-name"])
             return [new MessageChoice(Property("is-embedded"),
-                [[Styled("blue", Property("commander-name")), new MessageLiteral("队")],
+                [[Styled("blue", Property("commander-name")), new MessageLiteral("隊")],
                  [Styled("green", Property("location-name"))]])];
         string? color = (parts[0], parts[2]) switch
         {

@@ -173,7 +173,7 @@ G10须接入独立的**电脑势力合并事件**，不以G08外交劝降归并�
 - 时间/命令/持久化： [BEH-SIMULATION-0001](behavior/BEH-SIMULATION-0001-time-progression-and-state-visibility.md)、[BEH-SAVE-0001](behavior/BEH-SAVE-0001-session-persistence-replay-and-headless.md)、[DEC-SIM-0001](decisions/DEC-SIM-0001-determinism-and-saves.md)。保留当前即时命令与持续任务时机，不回退为所有命令旬末统一生效。
 - 人事、治理、战争、外交、计略、生命周期、单挑、事件、场景与AI：按[领域契约](behavior/core-domain-dependency-map.md)定位已确认 BEH；缺失主题按[规格维护规则](README.md)补齐，不凭文件名推断完整覆盖。
 - 经营：现有 [BEH-DOMESTIC-0001](behavior/BEH-DOMESTIC-0001-base-development-effect.md)仅覆盖基础增量，完整命令与经济规则已见[BEH-ECONOMY-0001](behavior/BEH-ECONOMY-0001-domestic-and-economic-cycle.md)。战争规则见[普通战斗](behavior/BEH-WAR-0004-normal-combat.md)与[兵法](behavior/BEH-WAR-0005-tactics.md)。
-- 姓名异体字归一化仍是[待议项](decisions/DEC-UI-0005-officer-name-normalization.md#待后续考虑异体字归一化)，不纳入核心工作。
+- 姓名与词汇校订的确认结果、接入状态统一见[文字与翻译规范](text-and-translation.md)，不在路线图另存待议清单。
 
 执行过程中可依据证据拆分、调整顺序或合并阶段，保持状态所有权、依赖和退出条件清晰。路线图改变开发顺序；若涉及已确认玩法取舍的实质改变，更新相应 BEH/DEC 并说明替代关系，不能仅修改本页来隐式覆盖规则。
 

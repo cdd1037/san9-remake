@@ -1,6 +1,6 @@
 # 统一文字样式
 
-界面通过 `GameTextStyles` 选择用途和状态，通过 `GameTextPresenter` 或 `GameRichTextLabel.Present` 应用。字体统一来自 `assets/GameFont.tres`。不在各个界面重新实现描边、不从原作调色板号直接构造业务样式。消息编写见[消息约定](messages.md)。
+界面通过 `GameTextStyles` 选择用途和状态，通过 `GameTextPresenter` 或 `GameRichTextLabel.Present` 应用。字体统一来自 `assets/GameFont.tres`。不在各个界面重新实现描边、不从原作调色板号直接构造业务样式。消息编写见[消息约定](messages.md)；解码、繁简转换及姓名用字见唯一权威[文字与翻译规范](../../specs/text-and-translation.md)。
 
 ## 绘制约定与实现状态
 

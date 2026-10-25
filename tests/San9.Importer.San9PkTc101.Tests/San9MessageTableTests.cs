@@ -103,10 +103,12 @@ public sealed class San9MessageTableTests
             2, 0x8c, .. System.Text.Encoding.ASCII.GetBytes("32b"), .. encoding.GetBytes("種，\n女性容貌有"),
             2, 0x8c, .. System.Text.Encoding.ASCII.GetBytes("14b\x1bH30"), 2, 0x8c,
             .. System.Text.Encoding.ASCII.GetBytes("32b"), .. encoding.GetBytes("種。")];
-        var records = Enumerable.Range(0, 8678).Select(_ => Array.Empty<byte>()).ToArray();
-        records[0] = [2, 0x8c, (byte)'1', (byte)'b', 1, (byte)'C', 0xe5, 0x21];
-        records[8677] = appearance;
-        var published = MessageArchiveCompiler.CompileForPublication(Archive(Table(records)), "fixture", "messages");
+        byte[] reference = [2, 0x8c, (byte)'1', (byte)'b', 1, (byte)'C', 0xe5, 0x21, 5, 5, 5];
+        byte[] glossary = [.. appearance, 5, 5, 5];
+        var parser = new OriginalMessageParser();
+        var published = MessageArchiveCompiler.CompileRecordsForPublication(
+            [("messages.0", reference, parser.ParseSyntax(reference)),
+             ("messages.8677", glossary, parser.ParseSyntax(glossary))], "fixture", "messages");
         var references = San9.Content.Text.MessageGraph.Walk(published.Messages["messages.0"].Nodes)
             .OfType<San9.Content.Text.MessageReference>();
         Assert.Equal("messages.8677", Assert.Single(references).Key);
@@ -128,6 +130,47 @@ public sealed class San9MessageTableTests
         byte[] bytes = new byte[(bits.Count + 7) / 8];
         for (int i = 0; i < bits.Count; i++) bytes[i / 8] |= (byte)(bits[i] << (7 - i % 8));
         return bytes;
+    }
+
+    [Fact]
+    public void StaticRegionAndReferencedMessageUseTheSameEditorialSource()
+    {
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        var records = Enumerable.Range(0, 215).Select(_ => Array.Empty<byte>()).ToArray();
+        records[0] = [1, (byte)'C', 214, 0];
+        records[214] = System.Text.Encoding.GetEncoding(950).GetBytes("壼關");
+        byte[] archive = Archive(Table(records));
+        using var reader = new ScenarioTextReader(archive, File.ReadAllBytes(typeof(ScenarioTextReader).Assembly.Location));
+        reader.Region("region.test", 24);
+        var published = MessageArchiveCompiler.CompileForPublication(archive, "fixture", "messages");
+        string publishedName = San9.Content.Text.MessageMarkup.Static(published.Messages["messages.214"].Nodes
+            .TakeWhile(n => n is not San9.Content.Text.MessageReturn));
+        Assert.Equal("壶关", reader.Catalog.Resolve("region.test"));
+        Assert.Equal(reader.Catalog.Resolve("region.test"), publishedName);
+        Assert.Equal("messages.214", Assert.IsType<San9.Content.Text.MessageReference>(published.Messages["messages.0"].Nodes[0]).Key);
+    }
+
+    [Theory]
+    [InlineData(524, "傅士", "仁", "士", "仁", "士仁")]
+    [InlineData(686, "大", "喬", "", "大乔", "大乔")]
+    [InlineData(266, "鍾", "繇", "钟", "繇", "钟繇")]
+    [InlineData(348, "孫", "乾", "孙", "乾", "孙乾")]
+    public void FullNamesAndDynamicNamePartsShareTheSameFields(int person, string originalFamily, string originalGiven,
+        string expectedFamily, string expectedGiven, string expectedName)
+    {
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        var records = Enumerable.Range(0, 4480).Select(_ => Array.Empty<byte>()).ToArray();
+        records[1678 + 4 * person] = System.Text.Encoding.GetEncoding(950).GetBytes(originalFamily);
+        records[1679 + 4 * person] = System.Text.Encoding.GetEncoding(950).GetBytes(originalGiven);
+        using var reader = new ScenarioTextReader(Archive(Table(records)), File.ReadAllBytes(typeof(ScenarioTextReader).Assembly.Location));
+        reader.Person("person.test", person, person);
+        reader.MessagePerson(person, person, person, person);
+        var catalog = reader.Catalog;
+        var profile = catalog.MessagePeople[person];
+        Assert.Equal(expectedName, catalog.Resolve("person.test"));
+        Assert.Equal(expectedFamily, reader.Surname(person));
+        Assert.Equal(expectedFamily.Length == 0 ? null : expectedFamily, profile.SurnameKey is null ? null : catalog.Resolve(profile.SurnameKey));
+        Assert.Equal(expectedGiven, catalog.Resolve(profile.GivenNameKey!));
     }
     [Fact]
     public void StoredNamesConvertDisplayTextAndExplicitExtension()

@@ -54,9 +54,17 @@ public static class MessageArchiveCompiler
         byte[] bytes, string file, string catalog, OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard)
     {
         var table = new San9MessageTable(bytes);
+        return CompileRecordsForPublication(ReadRecords(table, catalog, presentation).Select(row => (row.Key, row.Raw, row.Parsed)),
+            file, catalog, presentation);
+    }
+
+    internal static (Dictionary<string, MessageDefinition> Messages, MessageContentAdaptation[] Adaptations) CompileRecordsForPublication(
+        IEnumerable<(string Key, byte[] Raw, ParsedMessage Parsed)> records, string file, string catalog,
+        OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard)
+    {
         List<MessageContentAdaptation> adaptations = [];
         Dictionary<string, MessageDefinition> source = [];
-        foreach (var (key, raw, _, _, parsed) in ReadRecords(table, catalog, presentation))
+        foreach (var (key, raw, parsed) in records)
         {
             source.Add(key, parsed.Definition);
             if (MessageContentPolicy.Apply(key, raw, catalog, source, presentation) is { } adaptation)
@@ -98,7 +106,7 @@ public static class MessageArchiveCompiler
                     System.Text.DecoderFallback.ExceptionFallback).GetString(raw.AsSpan(0, raw.Length - 3)));
                 parsed = new(new([new MessageLiteral(value), new MessageReturn()]), raw.Length, true, []);
             }
-            else parsed = parser.ParseSyntax(raw, catalog, presentation: presentation);
+            else parsed = parser.ParseSyntax(raw, catalog, presentation: presentation, messageId: i);
             yield return ($"{catalog}.{i}", raw, japanese ? "cp932" : "cp950", table.Offset(i), parsed);
         }
     }

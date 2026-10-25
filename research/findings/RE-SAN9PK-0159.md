@@ -43,3 +43,5 @@ python -m unittest discover -s research/scripts -p test_audit_font_extensions.py
 - `inventory.json`：全部9288个CP950未定义槽、三档像素数、HKSCS对比、77条图标路径及纯文本引用。
 - `index.html`：完整码位表、917个非空槽的三字号图集、图标表。生成物仅保存在忽略目录。
 - 分析脚本在research内，不是产品运行时依赖；本轮没有用截图替代原版字库证据。
+
+本记录确认源字形与字节，不定义最终显示文字；现行解码与校订规则统一见[文字与翻译规范](../../specs/text-and-translation.md)。

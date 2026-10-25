@@ -25,6 +25,7 @@ public static class OfficerContentCompiler
                 if (person.StatusCode != 8) throw new InvalidDataException("Unsupported configured expansion officer.");
                 continue;
             }
+            OriginalTextEditorial.ValidatePersonReferences(id, person.FamilyNameResourceCode, person.GivenNameResourceCode, person.CourtesyNameResourceCode);
             var settlement = person.LocationId is int sourceLocation ? locations.GetValueOrDefault(sourceLocation) : null;
             int? location = settlement?.Id;
             if (person.StatusCode <= 3 && settlement is null)

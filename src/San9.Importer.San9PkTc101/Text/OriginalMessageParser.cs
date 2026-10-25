@@ -12,7 +12,6 @@ public sealed record ParsedMessage(MessageDefinition Definition, int ConsumedByt
 /// <summary>Grammar-driven TC-101 decoding. Unknown semantics remain explicit import diagnostics.</summary>
 public sealed class OriginalMessageParser
 {
-    private readonly OriginalTextConverter _text = new();
     private readonly List<MessageIssue> _issues = [];
     private byte[] _bytes = [];
     private int _position;
@@ -31,10 +30,18 @@ public sealed class OriginalMessageParser
     };
 
     public ParsedMessage Parse(byte[] bytes, string catalog = "messages", bool terminated = true, bool formatString = false,
-        OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard)
+        OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard, int? messageId = null) =>
+        Transform(ParseSyntax(bytes, catalog, terminated, formatString, presentation, messageId),
+            definition => OriginalMessageStyles.Compile(definition));
+
+    public ParsedMessage ParseCanonical(byte[] bytes, string catalog = "messages", bool terminated = true, bool formatString = false,
+        OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard, int? messageId = null) =>
+        Transform(ParseCanonicalSyntax(bytes, catalog, terminated, formatString, presentation, messageId),
+            definition => OriginalMessageStyles.Compile(definition));
+
+    private static ParsedMessage Transform(ParsedMessage parsed, Func<MessageDefinition, MessageDefinition> transform)
     {
-        var parsed = ParseSyntax(bytes, catalog, terminated, formatString, presentation);
-        try { return parsed with { Definition = OriginalMessageStyles.Compile(parsed.Definition) }; }
+        try { return parsed with { Definition = transform(parsed.Definition) }; }
         catch (InvalidDataException error)
         {
             return parsed with { Definition = new([]), Issues = [.. parsed.Issues, new(0, error.Message)] };
@@ -42,7 +49,21 @@ public sealed class OriginalMessageParser
     }
 
     internal ParsedMessage ParseSyntax(byte[] bytes, string catalog = "messages", bool terminated = true, bool formatString = false,
-        OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard)
+        OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard, int? messageId = null)
+    {
+        var parsed = ParseCanonicalSyntax(bytes, catalog, terminated, formatString, presentation, messageId);
+        return Transform(parsed, definition => SimplifiedChineseText.Convert(definition, catalog, messageId));
+    }
+
+    private ParsedMessage ParseCanonicalSyntax(byte[] bytes, string catalog, bool terminated, bool formatString,
+        OriginalMessagePresentation presentation, int? messageId)
+    {
+        var parsed = ParseRawSyntax(bytes, catalog, terminated, formatString, presentation);
+        return parsed.FullyParsed ? Transform(parsed, definition => OriginalTextEditorial.Apply(definition, catalog, messageId)) : parsed;
+    }
+
+    private ParsedMessage ParseRawSyntax(byte[] bytes, string catalog, bool terminated, bool formatString,
+        OriginalMessagePresentation presentation)
     {
         _bytes = bytes; _position = 0; _catalog = catalog; _depth = 0; _expressionDepth = 0;
         _issues.Clear();
@@ -162,7 +183,7 @@ public sealed class OriginalMessageParser
                 }
                 if (_position == start) throw new InvalidDataException($"Unsupported control {first:X2}.");
                 string text;
-                try { text = _text.DecodeCharacters(_bytes.AsSpan(start, _position - start)); }
+                try { text = OriginalTextDecoder.Decode(_bytes.AsSpan(start, _position - start)); }
                 catch (InvalidDataException) { _position = start; throw; }
                 nodes.Add(new MessageLiteral(MessageMarkup.Escape(text)));
             }

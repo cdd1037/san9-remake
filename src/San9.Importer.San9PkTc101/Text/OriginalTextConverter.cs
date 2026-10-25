@@ -1,59 +1,21 @@
-using System.Text;
-using OpenccNetLib;
 using San9.Content.Text;
 
 namespace San9.Importer.San9PkTc101.Text;
 
-/// <summary>Single original-byte to display text boundary.</summary>
+/// <summary>Decode, edit the canonical source, then produce display text.</summary>
 public sealed class OriginalTextConverter
 {
-    private readonly Opencc _converter = new(OpenccConfig.T2S);
-    private static readonly Encoding SourceEncoding = CreateEncoding();
+    public string Convert(ReadOnlySpan<byte> bytes, int? messageId = null, string catalog = "messages") =>
+        Static(new OriginalMessageParser().Parse(bytes.ToArray(), catalog, terminated: false, messageId: messageId));
 
-    private static Encoding CreateEncoding()
-    {
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-        return Encoding.GetEncoding(950, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
-    }
+    public string Canonicalize(ReadOnlySpan<byte> bytes, int? messageId = null, string catalog = "messages") =>
+        Static(new OriginalMessageParser().ParseCanonical(bytes.ToArray(), catalog, terminated: false, messageId: messageId));
 
-    public string Convert(ReadOnlySpan<byte> bytes)
+    private static string Static(ParsedMessage parsed)
     {
-        var parsed = new OriginalMessageParser().Parse(bytes.ToArray(), terminated: false);
         if (!parsed.FullyParsed || !parsed.SemanticsConfirmed)
-            throw new InvalidDataException("Dynamic or invalid message requested as static text.");
+            throw new InvalidDataException("Dynamic or invalid message requested as static text: " +
+                string.Join("; ", parsed.Issues.Select(issue => issue.Reason)));
         return MessageMarkup.Static(parsed.Definition.Nodes);
-    }
-
-    internal string DecodeCharacters(ReadOnlySpan<byte> bytes)
-    {
-        var source = new StringBuilder();
-        for (int offset = 0; offset < bytes.Length;)
-        {
-            byte first = bytes[offset];
-            int length = first < 128 ? 1 : 2;
-            if (offset + length > bytes.Length) throw new InvalidDataException($"Truncated original text at byte {offset}.");
-            if (first < 32 && first is not (9 or 10 or 13) || first == 127)
-                throw new InvalidDataException($"Unsupported text control at byte {offset}.");
-            string value;
-            if (first == 0xFA)
-            {
-                value = bytes[offset + 1] switch
-                {
-                    0x40 => "伷", 0x41 => "璝", 0x42 => "寗", 0x43 => "勑", 0x44 => "𩅦", 0x45 => "儁",
-                    _ => throw new InvalidDataException($"Unregistered original glyph at byte {offset}: {System.Convert.ToHexString(bytes.Slice(offset, length))}.")
-                };
-            }
-            else
-            {
-                try { value = SourceEncoding.GetString(bytes.Slice(offset, length)); }
-                catch (DecoderFallbackException exception) { throw new InvalidDataException($"Invalid original encoding at byte {offset}.", exception); }
-                if (value.Any(c => c is >= '\uE000' and <= '\uF8FF'))
-                    throw new InvalidDataException($"Unregistered original glyph at byte {offset}.");
-            }
-            source.Append(value);
-            offset += length;
-        }
-        string text = source.ToString();
-        return _converter.Convert(text);
     }
 }

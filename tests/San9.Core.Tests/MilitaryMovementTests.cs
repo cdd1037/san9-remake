@@ -554,7 +554,7 @@ public sealed class MilitaryMovementTests
         world.Commit(mutation);
         var events = Advance(engine).Events;
         var unit = Assert.Single(engine.Snapshot.Units);
-        Assert.Equal(new(MilitaryOrderKind.Return, null, null), unit.Order);
+        Assert.Equal(new(MilitaryOrderKind.Return, null, 1), unit.Order);
         Assert.Equal(200u, unit.CargoMoney);
         Assert.Equal(300u, unit.CargoFood);
         Assert.Equal(unit.Id, engine.Snapshot.Officers[0].UnitId);

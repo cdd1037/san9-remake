@@ -8,6 +8,21 @@ namespace San9.Core.Tests;
 public sealed partial class MilitaryCommandLifecycleTests
 {
     [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void BarbarianReturnsHomeWhenItsBuildingTargetChangesEvenIfTheAttackOrEntryWouldBeValid(int newOwner)
+    {
+        var world = World(new(MilitaryOrderKind.AttackSettlement, null, 3));
+        world.Replace(world.Forces[1] with { IsBarbarian = true });
+        world.Replace(world.Settlements[3] with { OwnerId = newOwner, CorpsId = newOwner });
+        List<DomainEvent> events = [];
+        MilitaryOrders.SettlementChanged(world, 3, Rules(), events);
+        Assert.Equal(new(MilitaryOrderKind.Return, null, 2), world.Units[1].Order);
+        Assert.True(world.Units[1].AutonomousReturn);
+        Assert.DoesNotContain(events.OfType<UnitPolicyRespondedEvent>(), e => e.Unit.Id == 1);
+    }
+
+    [Theory]
     [InlineData(false, 0, true)]
     [InlineData(false, 39, true)]
     [InlineData(false, 40, false)]

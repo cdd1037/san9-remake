@@ -55,6 +55,7 @@ public static class MilitaryContentCompiler
                 { SoldierFootprints = Mode(f.Id) == TravelMode.Land
                     ? new uint[] { 6000, 12000, 20000, 30000, 40000, 50000 }
                         .Select((minimum, index) => new SoldierFootprint(minimum, new(index + 5, index + 5))).ToImmutableArray() : [],
+                    Vision = f.Id == 27 ? null : new(checked(f.VisionRadius * MapCoordinates.UnitsPerCell), f.VisionAngleDegrees),
                     IsCommon = f.Id is >= 0 and <= 11 or >= 20 and <= 23,
                     Tactics = f.Id is 13 or 14 or 24 or 25 or 27 ? null : new(15,
                         f.Id == 2 ? 3 : 2,
@@ -110,6 +111,8 @@ public static class MilitaryContentCompiler
             TrapTerrains = terrains.Select(t => TrapTerrain(t.Id)).ToImmutableArray(),
             HigherGroundTrap = new(38, 3),
             PolicyRadius = 10 * MapCoordinates.UnitsPerCell,
+            VisionSizeBands = [new(1, 4), new(6000, 5), new(12000, 6), new(20000, 7),
+                new(30000, 8), new(40000, 9), new(50000, 10)],
             BlockedCells = squares.Where(s => s.IsPathBlocked).Select(s => new MapCell(s.GridX, s.GridY)).ToImmutableArray()
         };
         _ = new MilitaryRulebook(definition);

@@ -89,7 +89,7 @@ public sealed partial class MilitaryCommandLifecycleTests
         MilitaryOrders.RemoveTarget(world, 1, true, []);
         MilitaryOrders.ResolveOrders(world, rules, []);
         MilitaryMovement.AdvanceDay(world, rules, new([]), PersonnelRulebook.Empty, []);
-        Assert.Equal(new(MilitaryOrderKind.Return, null, null), world.Units[1].Order);
+        Assert.Equal(new(MilitaryOrderKind.Return, null, 2), world.Units[1].Order);
         world.Replace(world.Settlements[2] with { Durability = 100 });
         MilitaryOrders.ResolveOrders(world, rules, []);
         Assert.Equal(new(MilitaryOrderKind.Return, null, 2), world.Units[1].Order);

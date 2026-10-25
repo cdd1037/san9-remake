@@ -132,7 +132,7 @@ public sealed class RuntimeWorldTests
     }
 
     [Fact]
-    public void SnapshotOrdersEveryIdentityCollection()
+    public void SnapshotPreservesUnitDeclarationOrderAndSortsUnorderedRegistries()
     {
         var world = WorldState.Create(new(190, 1, XunIndex.Early), 190,
             [new(3, 0), new(1, 0), new(2, 0)],
@@ -150,7 +150,7 @@ public sealed class RuntimeWorldTests
         Assert.Equal([1, 2, 3], snapshot.Forces.Select(f => f.Id));
         Assert.Equal([15, 16, 17], snapshot.Settlements.Select(s => s.Id));
         Assert.Equal([1, 2, 3], snapshot.Officers.Select(o => o.Id));
-        Assert.Equal([1, 2, 3], snapshot.Units.Select(u => u.Id));
+        Assert.Equal([3, 1, 2], snapshot.Units.Select(u => u.Id));
         Assert.Equal([1, 2, 3], snapshot.Corps.Select(c => c.Id));
         Assert.Equal([1, 2, 3], snapshot.Treasures.Select(t => t.Id));
         Assert.Equal([(1, 2), (1, 3), (2, 3)], snapshot.Relations.Select(r => (r.FirstId, r.SecondId)));

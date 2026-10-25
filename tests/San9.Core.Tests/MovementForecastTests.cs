@@ -75,8 +75,8 @@ public sealed class MovementForecastTests
 
     private static UnitState Day(WorldMutation world, MilitaryRulebook rules)
     {
-        MilitaryConditions.Tick(world, []);
         MilitaryMovement.AdvanceDay(world, rules, new([]), PersonnelRulebook.Empty, []);
+        MilitaryConditions.Tick(world, []);
         return world.Units[0];
     }
 
@@ -264,16 +264,16 @@ public sealed class MovementForecastTests
     }
 
     [Fact]
-    public void KnownConfusionUsesPreMovementExpirationAndDoesNotAccumulateBudget()
+    public void KnownConfusionExpiresAfterMovementAndDoesNotAccumulateBudget()
     {
         var rules = Rules(95);
         var unit = new UnitState(0, 1, new(2, 2), 100) { FormationId = 0,
             Order = new(MilitaryOrderKind.Move, new(21, 2), null), Condition = UnitCondition.Confused, ConditionDaysRemaining = 3 };
         var world = World(unit);
-        Assert.Equal(new(ArrivalEstimateStatus.Known, 4), new MilitaryArrivalForecast(world.CreateSnapshot(), rules).Estimate(0));
+        Assert.Equal(new(ArrivalEstimateStatus.Known, 5), new MilitaryArrivalForecast(world.CreateSnapshot(), rules).Estimate(0));
         var mutation = world.BeginMutation();
-        for (int day = 1; day <= 4; day++)
-            Assert.Equal(day == 4, Day(mutation, rules).Position == new WorldPosition(21, 2));
+        for (int day = 1; day <= 5; day++)
+            Assert.Equal(day == 5, Day(mutation, rules).Position == new WorldPosition(21, 2));
     }
 
     [Fact]

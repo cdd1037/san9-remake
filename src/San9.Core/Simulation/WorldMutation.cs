@@ -92,6 +92,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         ImmutableDictionary<int, SettlementState> settlements,
         ImmutableDictionary<int, OfficerState> officers,
         ImmutableDictionary<int, UnitState> units,
+        ImmutableArray<int> unitOrder,
         ImmutableDictionary<int, CorpsState> corps,
         ImmutableDictionary<int, TreasureState> treasures,
         ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> relations,
@@ -107,6 +108,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         AllSettlements = settlements;
         AllOfficers = officers;
         Units = units;
+        UnitOrder = unitOrder;
         AllCorps = corps;
         AllTreasures = treasures;
         AllRelations = relations;
@@ -126,7 +128,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         }).ToImmutableArray(),
         Settlements = AllSettlements.Values.OrderBy(x => x.Id).ToImmutableArray(),
         Officers = AllOfficers.Values.OrderBy(x => x.Id).ToImmutableArray(),
-        Units = Units.Values.OrderBy(x => x.Id).ToImmutableArray(),
+        Units = OrderedUnits.ToImmutableArray(),
         Corps = AllCorps.Values.OrderBy(x => x.Id).ToImmutableArray(),
         Treasures = AllTreasures.Values.OrderBy(x => x.Id).ToImmutableArray(),
         Relations = AllRelations.Values.OrderBy(x => x.FirstId).ThenBy(x => x.SecondId).ToImmutableArray(),
@@ -137,6 +139,9 @@ internal sealed partial class WorldMutation : IWorldQuery
     internal ImmutableDictionary<int, SettlementState> AllSettlements { get; private set; }
     internal ImmutableDictionary<int, OfficerState> AllOfficers { get; private set; }
     internal ImmutableDictionary<int, UnitState> Units { get; private set; }
+    // Declaration/creation order is meaningful when a policy's candidate keys compare equal.
+    internal ImmutableArray<int> UnitOrder { get; private set; }
+    internal IEnumerable<UnitState> OrderedUnits => UnitOrder.Select(id => Units[id]);
     internal ImmutableDictionary<int, CorpsState> AllCorps { get; private set; }
     internal ImmutableDictionary<int, TreasureState> AllTreasures { get; private set; }
     internal ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> AllRelations { get; private set; }
@@ -331,6 +336,7 @@ internal sealed partial class WorldMutation : IWorldQuery
     {
         EnsureOpen();
         Units = Units.Add(unit.Id, unit);
+        UnitOrder = UnitOrder.Add(unit.Id);
         _movementOccupancy?.Set(unit);
         _engagements = null;
     }
@@ -339,6 +345,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         EnsureOpen();
         if (!Units.ContainsKey(id)) throw new InvalidOperationException("Unknown unit.");
         Units = Units.Remove(id);
+        UnitOrder = UnitOrder.Remove(id);
         foreach (var place in Settlements.Values.Where(s => s.CombatTargetUnitId == id).ToArray())
             Replace(place with { CombatTargetUnitId = null });
         _movementOccupancy?.RemoveUnit(id);

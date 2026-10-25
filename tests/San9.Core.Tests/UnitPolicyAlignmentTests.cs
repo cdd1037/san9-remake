@@ -21,7 +21,7 @@ public sealed partial class UnitPolicyTests
         var mutation = WorldState.Restore(engine.Snapshot).BeginMutation();
         Assert.False(MilitaryEngagementQuery.Capture(engine.Snapshot, rules).Units.Contains(1));
         Assert.Null(mutation.Units[1].EngagementTargetId);
-        MilitaryPolicies.ApproachXun(mutation, rules, []);
+        MilitaryPolicies.ApproachDay(mutation, rules, []);
         Assert.Equal(order, mutation.Units[1].Order);
         Assert.Equal(2, mutation.Units[1].EngagementTargetId);
     }
@@ -85,7 +85,7 @@ public sealed partial class UnitPolicyTests
         Assert.Equal(engaged, mutation.Units[1].PassiveEngagement);
         Assert.Equal(engaged, events.OfType<BattleDamageEvent>().Any(e => e.TargetUnitId == 1));
         Assert.Null(mutation.Units[1].EngagementTargetId);
-        MilitaryPolicies.ApproachXun(mutation, rules, events);
+        MilitaryPolicies.ApproachDay(mutation, rules, events);
         Assert.Equal(expectedIntercept, mutation.Units[1].EngagementTargetId == 2);
     }
 
@@ -102,7 +102,7 @@ public sealed partial class UnitPolicyTests
         var rules = Rules();
         Assert.False(MilitaryEngagements.Engaged(mutation, mutation.Units[2], rules));
         List<DomainEvent> events = [];
-        MilitaryPolicies.ApproachXun(mutation, rules, events);
+        MilitaryPolicies.ApproachDay(mutation, rules, events);
         Assert.Equal(2, mutation.Units[1].EngagementTargetId);
         Assert.True(MilitaryEngagements.Engaged(mutation, mutation.Units[2], rules));
         Assert.Null(mutation.Units[2].EngagementTargetId);
@@ -117,7 +117,7 @@ public sealed partial class UnitPolicyTests
         initial = initial with
         {
             Simulation = initial.Simulation with { Boundary = SimulationBoundary.Stable },
-            Units = initial.Units.Select(u => u.Id == 1 ? u with { AutonomousReturn = true } : u).ToArray()
+            Units = initial.Units.Select(u => u.Id == 1 ? u with { AutonomousReturn = true, PursuitResponsePending = true } : u).ToArray()
         };
         var engine = new SimulationEngine(WorldState.Restore(initial), EconomyRulebook.Empty,
             PersonnelRulebook.Empty, TreasureRulebook.Empty, military: rules);
@@ -125,5 +125,6 @@ public sealed partial class UnitPolicyTests
             new(MilitaryOrderKind.Return, null, 1));
         Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
         Assert.False(engine.Snapshot.Units.Single(u => u.Id == 1).AutonomousReturn);
+        Assert.False(engine.Snapshot.Units.Single(u => u.Id == 1).PursuitResponsePending);
     }
 }

@@ -31,13 +31,17 @@ internal static class OccurrenceFeedback
             messages.Clear(); records.Clear();
         }
         var fact = events[index];
+        var nonExecutionPolicy = !executionMap && fact is UnitPolicyRespondedEvent policy &&
+            ProgressFeedback.IsPolicyDecision(policy.Response) ? policy : null;
         if (content.Progress is { } feedback)
         {
             var outcome = OutcomeFeedback.Read(occurrenceBefore, after, occurrenceContext, texts, feedback, events, index, executionMap);
             messages.AddRange(outcome.Messages); records.AddRange(outcome.Records);
             Flush(FeedbackKind.Outcome);
-            if (executionMap || fact is not OfficerAbilityGrownEvent)
+            if (nonExecutionPolicy is null && (executionMap || fact is not OfficerAbilityGrownEvent))
                 records.AddRange(ProgressFeedback.Records(occurrenceBefore, after, occurrenceContext, texts, feedback, events, index));
+            if (nonExecutionPolicy is not null)
+                messages.AddRange(ProgressFeedback.PolicyPrompts(occurrenceBefore, occurrenceContext, texts, feedback, nonExecutionPolicy, index));
             if (!executionMap && fact is OfficerAbilityGrownEvent)
                 messages.AddRange(ProgressFeedback.GrowthPrompts(occurrenceBefore, occurrenceContext, texts, feedback, [fact]));
         }
@@ -78,7 +82,8 @@ internal static class OccurrenceFeedback
             var reportContext = ReferenceEquals(reportBefore, before) ? context : occurrenceContext;
             records.AddRange(ProgressMessages.Read(reportBefore, after, reportContext, texts, progress, events, index));
             Flush(FeedbackKind.Report);
-            messages.AddRange(MapNotificationSpeeches.Read(occurrenceBefore, after, occurrenceContext, texts, progress, fact, index));
+            if (nonExecutionPolicy is null)
+                messages.AddRange(MapNotificationSpeeches.Read(occurrenceBefore, after, occurrenceContext, texts, progress, fact, index));
         }
         Flush(FeedbackKind.MapSpeech);
         bool interruptedJourney = content.Personnel is not null && fact is TaskCancelledEvent cancelled &&

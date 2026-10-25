@@ -23,8 +23,8 @@ public sealed class MilitaryConditionTests
             new(MilitaryOrderKind.Move, new(9, 2), null))).Submission.Accepted);
         engine.EndControl(context);
         var result = engine.AdvanceXun();
-        Assert.All(result.Events.OfType<UnitMovedEvent>(), e => Assert.True(e.Clock.Day >= 3));
-        Assert.Equal(3, Assert.Single(result.Events.OfType<BattleConditionChangedEvent>()).Clock.Day);
+        Assert.All(result.Events.OfType<UnitMovedEvent>(), e => Assert.True(e.Clock.Day >= 5));
+        Assert.Equal(4, Assert.Single(result.Events.OfType<BattleConditionChangedEvent>()).Clock.Day);
         var unit = Assert.Single(engine.Snapshot.Units);
         Assert.Equal(new WorldPosition(8, 2), unit.Position);
         Assert.Equal(UnitCondition.Normal, unit.Condition);

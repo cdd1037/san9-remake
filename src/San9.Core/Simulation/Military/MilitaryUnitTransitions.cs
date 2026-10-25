@@ -7,6 +7,8 @@ internal static class MilitaryUnitTransitions
 {
     internal static UnitState Apply(UnitState previous, UnitState value, bool assignsNavigation = false)
     {
+        if (!value.AutonomousReturn || value.Order?.SettlementId is null || previous.OwnerId != value.OwnerId)
+            value = value with { PursuitResponsePending = false };
         if (previous.Condition != value.Condition && value.HasForcedReturn)
             value = value with { EngagementTargetId = null, ContactTarget = null, ActiveEngagement = false, Lookahead = null };
         if (assignsNavigation || previous.CommandOrder != value.CommandOrder || previous.OwnerId != value.OwnerId)

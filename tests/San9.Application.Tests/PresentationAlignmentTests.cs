@@ -249,7 +249,9 @@ public sealed class PresentationAlignmentTests
     public async Task AuthoredOutcomeBindingsEvaluateAgainstTheOptionalRealPackage()
     {
         if (Environment.GetEnvironmentVariable("SAN9_PRESENTATION_CONTENT") is not { Length: > 0 } root) return;
-        var package = await ClientContentFiles.LoadAsync(root); var session = GameSession.Start(package.Scenario, 42);
+        var package = await ClientContentFiles.LoadAsync(root);
+        int selectedForce = package.Scenario.Forces.First(f => !f.IsDormant && f.LeaderId is not null).Id;
+        var session = GameSession.Start(package.Scenario, 42, playerForceIds: [selectedForce]);
         var before = session.View; var clock = before.World.Clock; int own = before.RequirePlayerForce();
         int actor = before.World.Officers.First(p => p.IsServing && p.OwnerId == own).Id;
         int place = before.World.Officers.Single(p => p.Id == actor).SettlementId!.Value;
@@ -269,9 +271,9 @@ public sealed class PresentationAlignmentTests
             new TreasuryCapturedEvent(clock, enemy.Id, null, own, null, place, true, null, place, 100, 50),
             new PrisonerEscapedEvent(clock, actor, place, null, place) { Occurrence = new(own, place, null), CaptorForceId = enemy.Id },
             new BattlePersonnelResolvedEvent(clock, unit with { ForceId = enemy.Id }, unit, [enemy.LeaderId.Value], [actor], enemy.LeaderId),
-            new UnitPolicyRespondedEvent(clock, unit, UnitPolicyResponse.ConstructionAborted, null, place) { PreviousPlaceId = place },
-            new UnitPolicyRespondedEvent(clock, unit, UnitPolicyResponse.TransportAborted, null, place) { PreviousPlaceId = place },
-            new UnitPolicyRespondedEvent(clock, unit, UnitPolicyResponse.ReturnTargetChanged, null, place) { PreviousPlaceId = place },
+            new UnitPolicyRespondedEvent(clock, unit, UnitPolicyResponse.ConstructionAborted, null, place) { PreviousPlaceId = place, ReportEligible = true },
+            new UnitPolicyRespondedEvent(clock, unit, UnitPolicyResponse.TransportAborted, null, place) { PreviousPlaceId = place, ReportEligible = true },
+            new UnitPolicyRespondedEvent(clock, unit, UnitPolicyResponse.ReturnTargetChanged, null, place) { PreviousPlaceId = place, ReportEligible = true },
             new AlienateResolvedEvent(clock, enemy.LeaderId.Value, actor, 1, 99, false, 0, own) { Audience = victim },
             new GossipResolvedEvent(clock, enemy.LeaderId.Value, third.Id, own, 100, 0, true, 10, actor, false, 0) { Audience = other },
             .. new[] { true, false }.Select(success => (DomainEvent)new BurnResolvedEvent(clock, enemy.LeaderId.Value, place, 50, success ? 0 : 99, success, 10, success ? 10u : 0u, 0, 0)

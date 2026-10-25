@@ -584,7 +584,7 @@ public sealed class FacilityConstructionTests
         Assert.Single(result.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "cancelled");
         Assert.DoesNotContain(result.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "completed");
         Assert.True(engine.Snapshot.Settlements.Single(s => s.Id == 8000).IsDestroyed);
-        Assert.Equal(new(MilitaryOrderKind.Return, null, null), engine.Snapshot.Units.Single().Order);
+        Assert.Equal(new(MilitaryOrderKind.Return, null, 1), engine.Snapshot.Units.Single().Order);
         Assert.Equal(9000u, engine.Snapshot.Corps.Single(c => c.IsRoot).Treasury.Money);
         var waiting = engine.CaptureStableState();
         engine = Engine(WorldState.Restore(waiting with
@@ -620,14 +620,6 @@ public sealed class FacilityConstructionTests
                     Order = new(MilitaryOrderKind.AttackSettlement, null, 8000) }),
             Simulation = saved.Simulation with { NextUnitId = 2 }
         }), rules);
-        var events = Advance(engine).Events;
-        var facility = engine.Snapshot.Settlements.Single(s => s.Id == 8000);
-        Assert.False(facility.IsDestroyed);
-        Assert.Equal(saved.Settlements.Single(s => s.Id == 8000).Durability, facility.Durability);
-        Assert.DoesNotContain(events.OfType<SettlementCapturedEvent>(), e => e.SettlementId == 8000);
-        Assert.DoesNotContain(events.OfType<BattleDamageEvent>(), e => e.SettlementId == 8000);
-        Assert.NotNull(facility.Facility!.BuilderUnitId);
-        Assert.Null(engine.Snapshot.Units.Single(u => u.Id == 1).Order);
         var controlled = engine.CaptureStableState();
         engine = Engine(WorldState.Restore(controlled with
         {
@@ -638,6 +630,15 @@ public sealed class FacilityConstructionTests
             engine.Snapshot.Simulation.NextSequence, 1, new(MilitaryOrderKind.AttackSettlement, null, 8000)));
         Assert.False(rejected.Submission.Accepted);
         StateAssert.Equal(before, engine.Snapshot);
+        var events = Advance(engine).Events;
+        var facility = engine.Snapshot.Settlements.Single(s => s.Id == 8000);
+        Assert.False(facility.IsDestroyed);
+        Assert.Equal(saved.Settlements.Single(s => s.Id == 8000).Durability, facility.Durability);
+        Assert.DoesNotContain(events.OfType<SettlementCapturedEvent>(), e => e.SettlementId == 8000);
+        Assert.DoesNotContain(events.OfType<BattleDamageEvent>(), e => e.SettlementId == 8000);
+        Assert.NotNull(facility.Facility!.BuilderUnitId);
+        Assert.DoesNotContain(engine.Snapshot.Units, u => u.Id == 1);
+        Assert.Contains(events.OfType<UnitAbsorbedEvent>(), e => e.UnitId == 1 && e.SettlementId == 2);
     }
     [Theory]
     [InlineData(false)]
@@ -676,7 +677,9 @@ public sealed class FacilityConstructionTests
         Assert.Equal(attacksWalls ? 1 : 0, events.OfType<FacilityDestroyedEvent>().Count());
         Assert.Empty(events.OfType<SettlementCapturedEvent>());
         Assert.DoesNotContain(events.OfType<ResourceChangedEvent>(), e => e.Reason == "settlement-captured");
-        Assert.Equal(50 - events.OfType<PeriodicMoraleLostEvent>().Sum(e => e.PreviousMorale - e.Morale), engine.Snapshot.Units.Single().Morale);
+        int finalMorale = attacksWalls ? Assert.Single(events.OfType<UnitAbsorbedEvent>(), e => e.UnitId == 1).Result.Morale
+            : Assert.Single(engine.Snapshot.Units).Morale;
+        Assert.Equal(50 - events.OfType<PeriodicMoraleLostEvent>().Sum(e => e.PreviousMorale - e.Morale), finalMorale);
         Assert.Equal(10000u, engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 2).Treasury.Money);
         Assert.Equal(8000u, engine.Snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
         var restored = Engine(WorldState.Restore(engine.CaptureStableState()), rules);

@@ -1,9 +1,22 @@
 using San9.Content.Interface;
+using San9.Content.Text;
 
 namespace San9.Importer.San9PkTc101.Interface;
 
 internal static class ExecutionPresentationCompiler
 {
+    private const string ReturnUnavailableRecord = "presentation.policy.return-unavailable-record";
+    private const string ReturnUnavailableSpeech = "presentation.policy.return-unavailable-speech";
+
+    internal static void AddMessages(Dictionary<string, MessageDefinition> messages)
+    {
+        messages.Add(ReturnUnavailableRecord, new([
+            new MessageStyled("blue-outline", [new MessageValue(new("property", "person.name", Arguments: [new("binding", "person.0")]))]),
+            new MessageLiteral("部队无法返回：没有可返回的据点。")
+        ]));
+        messages.Add(ReturnUnavailableSpeech, new([new MessageLiteral("无法返回：没有可返回的据点。")]));
+    }
+
     internal static ProgressPresentationDefinition Compile()
     {
         DecisionMessageDefinition M(int source, string? speaker = null, params (string Slot, string Role)[] values) =>
@@ -59,6 +72,14 @@ internal static class ExecutionPresentationCompiler
             ("policy-pursue-ordered",10060,10217), ("policy-pursue-despite-orders",10061,10226),
             ("policy-resume-orders",10062,10235), ("policy-return-home",10041,10276) };
         foreach (var (role, source, _) in policy) records.Add(role, M(source, values: [("person.0", "actor")]));
+        var postAction = new[] {
+            ("policy-post-action-no-target",10039,10244,6642),
+            ("policy-post-action-attack-ordered",10034,10253,6651),
+            ("policy-post-action-avoid-despite-orders",10040,10271,6660),
+            ("policy-post-action-return-ordered",10041,10276,6669),
+            ("policy-post-action-attack-despite-orders",10042,10285,6678) };
+        foreach (var (role, source, _, _) in postAction) records.Add(role, M(source, values: [("person.0", "actor")]));
+        records.Add(ProgressPresentationDefinition.ReturnUnavailableRole, new(ReturnUnavailableRecord, new() { ["person.0"] = "actor" }));
         Dictionary<string, DecisionMessageDefinition> context = [];
         void Dialogue(string role, int source, params (string Slot, string Role)[] extra) => context.Add(role,
             M(source, "actor", new[] { ("person.0", "actor"), ("person.1", "ruler") }.Concat(extra).ToArray()));
@@ -116,6 +137,15 @@ internal static class ExecutionPresentationCompiler
             StrategyTitleSound = "strategy-title"
         };
         foreach (var pair in speeches) result.MapSpeeches.Add(pair.Key, pair.Value);
+        foreach (var (role, _, speech, dialogue) in postAction)
+        {
+            (string, string)[] bindings = [("person.0", "actor"), ("person.1", "other"), ("building.0", "place")];
+            result.MapSpeeches.Add(role, M(speech, "actor", bindings));
+            result.Feedback.Add(role, M(dialogue, "actor", bindings));
+        }
+        var unavailable = new DecisionMessageDefinition(ReturnUnavailableSpeech, [], "actor");
+        result.MapSpeeches.Add(ProgressPresentationDefinition.ReturnUnavailableRole, unavailable);
+        result.Feedback.Add(ProgressPresentationDefinition.ReturnUnavailableRole, unavailable);
         OutcomePresentationCompiler.Add(result);
         return result;
     }

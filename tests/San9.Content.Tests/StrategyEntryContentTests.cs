@@ -24,5 +24,12 @@ public sealed class StrategyEntryContentTests
         Assert.Throws<InvalidDataException>(() => (content with { Sounds = new() { ["prompt-sound"]="prompt.wav" } }).Validate(texts,[1],[]));
         Assert.Throws<InvalidDataException>(() => (content with { Sounds = new() { ["title-sound"]="title.wav" } }).Validate(texts,[1],[]));
         Assert.Throws<InvalidDataException>(() => (content with { Progress = progress with { OrderPrompt = progress.OrderPrompt with { Bindings=[] } } }).Validate(texts,[1],[]));
+        foreach (var channel in new[] { progress.Records, progress.MapSpeeches, progress.Feedback })
+        {
+            var required = channel[ProgressPresentationDefinition.ReturnUnavailableRole];
+            channel.Remove(ProgressPresentationDefinition.ReturnUnavailableRole);
+            Assert.Throws<InvalidDataException>(() => content.Validate(texts, [1], []));
+            channel.Add(ProgressPresentationDefinition.ReturnUnavailableRole, required);
+        }
     }
 }

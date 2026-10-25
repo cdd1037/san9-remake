@@ -18,12 +18,33 @@ public enum UnitPolicyResponse
 {
     AttackOrdered, AttackDespiteOrders, AvoidOrdered, AvoidDespiteOrders, RetreatOrdered, RetreatOutnumbered, RetreatLowMorale,
     RetreatDespiteOrders, PursueOrdered, PursueDespiteOrders, ResumeOrders, ReturnHome,
+    PostActionNoTarget, PostActionAttackOrdered, PostActionAvoidDespiteOrders, PostActionReturnOrdered, PostActionAttackDespiteOrders,
     ConstructionAborted, TransportAborted, ReturnTargetChanged, EnterCapturedPlace,
     ReturnAfterAction, AttackUnitAfterAction, AttackPlaceAfterAction
 }
+
+public enum UnitPolicyReturnOutcome { NotRequested, Started, NoDestination }
 
 public sealed record UnitPolicyRespondedEvent(GameClock Clock, BattleObjectContext Unit,
     UnitPolicyResponse Response, int? OtherOfficerId, int? HomeId) : DomainEvent
 {
     [System.Text.Json.Serialization.JsonRequired] public int? PreviousPlaceId { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public bool ReportEligible { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public UnitPolicyReturnOutcome ReturnOutcome { get; init; }
+
+    internal static UnitPolicyRespondedEvent Capture(WorldMutation world, UnitState unit, UnitPolicyResponse response,
+        int? otherOfficerId, int? homeId, int? previousPlaceId = null,
+        UnitPolicyReturnOutcome returnOutcome = UnitPolicyReturnOutcome.NotRequested)
+    {
+        var corps = unit.CorpsId is int corpsId ? world.Corps.GetValueOrDefault(corpsId)
+            : world.Corps.Values.FirstOrDefault(c => c.OwnerId == unit.OwnerId && c.IsRoot);
+        return new(world.Clock, BattleObjectContext.Capture(unit), response, otherOfficerId, homeId)
+        {
+            PreviousPlaceId = previousPlaceId,
+            ReturnOutcome = returnOutcome,
+            ReportEligible = corps is not null &&
+                corps.OwnerId == unit.OwnerId && corps.ControlMode == CorpsControlMode.Direct &&
+                world.Simulation.Controls.Any(c => c.ForceId == unit.OwnerId && c.Kind == ControllerKind.Player)
+        };
+    }
 }

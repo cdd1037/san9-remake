@@ -78,7 +78,8 @@ public sealed class MilitarySupplyTests
         var result = engine.AdvanceXun();
         Assert.Equal(UnitTerminationReason.MoraleCollapsed, Assert.Single(result.Events.OfType<UnitTerminatedEvent>()).Reason);
         Assert.DoesNotContain(engine.Snapshot.Units, u => u.Id == 0);
-        Assert.Null(Assert.Single(engine.Snapshot.Units).Order);
+        Assert.Empty(engine.Snapshot.Units);
+        Assert.Contains(result.Events.OfType<UnitAbsorbedEvent>(), e => e.UnitId == 1 && e.SettlementId == 2);
         Assert.Equal(1, engine.Snapshot.Officers.Single(p => p.Id == 11).SettlementId);
         Assert.Null(engine.Snapshot.Officers.Single(p => p.Id == 11).UnitId);
         Assert.Empty(engine.AdvanceXun().Events.OfType<UnitTerminatedEvent>());

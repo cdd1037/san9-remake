@@ -18,6 +18,8 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
     [JsonRequired] public uint CargoFood { get; init; }
     [JsonRequired] public MilitaryOrder? Order { get; init; }
     [JsonRequired] public bool AutonomousReturn { get; init; }
+    // A new return prompts one pursuit pass; the return itself can last many days.
+    [JsonRequired] public bool PursuitResponsePending { get; init; }
     [JsonRequired] public bool CommandedThisXun { get; init; }
     // Authored field units may already be in progress; public deployment explicitly starts this as false.
     [JsonRequired] public bool HasEnteredDailyCycle { get; init; } = true;
@@ -57,7 +59,7 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
     /// <summary>Projects a newly assigned command without carrying the previous command's navigation or contacts.</summary>
     public UnitState WithMilitaryOrder(MilitaryOrder order, UnitPolicies policies, WorldPosition? waypoint) => this with
     {
-        Order = order, AutonomousReturn = false, Policies = policies, Waypoint = waypoint, DepartureDaysRemaining = 0,
+        Order = order, AutonomousReturn = false, PursuitResponsePending = false, Policies = policies, Waypoint = waypoint, DepartureDaysRemaining = 0,
         EngagementTargetId = null, ContactTarget = null, AwaitingPostAction = false, Lookahead = null
     };
     [System.Text.Json.Serialization.JsonIgnore] public MapCell Cell => MapCoordinates.Cell(Position);
@@ -88,6 +90,7 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
         (DepartureDaysRemaining == 0 || FormationId is not null && Order is not null) &&
         Policies is not null && CommanderId is not < 0 && EngagementTargetId is not < 0 && EngagementTargetId != Id &&
         (!AwaitingPostAction || Order is null) && (!AutonomousReturn || Order is { Kind: MilitaryOrderKind.Return }) &&
+        (!PursuitResponsePending || AutonomousReturn) &&
         (FormationId is not null || EngagementTargetId is null && !AwaitingPostAction && CommanderId is null) &&
         MemberRanks is not null && MemberRanks.All(p => p.Key >= 0 && Enum.IsDefined(p.Value)) &&
         (Order is null || FormationId is not null && Order.IsValid) &&

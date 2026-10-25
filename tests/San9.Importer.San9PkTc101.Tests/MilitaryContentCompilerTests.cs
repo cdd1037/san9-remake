@@ -33,7 +33,7 @@ public sealed class MilitaryContentCompilerTests
         var formations = Enumerable.Range(0, 28).Select(i => new San9ScenarioFormationRecord(i, (ushort)i, 0, 0, 0,
             (ushort)(i + 1), (ushort)(i + 2), (ushort)(i + 3), (ushort)(i + 4), 12, 1, 1, 100, 0, new byte[] { 1, 3, 4, 5, 7 }, 0)).ToArray();
         SettlementInitialState[] places = [new(5000, "city", 1, 10, 10, 100, 100, 100, 50, [])];
-        formations[0] = formations[0] with { Mobility = 10 };
+        formations[0] = formations[0] with { Mobility = 10, VisionRadius = 3, VisionAngleCode = 8 };
         formations[1] = formations[1] with { Mobility = 11 };
         formations[2] = formations[2] with { Mobility = 13 };
         var buildings = Enumerable.Range(0, 17).Select(i => new San9ScenarioFixedBuildingRecord(i, (ushort)i, 0, 0, 0, 600, 100, 5, 5, 0, 15, 0, 0)).ToArray();
@@ -44,6 +44,10 @@ public sealed class MilitaryContentCompilerTests
         var definition = MilitaryContentCompiler.Compile(squares, terrains, formations, places, [], buildings, tactics, places.ToDictionary(p => p.Id, _ => System.Collections.Immutable.ImmutableArray<int>.Empty));
         Assert.Equal(27, definition.UnformedFormationId);
         Assert.Equal(20, definition.BasicNavalFormationId);
+        Assert.Equal(new FormationVision(15, 360), definition.Formations.Single(f => f.Id == 0).Vision);
+        Assert.Equal(new FormationVision(5, 45), definition.Formations.Single(f => f.Id == 1).Vision);
+        Assert.Null(definition.Formations.Single(f => f.Id == 27).Vision);
+        Assert.Equal(new SoldierVisionBonus(50000, 10), definition.VisionSizeBands[^1]);
         Assert.Equal(Enumerable.Range(0, 12).Concat(Enumerable.Range(20, 4)), definition.Formations.Where(f => f.IsCommon).Select(f => f.Id));
         Assert.Equal(8, definition.CityInfluence!.RadiusCells);
         Assert.Equal(5, definition.Geography.FootprintScale);

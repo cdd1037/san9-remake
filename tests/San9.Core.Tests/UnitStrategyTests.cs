@@ -226,7 +226,7 @@ public sealed class UnitStrategyTests
         Assert.Equal(22,result.Target.CommanderId);
         var unit = Assert.Single(state.Units.Values);
         Assert.Equal(UnitCondition.HighSpirits, unit.Condition);
-        Assert.Equal(11, unit.ConditionDaysRemaining);
+        Assert.Equal(10, unit.ConditionDaysRemaining); // The movement day's common phase has consumed one day.
         Assert.Equal(89, unit.Morale); // The first daily stage already applied the ordinary field morale loss.
         Assert.True(unit.HighSpiritsMoralePenaltyPending);
         Assert.Equal(0, state.Officers.Values.Single(p => p.Id == 22).TacticCooldown);

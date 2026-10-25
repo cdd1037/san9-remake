@@ -4,11 +4,14 @@ using System.Text.Json.Serialization;
 namespace San9.Core.Domain;
 
 public sealed record SoldierFootprint(uint MinimumSoldiers, Footprint Footprint);
+public sealed record SoldierVisionBonus(uint MinimumSoldiers, int AdditionalRadius);
+public sealed record FormationVision(int Radius, int ArcDegrees);
 
 public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCost, uint SoldierCapacity,
     int OfficerCapacity, Footprint Footprint, TravelMode TravelMode)
 {
     [JsonRequired] public ImmutableArray<SoldierFootprint> SoldierFootprints { get; init; } = [];
+    [JsonRequired] public FormationVision? Vision { get; init; }
     public Footprint FootprintFor(uint soldiers)
     {
         var shape = Footprint;
@@ -91,6 +94,7 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
     [JsonRequired] public bool BattleDeathsAllowed { get; init; } = true;
     [JsonRequired] public bool DuelCapturesAllowed { get; init; } = true;
     [JsonRequired] public int PolicyRadius { get; init; } = 50;
+    [JsonRequired] public ImmutableArray<SoldierVisionBonus> VisionSizeBands { get; init; } = [];
     [JsonRequired] public ImmutableArray<FacilityRule> Facilities { get; init; } = [];
     [JsonRequired] public ImmutableArray<ConstructionSite> ConstructionSites { get; init; } = [];
     [JsonRequired] public ImmutableArray<int> Elevations { get; init; } = [];
@@ -121,12 +125,19 @@ public sealed partial class MilitaryRulebook
         DuelCapturesAllowed = definition.DuelCapturesAllowed;
         ArgumentOutOfRangeException.ThrowIfNegative(definition.PolicyRadius);
         PolicyRadius = definition.PolicyRadius;
+        VisionSizeBands = definition.VisionSizeBands;
+        if (VisionSizeBands.IsDefault || VisionSizeBands.Any(b => b.AdditionalRadius < 0) ||
+            !VisionSizeBands.Select(b => b.MinimumSoldiers).SequenceEqual(
+                VisionSizeBands.Select(b => b.MinimumSoldiers).Distinct().Order()))
+            throw new ArgumentException("Invalid troop vision size bands.");
         LinkRules = definition.LinkRules ?? throw new ArgumentException("Missing tactic link rules.");
         LinkRules.Validate();
         if (definition.TerrainIds.IsDefault || definition.Terrains.IsDefault || definition.Formations.IsDefault || definition.Places.IsDefault)
             throw new ArgumentException("Missing military definitions.");
         foreach (var formation in definition.Formations)
         {
+            if (formation.Vision is { } vision && (vision.Radius < 0 || vision.ArcDegrees is < 0 or > 360))
+                throw new ArgumentException("Invalid formation vision.");
             if (formation.SoldierFootprints.IsDefault || formation.SoldierFootprints.Any(b => !b.Footprint.IsValid) ||
                 !formation.SoldierFootprints.Select(b => b.MinimumSoldiers).SequenceEqual(
                     formation.SoldierFootprints.Select(b => b.MinimumSoldiers).Distinct().Order()))
@@ -345,6 +356,7 @@ public sealed partial class MilitaryRulebook
     }
     public ImmutableDictionary<int, TacticRule> Tactics { get; }
     public int PolicyRadius { get; }
+    public ImmutableArray<SoldierVisionBonus> VisionSizeBands { get; }
     public ImmutableDictionary<int, BattlefieldPlace> Places { get; }
     public ImmutableDictionary<int, FacilityRule> Facilities { get; }
     public ImmutableDictionary<(int RegionId, WorldPosition Position), ConstructionSite> ConstructionSites { get; }

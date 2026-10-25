@@ -7,6 +7,9 @@ internal static class WorldInvariants
 {
     internal static void Validate(WorldMutation state)
     {
+        if (state.UnitOrder.IsDefault || state.UnitOrder.Length != state.Units.Count ||
+            state.UnitOrder.Distinct().Count() != state.Units.Count || state.UnitOrder.Any(id => !state.Units.ContainsKey(id)))
+            throw new ArgumentException("Unit sequence does not match the world registry.");
         _ = new GameClock(state.Clock.Year, state.Clock.Month, state.Clock.Day);
         ValidateParticipation(state);
         ValidateSimulation(state);

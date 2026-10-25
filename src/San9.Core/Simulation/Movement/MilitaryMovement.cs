@@ -287,7 +287,7 @@ internal static class MilitaryMovement
             if (order.SettlementId is int destination) Absorb(world, unit, destination, governance, geography, rules, events);
             else
             {
-                world.Replace(unit with { Order = null, AutonomousReturn = false });
+                world.Replace(unit with { Order = null, AutonomousReturn = false, PursuitResponsePending = false });
                 UnitOrderChanges.Report(world, id, null, "arrived", events);
             }
         }

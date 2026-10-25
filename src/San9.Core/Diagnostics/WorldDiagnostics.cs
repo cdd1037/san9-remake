@@ -22,7 +22,7 @@ public static class WorldDiagnostics
     /// <summary>Semantic state excludes the commit revision and includes unsaved decision continuations.</summary>
     public static WorldDiagnosticSnapshot Capture(WorldSnapshot world) => new(world.Clock, NormalizeSimulation(world.Simulation),
         NormalizeForces(world.Forces), world.Settlements.OrderBy(s => s.Id).ToImmutableArray(), NormalizeOfficers(world.Officers),
-        world.Units.OrderBy(u => u.Id).ToImmutableArray(), world.Corps.OrderBy(c => c.Id).ToImmutableArray(),
+        world.Units.ToImmutableArray(), world.Corps.OrderBy(c => c.Id).ToImmutableArray(),
         world.Treasures.OrderBy(t => t.Id).ToImmutableArray(), NormalizeRelations(world.Relations), CaptureInteraction(world.Simulation));
 
     public static JsonElement Serialize(WorldSnapshot world) =>
@@ -61,7 +61,7 @@ public static class WorldDiagnostics
             (ReferenceEquals(expected.Treasures, actual.Treasures) || comparison.Check(
                 expected.Treasures.OrderBy(t => t.Id).ToImmutableArray(), actual.Treasures.OrderBy(t => t.Id).ToImmutableArray(), "$.treasures")) &&
             (ReferenceEquals(expected.Units, actual.Units) || comparison.Check(
-                expected.Units.OrderBy(u => u.Id).ToImmutableArray(), actual.Units.OrderBy(u => u.Id).ToImmutableArray(), "$.units"));
+                expected.Units.ToImmutableArray(), actual.Units.ToImmutableArray(), "$.units"));
         difference = comparison.Difference;
         return equal;
     }

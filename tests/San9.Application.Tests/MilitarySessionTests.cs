@@ -12,6 +12,36 @@ namespace San9.Application.Tests;
 public sealed class MilitarySessionTests
 {
     [Fact]
+    public void SavePreservesCandidateOrderAndConsumesOnlyTheFreshPursuitResponse()
+    {
+        var definition = Fixture() with
+        {
+            Units = [new(40, 1, new(17, 7), 400)
+            {
+                FormationId = 7, Morale = 70, ServicePlaceId = 1,
+                Order = new(MilitaryOrderKind.Return, null, 2), AutonomousReturn = true, PursuitResponsePending = true
+            }, new(2, 1, new(27, 7), 400)
+            {
+                FormationId = 7, Morale = 70, ServicePlaceId = 1,
+                Order = new(MilitaryOrderKind.Return, null, 2), AutonomousReturn = true
+            }]
+        };
+        var session = GameSession.Start(definition, 42);
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        Assert.Equal([40, 2], restored.Snapshot.Units.Select(u => u.Id));
+        Assert.True(restored.Snapshot.Units[0].PursuitResponsePending);
+        Assert.False(restored.Snapshot.Units[1].PursuitResponsePending);
+        EventAssert.Equal(session.Apply(session.Request(new PrepareAdvanceOperation())).Events,
+            restored.Apply(restored.Request(new PrepareAdvanceOperation())).Events);
+        EventAssert.Equal(session.Apply(session.Request(new AdvanceDayOperation())).Events,
+            restored.Apply(restored.Request(new AdvanceDayOperation())).Events);
+        StateAssert.Equal(session.Snapshot, restored.Snapshot);
+        var returning = restored.Snapshot.Units.Single(u => u.Id == 40);
+        Assert.True(returning.AutonomousReturn);
+        Assert.False(returning.PursuitResponsePending);
+    }
+
+    [Fact]
     public void UnresolvedReturnSurvivesSaveAndWaitsUntilAServicePlaceReopens()
     {
         var definition = Fixture();

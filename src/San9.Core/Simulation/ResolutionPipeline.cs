@@ -171,9 +171,7 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         var rationAccounts = EconomicCycle.Apply(stage, world, rules.Economy, events);
         if (stage == ResolutionStage.BeforeDailyCommands)
         {
-            MilitaryMovement.BeginDailyCycle(world);
             MilitaryTactics.TickCooldowns(world);
-            MilitaryConditions.Tick(world, events);
             MilitaryDailyCycle.Apply(world, rationAccounts, rules, events);
             BattleLearning.Daily(world, rules.Military, events);
         }
@@ -186,6 +184,12 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         if (stage == ResolutionStage.DailyMapUpdate) { FacilityConstruction.AdvanceDay(world, rules, events); world.MaintainDerivedState(events); }
         if (stage == ResolutionStage.DailyMapUpdate)
         {
+            MilitaryMovement.BeginDailyCycle(world);
+            MilitaryPolicies.FinishPursuitResponses(world);
+            MilitaryConditions.Tick(world, events);
+            MilitaryMovement.TickDepartureDelays(world);
+            MilitaryPolicies.ApproachDay(world, rules.Military, events);
+            world.MaintainDerivedState(events);
             if (contactsBefore is not null) BattleContact.PublishEntries(world, rules.Military!, contactsBefore, events);
             if (rules.Military is { } engagementRules) MilitaryEngagements.ClearExpired(world, engagementRules);
             MilitaryCombat.AdvanceDay(world, rules, events, xunStarted);
@@ -194,7 +198,6 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         }
         if (stage == ResolutionStage.XunUpdate)
         {
-            MilitaryPolicies.ApproachXun(world, rules.Military, events);
             OfficeRequests.Begin(world, rules, events);
         }
         return CompleteStage(stage, world, events);
@@ -222,7 +225,6 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
     {
         if (stage == ResolutionStage.DailyMapUpdate) { TacticSupport.AdvanceDay(world, rules, events); world.MaintainDerivedState(events); }
         if (stage == ResolutionStage.DailyMapUpdate) { MilitaryOrders.ResolveOrders(world, rules.Military, events); world.MaintainDerivedState(events); }
-        if (stage == ResolutionStage.DailyMapUpdate) MilitaryMovement.TickDepartureDelays(world);
         rules.ApplyStage(stage, world, events);
         AttackRequests.Cleanup(world, events);
         CorpsDelegations.Cleanup(world, rules.Military, events);

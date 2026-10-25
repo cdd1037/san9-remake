@@ -267,7 +267,9 @@ public sealed class WorldEventPresentationTests
     {
         if (Environment.GetEnvironmentVariable("SAN9_PRESENTATION_CONTENT") is not { Length: > 0 } root) return;
         var package = await ClientContentFiles.LoadAsync(root);
-        var session = GameSession.Start(package.Scenario, 42); var before = session.View; var clock = before.World.Clock;
+        int selectedForce = package.Scenario.Forces.First(f => !f.IsDormant && f.LeaderId is not null).Id;
+        var session = GameSession.Start(package.Scenario, 42, playerForceIds: [selectedForce]);
+        var before = session.View; var clock = before.World.Clock;
         int force = before.RequirePlayerForce(), ruler = before.World.Forces.Single(f => f.Id == force).LeaderId!.Value;
         int otherForce = before.World.Forces.First(f => f.Id != force && !f.IsDormant && f.LeaderId is not null).Id;
         int other = before.World.Forces.Single(f => f.Id == otherForce).LeaderId!.Value;

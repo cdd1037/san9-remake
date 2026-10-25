@@ -64,6 +64,7 @@ public static class ClientContentImporter
         San9.Content.Text.NameMessages.AddTo(messages);
         EventPresentationCompiler.AddMessages(messages);
         ChroniclePresentationCompiler.AddMessages(messages);
+        ExecutionPresentationCompiler.AddMessages(messages);
         text = text with { Messages = messages };
         var roles = InformationArtCompiler.Compile(scenarioBytes, scenario, textures.Library, textures.Portraits);
         var dependency = new TextureDependency(Path.GetRelativePath(output, textureRoot).Replace('\\','/'));

@@ -15,14 +15,17 @@ public sealed record ProgressPresentationDefinition(Dictionary<string, DecisionM
     public Dictionary<string, DecisionMessageDefinition> MapSpeeches { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<string, DecisionMessageDefinition> Feedback { get; init; } = [];
+    public const string ReturnUnavailableRole = "policy-return-unavailable";
+    public static readonly string[] PostActionRoles = ["policy-post-action-no-target", "policy-post-action-attack-ordered",
+        "policy-post-action-avoid-despite-orders", "policy-post-action-return-ordered", "policy-post-action-attack-despite-orders"];
     public static readonly string[] FeedbackRoles = ["ability-grown", "tactic-learned", "injury-worsened", "place-commander-changed",
         "unit-commander-changed", "corps-leader-changed", "corps-reorganized", "appearance-introduction", "appearance-greeting", "appearance-result",
-        "treasury-captured", "prisoner-escape-speech", "prisoner-escape-result", "battle-capture-speech", "battle-capture-dialogue"];
+        "treasury-captured", "prisoner-escape-speech", "prisoner-escape-result", "battle-capture-speech", "battle-capture-dialogue", ReturnUnavailableRole, .. PostActionRoles];
     public static readonly string[] MapSpeechRoles = ["policy-construction-aborted", "policy-transport-aborted", "policy-return-target-changed",
         "policy-enter-captured-place", "policy-return-after-action", "policy-attack-unit-after-action", "policy-attack-place-after-action", "unit-defeat", "waypoint-reached", "contact-attack", "contact-defense",
         "contact-attack-strong", "contact-attack-weak", "contact-defense-strong", "contact-defense-weak", "contact-building",
         "policy-attack-ordered", "policy-attack-despite-orders", "policy-avoid-ordered", "policy-avoid-despite-orders", "policy-retreat-ordered", "policy-retreat-outnumbered",
-        "policy-retreat-low-morale", "policy-retreat-despite-orders", "policy-pursue-ordered", "policy-pursue-despite-orders", "policy-resume-orders", "policy-return-home"];
+        "policy-retreat-low-morale", "policy-retreat-despite-orders", "policy-pursue-ordered", "policy-pursue-despite-orders", "policy-resume-orders", "policy-return-home", ReturnUnavailableRole, .. PostActionRoles];
     public static readonly string[] RecordRoles = ["burn-victim-success", "burn-victim-failure", "burn-food", "alienate-victim-failure", "loyalty-lost", "loyalty-hidden",
         "rumor-observer-success", "rumor-observer-failure", "seize-money-victim", "seize-money-other", "seize-item-victim", "seize-item-other", "seize-person-victim", "seize-person-other",
         "false-report-victim-blocked", "disorder-victim-success", "disorder-victim-blocked", "disorder-other-success", "inspire-other-success", "rescue-other-result",
@@ -38,7 +41,7 @@ public sealed record ProgressPresentationDefinition(Dictionary<string, DecisionM
         "policy-attack-ordered", "policy-attack-despite-orders", "policy-avoid-ordered", "policy-avoid-despite-orders", "policy-retreat-ordered", "policy-retreat-outnumbered",
         "policy-retreat-low-morale", "policy-retreat-despite-orders", "policy-pursue-ordered", "policy-pursue-despite-orders", "policy-resume-orders", "policy-return-home",
         "territory-changed", "territory-lost", "facility-won", "facility-destroyed", "construction-completed", "transport-completed", "person-captured",
-        "enemy-captured", "ruler-succeeded", "force-eliminated", "natural-death", "ruler-death", "captive-death", "melee-death", "sniping-death", "duel-death"];
+        "enemy-captured", "ruler-succeeded", "force-eliminated", "natural-death", "ruler-death", "captive-death", "melee-death", "sniping-death", "duel-death", ReturnUnavailableRole, .. PostActionRoles];
     public static readonly string[] ContextRoles = ["enemy-city", "enemy-place", "food-shortage", "money-shortage", "reinforce-from", "reinforce-to",
         "defense-desperate", "defense-rockfall", "defense-siege", "defense-city", "defense-place", "defense-counterattack",
         "person-city", "person-place", "person-city-anonymous", "person-place-anonymous", "person-region",

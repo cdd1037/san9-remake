@@ -9,6 +9,7 @@ public sealed class WorldState
     private ImmutableDictionary<int, SettlementState> _settlements = ImmutableDictionary<int, SettlementState>.Empty;
     private ImmutableDictionary<int, OfficerState> _officers = ImmutableDictionary<int, OfficerState>.Empty;
     private ImmutableDictionary<int, UnitState> _units = ImmutableDictionary<int, UnitState>.Empty;
+    private ImmutableArray<int> _unitOrder = [];
     private ImmutableDictionary<int, CorpsState> _corps = ImmutableDictionary<int, CorpsState>.Empty;
     private ImmutableDictionary<int, TreasureState> _treasures = ImmutableDictionary<int, TreasureState>.Empty;
     private ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> _relations =
@@ -53,7 +54,9 @@ public sealed class WorldState
         world._forces = IndexUnique(forces, value => value.Id);
         world._settlements = IndexUnique(settlements, value => value.Id);
         world._officers = IndexUnique(officers, value => value.Id);
-        world._units = IndexUnique(units ?? [], value => value.Id);
+        var declaredUnits = (units ?? []).ToArray();
+        world._units = IndexUnique(declaredUnits, value => value.Id);
+        world._unitOrder = declaredUnits.Select(u => u.Id).ToImmutableArray();
         world._corps = IndexUnique(corps ?? [], value => value.Id);
         world._treasures = IndexUnique(treasures ?? [], value => value.Id);
         world._relations = IndexUnique(relations ?? [], value => (value.FirstId, value.SecondId));
@@ -91,6 +94,7 @@ public sealed class WorldState
             _settlements = IndexUnique(snapshot.Settlements, value => value.Id),
             _officers = IndexUnique(snapshot.Officers, value => value.Id),
             _units = IndexUnique(snapshot.Units, value => value.Id),
+            _unitOrder = snapshot.Units.Select(u => u.Id).ToImmutableArray(),
             _corps = IndexUnique(snapshot.Corps, value => value.Id),
             _treasures = IndexUnique(snapshot.Treasures, value => value.Id),
             _relations = IndexUnique(snapshot.Relations, value => (value.FirstId, value.SecondId)),
@@ -108,7 +112,7 @@ public sealed class WorldState
         if (IsExecuting) throw new InvalidOperationException("Cannot fork an executing world.");
         return new(Clock, Simulation.InitialSeed)
         {
-            _forces = _forces, _settlements = _settlements, _officers = _officers, _units = _units,
+            _forces = _forces, _settlements = _settlements, _officers = _officers, _units = _units, _unitOrder = _unitOrder,
             _corps = _corps, _treasures = _treasures, _relations = _relations,
             _activeRecords = _activeRecords,
             Simulation = Simulation, Revision = Revision, _snapshot = _snapshot,
@@ -136,7 +140,7 @@ public sealed class WorldState
     }
 
     internal WorldMutation BeginMutation(OfficerAbilityRules? abilities = null, EconomyRulebook? economy = null) => new(this, abilities ?? OfficerAbilityRules.Empty, economy ?? EconomyRulebook.Empty, Revision, Clock, Simulation, _forces, _settlements,
-        _officers, _units, _corps, _treasures, _relations, _activeRecords);
+        _officers, _units, _unitOrder, _corps, _treasures, _relations, _activeRecords);
 
     // Loading reconstructs derived totals without creating another gameplay transaction or revision.
     internal void RestoreDerivedTrust(WorldMutation mutation)
@@ -167,6 +171,7 @@ public sealed class WorldState
         _settlements = mutation.AllSettlements;
         _officers = mutation.AllOfficers;
         _units = mutation.Units;
+        _unitOrder = mutation.UnitOrder;
         _corps = mutation.AllCorps;
         _treasures = mutation.AllTreasures;
         _relations = mutation.AllRelations;
@@ -187,7 +192,7 @@ public sealed class WorldState
         var corps = _publishedCorps ??= Array.AsReadOnly(_corps.Values.OrderBy(c => c.Id).ToArray());
         var relations = _publishedRelations ??= Array.AsReadOnly(_relations.Values.OrderBy(r => r.FirstId).ThenBy(r => r.SecondId).ToArray());
         var treasures = _publishedTreasures ??= Array.AsReadOnly(_treasures.Values.OrderBy(t => t.Id).ToArray());
-        var units = _publishedUnits ??= Array.AsReadOnly(_units.Values.OrderBy(u => u.Id).ToArray());
+        var units = _publishedUnits ??= Array.AsReadOnly(_unitOrder.Select(id => _units[id]).ToArray());
         return _snapshot = new WorldSnapshot(Clock, SnapshotSimulation()) { Forces = forces, Settlements = settlements, Officers = officers, Units = units, Corps = corps, Treasures = treasures, Relations = relations, Revision = Revision };
     }
 

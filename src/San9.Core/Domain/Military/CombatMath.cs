@@ -21,6 +21,13 @@ public static class CombatMath
         value.Validate();
         return (long)BigInteger.Min(long.MaxValue, BigInteger.Max(1, Power(value) * value.Soldiers / 100));
     }
+
+    internal static BigInteger PolicyTargetPriority(CombatStrength value, bool commanderIsRuler)
+    {
+        value.Validate();
+        return BigInteger.Max(0, Power(value) - (commanderIsRuler ? 20 : 0)) * value.Soldiers;
+    }
+
     /// <summary>Unopposed attack and defense terms for a formation preview, without target wall defense.</summary>
     public static (long AgainstUnits, long AgainstGarrison, long Defense) FormationStrength(CombatStrength strength, CombatProfile profile)
     {

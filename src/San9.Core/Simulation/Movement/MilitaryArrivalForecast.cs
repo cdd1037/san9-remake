@@ -84,14 +84,6 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
         {
             // ResolutionPipeline advances the calendar before DailyMapUpdate, including waiting days.
             movementDate = movementDate.NextDay();
-            // BeforeDailyCommands expires conditions before that day's map movement.
-            if (day > 1 || snapshot.Simulation.PendingDailyTask is not { Phase: TaskResolutionPhase.DailyCommands })
-            {
-                var previousOrder = unit.EffectiveOrder;
-                unit = MilitaryUnitTransitions.Apply(unit, MilitaryConditions.Tick(unit));
-                // Do not label arrival at a different future order as arrival at the displayed target.
-                if (unit.EffectiveOrder != previousOrder) return new(ArrivalEstimateStatus.Incomplete);
-            }
             bool preparing = unit.DepartureDaysRemaining > 0;
             bool immobilized = unit.Condition == UnitCondition.Confused;
             if (!preparing && !constructionPreview && !Valid(world, unit)) return new(ArrivalEstimateStatus.NotApplicable);
@@ -110,9 +102,13 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
                 unit = contacted;
                 world.SetForecastUnit(unit);
             }
-            // Combat state evolves even on days without movement. Departure delays expire after combat.
-            unit = MilitaryEngagements.ForecastNextCombat(world, unit, rules);
+            // The common daily phase expires conditions and departure delays after movement, before combat.
+            var previousOrder = unit.EffectiveOrder;
+            unit = MilitaryUnitTransitions.Apply(unit, MilitaryConditions.Tick(unit));
+            if (unit.EffectiveOrder != previousOrder) return new(ArrivalEstimateStatus.Incomplete);
             if (preparing) unit = unit with { DepartureDaysRemaining = unit.DepartureDaysRemaining - 1 };
+            world.SetForecastUnit(unit);
+            unit = MilitaryEngagements.ForecastNextCombat(world, unit, rules);
         }
         return new(ArrivalEstimateStatus.Incomplete);
     }

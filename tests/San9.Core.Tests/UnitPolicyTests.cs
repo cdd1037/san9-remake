@@ -16,15 +16,15 @@ public sealed partial class UnitPolicyTests
         var mutation = world.BeginMutation();
         var rules = Rules();
         List<DomainEvent> events = [];
-        MilitaryPolicies.ApproachXun(mutation, rules, events);
-        MilitaryPolicies.ApproachXun(mutation, rules, events);
+        MilitaryPolicies.ApproachDay(mutation, rules, events);
+        MilitaryPolicies.ApproachDay(mutation, rules, events);
         var report = Assert.Single(events.OfType<UnitPolicyRespondedEvent>(), e => e.Unit.Id == 1);
         Assert.Equal(response, report.Response);
         Assert.Equal(new WorldPosition(20, 10), report.Unit.Position);
         mutation.Replace(mutation.Units[2] with { Position = new(80, 10) });
-        MilitaryPolicies.ApproachXun(mutation, rules, events);
+        MilitaryPolicies.ApproachDay(mutation, rules, events);
         mutation.Replace(mutation.Units[2] with { Position = new(25, 10) });
-        MilitaryPolicies.ApproachXun(mutation, rules, events);
+        MilitaryPolicies.ApproachDay(mutation, rules, events);
         Assert.Equal(2, events.OfType<UnitPolicyRespondedEvent>().Count(e => e.Unit.Id == 1));
     }
 
@@ -32,7 +32,7 @@ public sealed partial class UnitPolicyTests
     private static readonly MilitaryOrder Mission = new(MilitaryOrderKind.Move, new(90, 10), null);
     private static MilitaryRulebook Rules() => new(new(20, 5, Enumerable.Repeat(0, 100).ToImmutableArray(),
         [new(0, 1, null)], [new(1, 1, 0, 100000, 1, new(1, 1), TravelMode.Land)
-        { Combat = new(10, 10, 10, 10, 50), Attack = new(1, true), CaptureRanks = [BattleRank.Front] }],
+        { Combat = new(10, 10, 10, 10, 50), Attack = new(1, true), Vision = new(10, 360), CaptureRanks = [BattleRank.Front] }],
         [new(1, new(2, 2), new(1, 1)) { Combat = new(10, 10, 10, 10, 50) },
          new(2, new(95, 2), new(1, 1)) { Combat = new(10, 10, 10, 10, 50) }]) { PolicyRadius = 10 });
 
@@ -43,7 +43,7 @@ public sealed partial class UnitPolicyTests
              new(22, 2, null, new(80, 80, 80, 80), false) { UnitId = 2, Personality = 3 }],
             [new(1, 1, new(20, 10), 5000) { FormationId = 1, CommanderId = 11, ServicePlaceId = 1, Morale = 80,
                 Policies = policies ?? new(), Order = order ?? Mission, MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front) },
-             new(2, 2, new(25, 10), 5000) { FormationId = 1, CommanderId = 22, ServicePlaceId = 2, Morale = 80,
+             new(2, 2, new(25, 10), 5000) { FormationId = 1, CommanderId = 22, ServicePlaceId = 2, Morale = 80, Order = new(MilitaryOrderKind.Move, new(90, 10), null),
                 MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(22, BattleRank.Front) }],
             controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(10000, 10000)) { IsRoot = true }]);
 
@@ -89,7 +89,7 @@ public sealed partial class UnitPolicyTests
     {
         var world = World(policies: new(AttackApproachingEnemies: true));
         var mutation = world.BeginMutation(); var events = new List<DomainEvent>();
-        MilitaryPolicies.ApproachXun(mutation, Rules(), events);
+        MilitaryPolicies.ApproachDay(mutation, Rules(), events);
         Assert.Equal(2, mutation.Units[1].EngagementTargetId);
         Assert.Equal(Mission, mutation.Units[1].Order);
         Assert.Equal(Attack(2), mutation.Units[1].EffectiveOrder);
@@ -106,7 +106,7 @@ public sealed partial class UnitPolicyTests
         var mutation = World(policies: new(AttackApproachingEnemies: true)).BeginMutation();
         mutation.Replace(mutation.Units[2] with { Position = new(22, 10) });
         var events = new List<DomainEvent>(); var rules = Rules();
-        MilitaryPolicies.ApproachXun(mutation, rules, events);
+        MilitaryPolicies.ApproachDay(mutation, rules, events);
         MilitaryMovement.AdvanceDay(mutation, rules, new([]), PersonnelRulebook.Empty, events);
         Assert.Equal(new WorldPosition(21, 10), mutation.Units[1].Position);
         MilitaryCombat.AdvanceDay(mutation, new() { Military = rules }, events);
@@ -123,7 +123,7 @@ public sealed partial class UnitPolicyTests
     {
         var mutation = World(policies: new(AttackApproachingEnemies: true)).BeginMutation();
         mutation.Replace(mutation.Units[1] with { Condition = condition });
-        MilitaryPolicies.ApproachXun(mutation, Rules(), []);
+        MilitaryPolicies.ApproachDay(mutation, Rules(), []);
         Assert.Equal(intercepts, mutation.Units[1].EngagementTargetId is not null);
     }
 
@@ -136,7 +136,7 @@ public sealed partial class UnitPolicyTests
         var order = kind == MilitaryOrderKind.Transport ? new MilitaryOrder(kind, null, 1) :
             new(kind, null, null) { Construction = new(1, 1, new(30, 10), 11) };
         mutation.Replace(mutation.Units[1] with { Order = order });
-        MilitaryPolicies.ApproachXun(mutation, Rules(), []);
+        MilitaryPolicies.ApproachDay(mutation, Rules(), []);
         Assert.Equal(order, mutation.Units[1].EffectiveOrder);
         Assert.Null(mutation.Units[1].EngagementTargetId);
     }
@@ -152,7 +152,7 @@ public sealed partial class UnitPolicyTests
     {
         var mutation = World(personality, new(AttackApproachingEnemies: true, Pursue: permitted), main ? Attack(2) : Mission).BeginMutation();
         if (!main) mutation.Replace(mutation.Units[1] with { EngagementTargetId = 2 });
-        mutation.Replace(mutation.Units[2] with { Order = new(MilitaryOrderKind.Return, null, 2), AutonomousReturn = true });
+        mutation.Replace(mutation.Units[2] with { Order = new(MilitaryOrderKind.Return, null, 2), AutonomousReturn = true, PursuitResponsePending = true });
         MilitaryPolicies.AdvanceDay(mutation, Rules(), []);
         Assert.Equal(chasing, mutation.Units[1].EffectiveOrder?.UnitId == 2);
         Assert.Equal(returning, mutation.Units[1].Order?.Kind == MilitaryOrderKind.Return);
@@ -188,6 +188,7 @@ public sealed partial class UnitPolicyTests
     public void PostActionIsConsumedOnceAndSelectsARealNewTarget(bool attack, MilitaryOrderKind expected)
     {
         var mutation = World(policies: new(AttackAfterAction: attack)).BeginMutation();
+        mutation.Replace(mutation.Units[2] with { Position = new(21, 10) });
         mutation.Replace(mutation.Units[1] with { Order = null, AwaitingPostAction = true });
         var events = new List<DomainEvent>();
         MilitaryOrders.ResolveOrders(mutation, Rules(), events);
@@ -199,22 +200,22 @@ public sealed partial class UnitPolicyTests
     }
 
     [Fact]
-    public void DailyScansCannotRepeatXunApproachAndXunScanCannotRepeatAnEngagement()
+    public void SeparateDailyResponsePhasesDoNotRepeatAnExistingEngagement()
     {
         var mutation = World(policies: new(AttackApproachingEnemies: true)).BeginMutation();
         var events = new List<DomainEvent>();
         MilitaryPolicies.AdvanceDay(mutation, Rules(), events);
         Assert.Null(mutation.Units[1].EngagementTargetId);
-        MilitaryPolicies.ApproachXun(mutation, Rules(), events);
+        MilitaryPolicies.ApproachDay(mutation, Rules(), events);
         Assert.Equal(2, mutation.Units[1].EngagementTargetId);
-        MilitaryPolicies.ApproachXun(mutation, Rules(), events);
+        MilitaryPolicies.ApproachDay(mutation, Rules(), events);
         MilitaryPolicies.AdvanceDay(mutation, Rules(), events);
         Assert.Single(events.OfType<UnitEngagementChangedEvent>(), e => e.UnitId == 1);
         Assert.Empty(mutation.Simulation.RandomStreams);
     }
 
     [Fact]
-    public void PostActionDoesNotFindNewBuildingsAndFailedReturnRemainsRetryable()
+    public void PostActionDoesNotFindNewBuildingsAndRepairsAnUndeclaredReturnPlace()
     {
         var mutation = World(policies: new(AttackAfterAction: true)).BeginMutation();
         mutation.Replace(mutation.Units[1] with { Order = null, AwaitingPostAction = true, ServicePlaceId = null });
@@ -226,14 +227,11 @@ public sealed partial class UnitPolicyTests
             [new(1, new(2, 2), new(1, 1)), new(2, new(22, 10), new(1, 1))]) { PolicyRadius = 10 };
         var nearbyBuilding = new MilitaryRulebook(definition);
         var events = new List<DomainEvent>();
-        var before = mutation.Units[1];
         MilitaryOrders.ResolveOrders(mutation, nearbyBuilding, events);
-        Assert.Equal(before, mutation.Units[1]);
-        Assert.DoesNotContain(events, e => e is UnitOrderChangedEvent { UnitId: 1 });
-        mutation.Replace(mutation.Units[1] with { ServicePlaceId = 1 });
-        MilitaryOrders.ResolveOrders(mutation, nearbyBuilding, events);
-        Assert.Equal(MilitaryOrderKind.Return, mutation.Units[1].Order!.Kind);
+        Assert.Equal(new(MilitaryOrderKind.Return, null, 1), mutation.Units[1].Order);
+        Assert.Equal(1, mutation.Units[1].ServicePlaceId);
         Assert.False(mutation.Units[1].AwaitingPostAction);
+        Assert.Equal(UnitPolicyResponse.PostActionNoTarget, Assert.Single(events.OfType<UnitPolicyRespondedEvent>()).Response);
     }
 
     [Fact]

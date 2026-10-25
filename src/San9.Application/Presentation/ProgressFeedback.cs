@@ -8,6 +8,9 @@ namespace San9.Application.Presentation;
 /// <summary>Reports use captured occurrence data; displaying dialogue never creates a report.</summary>
 internal static class ProgressFeedback
 {
+    internal static string PolicyRole(UnitPolicyRespondedEvent response) => response.ReturnOutcome == UnitPolicyReturnOutcome.NoDestination
+        ? ProgressPresentationDefinition.ReturnUnavailableRole : PolicyRole(response.Response);
+
     internal static string PolicyRole(UnitPolicyResponse response) => response switch
     {
         UnitPolicyResponse.AvoidOrdered => "policy-avoid-ordered",
@@ -22,6 +25,11 @@ internal static class ProgressFeedback
         UnitPolicyResponse.PursueDespiteOrders => "policy-pursue-despite-orders",
         UnitPolicyResponse.ResumeOrders => "policy-resume-orders",
         UnitPolicyResponse.ReturnHome => "policy-return-home",
+        UnitPolicyResponse.PostActionNoTarget => "policy-post-action-no-target",
+        UnitPolicyResponse.PostActionAttackOrdered => "policy-post-action-attack-ordered",
+        UnitPolicyResponse.PostActionAvoidDespiteOrders => "policy-post-action-avoid-despite-orders",
+        UnitPolicyResponse.PostActionReturnOrdered => "policy-post-action-return-ordered",
+        UnitPolicyResponse.PostActionAttackDespiteOrders => "policy-post-action-attack-despite-orders",
         UnitPolicyResponse.ConstructionAborted => "policy-construction-aborted",
         UnitPolicyResponse.TransportAborted => "policy-transport-aborted",
         UnitPolicyResponse.ReturnTargetChanged => "policy-return-target-changed",
@@ -31,6 +39,39 @@ internal static class ProgressFeedback
         UnitPolicyResponse.AttackPlaceAfterAction => "policy-attack-place-after-action",
         _ => throw new ArgumentOutOfRangeException(nameof(response))
     };
+
+    internal static bool IsPostAction(UnitPolicyResponse response) => response is UnitPolicyResponse.PostActionNoTarget or
+        UnitPolicyResponse.PostActionAttackOrdered or UnitPolicyResponse.PostActionAvoidDespiteOrders or
+        UnitPolicyResponse.PostActionReturnOrdered or UnitPolicyResponse.PostActionAttackDespiteOrders;
+
+    internal static bool IsPolicyDecision(UnitPolicyResponse response) => IsPostAction(response) || response is
+        UnitPolicyResponse.AttackOrdered or UnitPolicyResponse.AttackDespiteOrders or UnitPolicyResponse.AvoidOrdered or
+        UnitPolicyResponse.AvoidDespiteOrders or UnitPolicyResponse.RetreatOrdered or UnitPolicyResponse.RetreatOutnumbered or
+        UnitPolicyResponse.RetreatLowMorale or UnitPolicyResponse.RetreatDespiteOrders or UnitPolicyResponse.PursueOrdered or
+        UnitPolicyResponse.PursueDespiteOrders or UnitPolicyResponse.ResumeOrders or UnitPolicyResponse.ReturnHome;
+
+    internal static Dictionary<string, MessageBinding> PolicyValues(UnitPolicyRespondedEvent response)
+    {
+        Dictionary<string, MessageBinding> values = [];
+        if (response.Unit.CommanderId is int actor) values["actor"] = ProgressMessageProducer.Person(actor);
+        if (response.OtherOfficerId is int other) values["other"] = ProgressMessageProducer.Person(other);
+        if (response.HomeId is int home) values["place"] = ProgressMessageProducer.Place(home);
+        if (response.Unit.ServicePlaceId is int origin) values["other-place"] = ProgressMessageProducer.Place(origin);
+        if (response.PreviousPlaceId is int previous) values["previous-place"] = ProgressMessageProducer.Place(previous);
+        return values;
+    }
+
+    internal static IReadOnlyList<CommandMessage> PolicyPrompts(StrategySnapshot before, WorldMessageContext context,
+        TextCatalog texts, ProgressPresentationDefinition content, UnitPolicyRespondedEvent response, int index)
+    {
+        if (!response.ReportEligible || !IsPostAction(response.Response) || response.Unit.CommanderId is not int actor) return [];
+        string role = PolicyRole(response);
+        var occurrence = context.AtOccurrence(response.Clock, response.Unit);
+        var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision, $"policy-prompt:{index}:{role}"));
+        var message = ProgressMessageProducer.Produce(content.Feedback[role], occurrence, texts, PolicyValues(response),
+            count => (int)(random.NextUInt64() % (ulong)count));
+        return [message with { Speaker = occurrence.Speaker(actor), FocusLocation = MapCoordinates.Cell(response.Unit.Position!.Value) }];
+    }
 
     private static Dictionary<string, MessageBinding> GrowthValues(OfficerAbilityGrownEvent growth) => new()
     {
@@ -92,12 +133,10 @@ internal static class ProgressFeedback
                 if (target.IsSettlement) { values["place"] = ProgressMessageProducer.Place(target.Id); Add("settlement-recovered"); }
                 else if (target.CommanderId is int commander) { values["actor"] = ProgressMessageProducer.Person(commander); Add("unit-recovered"); }
                 break;
-            case UnitPolicyRespondedEvent policy when Player(before, policy.Unit.ForceId) && policy.Unit.CommanderId is int commander:
+            case UnitPolicyRespondedEvent policy when policy.ReportEligible && policy.Unit.CommanderId is not null:
                 clock = policy.Clock; color = policy.Unit.ForceId; location = MapCoordinates.Cell(policy.Unit.Position!.Value);
-                values["actor"] = ProgressMessageProducer.Person(commander);
-                if (policy.OtherOfficerId is int otherOfficer) values["other"] = ProgressMessageProducer.Person(otherOfficer);
-                if (policy.HomeId is int home) values["place"] = ProgressMessageProducer.Place(home);
-                Add(PolicyRole(policy.Response)); break;
+                values = PolicyValues(policy);
+                Add(PolicyRole(policy)); break;
             case BurnResolvedEvent { Success: true } burn:
                 clock = burn.Clock; var burning = burn.Occurrence;
                 location = before.PlaceCell(burn.TargetSettlementId) ?? after.PlaceCell(burn.TargetSettlementId);

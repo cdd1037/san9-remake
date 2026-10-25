@@ -21,8 +21,7 @@ internal static class MapNotificationSpeeches
                 participant = terminated.Target; clock = terminated.Clock; role = "unit-defeat";
                 break;
             case UnitPolicyRespondedEvent policy:
-                if (!before.World.Simulation.Controls.Any(c => c.Kind == ControllerKind.Player && c.ForceId == policy.Unit.ForceId)) return [];
-                participant = policy.Unit; clock = policy.Clock; role = ProgressFeedback.PolicyRole(policy.Response);
+                participant = policy.Unit; clock = policy.Clock; role = ProgressFeedback.PolicyRole(policy);
                 break;
             case UnitWaypointReachedEvent waypoint:
                 participant = waypoint.Unit with { Position = waypoint.Position };
@@ -46,10 +45,7 @@ internal static class MapNotificationSpeeches
         Dictionary<string, MessageBinding> values = new() { ["actor"] = ProgressMessageProducer.Person(actor) };
         if (fact is UnitPolicyRespondedEvent response)
         {
-            if (response.OtherOfficerId is int otherOfficer) values["other"] = ProgressMessageProducer.Person(otherOfficer);
-            if (response.HomeId is int home) values["place"] = ProgressMessageProducer.Place(home);
-            if (response.Unit.ServicePlaceId is int origin) values["other-place"] = ProgressMessageProducer.Place(origin);
-            if (response.PreviousPlaceId is int previousPlace) values["previous-place"] = ProgressMessageProducer.Place(previousPlace);
+            values = ProgressFeedback.PolicyValues(response);
             if (MessageGraph.Requirements(definition.Key, texts.Messages).Bindings.Any(slot => !values.ContainsKey(definition.Bindings[slot]))) return [];
         }
         if (opponent?.CommanderId is int other) values["other"] = ProgressMessageProducer.Person(other);

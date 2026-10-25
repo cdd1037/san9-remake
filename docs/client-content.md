@@ -90,7 +90,7 @@ content/
 
 清单保留缩进；数据子文件使用紧凑 JSON，保留完整字段名和内容。仅省略消息表达式及参数中默认值为 null 的可选字段，必填 nullable 状态字段仍显式保存。数据子文件必须位于显式资源根内，共享纹理目录允许相对依赖引用。导入先校验、暂存全部文件，再替换数据并最后发布清单；不支持导入过程中并发读取。
 
-`MilitaryContentCompiler`将完整地形、硬阻挡、阵型移动预算和据点footprint导入剧本，Core直接消费该规范化规则，不读取`map.json`的显示资源。G06增加普通战斗参数、阵位、据点销毁能力及名马标记；部队成员、伤兵和当前命令随世界查询变化。数据核对见[G05](g05-verification.md)与[G06验收](g06-verification.md)，完整兵法、设施建设及水陆转换见[G07验收](g07-verification.md)。
+`MilitaryContentCompiler`将完整地形、硬阻挡、阵型移动预算和据点footprint导入剧本，Core直接消费该规范化规则，不读取`map.json`的显示资源。阵型感知由`FormationRule.Vision`声明半径与视角，`MilitaryDefinition.VisionSizeBands`声明兵力规模的额外视野；二者与显示资源／物理占地独立。TC101转换源阵型视野及规模表，不要求独立作者维护派生候选或原版位域。G06增加普通战斗参数、阵位、据点销毁能力及名马标记；部队成员、伤兵和当前命令随世界查询变化。数据核对见[G05](g05-verification.md)与[G06验收](g06-verification.md)，完整兵法、设施建设及水陆转换见[G07验收](g07-verification.md)。
 
 ## 来源边界与统一内容
 

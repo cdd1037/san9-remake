@@ -40,7 +40,7 @@ public static class UnitCatalog
                     members.Count(o => o.IsServing && o.OwnerId == unit.OwnerId), members.Count(o => o.Status == OfficerStatus.Captive)];
             }
             else if (page == 1)
-                cells = [name, (long)unit.Soldiers, (long)unit.Wounded, unit.Morale, Condition(unit.Condition), Formation(unit.FormationId), Formation(unit.NavalFormationId)];
+                cells = [name, (long)unit.Soldiers, (long)unit.Wounded, unit.Morale, Condition(view, unit), Formation(unit.FormationId), Formation(unit.NavalFormationId)];
             else if (page is 2 or 3)
             {
                 cells = [name, .. UnitCombatPreview.Read(unit, members, rules, page == 3)];
@@ -67,10 +67,10 @@ public static class UnitCatalog
                 ? view.Settlements.FirstOrDefault(s => s.Id == place.Id) : null;
     }
 
-    internal static string Condition(UnitCondition condition) => condition switch
+    internal static string Condition(StrategySnapshot view, UnitState unit) => unit.Condition switch
     {
-        UnitCondition.Normal => "一般", UnitCondition.Engaged => "交战", UnitCondition.Trap => "陷阱",
+        UnitCondition.Normal => view.IsUnitEngaged(unit.Id) ? "交战" : "一般",
         UnitCondition.Disguised => "伪报", UnitCondition.NoFormation => "无阵", UnitCondition.Confused => "混乱",
-        UnitCondition.Routed => "溃败", UnitCondition.HighSpirits => "高昂", _ => throw new ArgumentOutOfRangeException(nameof(condition))
+        UnitCondition.Routed => "溃败", UnitCondition.HighSpirits => "高昂", _ => throw new ArgumentOutOfRangeException(nameof(unit))
     };
 }

@@ -505,6 +505,19 @@ public sealed class PersistenceTests : IDisposable
         Assert.Equal(SaveFailure.InvalidState, Assert.Throws<SaveException>(() => SaveService.Decode(edited, definition, w => new(w, rules))).Failure);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void RemovedPersistentConditionIdsAreRejectedInsteadOfBecomingAnotherCondition(int conditionId)
+    {
+        var definition = Fixture();
+        var session = GameSession.Start(definition, 190);
+        var json = JsonNode.Parse(SaveService.Encode(session))!;
+        json["session"]!["world"]!["units"]![0]!["condition"] = conditionId;
+        Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() =>
+            SaveService.Decode(Encoding.UTF8.GetBytes(json.ToJsonString()), definition)).Failure);
+    }
+
     [Fact]
     public void AtomicWriteFailurePreservesPriorSaveAndCurrentSession()
     {

@@ -34,8 +34,6 @@ public sealed class TacticFormationTests
     [Theory]
     [InlineData(UnitCondition.Normal, true)]
     [InlineData(UnitCondition.HighSpirits, true)]
-    [InlineData(UnitCondition.Engaged, false)]
-    [InlineData(UnitCondition.Trap, false)]
     [InlineData(UnitCondition.Disguised, false)]
     [InlineData(UnitCondition.NoFormation, false)]
     [InlineData(UnitCondition.Confused, false)]

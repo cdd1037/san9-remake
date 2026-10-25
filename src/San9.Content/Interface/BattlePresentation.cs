@@ -204,7 +204,7 @@ public sealed record BattlePresentationDefinition(Dictionary<string, DecisionMes
         }
         foreach (var (condition, sprite) in ConditionEffects)
         {
-            if (!Enum.IsDefined(condition) || condition is UnitCondition.Normal or UnitCondition.Engaged)
+            if (!Enum.IsDefined(condition) || condition == UnitCondition.Normal)
                 throw new InvalidDataException("Invalid condition effect.");
             Sprite(sprite);
         }

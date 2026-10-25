@@ -3,7 +3,8 @@ using System.Text.Json.Serialization;
 namespace San9.Core.Domain;
 
 public enum UnitOrderClass { None, NonMilitary, Military }
-public enum UnitCondition { Normal, Engaged, Trap, Disguised, NoFormation, Confused, Routed, HighSpirits }
+// Persisted domain identities stay stable; engagement is queried independently.
+public enum UnitCondition { Normal = 0, Disguised = 3, NoFormation = 4, Confused = 5, Routed = 6, HighSpirits = 7 }
 
 // Active field forces are separate from settlement garrisons. Movement rules are separate use cases.
 public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] WorldPosition Position, uint Soldiers)

@@ -29,7 +29,7 @@ public static class UnitMapInteraction
         bool own = unit.OwnerId == view.PlayerForceId;
         return new(id, (unit.CommanderId is null ? texts.Resolve(force.NameKey) : Person(unit.CommanderId)) + "队",
             MapHoverInfo.ThemeFor(unit.OwnerId, view.PlayerForceId, relation), force, [],
-            [new("状态", UnitCatalog.Condition(unit.Condition)),
+            [new("状态", UnitCatalog.Condition(view, unit)),
              new(own ? "军团" : "势力", own ? Person(corps?.LeaderId) : texts.Resolve(force.NameKey)),
              new("所属", UnitCatalog.ServicePlace(view, unit)?.ResolveName(texts) ?? "无"),
              new("士兵", unit.Soldiers.ToString(), true), new("士气", $"{unit.Morale}/100", true),

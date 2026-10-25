@@ -9,6 +9,54 @@ namespace San9.Application.Tests;
 public sealed class UnitCatalogTests
 {
     [Theory]
+    [InlineData(UnitCondition.Normal, true, true, "交战")]
+    [InlineData(UnitCondition.Normal, true, false, "交战")]
+    [InlineData(UnitCondition.Normal, false, true, "一般")]
+    [InlineData(UnitCondition.HighSpirits, true, true, "高昂")]
+    [InlineData(UnitCondition.Disguised, true, true, "伪报")]
+    [InlineData(UnitCondition.NoFormation, true, true, "无阵")]
+    [InlineData(UnitCondition.Confused, true, true, "混乱")]
+    [InlineData(UnitCondition.Routed, true, true, "溃败")]
+    public void EveryUnitStatusViewDerivesEngagementWithoutOverridingItsCondition(
+        UnitCondition condition, bool engaged, bool passive, string expected)
+    {
+        var definition = G01ScenarioTests.Fixture();
+        var original = GameSession.Start(definition, 1).Snapshot;
+        definition = definition with { Military = new(4, 4, Enumerable.Repeat(0, 16).ToImmutableArray(),
+            [new(0, 1, 1)], [new(100, 5, 0, 100000, 5, new(1, 1), TravelMode.Land)
+                { Combat = new(10, 10, 10, 10, 50), Attack = new(10, false),
+                    CaptureRanks = Enumerable.Repeat(BattleRank.Middle, 5).ToImmutableArray() }], []),
+            Information = definition.Information with { Formations = [new(100, "formation")] } };
+        var subject = new UnitState(78, 2, new(16, 12), 1000)
+        {
+            FormationId = 100, CommanderId = 4, CorpsId = 2, ServicePlaceId = 2, Morale = 100, Condition = condition,
+            // Stale combat flags alone must not make the status display "engaged".
+            ActiveEngagement = true, PassiveEngagement = true,
+            Order = engaged && !passive ? new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 77 } : null
+        };
+        var source = new UnitState(77, 1, new(12, 12), 1000)
+        {
+            FormationId = 100, CommanderId = 1, CorpsId = 1, ServicePlaceId = 1, Morale = 100,
+            Order = engaged && passive ? new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = subject.Id } : null
+        };
+        var world = original with { Units = [source, subject], Officers = original.Officers.Select(o => o.Id is 1 or 4
+            ? o with { SettlementId = null, UnitId = o.Id == 1 ? source.Id : subject.Id } : o).ToArray() };
+        var view = new StrategySnapshot(definition, world);
+        var texts = MissionScenario.Texts(view);
+        texts.Entries["formation"] = "formation";
+        Assert.Equal(engaged, view.IsUnitEngaged(subject.Id));
+        Assert.Equal(expected, UnitCatalog.Read(view, view.MilitaryRules, texts, 1).Rows.Single(r => r.Key.Id == subject.Id).Cells[4].Text);
+        Assert.Equal(expected, UnitDetails.Read(view, view.MilitaryRules, texts, subject.Id).Condition);
+        Assert.Equal(expected, UnitMapInteraction.Hover(view, texts, subject.Id)!.Rows.Single(r => r.Label == "状态").Value);
+        Assert.Equal(expected, MapCommandSummary.Unit(view, texts, subject.Id).Status);
+        var targets = new UnitCommandTargets(view, source.Id, UnitCommandKind.Attack);
+        var catalog = new MilitaryTargetCatalog(targets, texts);
+        var row = catalog.Rows.Single(r => catalog.Target(r.Id) == new MilitaryTarget(subject.Id, true));
+        Assert.Equal(expected, row.Cells[5].Text);
+        Assert.Equal(condition, view.World.Units.Single(u => u.Id == subject.Id).Condition);
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void TransportDestinationSurvivesTemporaryContactInEveryInformationView(bool settlementContact)

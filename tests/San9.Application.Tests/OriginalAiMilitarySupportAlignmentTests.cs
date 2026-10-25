@@ -196,9 +196,7 @@ public sealed partial class OriginalAiMilitaryTests
 
     [Theory]
     [InlineData(UnitCondition.Normal, 0)]
-    [InlineData(UnitCondition.Engaged, 0)]
     [InlineData(UnitCondition.Confused, 1)]
-    [InlineData(UnitCondition.Trap, 1)]
     [InlineData(UnitCondition.HighSpirits, 0)]
     public void RetreatBudgetOnlyCountsEligibleReturningConditions(UnitCondition condition, int expected)
     {
@@ -213,7 +211,7 @@ public sealed partial class OriginalAiMilitaryTests
                 Units = [.. enemy.Units.Select(u => u with { Position = new(37, 7) }),
                     new(902, 1, new(17, 7), 5000) { FormationId = 400, CommanderId = 2, Morale = 100,
                         CorpsId = 1, ServicePlaceId = 1, Condition = condition,
-                        ConditionDaysRemaining = condition is UnitCondition.Normal or UnitCondition.Engaged ? 0 : 5,
+                        ConditionDaysRemaining = condition == UnitCondition.Normal ? 0 : 5,
                         Order = new(MilitaryOrderKind.Return, null, 1),
                         MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(2, BattleRank.Middle) },
                     new(903, 1, new(22, 7), 5000) { FormationId = 400, CommanderId = 3, Morale = 100,

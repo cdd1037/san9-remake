@@ -72,7 +72,7 @@ public sealed class MilitaryCommandPresentationTests
         {
             FormationId = 7, CommanderId = 2, Morale = 100,
             // Stored combat flags can outlive their target; current incoming attacks determine engagement.
-            Condition = engaged ? UnitCondition.Normal : UnitCondition.Engaged,
+            ActiveEngagement = !engaged,
             EngagementTargetId = engaged ? null : 11,
             Order = new(MilitaryOrderKind.Return, null, sameTarget ? 1 : 2)
         };

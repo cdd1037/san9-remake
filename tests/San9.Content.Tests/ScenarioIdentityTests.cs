@@ -5,6 +5,20 @@ namespace San9.Content.Tests;
 
 public sealed class ScenarioIdentityTests
 {
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void RemovedPersistentConditionsCannotEnterInitialWorldContent(int conditionId)
+    {
+        var scenario = Fixture() with { Units = [new(1, 9000, new(2, 2), 100)] };
+        scenario.Validate();
+        var options = San9.Content.Packages.ScenarioContentFiles.DataJsonOptions;
+        var json = System.Text.Json.JsonSerializer.SerializeToNode(scenario, options)!;
+        json["units"]![0]!["condition"] = conditionId;
+        var invalid = System.Text.Json.JsonSerializer.Deserialize<ScenarioInitialState>(json.ToJsonString(), options)!;
+        Assert.Throws<InvalidDataException>(() => invalid.Validate());
+    }
+
     [Fact]
     public void OldMemberOrderContentRequiresReconversion()
     {

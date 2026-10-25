@@ -115,8 +115,6 @@ public sealed class UnitContentCompilerTests
 
     [Theory]
     [InlineData(1, UnitCondition.Normal)]
-    [InlineData(2, UnitCondition.Engaged)]
-    [InlineData(3, UnitCondition.Trap)]
     [InlineData(4, UnitCondition.Disguised)]
     [InlineData(5, UnitCondition.NoFormation)]
     [InlineData(6, UnitCondition.Confused)]
@@ -130,5 +128,16 @@ public sealed class UnitContentCompilerTests
         Assert.Equal(UnitOrderClass.NonMilitary, unit.OrderClass);
         Assert.True(unit.IsPersonnel);
         Assert.True(unit.IsEmbedded);
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void UnsupportedRawStatusesReportTheUnitWithoutNormalizingItsState(int status)
+    {
+        var source = Source with { UnitStatusCode = (ushort)status };
+        var error = Assert.Throws<InvalidDataException>(() => UnitContentCompiler.Compile([source],
+            _ => throw new InvalidOperationException("Unsupported status must be rejected before resolving references.")));
+        Assert.Equal($"Unit {source.Id} has unsupported raw status {status}.", error.Message);
     }
 }

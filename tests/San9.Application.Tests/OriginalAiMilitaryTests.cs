@@ -1136,10 +1136,8 @@ public sealed partial class OriginalAiMilitaryTests
 
     [Theory]
     [InlineData(UnitCondition.Normal, true)]
-    [InlineData(UnitCondition.Engaged, true)]
     [InlineData(UnitCondition.HighSpirits, false)]
     [InlineData(UnitCondition.Confused, false)]
-    [InlineData(UnitCondition.Trap, false)]
     public void StrategicRecallUsesItsOwnConditionGate(UnitCondition condition, bool expected)
     {
         var content = Fixture();

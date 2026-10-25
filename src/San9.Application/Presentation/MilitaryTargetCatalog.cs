@@ -48,7 +48,7 @@ public sealed class MilitaryTargetCatalog
                 var unit = units[target.Id];
                 string name = (unit.CommanderId is int commander ? people[commander] : Force(unit.OwnerId)) + "队";
                 cells = [name, Force(unit.OwnerId), (long)unit.Soldiers, (long)unit.Wounded,
-                    unit.Morale, UnitCatalog.Condition(unit.Condition)];
+                    unit.Morale, UnitCatalog.Condition(view, unit)];
             }
             else
             {

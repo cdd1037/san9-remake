@@ -49,7 +49,7 @@ internal sealed partial class OriginalAiMilitary
         {
             if (!More) break;
             var available = World.Units.Where(u => Direct(u) && Departed(u) &&
-                u.Condition is UnitCondition.Normal or UnitCondition.Engaged && !processed.Contains(u.Id));
+                u.Condition == UnitCondition.Normal && !processed.Contains(u.Id));
             if (Force.IsBarbarian)
             {
                 foreach (var unit in available.Where(BarbarianRecall).Where(u => UnitTo(u, home.Id) is not null).ToArray())
@@ -71,7 +71,7 @@ internal sealed partial class OriginalAiMilitary
                 .Select(u => (Unit: u, Route: UnitTo(u, home.Id))).Where(c => c.Route is not null).ToArray();
             long threshold = 6000 + Math.Min(20000, 4000L * p.Count(u => UnitTo(u, home.Id) is { Days: < 5 } && ClearRetreatPressureRoute(home, u)));
             long middleBudget = home.Soldiers + (pressure.Count == 0 ? 0 : World.Units.Where(u => FieldUnit(u) && u.OwnerId == Owner &&
-                u.Condition is (UnitCondition.Normal or UnitCondition.Engaged or UnitCondition.HighSpirits) && u.Order?.Kind == MilitaryOrderKind.Return &&
+                u.Condition is (UnitCondition.Normal or UnitCondition.HighSpirits) && u.Order?.Kind == MilitaryOrderKind.Return &&
                 RetreatBuildingTarget(u)?.Id == home.Id &&
                 UnitTo(u, home.Id) is { Days: < 10 }).Sum(u => u.Soldiers + (long)u.Wounded / 2));
             long firstBudget = home.Soldiers, halfPressure = p.Sum(u => (long)u.Soldiers) / 2;

@@ -288,6 +288,15 @@ public sealed class StrategySnapshot
     public int Month => World.Clock.Month;
     public int Day => World.Clock.Day;
     public int? PlayerForceId { get; }
+    public SettlementView? PlayerRulerServicePlace
+    {
+        get
+        {
+            var rulerId = Forces.SingleOrDefault(f => f.Id == PlayerForceId)?.LeaderId;
+            var servicePlaceId = Officers.SingleOrDefault(o => o.Id == rulerId)?.ServicePlaceId;
+            return Settlements.SingleOrDefault(s => s.Id == servicePlaceId && !s.IsDestroyed);
+        }
+    }
     public int RequirePlayerForce() => PlayerForceId ?? throw new InvalidOperationException("No player force owns the current interaction.");
     private static int? ResolvePlayerForce(WorldSnapshot world)
     {

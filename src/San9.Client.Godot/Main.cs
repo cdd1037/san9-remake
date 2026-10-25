@@ -222,9 +222,8 @@ public partial class Main : Node
             runtime.AddChild(music);
             runtime.MoveChild(music, 1);
             world.Session = session;
-            var initialCity = session.View.Settlements.FirstOrDefault(s => session.View.PlayerForceId is int player &&
-                s.OwnerId == player && s.Kind == San9.Core.Domain.SettlementKind.City);
-            var initialCell = options.ResolveMapCenter(content.Map.Width, content.Map.Height, initialCity is null ? null : new(initialCity.X, initialCity.Y));
+            var initialPlace = session.View.PlayerRulerServicePlace;
+            var initialCell = options.ResolveMapCenter(content.Map.Width, content.Map.Height, initialPlace is null ? null : new(initialPlace.X, initialPlace.Y));
             var center = MapGeometry.Center(initialCell.X, initialCell.Y, content.Map.Height);
             world.FocusWorld(new(center.X, center.Y)); world.SetZoom(options.Zoom);
             world.LoadMap(content.Map, content.TextureRoot, options.Season, options.AnimationTime);

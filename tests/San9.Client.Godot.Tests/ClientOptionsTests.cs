@@ -30,6 +30,7 @@ public sealed class ClientOptionsTests
     {
         var expanded = ClientOptions.Parse(["--map-center", "254,281"], Environment.CurrentDirectory);
         Assert.Equal(new(254, 281), expanded.ResolveMapCenter(300, 300));
+        Assert.Equal(new(254, 281), expanded.ResolveMapCenter(300, 300, new(7, 9)));
         Assert.Throws<ArgumentException>(() => expanded.ResolveMapCenter(200, 200));
         Assert.Throws<ArgumentException>(() => ClientOptions.Parse(["--map-center", "-1,281"], Environment.CurrentDirectory));
         var normal = ClientOptions.Parse([], Environment.CurrentDirectory);

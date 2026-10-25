@@ -88,7 +88,13 @@ public partial class SessionUiHost : Node
     {
         try
         {
-            World.BindSession(_pending!); _bound = true;
+            World.BindSession(_pending!);
+            if (_pendingKind == SessionReplacementKind.NewGame)
+            {
+                var place = _pending!.View.PlayerRulerServicePlace;
+                World.FocusCell(place is null ? new(Content.Map.Width / 2, Content.Map.Height / 2) : new(place.X, place.Y));
+            }
+            _bound = true;
         }
         catch (Exception error)
         {

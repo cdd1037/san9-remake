@@ -71,10 +71,8 @@ public sealed class StrategyRoster
             new RosterSettlementLocation(s.Id), s.CityMarkerColor is not null ? San9.Content.Text.NameMessages.City : San9.Content.Text.NameMessages.Indented, s.HasAvailableOfficer) { NameSuffixKey = s.NameSuffixKey };
         static RosterEntry Officer(OfficerView o) => new(new(RosterPage.Officers, o.Id), o.NameKey,
             o.UnitId is int unit ? new RosterUnitLocation(unit) : new RosterSettlementLocation(o.SettlementId!.Value), o.HasCityPrefix ? San9.Content.Text.NameMessages.City : San9.Content.Text.NameMessages.Indented, o.IsAvailable);
-        int? rulerServicePlace = snapshot.World.Officers.SingleOrDefault(o => o.Id == force.LeaderId) is { UnitId: int rulerUnitId }
-            ? snapshot.World.Units.Single(u => u.Id == rulerUnitId).ServicePlaceId
-            : force.LeaderSettlementId;
-        var rulerFacility = snapshot.Settlements.SingleOrDefault(s => s.Id == rulerServicePlace && s.OwnerId == snapshot.PlayerForceId && s.IsFacilityListEntry);
+        var rulerFacility = snapshot.PlayerRulerServicePlace is { } servicePlace &&
+            servicePlace.OwnerId == snapshot.PlayerForceId && servicePlace.IsFacilityListEntry ? servicePlace : null;
         var serving = snapshot.Officers.Where(o => o.IsServing && o.OwnerId == snapshot.PlayerForceId &&
             (o.SettlementId is not null || o.UnitId is not null)).ToArray();
         var ruler = serving.SingleOrDefault(o => o.Id == force.LeaderId);

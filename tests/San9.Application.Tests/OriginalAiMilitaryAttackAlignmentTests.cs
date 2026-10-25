@@ -132,6 +132,25 @@ public sealed partial class OriginalAiMilitaryTests
         else Assert.Equal(2, Assert.IsType<DeployUnitCommand>(Assert.Single(h.Commands)).Order.SettlementId);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void ConstructionConversionAndMapCandidatesDoNotRequireFriendlyParentCity(int city)
+    {
+        var basis = AttackAlignmentConstruction();
+        var content = basis with { RegionCityIds = new(basis.RegionCityIds) { [3] = city } };
+        var h = new Harness(content);
+        var view = new San9.Application.Presentation.StrategySnapshot(content, h.Engine.Snapshot);
+        Assert.Contains(ConstructionLocations.Read(view, 1, 700), s => s.RegionId == 3);
+        var report = h.Run(OriginalAiWork.Attack, 1);
+        Assert.Equal(1, report.Submitted);
+        Assert.Equal(0, report.EmptyPlans);
+        var command = Assert.IsType<ConstructFacilityCommand>(Assert.Single(h.Commands));
+        Assert.Equal(3, command.RegionId);
+        Assert.Equal(new(27, 7), command.Position);
+        Assert.Single(h.Engine.Snapshot.Units);
+    }
+
     [Fact]
     public void ConstructionConversionUsesTheRoutePrefixEndingAtTheInterceptingBuilding()
     {

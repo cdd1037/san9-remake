@@ -48,7 +48,7 @@ internal static class FacilityConstruction
             !world.Settlements.TryGetValue(command.SettlementId, out var home) || home.OwnerId != command.IssuerId ||
             world.AllSettlements.TryGetValue(command.RegionId, out var reserved) && reserved.IsDormant ||
             command.OfficerIds.IsDefaultOrEmpty || command.OfficerIds.Any(id => !world.Officers.ContainsKey(id)) ||
-            !ConstructionPlacement.IsAvailable(command.IssuerId, site, type, military, rules.Personnel.RegionCities,
+            !ConstructionPlacement.IsAvailable(site, type, military, rules.Personnel.RegionCities,
                 world.Settlements.Values, world.Units.Values) || world.Units.Values.Any(u => u.Order?.Construction?.RegionId == command.RegionId))
             return CommandRejection.InvalidTask;
         if (type.RequiredTacticId is int required && !MilitaryTactics.HasTactic(world, command.IssuerId, command.OfficerIds, required, rules.Treasures))
@@ -95,7 +95,7 @@ internal static class FacilityConstruction
         bool building = existing?.Facility?.BuilderUnitId == unit.Id && !existing.IsDestroyed;
         return !(!world.Officers.TryGetValue(plan.LeaderId, out var leader) || !leader.IsServing || leader.UnitId != unit.Id ||
                 !regionCities.TryGetValue(plan.RegionId, out int cityId) ||
-                !world.Settlements.TryGetValue(cityId, out var city) || city.Kind != SettlementKind.City || city.OwnerId != unit.OwnerId || city.IsDestroyed || city.Durability == 0 ||
+                !world.Settlements.TryGetValue(cityId, out var city) || city.Kind != SettlementKind.City || city.IsDestroyed || city.Durability == 0 ||
                 type.RequiredTacticId is int required && !MilitaryTactics.HasTactic(world, unit.OwnerId,
                     world.ServingUnitMembers(unit.Id).Select(p => p.Id), required, treasures) ||
                 building && existing!.OwnerId != unit.OwnerId || !building && existing is { IsDestroyed: false });
@@ -124,7 +124,7 @@ internal static class FacilityConstruction
             var movement = MilitaryNavigation.Advance(world, unit, unit.Id, military, MilitaryNavigation.Budget(unit, military));
             unit = MilitaryNavigation.Commit(world, unit, movement, military, events);
             if (!movement.Arrived || new MapOccupancy(movement.Position, military.UnitFootprint(unit, movement.Position)).Overlaps(target)) continue;
-            if (!building && !ConstructionPlacement.IsAvailable(unit.OwnerId, military.ConstructionSites[(plan.RegionId, plan.Position)],
+            if (!building && !ConstructionPlacement.IsAvailable(military.ConstructionSites[(plan.RegionId, plan.Position)],
                 type, military, rules.Personnel.RegionCities, world.Settlements.Values, world.Units.Values.Where(u => u.Id != id))) continue;
             if (!building)
             {

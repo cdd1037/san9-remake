@@ -17,7 +17,7 @@ public static class ConstructionLocations
             !world.Forces.Any(f => f.Id == forceId && !f.IsEliminated)) return [];
         var reserved = world.Units.Where(u => u.Order?.Construction is not null).Select(u => u.Order!.Construction!.RegionId).ToHashSet();
         reserved.UnionWith(world.Settlements.Where(s => s.IsDormant).Select(s => s.Id));
-        return rules.ConstructionSites.Values.Where(s => !reserved.Contains(s.RegionId) && ConstructionPlacement.IsAvailable(forceId, s, facility, rules,
+        return rules.ConstructionSites.Values.Where(s => !reserved.Contains(s.RegionId) && ConstructionPlacement.IsAvailable(s, facility, rules,
             view.RegionCityIds, world.Settlements, world.Units)).OrderBy(s => s.RegionId)
             .ThenBy(s => s.Position.Y).ThenBy(s => s.Position.X).ToImmutableArray();
     }

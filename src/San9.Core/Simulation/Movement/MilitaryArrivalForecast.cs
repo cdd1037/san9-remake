@@ -39,7 +39,7 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
         if (request.Order.Construction is { } plan && (regionCities is null ||
             !rules.Facilities.TryGetValue(plan.FacilityTypeId, out var facility) ||
             !rules.ConstructionSites.TryGetValue((plan.RegionId, plan.Position), out var site) ||
-            !ConstructionPlacement.IsAvailable(owner, site, facility, rules, regionCities, snapshot.Settlements, snapshot.Units)))
+            !ConstructionPlacement.IsAvailable(site, facility, rules, regionCities, snapshot.Settlements, snapshot.Units)))
             return new(ArrivalEstimateStatus.NotApplicable);
         deploymentWorld ??= new WorldQuery(snapshot);
         var occupancy = deploymentWorld.MovementOccupancy(rules, owner, request.Policies, null, null);

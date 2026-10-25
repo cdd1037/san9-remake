@@ -29,11 +29,51 @@ public sealed class FacilityConstructionTests
             new(20, 6, TacticEffect.StoneFormation, 0, 0, 0, false, false, [])],
         ConstructionSites = [new(8000, new(17, 2), [9000])]
     });
-    private static SimulationEngine Engine(WorldState? world = null, MilitaryRulebook? military = null) => new(world ?? WorldState.Create(new(190, 1, 1), 42,
+    private static SimulationEngine Engine(WorldState? world = null, MilitaryRulebook? military = null, PersonnelRulebook? geography = null) => new(world ?? WorldState.Create(new(190, 1, 1), 42,
         [new(1, 100) { LeaderId = 11 }], [new(1, 1, 20000, 600, 600, 100, 0, 0, 100, 0, 100)],
         [new(11, 1, 1, new(100, 100, 100, 100), false) { Status = OfficerStatus.Ruler }],
-        controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 1000000)) { IsRoot = true }]), EconomyRulebook.Empty, Geography, TreasureRulebook.Empty, military: military ?? Military);
+        controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 1000000)) { IsRoot = true }]), EconomyRulebook.Empty, geography ?? Geography, TreasureRulebook.Empty, military: military ?? Military);
     private static ConstructFacilityCommand Command(long sequence = 0) => new(Guid.NewGuid(), 1, sequence, 1, [11], 10000, 8000, 9000, new(17, 2));
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(null)]
+    public void ConstructionInForeignOrUnownedCityTerritoryContinuesAfterCityOwnershipChanges(int? cityOwner)
+    {
+        var geography = new PersonnelRulebook([new(1, new(2, 2)), new(2, new(27, 2)), new(8000, new(17, 2))],
+            new Dictionary<int, int> { [1] = 1, [2] = 2, [8000] = 2 });
+        var initial = Engine().CaptureStableState();
+        var engine = Engine(WorldState.Restore(initial with
+        {
+            Forces = [.. initial.Forces, new(2, 100)],
+            Corps = [.. initial.Corps, new(2, 2, null, new(10000, 1000000)) { IsRoot = true }],
+            Settlements = [.. initial.Settlements, new(2, cityOwner, 0, 600, 600, 100, 0, 0, 100, 0, 100)
+                { CorpsId = cityOwner }]
+        }), geography: geography);
+        var order = new MilitaryOrder(MilitaryOrderKind.Construct, null, null) { Construction = new(8000, 9000, new(17, 2), 11) };
+        var forecast = new MilitaryArrivalForecast(engine.Snapshot, Military, geography.RegionCities, TreasureRulebook.Empty);
+        Assert.Equal(ArrivalEstimateStatus.Known, forecast.EstimateDeployment(new(1, 2, null, order, new(), Soldiers: 10000)).Status);
+        Assert.True(engine.Execute(Player, Command()).Submission.Accepted);
+        var first = Advance(engine);
+        Assert.Contains(first.Events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "started");
+        Assert.Equal(1, engine.Snapshot.Settlements.Single(s => s.Id == 8000).OwnerId);
+        var saved = engine.CaptureStableState();
+        int nextOwner = cityOwner == 2 ? 1 : 2;
+        engine = Engine(WorldState.Restore(saved with
+        {
+            Settlements = saved.Settlements.Select(s => s.Id == 2 ? s with { OwnerId = nextOwner, CorpsId = nextOwner } : s).ToArray()
+        }), geography: geography);
+        Assert.Equal(ArrivalEstimateStatus.Known,
+            new MilitaryArrivalForecast(engine.Snapshot, Military, geography.RegionCities, TreasureRulebook.Empty)
+                .Estimate(Assert.Single(engine.Snapshot.Units).Id).Status);
+        List<DomainEvent> events = [];
+        for (int i = 0; i < 3 && engine.Snapshot.Units.Count > 0; i++) events.AddRange(Advance(engine).Events);
+        Assert.DoesNotContain(events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "cancelled");
+        Assert.Single(events.OfType<FacilityConstructionChangedEvent>(), e => e.Phase == "completed");
+        Assert.Equal(1, engine.Snapshot.Settlements.Single(s => s.Id == 8000).OwnerId);
+        Assert.Equal(8000, engine.Snapshot.Officers.Single().SettlementId);
+        Assert.Equal(9000u, engine.Snapshot.Corps.Single(c => c.Id == 1).Treasury.Money);
+    }
 
     [Fact]
     public void ArrivalForecastUsesConstructionApproachAndCurrentEligibility()

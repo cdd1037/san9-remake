@@ -67,7 +67,7 @@ public sealed class FacilityRuleTests
     }
 
     [Fact]
-    public void AvailableLocationTracksOwnershipExistingBuildingsAndUnits()
+    public void AvailableLocationTracksCityValidityBuildingsAndUnitsRegardlessOfOwnership()
     {
         var site = new ConstructionSite(8000, new(7, 2), [9000]);
         var rules = new MilitaryRulebook(new(2, 1, [0, 0], [new(0, 1, null)],
@@ -78,9 +78,12 @@ public sealed class FacilityRuleTests
         var city = new SettlementState(1, 1, 100, 100, 100, 100, 0, 0, 100, 0, 100);
         var geography = new Dictionary<int, int> { [8000] = 1 };
         bool Available(IEnumerable<SettlementState> places, IEnumerable<UnitState> units) =>
-            ConstructionPlacement.IsAvailable(1, site, Rule, rules, geography, places, units);
+            ConstructionPlacement.IsAvailable(site, Rule, rules, geography, places, units);
         Assert.True(Available([city], []));
-        Assert.False(Available([city with { OwnerId = 2 }], []));
+        Assert.True(Available([city with { OwnerId = 2 }], []));
+        Assert.True(Available([city with { OwnerId = null }], []));
+        Assert.False(Available([city with { IsDormant = true }], []));
+        Assert.False(Available([city with { Durability = 0 }], []));
         Assert.False(Available([city], [new(1, 2, new(7, 2), 100) { FormationId = 1 }]));
         Assert.False(Available([city, city with { Id = 8000, Kind = SettlementKind.Facility }], []));
         Assert.True(Available([city, city with { Id = 8000, Kind = SettlementKind.Facility, IsDestroyed = true }], []));

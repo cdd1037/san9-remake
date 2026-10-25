@@ -16,7 +16,7 @@ internal static class ChronicleHistory
             var leader = view.World.Officers.Single(p => p.Id == force.LeaderId);
             if (leader.SettlementId is int place)
             {
-                var rank = force.RankId is int id ? view.Information.Ranks.Single(r => r.Id == id) : null;
+                var rank = view.Information.Ranks.SingleOrDefault(r => r.Id == force.RankId && !r.IsUnranked);
                 builder.Add(view.World.Clock, force.Id, rank is null ? "rule" : "rule-ranked", place: place,
                     textKeys: rank is null ? null : new() { ["name"] = rank.NameKey });
             }

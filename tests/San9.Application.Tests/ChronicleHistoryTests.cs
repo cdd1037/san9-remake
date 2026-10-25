@@ -31,6 +31,33 @@ internal static class ChronicleTestContent
 public sealed class ChronicleHistoryTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     [Theory]
+    [InlineData(null, "ruler at home")]
+    [InlineData(9000, "ruler at home")]
+    [InlineData(8, "州牧 ruler")]
+    public void InitialRuleDescriptionIncludesOnlyAnActualRank(int? rankId, string expected)
+    {
+        var baseline = MissionScenario.Create();
+        var definition = baseline with
+        {
+            Forces = baseline.Forces.Select(f => f.Id == 1 ? f with { RankId = rankId } : f).ToArray(),
+            Information = baseline.Information with
+            {
+                Ranks = [new(9000, "unranked", 20000, 0, 0, 0) { IsUnranked = true },
+                    new(8, "rank", 25000, 0, 0, 1)]
+            }
+        };
+        var session = GameSession.Start(definition, 42);
+        var texts = ChronicleTestContent.AddTo(MissionScenario.Texts(session.View));
+        texts.Entries.Add("unranked", "无");
+        texts.Entries.Add("rank", "州牧");
+
+        var page = ChroniclePresentation.Read(session, texts, ChronicleTestContent.Definition());
+
+        Assert.Equal(expected, Assert.Single(page.Lines).BbCode);
+        Assert.Equal(rankId, session.Snapshot.Forces.Single(f => f.Id == 1).RankId);
+    }
+
+    [Theory]
     [InlineData(1_000)]
     [InlineData(100_000)]
     public void AppendingHistorySharesUnchangedFactsAndPreservesEarlierCheckpoints(int count)

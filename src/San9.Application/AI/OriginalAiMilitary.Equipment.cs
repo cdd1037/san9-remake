@@ -108,8 +108,9 @@ internal sealed partial class OriginalAiMilitary
             {
                 bool siege = route.Obstacle;
                 if (!siege && building is not null && First(OriginalAiFormationRole.Elephant, OriginalAiFormationRole.Ram, OriginalAiFormationRole.Catapult) is not null)
-                    foreach (var u in World.Units.Where(u => Departed(u) && ProjectedOrder(u)?.Kind == MilitaryOrderKind.AttackSettlement &&
-                        ProjectedOrder(u)?.SettlementId == building.Id && Policy.Formations.Any(p =>
+                    foreach (var u in World.Units.Where(u => FieldUnit(u) && u.HasEnteredDailyCycle &&
+                        ProjectedOrder(u) is { Kind: MilitaryOrderKind.AttackSettlement, SettlementId: var targetId } &&
+                        targetId == building.Id && Policy.Formations.Any(p =>
                             p.Key is OriginalAiFormationRole.Elephant or OriginalAiFormationRole.Ram && p.Value == u.FormationId)))
                         siege = random.Percent((500 - building.Durability) / 5);
                 if (siege) selected = First(OriginalAiFormationRole.Elephant, OriginalAiFormationRole.Ram, OriginalAiFormationRole.Catapult);
@@ -160,7 +161,7 @@ internal sealed partial class OriginalAiMilitary
         uint minimum = fallback ? 1u : deployment ? 8000u : MinimumAttack(source);
         if (soldiers < minimum) return null;
         var ordered = people.OrderByDescending(p => Ability(p).War).ToArray();
-        int start = Math.Clamp(Math.Max(0, 85 - Ability(ordered[0]).War) / 20, 0, 5 - ordered.Length);
+        int start = Force.IsBarbarian ? 0 : Math.Clamp(Math.Max(0, 85 - Ability(ordered[0]).War) / 20, 0, 5 - ordered.Length);
         var formation = rules.Formations[pair.Land];
         var ranks = ordered.Select((p, i) => (p.Id, Rank: fallback ? formation.CaptureRanks.Length >= 5 ? formation.CaptureRanks[4] : BattleRank.Middle : formation.CaptureRanks.IsEmpty
             ? (BattleRank)Math.Min(2, (start + i) / 2) : formation.CaptureRanks[Math.Min(start + i, formation.CaptureRanks.Length - 1)]))

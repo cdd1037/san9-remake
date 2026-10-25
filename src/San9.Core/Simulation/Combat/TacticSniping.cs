@@ -50,7 +50,7 @@ internal static class TacticSniping
         // Subsequent death remains a surviving-combatant effect, independent of message visibility.
         if (targetDefeated || outcome.ProtectedFromDeath || !person.IsServing ||
             !BattleDeathRules.Enabled(world, rules.Military!) ||
-            !outcome.Source.Exists(world) || !outcome.Target.Exists(world)) return true;
+            !outcome.Source.IsCombatant(world) || !outcome.Target.IsCombatant(world)) return true;
         if (!TacticCombat.Roll(world, "military-sniping-death", outcome.Injury * outcome.Injury)) return true;
         if (person.OwnerId is int owner && world.Forces[owner].LeaderId == person.Id && ForceLifecycle.HasCity(world, owner) &&
             world.Simulation.Controls.Any(c => c.ForceId == owner) &&

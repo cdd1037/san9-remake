@@ -7,7 +7,7 @@ internal static class SiegeContributions
 {
     internal static SettlementState Credit(WorldMutation world, SettlementState place, BattleSource source, uint soldiers, int walls = 0)
     {
-        if (!place.CanHostPersons || place.IsDestroyed || !source.Exists(world)) return place;
+        if (!place.CanHostPersons || place.IsDestroyed || !source.IsCombatant(world)) return place;
         int owner = source.Owner(world);
         if (!MilitaryDiplomacy.CanFight(world, owner, place.OwnerId)) return place;
         long score = checked(20L * walls + soldiers);

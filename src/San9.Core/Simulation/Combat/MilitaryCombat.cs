@@ -227,7 +227,8 @@ internal static class MilitaryCombat
             bool counter = opportunity == 1;
             var source = counter ? exchange.Target : exchange.Source;
             var target = counter ? exchange.Source : exchange.Target;
-            if (IsDefeated(world, source) || IsDefeated(world, target) || !source.Exists(world) || !target.Exists(world)) break;
+            // Neutral places and unstaffed works remain targets even though they cannot act as battle sources.
+            if (!source.IsPresent(world) || !target.IsPresent(world) || IsDefeated(world, source) || IsDefeated(world, target)) break;
             var oriented = counter ? damage.Reverse() : damage;
             bool resolved;
             if (!source.IsSettlement && !target.IsSettlement)
@@ -325,10 +326,10 @@ internal static class MilitaryCombat
         if (targetLost && !target.IsSettlement && world.Units.ContainsKey(target.Id))
             BattleAftermath.TerminateUnit(world, target.Id, sourceLost ? null : source, rules, events, cause);
         if (sourceLost && !source.IsSettlement && world.Units.ContainsKey(source.Id))
-            BattleAftermath.TerminateUnit(world, source.Id, targetLost || !target.Exists(world) ? null : target, rules, events);
-        if (sourceLost && source.IsSettlement && !targetLost && target.Exists(world))
+            BattleAftermath.TerminateUnit(world, source.Id, targetLost || !target.IsCombatant(world) ? null : target, rules, events);
+        if (sourceLost && source.IsSettlement && !targetLost && target.IsCombatant(world))
             BattleAftermath.ResolveSettlementDefeat(world, source.Id, target, rules, events);
-        if (targetLost && target.IsSettlement && !sourceLost && source.Exists(world))
+        if (targetLost && target.IsSettlement && !sourceLost && source.IsCombatant(world))
         {
             if (deferTargetCapture) return target.Id;
             BattleAftermath.ResolveSettlementDefeat(world, target.Id, source, rules, events);
@@ -348,10 +349,7 @@ internal static class MilitaryCombat
         MilitaryRulebook military, List<DomainEvent> events, int? tacticId = null, uint? calculatedLoss = null,
         bool isTacticExchange = false, bool continuesSiege = false)
     {
-        bool Present(BattleSource actor) => actor.IsSettlement
-            ? world.Settlements.TryGetValue(actor.Id, out var place) && !place.IsDestroyed
-            : world.Units.ContainsKey(actor.Id);
-        if (!Present(source) || !Present(target)) return;
+        if (!source.IsPresent(world) || !target.IsPresent(world)) return;
         if (target.IsSettlement)
             DamageSettlement(world, world.Settlements[target.Id], damage, military.Place(world.Settlements[target.Id]).Combat!, source.Id,
                 events, attackerIsSettlement: source.IsSettlement, tacticId: tacticId,

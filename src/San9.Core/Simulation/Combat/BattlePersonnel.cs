@@ -13,7 +13,7 @@ internal static class BattlePersonnel
         bool hasRetreatCity, WorldPosition origin, MilitaryRulebook military)
     {
         if (!world.Officers.TryGetValue(officerId, out var person) || !person.IsServing || person.OwnerId is null ||
-            !captor.Exists(world) || captor.Owner(world) == person.OwnerId)
+            !captor.IsCombatant(world) || captor.Owner(world) == person.OwnerId)
             throw new ArgumentException("Invalid battle personnel participants.");
         if (retreatSettlementId is int id && (!world.Settlements.TryGetValue(id, out var retreat) ||
             retreat.OwnerId != person.OwnerId || !retreat.CanHostPersons || retreat.Durability <= 0))

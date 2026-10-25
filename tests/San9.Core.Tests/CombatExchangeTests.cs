@@ -98,6 +98,40 @@ public sealed class CombatExchangeTests
     }
 
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void SettlementTargetsDoNotNeedToQualifyAsTacticSources(bool neutral)
+    {
+        var (world, rules, source, target) = Create("assault");
+        var m = world.BeginMutation();
+        m.SetSimulation(m.Simulation with
+        {
+            RandomStreams = m.Simulation.RandomStreams.OrderBy(s => s.Name, StringComparer.Ordinal).ToImmutableArray()
+        });
+        m.AddSettlement(m.Settlements[target.Id] with { Id = 3 });
+        m.Replace(m.Officers[21] with { SettlementId = 3 });
+        m.Replace(m.Settlements[target.Id] with
+        {
+            OwnerId = neutral ? null : 2,
+            CorpsId = neutral ? null : 2,
+            Kind = neutral ? SettlementKind.City : SettlementKind.Facility,
+            CanHostPersons = neutral,
+            Soldiers = neutral ? 10000u : 0,
+            Morale = neutral ? 100 : 0
+        });
+        WorldInvariants.Validate(m);
+        Assert.True(MilitaryCombat.ValidTarget(m, 1, MilitaryCombat.TargetOrder(target),
+            rules.Military!.Formation(m.Units[1]), rules.Military));
+        List<DomainEvent> events = [];
+
+        Assert.True(MilitaryCombat.BeginExchange(m, source, target, rules, events, world.Clock, () => new([], [], [])));
+
+        Assert.Equal(source.Id, Assert.Single(events.OfType<TacticActivatedEvent>()).SourceId);
+        Assert.Contains(events.OfType<BattleDamageEvent>(), e => e.TacticId == 9000 && e.SettlementId == target.Id);
+        WorldInvariants.Validate(m);
+    }
+
+    [Theory]
     [InlineData(false, 10, false, 10000u, 0, 1550u, 1050u, 1050u)]
     [InlineData(true, 15, true, 10000u, 0, 4595u, 4095u, 4095u)]
     [InlineData(true, 1, true, 10000u, 100, 1546u, 546u, 546u)]

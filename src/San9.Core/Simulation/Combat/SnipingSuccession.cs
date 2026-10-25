@@ -49,7 +49,7 @@ internal static class SnipingSuccession
             !Ordered(exchange.AffectedForces) || exchange.AffectedForces.IsEmpty ||
             exchange.AffectedForces.Any(id => !world.Forces.ContainsKey(id)) ||
             exchange.Source.IsSettlement && exchange.Target.IsSettlement ||
-            !exchange.Source.Exists(world) || !exchange.Target.Exists(world) ||
+            !exchange.Source.IsCombatant(world) || !exchange.Target.IsCombatant(world) ||
             tactic.Source != exchange.Source && tactic.Source != exchange.Target ||
             tactic.TacticId < 0 || tactic.LearningTacticId is < 0 || tactic.Members.IsDefaultOrEmpty ||
             tactic.Members.Select(p => p.Id).Distinct().Count() != tactic.Members.Length ||

@@ -16,7 +16,7 @@ internal static class BattleRouting
     private static void TryRoute(WorldMutation world, BattleSource subject, MilitaryRulebook military,
         TreasureRulebook treasures, List<DomainEvent> events)
     {
-        if (subject.IsSettlement || !subject.Exists(world)) return;
+        if (subject.IsSettlement || !subject.IsCombatant(world)) return;
         var unit = world.Units[subject.Id];
         if (unit.IsEmbedded || unit.IsPersonnel || unit.Condition == UnitCondition.Routed || unit.Morale >= 40 ||
             unit.Soldiers == 0 || unit.ServicePlaceId is not int home ||
@@ -24,7 +24,7 @@ internal static class BattleRouting
         var members = world.ServingUnitMembers(unit.Id).Where(member => member.OwnerId == unit.OwnerId).OrderBy(member => member.Id).ToArray();
         if (members.Any(member => member.EquippedTacticId is int id && military.Tactics.TryGetValue(id, out var tactic) &&
             tactic.Effect == TacticEffect.CounterConfusion && MilitaryTactics.HasTactic(world, unit.OwnerId, [member.Id], id, treasures))) return;
-        long soldiers = world.Engagements(military).Attackers(subject).Where(attacker => attacker.Exists(world))
+        long soldiers = world.Engagements(military).Attackers(subject).Where(attacker => attacker.IsCombatant(world))
             .Sum(attacker => (long)attacker.Soldiers(world));
         if (soldiers < 8L * unit.Soldiers) return;
         int days = 5 + (int)(world.NextRandom("military-rout-duration") % 5);

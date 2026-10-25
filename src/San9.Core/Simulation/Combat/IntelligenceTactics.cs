@@ -90,7 +90,7 @@ internal static class IntelligenceTactics
                 !MilitaryCombat.Defeated(world.Settlements[target.SettlementId!.Value]);
             var targetMembers = survivors ? Defenders(world, target) : [];
             if (learning.Selectable) BattleLearning.Learn(world, targetMembers, learning, events);
-            var sourceMembers = source.Exists(world) ? Defenders(world, source.IsSettlement ?
+            var sourceMembers = source.IsCombatant(world) ? Defenders(world, source.IsSettlement ?
                 new(MilitaryOrderKind.AttackSettlement, null, source.Id) : new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = source.Id }) : [];
             if (sourceMembers.Any(p => p.Id == actor.Id)) TacticCombat.Grow(world, sourceMembers, [actor.Id], learning, events);
             if (tactic.Effect == TacticEffect.Trap)

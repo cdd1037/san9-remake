@@ -5,9 +5,13 @@ namespace San9.Core.Simulation;
 /// <summary>A battle participant identity, independent of a unit's or settlement's numeric identity space.</summary>
 public readonly record struct BattleSource(int Id, bool IsSettlement)
 {
-    internal bool Exists(WorldMutation world) => Id >= 0 && (IsSettlement
-        ? world.Settlements.TryGetValue(Id, out var s) && !s.IsDestroyed && s.OwnerId is not null && s.CanHostPersons
-        : world.Units.ContainsKey(Id));
+    internal bool IsPresent(WorldMutation world) => IsSettlement
+        ? world.Settlements.TryGetValue(Id, out var settlement) && !settlement.IsDestroyed
+        : world.Units.ContainsKey(Id);
+
+    // Ownership and personnel hosting qualify a carrier for combat outcomes, not for being attacked.
+    internal bool IsCombatant(WorldMutation world) => IsPresent(world) && (!IsSettlement ||
+        world.Settlements[Id] is { OwnerId: not null, CanHostPersons: true });
     internal int Owner(WorldMutation world) => IsSettlement ? world.Settlements[Id].OwnerId!.Value : world.Units[Id].OwnerId;
     internal int? Corps(WorldMutation world) => IsSettlement ? world.Settlements[Id].CorpsId : world.Units[Id].CorpsId;
     internal int Morale(WorldMutation world) => IsSettlement ? world.Settlements[Id].Morale : world.Units[Id].Morale;

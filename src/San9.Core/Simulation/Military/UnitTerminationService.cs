@@ -19,7 +19,7 @@ internal static class UnitTerminationService
     {
         if (!world.Units.TryGetValue(unitId, out var defeated) || world.Officers.Values.Any(p => p.UnitId == unitId))
             throw new InvalidOperationException("Unit termination requires resolved personnel and a live unit.");
-        if (winner is { } captor && (!captor.Exists(world) || captor.Owner(world) == defeated.OwnerId))
+        if (winner is { } captor && (!captor.IsCombatant(world) || captor.Owner(world) == defeated.OwnerId))
             throw new ArgumentException("Invalid battle winner.");
         SettlementState? city = associatedCityId is int cityId && world.Settlements.TryGetValue(cityId, out var place) &&
             place.Kind == SettlementKind.City ? place : null;

@@ -31,7 +31,7 @@ internal static class BattleAftermath
         int? victorForce = winner is { } winningSource ? winningSource.Owner(world) : null;
         if (winner is { } victor && !world.Forces[unit.OwnerId].IsEliminated)
             BattleLearning.DefeatedUnit(world, victor, events);
-        if (cause == UnitDefeatCause.DoubledMartialTactic && winner is { } source && source.Exists(world))
+        if (cause == UnitDefeatCause.DoubledMartialTactic && winner is { } source && source.IsCombatant(world))
             MeleeDeaths.Apply(world, unit, rules, events);
         var shape = MilitaryCombat.Area(unit, rules.Military!);
         ResolvePeople(world, world.UnitMembers(id), shape, unit, winner, unit.ServicePlaceId, rules, events, BattleObjectContext.Capture(unit));
@@ -50,7 +50,7 @@ internal static class BattleAftermath
         SimulationRules rules, List<DomainEvent> events)
     {
         if (ids.Count == 0) return;
-        if (!attacker.Exists(world) || ids.Any(id => !MilitaryCombat.Defeated(world.Settlements[id])))
+        if (!attacker.IsCombatant(world) || ids.Any(id => !MilitaryCombat.Defeated(world.Settlements[id])))
             throw new InvalidOperationException("Invalid settlement defeat.");
         // Keep the source alive until every target of one combat effect has settled.
         List<(int Id, BattleSource Receiver, int? PreviousOwner, int Owner, int[] Units)> captures = [];
@@ -90,7 +90,7 @@ internal static class BattleAftermath
         if (!MilitaryCombat.Defeated(settlement))
             throw new InvalidOperationException("Settlement has not fallen.");
         var definition = rules.Military!.Place(settlement);
-        if (!winner.Exists(world) || !(MilitaryDiplomacy.CanFight(world, winner.Owner(world), settlement.OwnerId) ||
+        if (!winner.IsCombatant(world) || !(MilitaryDiplomacy.CanFight(world, winner.Owner(world), settlement.OwnerId) ||
             winner.Owner(world) == settlement.OwnerId && definition.FacilityTypeId is int type && rules.Military.Facilities[type].IsWork))
             throw new InvalidOperationException("Invalid settlement captor.");
         AttackRequests.Fulfill(world, winner.Owner(world), id, events);

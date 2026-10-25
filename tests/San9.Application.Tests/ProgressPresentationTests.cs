@@ -70,13 +70,46 @@ public sealed class ProgressPresentationTests
         var texts = MissionScenario.Texts(before) with
         { Messages = roles.ToDictionary(role => role, role => new MessageDefinition([new MessageLiteral(role)])) };
         var content = new ProgressPresentationDefinition(roles.ToDictionary(role => role, role => new DecisionMessageDefinition(role, [])), []);
-        DomainEvent[] facts = [new SettlementCapturedEvent(before.World.Clock, place, previousOwner, new(source.Id, false), false) { Source = source, Result = before.World.Settlements.Single(s => s.Id == place) },
+        DomainEvent[] facts = [new SettlementCapturedEvent(before.World.Clock, place, previousOwner, new(source.Id, false), false) { Source = source, Attacker = source, Result = before.World.Settlements.Single(s => s.Id == place) },
             new FacilityDestroyedEvent(before.World.Clock, place, new(source.Id, false)) { Source = source, PreviousOwnerId = previousOwner,
                 Result = before.World.Settlements.Single(s => s.Id == place) with { IsDestroyed = true, OwnerId = null } },
             new OfficerCapturedEvent(before.World.Clock, enemyAttacker ? 3 : 23, source.ForceId!.Value, place, null)];
         var records = ProgressMessages.Read(before, before, session.Messages(texts), texts, content, facts);
         Assert.Equal(4, records.Count);
         Assert.All(records, record => Assert.Equal(1, record.ForceColorCode));
+    }
+
+    [Fact]
+    public void CaptureReportsSeparateTheBreakingCommanderFromTheReceivingForce()
+    {
+        var definition = Scenario();
+        var before = GameSession.Start(definition, 42).View;
+        var texts = MissionScenario.Texts(before);
+        foreach (string role in new[] { "settlement-won", "settlement-lost" })
+            texts.Messages[role] = new([new MessageValue(new("property", "person.name", Arguments: [new("binding", "person.0")]))]);
+        foreach (string role in new[] { "territory-changed", "territory-lost" })
+            texts.Messages[role] = new([new MessageValue(new("property", "force.name", Arguments: [new("binding", "force.0")]))]);
+        var content = new ProgressPresentationDefinition(new()
+        {
+            ["settlement-won"] = new("settlement-won", new() { ["person.0"] = "actor" }),
+            ["settlement-lost"] = new("settlement-lost", new() { ["person.0"] = "actor" }),
+            ["territory-changed"] = new("territory-changed", new() { ["force.0"] = "force" }),
+            ["territory-lost"] = new("territory-lost", new() { ["force.0"] = "force" })
+        }, []);
+        var attacker = new BattleObjectContext(10, false, 1, 3, new(12, 7), 1, false);
+        var recipient = new BattleObjectContext(30, false, 3, 31, new(12, 7), 3, false);
+        var fact = new SettlementCapturedEvent(before.World.Clock, 2, 2, new(30, false), false)
+            { Source = recipient, Attacker = attacker, Result = before.World.Settlements.Single(s => s.Id == 2) with { OwnerId = 3 } };
+        foreach (int player in new[] { 1, 2, 3 })
+        {
+            var view = before.ForWorld(before.World with { Simulation = before.World.Simulation with
+                { Controls = [new("player", player, ControllerKind.Player)] } });
+            var records = ProgressMessages.Read(view, view, new(definition, view.World, texts), texts, content, [fact]);
+            Assert.Equal(2, records.Count);
+            Assert.Equal("commander", records[0].Message.BbCode);
+            Assert.Equal(texts.Resolve(view.Forces.Single(f => f.Id == 3).NameKey), records[1].Message.BbCode);
+            Assert.Equal(player == 2 ? "territory-lost" : "territory-changed", records[1].Message.Key);
+        }
     }
 
     [Fact]

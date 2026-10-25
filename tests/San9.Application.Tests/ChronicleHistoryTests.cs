@@ -222,7 +222,7 @@ public sealed class ChronicleHistoryTests(Xunit.Abstractions.ITestOutputHelper o
         Assert.Equal(ruler, facts[0].Values["ruler"].Entity!.Id);
         var captured = ChronicleHistory.Read(before, before,
             [new SettlementCapturedEvent(clock, 1, 1, new(20, false), false)
-                { Source = new(20, false, 2, 23, new(12, 7), 2, false), Result = before.World.Settlements.Single(s => s.Id == 1) }]);
+                { Source = new(20, false, 2, 23, new(12, 7), 2, false), Attacker = new(20, false, 2, 23, new(12, 7), 2, false), Result = before.World.Settlements.Single(s => s.Id == 1) }]);
         Assert.Contains(captured, f => f.Role == "city-lost");
         Assert.All(captured, f => Assert.Equal(7, f.ForceColorCode));
     }

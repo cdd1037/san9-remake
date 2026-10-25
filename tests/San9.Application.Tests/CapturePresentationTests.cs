@@ -48,8 +48,8 @@ public sealed class CapturePresentationTests
         var context = new WorldMessageContext(definition, before.World, texts);
         var fact = Fact(before, 1, 2);
 
-        var first = Assert.IsType<CommandMessage>(CapturePresentation.Create(before, context, texts, content, fact));
-        var repeated = Assert.IsType<CommandMessage>(CapturePresentation.Create(before, context, texts, content, fact));
+        var first = Assert.Single(CapturePresentation.Create(before, context, texts, content, fact));
+        var repeated = Assert.Single(CapturePresentation.Create(before, context, texts, content, fact));
 
         Assert.Contains(first.Message.BbCode, new[] { "first", "second" });
         Assert.Equal(first.Message.BbCode, repeated.Message.BbCode);
@@ -112,7 +112,7 @@ public sealed class CapturePresentationTests
     {
         var (definition, before, texts, content) = Fixture(fort);
         var fact = Fact(before, winnerIsPlayer ? 1 : 2, previous);
-        var message = Assert.IsType<CommandMessage>(CapturePresentation.Create(before, new(definition, before.World, texts), texts, content, fact));
+        var message = Assert.Single(CapturePresentation.Create(before, new(definition, before.World, texts), texts, content, fact));
         Assert.Equal(winnerIsPlayer ? "won" : "lost", message.Message.Key);
         Assert.Equal(music, message.BackgroundMusicRole);
         Assert.Equal(illustration, message.IllustrationRole);
@@ -126,8 +126,8 @@ public sealed class CapturePresentationTests
     {
         var (definition, before, texts, content) = Fixture();
         var context = new WorldMessageContext(definition, before.World, texts);
-        Assert.Null(CapturePresentation.Create(before, context, texts, content, Fact(before, 1, 2) with { Destroyed = true }));
-        Assert.Null(CapturePresentation.Create(before, context, texts, content, Fact(before, 2, 3)));
+        Assert.Empty(CapturePresentation.Create(before, context, texts, content, Fact(before, 1, 2) with { Destroyed = true }));
+        Assert.Empty(CapturePresentation.Create(before, context, texts, content, Fact(before, 2, 3)));
     }
 
     [Fact]
@@ -157,14 +157,61 @@ public sealed class CapturePresentationTests
     }
 
     [Fact]
+    public void CrossForceReceiptUsesTwoScenesAndWaitsForTheFinalSceneBeforePublishingOwnership()
+    {
+        var (definition, before, texts, capture) = Fixture();
+        var fact = Fact(before, 3, 2) with { Attacker = Fact(before, 1, 2).Source,
+            Result = before.World.Settlements.Single(s => s.Id == 2) with { OwnerId = 3 } };
+        var after = before.ForWorld(before.World with
+        {
+            Forces = before.World.Forces.Select(f => f.Id == 3 ? f with { LeaderId = 22 } : f).ToArray()
+        });
+        var content = CommandPresentation.Empty with { Capture = capture };
+        var context = new WorldMessageContext(definition, before.World, texts);
+        var plan = BattlePresentationPlan.Create(before, after, [fact], context, texts, content);
+        Assert.Equal(new[] { "won", "won-transfer" }, plan.Messages.Select(m => m.Message.Message.Key));
+        Assert.Equal("ruler", plan.Messages[0].Message.Message.BbCode);
+        Assert.Equal("third-ruler", plan.Messages[1].Message.Message.BbCode);
+        Assert.Equal("city", plan.Messages[0].Message.IllustrationRole);
+        Assert.Null(plan.Messages[1].Message.IllustrationRole);
+        Assert.Null(plan.Messages[1].Message.BackgroundMusicRole);
+        Assert.Null(plan.Messages[1].Message.SoundRole);
+        Assert.Equal(plan.Messages[0].Id, plan.Messages[1].AfterDialogueId);
+        Assert.Equal(plan.Messages[1].Id, Assert.Single(plan.MapChanges).AfterDialogueId);
+        Assert.Empty(ExecutionPublication.Read(before, after, context, texts, content, [fact],
+            presentedFeedback: plan.PresentedFeedback).Messages);
+        Assert.Equal(2, ExecutionPublication.Read(before, after, context, texts, content, [fact]).Messages.Count);
+    }
+
+    [Theory]
+    [InlineData(1, "won", "won-transfer")]
+    [InlineData(2, "lost", "lost-transfer")]
+    [InlineData(3, "won", "won-transfer")]
+    [InlineData(null, null, null)]
+    public void CrossForceReceiptIncludesTheAttackerDefenderAndRecipientPlayerPerspectives(int? player,
+        string? primary, string? transfer)
+    {
+        var (definition, basis, texts, content) = Fixture();
+        var before = basis.ForWorld(basis.World with { Simulation = basis.World.Simulation with
+            { Controls = player is int owner ? [new("player", owner, ControllerKind.Player)] : [] } });
+        var fact = Fact(before, 3, 2) with { Attacker = Fact(before, 1, 2).Source };
+        var messages = CapturePresentation.Create(before, new(definition, before.World, texts), texts, content, fact);
+        Assert.Equal(primary is null ? [] : new[] { primary, transfer! }, messages.Select(m => m.Message.Key));
+    }
+
+    [Fact]
     public async Task RealCaptureBindingsResolveMusicPicturesAndTextFromTheConvertedPackage()
     {
         if (Environment.GetEnvironmentVariable("SAN9_PRESENTATION_CONTENT") is not { Length: > 0 } root) return;
         var package = await San9.Content.Packages.ClientContentFiles.LoadAsync(root);
-        var session = GameSession.Start(package.Scenario, 42);
+        int selected = package.Scenario.PlayerForceId ?? package.Scenario.Forces.First(f => !f.IsDormant &&
+            !f.IsBarbarian && f.LeaderId is not null).Id;
+        var session = GameSession.Start(package.Scenario, 42, playerForceIds: [selected]);
         var before = session.View;
         int player = before.RequirePlayerForce();
         int enemy = before.World.Forces.First(f => f.Id != player && !f.IsDormant && !f.IsEliminated && f.LeaderId is not null).Id;
+        int recipient = before.World.Forces.First(f => f.Id != player && f.Id != enemy && !f.IsDormant &&
+            !f.IsEliminated && f.LeaderId is not null).Id;
         var capture = package.Presentation.Capture!;
         foreach (var place in before.Settlements.Where(s => s.FacilityTypeId is not null).DistinctBy(s => s.FacilityTypeId))
         foreach (bool won in new[] { true, false })
@@ -172,17 +219,31 @@ public sealed class CapturePresentationTests
             int winner = won ? player : enemy;
             var source = new BattleObjectContext(100000, false, winner,
                 before.World.Forces.Single(f => f.Id == winner).LeaderId, new(0, 0), place.Id, false);
-            var fact = new SettlementCapturedEvent(before.World.Clock, place.Id, won ? enemy : player, new(source.Id, false), false) { Source = source, Result = before.World.Settlements.Single(s => s.Id == place.Id) };
-            var message = Assert.IsType<CommandMessage>(CapturePresentation.Create(before, session.Messages(package.Text), package.Text, capture, fact));
+            var fact = new SettlementCapturedEvent(before.World.Clock, place.Id, won ? enemy : player, new(source.Id, false), false) { Source = source, Attacker = source, Result = before.World.Settlements.Single(s => s.Id == place.Id) };
+            var message = Assert.Single(CapturePresentation.Create(before, session.Messages(package.Text), package.Text, capture, fact));
             Assert.NotEmpty(message.Message.BbCode);
             Assert.True(package.Skin.Roles.ContainsKey(message.IllustrationRole!));
             Assert.Equal(place.Kind == SettlementKind.City ? won ? capture.VictoryMusic : capture.LossMusic : null, message.BackgroundMusicRole);
+            var receivingSource = source with { Id = 100001, ForceId = recipient,
+                CommanderId = before.World.Forces.Single(f => f.Id == recipient).LeaderId };
+            var split = fact with { Source = receivingSource, Winner = new(receivingSource.Id, false) };
+            var messages = CapturePresentation.Create(before, session.Messages(package.Text), package.Text, capture, split);
+            Assert.Equal(2, messages.Count);
+            Assert.Equal(won ? "messages.7388" : "messages.7390", messages[1].Message.Key);
+            Assert.NotEmpty(messages[1].Message.BbCode);
+            Assert.Null(messages[1].IllustrationRole);
+            Assert.Null(messages[1].BackgroundMusicRole);
+            var records = ProgressMessages.Read(before, before, session.Messages(package.Text), package.Text,
+                package.Presentation.Progress!, [split]);
+            Assert.Equal(won ? new[] { "messages.10095", "messages.10096" } : new[] { "messages.10093", "messages.10094" },
+                records.Select(r => r.Message.Key));
         }
     }
 
     private static SettlementCapturedEvent Fact(StrategySnapshot before, int winner, int? previous) =>
         new(before.World.Clock, 2, previous, new(10000, false), false)
-        { Source = new(10000, false, winner, winner == 1 ? 3 : 23, new(0, 0), 1, false), Result = before.World.Settlements.Single(s => s.Id == 2) };
+        { Source = new(10000, false, winner, winner == 1 ? 3 : 23, new(0, 0), 1, false),
+            Attacker = new(10000, false, winner, winner == 1 ? 3 : 23, new(0, 0), 1, false), Result = before.World.Settlements.Single(s => s.Id == 2) };
 
     private static (ScenarioInitialState Definition, StrategySnapshot Before, TextCatalog Texts, CapturePresentationDefinition Capture) Fixture(bool fort = false)
     {
@@ -196,11 +257,15 @@ public sealed class CapturePresentationTests
         var before = new StrategySnapshot(definition, GameSession.Start(basis, 1).Snapshot);
         var texts = MissionScenario.Texts(before);
         texts.Messages["won"] = new([new MessageValue(new("property", "person.name", Arguments: [new("binding", "person.0")]))]);
+        texts.Messages["won-transfer"] = new([new MessageValue(new("property", "person.name", Arguments: [new("binding", "person.0")]))]);
+        texts.Messages["lost-transfer"] = new([new MessageValue(new("property", "person.name", Arguments: [new("binding", "person.0")]))]);
         texts.Messages["lost"] = new([new MessageValue(new("property", "person.name", Arguments: [new("binding", "person.0")]))]);
         var capture = new CapturePresentationDefinition(new()
         {
             ["won"] = new("won", new() { ["person.0"] = "ruler" }),
-            ["lost"] = new("lost", new() { ["person.0"] = "actor" })
+            ["lost"] = new("lost", new() { ["person.0"] = "actor" }),
+            ["won-transfer"] = new("won-transfer", new() { ["person.0"] = "ruler" }),
+            ["lost-transfer"] = new("lost-transfer", new() { ["person.0"] = "ruler" })
         }, new() { [9000] = new("city", true), [9001] = new("fort", false) }, "victory", "loss", "capture");
         return (definition, before, texts, capture);
     }

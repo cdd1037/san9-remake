@@ -45,13 +45,14 @@ public sealed class AftermathPlaybackTests
         texts.Messages["captured"] = new([new MessageLiteral("captured")]);
         var capture = new CapturePresentationDefinition(new()
         {
-            ["won"] = new("captured", []), ["lost"] = new("captured", [])
+            ["won"] = new("captured", []), ["lost"] = new("captured", []),
+            ["won-transfer"] = new("captured", []), ["lost-transfer"] = new("captured", [])
         }, new() { [9000] = new("city", true) }, "victory", "loss", "capture");
         var result = before.World.Settlements.Single(s => s.Id == 2) with { OwnerId = 1, Soldiers = 300, Morale = 71 };
         var source = new BattleObjectContext(10, false, 1, 3, new(12, 7), 1, false);
         DomainEvent[] facts = [
             new BattleDamageEvent(before.World.Clock, 10, null, 2, 100, 0, 100, 0, 0),
-            new SettlementCapturedEvent(before.World.Clock, 2, 2, new(10, false), false) { Source = source, Result = result },
+            new SettlementCapturedEvent(before.World.Clock, 2, 2, new(10, false), false) { Source = source, Attacker = source, Result = result },
             new UnitAbsorbedEvent(before.World.Clock, 10, 2) { Source = source, Result = result with { Soldiers = 800 } },
             new BattleDamageEvent(before.World.Clock, 20, null, 2, 50, 0, 50, 0, 0)];
         var after = new StrategySnapshot(definition, before.World with
@@ -103,7 +104,7 @@ public sealed class AftermathPlaybackTests
         DomainEvent terminal = outcome switch
         {
             "capture" => new SettlementCapturedEvent(before.World.Clock, 2, 2, new(10, false), false)
-                { Source = source, Result = result },
+                { Source = source, Attacker = source, Result = result },
             "destroy" => new FacilityDestroyedEvent(before.World.Clock, 2, new(10, false))
                 { Source = source, PreviousOwnerId = 2, Result = result },
             _ => new UnitTerminatedEvent(before.World.Clock, 20, new(10, false), 0)

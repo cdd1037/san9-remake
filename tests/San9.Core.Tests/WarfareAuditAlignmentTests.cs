@@ -60,6 +60,7 @@ public sealed class WarfareAuditAlignmentTests
     public void CaptureImmediatelyBlendsOriginalGarrisonWithRewardedAttacker(uint defenders, int morale, int attackerMorale, int expected)
     {
         var m = World(); List<DomainEvent> events = [];
+        m.Replace(m.Units[1] with { Position = new(30, 7), Order = new(MilitaryOrderKind.AttackSettlement, null, 2) });
         m.Replace(m.Settlements[2] with { Soldiers = defenders, Morale = morale, Durability = 0, Wounded = 30 });
         m.Replace(m.Units[1] with { Soldiers = 1000, Morale = attackerMorale, Wounded = 20 });
         BattleAftermath.ResolveSettlementDefeat(m, 2, new(1, false), new() { Military = Rules() }, events);
@@ -99,6 +100,7 @@ public sealed class WarfareAuditAlignmentTests
     public void ImmediateCaptureAbsorptionUsesActualCapacityAndDemobilizesOverflow()
     {
         var m = World(); List<DomainEvent> events = [];
+        m.Replace(m.Units[1] with { Position = new(30, 7), Order = new(MilitaryOrderKind.AttackSettlement, null, 2) });
         m.Replace(m.Settlements[2] with { Soldiers = 1000, SoldierCapacity = 1500, Morale = 20,
             Durability = 0, Wounded = 49990, DraftPopulation = 0 });
         m.Replace(m.Units[1] with { Soldiers = 1000, Morale = 60, Wounded = 20 });
@@ -138,7 +140,7 @@ public sealed class WarfareAuditAlignmentTests
         m.Replace(m.Settlements[1] with { Morale = 60 });
         m.Replace(m.Settlements[2] with { Soldiers = 1000, Morale = 20, Durability = 0 });
         BattleAftermath.ResolveSettlementDefeat(m, 2, new(1, true), new() { Military = Rules(destroyed: destroyed) }, events);
-        Assert.Equal(70, m.Settlements[1].Morale);
+        Assert.Equal(destroyed ? 70 : 60, m.Settlements[1].Morale);
         Assert.Equal(destroyed ? 0 : 20, m.Settlements[2].Morale);
         Assert.Equal(destroyed ? 0u : 1000u, m.Settlements[2].Soldiers);
         Assert.Equal(0u, m.Settlements[1].Wounded);
@@ -184,8 +186,11 @@ public sealed class WarfareAuditAlignmentTests
     public void AreaTacticCapturesAllTargetsBeforeAbsorbingItsSource()
     {
         var m = World(); List<DomainEvent> events = [];
+        m.Replace(m.Units[1] with { Position = new(30, 7), Order = new(MilitaryOrderKind.AttackSettlement, null, 2) });
         m.Replace(m.Settlements[2] with { Soldiers = 1 });
         m.AddSettlement(m.Settlements[2] with { Id = 3 });
+        m.AddUnit(new(3, 1, new(37, 10), 1000) { FormationId = 101, Morale = 80,
+            Order = new(MilitaryOrderKind.AttackSettlement, null, 3) });
         var baseline = Rules();
         var military = new MilitaryRulebook(new(20, 3, [.. Enumerable.Repeat(0, 60)], [new(0, 1, 1)],
             [baseline.Formations[101]], [.. baseline.Places.Values, new(3, new(37, 7), new(1, 1)) { Combat = new(10, 10, 0, 10, 50) }]));
@@ -195,7 +200,7 @@ public sealed class WarfareAuditAlignmentTests
         Assert.Equal(new[] { 3, 2 }, events.OfType<SettlementCapturedEvent>().Select(e => e.SettlementId));
         Assert.Equal(1, m.Settlements[2].OwnerId);
         Assert.Equal(1, m.Settlements[3].OwnerId);
-        Assert.Single(events.OfType<UnitAbsorbedEvent>());
+        Assert.Equal(new[] { 3, 1 }, events.OfType<UnitAbsorbedEvent>().Select(e => e.UnitId));
         Assert.False(m.Units.ContainsKey(1));
     }
 
@@ -209,6 +214,7 @@ public sealed class WarfareAuditAlignmentTests
     public void CaptureRaisesEveryRetainedCityToAtLeastQuarterDurability(int durability, uint soldiers, int morale, int maximum, int expected)
     {
         var m = World(); List<DomainEvent> events = [];
+        m.Replace(m.Units[1] with { Position = new(30, 7), Order = new(MilitaryOrderKind.AttackSettlement, null, 2) });
         m.Replace(m.Settlements[2] with { Durability = durability, MaxDurability = maximum, Soldiers = soldiers, Morale = morale });
         BattleAftermath.ResolveSettlementDefeat(m, 2, new(1, false), new() { Military = Rules() }, events);
         Assert.Equal(1, m.Settlements[2].OwnerId);

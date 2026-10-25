@@ -55,9 +55,8 @@ internal static class OccurrenceFeedback
             }
         }
         Flush(FeedbackKind.Execution);
-        if (content.Capture is { } captureContent && fact is SettlementCapturedEvent captured &&
-            CapturePresentation.Create(occurrenceBefore, occurrenceContext, texts, captureContent, captured) is { } captureMessage)
-            messages.Add(captureMessage);
+        if (content.Capture is { } captureContent && fact is SettlementCapturedEvent captured)
+            messages.AddRange(CapturePresentation.Create(occurrenceBefore, occurrenceContext, texts, captureContent, captured));
         Flush(FeedbackKind.Capture);
         if (content.Events is { } eventContent)
         {

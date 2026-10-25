@@ -99,12 +99,18 @@ public static class ProgressMessages
                         Person("other", commander); Force("enemy-force", target.ForceId!.Value); role = "unit-defeated"; colorForce = source.ForceId;
                     }
                     break;
-                case SettlementCapturedEvent captured when captured.Source is { ForceId: not null } capturingSource:
-                    clock = captured.Clock; Place(captured.SettlementId); Force("force", capturingSource.ForceId!.Value);
-                    colorForce = Player(capturingSource.ForceId) ? capturingSource.ForceId : captured.PreviousOwnerId;
+                case SettlementCapturedEvent captured when captured.Attacker is { ForceId: not null } attackingSource:
+                {
+                    bool attackerIsPlayer = Player(attackingSource.ForceId);
+                    bool defenderIsPlayer = Player(captured.PreviousOwnerId);
+                    bool captureLost = defenderIsPlayer && !attackerIsPlayer;
+                    clock = captured.Clock; Place(captured.SettlementId); Force("force", attackingSource.ForceId!.Value);
+                    colorForce = attackerIsPlayer ? attackingSource.ForceId :
+                        defenderIsPlayer ? captured.PreviousOwnerId : captured.Source.ForceId;
                     role = "territory-changed";
-                    if (!Player(capturingSource.ForceId) && !Player(captured.PreviousOwnerId))
+                    if (!attackerIsPlayer && !defenderIsPlayer && !Player(captured.Source.ForceId))
                     {
+                        if (captured.Source.ForceId is int recipient) Force("force", recipient);
                         importance = MapReportImportance.Detailed;
                         if (captured.Destroyed) role = "facility-destroyed-other";
                         else if (captured.PreviousOwnerId is int previousOwner)
@@ -114,12 +120,18 @@ public static class ProgressMessages
                     else if (captured.Destroyed)
                     {
                         role = "facility-destroyed";
-                        if (Player(capturingSource.ForceId) && capturingSource.CommanderId is int destroyer)
+                        if (attackerIsPlayer && attackingSource.CommanderId is int destroyer)
                         { Person("actor",destroyer); role = "facility-won"; }
                     }
-                    else if (capturingSource.CommanderId is int capturingCommander)
-                    { Person("actor", capturingCommander); role = Player(capturingSource.ForceId) ? "settlement-won" : "settlement-lost"; }
+                    else if (attackingSource.CommanderId is int capturingCommander)
+                    { Person("actor", capturingCommander); role = captureLost ? "settlement-lost" : "settlement-won"; }
+                    else if (captured.Source.ForceId is int recipient)
+                    {
+                        Force("force", recipient);
+                        role = captureLost ? "territory-lost" : "territory-changed";
+                    }
                     break;
+                }
                 case FacilityDestroyedEvent destroyed:
                     clock = destroyed.Clock; Place(destroyed.SettlementId);
                     colorForce = Player(destroyed.Source.ForceId) ? destroyed.Source.ForceId : destroyed.PreviousOwnerId;
@@ -190,10 +202,12 @@ public static class ProgressMessages
             if (role is "settlement-won" or "settlement-lost")
             {
                 string territoryRole = role == "settlement-won" ? "territory-changed" : "territory-lost";
+                if (fact is SettlementCapturedEvent { Source.ForceId: int recipient }) Force("force", recipient);
                 var territory = ProgressMessageProducer.Produce(content.Records[territoryRole],occurrence,texts,values,
                     n => (int)(random.NextUInt64() % (ulong)n));
                 result.Add(new($"report:{before.World.Revision}:{index}:{territoryRole}",
-                    territory.Message, location, result[^1].ForceColorCode));
+                    territory.Message, location, territoryRole == "territory-changed" && fact is SettlementCapturedEvent capture
+                        ? MapRecordColors.Resolve(before, after, capture.Source.ForceId) : result[^1].ForceColorCode));
             }
         }
         return result;

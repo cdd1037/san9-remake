@@ -239,7 +239,7 @@ internal sealed partial class WorldMutation : IWorldQuery
     {
         var previous = AllSettlements[value.Id];
         if (previous.OwnerId != value.OwnerId || value.IsDestroyed || value.IsDormant)
-            value = value with { CombatTargetUnitId = null };
+            value = value with { CombatTargetUnitId = null, SiegeContributions = null };
         bool courtChanged = !_economy.ImperialCourt.SuccessionOrder.IsEmpty &&
             (previous.OwnerId != value.OwnerId || previous.Kind != value.Kind || previous.IsDormant != value.IsDormant || previous.IsDestroyed != value.IsDestroyed);
         int? previousEmperorOwner = courtChanged ? ForceTrust.EmperorOwner(this, _economy) : null;

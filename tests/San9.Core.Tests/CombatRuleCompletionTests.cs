@@ -143,10 +143,12 @@ public sealed class CombatRuleCompletionTests
     public void SettlementDefeatSeparatesLastCityFromRemainingFacility(bool remainingCity)
     {
         var (world, rules) = Create(); var m = world.BeginMutation(); List<DomainEvent> events = [];
-        m.Replace(m.Officers[11] with { UnitId = null, SettlementId = 1 });
+        m.Replace(m.Officers[11] with { UnitId = null, SettlementId = 1, BaseAbilities = new(150, 70, 70, 70) });
         UnitTerminationService.Complete(m, 1, null, 1, rules.Governance, events);
         m.Replace(m.Settlements[1] with { Soldiers = 0 });
         m.Replace(m.Settlements[3] with { Kind = remainingCity ? SettlementKind.City : SettlementKind.Facility });
+        m.Replace(m.Units[2] with { Position = rules.Military!.Places[1].Position,
+            Order = new(MilitaryOrderKind.AttackSettlement, null, 1) });
         BattleAftermath.ResolveSettlementDefeat(m, 1, new(2, false), rules, events);
         Assert.Equal(2, m.Settlements[1].OwnerId);
         Assert.Equal(remainingCity ? OfficerStatus.Serving : OfficerStatus.Captive, m.Officers[11].Status);

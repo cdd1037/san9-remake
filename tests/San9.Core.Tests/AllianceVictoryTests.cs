@@ -18,12 +18,12 @@ public sealed class AllianceVictoryTests
     {
         var cities = Enumerable.Range(1, 5).Select(i => new SettlementState(i, i == 5 ? (remainingCity ? 3 : 4) : i,
             i == 3 ? 0u : 100u, 100, 100, 0, 0, 0, 100, 0, 100));
-        var people = Enumerable.Range(1, 4).Select(i => new OfficerState(i * 10, i, i, new(60, 60, 60, 60), false)
+        var people = Enumerable.Range(1, 4).Select(i => new OfficerState(i * 10, i, i == 3 && remainingCity ? 5 : i, new(60, 60, 60, 60), false)
             { Status = OfficerStatus.Ruler }).Append(new(11, victor, null, new(60, 60, 60, 60), false) { UnitId = 1 });
         var world = WorldState.Create(new(190, 1, 1), 42,
             Enumerable.Range(1, 4).Select(i => new ForceState(i, 100)
                 { LeaderId = i * 10, BaseTrust = i == victor ? trust : 100 }),
-            cities, people, units: [new(1, victor, new(32, 7), 1000) { FormationId = 1, Morale = 100,
+            cities, people, units: [new(1, victor, new(32, 7), 1000) { FormationId = 1, Morale = 100, Order = new(MilitaryOrderKind.AttackSettlement, null, 3),
                 MemberRanks = ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Middle) }],
             alliance: new(3, 1, [1, 2], 20), corps: [.. Enumerable.Range(1, 4).Select(i => new San9.Core.Domain.CorpsState(i, i, i * 10, new(1000, 1000)) { IsRoot = true })]);
         var military = new MilitaryRulebook(new(20, 3, [.. Enumerable.Repeat(0, 60)], [new(0, 1, 1)],

@@ -42,7 +42,9 @@ internal sealed partial class BattlePresentationBuilder
                 _mapChanges.Add(new(_impact, _index, null, Project(neutralized.SettlementId), _mapDialogue));
                 break;
             case SettlementCapturedEvent captured:
-                var dialogue = _messages.LastOrDefault(c => c.Id == FeedbackBatch.MessageId(before.World.Revision, _index, FeedbackKind.Capture, 0));
+                string? lastCaptureMessage = Feedback(FeedbackKind.Capture).Where(b => b.Output.Messages.Count > 0)
+                    .Select(b => b.MessageId(b.Output.Messages.Count - 1)).LastOrDefault();
+                var dialogue = _messages.LastOrDefault(c => c.Id == lastCaptureMessage);
                 if (dialogue is not null) _mapDialogue = dialogue.Id;
                 double time = dialogue?.Time ?? _impact;
                 _captureTimes[captured.SettlementId] = time;

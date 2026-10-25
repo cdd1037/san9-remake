@@ -71,7 +71,7 @@ public sealed class UnitDisplacementPlaybackTests
         var capture = new CapturePresentationDefinition(new() { ["won"] = new("captured", []), ["lost"] = new("captured", []) },
             new() { [0] = new("city", true) }, "victory", "loss", "capture");
         DomainEvent[] facts = [new UnitMovedEvent(before.World.Clock, 20, new(42, 7), new(52, 7), 10, NavigationStatus.Moving),
-            new SettlementCapturedEvent(before.World.Clock, 2, 2, new(10, false), false) { Source = source, Result = result },
+            new SettlementCapturedEvent(before.World.Clock, 2, 2, new(10, false), false) { Source = source, Attacker = source, Result = result },
             new UnitDisplacedEvent(before.World.Clock, 20, 2, new(52, 7), new(37, 7)),
             new UnitDisplacedEvent(before.World.Clock, 22, 2, new(52, 7), new(37, 7))];
         var after = before.ForWorld(before.World with

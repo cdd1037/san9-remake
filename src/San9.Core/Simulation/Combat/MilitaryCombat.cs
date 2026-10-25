@@ -366,16 +366,19 @@ internal static class MilitaryCombat
     internal static void DamageSettlement(WorldMutation world, SettlementState settlement, uint damage, CombatProfile profile,
         int attacker, List<DomainEvent> events, int walls = 0, bool attackerIsSettlement = false, int? tacticId = null, uint? calculatedSoldierLoss = null, bool isTacticExchange = false, bool continuesSiege = false)
     {
+        walls = Math.Clamp(walls, 0, settlement.Durability);
         damage = FinalDamage(world, new(attacker, attackerIsSettlement), settlement.OwnerId, damage, settlement.Soldiers);
         var loss = CombatMath.Loss(settlement.Soldiers, damage, profile.WoundedPercent, settlement.Wounded, MilitaryRulebook.WoundedCapacity);
         int morale = 0;
-        world.Replace(settlement with
+        var damaged = settlement with
         {
             Soldiers = loss.RemainingSoldiers,
             Wounded = settlement.Wounded + loss.AddedWounded,
             Morale = settlement.Morale - morale,
             Durability = settlement.Durability - walls
-        });
+        };
+        world.Replace(SiegeContributions.Credit(world, damaged, new(attacker, attackerIsSettlement),
+            settlement.Soldiers - loss.RemainingSoldiers, walls));
         events.Add(new BattleDamageEvent(world.Clock, attacker, null, settlement.Id, settlement.Soldiers - loss.RemainingSoldiers,
             loss.AddedWounded, loss.Dead, walls, morale, attackerIsSettlement)
         {

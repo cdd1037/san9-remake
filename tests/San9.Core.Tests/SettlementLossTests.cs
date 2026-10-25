@@ -258,7 +258,7 @@ public sealed class SettlementLossTests
         world.Replace(world.Settlements[10] with { Soldiers = 100 });
         world.Replace(world.Settlements[11] with { Soldiers = 0 });
         world.Replace(world.Officers[101] with { SettlementId = 10 });
-        world.Replace(world.Units[900] with { Order = new(MilitaryOrderKind.AttackSettlement, null, 11) });
+        world.Replace(world.Units[900] with { Position = Rules().Military!.Places[11].Position, Order = new(MilitaryOrderKind.AttackSettlement, null, 11) });
         List<DomainEvent> events = [];
         BattleAftermath.ResolveSettlementDefeat(world, 11, new(900, false), Rules(), events);
         Assert.Equal(PersonnelReturns.Kind, Assert.Single(world.TasksFor(103)).Kind);

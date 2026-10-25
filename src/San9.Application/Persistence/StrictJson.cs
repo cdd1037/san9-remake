@@ -18,7 +18,11 @@ public static class StrictJson
             for (int i = type.Properties.Count - 1; i >= 0; i--)
                 if (type.Properties[i].Get is null && type.Properties[i].Set is null) type.Properties.RemoveAt(i);
             foreach (var property in type.Properties)
-                if (property.Get is not null) property.IsRequired = true;
+            {
+                bool omitsNull = property.AttributeProvider?.GetCustomAttributes(typeof(JsonIgnoreAttribute), true)
+                    .OfType<JsonIgnoreAttribute>().Any(a => a.Condition == JsonIgnoreCondition.WhenWritingNull) == true;
+                if (property.Get is not null && !omitsNull) property.IsRequired = true;
+            }
         });
         var options = new JsonSerializerOptions(CanonicalJson.Options)
         {

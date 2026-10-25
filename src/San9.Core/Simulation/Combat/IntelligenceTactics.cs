@@ -149,7 +149,8 @@ internal static class IntelligenceTactics
                 else loss = accepted;
                 source.AddSoldiers(world, accepted);
                 if (target.UnitId is int defected) world.Replace(world.Units[defected] with { Soldiers = soldiers - loss });
-                else world.Replace(world.Settlements[target.SettlementId!.Value] with { Soldiers = soldiers - loss });
+                else world.Replace(SiegeContributions.Credit(world,
+                    world.Settlements[target.SettlementId!.Value] with { Soldiers = soldiers - loss }, source, loss));
                 ResourceAccounts.Report(world, source.Account, ResourceKind.Soldiers, "tactic-defection",
                     target.UnitId ?? target.SettlementId, accepted, accepted, events);
                 ResourceAccounts.Report(world, new(target.UnitId is null ? ResourceOwnerKind.Settlement : ResourceOwnerKind.Unit,

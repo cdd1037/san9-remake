@@ -334,7 +334,7 @@ public sealed class WorldEventPresentationTests
         var source = new BattleObjectContext(0, false, force, actor, null, place, false);
         var request = new AttackRequestState(otherForce, force, enemyPlace, thirdForce, 3);
         DomainEvent[] journalSamples = [new AdviserAppointedEvent(clock, force, null, actor),
-            new SettlementCapturedEvent(clock, enemyPlace, otherForce, new(0, false), false) { Source = source, Result = before.World.Settlements.Single(s => s.Id == enemyPlace) },
+            new SettlementCapturedEvent(clock, enemyPlace, otherForce, new(0, false), false) { Source = source, Attacker = source, Result = before.World.Settlements.Single(s => s.Id == enemyPlace) },
             new SettlementTransferredEvent(clock, enemyPlace, otherForce, force), new ForceSurrenderedEvent(clock, otherForce, force, 0, 0, 0, 0, [], []),
             new SettlementDefectedEvent(clock, enemyPlace, otherForce, force, SettlementDefectionKind.Abandoned, other, []),
             new PersonnelTerritoryTransferredEvent(clock, enemyPlace, otherForce, force, other),
@@ -363,7 +363,7 @@ public sealed class WorldEventPresentationTests
         var npcTarget = new BattleObjectContext(100004, false, thirdForce,
             before.World.Forces.Single(f => f.Id == thirdForce).LeaderId, new(17, 7), enemyPlace, false);
         DomainEvent[] detailedFacts = [
-            new SettlementCapturedEvent(clock, enemyPlace, otherForce, new(npcTarget.Id, false), false) { Source = npcTarget, Result = before.World.Settlements.Single(s => s.Id == enemyPlace) },
+            new SettlementCapturedEvent(clock, enemyPlace, otherForce, new(npcTarget.Id, false), false) { Source = npcTarget, Attacker = npcTarget, Result = before.World.Settlements.Single(s => s.Id == enemyPlace) },
             new FacilityDestroyedEvent(clock, enemyPlace, new(npcTarget.Id, false)) { Source = npcTarget, PreviousOwnerId = otherForce,
                 Result = before.World.Settlements.Single(s => s.Id == enemyPlace) with { IsDestroyed = true, OwnerId = null } },
             new UnitTerminatedEvent(clock, npcSource.Id, new(npcTarget.Id, false), 0) { Reason = UnitTerminationReason.Defeated, Target = npcSource, Source = npcTarget }];

@@ -5,7 +5,10 @@ namespace San9.Core.Simulation;
 
 public sealed record SettlementCapturedEvent(GameClock Clock, int SettlementId, int? PreviousOwnerId, BattleSource Winner, bool Destroyed) : DomainEvent
 {
+    /// <summary>The selected recipient, frozen before absorption or subsequent ownership changes.</summary>
     [System.Text.Json.Serialization.JsonRequired] public required BattleObjectContext Source { get; init; }
+    /// <summary>The combat source that triggered defeat, which may belong to another force.</summary>
+    [System.Text.Json.Serialization.JsonRequired] public required BattleObjectContext Attacker { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public required SettlementState Result { get; init; }
 }
 public sealed record FacilityDestroyedEvent(GameClock Clock, int SettlementId, BattleSource Attacker) : DomainEvent
@@ -40,42 +43,46 @@ internal static class BattleAftermath
         if (victorForce is int victorId) GovernanceLifecycle.EliminateIfDefeated(world, unit.OwnerId, rules, events, world.CurrentDateCommandsConsumed, victorId);
     }
 
-    internal static void ResolveSettlementDefeat(WorldMutation world, int id, BattleSource winner, SimulationRules rules, List<DomainEvent> events)
-        => ResolveSettlementDefeats(world, [id], winner, rules, events);
+    internal static void ResolveSettlementDefeat(WorldMutation world, int id, BattleSource attacker, SimulationRules rules, List<DomainEvent> events)
+        => ResolveSettlementDefeats(world, [id], attacker, rules, events);
 
-    internal static void ResolveSettlementDefeats(WorldMutation world, IReadOnlyList<int> ids, BattleSource winner,
+    internal static void ResolveSettlementDefeats(WorldMutation world, IReadOnlyList<int> ids, BattleSource attacker,
         SimulationRules rules, List<DomainEvent> events)
     {
         if (ids.Count == 0) return;
+        if (!attacker.Exists(world) || ids.Any(id => !MilitaryCombat.Defeated(world.Settlements[id])))
+            throw new InvalidOperationException("Invalid settlement defeat.");
         // Keep the source alive until every target of one combat effect has settled.
-        int victor = winner.Owner(world);
-        var previousOwners = ids.Select(id => world.Settlements[id].OwnerId).OfType<int>().Distinct().Order().ToArray();
-        var captures = ids.Select(id => (Id: id, Units: CaptureUnits(world, id, winner, rules.Military!))).ToArray();
+        List<(int Id, BattleSource Receiver, int? PreviousOwner, int Owner, int[] Units)> captures = [];
+        foreach (int id in ids)
+        {
+            var place = world.Settlements[id];
+            var candidates = SiegeContributions.Candidates(world, id, rules.Military!);
+            bool removed = !place.CanHostPersons || place.Durability == 0 && rules.Military!.Place(place).DestroyedAtZeroDurability;
+            if ((removed ? attacker : SiegeContributions.Receiver(world, id, attacker, candidates)) is not { } receiver) continue;
+            int owner = receiver.Owner(world);
+            int? corps = receiver.Corps(world);
+            int[] units = candidates.Where(u => u.OwnerId == owner && u.CorpsId == corps).Select(u => u.Id).ToArray();
+            if (units.Length == 0 && !receiver.IsSettlement) units = [receiver.Id];
+            captures.Add((id, receiver, place.OwnerId, owner, units));
+        }
+        var previousOwners = captures.Select(c => c.PreviousOwner).OfType<int>().Distinct().Order().ToArray();
         foreach (var capture in captures)
-            CaptureSettlement(world, capture.Id, winner, capture.Units, rules, events);
-        foreach (int owner in previousOwners) GovernanceLifecycle.EliminateIfDefeated(world, owner, rules, events, world.CurrentDateCommandsConsumed, victor);
-        foreach (var capture in captures.Where(c => !world.Settlements[c.Id].IsDestroyed && world.Settlements[c.Id].OwnerId == victor))
+            CaptureSettlement(world, capture.Id, capture.Receiver, attacker, capture.Units, rules, events);
+        foreach (int owner in previousOwners)
+            GovernanceLifecycle.EliminateIfDefeated(world, owner, rules, events, world.CurrentDateCommandsConsumed,
+                captures.Last(c => c.PreviousOwner == owner).Owner);
+        foreach (var capture in captures.Where(c => !world.Settlements[c.Id].IsDestroyed &&
+            world.Settlements[c.Id].OwnerId == c.Owner))
             foreach (int unitId in capture.Units)
                 if (world.Units.TryGetValue(unitId, out var unit))
                     MilitaryMovement.Absorb(world, unit, capture.Id, rules.Governance, rules.Personnel, rules.Military!, events);
         GovernanceLifecycle.Reconcile(world, previousOwners.ToHashSet(), rules, events, world.CurrentDateCommandsConsumed);
-        foreach (int id in ids) MilitaryOrders.SettlementChanged(world, id, rules.Military!, events);
-        foreach (int id in ids) UnitDisplacement.Resolve(world, id, rules.Military!, events);
+        foreach (var capture in captures) MilitaryOrders.SettlementChanged(world, capture.Id, rules.Military!, events);
+        foreach (var capture in captures) UnitDisplacement.Resolve(world, capture.Id, rules.Military!, events);
     }
 
-    private static int[] CaptureUnits(WorldMutation world, int id, BattleSource winner, MilitaryRulebook military)
-    {
-        var area = new BattleSource(id, true).Area(world, military);
-        int owner = winner.Owner(world);
-        int? corps = winner.Corps(world);
-        var candidates = world.Units.Values.Where(u => u.OwnerId == owner && u.CorpsId == corps &&
-            !u.IsEmbedded && !u.IsPersonnel && u.Soldiers > 0 && u.Morale > 0 &&
-            u.EffectiveOrder is { Kind: MilitaryOrderKind.AttackSettlement } order && order.SettlementId == id &&
-            MilitaryCombat.Area(u, military).IntersectsExpanded(area, 5)).OrderBy(u => u.Id).Select(u => u.Id).ToArray();
-        return candidates.Length == 0 && !winner.IsSettlement ? [winner.Id] : candidates;
-    }
-
-    private static void CaptureSettlement(WorldMutation world, int id, BattleSource winner, int[] candidates,
+    private static void CaptureSettlement(WorldMutation world, int id, BattleSource winner, BattleSource attacker, int[] candidates,
         SimulationRules rules, List<DomainEvent> events)
     {
         var settlement = world.Settlements[id];
@@ -102,7 +109,7 @@ internal static class BattleAftermath
         bool abandoned = !destroyed && world.Forces[winner.Owner(world)].IsBarbarian;
         bool cleared = destroyed || abandoned;
         if (settlement.OwnerId is int previousOwner && !world.Forces[previousOwner].IsEliminated)
-            BattleLearning.CapturedSettlement(world, winner, rules.Military, events);
+            BattleLearning.CapturedSettlement(world, attacker, rules.Military, events);
         if (cleared)
         {
             string reason = abandoned ? "settlement-abandoned" : "settlement-destroyed";
@@ -129,20 +136,20 @@ internal static class BattleAftermath
                 "settlement-captured", events);
         }
         int publicOrder = cleared ? settlement.PublicOrder : CityBattleEffects.CapturedPublicOrder(world, settlement, winner.Owner(world), events);
-        world.Replace(settlement with { PublicOrder = publicOrder, OwnerId = cleared ? null : winner.Owner(world), CorpsId = cleared ? null : winner.Corps(world),
+        world.Replace(settlement with { SiegeContributions = null, PublicOrder = publicOrder, OwnerId = cleared ? null : winner.Owner(world), CorpsId = cleared ? null : winner.Corps(world),
             Facility = settlement.Facility is { } instance ? instance with { BuilderUnitId = null } : null,
             ConfusionDaysRemaining = 0,
             IsDestroyed = destroyed, Soldiers = cleared ? 0 : settlement.Soldiers, Wounded = cleared ? 0 : settlement.Wounded,
             Morale = cleared ? 0 : settlement.Morale, Durability = destroyed ? 0 :
                 Math.Max(settlement.Durability, Math.Max(1, settlement.MaxDurability / 4)) });
         SettlementTasks.LocationChanged(world, id, "settlement-captured", rules, events);
-        winner.Reward(world, 0, 10);
+        attacker.Reward(world, 0, 10);
         if (abandoned)
             foreach (var unit in world.Units.Values.Where(u => u.OwnerId == winner.Owner(world) && u.CorpsId == winner.Corps(world) &&
                 u.Order is { Kind: MilitaryOrderKind.AttackSettlement } order && order.SettlementId == id).OrderBy(u => u.Id).ToArray())
                 MilitaryOrders.Return(world, unit, rules.Military!, events, "settlement-abandoned");
         events.Add(new SettlementCapturedEvent(world.Clock, id, settlement.OwnerId, winner, destroyed)
-            { Source = BattleObjectContext.Capture(world, winner), Result = world.Settlements[id] });
+            { Source = BattleObjectContext.Capture(world, winner), Attacker = BattleObjectContext.Capture(world, attacker), Result = world.Settlements[id] });
     }
 
     private static void ResolvePeople(WorldMutation world, IEnumerable<OfficerState> people,

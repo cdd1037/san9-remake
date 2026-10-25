@@ -40,6 +40,13 @@ internal static class WorldInvariants
         }
         foreach (var settlement in state.AllSettlements.Values)
         {
+            if (settlement.SiegeContributions is { } siege &&
+                (siege.Count == 0 || settlement.IsDestroyed || settlement.IsDormant || !settlement.CanHostPersons ||
+                 siege.Any(pair => pair.Key == settlement.OwnerId || !state.AllForces.ContainsKey(pair.Key) ||
+                    pair.Value is null || pair.Value.Score <= 0 || pair.Value.Units is null ||
+                    pair.Value.Units.Any(u => u.Key < 0 || u.Key >= state.Simulation.NextUnitId || u.Value <= 0) ||
+                    pair.Value.Units.Values.Aggregate(0m, (sum, score) => sum + score) > pair.Value.Score)))
+                throw new ArgumentException("Invalid siege contributions.");
             if (settlement.EnabledTacticIds.IsDefault || settlement.EnabledTacticIds.Any(id => id < 0) ||
                 settlement.EnabledTacticIds.Distinct().Count() != settlement.EnabledTacticIds.Length)
                 throw new ArgumentException("Invalid settlement tactics.");

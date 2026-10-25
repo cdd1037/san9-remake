@@ -14,6 +14,7 @@ public sealed partial class MilitaryCommandLifecycleTests
         var world = World(new(kind, null, 1), enemyUnit: true);
         world.Replace(world.Units[1] with { ServicePlaceId = 1, CargoFood = 100 });
         world.Replace(world.Settlements[1] with { Soldiers = 0, Durability = 0 });
+        world.Replace(world.Units[2] with { Position = new(7, 2), Order = new(MilitaryOrderKind.AttackSettlement, null, 1) });
         var rules = Rules();
         BattleAftermath.ResolveSettlementDefeat(world, 1, new(2, false), new() { Military = rules }, []);
         Assert.Equal(2, world.Settlements[1].OwnerId);

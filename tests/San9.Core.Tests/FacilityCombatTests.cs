@@ -212,14 +212,16 @@ public sealed class FacilityCombatTests
     [Theory]
     [InlineData(TacticEffect.Illusion)]
     [InlineData(TacticEffect.Sorcery)]
-    public void FacilityAreaVictoryUsesTheSameSettlementOccupationAndCleanup(TacticEffect effect)
+    public void FacilityAreaDamageKeepsCreditButNeedsGroundTroopsToOccupy(TacticEffect effect)
     {
         var engine = Engine(effect, area: true);
         var result = Advance(engine);
-        var capture = Assert.Single(result.Events.OfType<SettlementCapturedEvent>());
-        Assert.Equal(3, capture.SettlementId);
-        Assert.Equal(new BattleSource(1, true), capture.Winner);
-        Assert.Equal(1, engine.Snapshot.Settlements.Single(s => s.Id == 3).OwnerId);
+        Assert.Empty(result.Events.OfType<SettlementCapturedEvent>());
+        var place = engine.Snapshot.Settlements.Single(s => s.Id == 3);
+        Assert.Equal(2, place.OwnerId);
+        Assert.Equal(0u, place.Soldiers);
+        Assert.Equal(1, place.SiegeContributions![1].Score);
+        Assert.Empty(place.SiegeContributions[1].Units);
         Assert.Contains(result.Events.OfType<IntelligenceEffectResolvedEvent>(), e => e.TargetIsSettlement && e.TargetId == 3 && e.Effect == 10);
     }
 

@@ -31,7 +31,7 @@ internal sealed partial class BattlePresentationBuilder
         var source = TargetContext(roster.AttackingUnitId, false);
         var target = TargetContext(roster.DefendingUnitId, false);
         if (content.Battle?.Duel is not { } definition || source is null || target is null ||
-            !(Player(source.ForceId) || Player(target.ForceId))) return;
+            !(DirectPlayer(source) || DirectPlayer(target))) return;
         Capture(source, target);
         var people = before.World.Officers.ToDictionary(p => p.Id);
         foreach (var person in started.Participants) people[person.Id] = person;

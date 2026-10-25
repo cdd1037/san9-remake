@@ -37,6 +37,7 @@ public partial class BattlePresentationView
                 day.IsFactReady(c.FactIndex) && day.IsDialogueComplete(c.AfterDialogueId)))
             {
                 if (!_publishedNumbers.Add(cue.Id)) continue;
+                if (day.Plan is null || day.Viewport?.Invoke() is not { } bounds || !day.Plan.AdmitMapNumber(cue, definition, bounds)) continue;
                 _numberAssets ??= Textures.CreateScope(Textures.LibraryAssets);
                 _numberAssets.Request([definition.Asset]);
                 _mapNumbers.Add(new(cue, definition));

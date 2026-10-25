@@ -17,16 +17,26 @@ public sealed class MapDayPlan
     public double BodyDuration(MapAttackMotion attack) => _bodies[attack].Duration;
     public bool AdmitMapEffect(BattleObjectContext target, BattleSprite sprite, ImageAsset asset, MapPresentationBounds viewport)
     {
-        if (!target.IsSettlement && target.IsGarrison) return false;
-        var position = target.Position ?? (target.ServicePlaceId is int servicePlace && Settlements.TryGetValue(servicePlace, out var place)
-            ? MapCoordinates.Center(new(place.X, place.Y)) : (WorldPosition?)null);
-        if (position is not { } point) return false;
-        var origin = Project(point.X, point.Y);
+        if (MapFeedbackOrigin(target) is not { } origin) return false;
         if (!viewport.ContainsBody(origin)) return false;
         double width = asset.Width / (double)sprite.Columns;
         double left = origin.X + sprite.OffsetX - (sprite.Centered ? width / 2 : 0);
         double top = origin.Y + sprite.OffsetY;
         return viewport.Intersects(left, top, left + width, top + asset.Height, 192, 96);
+    }
+    public bool AdmitMapNumber(BattleMapNumberCue cue, BattleMapNumberDefinition definition, MapPresentationBounds viewport)
+    {
+        if (MapFeedbackOrigin(cue.Target) is not { } origin ||
+            BattleMapNumberPlayback.Sample(definition, cue.Amount, 0) is not { } frame) return false;
+        double left = origin.X + frame.X, top = origin.Y + frame.Y;
+        return viewport.Intersects(left, top, left + frame.Text.Length * definition.GlyphWidth, top + definition.GlyphHeight, 192, 96);
+    }
+    private MapMotionPoint? MapFeedbackOrigin(BattleObjectContext target)
+    {
+        if (!target.IsSettlement && target.IsGarrison) return null;
+        var position = target.Position ?? (target.ServicePlaceId is int servicePlace && Settlements.TryGetValue(servicePlace, out var place)
+            ? MapCoordinates.Center(new(place.X, place.Y)) : (WorldPosition?)null);
+        return position is { } point ? Project(point.X, point.Y) : null;
     }
     public MapAttackAdmission Admit(MapAttackMotion attack, MapPresentationBounds viewport)
     {

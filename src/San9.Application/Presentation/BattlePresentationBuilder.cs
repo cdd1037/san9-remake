@@ -170,7 +170,10 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
     }
 
     private bool Player(int? force) => before.World.Simulation.Controls.Any(c => c.ForceId == force && c.Kind == ControllerKind.Player);
-    private bool Visible(TacticOccurrence occurrence) => Player(occurrence.Source.ForceId) || Player(occurrence.Target.ForceId);
+    private bool DirectPlayer(BattleObjectContext obj) => Player(obj.ForceId) && before.World.Corps.Any(c =>
+        c.OwnerId == obj.ForceId && (obj.CorpsId is int corpsId ? c.Id == corpsId : c.IsRoot) &&
+        c.ControlMode == CorpsControlMode.Direct);
+    private bool Visible(TacticOccurrence occurrence) => DirectPlayer(occurrence.Source) || DirectPlayer(occurrence.Target);
     private int Soldier => content.Decisions.People.GetValueOrDefault("soldier");
     private MapCell Location(BattleObjectContext obj)
     {
@@ -183,9 +186,9 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
     {
         if (_objects.TryGetValue((id, settlement), out var captured)) return captured;
         if (settlement && before.World.Settlements.FirstOrDefault(s => s.Id == id) is { } place)
-            return new(id, true, place.OwnerId, null, null, id, true);
+            return new(id, true, place.OwnerId, null, null, id, true) { CorpsId = place.CorpsId };
         if (!settlement && before.World.Units.FirstOrDefault(u => u.Id == id) is { } unit)
-            return new(id, false, unit.OwnerId, unit.CommanderId, unit.Position, unit.ServicePlaceId, unit.IsEmbedded);
+            return new(id, false, unit.OwnerId, unit.CommanderId, unit.Position, unit.ServicePlaceId, unit.IsEmbedded) { CorpsId = unit.CorpsId };
         return null;
     }
     private bool MapVisible(BattleObjectContext obj) => _mapVisibility.GetValueOrDefault((obj.Id, obj.IsSettlement), Player(obj.ForceId));
@@ -194,7 +197,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
     private string Identity(string role) => $"battle:{before.World.Revision}:{_index}:{role}";
     private void Number(BattleObjectContext? obj, long amount, double time, string role)
     {
-        if (amount != 0 && obj is not null && MapVisible(obj) && content.Battle?.MapNumbers is not null)
+        if (amount != 0 && obj is not null && content.Battle?.MapNumbers is not null)
         {
             double start = MapTime(time);
             _mapNumbers.Add(new(Identity(role), start, obj, amount));

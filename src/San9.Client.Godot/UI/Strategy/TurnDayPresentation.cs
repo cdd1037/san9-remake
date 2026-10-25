@@ -53,6 +53,25 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
     public IReadOnlySet<int> PresentedShots(MapAttackMotion attack) => _attacks.TryGetValue(attack, out var state) ? state.Admission.Shots : new HashSet<int>();
     public bool IsCombatBlocking => _batchActive && VisualElapsed < _batchEnd - 1e-9;
     public BattlePresentationPlan? Battle { get; } = battle;
+    public const double FastForwardHoldDuration = .2;
+    public const double FastForwardSpeed = 3;
+    private sealed record SceneSpan(string Id, double Start, double End, int FactIndex);
+    private readonly SceneSpan[] _scenes = (battle?.Visuals.Where(c => c.Zoom is not null)
+        .Select(c => new SceneSpan(c.Id, c.EntranceStart ?? c.Start, c.End, c.FactIndex)) ?? [])
+        .Concat(battle?.Duels.Select(c => new SceneSpan(c.Id, c.Start, c.End, c.FactIndex)) ?? []).ToArray();
+    private SceneSpan? ActiveScene => _scenes.FirstOrDefault(c => IsFactReady(c.FactIndex) && Elapsed >= c.Start && Elapsed < c.End);
+    private string? _heldSceneId;
+    private double _sceneHoldElapsed;
+    public bool CanFastForward => ActiveScene is not null && PendingDialogues.Count == 0 && PendingDuelDialogues.Count == 0;
+    public bool IsFastForwarding => _heldSceneId is not null && _heldSceneId == ActiveScene?.Id &&
+        CanFastForward && _sceneHoldElapsed >= FastForwardHoldDuration - 1e-9;
+    public void BeginSceneFastForward()
+    {
+        if (!CanFastForward || _heldSceneId is not null) return;
+        _heldSceneId = ActiveScene!.Id;
+        _sceneHoldElapsed = 0;
+    }
+    public void EndSceneFastForward() { _heldSceneId = null; _sceneHoldElapsed = 0; }
     private readonly PresentationCueTimeline<BattleMapChangeCue> _changes = new(battle?.MapChanges ?? [], c => c.Time, c => c.FactIndex, c => c.AfterDialogueId);
     private readonly PresentationCueTimeline<BattleValueCue> _values = new(battle?.Values.Where(c => c.IsSettlement) ?? [], c => c.Time, c => c.FactIndex, c => c.AfterDialogueId);
     private readonly PresentationCueTimeline<BattleMessageCue> _dialogues = Messages(battle, BattleMessageChannel.Dialogue);
@@ -107,6 +126,7 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
     {
         var cue = PendingDialogues.Concat(PendingDuelDialogues).FirstOrDefault(c => c.Id == id)
             ?? throw new InvalidOperationException("Battle dialogue is not pending.");
+        EndSceneFastForward();
         _completedDialogues.Add(id);
         if (cue.Channel == BattleMessageChannel.DuelDialogue)
         {
@@ -122,6 +142,7 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
     public double Duration { get; } = Math.Max(battle?.Duration ?? 0, Math.Max(MapMovementCadence.DayMilliseconds / 1000.0, duration ?? 0));
     public void SkipVisual()
     {
+        EndSceneFastForward();
         var duel = Battle?.Duels.FirstOrDefault(c => IsFactReady(c.FactIndex) && Elapsed >= c.Start && Elapsed < c.End);
         if (duel is not null)
         {
@@ -139,11 +160,13 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
         double readingRate = seconds > 0 ? Math.Max(0, readingSeconds ?? seconds) / seconds : 0;
         if (paused)
         {
+            EndSceneFastForward();
             Hold(seconds);
             return;
         }
         while (true)
         {
+            if (_heldSceneId is not null && (_heldSceneId != ActiveScene?.Id || !CanFastForward)) EndSceneFastForward();
             StartMapEffects();
             if (_batchActive)
             {
@@ -189,12 +212,27 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
                 CompleteDialogue(dialogue.Id);
                 continue;
             }
-            double remaining = NextBatch is { } next ? Math.Max(0, next.Time - Elapsed) : seconds;
+            double remaining = NextBatch is { } next ? Math.Max(0, next.Time - Elapsed) : double.PositiveInfinity;
             double? effectTime = _mapEffects.Where(c => !_mapEffectStarts.ContainsKey(c.Id) && IsFactReady(c.FactIndex) && IsDialogueComplete(c.AfterDialogueId))
                 .Select(c => (double?)c.Time).Min();
             if (effectTime is { } start) remaining = Math.Min(remaining, Math.Max(0, start - Elapsed));
-            double consumed = AdvanceTimeline(Math.Min(seconds, remaining));
-            seconds -= consumed;
+            // Spend the frame's base-speed budget only inside the held scene. Split at
+            // the hold threshold and scene end so spare time cannot accelerate the map
+            // or the next scene. Reading keeps its independent wall-time budget.
+            var heldScene = _heldSceneId is null ? null : ActiveScene;
+            double rate = IsFastForwarding ? Math.Max(1, FastForwardSpeed * readingRate) : 1;
+            if (heldScene is not null)
+            {
+                remaining = Math.Min(remaining, heldScene.End - Elapsed);
+                if (_sceneHoldElapsed < FastForwardHoldDuration - 1e-9 && readingRate > 0)
+                    remaining = Math.Min(remaining, (FastForwardHoldDuration - _sceneHoldElapsed) / readingRate);
+            }
+            double consumed = AdvanceTimeline(Math.Min(seconds * rate, remaining));
+            double spent = consumed / rate;
+            seconds = Math.Max(0, seconds - spent);
+            if (heldScene is not null)
+                _sceneHoldElapsed = Math.Min(FastForwardHoldDuration, _sceneHoldElapsed + spent * readingRate);
+            if (heldScene is not null && consumed > 0 && seconds > 0) continue;
             if (NextBatch is { } due && due.Time <= Elapsed + 1e-9) continue;
             if (effectTime is { } effectStart && effectStart <= Elapsed + 1e-9) continue;
             if (PendingDuelDialogues.Count > 0 && seconds > 0) continue;

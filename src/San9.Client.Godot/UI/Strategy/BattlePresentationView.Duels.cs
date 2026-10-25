@@ -86,13 +86,10 @@ public partial class BattlePresentationView
         if (_duel is not { } duel || _day is null || _assets is null || !ResourcesReady || duel.Sample(_day.Elapsed) is not { } stage) return;
         double time = DuelTime(stage);
         double age = time - stage.Start, progress = DuelSceneCue.Progress(stage, time);
-        var font = GetThemeFont("font");
         var ui = duel.Definition.Interface;
         DrawRect(new(Vector2.Zero, GetViewportRect().Size), new Color(new Color(ui.TintColor), ui.TintOpacity));
         DrawSetTransform(SceneOffset);
         DrawTexture(_assets.Get(duel.Backdrop, this), new(ui.BackdropPosition.X, ui.BackdropPosition.Y));
-        void Text(string text, float x, float y, int size = 22, Color? color = null) =>
-            DrawString(font, new(x, y), text, fontSize: size, modulate: color ?? Colors.White);
 
         List<(float Depth, Action Draw)> actors = [];
         foreach (var flag in duel.Flags)
@@ -138,8 +135,7 @@ public partial class BattlePresentationView
         actors.Add(((float)DuelSceneCue.Position(stage, time, true).Y, () => Fighter(stage.Right, true, stage.RightAction)));
         actors.Add(((float)DuelSceneCue.Position(stage, time, false).Y, () => Fighter(stage.Left, false, stage.LeftAction)));
         foreach (var actor in actors.OrderBy(a => a.Depth)) actor.Draw();
-        Text(CommandText.Resolve(Texts, IsPaused() ? "battle.resume" : "battle.pause"), 832, 730, 20);
-        Text(CommandText.Resolve(Texts, "battle.skip"), 932, 730, 20);
+        DrawSceneControls();
         DrawSetTransform(Vector2.Zero);
     }
 

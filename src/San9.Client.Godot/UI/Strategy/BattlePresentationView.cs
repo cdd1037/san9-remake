@@ -64,6 +64,7 @@ public partial class BattlePresentationView : Control
                 throw new InvalidDataException("Battle speech portrait failed.", portraitError);
             return ResourcesReady;
         }
+        _day?.EndSceneFastForward();
         _assets?.Dispose(); _assets = null; _day = day;
         _flags?.Dispose(); _flags = null;
         _duel = null; _duelSpeechLayout = null; _duelPortraits.Clear(); _duelText?.Hide();
@@ -265,13 +266,31 @@ public partial class BattlePresentationView : Control
     public override void _GuiInput(InputEvent input)
     {
         if (!IsSceneActive || input is not InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } mouse) return;
+        _day?.EndSceneFastForward();
         if (new Rect2(820, 700, 88, 44).HasPoint(mouse.Position - SceneOffset)) PauseRequested?.Invoke();
         else if (new Rect2(920, 700, 96, 44).HasPoint(mouse.Position - SceneOffset)) _day?.SkipVisual();
-        else if (!IsPaused() && _duel?.Sample(_day!.Elapsed) is { Dialogue: not null } stage)
-        {
-            foreach (var message in _day.PendingDuelDialogues) _day.CompleteDialogue(message.Id);
-        }
+        else if (!IsPaused() && _day?.PendingDuelDialogues.FirstOrDefault() is { } dialogue)
+            _day.CompleteDialogue(dialogue.Id);
+        else if (!IsPaused()) _day?.BeginSceneFastForward();
         AcceptEvent();
+    }
+    public override void _Input(InputEvent input)
+    {
+        if (input is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false }) EndSceneFastForward();
+    }
+    private void EndSceneFastForward() => _day?.EndSceneFastForward();
+    public override void _Notification(int what)
+    {
+        if (what == NotificationWMWindowFocusOut ||
+            what == NotificationVisibilityChanged && !IsVisibleInTree()) EndSceneFastForward();
+    }
+    private void DrawSceneControls()
+    {
+        var font = GetThemeFont("font");
+        string? hint = IsPaused() ? "已暂停" : _day?.PendingDuelDialogues.Count > 0 ? "单击继续" : null;
+        if (hint is not null) DrawString(font, new(560, 730), hint, fontSize: 18, modulate: Colors.LightGray);
+        DrawString(font, new(832, 730), CommandText.Resolve(Texts, IsPaused() ? "battle.resume" : "battle.pause"), fontSize: 20);
+        DrawString(font, new(932, 730), CommandText.Resolve(Texts, "battle.skip"), fontSize: 20);
     }
     public override void _Draw()
     {
@@ -306,8 +325,7 @@ public partial class BattlePresentationView : Control
         PanelText(Texts.Resolve(_day.Before.Information.Tactics.Single(t => t.Id == cue.TacticId).NameKey), new(232, 692));
         PanelText(Force(cue.Target), new(816, 40));
         PanelText(Name(cue.Target), new(816, 72));
-        DrawString(font, new(832, 730), CommandText.Resolve(Texts, IsPaused() ? "battle.resume" : "battle.pause"), fontSize: 20);
-        DrawString(font, new(932, 730), CommandText.Resolve(Texts, "battle.skip"), fontSize: 20);
+        DrawSceneControls();
         DrawSetTransform(Vector2.Zero);
     }
     private void DrawNumbers(BattleNumberLayer layer)
@@ -346,8 +364,9 @@ public partial class BattlePresentationView : Control
         AddChild(_duelText); _duelText.Hide();
         _transition = new() { ZIndex = 10 }; AddChild(_transition);
         GetViewport().SizeChanged += ViewportChanged;
+        GetWindow().MouseExited += EndSceneFastForward;
         Size = GetViewportRect().Size;
     }
     public override void _ExitTree()
-    { GetViewport().SizeChanged -= ViewportChanged; _ambience.Stop(); _ambience.Stream = null; _numberRoll.Stop(); _numberRoll.Stream = null; _streams.Dispose(); _duelUi?.Dispose(); _assets?.Dispose(); _flags?.Dispose(); _numberAssets?.Dispose(); foreach (var portrait in _portraits) portrait.Dispose(); Textures.Defer(_additive.Dispose); }
+    { EndSceneFastForward(); GetWindow().MouseExited -= EndSceneFastForward; GetViewport().SizeChanged -= ViewportChanged; _ambience.Stop(); _ambience.Stream = null; _numberRoll.Stop(); _numberRoll.Stream = null; _streams.Dispose(); _duelUi?.Dispose(); _assets?.Dispose(); _flags?.Dispose(); _numberAssets?.Dispose(); foreach (var portrait in _portraits) portrait.Dispose(); Textures.Defer(_additive.Dispose); }
 }

@@ -133,7 +133,12 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
         Start(new PrepareAdvanceOperation());
     }
 
-    public void TogglePause() { if (Screen == TurnScreen.Playing) Paused = !Paused; }
+    public void TogglePause()
+    {
+        if (Screen != TurnScreen.Playing) return;
+        Day?.EndSceneFastForward();
+        Paused = !Paused;
+    }
 
     /// <summary>Decision UI submits on the same background path; repeated clicks cannot enqueue another answer.</summary>
     public bool Respond(GameCommand command, string controllerId = "player")
@@ -228,7 +233,7 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
             var closing = _pending.PreparedTransitions.FirstOrDefault(t => t.Phase == ResolutionPhase.XunClosing);
             Day ??= CreateDay(Display!, closing?.View ?? prepared,
                 closing is null ? events : events.Take(closing.EventIndex).ToArray());
-            if (CanPlayDay?.Invoke() == false) return;
+            if (CanPlayDay?.Invoke() == false) { Day.EndSceneFastForward(); return; }
             Day.Advance(seconds, readingSeconds: readingSeconds);
             PresentDay?.Invoke(Day);
             double completed = Display!.World.Clock.DayNumber - _startedDay;

@@ -314,8 +314,7 @@ public sealed class TurnPresentationTests
         }
     }
 
-    [Fact]
-    public void SkippingZoomKeepsResultResponsesAndCannotPublishOrChangeTheWorld()
+    private static (GameSession Session, DomainEvent[] Events, San9.Application.Presentation.BattlePresentationPlan Plan) ZoomFixture()
     {
         var session = Session();
         string[] roles = ["activation-own", "action", "hit-reaction", "damage"];
@@ -336,6 +335,13 @@ public sealed class TurnPresentationTests
         San9.Core.Simulation.DomainEvent[] events = [new San9.Core.Simulation.TacticActivatedEvent(session.Snapshot.Clock,10,false,11,false,99,[new(7, 99)],false,10)
             { Occurrence=occurrence }];
         var plan = San9.Application.Presentation.BattlePresentationPlan.Create(session.View, session.View, events, session.Messages(texts), texts, content);
+        return (session, events, plan);
+    }
+
+    [Fact]
+    public void SkippingZoomKeepsResultResponsesAndCannotPublishOrChangeTheWorld()
+    {
+        var (session, events, plan) = ZoomFixture();
         var day = new TurnDayPresentation(session.View, session.View, events, battle: plan);
         var cue = Assert.Single(plan.Visuals); var hash = session.Snapshot;
         day.Advance(cue.Start + .1);
@@ -364,6 +370,97 @@ public sealed class TurnPresentationTests
         Assert.Contains(plan.Records, c => c.Record.Message.Key == "damage" && c.Time == day.Elapsed);
         day.SkipVisual(); Assert.Equal(cue.End, day.Elapsed, 6);
         Assert.Same(plan, day.Battle); StateAssert.Equal(hash, session.Snapshot);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(4)]
+    public void HoldingZoomUsesWallTimeThresholdAndTheHigherSpeedWithoutMultiplying(int baseSpeed)
+    {
+        var (session, events, plan) = ZoomFixture();
+        var day = new TurnDayPresentation(session.View, session.View, events, battle: plan);
+        day.BeginSceneFastForward(); // Map input cannot arm a future scene.
+        day.Advance(100);
+        day.CompleteDialogue(Assert.Single(day.PendingDialogues).Id);
+        double start = day.Elapsed;
+        day.Advance(.1 * baseSpeed, readingSeconds: .1);
+        Assert.Equal(start + .1 * baseSpeed, day.Elapsed, 6);
+        Assert.False(day.IsFastForwarding);
+
+        day.BeginSceneFastForward();
+        day.Advance(.1 * baseSpeed, readingSeconds: .1);
+        day.EndSceneFastForward(); // Short presses must not accumulate into a hold.
+        day.BeginSceneFastForward();
+        start = day.Elapsed;
+        day.Advance(.3 * baseSpeed, readingSeconds: .3);
+        Assert.Equal(start + .2 * baseSpeed + .1 * Math.Max(baseSpeed, 3), day.Elapsed, 6);
+        Assert.True(day.IsFastForwarding);
+        start = day.Elapsed;
+        day.Advance(.1 * baseSpeed, readingSeconds: .1);
+        Assert.Equal(start + .1 * Math.Max(baseSpeed, 3), day.Elapsed, 6);
+        day.EndSceneFastForward();
+        start = day.Elapsed;
+        day.Advance(.1 * baseSpeed, readingSeconds: .1);
+        Assert.Equal(start + .1 * baseSpeed, day.Elapsed, 6);
+    }
+
+    [Fact]
+    public void ZoomHoldStopsAtDialogueAndItsRemainingFrameReturnsToMapSpeed()
+    {
+        var (session, events, plan) = ZoomFixture();
+        var before = session.Snapshot;
+        var day = new TurnDayPresentation(session.View, session.View, events, duration: plan.Duration + 5, battle: plan);
+        var cue = Assert.Single(plan.Visuals);
+        day.Advance(100);
+        day.CompleteDialogue(Assert.Single(day.PendingDialogues).Id);
+        day.BeginSceneFastForward();
+        day.Advance(100);
+        Assert.Equal("hit-reaction", Assert.Single(day.PendingDialogues).Message.Message.Key);
+        Assert.False(day.IsFastForwarding);
+        Assert.False(day.IsComplete);
+        day.CompleteDialogue(day.PendingDialogues[0].Id);
+        double start = day.Elapsed;
+        day.Advance(.1);
+        Assert.Equal(start + .1, day.Elapsed, 6); // Reading completion never re-arms the held gesture.
+
+        day.BeginSceneFastForward();
+        day.Advance(.2);
+        day.Advance((cue.End - day.Elapsed) / 3 + .1);
+        Assert.Equal(cue.End + .1, day.Elapsed, 6);
+        Assert.False(day.IsFastForwarding);
+        day.Advance(.1);
+        Assert.Equal(cue.End + .2, day.Elapsed, 6);
+        Assert.False(day.IsComplete);
+        StateAssert.Equal(before, session.Snapshot);
+    }
+
+    [Fact]
+    public void PauseAndUnavailableResourcesCancelTheGestureBeforePlaybackResumes()
+    {
+        var (session, _, plan) = ZoomFixture();
+        bool ready = true;
+        var turn = new TurnPresentation(session)
+        {
+            CreateDay = (before, after, events) => new(before, after, events, battle: plan),
+            CanPlayDay = () => ready
+        };
+        Enter(turn); Ready(turn); turn.Update(100);
+        var day = turn.Day!;
+        day.CompleteDialogue(Assert.Single(day.PendingDialogues).Id);
+        foreach (bool pause in new[] { true, false })
+        {
+            day.BeginSceneFastForward(); turn.Update(.3);
+            Assert.True(day.IsFastForwarding);
+            double start = day.Elapsed;
+            if (pause) turn.TogglePause(); else ready = false;
+            turn.Update(10);
+            Assert.Equal(start, day.Elapsed);
+            Assert.False(day.IsFastForwarding);
+            if (pause) turn.TogglePause(); else ready = true;
+            turn.Update(.1);
+            Assert.Equal(start + .1, day.Elapsed, 6);
+        }
     }
     [Fact]
     public void MapSpeechAtTheDialogueBoundaryWaitsForCompletionWithoutAnArtificialDelay()

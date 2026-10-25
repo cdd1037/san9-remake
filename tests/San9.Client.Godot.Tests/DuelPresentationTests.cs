@@ -281,6 +281,49 @@ public sealed class DuelPresentationTests
         Assert.Empty(publication.Messages);
     }
 
+    [Fact]
+    public void DuelHoldAcceleratesMovementButEndsAtSpeechWithoutShorteningReadingOrSkippingResults()
+    {
+        var (session, texts, content, facts) = Fixture();
+        var before = session.Snapshot;
+        var plan = BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content);
+        var scene = Assert.Single(plan.Duels);
+        var approach = scene.Stages.First(s => s.Kind == DuelStageKind.Approach);
+        var day = new TurnDayPresentation(session.View, session.View, facts, battle: plan);
+        for (int i = 0; day.Elapsed < approach.Start && i < 20; i++)
+        {
+            foreach (var dialogue in day.PendingDialogues.Concat(day.PendingDuelDialogues).ToArray()) day.CompleteDialogue(dialogue.Id);
+            day.Advance(Math.Max(0, approach.Start - day.Elapsed));
+        }
+        Assert.Equal(approach.Start, day.Elapsed, 6);
+        day.BeginSceneFastForward();
+        day.Advance(.4);
+        Assert.Equal(approach.Start + .8, day.Elapsed, 6);
+        Assert.True(day.IsFastForwarding);
+        var speech = plan.Messages.First(m => m.Channel == BattleMessageChannel.DuelDialogue && m.Time > day.Elapsed);
+        day.Advance((speech.Time - day.Elapsed) / 3 + .1);
+        Assert.Equal(speech.Time, day.Elapsed, 6);
+        Assert.Equal(.1, day.DuelDialogueElapsed, 6);
+        Assert.False(day.IsFastForwarding);
+        day.BeginSceneFastForward(); // Holding during speech does not carry into the next action.
+        day.Advance(2.8);
+        Assert.False(day.IsDialogueComplete(speech.Id));
+        Assert.Equal(2.9, day.DuelDialogueElapsed, 6);
+        day.Advance(.1);
+        Assert.True(day.IsDialogueComplete(speech.Id));
+        double start = day.Elapsed;
+        var following = Assert.Single(day.PendingDuelDialogues);
+        day.Advance(.1);
+        Assert.Equal(start, day.Elapsed);
+        Assert.Equal(.1, day.DuelDialogueElapsed, 6);
+        Assert.False(day.IsDialogueComplete(following.Id));
+        Assert.False(day.IsFastForwarding);
+        day.Advance(10000);
+        Assert.Equal("lost", Assert.Single(day.PendingDialogues).Message.Message.Key);
+        Assert.False(day.IsComplete);
+        StateAssert.Equal(before, session.Snapshot);
+    }
+
     private static (GameSession Session, TextCatalog Texts, CommandPresentation Content, DomainEvent[] Facts) Fixture(bool withTreasures = false)
     {
         var combat = new CombatProfile(0, 0, 0, 1000, 50);

@@ -60,6 +60,38 @@ public sealed class PoliticalEventsTests
         world.SetSimulation(world.Simulation with { ActiveControl = world.Simulation.Controls.Length }); return world;
     }
 
+    [Theory]
+    [InlineData(false, 79)]
+    [InlineData(true, 84)]
+    public void CaptiveLoyaltyAcrossQuarterOnlyRisesWhenOriginalForceIsPromoted(bool promoted, int expected)
+    {
+        var state = World(300);
+        var world = state.BeginMutation();
+        world.SetClock(new(190, 3, 21));
+        world.Replace(world.Forces[1] with { BaseTrust = promoted ? 900 : 0 });
+        world.Replace(world.Officers[13].WithLoyalty(1, 80).WithLoyalty(2, 49) with { Affinity = 50 });
+        world.SetSimulation(world.Simulation with
+        {
+            Boundary = SimulationBoundary.Stable, ActiveControl = world.Simulation.Controls.Length,
+            RandomStreams = [new("personnel-prisoner-escape", TestSeeds.StateForRoll(99))]
+        });
+        state.Commit(world);
+        var engine = new SimulationEngine(state, Rules());
+        var result = engine.AdvanceXun();
+        Assert.Equal(new GameClock(190, 4, 1), result.Snapshot.Clock);
+        var captive = result.Snapshot.Officers.Single(p => p.Id == 13);
+        Assert.Equal(OfficerStatus.Captive, captive.Status);
+        Assert.Equal(1, captive.OwnerId);
+        Assert.Equal(2, captive.SettlementId);
+        Assert.Equal(expected, captive.Loyalty);
+        Assert.Equal(50, captive.LoyaltyTo(2));
+        var changes = result.Events.OfType<OfficerLoyaltyChangedEvent>().Where(e => e.OfficerId == 13).ToArray();
+        Assert.Single(changes, e => e.Reason == "prisoner-xun");
+        Assert.DoesNotContain(changes, e => e.ForceId == 1 && e.Reason == "quarterly-affiliation-interest");
+        Assert.Equal(promoted ? 1 : 0, changes.Count(e => e.Reason == "peerage"));
+        Assert.Equal(promoted, result.Events.OfType<PeerageChangedEvent>().Any(e => e.ForceId == 1));
+    }
+
     [Fact]
     public void InvestitureRequiresWholeNonemptyProvinceAndPromotesAllEligibleForcesOnlyOnce()
     {

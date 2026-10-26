@@ -1769,24 +1769,18 @@ t沿[路线时间链](#navigation)计算；5／10是时间阈值，繁中换算�
 <a id="automatic-work-implementation-audit-20261023"></a>
 ### 自动工作实现复核
 
-**当前修复状态：**原定26类实现遗漏已于2026-10-24修复，见[修复与最终验证](notes/2026-10-24-automatic-work-alignment-fixes.md)；其后用户1号档虎牢关全军出征触发[设施分类续核及修复](notes/2026-10-24-automatic-work-sortie-mapping-audit.md)，关隘集合、路线障碍集合、输送保留量三项版本映射错误也已修正。最新45项真实内容行为诊断、6054项默认解决方案测试及20正式剧本验证通过；旧档保存旧策略，需从更新内容新开局生效。以下更早审计报告及相应“当前偏差”段落保留发现时快照，不能据此把已修项重复列为待办，也不据测试通过宣称所有出兵输入均已穷尽；原作事实、B20／B25既有采用差异及待验证疑点仍分别保留。
+2026-10-24确认的26类遗漏已修复，后续R1／R2／R3采用v181替代选择；最终状态和验证只在[修复汇总](notes/2026-10-24-automatic-work-alignment-fixes.md)维护。下列报告保存发现时的输入与诊断，不能把历史“当前偏差”重新列为待办。原作静态事实、动态限制和B20／B25采用差异分别保留。
 
-**后续已修复（v180，v181采用替代）：**同日用户更新后的1号档复现[敌城易主为盟友后遗留攻城任务误触背盟](notes/2026-10-24-allied-capture-stale-attack-audit.md)。共享目标变更入口已补齐外交敌对保留门及换属通知，显式强攻仍走原有处罚；v181依用户确认将目标复验与状态计时分离，不再继承v180的异常状态归一。从5月11日自动档精确推进至6月1日的v180诊断证明袁绍停止旧攻击、联盟保留；v181另以正式保存恢复和自然解除场景验证异常期间不留下旧攻击。当前1号档已保存错误命令，不猜测改写旧档；应从易主前自动档继续。扩大检查另确认并修复幻术／妖术范围波及遗漏关系40及攻击请求保护，覆盖、保留差异及研究限制见[战斗核对汇总](notes/2026-10-24-combat-behavior-audit.md)。
+| 专项 | 证据入口 |
+| --- | --- |
+| 首轮、续核与选人 | [初次实现核对](notes/2026-10-23-automatic-work-implementation-audit.md)、[条件续核](notes/2026-10-23-automatic-work-continuation-audit.md)、[选人与后备](notes/2026-10-23-automatic-work-selection-audit.md) |
+| 建设、人事及计略 | [目标失败与建设](notes/2026-10-23-automatic-work-construction-audit.md)、[方向契约](notes/2026-10-23-automatic-work-contract-audit.md)、[人事](notes/2026-10-23-automatic-work-personnel-audit.md)、[计略外交](notes/2026-10-23-automatic-work-schemes-audit.md) |
+| 军事支援 | [撤回57](notes/2026-10-23-automatic-work-retreat-audit.md)、[部署58](notes/2026-10-23-automatic-work-deployment-audit.md)、[输送51](notes/2026-10-23-automatic-work-transport-audit.md) |
+| 分阶段留兵 | [汇总与统一取证](notes/2026-10-24-automatic-work-garrison-reserve-audit.md)、[主库账本](archive/ida-write-records/automatic-work-garrison-reserve-20261024.json) |
+| 战略、响应、组合及来源条件 | [剩余专项汇总](notes/2026-10-24-automatic-work-remaining-audit.md)、[主库账本](archive/ida-write-records/automatic-work-remaining-20261024.json) |
+| 版本映射及战斗续修 | [设施分类](notes/2026-10-24-automatic-work-sortie-mapping-audit.md)、[盟友易主后旧攻击](notes/2026-10-24-allied-capture-stale-attack-audit.md)、[战斗汇总](notes/2026-10-24-combat-behavior-audit.md) |
 
-2026-10-24[城市与设施出兵／留兵专项](notes/2026-10-24-automatic-work-garrison-reserve-audit.md)另按9／59、58、51区分强度估值、实际分配、最终派兵与账本需求。29项有效诊断27通过／2偏差失败，新增确认弱城负贡献夹零、关的估值误套实际留兵；58主路径类型边界通过，旧组2三项未修问题不重复计数。输送原作地域归属／通用单位域及优待组额外留兵传递的事实更正，与B20／B25现有采用选择分别登记，未改产品或规格。21函数35段8681字节对盘与8注释回读见[账本](archive/ida-write-records/automatic-work-garrison-reserve-20261024.json)。
-
-2026-10-24[剩余分工汇总](notes/2026-10-24-automatic-work-remaining-audit.md)完成战略、公共响应、工作组合及两处军事条件续核：新增确认分组漏驻军、模式2低关系域过窄、普通／自主返回身份合并、敌接近漏交战门、58供援来源误用近程压力、28来源误用立即前线门六类偏差。22项有效诊断为14项通过／8项偏差断言失败，未修产品；工作组合与25族待决对照无新增确认。21函数含尾块去重33段8105字节对盘、12注释回读及事实更正见[账本](archive/ida-write-records/automatic-work-remaining-20261024.json)。原作动态、元数据置位可达性及组合穷举的限制仍保留，不能称全域等价证明。
-[撤回57续核](notes/2026-10-23-automatic-work-retreat-audit.md)新增确认异民族进军漏召回、返回预算漏状态门、当前目标为野外队时漏主建筑回退；[部署58续核](notes/2026-10-23-automatic-work-deployment-audit.md)确认组2错误统一10000兵上限及同配对成功后漏续派。[输送51续核](notes/2026-10-23-automatic-work-transport-audit.md)未新增确认偏差，并闭合非城市接收人数为驻军在职成员数。15项有效诊断覆盖上述五类偏差及对照；原作仍为静态证据，本轮未改产品。21段字节对盘及8处主库注释回读见[账本](archive/ida-write-records/automatic-work-support-20261023.json)。
-
-[方向契约与范围续核](notes/2026-10-23-automatic-work-contract-audit.md)新增确认建设偏好丢失格位方向许可；并行[人事续核](notes/2026-10-23-automatic-work-personnel-audit.md)确认12区域规划漏既有子军团城市、分粮分子漏辖区驻军，[计略外交续核](notes/2026-10-23-automatic-work-schemes-audit.md)确认28返回目标漏交战门。建设为转换器与选择器局部诊断，其余经实际公共命令；均没有原游戏动态实验或产品修复。6处主库注释及回读见[账本](archive/ida-write-records/automatic-work-scope-20261023.json)。
-
-[建设与目标失败续核](notes/2026-10-23-automatic-work-construction-audit.md)确认9沿路转建设漏消费两端、无目标时额外建设兜底，以及选定目标失败后错误重试同一来源城市的其他目标；同时纠正路线概率读取时点，补齐前轮指定设施夹具的公共战斗资格并复验原结论。本轮仍只研究。
-
-后续[选人与单人后备核对](notes/2026-10-23-automatic-work-selection-audit.md)又确认：9／59补员预算误用取主将前人数、单人后备遗漏零熟练度资格、单人后备误用慢路高级船；10项公开对照复现三类偏差，澄清本页人数及熟练度表述，本轮未修改产品实现。
-
-同日[续核报告](notes/2026-10-23-automatic-work-continuation-audit.md)新增确认：9指定非城市建筑目标的优先分支遗漏、28后方来源误套13000兵门、59履约误套普通进攻500钱门；均有原作静态回读与公开夹具对照。续核只研究，不修改产品实现。
-
-2026-10-23核对发现的三处偏差、修复与回归及主库回读记录见[独立核对报告](notes/2026-10-23-automatic-work-implementation-audit.md)。本入口保留既有主库注释引用的锚点。
+26类修复不穷尽全部出兵状态；旧档策略及错误命令的使用限制见各修复记录。其他写入记录：[支援](archive/ida-write-records/automatic-work-support-20261023.json)、[方向／范围](archive/ida-write-records/automatic-work-scope-20261023.json)。
 
 <a id="version-differences"></a>
 ### 日版修正与繁中基线差异

@@ -59,13 +59,13 @@ public partial class StrategyHud
         _topLeft.AddChild(_turnProgress);
         _pauseTurn = (StrategyButton)AddButton("静止", "button-pause", new(602, 10), new(64, 36), true, () => Turn.TogglePause());
         _pauseTurn.ToggleMode = true;
-        _turnDialog = new GameDialog { Textures = _textures, ZIndex = 50, Visible = false };
+        _turnDialog = new GameDialog { Textures = _textures, Visible = false };
         _turnDialog.Confirmed += () => Turn.Confirm();
         _turnDialog.Dismissed += () => Turn.Cancel();
-        AddChild(_turnDialog);
+        OverlayHost.AddChild(_turnDialog);
         _turnDialog.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _seasonChangeView = new() { Textures = _textures, RetryRequested = World.RetrySeasonResources };
-        AddChild(_seasonChangeView);
+        OverlayHost.AddChild(_seasonChangeView);
     }
 
     private void RequestAdvance()

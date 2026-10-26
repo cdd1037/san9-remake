@@ -77,9 +77,9 @@ public partial class StrategyHud : Control
         _message = new GameMessageBar { Textures = _textures, Text = "正在准备地图…" };
         _bottomBar.AddChild(_message);
         _message.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        _notice = new GameDialog { Textures = _textures, ZIndex = 60, Visible = false };
+        _notice = new GameDialog { Textures = _textures, Visible = false };
         _notice.Closed += () => _notice.Hide();
-        AddChild(_notice);
+        OverlayHost.AddChild(_notice);
         _notice.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         World.EdgeScrollModeChanged += ShowScrollModeNotice;
         Label RegionLabel(string value, int x, int width)
@@ -212,8 +212,6 @@ public partial class StrategyHud : Control
             ApplySettings = ApplyUserSettings
         };
         OverlayHost.AddChild(SystemMenu);
-        SystemMenu.VisibilityChanged += () => FocusBehaviorRecursive = SystemMenu.Visible
-            ? FocusBehaviorRecursiveEnum.Disabled : FocusBehaviorRecursiveEnum.Inherited;
         _mapContext = new MapContextPopup { Textures = _textures };
         OverlayHost.AddChild(_mapContext);
         _commandMenu = new MapCommandPopup { Obstacles = MapObstacles, Textures = _textures, Texts = Texts, Activated = ActivateCommand };
@@ -518,7 +516,6 @@ public partial class StrategyHud : Control
             (_, _) => throw new InvalidDataException("Scroll mode notice cannot query world state."),
             _ => throw new InvalidDataException("Scroll mode notice cannot draw randomness.")));
         _notice.SetNotice(MessageMarkup.Plain(message));
-        MoveChild(_notice, GetChildCount() - 1);
         _notice.Show();
         _notice.FocusDefaultButton();
     }

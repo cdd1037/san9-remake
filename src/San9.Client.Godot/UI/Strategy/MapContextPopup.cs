@@ -8,7 +8,7 @@ public sealed record MapPopupEntry(string Title, string Hint, bool Enabled, Acti
     string SkinPrefix = "information-menu-button");
 
 /// <summary>A logical-viewport modal: outside clicks close it without reaching the map.</summary>
-public partial class MapContextPopup : Control
+public partial class MapContextPopup : ModalView
 {
     public TextureScope Textures { get; init; } = null!;
     private readonly List<(InformationMenuButton Button, MapPopupEntry Entry)> _primary = [], _secondary = [];
@@ -23,7 +23,7 @@ public partial class MapContextPopup : Control
     public bool HintEnabled => HoverButton?.Disabled != true;
     public override void _Ready()
     {
-        Size = GetViewportRect().Size; ZIndex = 19; MouseFilter = MouseFilterEnum.Stop; Hide();
+        Size = GetViewportRect().Size; MouseFilter = MouseFilterEnum.Stop; Hide();
         GetViewport().SizeChanged += Relayout;
     }
     public override void _ExitTree() => GetViewport().SizeChanged -= Relayout;

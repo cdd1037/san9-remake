@@ -7,7 +7,7 @@ namespace San9.Client.Godot;
 
 public interface IInformationPage { void RefreshData(); }
 
-public partial class InformationPanel : Control
+public partial class InformationPanel : ModalView
 {
     public InformationBrowser State { get; } = new();
     public GameSession Session { get; init; } = null!;
@@ -28,7 +28,7 @@ public partial class InformationPanel : Control
     public InformationMenuButton? HoverMenuButton => (_page as InformationMenuView)?.HoverButton;
     public override void _Ready()
     {
-        Name = "InformationPanel"; Size = new(1024, 768); ZIndex = 20;
+        Name = "InformationPanel"; Size = new(1024, 768);
         MouseFilter = MouseFilterEnum.Stop; Visible = false;
         _query = new(Session, Texts, Chronicle); RecordsLog.Changed += OnChanged;
     }

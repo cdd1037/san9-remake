@@ -8,7 +8,7 @@ using San9.Content.Text;
 namespace San9.Client.Godot;
 
 /// <summary>The original catalog → object editor → catalog navigation owns one isolated draft.</summary>
-public partial class WorldEditorView : Control
+public partial class WorldEditorView : ModalView
 {
     public TextureScope Textures { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
@@ -95,14 +95,12 @@ public partial class WorldEditorView : Control
     }
     private void OpenModal(Control page)
     {
-        CloseModal(); _modal = OverlayPage.Create(page, Colors.Transparent); _modal.ZIndex = 3; AddChild(_modal);
-        _page!.ProcessMode = ProcessModeEnum.Disabled;
+        CloseModal(); _modal = OverlayPage.Create(page, Colors.Transparent); AddChild(_modal);
     }
     private void CloseModal()
     {
         if (_modal is null) return;
         RemoveChild(_modal); _modal.QueueFree(); _modal = null;
-        _page!.ProcessMode = ProcessModeEnum.Inherit;
     }
     private void Replace(Control page)
     {

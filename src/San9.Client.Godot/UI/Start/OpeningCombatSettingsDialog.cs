@@ -6,7 +6,7 @@ using San9.Content.Images;
 namespace San9.Client.Godot;
 
 /// <summary>Six-value editor. Only confirmation publishes its local draft to the opening page.</summary>
-public partial class OpeningCombatSettingsDialog : Control
+public partial class OpeningCombatSettingsDialog : ModalView
 {
     internal static readonly (string Id, string Title, uint Maximum)[] Fields =
     [
@@ -22,7 +22,6 @@ public partial class OpeningCombatSettingsDialog : Control
     public Action Closed { get; init; } = null!;
     private readonly GameTextPresenter _text = new();
     private readonly List<Label> _values = [];
-    private readonly List<CatalogBulkButton> _editButtons = [];
     private int[] _draft = null!;
     private TextureScope _textures = null!;
     private TextureScope _skin = null!;
@@ -45,7 +44,7 @@ public partial class OpeningCombatSettingsDialog : Control
             int index = i;
             var button = new CatalogBulkButton { Name = Fields[i].Id, Title = Fields[i].Title, Textures = _skin,
                 Position = Origin + new Vector2(43, 66 + i * 44), Size = new(96, 32), TextStyle = OpeningSettingsTextStyles.EditButton };
-            button.Pressed += () => Edit(index); AddChild(button); _editButtons.Add(button);
+            button.Pressed += () => Edit(index); AddChild(button);
             // The original text surface reserves a four-pixel right inset and two trailing spaces.
             var value = new Label { Position = Origin + new Vector2(110, 60 + i * 44), Size = new(124, 40),
                 HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
@@ -56,7 +55,7 @@ public partial class OpeningCombatSettingsDialog : Control
         ActionButton("Cancel", "中止", new(232, 355), false, Closed);
         Icon("Help", "help", new(317, 0), () => { });
         Icon("Close", "close", new(352, 25), Closed);
-        Refresh(); _editButtons[0].GrabFocus();
+        Refresh(); GetNode<CatalogBulkButton>(Fields[0].Id).GrabFocus();
     }
     private void ActionButton(string name, string title, Vector2 position, bool confirm, Action action)
     {
@@ -76,17 +75,14 @@ public partial class OpeningCombatSettingsDialog : Control
     private void Edit(int index)
     {
         if (_editor is not null) return;
-        foreach (var button in GetChildren().OfType<BaseButton>()) button.FocusMode = FocusModeEnum.None;
         _editor = new NumberInputDialog { Name = "NumberInput", Textures = _textures,
             Subject = Fields[index].Title, State = new(0, Fields[index].Maximum, (uint)_draft[index]),
-            Closed = () => CloseEditor(index), Confirmed = value => { _draft[index] = (int)value; Refresh(); CloseEditor(index); } };
+            Closed = CloseEditor, Confirmed = value => { _draft[index] = (int)value; Refresh(); CloseEditor(); } };
         AddChild(_editor);
     }
-    private void CloseEditor(int index)
+    private void CloseEditor()
     {
         RemoveChild(_editor!); _editor!.QueueFree(); _editor = null;
-        foreach (var button in GetChildren().OfType<BaseButton>()) button.FocusMode = FocusModeEnum.All;
-        _editButtons[index].GrabFocus();
     }
     private void Refresh()
     {

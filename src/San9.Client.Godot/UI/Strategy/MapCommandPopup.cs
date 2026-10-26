@@ -7,7 +7,7 @@ using San9.Rendering;
 namespace San9.Client.Godot;
 
 /// <summary>Command navigation; the caller owns executable workflows.</summary>
-public partial class MapCommandPopup : Control
+public partial class MapCommandPopup : ModalView
 {
     public Func<IReadOnlyList<OverlayBounds>> Obstacles { get; init; } = () => [];
     private IReadOnlyList<OverlayBounds> _lastObstacles = [];
@@ -30,7 +30,7 @@ public partial class MapCommandPopup : Control
 
     public override void _Ready()
     {
-        Size = GetViewportRect().Size; ZIndex = 19; MouseFilter = MouseFilterEnum.Stop; Hide();
+        Size = GetViewportRect().Size; MouseFilter = MouseFilterEnum.Stop; Hide();
         GetViewport().SizeChanged += Relayout;
     }
 

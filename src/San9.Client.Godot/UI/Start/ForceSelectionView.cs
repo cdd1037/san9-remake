@@ -5,7 +5,7 @@ using San9.Content.Interface;
 namespace San9.Client.Godot;
 
 /// <summary>Pre-session force choices. Confirmation is a draft; world creation belongs to the next startup step.</summary>
-public partial class ForceSelectionView : Control
+public partial class ForceSelectionView : ModalView
 {
     public ScenarioSelectionPresentation Definition { get; init; } = null!;
     public ScenarioPreviewEntry Entry { get; init; } = null!;
@@ -120,7 +120,6 @@ public partial class ForceSelectionView : Control
     }
     private void OpenPreparedMap(ScenarioForceSelection scenario)
     {
-        foreach (var button in GetChildren().OfType<BaseButton>()) button.FocusMode = FocusModeEnum.None;
         _dialog = new ForceSelectionMapView { Name = "ForceMap", Definition = Definition.Map, Scenario = scenario, Service = Service,
             Skin = Definition.Forces.MapSkin,
             InitialSelection = _selected, Closed = CloseMap, Confirmed = selected =>
@@ -139,9 +138,7 @@ public partial class ForceSelectionView : Control
     }
     private void CloseMap()
     {
-        _dialog!.QueueFree(); _dialog = null;
-        foreach (var button in GetChildren().OfType<BaseButton>()) button.FocusMode = FocusModeEnum.All;
-        GetNode<StartMenuButton>("ChooseForces").GrabFocus();
+        RemoveChild(_dialog!); _dialog!.QueueFree(); _dialog = null;
     }
     public override void _Input(InputEvent input)
     {

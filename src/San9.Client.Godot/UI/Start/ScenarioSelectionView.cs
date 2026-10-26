@@ -3,7 +3,7 @@ using San9.Content.Interface;
 
 namespace San9.Client.Godot;
 
-public partial class ScenarioSelectionView : Control
+public partial class ScenarioSelectionView : ModalView
 {
     public ScenarioSelectionPresentation Definition { get; init; } = null!;
     public TextureService Service { get; init; } = null!;

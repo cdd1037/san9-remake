@@ -5,7 +5,7 @@ using San9.Content.Interface;
 namespace San9.Client.Godot;
 
 /// <summary>Pre-session settings draft; returning to force selection retains this page and its values.</summary>
-public partial class OpeningSettingsView : Control
+public partial class OpeningSettingsView : ModalView
 {
     public ScenarioSelectionPresentation Definition { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
@@ -107,7 +107,6 @@ public partial class OpeningSettingsView : Control
     private void EditCombat()
     {
         if (_dialog is not null) return;
-        foreach (var button in GetChildren().OfType<BaseButton>()) button.FocusMode = FocusModeEnum.None;
         _dialog = new OpeningCombatSettingsDialog { Name = "CombatSettings", Service = Service, LibraryTextures = _textures,
             Skin = Definition.Forces.MapSkin, Background = Art.CombatDialog, Initial = _values, Closed = CloseCombat, Confirmed = values =>
             { _values = values; Refresh(); CloseCombat(); } };
@@ -116,8 +115,6 @@ public partial class OpeningSettingsView : Control
     private void CloseCombat()
     {
         RemoveChild(_dialog!); _dialog!.QueueFree(); _dialog = null;
-        foreach (var button in GetChildren().OfType<BaseButton>()) button.FocusMode = FocusModeEnum.All;
-        GetNode<StartMenuButton>("Combat").GrabFocus();
     }
     private Label Label(string value, Vector2 position, Vector2 size, GameTextStyle style,
         HorizontalAlignment alignment = HorizontalAlignment.Left)

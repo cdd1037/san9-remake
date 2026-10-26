@@ -4,6 +4,9 @@ namespace San9.Client.Godot;
 
 public partial class StrategyOverlayHost : Control
 {
+    private ModalStack _modals = null!;
+    public override void _EnterTree() => _modals = ModalStack.Attach(this);
+    public void AddBackground(Node root) => _modals.AddBackground(root);
     public static StrategyOverlayHost Create() =>
         GD.Load<PackedScene>("res://UI/Strategy/StrategyOverlayHost.tscn").Instantiate<StrategyOverlayHost>();
 
@@ -14,9 +17,9 @@ public partial class StrategyOverlayHost : Control
         var lease = Workflows.Acquire(blocked);
         void Release() { view.TreeExiting -= Release; lease.Dispose(); }
         view.TreeExiting += Release;
-        try { AddChild(view); }
+        try { AddChild(view); _modals.Register(view); }
         catch { view.TreeExiting -= Release; lease.Dispose(); throw; }
     }
 
-    public bool HasModal => GetChildren().OfType<Control>().Any(view => view.IsVisibleInTree());
+    public bool HasModal => _modals.HasModal;
 }

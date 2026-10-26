@@ -3,7 +3,7 @@ using San9.Rendering;
 
 namespace San9.Client.Godot;
 
-public partial class SeasonChangeView : Control
+public partial class SeasonChangeView : ModalView
 {
     public TextureScope Textures { get; init; } = null!;
     private readonly CanvasItemMaterial _additive = new() { BlendMode = CanvasItemMaterial.BlendModeEnum.Add };
@@ -15,7 +15,6 @@ public partial class SeasonChangeView : Control
     {
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Stop;
-        ZIndex = 70;
         _cover = new TextureRect { Material = _additive, MouseFilter = MouseFilterEnum.Ignore,
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale };
         AddChild(_cover);

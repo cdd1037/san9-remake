@@ -4,7 +4,7 @@ using San9.Content.Text;
 namespace San9.Client.Godot;
 
 /// <summary>Reusable modal message/confirmation dialog. Its caller owns the outcome.</summary>
-public partial class GameDialog : Control
+public partial class GameDialog : ModalView
 {
     public TextureScope Textures { get; init; } = null!;
     public event Action? Confirmed;

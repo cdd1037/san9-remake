@@ -3,7 +3,7 @@ using Godot;
 namespace San9.Client.Godot;
 
 /// <summary>The journal help topic and its original report subtopic.</summary>
-public partial class JournalHelpView : Control
+public partial class JournalHelpView : ModalView
 {
     public TextureScope Textures { get; init; } = null!;
     public Func<string, string> Hint { get; init; } = null!;
@@ -36,6 +36,12 @@ public partial class JournalHelpView : Control
         if (_subtopic is not null) _subtopic.Selected = _detail;
     }
     public override void _GuiInput(InputEvent input) => AcceptEvent();
+    public override void _Input(InputEvent input)
+    {
+        if (input is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape } ||
+            input is InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Right })
+        { GetViewport().SetInputAsHandled(); Closed(); }
+    }
     public override void _Draw()
     {
         new DetailSkinPainter(this, Textures).Panel(new(264, 144, 496, 504));

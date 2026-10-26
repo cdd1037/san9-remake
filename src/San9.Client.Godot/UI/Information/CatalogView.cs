@@ -4,7 +4,7 @@ using San9.Application.Presentation;
 namespace San9.Client.Godot;
 
 /// <summary>Shared catalog window. Domain queries and navigation belong to its caller.</summary>
-public partial class CatalogView : FixedPage, IInformationPage
+public partial class CatalogView : FixedPage, IInformationPage, IModalInputRouter
 {
     protected override Color PageBackground => new(0, 0, 0, .45f);
     public string Title { get; init; } = "";
@@ -276,11 +276,12 @@ public partial class CatalogView : FixedPage, IInformationPage
         ClearRowPress();
         _pointerRowId = null;
         _hoveredCheckboxId = null;
-        if (_help is not null) { _help.QueueFree(); _help = null; return; }
+        if (_help is not null) { RemoveChild(_help); _help.QueueFree(); _help = null; return; }
         string activationHelp = Selection is null ? "回车查看详情。" : "回车切换选择。\n按住左键划过多行选择或解除。";
         _help = LabelAt($"页签切换显示列；点击表头排序。\n上下键选择，滚轮或滚动条翻阅。\nCtrl+Tab 切换页签，{activationHelp}\nEsc 或右键返回。", _body.Position + new Vector2(80, 220), new(_body.Size.X - 160, 150));
         _help.AddThemeStyleboxOverride("normal", new StyleBoxFlat { BgColor = new Color("161b1b"), ContentMarginLeft = 16 });
-        _help.ZIndex = 5; _help.MouseFilter = MouseFilterEnum.Stop;
+        _help.MouseFilter = MouseFilterEnum.Stop;
+        ModalStack.Find(this)?.Register(_help);
     }
     public override void _GuiInput(InputEvent input)
     {

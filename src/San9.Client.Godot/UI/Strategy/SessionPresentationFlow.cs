@@ -237,7 +237,7 @@ public partial class SessionPresentationFlow : Node
     private void BeginNarration(IReadOnlyList<CommandMessage> messages, StrategySnapshot view, string? initialSound)
     {
         Scope.RequestPrefixes("narration-", "dialog-");
-        _narration = new() { Messages = messages, View = view, Texts = Texts, Service = Textures, Textures = Scope, ZIndex = 4,
+        _narration = new() { Messages = messages, View = view, Texts = Texts, Service = Textures, Textures = Scope,
             ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds, SoundEnabled = SoundEnabled, InitialSoundRole = initialSound, ReadMessageSpeed = () => ReadSettings().MessageSpeed,
             BeginMusic = Music.Begin,
             DiplomacyPresentation = CommandPresentation.Diplomacy,

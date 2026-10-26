@@ -5,7 +5,7 @@ using San9.Content.Interface;
 namespace San9.Client.Godot;
 
 /// <summary>Transactional force picker; map and list edit the same draft until confirmed.</summary>
-public partial class ForceSelectionMapView : Control
+public partial class ForceSelectionMapView : ModalView
 {
     public OpeningMapDefinition Definition { get; init; } = null!;
     public ScenarioForceSelection Scenario { get; init; } = null!;

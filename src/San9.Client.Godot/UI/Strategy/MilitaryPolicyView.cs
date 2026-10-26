@@ -31,7 +31,7 @@ public partial class MilitaryPolicyView : FixedPage
 
     public override void _Ready()
     {
-        Size = new(1024, 768); ZIndex = 30; MouseFilter = MouseFilterEnum.Stop;
+        Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
         _field = new StyleBoxTexture { Texture = Textures.Get("deployment-field", this),
             TextureMarginLeft = 16, TextureMarginRight = 16, TextureMarginTop = 8, TextureMarginBottom = 8,
             AxisStretchHorizontal = StyleBoxTexture.AxisStretchMode.Tile, AxisStretchVertical = StyleBoxTexture.AxisStretchMode.Tile };

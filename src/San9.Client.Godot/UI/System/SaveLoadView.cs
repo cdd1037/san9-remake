@@ -3,7 +3,7 @@ using San9.Client.Godot.Persistence;
 
 namespace San9.Client.Godot;
 
-public partial class SaveLoadView : Control
+public partial class SaveLoadView : ModalView
 {
     public SaveLoadBrowser State { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;
@@ -31,15 +31,12 @@ public partial class SaveLoadView : Control
         }
         Button("no", "中止", new(862, 680), new(112, 48), Closed, 24);
         AddChild(new GameMessageBar { Textures = Textures, Text = State.Mode == SaveLoadMode.Save ? "选择欲储存资料的栏位。" : "请选择欲载入的资料。" });
-        _notice = new GameDialog { Textures = Textures, Visible = false, Size = Size, ZIndex = 2,
-            FocusBehaviorRecursive = FocusBehaviorRecursiveEnum.Enabled };
+        _notice = new GameDialog { Textures = Textures, Visible = false, Size = Size };
         Textures.RequestPrefixes("dialog-");
-        _notice.Closed += CloseNotice;
+        _notice.Closed += _notice.Hide;
         AddChild(_notice);
         _rows = new Control { MouseFilter = MouseFilterEnum.Ignore };
         AddChild(_rows); RefreshRows();
-        // Confirmation and notice always sit above the row and pagination controls.
-        MoveChild(_notice, -1);
     }
     private void ChangePage(int page)
     {
@@ -105,17 +102,14 @@ public partial class SaveLoadView : Control
         if (!State.Select(slot)) return;
         if (State.Mode == SaveLoadMode.Load) { Confirm(""); return; }
         _selectedRow = row; row.Selected = true;
-        FocusBehaviorRecursive = FocusBehaviorRecursiveEnum.Disabled;
-        _confirmation = new SaveSlotConfirmation { State = State, Textures = Textures, Cancelled = CancelSelection, Confirmed = Confirm,
-            FocusBehaviorRecursive = FocusBehaviorRecursiveEnum.Enabled };
+        _confirmation = new SaveSlotConfirmation { State = State, Textures = Textures, Cancelled = CancelSelection, Confirmed = Confirm };
         AddChild(_confirmation);
     }
     private void CancelSelection()
     {
         State.CancelSelection();
         if (_confirmation is not null) { RemoveChild(_confirmation); _confirmation.QueueFree(); _confirmation = null; }
-        FocusBehaviorRecursive = FocusBehaviorRecursiveEnum.Inherited;
-        if (_selectedRow is not null) { _selectedRow.Selected = false; _selectedRow.GrabFocus(); _selectedRow = null; }
+        if (_selectedRow is not null) { _selectedRow.Selected = false; _selectedRow = null; }
     }
     private void Confirm(string note)
     {
@@ -126,20 +120,13 @@ public partial class SaveLoadView : Control
     }
     public void ShowNotice(string message)
     {
-        FocusBehaviorRecursive = FocusBehaviorRecursiveEnum.Disabled;
         _notice.SetNotice(message);
         _notice.Show(); _notice.FocusDefaultButton();
-    }
-    private void CloseNotice()
-    {
-        _notice.Hide();
-        FocusBehaviorRecursive = FocusBehaviorRecursiveEnum.Inherited;
-        _pages[State.Page].GrabFocus();
     }
     private void ShowHelp() => ShowNotice(State.Mode == SaveLoadMode.Save ? "选择栏位，输入备注后确认储存。\n已有资料的栏位将被覆盖。自动页仅供载入。" : "选择已有资料的栏位后确认载入。\n载入将替换当前游戏进度，空栏位不可选择。\n自动页保留最近十次旬开始存档，每页五条，按新到旧排列。");
     public void Back()
     {
-        if (_notice.Visible) CloseNotice();
+        if (_notice.Visible) _notice.Hide();
         else if (_confirmation is not null) CancelSelection();
         else Closed();
     }

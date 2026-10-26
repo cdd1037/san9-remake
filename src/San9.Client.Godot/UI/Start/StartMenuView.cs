@@ -5,7 +5,7 @@ using San9.Content.Interface;
 namespace San9.Client.Godot;
 
 /// <summary>Owns opening drafts and delegates confirmed game creation to the host.</summary>
-public partial class StartMenuView : FixedPage
+public partial class StartMenuView : FixedPage, IModalInputRouter
 {
     protected override Color PageBackground => Colors.Black;
     public StartMenuPresentation Definition { get; init; } = null!;
@@ -30,6 +30,7 @@ public partial class StartMenuView : FixedPage
 
     public override void _Ready()
     {
+        ModalStack.Attach(this);
         MouseFilter = MouseFilterEnum.Stop;
         _textures = Service.CreateScope(Service.LibraryAssets);
         _textures.Request(Definition.Assets);

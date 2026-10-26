@@ -3,7 +3,7 @@ using Godot;
 namespace San9.Client.Godot;
 
 /// <summary>Owns one centered page, its full-viewport background and independent pointer blocker.</summary>
-public partial class OverlayPage : Control
+public partial class OverlayPage : ModalView
 {
     private Control _content = null!;
     private Color _backgroundColor;

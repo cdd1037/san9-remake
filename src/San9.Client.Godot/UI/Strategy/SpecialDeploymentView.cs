@@ -30,7 +30,7 @@ public partial class SpecialDeploymentView : FixedPage
         Construction && Draft.FacilityId is null ? "need-facility" : Construction ? "next" : "transport");
     public override void _Ready()
     {
-        Size = new(1024, 768); ZIndex = 25; MouseFilter = MouseFilterEnum.Stop;
+        Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
         _field = CommandPanelArt.Field(Textures, this);
         _message = new GameMessageBar { Textures=Textures,Text=Hint }; AddChild(_message); Rebuild();
     }

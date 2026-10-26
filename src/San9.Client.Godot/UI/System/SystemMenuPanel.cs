@@ -10,7 +10,7 @@ using San9.Core.Simulation;
 namespace San9.Client.Godot;
 
 /// <summary>Strategy overlay owner; opening and closing releases its page and texture leases together.</summary>
-public partial class SystemMenuPanel : Control
+public partial class SystemMenuPanel : ModalView, IModalInputRouter
 {
     public Control MenuAnchor { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
@@ -38,7 +38,7 @@ public partial class SystemMenuPanel : Control
 
     public override void _Ready()
     {
-        Name = "SystemMenuPanel"; SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); ZIndex = 30;
+        Name = "SystemMenuPanel"; SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Stop; Hide();
     }
     public void OpenMenu()
@@ -216,7 +216,6 @@ public partial class SystemMenuPanel : Control
         label.AddThemeFontSizeOverride("font_size", 24);
         label.AddThemeConstantOverride("outline_size", 4);
         _busyOverlay = OverlayPage.Create(label, new(0, 0, 0, .25f));
-        _busyOverlay.ZIndex = 5;
         AddChild(_busyOverlay);
     }
     private void HideBusy()

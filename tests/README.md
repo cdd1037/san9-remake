@@ -27,7 +27,15 @@ Godot 历史画面验收脚本也不属于默认测试集，后续开发默认�
 godot --headless --path src/San9.Client.Godot res://Diagnostics/Verification/WorkflowLifecycleVerification.tscn
 ```
 
-成功输出 `WORKFLOW_LIFECYCLE_OK` 并以 0 退出；覆盖窗口锁、退出顺序与输入回调所有权，不代表画面或完整命令交互验收。
+成功输出 `WORKFLOW_LIFECYCLE_OK` 并以 0 退出；覆盖窗口锁、退出顺序、地图回调所有权，以及模态窗口重开、嵌套、初始化期间创建子窗口、动态控件、原始输入隔离、Tab焦点约束、关闭时排除退出控件的焦点恢复和祖先返回路由，不代表画面或完整命令交互验收。
+
+设置`SAN9_MODAL_CONTENT`为已有转换包目录后，同一入口另检查真实环境设定的保存失败提示，以及终局标题菜单到存档行的鼠标选择和读取回调，成功时追加`MODAL_CONTENT_OK`。检查使用独立存档目录`local/generated/verification/modal-content/`，不读取用户存档；不创建真实战败事件，也不替代画面验收。例如PowerShell：
+
+```powershell
+$env:SAN9_MODAL_CONTENT = (Resolve-Path local/generated/content/scenarios/historical/scenario-0).Path
+godot --headless --path src/San9.Client.Godot res://Diagnostics/Verification/WorkflowLifecycleVerification.tscn
+Remove-Item Env:SAN9_MODAL_CONTENT
+```
 
 ## 运行入口
 

@@ -56,8 +56,11 @@ public partial class SessionUiHost : Node
         _autoSaveNotice.AddThemeConstantOverride("outline_size", 6);
         _autoSaveNotice.AddThemeColorOverride("font_outline_color", Colors.Black);
         AddChild(_autoSaveNotice);
-        _transition = new() { ZIndex = 100, MouseFilter = Control.MouseFilterEnum.Stop };
-        AddChild(_transition);
+        // Scene replacement covers the complete UI canvas, regardless of modal depth.
+        var transitionLayer = new CanvasLayer { Name = "SessionTransition", Layer = 11 };
+        AddChild(transitionLayer);
+        _transition = new() { MouseFilter = Control.MouseFilterEnum.Stop };
+        transitionLayer.AddChild(_transition);
         _settings = new(new UserSettingsStore(DataPaths.Settings));
         try { _settings.Load(); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Text.DecoderFallbackException or InvalidDataException) { }
@@ -175,6 +178,7 @@ public partial class SessionUiHost : Node
             Texts = Content.Text, Skin = Content.Skin, Textures = Textures
         };
         _sessionUi.AddChild(overlayHost);
+        overlayHost.AddBackground(Hud);
         _sessionUi.AddChild(Hud);
         _sessionUi.MoveChild(overlayHost, _sessionUi.GetChildCount() - 1);
         var debug = new DebugPanel { World = World, Host = this };

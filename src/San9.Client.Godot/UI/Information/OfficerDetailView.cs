@@ -5,7 +5,7 @@ using San9.Content.Text;
 namespace San9.Client.Godot;
 
 /// <summary>Officer browser presentation; navigation and selected identity are owned by the application state.</summary>
-public partial class OfficerDetailView : FixedPage, IInformationPage
+public partial class OfficerDetailView : FixedPage, IInformationPage, IModalInputRouter
 {
     protected override Color PageBackground => Colors.Black;
     public OfficerDetailState State { get; init; } = null!;
@@ -166,8 +166,9 @@ public partial class OfficerDetailView : FixedPage, IInformationPage
     private Control Overlay()
     {
         CloseOverlay();
-        _overlay=new Panel { Position=new(260,190),Size=new(520,390),ZIndex=5,MouseFilter=MouseFilterEnum.Stop };
+        _overlay=new Panel { Position=new(260,190),Size=new(520,390),MouseFilter=MouseFilterEnum.Stop };
         _overlay.AddThemeStyleboxOverride("panel",new StyleBoxFlat { BgColor=new Color("241e13"),BorderColor=new Color("a08b48"),BorderWidthLeft=2,BorderWidthRight=2,BorderWidthTop=2,BorderWidthBottom=2 });
+        ModalStack.Find(this)?.Register(_overlay);
         AddChild(_overlay);return _overlay;
     }
     private void ShowHelp()

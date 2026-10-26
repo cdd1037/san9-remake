@@ -3,7 +3,7 @@ using Godot;
 namespace San9.Client.Godot;
 
 /// <summary>Shared settings layout and modal navigation; each page owns its draft and commit policy.</summary>
-public abstract partial class SettingsView : Control
+public abstract partial class SettingsView : ModalView
 {
     public TextureScope Textures { get; init; } = null!;
     public Action Closed { get; init; } = null!;
@@ -38,7 +38,7 @@ public abstract partial class SettingsView : Control
         Button("yes", "执行", new(panelSize.X - 282, panelSize.Y - 60), new(112, 48), Confirm);
         Button("no", "中止", new(panelSize.X - 162, panelSize.Y - 60), new(112, 48), Closed);
         Button("close", "", new(panelSize.X - 44, 9), new(40, 32), Closed);
-        _notice = new GameDialog { Textures = Textures, Size = Size, Visible = false, ZIndex = 2 };
+        _notice = new GameDialog { Textures = Textures, Size = Size, Visible = false };
         _notice.Closed += () => _notice.Hide(); AddChild(_notice);
         Refresh();
     }

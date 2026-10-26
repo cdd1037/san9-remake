@@ -180,7 +180,7 @@ public partial class MilitaryCommandFlow : Node
             Title = targets is SpecialDeploymentTargets { IsConstruction:true } ? "选择地域" : "选择对象",
             HintText = targets is SpecialDeploymentTargets { IsConstruction:true }
                 ? Texts.ResolveRich(San9.Content.Interface.SpecialDeploymentText.Key("site")) : "请选择目标。", CloseTitle = "中止",
-            Textures = Textures, Service = Service, ZIndex = 30,
+            Textures = Textures, Service = Service,
             Pages = catalog.DisplayPages,
             ReadRows = _ => catalog.Rows,
             Activated = index =>

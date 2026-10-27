@@ -141,15 +141,23 @@ internal static class MilitaryEngagements
         bool work = MilitaryDiplomacy.Work(world, settlement.Id, military);
         UnitState? closest = null;
         long distance = long.MaxValue;
+        // Owners rarely differ unit by unit; the hostility of each owner is asked once per facility.
+        Dictionary<int, bool>? hostile = null;
         foreach (var unit in world.Units.Values)
         {
             if (unit.IsPersonnel || unit.IsEmbedded || unit.OwnerId == settlement.OwnerId ||
-                !work && !MilitaryDiplomacy.AutomaticEnemy(world, settlement.OwnerId!.Value, unit.OwnerId) ||
                 unit.FormationId is not int formation || military.Formation(unit).Combat is null) continue;
             var targetArea = MilitaryCombat.Area(unit, military);
             // A conservative bound only; exact rockfall, elevation and water rules still
-            // decide reachable candidates, in the original selection order.
+            // decide reachable candidates, in the original selection order. Checked before hostility: both are pure.
             if (!targetArea.IntersectsExpanded(area, maximumRange)) continue;
+            if (!work)
+            {
+                hostile ??= [];
+                if (!hostile.TryGetValue(unit.OwnerId, out bool enemy))
+                    hostile[unit.OwnerId] = enemy = MilitaryDiplomacy.AutomaticEnemy(world, settlement.OwnerId!.Value, unit.OwnerId);
+                if (!enemy) continue;
+            }
             long candidateDistance = targetArea.DistanceTo(area);
             if (closest is not null && (candidateDistance > distance || candidateDistance == distance && unit.Id >= closest.Id) ||
                 !targetArea.IntersectsExpanded(area, military.FacilityAttackRange(settlement, unit.Position,

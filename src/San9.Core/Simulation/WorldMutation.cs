@@ -53,15 +53,64 @@ internal sealed partial class WorldMutation : IWorldQuery
         return _engagements;
     }
 
-    private void LeadershipChanged()
+    // Leadership is consistent when every place's commander flag and every unit's commander follow from the current
+    // selection inputs. Then a change only needs its own places reselected: the places named at each change, their
+    // commanders before it and the officers it touched are recorded, and maintenance reselects those alone. A world
+    // whose consistency is not known (a new branch, a load, a commit with pending changes) reselects everything once.
+    private bool _leadershipConsistent;
+    private HashSet<int>? _leadershipPlaces;
+    private HashSet<int>? _leadershipOfficers;
+    internal bool LeadershipConsistentAtCommit => _leadershipConsistent && _leadershipBefore is null;
+
+    private void LeadershipChanged(int? firstPlace = null, int? secondPlace = null, int? firstOfficer = null, int? secondOfficer = null)
     {
-        _leadershipBefore ??= Officers.Values.Where(p => p.IsCommander && p.IsServing && p.SettlementId is not null)
-            .GroupBy(p => p.SettlementId!.Value).ToDictionary(g => g.Key, g => (int?)g.First().Id);
+        if (!_leadershipConsistent)
+        {
+            _leadershipBefore ??= Officers.Values.Where(p => p.IsCommander && p.IsServing && p.SettlementId is not null)
+                .GroupBy(p => p.SettlementId!.Value).ToDictionary(g => g.Key, g => (int?)g.First().Id);
+            return;
+        }
+        _leadershipBefore ??= [];
+        _leadershipPlaces ??= [];
+        _leadershipOfficers ??= [];
+        void Place(int? place)
+        {
+            if (place is not int id || !_leadershipPlaces.Add(id)) return;
+            // the commander on record before this change (the same reading as the full snapshot above)
+            _leadershipBefore[id] = SettlementMembers(id).FirstOrDefault(p => p.IsCommander && p.IsServing)?.Id;
+        }
+        void Officer(int? officer)
+        {
+            if (officer is not int id || !_leadershipOfficers.Add(id)) return;
+            if (AllOfficers.TryGetValue(id, out var person))
+            {
+                Place(person.SettlementId);
+            }
+        }
+        Place(firstPlace); Place(secondPlace);
+        Officer(firstOfficer); Officer(secondOfficer);
     }
 
     internal void MaintainLeadership(List<DomainEvent> events)
     {
-        if (_leadershipBefore is not null)
+        if (_leadershipBefore is not null && _leadershipConsistent)
+        {
+            var before = _leadershipBefore;
+            var units = Units.Values.Where(u => u.CommanderId is not null).ToDictionary(u => u.Id);
+            LeadershipMaintenance.Apply(this, _abilityRules.Governance, _leadershipPlaces!, _leadershipOfficers!);
+            foreach (int place in before.Keys.Order())
+            {
+                int? current = LeadershipMaintenance.Commander(this, place)?.Id;
+                if (before[place] != current)
+                    events.Add(new CommanderChangedEvent(Clock, place, current)
+                    { PreviousId = before[place], ForceId = Settlements.GetValueOrDefault(place)?.OwnerId });
+            }
+            foreach (var unit in Units.Values.Where(u => u.CommanderId is not null))
+                if (units.TryGetValue(unit.Id, out var previous) && previous.CommanderId != unit.CommanderId && previous.OwnerId == unit.OwnerId)
+                    events.Add(new UnitCommanderChangedEvent(Clock, BattleObjectContext.Capture(unit), previous.CommanderId!.Value, unit.CommanderId!.Value));
+            _leadershipBefore = null; _leadershipPlaces = null; _leadershipOfficers = null;
+        }
+        else if (_leadershipBefore is not null)
         {
             var before = _leadershipBefore;
             var units = Units.Values.Where(u => u.CommanderId is not null).ToDictionary(u => u.Id);
@@ -78,6 +127,7 @@ internal sealed partial class WorldMutation : IWorldQuery
                 if (units.TryGetValue(unit.Id, out var previous) && previous.CommanderId != unit.CommanderId && previous.OwnerId == unit.OwnerId)
                     events.Add(new UnitCommanderChangedEvent(Clock, BattleObjectContext.Capture(unit), previous.CommanderId!.Value, unit.CommanderId!.Value));
             _leadershipBefore = null;
+            _leadershipConsistent = true;
         }
     }
 
@@ -99,6 +149,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         ActiveWorldRecords activeRecords)
     {
         _owner = owner;
+        _leadershipConsistent = owner.LeadershipConsistent;
         _abilityRules = abilityRules;
         _economy = economy;
         _expectedRevision = expectedRevision;
@@ -196,7 +247,17 @@ internal sealed partial class WorldMutation : IWorldQuery
             simulation.Tasks != Simulation.Tasks && !_economy.ImperialCourt.SuccessionOrder.IsEmpty;
         int? previousEmperorOwner = courtChanged ? ForceTrust.EmperorOwner(this, _economy) : null;
         if (simulation.Tasks != Simulation.Tasks && !simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId)
-            .SequenceEqual(Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId))) LeadershipChanged();
+            .SequenceEqual(Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId)))
+        {
+            if (!_leadershipConsistent) LeadershipChanged();
+            else
+            {
+                var travelling = simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
+                travelling.SymmetricExceptWith(Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId));
+                foreach (int officer in travelling.Order()) LeadershipChanged(firstOfficer: officer);
+                if (travelling.Count == 0) LeadershipChanged();   // the same travellers in another order: nothing to reselect
+            }
+        }
         if (simulation.Alliance?.MemberForceIds != Simulation.Alliance?.MemberForceIds || simulation.AttackRequests != Simulation.AttackRequests) _engagements = null;
         if (simulation.Tasks != Simulation.Tasks) { _tasksByOfficer = null; _travelingOfficers = null; }
         Simulation = simulation;
@@ -250,7 +311,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         int? previousEmperorOwner = courtChanged ? ForceTrust.EmperorOwner(this, _economy) : null;
         EmperorTransfer.Observe(this, _economy, previous, value);
         if (previous.IsDormant != value.IsDormant || previous.OwnerId != value.OwnerId || previous.CanHostPersons != value.CanHostPersons || previous.IsDestroyed != value.IsDestroyed)
-            LeadershipChanged();
+            LeadershipChanged(value.Id);
         if (_engagements is not null && MilitaryEngagements.SettlementChanged(previous, value)) _engagements = null;
         AllSettlements = Replace(AllSettlements, value.Id, value);
         Settlements = value.IsDormant ? Settlements.Remove(value.Id) : Settlements.SetItem(value.Id, value);
@@ -293,7 +354,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         int? previousSealOwner = sealChanged ? ForceTrust.SealOwner(this, _economy) : null;
         if (previous.IsDormant != value.IsDormant || previous.OwnerId != value.OwnerId || previous.Status != value.Status || previous.SettlementId != value.SettlementId ||
             previous.UnitId != value.UnitId || previous.OfficeId != value.OfficeId || previous.Injury != value.Injury ||
-            previous.BaseAbilities.Leadership != value.BaseAbilities.Leadership) LeadershipChanged();
+            previous.BaseAbilities.Leadership != value.BaseAbilities.Leadership) LeadershipChanged(previous.SettlementId, value.SettlementId, value.Id);
         AllOfficers = Replace(AllOfficers, value.Id, value);
         UpdateMember(previous, value);
         Officers = value.IsDormant ? Officers.Remove(value.Id) : Officers.SetItem(value.Id, value);
@@ -386,7 +447,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         bool sealChanged = value.Id == _economy.ImperialSealId &&
             (previous.HolderId != value.HolderId || previous.Discovery != value.Discovery);
         int? previousSealOwner = sealChanged ? ForceTrust.SealOwner(this, _economy) : null;
-        if (previous.HolderId != value.HolderId || previous.Discovery != value.Discovery) LeadershipChanged();
+        if (previous.HolderId != value.HolderId || previous.Discovery != value.Discovery) LeadershipChanged(firstOfficer: previous.HolderId, secondOfficer: value.HolderId);
         AllTreasures = Replace(AllTreasures, value.Id, value); _activeTreasures = null;
         UpdateHolding(previous, value);
         if (sealChanged) RefreshForceTrust(previousSealOwner, ForceTrust.SealOwner(this, _economy));

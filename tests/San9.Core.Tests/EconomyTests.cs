@@ -122,6 +122,24 @@ public sealed class EconomyTests
         Assert.Equal(new[]{3,1,1,1,1,0,0,0,0},engine.Snapshot.Officers.Single(p=>p.Id==1).TacticProficiencies);
     }
 
+    [Theory]
+    [InlineData(100, 20, 8)]
+    [InlineData(20, 100, 1)]
+    [InlineData(80, 20, 5)]
+    public void TrainingMoraleUsesExecutedWarRatherThanLeadership(int war, int leadership, int expected)
+    {
+        var world = World();
+        var mutation = world.BeginMutation();
+        mutation.Replace(mutation.Settlements[2] with { Soldiers = 10000, SoldierCapacity = 100000 });
+        mutation.Replace(mutation.Officers[1] with { BaseAbilities = new(war, 50, 50, leadership) });
+        world.Commit(mutation);
+        var engine = new SimulationEngine(world);
+        var result = Run(engine, DomesticActivity.Train, 1);
+        Assert.True(result.Submission.Accepted);
+        Assert.Equal(expected, result.Development!.Value.Increment);
+        Assert.Equal(50 + expected, result.Snapshot.Settlements.Single(s => s.Id == 2).Morale);
+    }
+
     [Fact]
     public void InsufficientMoneyDoesNotConsumeCombinationRandom()
     {

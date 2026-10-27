@@ -113,6 +113,32 @@ public sealed class FacilityCommandTests
     }
 
     [Theory]
+    [InlineData("train", "war", 2, 3)]
+    [InlineData("repair", "leadership", 3, 2)]
+    [InlineData("recruit", "leadership", 3, 2)]
+    [InlineData("commerce", "politics", 2, 3)]
+    [InlineData("buy", "politics", 2, 3)]
+    public void PreparationAndSelectedParticipantsUseTheActivityAbility(string kind, string field, int first, int second)
+    {
+        var definition = Definition();
+        definition = definition with { Officers = definition.Officers.Select(p => p.State.Id switch
+        {
+            2 => p with { State = p.State with { BaseAbilities = new(100, 50, 100, 20) } },
+            3 => p with { State = p.State with { BaseAbilities = new(20, 50, 20, 100) } },
+            _ => p
+        }).ToArray() };
+        var session = GameSession.Start(definition, 7);
+        var before = session.Snapshot;
+        var draft = new FacilityCommandDraft(session, 1, kind);
+        Assert.Equal(field, draft.ActorPriorityField);
+        Assert.Equal(first, draft.Candidates[0]);
+        Assert.Equal(100, draft.ActorAbility(session.View.Officers.Single(p => p.Id == first).Abilities));
+        Assert.True(draft.SetMembers([3, 2]));
+        Assert.Equal(new[] { first, second }, draft.Members.ToArray());
+        Assert.Same(before, session.Snapshot);
+    }
+
+    [Theory]
     [InlineData("commerce")]
     [InlineData("cultivate")]
     [InlineData("repair")]

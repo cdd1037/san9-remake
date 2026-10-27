@@ -93,10 +93,10 @@ public static class DomesticPlanner
     private static IEnumerable<ImmutableArray<int>> TrainingCrews(IEnumerable<int> available,
         ImmutableDictionary<int, OfficerAbilities> abilities)
     {
-        var people = available.OrderByDescending(id => abilities.GetValueOrDefault(id).Leadership).ThenBy(id => id).ToArray();
+        var people = available.OrderByDescending(id => abilities.GetValueOrDefault(id).War).ThenBy(id => id).ToArray();
         foreach (int id in people) yield return [id];
-        var economical = people.OrderBy(id => OpportunityCost(abilities.GetValueOrDefault(id)) - abilities.GetValueOrDefault(id).Leadership)
-            .ThenByDescending(id => abilities.GetValueOrDefault(id).Leadership).ThenBy(id => id).ToArray();
+        var economical = people.OrderBy(id => OpportunityCost(abilities.GetValueOrDefault(id)) - abilities.GetValueOrDefault(id).War)
+            .ThenByDescending(id => abilities.GetValueOrDefault(id).War).ThenBy(id => id).ToArray();
         for (int count = 2; count <= Math.Min(5, people.Length); count++)
         {
             var strongest = people.Take(count).Order().ToImmutableArray();

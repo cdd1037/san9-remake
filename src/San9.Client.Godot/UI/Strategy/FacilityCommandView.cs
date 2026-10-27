@@ -41,11 +41,11 @@ public partial class FacilityCommandView : FixedPage
         Label(CommandText.Resolve(Texts, "value.source", Draft.View.Settlements.Single(s => s.Id == Draft.Home.Id).ResolveName(Texts)), new(280,Top,160,32));
         window.ActionButton(CommandText.Resolve(Texts, "label.actor"), "edit", new(0,48,104,40), SelectOfficers).Disabled = Draft.Candidates.Length < 2;
         var roster = new OfficerRosterPanel { Service = Service, Textures = Textures, Position = new(384,Top+48), VisibleRows = 5,
-            Columns = [new(CommandText.Resolve(Texts, "label.officer"),80), new(CommandText.Resolve(Texts, Draft.UsesLeadership ? "label.leadership" : "label.politics"),64)] };
+            Columns = [new(CommandText.Resolve(Texts, "label.officer"),80), new(CommandText.Resolve(Texts, "label." + Draft.ActorPriorityField),64)] };
         roster.SetEntries(Draft.Members.Select(id => {
             var person = Draft.View.Officers.Single(o => o.Id == id); string name = Texts.Resolve(person.NameKey);
             return new OfficerRosterEntry(new(name,$"catalog-person-{id}",person.Abilities),
-                [name,(Draft.UsesLeadership ? person.Abilities.Leadership : person.Abilities.Politics).ToString()]); }));
+                [name,Draft.ActorAbility(person.Abilities).ToString()]); }));
         _body.AddChild(roster);
         var home = Draft.Home;
         string Quantity(uint amount) => amount == 0 ? "" : amount.ToString();
@@ -90,7 +90,7 @@ public partial class FacilityCommandView : FixedPage
     }
     private void SelectOfficers()
     {
-        int primary = Draft.UsesLeadership ? 1 : 4;
+        int primary = Array.FindIndex(OfficerCatalog.Pages[0].Columns, c => c.Id == Draft.ActorPriorityField);
         int[] columns = [0,primary,8,.. new[] { 1,2,3,4,5 }.Where(c => c != primary)];
         CatalogRow[] Rows(int page) => OfficerCatalog.Read(Draft.View,Texts,page == 0 ? 0 : page-1,null,Draft.Home.Id).Rows
             .Where(r => Draft.Candidates.Contains(r.Key.Id)).OrderBy(r => Draft.Candidates.IndexOf(r.Key.Id))

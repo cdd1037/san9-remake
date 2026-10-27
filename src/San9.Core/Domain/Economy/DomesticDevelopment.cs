@@ -15,12 +15,21 @@ public readonly record struct DomesticDevelopmentResult(int BaseIncrement, int I
 /// <summary>Base development before combination bonuses; BEH-DOMESTIC-0001.</summary>
 public static class DomesticDevelopment
 {
+    public static int ParticipantAbility(DomesticActivity activity, OfficerAbilities abilities) => activity switch
+    {
+        DomesticActivity.Patrol => abilities.Intelligence,
+        DomesticActivity.Commerce or DomesticActivity.Cultivation => abilities.Politics,
+        DomesticActivity.Repair or DomesticActivity.Recruit => abilities.Leadership,
+        DomesticActivity.Train => abilities.War,
+        _ => throw new ArgumentOutOfRangeException(nameof(activity)),
+    };
+
     public static int TrainingIncrement(uint soldiers, int morale, int trust, IReadOnlyList<OfficerAbilities> participants)
     {
         if (participants.Count is < 1 or > 5 || morale is < 0 or > 100 || soldiers == 0)
             throw new ArgumentException("Invalid training inputs.");
         long scale = 10L * (11 - participants.Count) * (EconomyMath.RecruitMorale(trust) - morale + 100) / 100;
-        return (int)Math.Min(100 - morale, participants.Count + participants.Sum(p => EconomyMath.ExecutedAbility(p.Leadership)) *
+        return (int)Math.Min(100 - morale, participants.Count + participants.Sum(p => EconomyMath.ExecutedAbility(ParticipantAbility(DomesticActivity.Train, p))) *
             scale / EconomyMath.SquareRoot(soldiers + 10000L) / 10);
     }
 
@@ -30,17 +39,14 @@ public static class DomesticDevelopment
     public static int RecruitCount(uint draftPopulation, uint soldiers, uint soldierCapacity, uint funds, IReadOnlyList<OfficerAbilities> participants)
     {
         if (participants.Count == 0) return 0;
-        long potential = 3 * (100 * participants.Sum(p => (long)p.Leadership) / (participants.Count + 4)) / 2;
+        long potential = 3 * (100 * participants.Sum(p => (long)ParticipantAbility(DomesticActivity.Recruit, p)) / (participants.Count + 4)) / 2;
         return (int)Math.Min(Math.Min(potential, draftPopulation), Math.Min(10L * funds, Math.Max(0L, (long)soldierCapacity - soldiers)));
     }
 
     public static OfficerState[] OrderParticipants(IEnumerable<OfficerState> people,
         IReadOnlyDictionary<int, OfficerAbilities> abilities, DomesticActivity activity) => people
         .OrderByDescending(p => p.Status == OfficerStatus.Ruler)
-        .ThenByDescending(p => activity switch {
-            DomesticActivity.Patrol => abilities[p.Id].Intelligence,
-            DomesticActivity.Commerce or DomesticActivity.Cultivation => abilities[p.Id].Politics,
-            _ => abilities[p.Id].Leadership })
+        .ThenByDescending(p => ParticipantAbility(activity, abilities[p.Id]))
         .ThenBy(p => p.Id).ToArray();
 
     public static DomesticDevelopmentResult CalculateResult(
@@ -80,13 +86,7 @@ public static class DomesticDevelopment
         {
             if (abilities.War < 0 || abilities.Intelligence < 0 || abilities.Politics < 0 || abilities.Leadership < 0)
                 throw new ArgumentOutOfRangeException(nameof(participants));
-            abilitySum += activity switch
-            {
-                DomesticActivity.Patrol => abilities.Intelligence,
-                DomesticActivity.Commerce or DomesticActivity.Cultivation => abilities.Politics,
-                DomesticActivity.Repair => abilities.Leadership,
-                _ => throw new ArgumentOutOfRangeException(nameof(activity)),
-            };
+            abilitySum += ParticipantAbility(activity, abilities);
         }
 
         long missing = maximum - current;

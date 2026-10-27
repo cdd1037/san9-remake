@@ -27,7 +27,7 @@ public sealed class DomesticPlanningBoundaryTests
         var seat = world.Simulation.Controls[0];
         var current = engine.GetAbilities(world);
         var observed = DomesticObservation.Capture(world, seat, new("player"), current);
-        Assert.True(observed.Abilities[1].Leadership < world.Officers.Single(p => p.Id == 1).BaseAbilities.Leadership);
+        Assert.True(observed.Abilities[1].War < world.Officers.Single(p => p.Id == 1).BaseAbilities.War);
         Assert.All(world.Officers.Where(p => p.OwnerId == 2), p => Assert.DoesNotContain(p.Id, observed.Abilities.Keys));
         var expected = DomesticPlanner.Plan(observed, new(1000, 0), 0).Candidates.First(c => c.Activity == DomesticActivity.Train);
         var actual = Assert.IsType<DevelopCommand>(session.ChooseDomesticCommand(seat, Guid.NewGuid(), 0));
@@ -36,6 +36,35 @@ public sealed class DomesticPlanningBoundaryTests
         Assert.DoesNotContain(1, actual.Development.OfficerIds);
         StateAssert.Equal(world, engine.Snapshot);
         StateAssert.Equal(world, session.Snapshot);
+    }
+
+    [Fact]
+    public void PlayerTrainingScriptPrefersStrongWarOfficersOverStrongLeaders()
+    {
+        var content = G01ScenarioTests.Fixture();
+        content = content with
+        {
+            Settlements = content.Settlements.Select(s => s with { Soldiers = 5000, Morale = 50 }).ToArray(),
+            Officers = content.Officers.Select(p => p.State.Id switch
+            {
+                1 => p with { State = p.State with { BaseAbilities = new(20, 20, 20, 100) } },
+                2 => p with { State = p.State with { BaseAbilities = new(100, 20, 20, 20) } },
+                3 => p with { State = p.State with { BaseAbilities = new(80, 20, 20, 30) } },
+                _ => p
+            }).ToArray()
+        };
+        var session = GameSession.Start(content, 190);
+        var world = session.Snapshot;
+        var seat = world.Simulation.Controls[0];
+        var observation = Observe(world, seat, new("player"));
+        var plan = DomesticPlanner.Plan(observation, new(1000, 0), 0);
+        var pairs = plan.Candidates.Where(c => c.Activity == DomesticActivity.Train && c.OfficerIds.Length == 2).ToArray();
+        Assert.NotEmpty(pairs);
+        Assert.All(pairs, c => Assert.Equal(new[] { 2, 3 }, c.OfficerIds.ToArray()));
+        var command = Assert.IsType<DevelopCommand>(session.ChooseDomesticCommand(seat, Guid.NewGuid(), 0));
+        Assert.Equal(DomesticActivity.Train, command.Development.Activity);
+        Assert.Equal(new[] { 2 }, command.Development.OfficerIds.ToArray());
+        Assert.Same(world, session.Snapshot);
     }
 
     [Fact]

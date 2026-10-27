@@ -92,7 +92,7 @@ internal static class EventPresentationCompiler
         Add("healing-treatment", 7875, bindings: [("person.0", "actor")]);
         Add("healing-departure", 7876, "other", bindings: [("person.0", "other"), ("person.1", "actor")]);
         Add("healing-result", 7877, sound: up, bindings: [("force.0", "force")]);
-        foreach (var (role, id) in new[] { ("leader-defeated", 9397), ("leader-died", 9398), ("insufficient", 9399), ("expired", 9400), ("target-defeated", 9401), ("target-died", 9402) })
+        foreach (var (role, id) in new[] { ("leader-defeated", 9397), ("leader-died", 9398), ("insufficient", 9399), ("expired", 9400), ("target-died", 9401), ("target-defeated", 9402) })
             Add("alliance-" + role, id, bindings: id <= 9398 ? [("force.0", "leader-force"), ("force.1", "target-force")] : [("force.0", "target-force")]);
         Add("alliance-ended-record", 10104, bindings: [("force.0", "target-force")]);
         Add("alliance-victory", 9403, image: "event-alliance-victory", bindings: [("force.0", "target-force"), ("force.1", "force")]);

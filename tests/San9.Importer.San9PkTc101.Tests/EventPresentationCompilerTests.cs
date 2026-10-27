@@ -5,6 +5,20 @@ namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class EventPresentationCompilerTests
 {
+    [Theory]
+    [InlineData("alliance-target-died", "messages.9401")]
+    [InlineData("alliance-target-defeated", "messages.9402")]
+    public void AllianceTargetNoticesDistinguishRulerDeathFromForceElimination(string role, string messageKey)
+    {
+        var people = new ushort[] { 563, 564, 669, 39 }.Select(biography => new San9ScenarioPersonRecord(
+            0, 6000, 0, 0, 0, 0, 0, biography, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            [], 0, 0, [], 0)).ToArray();
+        var message = EventPresentationCompiler.Compile(people).Messages[role];
+
+        Assert.Equal(messageKey, message.Key);
+        Assert.Equal("target-force", message.Bindings["force.0"]);
+    }
+
     [Fact]
     public void AbilityMessagesResolveSourceDiscriminatorsDuringImportRatherThanInTheApplication()
     {

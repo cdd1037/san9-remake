@@ -29,6 +29,73 @@ public sealed class MovementForecastTests
     }
 
     [Fact]
+    public void ConnectivityReusesDifferentSpeedsWithoutReusingTheirRoutesOrArrivalTimes()
+    {
+        var rules = new MilitaryRulebook(new(20, 1,
+            Enumerable.Range(0, 20).Select(x => x == 10 ? 1 : 0).ToImmutableArray(),
+            [new(0, 1, null), new(1, null, 1) { IsWater = true }],
+            [new(0, 10, 0, 10000, 1, new(1, 1), TravelMode.Land),
+             new(1, 20, 0, 10000, 1, new(1, 1), TravelMode.Land),
+             new(2, 10, 0, 10000, 1, new(1, 1), TravelMode.Water),
+             new(3, 30, 0, 10000, 1, new(1, 1), TravelMode.Water)], []));
+        var unit = new UnitState(0, 1, new(2, 2), 100) { FormationId = 0, NavalFormationId = 2,
+            Order = new(MilitaryOrderKind.Move, new(92, 2), null) };
+        var context = new MilitaryRouteQueryContext(World().CreateSnapshot(), rules);
+        using var diagnostics = new PathSearchDiagnostics();
+        var original = context.Estimate(unit, null);
+        Assert.Equal(RouteReachability.Reachable, original.Status);
+        Assert.Equal(1, diagnostics.Queries);
+        var faster = unit with { FormationId = 1, NavalFormationId = 3 };
+        Assert.Equal(RouteReachability.Reachable, context.Reachability(faster, null, maximumExpanded: 1));
+        Assert.Equal(1, diagnostics.Queries);
+        var estimate = context.Estimate(faster, null);
+        Assert.Equal(2, diagnostics.Queries);
+        Assert.True(estimate.Days < original.Days);
+        Assert.NotEmpty(estimate.Cells);
+        // Removing the ship changes passage permissions, even though the land footprint is unchanged.
+        Assert.Equal(RouteReachability.Unreachable, context.Reachability(faster with { NavalFormationId = null }, null));
+        Assert.Equal(3, diagnostics.Queries);
+    }
+
+    [Fact]
+    public void ConnectivityDoesNotTreatAnIncompleteSearchAsUnreachable()
+    {
+        var context = new MilitaryRouteQueryContext(World().CreateSnapshot(), Rules(10));
+        var unit = new UnitState(0, 1, new(2, 2), 100) { FormationId = 0,
+            Order = new(MilitaryOrderKind.Move, new(402, 2), null) };
+        Assert.Equal(RouteReachability.Incomplete, context.Reachability(unit, null, maximumExpanded: 1));
+        Assert.Equal(RouteReachability.Reachable, context.Reachability(unit, null));
+        Assert.Equal(RouteReachability.Unreachable, context.Reachability(unit with
+            { Order = new(MilitaryOrderKind.Move, new(502, 2), null) }, null));
+        Assert.Equal(RouteReachability.Unreachable, context.Reachability(unit with { Position = new(502, 2) }, null));
+    }
+
+    [Fact]
+    public void ConnectivityRetainsPolicyOccupancyAndSnapshotBoundaries()
+    {
+        var rules = new MilitaryRulebook(new(20, 1, new int[20].ToImmutableArray(), [new(0, 10, null)],
+            [new(0, 95, 0, 10000, 1, new(1, 1), TravelMode.Land),
+             new(1, 95, 0, 10000, 1, new(1, 5), TravelMode.Land)], []));
+        var obstacle = new UnitState(0, 2, new(27, 2), 100) { FormationId = 1 };
+        var snapshot = World(obstacle).CreateSnapshot();
+        var context = new MilitaryRouteQueryContext(snapshot, rules);
+        var unit = new UnitState(1, 1, new(2, 2), 100) { FormationId = 0,
+            Order = new(MilitaryOrderKind.Move, new(52, 2), null) };
+        using var diagnostics = new PathSearchDiagnostics();
+        Assert.Equal(RouteReachability.Reachable, context.Estimate(unit, null).Status);
+        var avoiding = unit with { Policies = new(AttackApproachingEnemies: true) };
+        Assert.Equal(RouteReachability.Reachable, context.Reachability(avoiding, null));
+        Assert.Equal(2, diagnostics.Queries);
+        Assert.Equal(RouteReachability.Reachable, context.Reachability(avoiding, obstacle.Id));
+        Assert.Equal(3, diagnostics.Queries);
+        var moved = snapshot with { Units = [obstacle with { Position = new(77, 2) }] };
+        Assert.Equal(RouteReachability.Reachable, new MilitaryRouteQueryContext(moved, rules).Reachability(avoiding, null));
+        Assert.Equal(4, diagnostics.Queries);
+        Assert.Equal(RouteReachability.Reachable, context.Reachability(avoiding, null));
+        Assert.Equal(4, diagnostics.Queries);
+    }
+
+    [Fact]
     public void RouteContextKeepsPolicyAndBudgetQueriesSeparateAndRemainsBoundToItsSnapshot()
     {
         var rules = new MilitaryRulebook(new(20, 1, new int[20].ToImmutableArray(), [new(0, 10, null)],

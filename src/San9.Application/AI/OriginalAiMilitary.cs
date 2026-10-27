@@ -32,8 +32,7 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
     private MilitaryRouteQueryContext Navigation { get { Refresh(); return navigation ??= new(World, rules); } }
     private ImmutableDictionary<int, OfficerAbilities> Abilities { get { Refresh(); return abilities ??= engine.GetAbilities(World); } }
     private readonly Dictionary<(UnitState Unit, MilitaryOrder Order, int? MovingUnit), Route?> routes = [];
-    private readonly Dictionary<(int Source, int Land, int? Naval, UnitPolicies Policies), WorldPosition?> departures = [];
-    private readonly Dictionary<(int Source, int Land, int? Naval, MilitaryOrder Order, UnitPolicies Policies), Route?> sourceRoutes = [];
+    private readonly Dictionary<(int Source, int Land, int? Naval, UnitPolicies Policies), UnitState?> departures = [];
     private readonly Dictionary<int, MilitaryOrder?> orders = [];
     private void Refresh()
     {
@@ -64,7 +63,6 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
             navigation = null;
             routes.Clear();
             departures.Clear();
-            sourceRoutes.Clear();
             orders.Clear();
         }
         projected = world;

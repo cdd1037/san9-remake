@@ -134,19 +134,31 @@ internal sealed partial class OriginalAiMilitary
     }
     private Route? RouteFrom(SettlementState source, int land, int? naval, MilitaryOrder order, UnitPolicies? policies = null)
     {
+        var unit = Departure(source, land, naval, policies ?? new());
+        return unit is null ? null : RouteTo(unit, order);
+    }
+
+    private bool CanReachFrom(SettlementState source, int land, int? naval, MilitaryOrder order, UnitPolicies policies)
+    {
+        if (Departure(source, land, naval, policies) is not { } unit) return false;
+        if (routes.TryGetValue((unit, order, null), out var cached)) return cached is not null;
+        paths++;
+        var status = Navigation.Reachability(unit with { Order = order }, null);
+        if (status == RouteReachability.Incomplete) incomplete = true;
+        return status == RouteReachability.Reachable;
+    }
+
+    private UnitState? Departure(SettlementState source, int land, int? naval, UnitPolicies policies)
+    {
         Refresh();
-        policies ??= new();
-        var key = (source.Id, land, naval, order, policies);
-        if (sourceRoutes.TryGetValue(key, out var cached)) return cached;
-        var departure = (source.Id, land, naval, policies);
-        if (!departures.TryGetValue(departure, out var start))
+        var key = (source.Id, land, naval, policies);
+        if (!departures.TryGetValue(key, out var unit))
         {
-            start = Navigation.DeploymentPosition(source, land, naval, Owner, policies);
-            departures.Add(departure, start);
+            var start = Navigation.DeploymentPosition(source, land, naval, Owner, policies);
+            unit = start is { } position ? new(0, Owner, position, 1)
+                { FormationId = land, NavalFormationId = naval, Policies = policies } : null;
+            departures.Add(key, unit);
         }
-        var result = start is { } position ? RouteTo(new(0, Owner, position, 1) { FormationId = land,
-            NavalFormationId = naval, Policies = policies }, order) : null;
-        sourceRoutes.Add(key, result);
-        return result;
+        return unit;
     }
 }

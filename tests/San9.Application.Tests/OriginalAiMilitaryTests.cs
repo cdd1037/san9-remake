@@ -1662,6 +1662,26 @@ public sealed partial class OriginalAiMilitaryTests
     }
 
     [Theory]
+    [InlineData(1, 0)]
+    [InlineData(2, 1)]
+    public void SelectedShipRechecksConnectivityOnlyWhenItsPassageConditionsChange(int size, int additionalSearches)
+    {
+        var content = WithNavalFormations(Fixture(), slow: true, harbor: true);
+        var baseline = new Harness(content with { OriginalAi = content.OriginalAi with
+            { Military = content.OriginalAi.Military with { NavalPriority = [800] } } });
+        var expected = baseline.Run(OriginalAiWork.Attack, 1);
+        Assert.Equal(1, expected.Submitted);
+        content = content with { Military = content.Military! with
+            { Formations = content.Military.Formations.Select(f => f.Id == 801
+                ? f with { Footprint = new(size, size), MovementBudget = 20 } : f).ToImmutableArray() } };
+        var selected = new Harness(content);
+        var actual = selected.Run(OriginalAiWork.Attack, 1);
+        Assert.Equal(1, actual.Submitted);
+        Assert.Equal(801, Assert.IsType<DeployUnitCommand>(Assert.Single(selected.Commands)).NavalFormationId);
+        Assert.Equal(expected.PathSearches + additionalSearches, actual.PathSearches);
+    }
+
+    [Theory]
     [InlineData(false, 7001)]
     [InlineData(true, 7000)]
     public void SlowAttackUsesSpecialTacticPriorityOnlyAgainstHarbors(bool harbor, int tactic)

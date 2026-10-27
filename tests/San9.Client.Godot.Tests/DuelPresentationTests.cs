@@ -259,6 +259,31 @@ public sealed class DuelPresentationTests
         Assert.False(clicked.IsComplete);
     }
 
+    [Theory]
+    [InlineData(30)]
+    [InlineData(60)]
+    [InlineData(144)]
+    public void FrameSteppingAlwaysShowsTheDialogueWhoseReadingClockIsRunning(int framesPerSecond)
+    {
+        var (session, texts, content, facts) = Fixture();
+        var plan = BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content);
+        var scene = Assert.Single(plan.Duels);
+        var day = new TurnDayPresentation(session.View, session.View, facts, battle: plan);
+        HashSet<string> shown = [];
+        for (int frame = 0; day.Elapsed < scene.End && frame < framesPerSecond * 300; frame++)
+        {
+            foreach (var dialogue in day.PendingDialogues.ToArray()) day.CompleteDialogue(dialogue.Id);
+            day.Advance(1.0 / framesPerSecond);
+            foreach (var dialogue in day.PendingDuelDialogues)
+            {
+                Assert.Equal(dialogue.Message, scene.Sample(day.Elapsed)?.Dialogue);
+                shown.Add(dialogue.Id);
+            }
+        }
+        Assert.True(day.Elapsed >= scene.End);
+        Assert.Equal(plan.Messages.Count(c => c.Channel == BattleMessageChannel.DuelDialogue), shown.Count);
+    }
+
     [Fact]
     public void DeathSceneIsConsumedEvenWithoutProgressRecords()
     {

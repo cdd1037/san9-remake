@@ -31,8 +31,8 @@ internal static class GovernanceMaintenance
                 ? t with { Journey = t.Journey with { ReturnLeg = leg with { CorpsId = destination } } } : t).ToImmutableArray() });
 
 
-    internal static OfficerState[] Members(WorldMutation world, CorpsState corps) => world.Officers.Values
-        .Where(p => p.IsServing && p.OwnerId == corps.OwnerId && PersonnelLocations.Corps(world, p) == corps.Id).ToArray();
+    internal static OfficerState[] Members(WorldMutation world, CorpsState corps) => world.OwnedOfficers(corps.OwnerId)
+        .Where(p => p.IsServing && PersonnelLocations.Corps(world, p) == corps.Id).ToArray();
 
     internal static bool CanSurvive(WorldMutation world, CorpsState corps, IEnumerable<OfficerState> members) =>
         members.Any() && world.Settlements.Values.Any(s => s.CorpsId == corps.Id && s.Kind == SettlementKind.City &&

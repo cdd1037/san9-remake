@@ -216,7 +216,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         _activeCorps = null; _activeTreasures = null; _activeRelations = null;
         _engagements = null; _movementOccupancy = null;
         _unitMembers = null; _settlementMembers = null;
-        _forcePersonnel = null;
+        _forcePersonnel = null; _ownedOfficers = null;
         _holdings = null; _treasureEffects.Clear();
     }
 

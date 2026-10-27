@@ -10,6 +10,7 @@ internal sealed partial class WorldMutation
     private Dictionary<int, ImmutableDictionary<int, OfficerState>>? _settlementMembers;
     private ILookup<int, PersistentTask>? _tasksByOfficer;
     private Dictionary<int, (int Serving, int NonRulers)>? _forcePersonnel;
+    private Dictionary<int, List<int>>? _ownedOfficers;
     private HashSet<int>? _travelingOfficers;
     private Dictionary<int, ImmutableDictionary<int, TreasureState>>? _holdings;
     private sealed record HeldTreasureEffects(OfficerAbilities Bonuses, bool EscapeMount, ImmutableHashSet<int> Tactics);
@@ -35,6 +36,7 @@ internal sealed partial class WorldMutation
     {
         if (previous.OwnerId != current.OwnerId || previous.Status != current.Status || previous.IsDormant != current.IsDormant)
             _forcePersonnel = null;
+        if (previous.OwnerId != current.OwnerId || previous.IsDormant != current.IsDormant) _ownedOfficers = null;
         if (_unitMembers is null) return;
         if (previous.UnitId is int unit && _unitMembers.TryGetValue(unit, out var members))
             _unitMembers[unit] = members.Remove(previous.Id);
@@ -53,6 +55,20 @@ internal sealed partial class WorldMutation
     {
         EnsureMembers();
         return _settlementMembers!.GetValueOrDefault(settlementId, ImmutableDictionary<int, OfficerState>.Empty).Values;
+    }
+
+    /// <summary>The active officers of one force, in registry order (corps membership scans read these instead of every
+    /// officer). Rebuilt after any change of owner or activation.</summary>
+    internal IEnumerable<OfficerState> OwnedOfficers(int forceId)
+    {
+        if (_ownedOfficers is null)
+        {
+            _ownedOfficers = [];
+            foreach (var person in Officers.Values)
+                if (person.OwnerId is int owner)
+                    (_ownedOfficers.TryGetValue(owner, out var ids) ? ids : _ownedOfficers[owner] = []).Add(person.Id);
+        }
+        return _ownedOfficers.TryGetValue(forceId, out var list) ? list.Select(id => Officers[id]) : [];
     }
 
     internal IEnumerable<OfficerState> ServingUnitMembers(int unitId) => UnitMembers(unitId).Where(p => p.IsServing);

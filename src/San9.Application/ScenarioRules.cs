@@ -14,6 +14,7 @@ internal sealed class ScenarioRules
     internal TreasureRulebook Treasures { get; }
     internal GovernanceRulebook Governance { get; }
     internal MilitaryRulebook? Military { get; }
+    internal MilitaryCityNetwork MilitaryCities { get; }
     internal PoliticalRulebook Politics { get; }
     internal OfficerAbilityRules Abilities { get; }
 
@@ -28,6 +29,7 @@ internal sealed class ScenarioRules
             { AbilityBonuses = o.AbilityBonuses, Salary = o.Salary, RequiredRankId = o.RequiredRankId }),
             definition.Information.Ranks.ToDictionary(r => r.Id, r => r.Precedence));
         Military = definition.Military is { } militaryDefinition ? new MilitaryRulebook(militaryDefinition) : null;
+        MilitaryCities = new(definition.MilitaryCityConnections);
         Politics = new PoliticalRulebook(definition.PoliticalEvents,
             definition.Information.Ranks.Select(r => new PeerageRule(r.Id, r.Precedence, r.RequiredTrust, r.LoyaltyBonus)),
             definition.Information.CountryTitles.Select(t => t.Rule), definition.ProvinceCountryTitleIds);

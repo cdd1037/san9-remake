@@ -44,7 +44,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int? PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 146;
+    public const int CurrentSchemaVersion = 147;
     [JsonRequired] public int[] FictionalOfficerPlaceIds { get; init; } = [];
     [JsonRequired] public OriginalAiDefinition OriginalAi { get; init; } = OriginalAiDefinition.Default;
     [JsonRequired] public int FoodExchangeRate { get; init; } = 1;
@@ -83,6 +83,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     [JsonRequired] public Dictionary<int, string> FacilityNameSuffixKeys { get; init; } = [];
     [JsonRequired] public San9.Core.Domain.MilitaryDefinition? Military { get; init; }
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityConnection> CityConnections { get; init; } = [];
+    [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityConnection> MilitaryCityConnections { get; init; } = [];
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.PersonPlace> UnbuiltPlaces { get; init; } = [];
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.DomesticPair> DomesticPairs { get; init; } = [];
     [JsonRequired] public int? ImperialSealId { get; init; }
@@ -136,8 +137,13 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         }
         if (CityConnections.IsDefault || UnbuiltPlaces.IsDefault || UnbuiltPlaces.Any(p => p is null || !RegionNameKeys.ContainsKey(p.Id) || Settlements.Any(s => s.Id == p.Id)))
             throw new InvalidDataException("Invalid unbuilt personnel place.");
+        var militaryCities = Settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => s.Id).ToHashSet();
+        if (MilitaryCityConnections.IsDefault || MilitaryCityConnections.Any(c =>
+                !militaryCities.Contains(c.FromCityId) || !militaryCities.Contains(c.ToCityId)))
+            throw new InvalidDataException("Invalid military city reference.");
         try
         {
+            _ = new San9.Core.Domain.MilitaryCityNetwork(MilitaryCityConnections);
             if (SearchEvents.IsDefault || SearchEvents.Any(e => e is null)) throw new InvalidDataException("Invalid search event collection.");
             _ = new San9.Core.Domain.PersonnelRulebook(Settlements.Select(s => new San9.Core.Domain.PersonPlace(s.Id, s.Position)).Concat(UnbuiltPlaces), RegionCityIds, CityConnections, CityProvinceIds, searchEvents: SearchEvents);
             var ids = Officers.Select(o => o.State.Id).ToHashSet();

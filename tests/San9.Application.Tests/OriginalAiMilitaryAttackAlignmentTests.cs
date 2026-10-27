@@ -186,6 +186,7 @@ public sealed partial class OriginalAiMilitaryTests
         {
             Settlements = [.. basis.Settlements.Select(s => s.Id == 2 ? s with { Soldiers = defenders } : s),
                 basis.Settlements[1] with { Id = 3, X = 13, Y = 13, Soldiers = 1000 }],
+            MilitaryCityConnections = [new(1, 2), new(2, 1), new(1, 3), new(3, 1)],
             CityConnections = [new(1, 2), new(2, 1), new(1, 3), new(3, 1)],
             RegionCityIds = new(basis.RegionCityIds) { [3] = 3 },
             RegionNameKeys = new(basis.RegionNameKeys) { [3] = "weaker" },
@@ -254,6 +255,7 @@ public sealed partial class OriginalAiMilitaryTests
             Settlements = [.. basis.Settlements.Select(s => s.Id == 1 ? s with
                 { Kind = pass ? SettlementKind.Facility : SettlementKind.City, Soldiers = sourceTroops } : s with { Soldiers = 20000 }),
                 basis.Settlements[0] with { Id = 3, X = 1, Y = 2, Soldiers = 0, Morale = 0 }],
+            MilitaryCityConnections = pass ? [new(3, 2), new(2, 3)] : [new(1, 2), new(2, 1), new(3, 2), new(2, 3)],
             CityConnections = pass ? [new(3, 2), new(2, 3)] : [new(1, 2), new(2, 1), new(3, 2), new(2, 3)],
             RegionCityIds = new() { [1] = pass ? 3 : 1, [2] = 2, [3] = 3 },
             RegionNameKeys = new() { [1] = "one", [2] = "two", [3] = "three" },

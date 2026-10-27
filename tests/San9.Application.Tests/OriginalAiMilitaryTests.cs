@@ -24,6 +24,7 @@ public sealed partial class OriginalAiMilitaryTests
             Forces = basis.Forces.Select(f => f.Id == 2 ? f with { LeaderId = 100 } : f).ToArray(),
             Information = basis.Information with { Corps = basis.Information.Corps.Select(c => c with
                 { LeaderId = c.Id == 1 ? 1 : 100, Treasury = new(100000, 100000) }).ToArray(), Relations = [new(1, 2, 0)] },
+            MilitaryCityConnections = [new(1, 2), new(2, 1)],
             CityConnections = [new(1, 2), new(2, 1)], RegionCityIds = new() { [1] = 1, [2] = 2 },
             RegionNameKeys = new() { [1] = "region.1", [2] = "region.2" },
             Military = new(20, 3, Enumerable.Repeat(0, 60).ToImmutableArray(), [new(0, 1, null)],
@@ -63,7 +64,9 @@ public sealed partial class OriginalAiMilitaryTests
             Engine = GameSession.EngineFactory(content)(WorldState.Restore(change?.Invoke(world) ?? world));
             var context = new CommandContext("player");
             var rules = definition.Rules.Military!;
-            Military = new(Engine, content, rules, definition.Rules, new(content, rules), new(), 1, context, new OriginalAiRandom(draw ?? (_ => 0)), command =>
+            Military = new(Engine, content, rules, definition.Rules,
+                definition.Rules.MilitaryCities,
+                new(content, rules), new(), 1, context, new OriginalAiRandom(draw ?? (_ => 0)), command =>
             {
                 Commands.Add(command);
                 if (reject || rejectCommand?.Invoke(command) == true) return false;
@@ -288,6 +291,7 @@ public sealed partial class OriginalAiMilitaryTests
                 { SettlementId = 3, Status = relation == "other-corps" && p.State.Id == 11 ? OfficerStatus.Governor : OfficerStatus.Serving } } : p).ToArray(),
             Information = content.Information with { Corps = relation == "other-corps"
                 ? content.Information.Corps.Append(new(3, 1, 11, new(1000, 1000))).ToArray() : content.Information.Corps },
+            MilitaryCityConnections = [new(1, 2), new(2, 1), new(2, city ? 3 : 4)],
             CityConnections = [new(1, 2), new(2, 1), new(2, city ? 3 : 4)],
             RegionCityIds = new() { [1] = 1, [2] = 2, [3] = city ? 3 : relation == "target-city" ? 2 : 4, [4] = 4, [5] = 4 },
             RegionNameKeys = new() { [1] = "region.1", [2] = "region.2", [3] = "region.3", [4] = "region.4", [5] = "region.5" },
@@ -677,6 +681,7 @@ public sealed partial class OriginalAiMilitaryTests
                 { Status = OfficerStatus.Ruler })).ToArray(),
             RegionCityIds = new(content.RegionCityIds) { [2] = city ? 2 : 1, [3] = 3 },
             RegionNameKeys = new(content.RegionNameKeys) { [3] = "region.3" },
+            MilitaryCityConnections = city ? content.MilitaryCityConnections : [],
             CityConnections = city ? content.CityConnections : [],
             Military = content.Military! with { Places = content.Military.Places.Add(new(3, new(87, 7), new(1, 1))) },
             Information = content.Information with { Corps = content.Information.Corps.Append(new(3, 3, 101, new(1000, 1000)) { IsRoot = true }).ToArray() }
@@ -776,6 +781,7 @@ public sealed partial class OriginalAiMilitaryTests
         {
             Settlements = content.Settlements.Select(s => s.Id == 1 && !city ? s with { Kind = SettlementKind.Facility } : s).ToArray(),
             RegionCityIds = city ? content.RegionCityIds : new() { [1] = 2, [2] = 2 },
+            MilitaryCityConnections = city ? content.MilitaryCityConnections : [],
             CityConnections = city ? content.CityConnections : [],
             Military = content.Military! with { Formations = content.Military.Formations.Select(f =>
                 f.Id == 400 ? f with { SoldierCapacity = capacity } : f).ToImmutableArray() }
@@ -973,6 +979,7 @@ public sealed partial class OriginalAiMilitaryTests
             Forces = content.Forces.Select(f => f.Id == 1 ? f with { LeaderId = ruler } : f).ToArray(),
             Information = content.Information with { Corps = content.Information.Corps.Select(c => c.Id == 1 ? c with { LeaderId = ruler } : c)
                 .Append(new(3, 1, 2, new(1000, 1000))).ToArray() },
+            MilitaryCityConnections = content.MilitaryCityConnections.Add(new(1, 3)).Add(new(3, 1)),
             CityConnections = content.CityConnections.Add(new(1, 3)).Add(new(3, 1)),
             RegionCityIds = new(content.RegionCityIds) { [3] = 3 },
             RegionNameKeys = new(content.RegionNameKeys) { [3] = "region.3" },
@@ -998,7 +1005,7 @@ public sealed partial class OriginalAiMilitaryTests
     [Fact]
     public void DeploymentRejectsUnrelatedRegionsBeforeSearchingRoutes()
     {
-        var content = WithConstruction(Fixture()) with { CityConnections = [] };
+        var content = WithConstruction(Fixture()) with { CityConnections = [], MilitaryCityConnections = [] };
         var h = new Harness(content, w =>
         {
             var enemy = EnemyArmy(w);
@@ -1409,6 +1416,7 @@ public sealed partial class OriginalAiMilitaryTests
                     Soldiers = 0, Morale = 0, Kind = SettlementKind.Facility })
                 .Append(content.Settlements[0] with { Id = 5, X = 17, Soldiers = 0, Morale = 0 }).ToArray(),
             Officers = content.Officers.Select(p => p.State.Id is 2 or 3 ? p with { State = p.State with { SettlementId = 3 } } : p).ToArray(),
+            MilitaryCityConnections = [new(1, 2), new(2, 1), new(fallback ? 5 : 3, 1)],
             CityConnections = [new(1, 2), new(2, 1), new(fallback ? 5 : 3, 1)],
             RegionCityIds = new() { [1] = 1, [2] = 2, [3] = fallback ? 5 : 3, [4] = 2, [5] = 5 },
             RegionNameKeys = new() { [1] = "region.1", [2] = "region.2", [3] = "region.3", [4] = "region.4", [5] = "region.5" },
@@ -1443,6 +1451,7 @@ public sealed partial class OriginalAiMilitaryTests
                 p.State.Id == 4 && crossCorps ? p with { State = p.State with { Status = OfficerStatus.Governor } } : p).ToArray(),
             Information = content.Information with { Corps = crossCorps ? content.Information.Corps
                 .Append(new(3, 1, 4, new(10000, 10000))).ToArray() : content.Information.Corps },
+            MilitaryCityConnections = [new(1, 2), new(2, 1), new(3, 1)],
             CityConnections = [new(1, 2), new(2, 1), new(3, 1)],
             RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 3 },
             RegionNameKeys = new() { [1] = "region.1", [2] = "region.2", [3] = "region.3" },
@@ -1489,6 +1498,7 @@ public sealed partial class OriginalAiMilitaryTests
         {
             Settlements = content.Settlements.Append(content.Settlements[0] with { Id = 3, X = 3, Soldiers = 9000 }).ToArray(),
             Officers = content.Officers.Select(p => p.State.Id is 2 or 3 ? p with { State = p.State with { SettlementId = 3 } } : p).ToArray(),
+            MilitaryCityConnections = [new(1, 2), new(2, 1), new(3, 1)],
             CityConnections = [new(1, 2), new(2, 1), new(3, 1)],
             RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 3, [4] = 3 },
             RegionNameKeys = new() { [1] = "region.1", [2] = "region.2", [3] = "region.3", [4] = "region.4" },
@@ -1607,6 +1617,7 @@ public sealed partial class OriginalAiMilitaryTests
     {
         Settlements = content.Settlements.Select(s => s.Id == 2 && harbor ? s with { Kind = SettlementKind.Facility } : s).ToArray(),
         RegionCityIds = harbor ? new() { [1] = 1, [2] = 1 } : content.RegionCityIds,
+        MilitaryCityConnections = harbor ? [] : content.MilitaryCityConnections,
         CityConnections = harbor ? [] : content.CityConnections,
         Military = content.Military! with
         {
@@ -1797,6 +1808,7 @@ public sealed partial class OriginalAiMilitaryTests
             Settlements = content.Settlements.Append(content.Settlements[0] with { Id = 3, X = 3, Soldiers = 5000, Kind = SettlementKind.Facility })
                 .Append(content.Settlements[0] with { Id = 4, X = 17, Soldiers = 0, Morale = 0 }).ToArray(),
             Officers = content.Officers.Select(p => p.State.Id == 2 ? p with { State = p.State with { SettlementId = 3 } } : p).ToArray(),
+            MilitaryCityConnections = [new(1, 2), new(2, 1), new(4, 1)],
             CityConnections = [new(1, 2), new(2, 1), new(4, 1)],
             RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 4, [4] = 4 },
             RegionNameKeys = new() { [1] = "region.1", [2] = "region.2", [3] = "region.3", [4] = "region.4" },

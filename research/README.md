@@ -8,6 +8,7 @@
 - [逆向结论索引](findings/README.md)：按主题查找 `RE-*`。
 - [研究疑点与处理结果](research-open-questions.md)：已纠错结论、证据边界和后置实验；历史“待验证”不直接作为当前待办。
 - [来源登记](SOURCES.md)、[S9 文件清单](sources/s9-file-inventory.md)、[EXE 外部 DLL 契约](sources/exe-dll-analysis-inventory.md)、[第三方仓库](sources/upstream-repositories.md)。
+- [军事邻城与实际进攻范围实验](experiments/EXP-SAN9PK-0002.md)：统一保存校准、简单通道和动态前线方案，以及当前采用与待优化方向。
 - [开局专项](../docs/scenario-startup.md)：跨主题证据、重制接入状态及未采用边界。
 - [程序分析归档](archive/program-analysis/program-analysis-roadmap.md)、[来源覆盖账本](archive/program-analysis/program-analysis-coverage.md)。
 

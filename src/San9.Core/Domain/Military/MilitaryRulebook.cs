@@ -373,6 +373,12 @@ public sealed partial class MilitaryRulebook
         var place = Place(settlement);
         if (settlement.IsDestroyed || settlement.Facility?.BuilderUnitId is not null || place.Attack is null)
             return new(null, false);
+        return FacilityAttack(place);
+    }
+
+    internal FacilityAttackProfile FacilityAttack(BattlefieldPlace place)
+    {
+        if (place.Attack is null) return new(null, false);
         int? bonus = null;
         bool rockfall = false;
         void Include(FacilityAttackModifier? modifier)

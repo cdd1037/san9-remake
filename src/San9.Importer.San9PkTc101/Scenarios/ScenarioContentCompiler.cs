@@ -203,6 +203,8 @@ public static class ScenarioContentCompiler
             Officers = officers, Units = units, Information = information, DomesticPairs = DomesticContentCompiler.Compile(persons),
             ImperialSealId = 79, ImperialCourt = ImperialCourtContentCompiler.Compile(header.ScenarioModeCode, persons, officers.Select(o => o.State.Id)),
             ImperialCourtEnded = ImperialCourtContentCompiler.IsInitiallyEnded(header.ScenarioWorldFlagWords, header.StartDate) };
+        snapshot = snapshot with { MilitaryCityConnections = San9.Core.Domain.MilitaryCityNetwork.Generate(
+            new(snapshot.Military!), settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => s.Id)).Connections };
         snapshot = EventContentCompiler.InitializePenglai(snapshot);
         snapshot = InitialLeadershipCompiler.Compile(snapshot);
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);

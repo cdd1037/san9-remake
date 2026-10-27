@@ -46,6 +46,43 @@ public sealed class ScenarioIdentityTests
     }
 
     [Fact]
+    public void MilitaryCityConnectionsPreserveExplicitDirectionsAndRequirePublishedData()
+    {
+        var scenario = Fixture() with { MilitaryCityConnections = [new(1000, 1074)] };
+        scenario.Validate();
+        var options = San9.Content.Packages.ScenarioContentFiles.DataJsonOptions;
+        var json = System.Text.Json.JsonSerializer.SerializeToNode(scenario, options)!;
+        var decoded = System.Text.Json.JsonSerializer.Deserialize<ScenarioInitialState>(json.ToJsonString(), options)!;
+        Assert.Equal(scenario.MilitaryCityConnections.ToArray(), decoded.MilitaryCityConnections.ToArray());
+        Assert.Empty(decoded.CityConnections);
+        json.AsObject().Remove("militaryCityConnections");
+        Assert.Throws<System.Text.Json.JsonException>(() =>
+            System.Text.Json.JsonSerializer.Deserialize<ScenarioInitialState>(json.ToJsonString(), options));
+    }
+
+    [Theory]
+    [InlineData("unknown")]
+    [InlineData("facility")]
+    [InlineData("self")]
+    [InlineData("duplicate")]
+    [InlineData("default")]
+    public void MilitaryCityConnectionsRejectInvalidCityEdges(string invalid)
+    {
+        var scenario = Fixture();
+        scenario = scenario with { MilitaryCityConnections = invalid switch
+        {
+            "unknown" => [new(1000, 9999)],
+            "facility" => [new(1000, 1074)],
+            "self" => [new(1000, 1000)],
+            "duplicate" => [new(1000, 1074), new(1000, 1074)],
+            _ => default
+        } };
+        if (invalid == "facility") scenario = scenario with { Settlements = scenario.Settlements
+            .Select(s => s.Id == 1074 ? s with { Kind = SettlementKind.Facility } : s).ToArray(), RegionCityIds = [] };
+        Assert.Throws<InvalidDataException>(() => scenario.Validate());
+    }
+
+    [Fact]
     public void RegionMustReferenceAnExistingCityRatherThanANameEntry()
     {
         var scenario = Fixture();

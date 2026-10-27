@@ -16,6 +16,7 @@ public sealed partial class OriginalAiMilitaryTests
             Settlements = [.. basis.Settlements.Select(s => s.Id == 1 && facility ? s with { Kind = SettlementKind.Facility } : s),
                 basis.Settlements[0] with { Id = 3, X = 5, Soldiers = 1000 }],
             RegionCityIds = new() { [1] = facility ? 3 : 1, [2] = 2, [3] = facility ? 3 : 1 },
+            MilitaryCityConnections = facility ? [new(3, 2), new(2, 3)] : basis.MilitaryCityConnections,
             CityConnections = facility ? [new(3, 2), new(2, 3)] : basis.CityConnections,
             RegionNameKeys = new() { [1] = "one", [2] = "two", [3] = "relief" },
             Military = basis.Military! with
@@ -96,6 +97,7 @@ public sealed partial class OriginalAiMilitaryTests
         var content = basis with
         {
             Settlements = [.. basis.Settlements, basis.Settlements[0] with { Id = 3, X = 5, Y = 3, Soldiers = 1000 }],
+            MilitaryCityConnections = [new(1, 2), new(2, 1), new(1, 3), new(3, 1), new(2, 3), new(3, 2)],
             CityConnections = [new(1, 2), new(2, 1), new(1, 3), new(3, 1), new(2, 3), new(3, 2)],
             RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 3 },
             RegionNameKeys = new() { [1] = "one", [2] = "two", [3] = "relief" },

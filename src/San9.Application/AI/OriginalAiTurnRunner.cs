@@ -171,7 +171,8 @@ internal static class OriginalAiTurnRunner
                         corps.Id, context, random, Submit).Run(work, limit, state, strategy));
                 else if (OriginalAiMilitary.Handles(work))
                     Report(definition.MilitaryRules is { } military
-                        ? new OriginalAiMilitary(engine, definition.Content with { OriginalAi = policy }, military, definition.Rules, geographyContext, terrainRoutes, corps.Id, context, random, Submit).Run(work, limit, state, strategy)
+                        ? new OriginalAiMilitary(engine, definition.Content with { OriginalAi = policy }, military, definition.Rules,
+                            definition.Rules.MilitaryCities, geographyContext, terrainRoutes, corps.Id, context, random, Submit).Run(work, limit, state, strategy)
                         : new(corps.Id, work, OriginalAiWorkEnd.PreparationFailed, 0, 0));
                 else if (work == OriginalAiWork.DisposePrisoner)
                 {

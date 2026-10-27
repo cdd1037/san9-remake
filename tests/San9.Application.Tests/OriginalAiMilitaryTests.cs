@@ -65,7 +65,6 @@ public sealed partial class OriginalAiMilitaryTests
             var context = new CommandContext("player");
             var rules = definition.Rules.Military!;
             Military = new(Engine, content, rules, definition.Rules,
-                definition.Rules.MilitaryCities,
                 new(content, rules), new(), 1, context, new OriginalAiRandom(draw ?? (_ => 0)), command =>
             {
                 Commands.Add(command);

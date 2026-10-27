@@ -19,7 +19,7 @@ internal sealed partial class OriginalAiMilitary
     {
         var places = WorkSources.ToDictionary(s => s.Id);
         int city = City(target.Id);
-        var neighbors = cityNeighbors.Neighbors(city);
+        var neighbors = CityNeighbors.Neighbors(city);
         var candidates = WorkSources.Where(s => City(s.Id) == city)
             .Concat(neighbors.Select(id => places.GetValueOrDefault(id)).OfType<SettlementState>())
             .Concat(Geography.Neighbors(target.Id).Where(p => neighbors.Contains(p.CityId))
@@ -53,7 +53,7 @@ internal sealed partial class OriginalAiMilitary
             // A weak source may still contribute its defensive shortfall.
             long reserve = Reserve(source);
             if (enemyReserves is not null && Fortified(source))
-                reserve = Math.Max(reserve, cityNeighbors.NearbyCities(City(source.Id))
+                reserve = Math.Max(reserve, CityNeighbors.NearbyCities(City(source.Id))
                     .Max(city => enemyReserves.GetValueOrDefault(city)));
             return source.Soldiers - reserve;
         });

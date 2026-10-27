@@ -144,13 +144,8 @@ internal static class OriginalDomesticWork
         return selected.ToImmutable();
     }
 
-    private static int Ability(OfficerAbilities ability, DomesticActivity activity) => activity switch
-    {
-        DomesticActivity.Patrol => ability.Intelligence,
-        DomesticActivity.Commerce or DomesticActivity.Cultivation => ability.Politics,
-        DomesticActivity.Train => ability.War,
-        _ => ability.Leadership,
-    };
+    private static int Ability(OfficerAbilities ability, DomesticActivity activity) =>
+        DomesticDevelopment.ParticipantAbility(activity, ability);
 
     internal static long Adjusted(OfficerAbilities ability, DomesticActivity activity) => Ability(ability, activity) -
         Math.Min(((long)ability.War + ability.Intelligence + ability.Politics + ability.Leadership) / 46, 10);

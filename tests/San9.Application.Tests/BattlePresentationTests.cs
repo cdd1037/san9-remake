@@ -243,22 +243,23 @@ public sealed class BattlePresentationTests
     }
 
     [Fact]
-    public void OrdinaryAttackKeepsLossValuesWithoutMapNumbersWhileVisibleTacticShowsThem()
+    public void TacticLossNumbersIncludeComputerBattlesWhileOrdinaryAttacksOnlyUpdateValues()
     {
         var (session, texts, content, occurrence) = Fixture();
         content = content with { Battle = content.Battle! with { MapNumbers = new("digits", 12, 20, 125, 8, 4) } };
         var damage = new BattleDamageEvent(session.Snapshot.Clock, 10, 20, null, 500, 0, 500, 0, 0)
         { Source = occurrence.Source, Target = occurrence.Target };
         var tactic = damage with { TacticId = 99 };
-        var hidden = tactic with { Source = occurrence.Source with { ForceId = 3 }, SoldierLoss = 700 };
-        var plan = BattlePresentationPlan.Create(session.View, session.View, [damage, tactic, hidden], session.Messages(texts), texts, content);
+        var computer = tactic with { Source = occurrence.Source with { ForceId = 3 }, SoldierLoss = 700 };
+        var plan = BattlePresentationPlan.Create(session.View, session.View, [damage, tactic, computer], session.Messages(texts), texts, content);
         Assert.Equal(1, plan.Values[0].Time);
         Assert.Equal(0, Assert.Single(plan.MapBatches).FirstFactIndex);
-        var number = Assert.Single(plan.MapNumbers);
-        Assert.Equal(-500, number.Amount);
-        Assert.Equal(occurrence.Target, number.Target);
+        Assert.Equal([-500L, -700L], plan.MapNumbers.Select(number => number.Amount));
+        Assert.Equal([1, 2], plan.MapNumbers.Select(number => number.FactIndex));
+        Assert.All(plan.MapNumbers, number => Assert.Equal(occurrence.Target, number.Target));
         Assert.Equal([-500L, -500L, -700L], plan.Values.Select(value => value.Soldiers));
         var offscreen = BattlePresentationPlan.Create(session.View, session.View, [damage], session.Messages(texts), texts, content);
+        Assert.Empty(offscreen.MapNumbers);
         Assert.Equal(1, offscreen.Duration);
     }
 

@@ -79,7 +79,7 @@ public static class StrategicContext
             if (reaction is not null) Add(reaction, place.Id, City(place.Id), speaker: candidates[Pick(candidates.Length)].Id);
         }
         if (prompts.Count > 0) return Finish();
-        int intelligence = actor.BaseAbilities.Intelligence;
+        int intelligence = view.Officers.Single(p => p.Id == actor.Id).Abilities.Intelligence;
         if (!Chance(10 + Math.Max(0,intelligence - 70) + Math.Max(0,intelligence - 90))) return Finish();
         if (world.Clock.Boundary.Quarter)
         {

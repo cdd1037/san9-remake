@@ -17,8 +17,9 @@ public static class NewGameIntroduction
         var people = world.Officers.Where(p => !p.IsDormant && p.IsServing && p.OwnerId == id).ToArray();
         var ruler = people.FirstOrDefault(p => p.Id == force.LeaderId);
         if (ruler is null) return [];
+        var abilities = view.Officers.ToDictionary(p => p.Id, p => p.Abilities);
         var actor = people.FirstOrDefault(p => p.Id == force.AdviserId) ?? people.Where(p => p.Id != ruler.Id)
-            .OrderByDescending(p => p.BaseAbilities.Intelligence).ThenBy(p => p.Id).FirstOrDefault() ?? ruler;
+            .OrderByDescending(p => abilities[p.Id].Intelligence).ThenBy(p => p.Id).FirstOrDefault() ?? ruler;
         var values = new Dictionary<string, MessageBinding>
         {
             ["actor"] = ProgressMessageProducer.Person(actor.Id), ["ruler"] = ProgressMessageProducer.Person(ruler.Id),

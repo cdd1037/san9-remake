@@ -258,7 +258,10 @@ public sealed class TurnPresentation(GameSession session, bool enterStrategy = f
     }
 
     private void FailPresentation(Exception error)
-    { Error = error.Message; _presentationFailed = true; Screen = TurnScreen.Failed; }
+    {
+        Day?.EndSceneFastForward();
+        Error = error.Message; _presentationFailed = true; Screen = TurnScreen.Failed;
+    }
 
     private bool Publish()
     {

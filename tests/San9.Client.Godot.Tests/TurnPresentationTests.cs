@@ -462,6 +462,45 @@ public sealed class TurnPresentationTests
             Assert.Equal(start + .1, day.Elapsed, 6);
         }
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PresentationFailureCancelsTheHoldAndRetryRequiresANewPress(bool failDuringPlayback)
+    {
+        var (session, _, plan) = ZoomFixture();
+        bool fail = false;
+        void CheckFailure()
+        {
+            if (fail) throw new InvalidDataException("Controlled presentation failure");
+        }
+        var turn = new TurnPresentation(session)
+        {
+            CreateDay = (before, after, events) => new(before, after, events, battle: plan),
+            CanPlayDay = () => { if (!failDuringPlayback) CheckFailure(); return true; },
+            PresentDay = _ => { if (failDuringPlayback) CheckFailure(); }
+        };
+        Enter(turn); Ready(turn); turn.Update(100);
+        var day = turn.Day!;
+        day.CompleteDialogue(Assert.Single(day.PendingDialogues).Id);
+        day.BeginSceneFastForward(); turn.Update(.3);
+        Assert.True(day.IsFastForwarding);
+        var before = session.Snapshot;
+
+        fail = true;
+        turn.Update(.01);
+        Assert.Equal(TurnScreen.Failed, turn.Screen);
+        Assert.False(day.IsFastForwarding);
+        StateAssert.Equal(before, session.Snapshot);
+
+        fail = false;
+        turn.Confirm();
+        double start = day.Elapsed;
+        turn.Update(.1);
+        Assert.Same(day, turn.Day);
+        Assert.Equal(start + .1, day.Elapsed, 6);
+    }
+
     [Fact]
     public void MapSpeechAtTheDialogueBoundaryWaitsForCompletionWithoutAnArtificialDelay()
     {

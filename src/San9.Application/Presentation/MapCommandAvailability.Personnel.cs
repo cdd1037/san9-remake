@@ -66,7 +66,7 @@ internal sealed partial class MapCommandAvailability
 
     private string? Recall(SettlementState home)
     {
-        var sources = OtherHomes(home).ToArray();
+        var sources = OtherHomes(home, directOnly: false).ToArray();
         if (sources.Length == 0) return "no-other-facility";
         var normal = sources.Where(s => s.ConfusionDaysRemaining == 0 && !view.IsSettlementEngaged(s.Id)).Select(s => s.Id).ToHashSet();
         if (normal.Count == 0) return "no-normal-facility";
@@ -77,14 +77,14 @@ internal sealed partial class MapCommandAvailability
     {
         if (kind != "summon") return view.World.Officers.Where(p => people.TryGetValue(p.Id, out var shown) && shown.IsAvailable &&
             p.OwnerId == Owner && p.SettlementId == home.Id);
-        var origins = OtherHomes(home).Where(s => s.ConfusionDaysRemaining == 0 && !view.IsSettlementEngaged(s.Id)).Select(s => s.Id).ToHashSet();
+        var origins = OtherHomes(home, directOnly: false).Where(s => s.ConfusionDaysRemaining == 0 && !view.IsSettlementEngaged(s.Id)).Select(s => s.Id).ToHashSet();
         return view.World.Officers.Where(p => people.TryGetValue(p.Id, out var shown) && shown.IsAvailable && p.OwnerId == Owner &&
             p.SettlementId is int origin && origins.Contains(origin) && (p.Status is OfficerStatus.Serving or OfficerStatus.Strategist ||
                 p.Id == Force.LeaderId && (home.CorpsId is null || view.World.Corps.Any(c => c.Id == home.CorpsId && c.IsRoot))));
     }
 
     public IEnumerable<int> PersonnelTargets(SettlementState home, string kind) => kind == "move"
-        ? OtherHomes(home).Select(s => s.Id) : kind == "employ" ? view.World.Officers.Where(Recruitable).Select(p => p.Id) : [];
+        ? OtherHomes(home, directOnly: false).Select(s => s.Id) : kind == "employ" ? view.World.Officers.Where(Recruitable).Select(p => p.Id) : [];
 
     private bool Recruitable(OfficerState person)
     {

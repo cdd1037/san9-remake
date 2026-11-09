@@ -196,7 +196,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
     private bool Player(int? force) => before.World.Simulation.Controls.Any(c => c.ForceId == force && c.Kind == ControllerKind.Player);
     private bool DirectPlayer(BattleObjectContext obj) => Player(obj.ForceId) && before.World.Corps.Any(c =>
         c.OwnerId == obj.ForceId && (obj.CorpsId is int corpsId ? c.Id == corpsId : c.IsRoot) &&
-        c.ControlMode == CorpsControlMode.Direct);
+        c.ControlMode.AllowsPlayerOrders());
     private bool Visible(TacticOccurrence occurrence) => DirectPlayer(occurrence.Source) || DirectPlayer(occurrence.Target);
     private int Soldier => content.Decisions.People.GetValueOrDefault("soldier");
     private MapCell Location(BattleObjectContext obj)

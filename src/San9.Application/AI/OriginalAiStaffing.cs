@@ -119,7 +119,7 @@ internal static class OriginalAiStaffing
                         .Sum(u => (long)u.Soldiers + u.Wounded);
                 uint money = people == 0 ? 0 : (uint)(root.Treasury.Money * ((double)group.People.Length / people));
                 uint food = (uint)(root.Treasury.Food * (soldiers == 0 ? (double)group.Cities.Length / places.Count(s => s.Kind == SettlementKind.City) : districtSoldiers / (double)soldiers));
-                Send((id, seq) => new CreateCorpsCommand(id, owner, seq, group.Cities.Select(s => s.Id).ToImmutableArray(), money, food, new GeneralDelegation())
+                Send((id, seq) => new CreateCorpsCommand(id, owner, seq, group.Cities.Select(s => s.Id).ToImmutableArray(), money, food, new GeneralDelegation(), CorpsControlMode.Automatic)
                     { GovernorId = group.Governor!.Id });
             }
         }

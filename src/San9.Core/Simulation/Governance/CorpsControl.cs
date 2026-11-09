@@ -27,7 +27,7 @@ public static class CorpsControl
     }
 
     private static CorpsState? AutomaticCorps(WorldSnapshot world, int forceId, CommandContext context) =>
-        world.Corps.FirstOrDefault(c => c.OwnerId == forceId && c.ControlMode == CorpsControlMode.Automatic &&
+        world.Corps.FirstOrDefault(c => c.OwnerId == forceId && c.ControlMode.AllowsAutomaticOrders() &&
             ControllerId(c.Id) == context.ControllerId);
 
     private static bool PlayerRootDelegated(WorldSnapshot world, ControlSeat seat) =>
@@ -52,7 +52,7 @@ public static class CorpsControl
         // An omitted corps reference denotes the force's root, as it does for resource accounts.
         if (automatic is not null) return corpsId is int assigned ? assigned == automatic.Id : automatic.IsRoot;
         return corpsId is null || world.Corps.Any(c => c.Id == corpsId &&
-            (c.ControlMode == CorpsControlMode.Direct || seat.Kind == ControllerKind.Automatic && c.IsRoot));
+            (c.ControlMode.AllowsPlayerOrders() || seat.Kind == ControllerKind.Automatic && c.IsRoot));
     }
 
     internal static CommandRejection Set(WorldMutation world, SetCorpsControlCommand command, List<DomainEvent> events)
@@ -76,7 +76,13 @@ public static class CorpsControl
             return CommandRejection.NotActiveController;
         bool ControlsPlace(int id) => OwnPlace(world, seat, automatic, id);
         bool OwnPerson(int id) => world.Officers.FirstOrDefault(p => p.Id == id)?.SettlementId is int home && ControlsPlace(home);
-        bool ControlsUnit(int id) => OwnUnit(world, seat, automatic, id);
+        // The ruler retains force-wide personnel transfers across delegated corps.
+        bool TransferPlace(int id) => automatic is null && seat.Kind == ControllerKind.Player
+            ? world.Settlements.FirstOrDefault(s => s.Id == id)?.OwnerId == command.IssuerId : ControlsPlace(id);
+        bool TransferPerson(int id) => world.Officers.FirstOrDefault(p => p.Id == id) is { } person &&
+            person.OwnerId == command.IssuerId && person.SettlementId is int home && TransferPlace(home);
+        bool ControlsUnit(int id) => OwnUnit(world, seat, automatic, id) &&
+            (automatic?.ControlMode != CorpsControlMode.Cooperative || !world.Units.Single(u => u.Id == id).CommandedThisXun);
         bool permitted = command switch
         {
             WaitCommand => true,
@@ -105,7 +111,7 @@ public static class CorpsControl
             DemandSurrenderCommand surrender => OwnPerson(surrender.OfficerId),
             UnitStrategyCommand strategy => OwnPerson(strategy.OfficerId),
             SearchCommand search => !search.OfficerIds.IsDefault && search.OfficerIds.All(OwnPerson),
-            MoveOfficersCommand move => !move.OfficerIds.IsDefault && move.OfficerIds.All(OwnPerson) && ControlsPlace(move.DestinationId),
+            MoveOfficersCommand move => !move.OfficerIds.IsDefault && move.OfficerIds.All(TransferPerson) && TransferPlace(move.DestinationId),
             _ => automatic is null || automatic.IsRoot
         };
         return permitted ? CommandRejection.None : CommandRejection.NotActiveController;

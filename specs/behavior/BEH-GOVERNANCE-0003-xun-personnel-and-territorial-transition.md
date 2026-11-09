@@ -2,7 +2,7 @@
 
 - 状态：已确认
 - 负责人：项目开发者
-- 最后更新：2026-11-06
+- 最后更新：2026-11-09
 - 关联证据：[RE-SAN9PK-0111](../../research/findings/RE-SAN9PK-0111.md)、[RE-SAN9PK-0112](../../research/findings/RE-SAN9PK-0112.md)、[RE-SAN9PK-0120](../../research/findings/RE-SAN9PK-0120.md)、[RE-SAN9PK-0122](../../research/findings/RE-SAN9PK-0122.md)、[RE-SAN9PK-0123](../../research/findings/RE-SAN9PK-0123.md)、[RE-SAN9PK-0124](../../research/findings/RE-SAN9PK-0124.md)、[RE-SAN9PK-0150](../../research/findings/RE-SAN9PK-0150.md)
 - 关联决策：[DEC-PROJECT-0002](../decisions/DEC-PROJECT-0002-selective-inheritance.md)、[DEC-SIM-0001](../decisions/DEC-SIM-0001-determinism-and-saves.md)
 - 继承方式：语义保留、领域模型现代化
@@ -18,6 +18,8 @@ G04已交付子军团直属人事权限、统一提交复验，以及登用负�
 ## 原作基线
 
 普通委任军团可执行自动调动和自动登用。登用来源城市、调动来源/目的建筑必须直属当前军团；候选最终进入与交互命令相同的登用或移动验证和写回。普通子军团的自动工作表不包含赠与、攻击请求、俘虏返还和劝降，这些普通自动外交工作由主记录承担。
+
+君主的交互移动／召来属于势力级人员调配，可以跨本势力自动委任军团选择来源和目的设施；都督的自动调动仍限直属军团。人物已行动、在途、来源混乱／交战及君主驻地等资格继续适用。原作静态证据见[RE-0112补证](../../research/findings/RE-SAN9PK-0112.md#2026-11-09移动召来跨委任军团权限)。重制在玩家仍掌握根军团控制时保留此权限，菜单候选与公共移动命令使用同一势力范围；根军团已交给自动控制时不额外开放玩家行动。
 
 旬主更新先处理已有可归属对象向其他势力叛离，再运行人物、忠诚、联盟和其他世界周期；稍后先处理符合条件的在野人物建势力，再处理城市自立，最后清除行动占用等旬级临时状态。
 

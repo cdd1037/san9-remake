@@ -7,14 +7,14 @@ namespace San9.Core.Simulation;
 public sealed record DissolveCorpsCommand(Guid CommandId, int IssuerId, long Sequence, int CorpsId)
     : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record CorpsDissolvedEvent(GameClock Clock, int ForceId, int CorpsId, int DestinationCorpsId) : DomainEvent;
-public sealed record CreateCorpsCommand(Guid CommandId, int IssuerId, long Sequence, ImmutableArray<int> CityIds, uint Money, uint Food, [property: JsonRequired] CorpsDelegation Delegation)
+public sealed record CreateCorpsCommand(Guid CommandId, int IssuerId, long Sequence, ImmutableArray<int> CityIds, uint Money, uint Food, [property: JsonRequired] CorpsDelegation Delegation, [property: JsonRequired] CorpsControlMode ControlMode)
     : GameCommand(CommandId, IssuerId, Sequence)
 {
     [JsonRequired] public int? GovernorId { get; init; }
 }
 public sealed record CorpsCreatedEvent(GameClock Clock, int ForceId, int CorpsId, int LeaderId, ImmutableArray<int> CityIds) : DomainEvent;
 public sealed record ChangeCorpsCommand(Guid CommandId, int IssuerId, long Sequence, int CorpsId,
-    ImmutableArray<int> CityIds, uint Money, uint Food, [property: JsonRequired] CorpsDelegation Delegation) : GameCommand(CommandId, IssuerId, Sequence);
+    ImmutableArray<int> CityIds, uint Money, uint Food, [property: JsonRequired] CorpsDelegation Delegation, [property: JsonRequired] CorpsControlMode ControlMode) : GameCommand(CommandId, IssuerId, Sequence);
 public sealed record CorpsChangedEvent(GameClock Clock, int ForceId, int CorpsId, int LeaderId,
     ImmutableArray<int> CityIds) : DomainEvent;
 
@@ -26,7 +26,7 @@ internal static class CorpsGovernance
         if (!world.Corps.TryGetValue(command.CorpsId, out var corps) || corps.OwnerId != command.IssuerId ||
             corps.IsRoot || command.CityIds.IsDefaultOrEmpty ||
             command.CityIds.Distinct().Count() != command.CityIds.Length) return CommandRejection.InvalidCorps;
-        if (!CorpsDelegations.Valid(world, command.IssuerId, command.Delegation, military)) return CommandRejection.InvalidCorps;
+        if (!Enum.IsDefined(command.ControlMode) || !CorpsDelegations.Valid(world, command.IssuerId, command.Delegation, military)) return CommandRejection.InvalidCorps;
         var roots = world.Corps.Values.Where(c => c.OwnerId == command.IssuerId && c.IsRoot).ToArray();
         if (roots.Length != 1) return CommandRejection.InvalidCorps;
         var root = roots[0];
@@ -39,13 +39,11 @@ internal static class CorpsGovernance
             !world.Settlements.Values.Any(s => s.Kind == SettlementKind.City &&
                 (s.CorpsId == root.Id || s.CorpsId == corps.Id) && !cities.Contains(s.Id)) ||
             PersonnelLocations.ServicePlace(world, ruler) is int rulerCity && cities.Contains(rulerCity)) return CommandRejection.InvalidCorps;
-        var places = geography.RegionCities.Where(p => cities.Contains(p.Value)).Select(p => p.Key).Concat(cities).ToHashSet();
-        var facilities = world.Settlements.Values.Where(s => places.Contains(s.Id) && s.OwnerId == force.Id && s.Id != PersonnelLocations.ServicePlace(world, ruler)).ToArray();
-        if (facilities.Any(s => s.CorpsId != root.Id && s.CorpsId != corps.Id)) return CommandRejection.InvalidCorps;
-        places = facilities.Select(s => s.Id).ToHashSet();
+        var territory = CorpsTerritoryPlan.ForCities(world.Settlements.Values, geography.RegionCities,
+            force.Id, corps.Id, cities, PersonnelLocations.ServicePlace(world, ruler));
         var busy = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
         var leader = rules.SelectGovernor(world.Officers.Values.Where(p => p.OwnerId == force.Id &&
-            p.SettlementId is int home && places.Contains(home) && !busy.Contains(p.Id)), world.AbilitiesFor(world.Officers.Values));
+            p.SettlementId is int home && territory.Assigned.Contains(home) && !busy.Contains(p.Id)), world.AbilitiesFor(world.Officers.Values));
         if (leader is null) return CommandRejection.PersonUnavailable;
         long moneyDelta = (long)command.Money - corps.Treasury.Money;
         long foodDelta = (long)command.Food - corps.Treasury.Food;
@@ -53,21 +51,21 @@ internal static class CorpsGovernance
         if ((long)root.Treasury.Money - moneyDelta > uint.MaxValue || (long)root.Treasury.Food - foodDelta > uint.MaxValue)
             return CommandRejection.ResourceOverflow;
 
-        var removed = world.Settlements.Values.Where(s => s.CorpsId == corps.Id && !places.Contains(s.Id)).Select(s => s.Id).ToHashSet();
-        foreach (var facility in world.Settlements.Values.Where(s => removed.Contains(s.Id)).ToArray())
+        foreach (var facility in world.Settlements.Values.Where(s => territory.Removed.Contains(s.Id)).ToArray())
             world.Replace(facility with { CorpsId = root.Id });
-        foreach (var facility in facilities) world.Replace(facility with { CorpsId = corps.Id });
+        foreach (var facility in world.Settlements.Values.Where(s => territory.Added.Contains(s.Id)).ToArray())
+            world.Replace(facility with { CorpsId = corps.Id });
         foreach (var unit in world.Units.Values.Where(u => u.OwnerId == force.Id &&
-            (u.CorpsId == root.Id || u.CorpsId == corps.Id) && u.ServicePlaceId is not null && u.FollowsServicePlace(false)).ToArray())
+            u.ServicePlaceId is not null && u.FollowsServicePlace(false)).ToArray())
         {
-            if (places.Contains(unit.ServicePlaceId!.Value)) world.Replace(unit with { CorpsId = corps.Id });
-            else if (removed.Contains(unit.ServicePlaceId.Value)) world.Replace(unit with { CorpsId = root.Id });
+            if (territory.Added.Contains(unit.ServicePlaceId!.Value)) world.Replace(unit with { CorpsId = corps.Id });
+            else if (territory.Removed.Contains(unit.ServicePlaceId.Value)) world.Replace(unit with { CorpsId = root.Id });
         }
         var oldLeader = world.Officers[corps.LeaderId!.Value];
         if (oldLeader.Id != leader.Id && oldLeader.Status == OfficerStatus.Governor)
             world.Replace(oldLeader with { Status = OfficerStatus.Serving });
         world.Replace(leader with { Status = OfficerStatus.Governor });
-        world.Replace(corps with { LeaderId = leader.Id, Treasury = new(command.Money, command.Food), Delegation = command.Delegation });
+        world.Replace(corps with { LeaderId = leader.Id, Treasury = new(command.Money, command.Food), Delegation = command.Delegation, ControlMode = command.ControlMode });
         world.Replace(force with { AdviserId = force.AdviserId == leader.Id ? null : force.AdviserId });
         world.Replace(root with { Treasury = new((uint)(root.Treasury.Money - moneyDelta), (uint)(root.Treasury.Food - foodDelta)) });
         foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })
@@ -78,6 +76,8 @@ internal static class CorpsGovernance
         }
         if (corps.Delegation != command.Delegation)
             events.Add(new CorpsDelegationChangedEvent(world.Clock, force.Id, corps.Id, corps.Delegation, command.Delegation, "ordered"));
+        if (corps.ControlMode != command.ControlMode)
+            events.Add(new CorpsControlChangedEvent(world.Clock, force.Id, corps.Id, command.ControlMode));
         events.Add(new CorpsChangedEvent(world.Clock, force.Id, corps.Id, leader.Id, cities.Order().ToImmutableArray()));
         return CommandRejection.None;
     }
@@ -85,7 +85,7 @@ internal static class CorpsGovernance
     internal static CommandRejection Create(WorldMutation world, CreateCorpsCommand command, PersonnelRulebook geography,
         GovernanceRulebook rules, MilitaryRulebook? military, List<DomainEvent> events)
     {
-        if (!CorpsDelegations.Valid(world, command.IssuerId, command.Delegation, military)) return CommandRejection.InvalidCorps;
+        if (!Enum.IsDefined(command.ControlMode) || !CorpsDelegations.Valid(world, command.IssuerId, command.Delegation, military)) return CommandRejection.InvalidCorps;
         var roots = world.Corps.Values.Where(c => c.OwnerId == command.IssuerId && c.IsRoot).ToArray();
         if (roots.Length != 1 || command.CityIds.IsDefaultOrEmpty || command.CityIds.Distinct().Count() != command.CityIds.Length ||
             world.Corps.Values.Count(c => c.OwnerId == command.IssuerId) >= GovernanceRulebook.MaximumCorpsPerForce ||
@@ -99,13 +99,13 @@ internal static class CorpsGovernance
                 city.OwnerId != force.Id || (city.CorpsId ?? root.Id) != root.Id) ||
             !world.Settlements.Values.Any(s => s.OwnerId == force.Id && s.Kind == SettlementKind.City && (s.CorpsId ?? root.Id) == root.Id && !cities.Contains(s.Id)) ||
             PersonnelLocations.ServicePlace(world, ruler) is int rulerCity && cities.Contains(rulerCity)) return CommandRejection.InvalidCorps;
-        var places = geography.RegionCities.Where(p => cities.Contains(p.Value)).Select(p => p.Key).Concat(cities).ToHashSet();
-        var facilities = world.Settlements.Values.Where(s => places.Contains(s.Id) && s.OwnerId == force.Id && s.Id != PersonnelLocations.ServicePlace(world, ruler)).ToArray();
+        var territory = CorpsTerritoryPlan.ForCities(world.Settlements.Values, geography.RegionCities,
+            force.Id, null, cities, PersonnelLocations.ServicePlace(world, ruler));
+        var facilities = world.Settlements.Values.Where(s => territory.Assigned.Contains(s.Id)).ToArray();
         if (facilities.Any(s => (s.CorpsId ?? root.Id) != root.Id)) return CommandRejection.InvalidCorps;
-        places = facilities.Select(s => s.Id).ToHashSet();
         var busy = world.Simulation.Tasks.Where(t => t.Journey is not null).Select(t => t.OfficerId).ToHashSet();
         var candidates = world.Officers.Values.Where(p => p.IsServing && p.Status != OfficerStatus.Ruler && p.OwnerId == force.Id &&
-            p.SettlementId is int home && places.Contains(home) && home != PersonnelLocations.ServicePlace(world, ruler) && !busy.Contains(p.Id)).ToArray();
+            p.SettlementId is int home && territory.Assigned.Contains(home) && !busy.Contains(p.Id)).ToArray();
         var leader = command.GovernorId is int selected ? candidates.FirstOrDefault(p => p.Id == selected) :
             rules.SelectGovernor(candidates, world.AbilitiesFor(world.Officers.Values));
         if (leader is null) return CommandRejection.PersonUnavailable;
@@ -113,10 +113,10 @@ internal static class CorpsGovernance
         int id = world.AllCorps.Keys.Max() + 1;
         if (force.AdviserId == leader.Id) world.Replace(force = force with { AdviserId = null });
         world.Replace(leader with { Status = OfficerStatus.Governor });
-        world.AddCorps(new(id, force.Id, leader.Id, new(command.Money, command.Food)) { ControlMode = CorpsControlMode.Automatic, Delegation = command.Delegation });
+        world.AddCorps(new(id, force.Id, leader.Id, new(command.Money, command.Food)) { ControlMode = command.ControlMode, Delegation = command.Delegation });
         foreach (var facility in facilities) world.Replace(facility with { CorpsId = id });
         foreach (var unit in world.Units.Values.Where(u => u.OwnerId == force.Id && (u.CorpsId ?? root.Id) == root.Id &&
-            u.ServicePlaceId is int home && places.Contains(home) && u.FollowsServicePlace(true)).ToArray())
+            u.ServicePlaceId is int home && territory.Assigned.Contains(home) && u.FollowsServicePlace(true)).ToArray())
             world.Replace(unit with { CorpsId = id });
         world.Replace(root with { Treasury = new(root.Treasury.Money - command.Money, root.Treasury.Food - command.Food) });
         foreach (var resource in new[] { ResourceKind.Money, ResourceKind.Food })

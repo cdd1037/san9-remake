@@ -22,7 +22,6 @@ public partial class CorpsCommandView : CommandPreparationView
             Accepted = Submit, Closed = Closed,
             Help = () => Notice(CommandText.Resolve(Texts, "hint.corps")) };
         Body.AddChild(window);
-        ManagementButton(window);
         bool editing = Draft.Operation is CorpsOperation.Create or CorpsOperation.Change;
         bool populated = Draft.Cities.Length > 0;
         bool ready = editing && populated && Draft.GovernorId is not null;
@@ -65,12 +64,6 @@ public partial class CorpsCommandView : CommandPreparationView
 
     private string ControlName(CorpsControlMode mode) => CommandText.Resolve(Texts,
         mode == CorpsControlMode.Direct ? "corps.direct" : "corps.automatic");
-    private void ManagementButton(CommandWindow window) => window.ActionButton(CommandText.Resolve(Texts, "corps.management"),
-        "edit", new(-144,0,128,40), () => Choices(CommandText.Resolve(Texts, "corps.management"),
-            [CommandText.Resolve(Texts, "corps.organization"), CommandText.Resolve(Texts, "corps.control"), CommandText.Resolve(Texts, "corps.policy")],
-            id => { if (id == 0) { Draft.SetOperation(CorpsOperation.Create); CloseChild(); }
-                else SelectCorps(id == 1 ? CorpsOperation.Control : CorpsOperation.Policy); },
-            Draft.Corps.Any(c => !c.IsRoot) ? new HashSet<int>() : new HashSet<int> { 2 }));
 
     private void BuildAdministration()
     {
@@ -81,7 +74,6 @@ public partial class CorpsCommandView : CommandPreparationView
             Position = at, Size = new(416,312), CanAccept = Draft.CanExecute,
             Accepted = Submit, Closed = Closed, Help = () => Notice(CommandText.Resolve(Texts, "corps.scope")) };
         Body.AddChild(window);
-        ManagementButton(window);
         window.ActionButton(CommandText.Resolve(Texts, "select.corps"), "edit", new(0,0,104,40), () => SelectCorps(Draft.Operation));
         var corps = Draft.Selected;
         string PolicyName(CorpsDelegation? policy) => CommandText.Resolve(Texts, policy switch {
@@ -118,8 +110,15 @@ public partial class CorpsCommandView : CommandPreparationView
         ReplaceChild(new VerticalChoiceDialog { Message = title, Textures = Textures,
             DisabledOptions = disabled ?? new HashSet<int>(), Options = names.Select((name,id) => (name,(Action)(() => selected(id)))).Append((CommandText.Resolve(Texts, "action.cancel"),(Action)CloseChild)).ToArray() });
     }
-    private void SelectOperation() => Choices(CommandText.Resolve(Texts, "label.corps-operation"),[CommandText.Resolve(Texts, "corps.create"),CommandText.Resolve(Texts, "corps.change"),CommandText.Resolve(Texts, "corps.dissolve")],
-        id => { if (id == 0) { Draft.SetOperation(CorpsOperation.Create); CloseChild(); } else SelectCorps((CorpsOperation)id); }, Draft.CanCreate ? new HashSet<int>() : new HashSet<int> { 0 });
+    private void SelectOperation() => ReplaceChild(new CorpsChoiceDialog
+    {
+        Textures = Textures, Title = CommandText.Resolve(Texts, "label.corps-operation"),
+        Hint = CommandText.Resolve(Texts, "hint.corps"),
+        Options = [CommandText.Resolve(Texts, "corps.create"), CommandText.Resolve(Texts, "corps.change"), CommandText.Resolve(Texts, "corps.dissolve")],
+        DisabledOptions = Draft.CanCreate ? new HashSet<int>() : new HashSet<int> { 0 },
+        Closed = CloseChild,
+        Selected = id => { if (id == 0) { Draft.SetOperation(CorpsOperation.Create); CloseChild(); } else SelectCorps((CorpsOperation)id); }
+    }, keepBodyVisible: true);
     private void SelectCorps(CorpsOperation operation)
     {
         var query = new InformationQuery(Session,Texts);
@@ -139,7 +138,10 @@ public partial class CorpsCommandView : CommandPreparationView
     private void Number(bool money) => ReplaceChild(new NumberInputDialog { Textures = Textures, Subject = money ? CommandText.Resolve(Texts, "corps.money") : CommandText.Resolve(Texts, "corps.food"),
         State = new(0,money ? Draft.MaximumMoney : Draft.MaximumFood,money ? Draft.Money : Draft.Food),
         Confirmed = value => { if (money) Draft.SetMoney(value); else Draft.SetFood(value); CloseChild(); }, Closed = CloseChild });
-    private void SelectPolicy() => ReplaceChild(new CorpsPolicyDialog { Texts = Texts, Textures = Textures, Closed = CloseChild, Selected = id =>
+    private void SelectPolicy() => ReplaceChild(new CorpsChoiceDialog {
+        Title = CommandText.Resolve(Texts, "label.corps-policy"), Hint = CommandText.Resolve(Texts, "hint.corps-policy"),
+        Options = [CommandText.Resolve(Texts, "policy.general"), CommandText.Resolve(Texts, "policy.domestic"), CommandText.Resolve(Texts, "policy.defeat-force"), CommandText.Resolve(Texts, "policy.capture-facility")],
+        Textures = Textures, Closed = CloseChild, Selected = id =>
     {
         if (id < 2) { Draft.SetPolicy(id == 0 ? new GeneralDelegation() : new DomesticDelegation()); CloseChild(); }
         else SelectPolicyTarget(id == 2);

@@ -7,7 +7,7 @@ public static class PortraitCompiler
     public static string ImageId(int id) => $"portrait/{id}";
 
     public static PortraitDefinition[] Compile(string dataDirectory, Func<string, byte[]> read,
-        Func<string, string, PngImage, ImageAsset> save)
+        Func<string, string, TextureSourceImage, ImageAsset> save)
     {
         var palette = IndexedImageArchive.ReadPalettes(read(Path.Combine(dataDirectory, "P_Face.s9")), 2)[0];
         List<PortraitDefinition> portraits = [];
@@ -21,7 +21,7 @@ public static class PortraitCompiler
             {
                 if (images[i].Width != 240 || images[i].Height != 240) throw new InvalidDataException("Invalid source portrait dimensions.");
                 int id = first + i;
-                var image = save(ImageId(id), $"portraits/{id}.png", IndexedImageArchive.Decode(images[i], palette, false, false));
+                var image = save(ImageId(id), $"portraits/{id}.png", TextureSourceImage.Indexed(images[i], palette, false, false));
                 var bust = new PortraitAnchor(offsets[i * 2] / 240d, offsets[i * 2 + 1] / 240d);
                 var portrait = new PortraitDefinition(id, image, bust, PortraitGeometry.FaceFromBust(bust));
                 portrait.Validate(); portraits.Add(portrait);

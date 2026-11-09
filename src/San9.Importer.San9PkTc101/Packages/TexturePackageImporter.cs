@@ -31,53 +31,43 @@ public static class TexturePackageImporter
         TextureLibraryCompiler.ValidateInventory(dataDirectory);
         output = Path.GetFullPath(output); Directory.CreateDirectory(output);
         string manifest = Path.Combine(output, "textures.json");
-        bool reusable = false;
-        if (File.Exists(manifest))
+        TexturePackage? previous = null;
+        if (!force && File.Exists(manifest))
         {
-            using var header = JsonDocument.Parse(await File.ReadAllTextAsync(manifest, token));
-            reusable = header.RootElement.GetProperty("schemaVersion").GetInt32() == TexturePackage.CurrentSchemaVersion &&
-                header.RootElement.TryGetProperty("conversionVersion", out var version) && version.GetInt32() == ConversionVersion;
+            await using var stream = File.OpenRead(manifest);
+            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: token);
+            var header = document.RootElement;
+            if (header.GetProperty("schemaVersion").GetInt32() == TexturePackage.CurrentSchemaVersion &&
+                header.TryGetProperty("conversionVersion", out var version) && version.GetInt32() == ConversionVersion)
+                previous = TexturePackageFiles.Read(header);
         }
-        if (reusable && !force)
+        if (previous is not null)
         {
-            var previous = await TexturePackageFiles.LoadAsync(output, token);
             bool unchanged = await SourcesMatchAsync(dataDirectory, previous.Sources, token);
             if (unchanged)
             {
-                await ImageAssetFiles.VerifyAsync(output, previous.Assets, token);
-                progress?.Invoke("Reusing verified independent texture package."); return previous;
+                RequireImageFiles(output, previous.Assets, token);
+                progress?.Invoke("Reusing unchanged independent texture package; image files present."); return previous;
             }
         }
-        List<TextureSourceStamp> sources = [];
+        Dictionary<string, TextureSourceStamp> sources = new(StringComparer.OrdinalIgnoreCase);
         byte[] Read(string path)
         {
             token.ThrowIfCancellationRequested(); var bytes = source.Read(Path.GetFileName(path));
             var info = new FileInfo(path);
-            sources.Add(new(info.Name, bytes.Length, Convert.ToHexString(SHA256.HashData(bytes)))); return bytes;
+            if (!sources.ContainsKey(info.Name)) sources.Add(info.Name, new(info.Name, bytes.Length, Convert.ToHexString(SHA256.HashData(bytes)))); return bytes;
         }
-        string staging = Path.Combine(output, ".sources");
-        int sourceNumber = 0;
-        Dictionary<string, ImageAsset> sourceImages = new(StringComparer.Ordinal);
-        ImageAsset Save(string id, string path, PngImage image)
-        {
-            if (sourceImages.TryGetValue(path, out var existing)) return existing with { Id = id };
-            string relative = $".sources/{sourceNumber++}.png";
-            string target = PackageFiles.Resolve(output, relative); Directory.CreateDirectory(staging);
-            using (var stream = File.Create(target))
-                image.Encode(stream, System.IO.Compression.CompressionLevel.Fastest);
-            var asset = new ImageAsset(id, relative, image.Width, image.Height, image.Channels);
-            sourceImages.Add(path, asset); return asset;
-        }
+        var sourceImages = new TextureImageSources(token);
+        ImageAsset Save(string id, string path, TextureSourceImage image) => sourceImages.Add(id, path, image);
         byte[] exe = Read(sourceExe);
         var map = MapResourceCompiler.Compile(exe, dataDirectory, Read, Save, progress, token);
         var skin = InterfaceSkinCompiler.Compile(exe, dataDirectory, Read, Save);
         var portraits = PortraitCompiler.Compile(dataDirectory, Read, Save);
         var library = TextureLibraryCompiler.Compile(exe, dataDirectory, Read, Save, progress, token);
         var package = new TexturePackage(TexturePackage.CurrentSchemaVersion, ConversionVersion, San9PkTc101Detector.SourceBuildId,
-            sources.Distinct().OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), map, skin, library, portraits);
-        using var publication = new TexturePublication();
-        package = TexturePackagePacking.Pack(output, package, "images", token, publication.Write);
-        await PublishAsync(output, package, token, publication);
+            sources.Values.OrderBy(s => s.Name, StringComparer.Ordinal).ToArray(), map, skin, library, portraits);
+        package = TexturePackagePacking.Pack(output, package, "images", token, TexturePublication.Write, sourceImages.Load);
+        Publish(output, package, token);
         progress?.Invoke($"Independent textures: {package.Assets.Count()} logical images, {package.Assets.Select(a => a.File).Distinct().Count()} physical files.");
         return package;
     }
@@ -100,17 +90,25 @@ public static class TexturePackageImporter
         return Convert.ToHexString(await SHA256.HashDataAsync(stream, token));
     }
 
-    internal static async Task PublishAsync(string output, TexturePackage package, CancellationToken token, TexturePublication publication)
+    internal static void RequireImageFiles(string output, IEnumerable<ImageAsset> assets, CancellationToken token)
+    {
+        foreach (string path in assets.Select(a => a.Path).Distinct(StringComparer.Ordinal))
+        {
+            token.ThrowIfCancellationRequested();
+            var file = new FileInfo(PackageFiles.Resolve(output, path));
+            if (!file.Exists || file.Length == 0) throw new InvalidDataException($"Missing or empty texture file: {path}.");
+        }
+    }
+
+    internal static void Publish(string output, TexturePackage package, CancellationToken token)
     {
         string manifest = Path.Combine(output, "textures.json");
         string staging = Path.Combine(output, ".sources");
         package.Validate();
-        await ImageAssetFiles.VerifyAsync(output, package.Assets, token);
+        RequireImageFiles(output, package.Assets, token);
         token.ThrowIfCancellationRequested();
-        publication.Write(manifest, System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(package, PackageFiles.JsonOptions)));
-        publication.Commit();
-        publication.Dispose();
-        // Only this builder owns these outputs. Cleanup follows a successfully published manifest.
+        TexturePublication.Write(manifest, System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(package, PackageFiles.JsonOptions)));
+        // Retire unused outputs only after the new manifest is published.
         var retained = package.Assets.Select(a => PackageFiles.Resolve(output, a.Path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (string directory in new[] { PackageFiles.Resolve(output, "images"), staging })
         {

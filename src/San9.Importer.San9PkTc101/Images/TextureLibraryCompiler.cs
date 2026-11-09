@@ -74,7 +74,7 @@ public static class TextureLibraryCompiler
     }
 
     public static TextureLibrary Compile(byte[] exe, string dataDirectory, Func<string, byte[]> read,
-        Func<string, string, PngImage, ImageAsset> save, Action<string>? progress, CancellationToken token, string? archiveId = null)
+        Func<string, string, TextureSourceImage, ImageAsset> save, Action<string>? progress, CancellationToken token, string? archiveId = null)
     {
         if (archiveId is not null && !Recipes.Keys.Any(name => name.ToLowerInvariant() == archiveId))
             throw new ArgumentException($"Unknown texture archive: {archiveId}.");
@@ -139,7 +139,7 @@ public static class TextureLibraryCompiler
                         save($"library/{id}/variant-{b.Palette:D3}/{b.Image:D4}",
                             TextureSourcePath.Image(name, b.Image, b.Palette, !opaque, paletteAlpha, recipe.Palette,
                                 transform: openingLayer ? "opening-framed-island" : null),
-                            openingLayer ? layer! : Decode(name, b.Image, images[b.Image], palettes[b.Palette], opaque)));
+                            openingLayer ? (TextureSourceImage)layer! : TextureSourceImage.Indexed(images[b.Image], palettes[b.Palette], !opaque, paletteAlpha)));
                 }).ToArray();
                 variants.AddRange(converted);
             }

@@ -2,6 +2,7 @@ using San9.Content.Images;
 using San9.Content.Interface;
 using San9.Content.Packages;
 using San9.Importer.San9PkTc101.Packages;
+using San9.Importer.San9PkTc101.Images;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -12,24 +13,76 @@ public sealed class TextureRebuildTests : IDisposable
     private readonly string root = Path.Combine(Path.GetTempPath(), "san9-rebuild-" + Guid.NewGuid().ToString("N"));
 
     [Fact]
-    public async Task FailedPublicationRestoresFixedPathImagesAndRemovesNewImages()
+    public void PixelRecipesAreDeduplicatedAndDecodedOnlyAsTheirPagesAreWritten()
+    {
+        int decoded = 0, written = 0;
+        var pixels = new TextureImageSources(default);
+        var assets = Enumerable.Range(0, 3).Select(index => pixels.Add($"image-{index}", $"source-{index}",
+            new(1200, 1100, 3, () =>
+            {
+                Assert.Equal(index, written);
+                decoded++;
+                return new(1200, 1100, 3, Enumerable.Repeat((byte)(index+1),1200*1100*3).ToArray());
+            }))).ToArray();
+        var alias = pixels.Add("alias", "source-0", new(1200, 1100, 3,
+            () => throw new InvalidOperationException("Aliased source was decoded again.")));
+        Assert.Equal(assets[0].File, alias.File);
+        Assert.Equal(0, decoded);
+        var output = TextureAtlasCompiler.Compile(root, assets.Select(a => new TextureAtlasCompiler.Source(a,"group")),
+            "images", write: (path, bytes) => { File.WriteAllBytes(path, bytes); written++; }, decode: pixels.Load);
+        Assert.Equal(3, decoded);
+        Assert.Equal(3, written);
+        Assert.False(Directory.Exists(Path.Combine(root,".sources")));
+        foreach (var (asset, index) in output.Select((asset,index) => (asset,index)))
+        {
+            var image = ImageAssetFiles.Load(root,[asset])[asset.Id];
+            Assert.All(image.Pixels, pixel => Assert.Equal((byte)(index+1), pixel));
+        }
+    }
+
+    [Fact]
+    public void FailedDeferredDecodeKeepsCompletedPagesWithoutBackups()
+    {
+        var pixels = new TextureImageSources(default);
+        var first = pixels.Add("a", "a", new PngImage(1,1,3,[1,2,3]));
+        var second = pixels.Add("b", "b", new(1,1,3, () => throw new InvalidDataException("Broken source.")));
+        Assert.Throws<InvalidDataException>(() => TextureAtlasCompiler.Compile(root,
+            new[] { first, second }.Select(a => new TextureAtlasCompiler.Source(a,null)), "images",
+            write: TexturePublication.Write, decode: pixels.Load));
+        Assert.Single(Directory.GetFiles(root,"*.png",SearchOption.AllDirectories));
+        Assert.Empty(Directory.GetFiles(root,"*.previous",SearchOption.AllDirectories));
+        Assert.Empty(Directory.GetFiles(root,"*.pending",SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public void ReuseChecksFilePresenceWithoutDecodingAndRejectsMissingOrEmptyFiles()
+    {
+        Directory.CreateDirectory(root);
+        var asset = new ImageAsset("image","image.png",1,1,3);
+        File.WriteAllBytes(Path.Combine(root,"image.png"), [1,2,3]);
+        TexturePackageImporter.RequireImageFiles(root,[asset],default);
+        File.WriteAllBytes(Path.Combine(root,"image.png"), []);
+        Assert.Throws<InvalidDataException>(() => TexturePackageImporter.RequireImageFiles(root,[asset],default));
+        File.Delete(Path.Combine(root,"image.png"));
+        Assert.Throws<InvalidDataException>(() => TexturePackageImporter.RequireImageFiles(root,[asset],default));
+    }
+
+    [Fact]
+    public void FailedPublicationKeepsCompletedImagesAndDoesNotPublishAnInvalidManifest()
     {
         Directory.CreateDirectory(root);
         string image = Path.Combine(root, "image.png"), added = Path.Combine(root, "added.png");
         string manifest = Path.Combine(root, "textures.json");
         File.WriteAllBytes(image, [1, 2, 3]);
         File.WriteAllText(manifest, "previous manifest");
-        using (var publication = new TexturePublication())
-        {
-            publication.Write(image, [4, 5, 6]);
-            publication.Write(added, [7, 8, 9]);
-            var invalid = new TexturePackage(0, 0, "test", [],
-                new([], [], [], [], [], new int[288], new int[16], [], new byte[32]),
-                new(InterfaceSkin.CurrentSchemaVersion, [], [], [], []), new(3, []), []);
-            await Assert.ThrowsAsync<InvalidDataException>(() => TexturePackageImporter.PublishAsync(root, invalid, default, publication));
-        }
-        Assert.Equal(new byte[] { 1, 2, 3 }, File.ReadAllBytes(image));
-        Assert.False(File.Exists(added));
+        TexturePublication.Write(image, [4, 5, 6]);
+        TexturePublication.Write(added, [7, 8, 9]);
+        var invalid = new TexturePackage(0, 0, "test", [],
+            new([], [], [], [], [], new int[288], new int[16], [], new byte[32]),
+            new(InterfaceSkin.CurrentSchemaVersion, [], [], [], []), new(3, []), []);
+        Assert.Throws<InvalidDataException>(() => TexturePackageImporter.Publish(root, invalid, default));
+        Assert.Equal(new byte[] { 4, 5, 6 }, File.ReadAllBytes(image));
+        Assert.True(File.Exists(added));
         Assert.Equal("previous manifest", File.ReadAllText(manifest));
         Assert.Empty(Directory.GetFiles(root, "*.previous"));
         Assert.Empty(Directory.GetFiles(root, "*.pending"));
@@ -111,7 +164,7 @@ public sealed class TextureRebuildTests : IDisposable
             new([], [], [], [], [], new int[288], new int[16], [], new byte[32]),
             new(InterfaceSkin.CurrentSchemaVersion, [replacement], new() { ["test"] = replacement.Id }, [], []),
             new(3, [new("original", "interface", [new(0, 0, first), new(1, 0, second)])]), []);
-        var result = TexturePackagePacking.Pack(root, package, "images/rebuilt/skin", default);
+        var result = TexturePackagePacking.Pack(root, package, "images/rebuilt/skin/first", default);
         Assert.Equal(new[] { first, second }, result.Library.Assets);
         Assert.Equal(oldBytes, File.ReadAllBytes(Path.Combine(root, "images", "shared.png")));
         var rebuilt = Assert.Single(result.Skin.Assets);
@@ -119,16 +172,16 @@ public sealed class TextureRebuildTests : IDisposable
         Assert.Equal(new byte[] { 90, 80, 70 }, ImageAssetFiles.Load(root, [rebuilt])[rebuilt.Id].Pixels);
         // A new invocation must read newly decoded pixels even when the source filename is unchanged.
         File.WriteAllBytes(Path.Combine(root, ".sources", "0.png"), new PngImage(1, 1, 3, [1, 2, 3]).Encode());
-        var again = TexturePackagePacking.Pack(root, package, "images/rebuilt/skin", default);
+        var again = TexturePackagePacking.Pack(root, package, "images/rebuilt/skin/second", default);
         Assert.Equal(new byte[] { 1, 2, 3 }, ImageAssetFiles.Load(root, again.Skin.Assets)[rebuilt.Id].Pixels);
-        Assert.Equal(rebuilt.Path, Assert.Single(again.Skin.Assets).Path);
-        Assert.Equal(new byte[] { 1, 2, 3 }, ImageAssetFiles.Load(root, [rebuilt])[rebuilt.Id].Pixels);
+        Assert.NotEqual(rebuilt.Path, Assert.Single(again.Skin.Assets).Path);
+        Assert.Equal(new byte[] { 90, 80, 70 }, ImageAssetFiles.Load(root, [rebuilt])[rebuilt.Id].Pixels);
         Assert.Equal(oldBytes, File.ReadAllBytes(Path.Combine(root, "images", "shared.png")));
         var retained = Assert.Single(again.Skin.Assets) with { Id = "library/retained" };
         var next = package with { Library = package.Library with { Archives = [.. package.Library.Archives,
             new("retained", "interface", [new(0, 0, retained)])] } };
         File.WriteAllBytes(Path.Combine(root, ".sources", "0.png"), new PngImage(1, 1, 3, [4, 5, 6]).Encode());
-        var third = TexturePackagePacking.Pack(root, next, "images/rebuilt/skin", default);
+        var third = TexturePackagePacking.Pack(root, next, "images/rebuilt/skin/third", default);
         Assert.Equal(new byte[] { 4, 5, 6 }, ImageAssetFiles.Load(root, third.Skin.Assets)[rebuilt.Id].Pixels);
         Assert.Equal(new byte[] { 1, 2, 3 }, ImageAssetFiles.Load(root, third.Library.Assets)[retained.Id].Pixels);
     }

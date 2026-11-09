@@ -28,7 +28,7 @@ public static class MapAnimationCompiler
 
     public static MapAnimations Compile(byte[] exe, string dataDir,
         byte[] waterPalette, Func<string, byte[]> read,
-        Func<string, string, PngImage, ImageAsset> save, List<ImageAsset> assets)
+        Func<string, string, TextureSourceImage, ImageAsset> save, List<ImageAsset> assets)
     {
         int Int(int offset) => BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(offset, 4));
         byte[] Read(string name) => read(Path.Combine(dataDir, name + ".s9"));
@@ -41,14 +41,15 @@ public static class MapAnimationCompiler
             for (int i = 0; i < count; i++) palettes[Int(start + i * 8) & 65535] = Int(start + i * 8 + 4);
         List<MapAnimationClip> clips = []; List<MapAnimatedSprite> water = [];
         var clipIds = new HashSet<string>();
-        void Clip(string id, int count, int milliseconds, Func<int, PngImage> frame, Func<int, PngImage>? autumnWinterFrame = null, MapBlendMode blend = MapBlendMode.Alpha)
+        void Clip(string id, int count, int milliseconds, Func<int, PngImage> frame, Func<int, PngImage>? autumnWinterFrame = null, int width = 68, int height = 52, MapBlendMode blend = MapBlendMode.Alpha)
         {
             if (!clipIds.Add(id)) return;
             string[] frames = new string[count];
             for (int i = 0; i < count; i++)
             {
                 frames[i] = $"{id}-{i}";
-                assets.Add(save(frames[i], $"animations/{id}/{i}.png", frame(i)));
+                int index = i;
+                assets.Add(save(frames[i], $"animations/{id}/{i}.png", new TextureSourceImage(width, height, 4, () => frame(index))));
             }
             Dictionary<string, string[]> seasonFrames = [];
             if (autumnWinterFrame is not null)
@@ -57,7 +58,8 @@ public static class MapAnimationCompiler
                 for (int i = 0; i < count; i++)
                 {
                     autumnWinter[i] = $"{id}-autumn-winter-{i}";
-                    assets.Add(save(autumnWinter[i], $"animations/{id}/autumn-winter-{i}.png", autumnWinterFrame(i)));
+                    int index = i;
+                    assets.Add(save(autumnWinter[i], $"animations/{id}/autumn-winter-{i}.png", new TextureSourceImage(width, height, 4, () => autumnWinterFrame(index))));
                 }
                 seasonFrames = new() { ["spring"] = frames, ["summer"] = frames, ["autumn"] = autumnWinter, ["winter"] = autumnWinter };
             }
@@ -73,14 +75,14 @@ public static class MapAnimationCompiler
                 for (int i = 0; i < rgba.Pixels.Length; i += 4)
                     for (int c = 0; c < 3; c++) rgba.Pixels[i + c] = (byte)((rgba.Pixels[i + c] * 179 + 128) / 256);
                 return rgba;
-            }, blend: MapBlendMode.Additive);
+            }, width: 64, height: 32, blend: MapBlendMode.Additive);
         }
         for (int direction = 0; direction < 8; direction++)
         {
             int resource = 5384 + direction;
             var image = soldierArchive.Images[resource - 5000];
             if (image.Width != 288 || image.Height != 36 || palettes[resource] != 11) throw new InvalidDataException("Unexpected soldier resource.");
-            Clip($"soldier-{direction}", 8, 100, f => IndexedImageArchive.Decode(IndexedImageArchive.Frame(image, 8, 1, f, 0), soldierArchive.Palettes[11], true, false));
+            Clip($"soldier-{direction}", 8, 100, f => IndexedImageArchive.Decode(IndexedImageArchive.Frame(image, 8, 1, f, 0), soldierArchive.Palettes[11], true, false), width: 36, height: 36);
         }
         // Export independent layers, not the scenario's color/glyph combinations.
         // Runtime composition avoids a 51 x 187 cross-product of baked flag textures.

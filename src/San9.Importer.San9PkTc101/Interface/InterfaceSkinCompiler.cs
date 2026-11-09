@@ -7,7 +7,7 @@ namespace San9.Importer.San9PkTc101.Interface;
 
 public static partial class InterfaceSkinCompiler
 {
-    public static InterfaceSkin Compile(byte[] exe, string dataDirectory, Func<string, byte[]> read, Func<string,string,PngImage,ImageAsset> save)
+    public static InterfaceSkin Compile(byte[] exe, string dataDirectory, Func<string, byte[]> read, Func<string, string, TextureSourceImage, ImageAsset> save)
     {
         using var pe = new System.Reflection.PortableExecutable.PEReader(new MemoryStream(exe));
         List<ImageAsset> assets = [];
@@ -216,7 +216,7 @@ public static partial class InterfaceSkinCompiler
                 byte[] pixels = new byte[76 * 68 * 4];
                 for (int row = 0; row < 68; row++)
                     source.Pixels.AsSpan(row * 40 * 4, 40 * 4).CopyTo(pixels.AsSpan((row * 76 + variant * 36) * 4));
-                assets.Add(save("ui-" + role, $"ui/{role}.png", new(76, 68, 4, pixels)));
+                assets.Add(save("ui-" + role, $"ui/{role}.png", new PngImage(76, 68, 4, pixels)));
                 ui.Add(role, "ui-" + role);
             }
         }

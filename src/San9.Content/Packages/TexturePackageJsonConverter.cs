@@ -13,11 +13,16 @@ public sealed class TexturePackageJsonConverter : JsonConverter<TexturePackage>
     public override TexturePackage Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
     {
         using var document = JsonDocument.ParseValue(ref reader);
-        if (!document.RootElement.TryGetProperty("schemaVersion", out var version) ||
+        return ReadManifest(document.RootElement, options);
+    }
+
+    internal static TexturePackage ReadManifest(JsonElement document, JsonSerializerOptions options)
+    {
+        if (!document.TryGetProperty("schemaVersion", out var version) ||
             !version.TryGetInt32(out int number) || number != TexturePackage.CurrentSchemaVersion)
             throw new InvalidDataException("Unsupported texture package version; rebuild the package.");
-        var table = ImageFileTable.Read(document.RootElement, options);
-        var manifest = document.RootElement.Deserialize<Manifest>(table.Options(options))
+        var table = ImageFileTable.Read(document, options);
+        var manifest = document.Deserialize<Manifest>(table.Options(options))
             ?? throw new JsonException("Empty texture package.");
         ContentStructure.Validate(manifest);
         return new(manifest.SchemaVersion, manifest.ConversionVersion, manifest.SourceBuild, manifest.Sources,

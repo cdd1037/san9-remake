@@ -20,8 +20,9 @@ public sealed class DuelTextureCompilerTests
             "P_Ikki.s9" => palettes,
             _ => throw new InvalidOperationException($"Unexpected source: {path}")
         };
-        ImageAsset Save(string id, string path, PngImage image)
+        ImageAsset Save(string id, string path, TextureSourceImage source)
         {
+            var image = source.Decode();
             decoded.Add(id, image);
             return new(id, path, image.Width, image.Height, image.Channels);
         }

@@ -103,7 +103,7 @@ public sealed class SlotSaveStore(string directory)
             catch (SaveException error) when (error.InnerException is FileNotFoundException or DirectoryNotFoundException) { }
             catch (SaveException error) { entries.Add(new(slot, new(null, error))); }
         }
-        return entries.OrderByDescending(e => e.Listing.Summary?.SavedAt).ThenBy(e => e.Slot).ToArray();
+        return entries;
     }
     private static void WriteFile(string path, byte[] bytes)
     {

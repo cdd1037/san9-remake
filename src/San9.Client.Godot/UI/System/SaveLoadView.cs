@@ -21,6 +21,8 @@ public partial class SaveLoadView : ModalView
     public override void _Ready()
     {
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
+        // The modal's initial keyboard focus belongs to the window, not its first action.
+        FocusMode = FocusModeEnum.All;
         LabelAt(State.Mode == SaveLoadMode.Save ? "储存" : "载入", new(56, 28), new(48, 40), 24);
         Button("help", "", new(948, 4), new(40, 32), ShowHelp);
         Button("close", "", new(980, 24), new(40, 32), Closed);
@@ -63,14 +65,16 @@ public partial class SaveLoadView : ModalView
                     State.Mode == SaveLoadMode.Load && !State.Occupied(slot) };
             row.Pressed += () => SelectSlot(slot, row); _rows.AddChild(row);
             string edge = State.Mode == SaveLoadMode.Save ? "5828c8" : "005028";
-            void RowLabel(string text, Vector2 at, Vector2 size, int fontSize, string outline, bool fixedColor = false,
+            bool latest = State.IsAutoSavePage && slot - State.SlotCount == State.LatestAutoSaveSlot;
+            void RowLabel(string text, Vector2 at, Vector2 size, int fontSize, string outline, Color? fixedColor = null,
                 HorizontalAlignment alignment = HorizontalAlignment.Left)
             {
                 var label = LabelAt(text, at, size, fontSize, content);
                 label.HorizontalAlignment = alignment;
                 row.StyleContentLabel(label, new(outline), fixedColor);
             }
-            RowLabel(State.IsAutoSavePage ? $"A{slot - State.SlotCount}" : slot.ToString(), new(24, 16), new(56, 32), 24, edge);
+            RowLabel(State.IsAutoSavePage ? $"A{slot - State.SlotCount}" : slot.ToString(), new(24, 16), new(56, 32), 24, edge,
+                fixedColor: latest ? new Color("ffd86b") : null);
             if (entry is null)
             {
                 if (State.Error(slot) is { } error) LabelAt(error, new(176, 24), new(650, 32), 24, content, new("f06850"));
@@ -97,7 +101,7 @@ public partial class SaveLoadView : ModalView
                 alignment: HorizontalAlignment.Center);
             RowLabel(entry.StartDate, new(176, 60), new(112, 32), 24, edge);
             RowLabel(entry.Scenario, new(296, 64), new(256, 24), 16, edge);
-            RowLabel("备注", new(568, 64), new(64, 24), 16, "800090", fixedColor: true);
+            RowLabel("备注", new(568, 64), new(64, 24), 16, "800090", fixedColor: new("d880f8"));
             RowLabel(entry.Note, new(648, 64), new(280, 24), 16, "800090");
         }
         for (int i = 0; i < _pages.Count; i++) _pages[i].Selected = i == State.Page;
@@ -128,7 +132,7 @@ public partial class SaveLoadView : ModalView
         _notice.SetNotice(message);
         _notice.Show(); _notice.FocusDefaultButton();
     }
-    private void ShowHelp() => ShowNotice(State.Mode == SaveLoadMode.Save ? "选择栏位，输入备注后确认储存。\n已有资料的栏位将被覆盖。自动页仅供载入。" : "选择已有资料的栏位后确认载入。\n载入将替换当前游戏进度，空栏位不可选择。\n自动页保留最近十次旬开始存档，每页五条，按新到旧排列。");
+    private void ShowHelp() => ShowNotice(State.Mode == SaveLoadMode.Save ? "选择栏位，输入备注后确认储存。\n已有资料的栏位将被覆盖。自动页仅供载入。" : "选择已有资料的栏位后确认载入。\n载入将替换当前游戏进度，空栏位不可选择。\n自动档按游戏经过旬数循环覆盖A1～A10，每页五槽，位置固定。\n金色编号表示保存时间最近的自动档。");
     public void Back()
     {
         if (_notice.Visible) _notice.Hide();

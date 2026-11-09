@@ -330,10 +330,10 @@ public sealed class SlotSaveStoreTests : IDisposable
         }
         await Task.WhenAll(writes);
         var entries = new SlotSaveStore(_directory).ReadAutoSaveCatalog();
-        Assert.Equal(new[] { 2, 1, 10, 9, 8, 7, 6, 5, 4, 3 }, entries.Select(e => e.Slot));
-        Assert.Equal(Enumerable.Range(2, 10).Reverse().Select(i => $"旬{i}"), entries.Select(e => e.Listing.Summary!.Note));
+        Assert.Equal(Enumerable.Range(1, 10), entries.Select(e => e.Slot));
+        Assert.Equal(new[] { 10, 11 }.Concat(Enumerable.Range(2, 8)).Select(i => $"旬{i}"), entries.Select(e => e.Listing.Summary!.Note));
         Assert.Equal(10, Directory.GetFiles(_directory, "auto-*.save.json").Length);
-        Assert.Equal(110, store.LoadAutoSave(entries[0].Slot, Definition).Snapshot.Clock.DayNumber - new GameClock(190, 1, 1).DayNumber);
+        Assert.Equal(110, store.LoadAutoSave(2, Definition).Snapshot.Clock.DayNumber - new GameClock(190, 1, 1).DayNumber);
     }
 
     [Theory]

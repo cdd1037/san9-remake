@@ -96,14 +96,18 @@ public sealed class SaveLoadBrowserTests
         Assert.False(browser.Select(46));
         Assert.True(browser.Select(41));
         var request = browser.Confirm("")!;
-        Assert.Equal(selected, request.AutoSaveSlot);
+        Assert.Equal(1, request.AutoSaveSlot);
+        Assert.NotNull(browser.Error(41));
+        Assert.True(browser.Select(42));
+        Assert.Equal(selected, browser.Confirm("")!.AutoSaveSlot);
         Assert.True(browser.ChangePage(9));
         Assert.True(browser.IsAutoSavePage);
         Assert.Equal(46, browser.SlotAt(0));
         Assert.Equal(50, browser.SlotAt(4));
         Assert.False(browser.Select(41));
         Assert.False(browser.Select(47));
-        Assert.True(browser.Select(46));
+        Assert.False(browser.Select(46));
+        Assert.True(browser.Select(50));
         Assert.False(browser.ChangePage(8));
         Assert.Equal(10, browser.Confirm("")!.AutoSaveSlot);
         browser.Close();
@@ -120,6 +124,35 @@ public sealed class SaveLoadBrowserTests
         Assert.True(browser.ChangePage(7));
         Assert.True(browser.Select(40));
         Assert.Null(browser.Confirm("手动档")!.AutoSaveSlot);
+    }
+
+    [Fact]
+    public void AutomaticSlotsKeepGapsAndMarkTheMostRecentlyCapturedSaveAcrossPages()
+    {
+        var browser = new SaveLoadBrowser();
+        var latest = Saved with { SavedAt = Saved.SavedAt.AddMinutes(1), CurrentDate = "190年1月上旬" };
+        browser.SetAutoSaves([new(10, new(Saved, null)), new(2, new(latest, null))]);
+        browser.Open(SaveLoadMode.Load, browser.FirstAutoSavePage);
+        Assert.Equal(2, browser.LatestAutoSaveSlot);
+        Assert.False(browser.Occupied(41));
+        Assert.False(browser.Select(41));
+        Assert.Same(latest, browser.Entry(42));
+        Assert.True(browser.Select(42));
+        Assert.Equal(2, browser.Confirm("")!.AutoSaveSlot);
+        Assert.True(browser.ChangePage(browser.FirstAutoSavePage + 1));
+        Assert.Same(Saved, browser.Entry(50));
+        Assert.True(browser.Select(50));
+        Assert.Equal(10, browser.Confirm("")!.AutoSaveSlot);
+
+        browser.SetAutoSaves([new(10, new(latest, null)), new(2, new(latest, null))]);
+        Assert.Equal(2, browser.LatestAutoSaveSlot);
+        browser.SetAutoSaves([new(10, new(latest, null))]);
+        Assert.Equal(10, browser.LatestAutoSaveSlot);
+        Assert.False(browser.Occupied(42));
+        browser.SetAutoSaves([new(1, new(null, new SaveException(SaveFailure.InvalidFormat, "broken")))]);
+        Assert.Null(browser.LatestAutoSaveSlot);
+        browser.SetAutoSaves([]);
+        Assert.Null(browser.LatestAutoSaveSlot);
     }
 
 }

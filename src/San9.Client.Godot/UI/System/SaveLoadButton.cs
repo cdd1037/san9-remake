@@ -12,8 +12,8 @@ public partial class SaveLoadButton : BaseButton
     public bool Selected { get; set; }
     public Color TextColor { get; init; } = new("f0f0f0");
     public Control? Content { get; init; }
-    private readonly List<(Label Label, Color Outline, bool FixedColor)> _contentLabels = [];
-    public void StyleContentLabel(Label label, Color outline, bool fixedColor = false)
+    private readonly List<(Label Label, Color Outline, Color? FixedColor)> _contentLabels = [];
+    public void StyleContentLabel(Label label, Color outline, Color? fixedColor = null)
     {
         _contentLabels.Add((label, outline, fixedColor));
         _previous = null;
@@ -49,7 +49,7 @@ public partial class SaveLoadButton : BaseButton
         if (Content is not null) Content.Position = _label.Position;
         foreach (var (label, outline, fixedColor) in _contentLabels)
             _text.Apply(label, new(label.LabelSettings.FontSize,
-                fixedColor ? new Color("d880f8") : IsHovered() || HasFocus() || pressed || Selected ? new("f0f0f0") : new("d8d8d8"),
+                fixedColor ?? (highlighted || Selected ? new Color("f0f0f0") : new Color("d8d8d8")),
                 GameTextEffect.Outline, outline));
         QueueRedraw();
     }

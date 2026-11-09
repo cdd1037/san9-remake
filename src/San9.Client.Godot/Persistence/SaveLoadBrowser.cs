@@ -14,17 +14,23 @@ public sealed class SaveLoadBrowser
     public const int PageSize = 5;
     private Dictionary<int, SaveSlotListing> _entries = [];
     public int SlotCount { get; }
-    private IReadOnlyList<AutoSaveEntry> _autoSaves = [];
+    private Dictionary<int, SaveSlotListing> _autoSaves = [];
+    public int? LatestAutoSaveSlot { get; private set; }
     public int FirstAutoSavePage => (SlotCount + PageSize - 1) / PageSize;
     public int PageCount => FirstAutoSavePage + (SlotSaveStore.AutoSaveCount + PageSize - 1) / PageSize;
     public bool IsAutoSavePage => Page >= FirstAutoSavePage;
     public int SlotAt(int row) => IsAutoSavePage ? SlotCount + (Page - FirstAutoSavePage) * PageSize + row + 1 : Page * PageSize + row + 1;
     private SaveSlotListing? Listing(int slot) => slot > SlotCount
-        ? _autoSaves.ElementAtOrDefault(slot - SlotCount - 1)?.Listing : _entries.GetValueOrDefault(slot);
+        ? _autoSaves.GetValueOrDefault(slot - SlotCount) : _entries.GetValueOrDefault(slot);
     public void SetAutoSaves(IReadOnlyList<AutoSaveEntry> entries)
     {
         if (entries.Count > SlotSaveStore.AutoSaveCount) throw new ArgumentOutOfRangeException(nameof(entries));
-        _autoSaves = entries.ToArray();
+        if (entries.Any(entry => entry.Slot < 1 || entry.Slot > SlotSaveStore.AutoSaveCount))
+            throw new ArgumentOutOfRangeException(nameof(entries));
+        _autoSaves = entries.ToDictionary(entry => entry.Slot, entry => entry.Listing);
+        LatestAutoSaveSlot = _autoSaves.Where(entry => entry.Value.Summary is not null)
+            .OrderByDescending(entry => entry.Value.Summary!.SavedAt).ThenBy(entry => entry.Key)
+            .Select(entry => (int?)entry.Key).FirstOrDefault();
         PendingSlot = null;
     }
     public int Page { get; private set; }
@@ -74,6 +80,6 @@ public sealed class SaveLoadBrowser
         if (!IsOpen || PendingSlot is not int slot) return null;
         PendingSlot = null;
         return new(Mode, slot, Mode == SaveLoadMode.Save ? note : Entry(slot)?.Note ?? "",
-            slot > SlotCount ? _autoSaves[slot - SlotCount - 1].Slot : null);
+            slot > SlotCount ? slot - SlotCount : null);
     }
 }

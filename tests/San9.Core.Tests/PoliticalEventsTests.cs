@@ -218,7 +218,7 @@ public sealed class PoliticalEventsTests
     {
         var state = World(5, true); var world = Due(state);
         world.SetSimulation(world.Simulation with { Controls = [new("ai", 1, ControllerKind.Automatic), new("player", 2, ControllerKind.Player)] });
-        world.AddCorps(new(50, 2, 22, new(0, 0)) { ControlMode = CorpsControlMode.Direct });
+        world.AddCorps(new(50, 2, 22, new(0, 0)));
         world.Replace(world.Settlements[3] with { CorpsId = 50 });
         List<DomainEvent> events = []; world.MaintainLeadership(events);
         PoliticalEvents.Begin(world, Rules(), events);

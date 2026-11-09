@@ -608,10 +608,6 @@ public sealed partial class SimulationEngine
                     var orderRejection = MilitaryMovement.Order(mutation, order, _rules.Military, events);
                     if (orderRejection != CommandRejection.None) return Reject(orderRejection);
                     break;
-                case SetCorpsControlCommand control:
-                    var controlRejection = CorpsControl.Set(mutation, control, events);
-                    if (controlRejection != CommandRejection.None) return Reject(controlRejection);
-                    break;
                 case SetCorpsDelegationCommand delegation:
                     var delegationRejection = CorpsDelegations.Set(mutation, delegation, _rules.Military, events);
                     if (delegationRejection != CommandRejection.None) return Reject(delegationRejection);
@@ -759,7 +755,7 @@ public sealed partial class SimulationEngine
         if (PendingResponseCoordinator.IsResponse(command)) return CommandRejection.InvalidDecision;
         if (sim.ActiveControl >= sim.Controls.Length) return CommandRejection.NotActiveController;
         var seat = sim.Controls[sim.ActiveControl];
-        return CorpsControl.Authorize(Snapshot, seat, context, command);
+        return CorpsControl.Authorize(Snapshot, seat, context, command, Companion);
     }
 
     private CommandExecutionResult Reject(CommandRejection rejection, DevelopmentOutcome? development = null) =>

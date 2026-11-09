@@ -265,7 +265,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
 
     private static bool Direct(WorldMutation world, PersistentTask task) =>
         world.Simulation.Controls.Any(c => c.ForceId == task.ForceId && c.Kind == ControllerKind.Player) &&
-        (PersonnelLocations.TaskHome(world, task).CorpsId is not int corpsId || world.Corps[corpsId].ControlMode.AllowsPlayerOrders());
+        (PersonnelLocations.TaskHome(world, task).CorpsId is not int corpsId || CorpsControl.PlayerOperates(world.Corps[corpsId], world.Companion));
 
     internal override int? DecisionRecipient(WorldMutation world, PersistentTask task) =>
         task.SearchEncounter is not null ? task.ForceId : null;

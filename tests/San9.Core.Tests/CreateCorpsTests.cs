@@ -10,7 +10,7 @@ public sealed class CreateCorpsTests
     public void ExplicitGovernorUsesTheSelectedEligiblePersonInsteadOfAutomaticPrecedence()
     {
         var engine = Engine();
-        var result = engine.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [2], 100, 200, new GeneralDelegation(), CorpsControlMode.Automatic)
+        var result = engine.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [2], 100, 200, new GeneralDelegation())
             { GovernorId = 2 });
         Assert.True(result.Submission.Accepted);
         Assert.Equal(2, result.Snapshot.Corps.Single(c => !c.IsRoot).LeaderId);
@@ -25,7 +25,7 @@ public sealed class CreateCorpsTests
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, new PersonnelRulebook(
             [new(1, new(0, 0)), new(2, new(100, 100)), new(20, new(110, 110))],
             new Dictionary<int, int> { [1] = 1, [2] = 2, [20] = 2 }));
-        var result = engine.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [2], 100, 200, new GeneralDelegation(), CorpsControlMode.Automatic)
+        var result = engine.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [2], 100, 200, new GeneralDelegation())
             { GovernorId = 2 });
         Assert.True(result.Submission.Accepted);
         int child = result.Snapshot.Corps.Single(c => !c.IsRoot).Id;
@@ -41,7 +41,7 @@ public sealed class CreateCorpsTests
     {
         var engine = Engine(rulerAtFacility: true);
         var before = engine.Snapshot;
-        var result = engine.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [2], 100, 200, new GeneralDelegation(), CorpsControlMode.Automatic)
+        var result = engine.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [2], 100, 200, new GeneralDelegation())
             { GovernorId = person });
         Assert.False(result.Submission.Accepted);
         StateAssert.Equal(before, engine.Snapshot);
@@ -73,7 +73,7 @@ public sealed class CreateCorpsTests
     {
         var engine = Engine();
         var command = new CreateCorpsCommand(Guid.NewGuid(), 1, 0, branch switch
-        { 0 => [], 1 => [1], 2 => [1, 2], 3 => [2, 2], _ => [2] }, branch == 4 ? uint.MaxValue : 0, 0, new GeneralDelegation(), CorpsControlMode.Automatic);
+        { 0 => [], 1 => [1], 2 => [1, 2], 3 => [2, 2], _ => [2] }, branch == 4 ? uint.MaxValue : 0, 0, new GeneralDelegation());
         var before = engine.Snapshot;
         var result = engine.Execute(new("player"), command);
         Assert.False(result.Submission.Accepted);
@@ -86,7 +86,7 @@ public sealed class CreateCorpsTests
     {
         var engine = Engine();
         var before = engine.Snapshot;
-        var result = engine.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [2], 100, 200, new DefeatForceDelegation(1), CorpsControlMode.Automatic));
+        var result = engine.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [2], 100, 200, new DefeatForceDelegation(1)));
         Assert.False(result.Submission.Accepted);
         Assert.Empty(result.Events);
         StateAssert.Equal(before, result.Snapshot);
@@ -96,7 +96,7 @@ public sealed class CreateCorpsTests
     public void RulerFacilityStaysWithRootAndItsOtherPeopleCannotBecomeGovernor()
     {
         var engine = Engine(true);
-        var command = new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [2], 0, 0, new DomesticDelegation(), CorpsControlMode.Automatic);
+        var command = new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [2], 0, 0, new DomesticDelegation());
         var before = engine.Snapshot;
         Assert.True(engine.Validate(new("player"), command).Accepted);
         StateAssert.Equal(before, engine.Snapshot);

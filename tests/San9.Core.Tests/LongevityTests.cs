@@ -104,7 +104,7 @@ public sealed class LongevityTests
     public void IndependentCorpsQualifiesAndPaysWithoutUsingRootFunds(uint rootMoney)
     {
         var (world, task) = Create();
-        world.AddCorps(new CorpsState(7, 1, 2, new(2501, 0)) { ControlMode = CorpsControlMode.Direct });
+        world.AddCorps(new CorpsState(7, 1, 2, new(2501, 0)));
         world.Replace(world.Settlements[1] with { CorpsId = 7 });
         world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Money = rootMoney } });
         Assert.True(Longevity.Prepare(world, task, Definition)); List<DomainEvent> events = [];

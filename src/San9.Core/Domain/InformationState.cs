@@ -5,17 +5,9 @@ namespace San9.Core.Domain;
 public sealed record ForceRelation(int FirstId, int SecondId, int Value);
 
 public sealed record CorpsTreasury(uint Money, uint Food);
-public enum CorpsControlMode { Direct, Automatic, Cooperative }
-
-public static class CorpsControlModes
-{
-    public static bool AllowsPlayerOrders(this CorpsControlMode mode) => mode is CorpsControlMode.Direct or CorpsControlMode.Cooperative;
-    public static bool AllowsAutomaticOrders(this CorpsControlMode mode) => mode is CorpsControlMode.Automatic or CorpsControlMode.Cooperative;
-}
 public sealed record CorpsState(int Id, int OwnerId, int? LeaderId, [property: JsonRequired] CorpsTreasury Treasury)
 {
     [JsonRequired] public bool IsRoot { get; init; }
-    [JsonRequired] public CorpsControlMode ControlMode { get; init; }
     [JsonRequired] public CorpsDelegation Delegation { get; init; } = new GeneralDelegation();
 }
 public enum TreasureDiscovery { Disabled, Buried, Discovered }

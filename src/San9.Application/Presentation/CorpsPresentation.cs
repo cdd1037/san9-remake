@@ -8,14 +8,6 @@ namespace San9.Application.Presentation;
 /// <summary>Projects committed corps operations using their result and frozen pre-command names.</summary>
 public static class CorpsPresentation
 {
-    public static string ControlName(TextCatalog texts, CorpsControlMode mode) => CommandText.Resolve(texts, mode switch
-    {
-        CorpsControlMode.Direct => "corps.direct",
-        CorpsControlMode.Automatic => "corps.automatic",
-        CorpsControlMode.Cooperative => "corps.cooperative",
-        _ => throw new ArgumentOutOfRangeException(nameof(mode))
-    });
-
     public static IReadOnlyList<CommandMessage> Results(StrategySnapshot before, IReadOnlyList<DomainEvent> events, TextCatalog texts,
         IReadOnlyDictionary<string,DecisionMessageDefinition> content, WorldMessageContext prior, WorldMessageContext committed)
     {
@@ -29,9 +21,6 @@ public static class CorpsPresentation
             {
                 CorpsCreatedEvent e when e.ForceId == before.PlayerForceId => Produce("corps-created",e.CorpsId,committed),
                 CorpsChangedEvent e when e.ForceId == before.PlayerForceId => Produce("corps-changed",e.CorpsId,prior),
-                CorpsControlChangedEvent e when e.ForceId == before.PlayerForceId &&
-                    !changed.Contains(e.CorpsId) => new(new("corps-result", e.Clock,
-                    CommandText.Resolve(texts, "result.corps-control", Corps(e.CorpsId), ControlName(texts, e.Mode))),null,null),
                 CorpsDelegationChangedEvent e when e.ForceId == before.PlayerForceId && e.Reason == "ordered" &&
                     !changed.Contains(e.CorpsId) => new(new("corps-result", e.Clock,
                     CommandText.Resolve(texts, "result.corps-policy", Corps(e.CorpsId))),null,null),

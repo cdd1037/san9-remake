@@ -62,7 +62,7 @@ public sealed partial class SimulationEngine
                 var world = _world.BeginMutation(_rules.Abilities, _rules.Economy);
                 int? corpsId = PersonnelLocations.Corps(world, world.Officers[task.OfficerId]) ??
                     world.Corps.Values.SingleOrDefault(c => c.OwnerId == force && c.IsRoot)?.Id;
-                if (corpsId is int id && world.Corps[id].ControlMode == San9.Core.Domain.CorpsControlMode.Automatic)
+                if (corpsId is int id && !CorpsControl.PlayerOperates(world.Corps[id], Companion))
                     owner = owner with { ControllerId = CorpsControl.ControllerId(id), Kind = ControllerKind.Automatic };
             }
         }

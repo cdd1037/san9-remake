@@ -16,7 +16,7 @@ public sealed class EconomyTests
         corps: [new(1,1,0,new(1000, 1000)) { IsRoot = true },new(2,1,1,new(money,food))], controls: [new("player",1,ControllerKind.Player)]);
 
     private static CommandExecutionResult Run(SimulationEngine engine, DomesticActivity activity, params int[] ids) =>
-        engine.Execute(new("player"), new DevelopCommand(SimulationIdentity.Command(engine.Snapshot.Simulation.NextSequence, 1),
+        engine.Execute(new(CorpsControl.ControllerId(2)), new DevelopCommand(SimulationIdentity.Command(engine.Snapshot.Simulation.NextSequence, 1),
             1,engine.Snapshot.Simulation.NextSequence,new(1,2,ids.ToImmutableArray(),activity)));
 
     [Theory]

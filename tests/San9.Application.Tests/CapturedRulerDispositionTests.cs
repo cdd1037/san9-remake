@@ -397,7 +397,7 @@ public sealed class CapturedRulerDispositionTests
     {
         var original = Fixture();
         var definition = original with { Information = original.Information with { Corps = original.Information.Corps
-            .Select(c => c.OwnerId == 1 ? c with { ControlMode = CorpsControlMode.Automatic } : c).ToArray() } };
+            .ToArray() } };
         var session = GameSession.Start(definition, 190);
         session.AdvanceXun();
         var response = Assert.IsType<ResponseRequest>(session.GetPendingResponse());

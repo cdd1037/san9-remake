@@ -10,7 +10,7 @@ namespace San9.Application.Tests;
 
 public sealed class PlayerDomesticAutomationTests
 {
-    private static readonly CompanionSettings Enabled = new() { PlayerAutoDomesticEnabled = true };
+    private static readonly CompanionSettings Enabled = new() { PlayerCorpsAutomation = PlayerCorpsAutomationMode.DomesticAndSearch, PlayerAutoDomesticEnabled = true };
 
     private static ScenarioInitialState Content(DomesticActivity activity, uint money = 1000)
     {
@@ -72,6 +72,7 @@ public sealed class PlayerDomesticAutomationTests
     {
         var session = GameSession.Start(Content(DomesticActivity.Train), 190, companionSettings: new()
         {
+            PlayerCorpsAutomation = PlayerCorpsAutomationMode.DomesticAndSearch,
             PlayerAutoDomesticEnabled = domestic,
             PlayerAutoSearchEnabled = search,
         });
@@ -99,7 +100,7 @@ public sealed class PlayerDomesticAutomationTests
             { (45, [2, 3]), (46, [3]), (0, [1, 2, 3]), (71, []) })
         {
             var session = GameSession.Start(content, 190, companionSettings: new()
-                { PlayerAutoSearchEnabled = true, PlayerAutoSearchMinimumPolitics = minimum });
+                { PlayerCorpsAutomation = PlayerCorpsAutomationMode.DomesticAndSearch, PlayerAutoSearchEnabled = true, PlayerAutoSearchMinimumPolitics = minimum });
             Assert.Equal(45, session.View.Officers.Single(p => p.Id == 2).Abilities.Politics);
             var result = session.EndControl(new("player"));
             Assert.Equal(expected, result.Events.OfType<TaskStartedEvent>().Select(e => e.Task.OfficerId));
@@ -160,7 +161,7 @@ public sealed class PlayerDomesticAutomationTests
     }
 
     [Fact]
-    public void AutomationUsesEveryDirectCorpsAndLeavesDelegatedCorpsUntouched()
+    public void AutomationUsesOnlyTheRootAndLeavesDelegatedCorpsUntouched()
     {
         var content = Content(DomesticActivity.Train);
         content = content with
@@ -170,7 +171,7 @@ public sealed class PlayerDomesticAutomationTests
             Officers = content.Officers.Select(p => p.State.Id is 2 or 3
                 ? p with { State = p.State with { SettlementId = p.State.Id + 1 } } : p).ToArray(),
             Information = content.Information with { Corps = [.. content.Information.Corps,
-                new(3, 1, 2, new(1000, 2000)), new(4, 1, 3, new(1000, 2000)) { ControlMode = CorpsControlMode.Automatic }] },
+                new(3, 1, 2, new(1000, 2000)), new(4, 1, 3, new(1000, 2000))] },
         };
         var definition = new ScenarioSessionDefinition(content);
         var engine = GameSession.EngineFactory(content)(definition.CreateWorld(190));
@@ -180,11 +181,45 @@ public sealed class PlayerDomesticAutomationTests
         List<OriginalAiWorkReport> reports = [];
         PlayerDomesticAutomation.Run(engine, definition, new("player", 1, ControllerKind.Player),
             OriginalAiState.Create(content), events, reports);
-        Assert.Equal(new[] { 1, 3 }, events.OfType<DevelopmentCompletedEvent>().Select(e => e.Command.SettlementId));
+        Assert.Equal(new[] { 1 }, events.OfType<DevelopmentCompletedEvent>().Select(e => e.Command.SettlementId));
+        Assert.False(engine.Snapshot.Officers.Single(p => p.Id == 2).Acted);
         Assert.Equal(before.Corps.Single(c => c.Id == 4), engine.Snapshot.Corps.Single(c => c.Id == 4));
         Assert.Equal(before.Settlements.Single(s => s.Id == 4), engine.Snapshot.Settlements.Single(s => s.Id == 4));
         Assert.False(engine.Snapshot.Officers.Single(p => p.Id == 3).Acted);
         Assert.DoesNotContain(reports, r => r.CorpsId == 4);
+    }
+
+    [Theory]
+    [InlineData(PlayerCorpsAutomationMode.Disabled)]
+    [InlineData(PlayerCorpsAutomationMode.DomesticAndSearch)]
+    [InlineData(PlayerCorpsAutomationMode.Full)]
+    public void ModeSelectsExactlyOnePipelineAndFullIgnoresSpecializedOptions(PlayerCorpsAutomationMode mode)
+    {
+        var content = Content(DomesticActivity.Train);
+        var settings = Enabled with { PlayerCorpsAutomation = mode, PlayerAutoSearchEnabled = true,
+            PlayerAutoSearchMinimumPolitics = int.MaxValue };
+        var a = GameSession.Start(content, 190, companionSettings: settings);
+        var b = GameSession.Start(content, 190, companionSettings: mode == PlayerCorpsAutomationMode.Full
+            ? settings with { PlayerAutoDomesticEnabled = false, PlayerAutoSearchEnabled = false, PlayerAutoSearchMinimumPolitics = 0 }
+            : settings);
+        var first = a.EndControl(new("player"));
+        var second = b.EndControl(new("player"));
+        EventAssert.Equal(first.Events, second.Events);
+        StateAssert.Equal(a.Capture(), b.Capture());
+        if (mode == PlayerCorpsAutomationMode.Disabled) Assert.Empty(a.LastOriginalAiWork);
+        else if (mode == PlayerCorpsAutomationMode.DomesticAndSearch)
+        {
+            Assert.Single(first.Events.OfType<DevelopmentCompletedEvent>());
+            Assert.Single(a.LastOriginalAiWork, r => r.Work == OriginalAiWork.Train);
+            Assert.DoesNotContain(a.LastOriginalAiWork, r => r.Work == OriginalAiWork.Retreat);
+        }
+        else
+        {
+            Assert.Contains(a.LastOriginalAiWork, r => r.Work == OriginalAiWork.Retreat);
+            Assert.Single(a.LastOriginalAiWork, r => r.Work == OriginalAiWork.Train);
+        }
+        Assert.All(first.Events.OfType<DevelopmentCompletedEvent>().SelectMany(e => e.Command.OfficerIds).GroupBy(id => id),
+            group => Assert.Single(group));
     }
 
     [Fact]
@@ -195,6 +230,9 @@ public sealed class PlayerDomesticAutomationTests
         var save = JsonNode.Parse(SaveService.Encode(session))!;
         var simulation = save["session"]!["world"]!["simulation"]!.AsObject();
         Assert.False(simulation.ContainsKey("companion"));
+        Assert.All(save["session"]!["world"]!["corps"]!.AsArray(), corps => Assert.False(corps!.AsObject().ContainsKey("controlMode")));
+        Assert.DoesNotContain("playerCorpsAutomation", save.ToJsonString());
+        Assert.DoesNotContain("allowDelegatedCorpsOrders", save.ToJsonString());
         var restored = SaveService.Decode(SaveService.Encode(session), content);
         Assert.Equal(CompanionSettings.Default, restored.Companion);
     }

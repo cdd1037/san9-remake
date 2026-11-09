@@ -60,7 +60,6 @@ public sealed record RespondDailyTaskCommand(Guid CommandId, int IssuerId, long 
 [JsonDerivedType(typeof(ChooseDuelSuccessorCommand), "choose-duel-successor")]
 [JsonDerivedType(typeof(ChooseExecutionSuccessorCommand), "choose-execution-successor")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AssignOfficesCommand), "assign-offices")]
-[System.Text.Json.Serialization.JsonDerivedType(typeof(SetCorpsControlCommand), "set-corps-control")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SetCorpsDelegationCommand), "set-corps-delegation")]
 public abstract record GameCommand(
     Guid CommandId,

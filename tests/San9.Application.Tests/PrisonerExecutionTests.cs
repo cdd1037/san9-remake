@@ -151,7 +151,7 @@ public sealed class PrisonerExecutionTests
         var session = GameSession.Start(definition, 190);
         session.Apply(session.Request(new EndControlOperation(), "player"));
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
-        var execute = new ExecutePrisonerCommand(Guid.NewGuid(), 2, 0, 1);
+        var execute = new ExecutePrisonerCommand(Guid.NewGuid(), 2, session.Snapshot.Simulation.NextSequence, 1);
         restored.Execute(new("ai:2"), execute);
         var execution = session.Execute(new("ai:2"), execute);
         Assert.True(execution.Submission.Accepted);
@@ -164,7 +164,7 @@ public sealed class PrisonerExecutionTests
         var pendingHash = session.Snapshot;
         Assert.Equal(CommandRejection.DecisionPending, session.Execute(new("ai:2"), new WaitCommand(Guid.NewGuid(), 2, 1)).Submission.Rejection);
         Assert.Equal(CommandRejection.NotActiveController, session.Execute(new("ai:2"),
-            new ChooseExecutionSuccessorCommand(Guid.NewGuid(), 1, 1, 1, 3)).Submission.Rejection);
+            new ChooseExecutionSuccessorCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 1, 3)).Submission.Rejection);
         Assert.Equal(CommandRejection.InvalidDecision, session.Execute(new("player"),
             new ChooseExecutionSuccessorCommand(Guid.NewGuid(), 1, 1, 1, 4)).Submission.Rejection);
         StateAssert.Equal(pendingHash, session.Snapshot);
@@ -199,8 +199,8 @@ public sealed class PrisonerExecutionTests
         };
         var session = GameSession.Start(definition, 190);
         session.EndControl(new("player"));
-        Assert.True(session.Execute(new("ai:2"), new ExecutePrisonerCommand(Guid.NewGuid(), 2, 0, 1)).Submission.Accepted);
-        Assert.True(session.Execute(new("player"), new ChooseExecutionSuccessorCommand(Guid.NewGuid(), 1, 1, 1, 3)).Submission.Accepted);
+        Assert.True(session.Execute(new("ai:2"), new ExecutePrisonerCommand(Guid.NewGuid(), 2, session.Snapshot.Simulation.NextSequence, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new ChooseExecutionSuccessorCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 1, 3)).Submission.Accepted);
         var root = Assert.Single(session.Snapshot.Corps, c => c.OwnerId == 1);
         Assert.Equal(10, root.Id);
         Assert.True(root.IsRoot);
@@ -216,7 +216,7 @@ public sealed class PrisonerExecutionTests
         var definition = Fixture(playerRuler: true);
         var session = GameSession.Start(definition, 190);
         session.Apply(session.Request(new EndControlOperation(), "player"));
-        Assert.True(session.Execute(new("ai:2"), new ExecutePrisonerCommand(Guid.NewGuid(), 2, 0, 1)).Submission.Accepted);
+        Assert.True(session.Execute(new("ai:2"), new ExecutePrisonerCommand(Guid.NewGuid(), 2, session.Snapshot.Simulation.NextSequence, 1)).Submission.Accepted);
         var snapshot = new SessionSnapshot(session.Snapshot, [], [], session.NextOperationSequence);
         Assert.Equal(SaveFailure.NotStable, Assert.Throws<SaveException>(() => SaveService.Encode(session)).Failure);
         var sim = snapshot.World.Simulation;

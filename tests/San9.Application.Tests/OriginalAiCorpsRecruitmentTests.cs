@@ -20,7 +20,7 @@ public sealed class OriginalAiCorpsRecruitmentTests
             Officers = basis.Officers.Select(p => p.State.Id is 2 or 3 ? p with { State = p.State with
                 { SettlementId = 3, BaseAbilities = new(100, 100, 100, 100) } } : p).ToArray(),
             Information = basis.Information with { Relations = [new(1, 2, 100)], Corps = [.. basis.Information.Corps,
-                new(3, 1, 2, new(100000, 1000000)) { ControlMode = CorpsControlMode.Automatic,
+                new(3, 1, 2, new(100000, 1000000)) {
                     Delegation = domestic ? new DomesticDelegation() : new GeneralDelegation() }] },
             CityConnections = [new(3, 2)],
             RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 3 },

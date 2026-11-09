@@ -14,7 +14,7 @@ internal sealed partial class MapCommandAvailability(StrategySnapshot view)
     private ForceState Force => forces[Owner];
     private static string? Key(string? reason) => reason is null ? null : CommandMenuSkin.ReasonKey(reason);
     private bool Controlled(int? corps) => !view.World.Corps.Any(c => c.OwnerId == Owner &&
-        (c.IsRoot || c.Id == corps) && c.ControlMode == CorpsControlMode.Automatic);
+        c.Id == corps && !CorpsControl.PlayerOperates(c, view.Companion));
     private bool Present(SettlementState place) => !place.IsDormant && !place.IsDestroyed &&
         place.CanHostPersons && place.Facility?.BuilderUnitId is null;
     private bool Actor(int home) => view.Officers.Any(p => p.OwnerId == Owner && p.SettlementId == home && p.IsAvailable);
@@ -27,7 +27,7 @@ internal sealed partial class MapCommandAvailability(StrategySnapshot view)
     {
         if (!places.TryGetValue(id, out var home) || !Present(home) || home.OwnerId != Owner)
             return "unavailable";
-        // Management must remain reachable so a player can restore directly controlled corps.
+        // Corps management belongs to the force ruler, regardless of the selected location.
         if (command == "delegate") return null;
         if (!(command is "move" or "summon" ? Controlled(null) : Controlled(home.CorpsId))) return "unavailable";
         if (IsDomestic(command) && home.Kind != SettlementKind.City && command is not ("repair" or "train"))

@@ -113,11 +113,14 @@ public sealed class DailyTaskDecisionTests
     public void UnsupportedAutomaticTaskResponseReportsIdentityAndRollsBack()
     {
         var original = Content();
-        var content = original with { Information = original.Information with { Corps = original.Information.Corps
-            .Select(c => c with { ControlMode = CorpsControlMode.Automatic }).ToArray() } };
+        var content = original with { Information = original.Information with { Corps = [.. original.Information.Corps,
+            original.Information.Corps.Single(c => c.OwnerId == 1 && c.IsRoot) with { Id = 100, IsRoot = false, LeaderId = 2 }] },
+            Settlements = original.Settlements.Select(s => s.OwnerId == 1 ? s with { CorpsId = 100 } : s).ToArray() };
         var session = GameSession.Start(content, 42, Engine);
-        Assert.True(session.Execute(new("corps:1"), new StartTaskCommand(Guid.NewGuid(), 1, 0,
+        session.ConfigureCompanion(new() { AllowDelegatedCorpsOrders = true });
+        Assert.True(session.Execute(new("player"), new StartTaskCommand(Guid.NewGuid(), 1, 0,
             "decision-fixture", 2, 1)).Submission.Accepted);
+        session.ConfigureCompanion(CompanionSettings.Default);
         var before = session.Capture();
         var request = session.Request(new AdvanceOperation());
         var advance = session.Apply(request);
@@ -125,7 +128,7 @@ public sealed class DailyTaskDecisionTests
         var failure = Assert.IsType<San9.Application.AI.AutomaticResponseFailure>(advance.AutomaticResponseFailure);
         Assert.Equal("response-unsupported", failure.Code);
         Assert.Equal("daily-task", failure.Kind);
-        Assert.Equal("corps:1", failure.ControllerId);
+        Assert.Equal("corps:100", failure.ControllerId);
         StateAssert.Equal(before, session.Capture());
         Assert.Empty(advance.Events);
         Assert.Equal(failure, session.Apply(request).AutomaticResponseFailure);
@@ -139,13 +142,14 @@ public sealed class DailyTaskDecisionTests
     public void RevokedTaskDelegationReturnsResponseOwnershipToPlayer()
     {
         var original = Content();
-        var content = original with { Information = original.Information with { Corps = original.Information.Corps
-            .Select(c => c with { ControlMode = CorpsControlMode.Automatic }).ToArray() } };
+        var content = original with { Information = original.Information with { Corps = [.. original.Information.Corps,
+            original.Information.Corps.Single(c => c.OwnerId == 1 && c.IsRoot) with { Id = 100, IsRoot = false, LeaderId = 2 }] },
+            Settlements = original.Settlements.Select(s => s.OwnerId == 1 ? s with { CorpsId = 100 } : s).ToArray() };
         var session = GameSession.Start(content, 42, Engine);
-        Assert.True(session.Execute(new("corps:1"), new StartTaskCommand(Guid.NewGuid(), 1, 0,
+        session.ConfigureCompanion(new() { AllowDelegatedCorpsOrders = true });
+        Assert.True(session.Execute(new("player"), new StartTaskCommand(Guid.NewGuid(), 1, 0,
             "decision-fixture", 2, 1)).Submission.Accepted);
-        Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1,
-            session.Snapshot.Simulation.NextSequence, 1, CorpsControlMode.Direct)).Submission.Accepted);
+        session.ConfigureCompanion(new() { AllowDelegatedCorpsOrders = true, PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full });
         var result = session.Apply(session.Request(new AdvanceOperation()));
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         var pending = Assert.IsType<ResponseRequest>(session.GetPendingResponse());
@@ -174,7 +178,7 @@ public sealed class DailyTaskDecisionTests
         Assert.Equal(SessionRejection.NotStable, settings.Rejection);
         StateAssert.Equal(beforeSettings, session.Snapshot);
         Assert.Equal(beforeSettingsSequence, session.NextOperationSequence);
-        Assert.Throws<InvalidOperationException>(() => session.ConfigureCompanion(new() { PlayerAutoDomesticEnabled = true }));
+        Assert.Throws<InvalidOperationException>(() => session.ConfigureCompanion(new() { PlayerCorpsAutomation = PlayerCorpsAutomationMode.DomesticAndSearch, PlayerAutoDomesticEnabled = true }));
         StateAssert.Equal(beforeSettings, session.Snapshot);
         Assert.Equal(beforeSettingsSequence, session.NextOperationSequence);
         Assert.Equal(97, session.Snapshot.Forces[0].BaseTrust);

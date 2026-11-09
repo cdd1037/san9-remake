@@ -156,7 +156,8 @@ public sealed class FacilityCommandTests
         var definition = Definition(); var world = GameSession.Start(definition,7).Snapshot;
         foreach (var altered in new[] {
             world with { Settlements = world.Settlements.Select(s => s with { ConfusionDaysRemaining = 1 }).ToArray() },
-            world with { Corps = world.Corps.Select(c => c with { ControlMode = CorpsControlMode.Automatic }).ToArray() } })
+            world with { Corps = [.. world.Corps, world.Corps.Single(c => c.OwnerId == 1 && c.IsRoot) with { Id = 100, IsRoot = false }],
+                Settlements = world.Settlements.Select(s => s.OwnerId == 1 ? s with { CorpsId = 100 } : s).ToArray() } })
         {
             var view = new StrategySnapshot(definition,altered);
             string? reason = FacilityCommandDraft.UnavailableReasonKey(view,1,kind);

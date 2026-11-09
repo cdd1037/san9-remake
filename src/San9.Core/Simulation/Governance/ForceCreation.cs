@@ -24,7 +24,7 @@ internal static class ForceCreation
             BaseTrust = 100, LeaderId = founder.Id, RankId = rank,
             Origin = new(kind, founder.Id, cityId, world.Clock) { PredecessorId = predecessor }
         });
-        world.AddCorps(new(corpsId, forceId, founder.Id, new(0, 0)) { IsRoot = true, ControlMode = CorpsControlMode.Automatic });
+        world.AddCorps(new(corpsId, forceId, founder.Id, new(0, 0)) { IsRoot = true });
         world.Replace(city with { OwnerId = forceId, CorpsId = corpsId });
         ControlRotation.Replace(world, world.Simulation.Controls.Add(new($"ai:{forceId}", forceId, ControllerKind.Automatic)));
         foreach (var person in members.OrderBy(p => p.Id))

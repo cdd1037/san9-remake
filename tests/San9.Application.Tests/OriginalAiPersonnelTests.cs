@@ -619,7 +619,6 @@ public sealed partial class OriginalAiPersonnelTests
         Assert.Equal(new uint[] { 12500, 12500 }, children.Select(c => c.Treasury.Food));
         Assert.Equal(10000UL, h.Engine.Snapshot.Corps.Where(c => c.OwnerId == 1).Aggregate(0UL, (sum, c) => sum + c.Treasury.Money));
         Assert.Equal(50000UL, h.Engine.Snapshot.Corps.Where(c => c.OwnerId == 1).Aggregate(0UL, (sum, c) => sum + c.Treasury.Food));
-        Assert.All(children, c => Assert.Equal(CorpsControlMode.Automatic, c.ControlMode));
         Assert.All(h.Commands, c => Assert.NotNull(Assert.IsType<CreateCorpsCommand>(c).GovernorId));
     }
 
@@ -630,7 +629,7 @@ public sealed partial class OriginalAiPersonnelTests
         var initial = new Harness(content).Engine.Snapshot;
         var session = GameSession.Restore(content, new(initial, [], [], 0) { OriginalAi = OriginalAiState.Create(content) }, GameSession.EngineFactory(content));
         // Explicitly delegate the root: descendants created by its public command must get a turn too.
-        Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1, 0, 1, CorpsControlMode.Automatic)).Submission.Accepted);
+        session.ConfigureCompanion(new() { AllowDelegatedCorpsOrders = true, PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full });
         var result = session.Apply(session.Request(new EndControlOperation(), "player"));
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         Assert.Equal(2, result.Events.OfType<CorpsCreatedEvent>().Count());
@@ -657,12 +656,12 @@ public sealed partial class OriginalAiPersonnelTests
             Settlements = content.Settlements.Append(content.Settlements[0] with { Id = 3, X = 3, Y = 3, CorpsId = 10 }).ToArray(),
             Officers = content.Officers.Select(o => o.State.Id == 2 ? o with { State = o.State with { Status = OfficerStatus.Governor, SettlementId = 3 } } : o).ToArray(),
             Information = content.Information with { Corps = content.Information.Corps.Append(new(10, 1, 2, new(1000, 2000))
-                { ControlMode = CorpsControlMode.Automatic }).ToArray() }
+                { }).ToArray() }
         };
         var initial = new Harness(content).Engine.Snapshot;
         var session = GameSession.Restore(content, new(initial, [], [], 0) { OriginalAi = OriginalAiState.Create(content),
             PlayerForceController = ControllerKind.Player }, GameSession.EngineFactory(content));
-        session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1, 0, 1, CorpsControlMode.Automatic));
+        session.ConfigureCompanion(new() { PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full });
         var result = session.Apply(session.Request(new EndControlOperation(), "player"));
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         Assert.Single(result.Events.OfType<CorpsDissolvedEvent>());
@@ -722,7 +721,7 @@ public sealed partial class OriginalAiPersonnelTests
             Officers = content.Officers.Select(o => o.State.Id is 2 or 3 ? o with { State = o.State.WithLoyalty(1, 70) with
                 { SettlementId = 3, Status = o.State.Id == 2 ? OfficerStatus.Governor : OfficerStatus.Serving } } : o).ToArray(),
             Information = content.Information with { Corps = content.Information.Corps.Append(new(10, 1, 2, new(5000, 3000))
-                { ControlMode = CorpsControlMode.Automatic }).ToArray() }
+                { }).ToArray() }
         };
         var initial = new Harness(content).Engine.Snapshot;
         var session = GameSession.Restore(content, new(initial, [], [], 0) { OriginalAi = OriginalAiState.Create(content) }, GameSession.EngineFactory(content));

@@ -19,7 +19,7 @@ public sealed partial class OriginalAiPersonnelTests
             Officers = basis.Officers.Select(o => o.State.Id is 2 or 3 ? o with { State = o.State.WithLoyalty(1, 80) with
                 { SettlementId = o.State.Id == 3 ? 3 : 1 } } : o).ToArray(),
             Information = basis.Information with { Corps = [.. basis.Information.Corps,
-                new(3, 1, 3, new(10000, 50000)) { ControlMode = CorpsControlMode.Automatic }] },
+                new(3, 1, 3, new(10000, 50000))] },
             OriginalAi = basis.OriginalAi with
             {
                 WorkRules = basis.OriginalAi.WorkRules.ToImmutableDictionary(p => p.Key,

@@ -106,7 +106,7 @@ public sealed class DeploymentArrivalTests
                 new("governor", new(2, 1, 2, new(60, 60, 60, 60), false) { Status = OfficerStatus.Governor })],
             Information = definition.Information with { Corps = [
                 new(1, 1, 1, new(10000, 10000)) { IsRoot = true },
-                new(2, 1, 2, new(2000, 3000)) { ControlMode = CorpsControlMode.Automatic }] }
+                new(2, 1, 2, new(2000, 3000))] }
         };
         var session = GameSession.Start(definition, 42);
         var draft = new DeploymentDraft(session.View, 1); Assert.True(draft.SetMembers([1]));

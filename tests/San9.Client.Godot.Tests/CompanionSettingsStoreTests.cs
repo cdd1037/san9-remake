@@ -20,7 +20,7 @@ public sealed class CompanionSettingsStoreTests : IDisposable
         Assert.False(Directory.Exists(_directory));
         var settings = new CompanionSettings
         {
-            PlayerAutoDomesticEnabled = true, OfficerAbilityCap = 125,
+            AllowDelegatedCorpsOrders = true, PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full, PlayerAutoDomesticEnabled = true, OfficerAbilityCap = 125,
             DisableComputerForceConsolidation = true,
             DisableComputerRewardTimingRestrictions = true,
             DisableComputerPrisonerExecution = true,
@@ -48,7 +48,7 @@ public sealed class CompanionSettingsStoreTests : IDisposable
         Assert.Equal(new CompanionConfiguration(settings, true), new CompanionSettingsStore(FilePath).Load());
         byte[] saved = File.ReadAllBytes(FilePath);
         foreach (var invalid in new[] {
-            settings with { OfficerAbilityCap = 99 }, settings with { PlayerAutoSearchMinimumPolitics = -1 },
+            settings with { PlayerCorpsAutomation = (PlayerCorpsAutomationMode)99 }, settings with { OfficerAbilityCap = 99 }, settings with { PlayerAutoSearchMinimumPolitics = -1 },
             settings with { ComputerRevenuePercent = -1 }, settings with { ComputerHarvestPercent = -1 },
             settings with { CityBattleDamagePercent = -1 }, settings with { NoRetreatCaptureBonus = -1 },
             settings with { NoRetreatCaptureBonus = 101 }, settings with { BattleDeathProtectionThreshold = -1 },

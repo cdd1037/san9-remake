@@ -48,8 +48,8 @@ public sealed class ProgressPresentationTests
     {
         var session = GameSession.Start(Scenario(), 42);
         var before = session.View.ForWorld(session.Snapshot with
-        { Corps = session.Snapshot.Corps.Select(c=>c.OwnerId==1 ? c with { ControlMode=CorpsControlMode.Automatic } : c).ToImmutableArray() });
-        var victor = new BattleObjectContext(10, false, 1, 2, new(62,12), 1, false);
+        { Corps = session.Snapshot.Corps.Append(session.Snapshot.Corps.Single(c => c.Id == 1) with { Id = 100, IsRoot = false }).ToImmutableArray() });
+        var victor = new BattleObjectContext(10, false, 1, 2, new(62,12), 1, false) { CorpsId = 100 };
         var defeated = new BattleObjectContext(20, false, 2, 23, new(67,12), 2, false);
         var roles = ProgressPresentationDefinition.RecordRoles;
         var texts = MissionScenario.Texts(before) with { Messages = roles.ToDictionary(r=>r, r=>new MessageDefinition([new MessageLiteral(r)])) };

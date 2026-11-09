@@ -22,7 +22,7 @@ public sealed class TreasureMonumentTests
          new(2, 1, 1, new(50, 50, 50, 50), false),
          new(3, 1, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Captive },
          new(10, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-        corps: [new(7, 1, 2, new(50000, 0)) { ControlMode = CorpsControlMode.Direct }, new San9.Core.Domain.CorpsState(1, 1, 1, new(money, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 10, new(0, 0)) { IsRoot = true }],
+        corps: [new(7, 1, 2, new(50000, 0)), new San9.Core.Domain.CorpsState(1, 1, 1, new(money, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 10, new(0, 0)) { IsRoot = true }],
         treasures: [new(50, 1, TreasureDiscovery.Discovered, null)],
         controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)]);
     private static PersistentTask Task() => new(Guid.NewGuid(), "personnel-search", "player", 1, 2, 1,
@@ -100,7 +100,7 @@ public sealed class TreasureMonumentTests
     public void IndependentCorpsQualifiesAndPaysWithoutRootFunds()
     {
         var m = World(9999); var rules = Rules();
-        m.Replace(new CorpsState(7, 1, 2, new(50000, 0)) { ControlMode = CorpsControlMode.Direct });
+        m.Replace(new CorpsState(7, 1, 2, new(50000, 0)));
         m.Replace(m.Settlements[1] with { CorpsId = 7 });
         Assert.True(TreasureMonument.Eligible(m, Task(), rules, Definition));
         m.Replace(ResourceAccounts.Root(m, 1) with { Treasury = ResourceAccounts.Root(m, 1).Treasury with { Money = 0 } });

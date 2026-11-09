@@ -8,9 +8,9 @@ internal static class DomesticCommandSelection
 {
     internal static GameCommand Choose(WorldSnapshot snapshot, IReadOnlyDictionary<int, OfficerAbilities> abilities,
         Func<CommandContext, GameCommand, CommandSubmissionResult> validate,
-        ControlSeat seat, CommandContext context, Guid commandId, int turn, bool scripted = false)
+        ControlSeat seat, CommandContext context, Guid commandId, int turn, bool scripted = false, CompanionSettings? companion = null)
     {
-        var observation = DomesticObservation.Capture(snapshot, seat, context, abilities);
+        var observation = DomesticObservation.Capture(snapshot, seat, context, abilities, companion);
         // At most one place visit, six activities and five participant sets per activity.
         var budget = new AiPlanningBudget(Math.Max(1L, observation.Settlements.Length * 37L), 0);
         var plan = DomesticPlanner.Plan(observation, budget, turn, scripted);

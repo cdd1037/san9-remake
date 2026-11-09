@@ -63,7 +63,7 @@ public sealed class WorldEventPresentationTests
         var before = session.View.ForWorld(session.Snapshot with
         {
             Corps = session.Snapshot.Corps.Append(new CorpsState(77, forceId, leader, new(100, 0))
-                { ControlMode = CorpsControlMode.Automatic }).ToImmutableArray()
+                { }).ToImmutableArray()
         });
         var account = new ResourceAccount(ResourceOwnerKind.Corps, 77);
         DomainEvent[] facts = [new FoodExhaustedEvent(before.World.Clock, forceId, 77),

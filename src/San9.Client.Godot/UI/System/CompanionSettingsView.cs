@@ -13,6 +13,9 @@ public partial class CompanionSettingsView : ModalView
     private CompanionSettings _settings = CompanionSettings.Default;
     private readonly List<(ToggleOption Option, Button Control)> _toggleEditors = [];
     private readonly List<(NumericOption Option, SpinBox Control)> _numericEditors = [];
+    private OptionButton _playerAutomation = null!;
+    private Label _automationHint = null!;
+    private VBoxContainer _specializedOptions = null!;
     private Label _failure = null!;
     private Button _formationAppearance = null!;
 
@@ -55,7 +58,7 @@ public partial class CompanionSettingsView : ModalView
         hint.VerticalAlignment = VerticalAlignment.Center;
         actions.AddChild(hint);
         var preset = new Button { Text = "预设配置", CustomMinimumSize = new(104, 34),
-            TooltipText = "开启普通功能开关（含无限寿命）；允许伪报、扰乱、激励、救援、交还、重视内政方针征兵及跨军团输送／救援，禁止离间、流言、烧夷、夺取、赠与、请求、劝降。\n资金与兵粮倍率200%，能力上限与免阵亡能力门槛125，无退路俘获加成0%，其余数值保留当前输入。\n战斗阵亡仍须在PK设定中开启。" };
+            TooltipText = "直属军团选择内政／探索，允许玩家干预委任军团；开启普通功能开关（含无限寿命），阵型联动／阻击调整保持关闭；允许伪报、扰乱、激励、救援、交还、重视内政方针征兵及跨军团输送／救援，禁止离间、流言、烧夷、夺取、赠与、请求、劝降。\n资金与兵粮倍率200%，能力上限与免阵亡能力门槛125，无退路俘获加成0%，其余数值保留当前输入。\n战斗阵亡仍须在PK设定中开启。" };
         preset.Pressed += ApplyPreset; actions.AddChild(preset);
         var reset = new Button { Text = "原版配置", CustomMinimumSize = new(104, 34),
             TooltipText = "恢复原版对应配置。" };
@@ -63,6 +66,7 @@ public partial class CompanionSettingsView : ModalView
         var close = new Button { Text = "关闭", CustomMinimumSize = new(96, 34) };
         CompanionPanelStyle.Primary(close);
         close.Pressed += Back; actions.AddChild(close);
+        RefreshAutomationAvailability();
         close.GrabFocus();
     }
 
@@ -75,6 +79,9 @@ public partial class CompanionSettingsView : ModalView
         {
             switch (option)
             {
+                case PlayerAutomationOption automation:
+                    AddPlayerAutomation(body, automation.Title);
+                    break;
                 case FormationAppearanceOption appearance:
                     _formationAppearance = CreateToggle(Initial.FormationAppearanceEnabled, 96, "开启", "关闭", _ => _failure.Hide());
                     _formationAppearance.Name = "FormationAppearance";
@@ -103,6 +110,42 @@ public partial class CompanionSettingsView : ModalView
         if (section.Permissions is { } permissions) AutomaticPermissions(body, permissions);
     }
 
+    private void AddPlayerAutomation(VBoxContainer list, string title)
+    {
+        var card = new PanelContainer();
+        card.AddThemeStyleboxOverride("panel", CompanionPanelStyle.Card()); list.AddChild(card);
+        var body = new VBoxContainer(); body.AddThemeConstantOverride("separation", 8); card.AddChild(body);
+        var header = new HBoxContainer(); header.AddThemeConstantOverride("separation", 16); body.AddChild(header);
+        var heading = new Label { Text = title, SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            VerticalAlignment = VerticalAlignment.Center };
+        heading.AddThemeFontSizeOverride("font_size", 18); header.AddChild(heading);
+        _playerAutomation = new OptionButton { CustomMinimumSize = new(160, 32) };
+        foreach (string mode in new[] { "关闭", "内政／探索", "完整安排" }) _playerAutomation.AddItem(mode);
+        _playerAutomation.Select((int)_settings.PlayerCorpsAutomation);
+        _playerAutomation.ItemSelected += index => Edit(_settings with { PlayerCorpsAutomation = (PlayerCorpsAutomationMode)index });
+        header.AddChild(_playerAutomation);
+        _automationHint = Note(""); body.AddChild(_automationHint);
+        body.AddChild(new ColorRect { Color = new("3b495b"), CustomMinimumSize = new(0, 1),
+            MouseFilter = MouseFilterEnum.Ignore });
+        _specializedOptions = new VBoxContainer();
+        _specializedOptions.AddThemeConstantOverride("separation", 10); body.AddChild(_specializedOptions);
+        foreach (var option in DomesticAutomationOptions)
+        {
+            var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 12); _specializedOptions.AddChild(row);
+            var description = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            description.AddThemeConstantOverride("separation", 2); row.AddChild(description);
+            description.AddChild(new Label { Text = option.Title });
+            description.AddChild(Note(option.Note));
+            if (option.Parameter is { } parameter)
+            {
+                row.AddChild(new Label { Text = parameter.Title, TooltipText = parameter.Note,
+                    MouseFilter = MouseFilterEnum.Pass, VerticalAlignment = VerticalAlignment.Center });
+                var number = NumberEditor(parameter, 88); number.SizeFlagsVertical = SizeFlags.ShrinkCenter; row.AddChild(number);
+            }
+            var toggle = ToggleEditor(option); toggle.SizeFlagsVertical = SizeFlags.ShrinkCenter; row.AddChild(toggle);
+        }
+    }
+
     private void AutomaticPermissions(VBoxContainer list, Func<bool, IEnumerable<ToggleOption>> options)
     {
         var card = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ShrinkCenter };
@@ -111,7 +154,7 @@ public partial class CompanionSettingsView : ModalView
         table.AddThemeConstantOverride("h_separation", 16);
         table.AddThemeConstantOverride("v_separation", 6); card.AddChild(table);
         table.AddChild(new Label { Text = "命令", CustomMinimumSize = new(64, 0) });
-        foreach (string scope in new[] { "电脑势力", "玩家委任军团" })
+        foreach (string scope in new[] { "电脑势力", "玩家势力AI" })
         {
             var label = new Label { Text = scope, CustomMinimumSize = new(112, 0),
                 HorizontalAlignment = HorizontalAlignment.Center };
@@ -123,7 +166,7 @@ public partial class CompanionSettingsView : ModalView
             table.AddChild(new Label { Text = option.Title, TooltipText = option.Note,
                 CustomMinimumSize = new(64, 0), VerticalAlignment = VerticalAlignment.Center,
                 MouseFilter = MouseFilterEnum.Pass });
-            foreach (var (scope, optionToggle) in new[] { ("电脑势力", pair.First), ("玩家委任军团", pair.Second) })
+            foreach (var (scope, optionToggle) in new[] { ("电脑势力", pair.First), ("玩家势力AI", pair.Second) })
             {
                 var toggle = ToggleEditor(optionToggle, 112);
                 toggle.TooltipText = $"{scope}：{option.Note}";
@@ -136,6 +179,7 @@ public partial class CompanionSettingsView : ModalView
     {
         var toggle = CreateToggle(option.Read(_settings), width, option.EnabledText, option.DisabledText,
             value => Edit(option.Write(_settings, value)));
+        toggle.TooltipText = option.Note;
         _toggleEditors.Add((option, toggle));
         return toggle;
     }
@@ -205,7 +249,7 @@ public partial class CompanionSettingsView : ModalView
     {
         SetFormationAppearance(true);
         foreach (var (_, control) in _numericEditors) control.Apply();
-        var settings = _settings;
+        var settings = _settings with { PlayerCorpsAutomation = PlayerCorpsAutomationMode.DomesticAndSearch };
         foreach (var (option, _) in _toggleEditors) settings = option.Write(settings, option.PresetValue);
         foreach (var (option, _) in _numericEditors)
             if (option.PresetValue is { } value) settings = option.Write(settings, value);
@@ -216,6 +260,24 @@ public partial class CompanionSettingsView : ModalView
     {
         _settings = settings;
         _failure.Hide();
+        RefreshAutomationAvailability();
+    }
+
+    private void RefreshAutomationAvailability()
+    {
+        bool enabled = _settings.PlayerCorpsAutomation == PlayerCorpsAutomationMode.DomesticAndSearch;
+        _automationHint.Text = _settings.PlayerCorpsAutomation switch
+        {
+            PlayerCorpsAutomationMode.Disabled => "未启用自动安排。下方专项配置保留，选择“内政／探索”后可用。",
+            PlayerCorpsAutomationMode.DomesticAndSearch => "结束玩家操作后，按下方设置先做内政、再探索，仅使用剩余行动资格。",
+            PlayerCorpsAutomationMode.Full => "AI统一安排并遵守“玩家势力AI”许可；待答由玩家选择，保留本旬已下令部队的命令。下方专项配置不参与。",
+            _ => throw new InvalidOperationException("Unknown player automation mode.")
+        };
+        _specializedOptions.Modulate = enabled ? Colors.White : new Color(1, 1, 1, .55f);
+        foreach (var (option, control) in _toggleEditors)
+            if (option.DomesticOnly) control.Disabled = !enabled;
+        foreach (var (option, control) in _numericEditors)
+            if (option.DomesticOnly) control.Editable = enabled;
     }
 
     private void SetFormationAppearance(bool enabled)
@@ -227,6 +289,7 @@ public partial class CompanionSettingsView : ModalView
     private void RefreshEditors(CompanionSettings settings)
     {
         Edit(settings);
+        _playerAutomation.Select((int)settings.PlayerCorpsAutomation);
         foreach (var (option, control) in _toggleEditors)
         {
             bool enabled = option.Read(_settings);

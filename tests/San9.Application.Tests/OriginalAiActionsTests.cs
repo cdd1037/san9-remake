@@ -547,8 +547,7 @@ public sealed partial class OriginalAiActionsTests
         var content = Fixture();
         content = content with
         {
-            Information = content.Information with { Corps = content.Information.Corps.Select(c => c.Id == 1
-                ? c with { ControlMode = CorpsControlMode.Automatic } : c).ToArray() },
+            Information = content.Information with { Corps = content.Information.Corps.ToArray() },
             OriginalAi = content.OriginalAi with
             {
                 WorkRules = content.OriginalAi.WorkRules.ToImmutableDictionary(p => p.Key, p => p.Value with
@@ -557,7 +556,7 @@ public sealed partial class OriginalAiActionsTests
                     _ => ImmutableArray.Create(OriginalAiWork.Encourage))
             }
         };
-        var session = GameSession.Start(content, 42);
+        var session = GameSession.Start(content, 42, companionSettings: new() { PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full });
         var request = session.Request(new EndControlOperation());
         var result = session.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
@@ -566,6 +565,7 @@ public sealed partial class OriginalAiActionsTests
         Assert.Equal(SessionDisposition.AlreadyProcessed, session.Apply(request).Disposition);
         StateAssert.Equal(after, session.Capture());
         var restored = SaveService.Decode(SaveService.Encode(session), content);
+        restored.ConfigureCompanion(session.Companion);
         for (int i = 0; i < 4; i++)
         {
             EventAssert.Equal(session.AdvanceXun().Events, restored.AdvanceXun().Events);

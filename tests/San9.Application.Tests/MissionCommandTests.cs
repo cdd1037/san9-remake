@@ -380,8 +380,9 @@ public sealed class MissionCommandTests
     public void AutomaticCorpsCannotSubmitAndManagementRemainsReachable()
     {
         var content = MissionScenario.Create();
-        content = content with { Information = content.Information with { Corps = content.Information.Corps.Select(c => c.OwnerId == 1 ?
-            c with { ControlMode = CorpsControlMode.Automatic } : c).ToArray() } };
+        content = content with { Information = content.Information with { Corps = [.. content.Information.Corps,
+            content.Information.Corps.Single(c => c.OwnerId == 1 && c.IsRoot) with { Id = 100, IsRoot = false, LeaderId = 2 }] },
+            Settlements = content.Settlements.Select(s => s.OwnerId == 1 ? s with { CorpsId = 100 } : s).ToArray() };
         var session = GameSession.Start(content,42);
         var draft = new MissionDraft(session,1,"burn");
         draft.SetActor(2); draft.SetTarget(2);
@@ -390,8 +391,7 @@ public sealed class MissionCommandTests
         Assert.Null(menu.Single(e => e.Id == "delegate").UnavailableReasonKey);
         Assert.NotNull(menu.Single(e => e.Id == "burn").UnavailableReasonKey);
         var root = session.Snapshot.Corps.Single(c => c.OwnerId == 1 && c.IsRoot);
-        Assert.True(session.Execute(new("player"),new SetCorpsControlCommand(Guid.NewGuid(),1,
-            session.Snapshot.Simulation.NextSequence,root.Id,CorpsControlMode.Direct)).Submission.Accepted);
+        session.ConfigureCompanion(new() { AllowDelegatedCorpsOrders = true, PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full });
         draft = new(session,1,"burn"); draft.SetActor(2); draft.SetTarget(2);
         Assert.True(draft.CanExecute);
     }

@@ -7,13 +7,14 @@ public partial class CompanionSettingsView
     private abstract record Option(string Title, string Note);
     private sealed record ToggleOption(string Title, string Note,
         Func<CompanionSettings, bool> Read, Func<CompanionSettings, bool, CompanionSettings> Write, NumericOption? Parameter = null,
-        string EnabledText = "开启", string DisabledText = "关闭", bool PresetValue = true) : Option(Title, Note);
+        string EnabledText = "开启", string DisabledText = "关闭", bool PresetValue = true, bool DomesticOnly = false) : Option(Title, Note);
     private sealed record NumericOption(string Title, string Note, int Minimum, int Maximum,
         Func<CompanionSettings, int> Read, Func<CompanionSettings, int, CompanionSettings> Write,
-        string Suffix = "", int? PresetValue = null) : Option(Title, Note);
+        string Suffix = "", int? PresetValue = null, bool DomesticOnly = false) : Option(Title, Note);
     private sealed record NumberGroupOption(string Title, string Note, NumericOption[] Fields, int Width) : Option(Title, Note);
+    private sealed record PlayerAutomationOption() : Option("直属军团自动安排", "");
     private sealed record FormationAppearanceOption() : Option("阵型差异外观",
-        "普通八阵的中央兵群使用不同兵模，锥行、锋矢中央复用原版骑兵数量与站位，外围保留普通士兵。关闭面板后生效。");
+        "普通八阵使用不同中央兵模，锥行、锋矢与其他阵型区分。关闭面板后生效。");
     private sealed record SectionDefinition(string Title, Option[] Options,
         Func<bool, IEnumerable<ToggleOption>>? Permissions = null);
     private sealed record PageDefinition(string Title, SectionDefinition[] Sections);
@@ -46,30 +47,38 @@ public partial class CompanionSettingsView
             (settings, value) => settings with { TacticAllocation = settings.TacticAllocation with { FiveOrMore = value } }),
     ];
 
+    private static readonly ToggleOption[] DomesticAutomationOptions =
+    [
+        new("自动内政", "使用闲置武将安排训练、修筑、商业、开垦和巡察。",
+            settings => settings.PlayerAutoDomesticEnabled,
+            (settings, value) => settings with { PlayerAutoDomesticEnabled = value }, DomesticOnly: true),
+        new("探索所在地", "内政之后使用剩余武将，探索事件仍由玩家作答。",
+            settings => settings.PlayerAutoSearchEnabled,
+            (settings, value) => settings with { PlayerAutoSearchEnabled = value },
+            new("最低政治", "按当前有效政治筛选，包含伤势、宝物和官职影响。默认45，0不限制政治。",
+                0, int.MaxValue, settings => settings.PlayerAutoSearchMinimumPolitics,
+                (settings, value) => settings with { PlayerAutoSearchMinimumPolitics = value }, DomesticOnly: true), DomesticOnly: true),
+    ];
+
     private static readonly PageDefinition[] Pages =
     [
         new("辅助",
         [
-            new("自动安排与汇报",
+            new("军团安排",
             [
-                new ToggleOption("玩家自动内政", "每旬结束操作时，使用直辖军团的闲置武将依次安排训练、修筑、商业、开垦和巡察。",
-                    settings => settings.PlayerAutoDomesticEnabled,
-                    (settings, value) => settings with { PlayerAutoDomesticEnabled = value }),
-                new ToggleOption("自动探索所在地", "直辖军团可行动武将探索所在地，回报选择由玩家回答；同时开启自动内政时，先做内政再探索。",
-                    settings => settings.PlayerAutoSearchEnabled,
-                    (settings, value) => settings with { PlayerAutoSearchEnabled = value },
-                    new("最低政治", "按当前有效政治筛选，包含伤势、宝物和官职影响。默认45，0不限制政治。",
-                        0, int.MaxValue, settings => settings.PlayerAutoSearchMinimumPolitics,
-                        (settings, value) => settings with { PlayerAutoSearchMinimumPolitics = value })),
-                new ToggleOption("过滤一般探索汇报", "隐藏探索获得金钱和无收获的汇报；宝物、人物及特殊事件提示保留，含手动探索和自动探索。",
+                new PlayerAutomationOption(),
+                new ToggleOption("允许干预委任军团", "玩家可向子军团下令；AI随后使用剩余资格，并保留本旬已下令部队的命令。",
+                    settings => settings.AllowDelegatedCorpsOrders,
+                    (settings, value) => settings with { AllowDelegatedCorpsOrders = value }),
+            ]),
+            new("汇报、操作与外观",
+            [
+                new ToggleOption("过滤一般探索汇报", "隐藏获得金钱及无收获的汇报，保留宝物、人物和特殊事件提示。手动与自动探索均适用。",
                     settings => settings.HideRoutineSearchReports,
                     (settings, value) => settings with { HideRoutineSearchReports = value }),
-                new ToggleOption("选阵后自动配置兵法", "出征准备界面每次确认陆上阵形后，按阵形重新配置全队兵法，覆盖手动选择。",
+                new ToggleOption("选阵后自动配置兵法", "确认陆上阵形后重新配置全队兵法，会覆盖手动选择。",
                     settings => settings.ConfigureTacticsOnFormationSelection,
                     (settings, value) => settings with { ConfigureTacticsOnFormationSelection = value }),
-            ]),
-            new("地图外观",
-            [
                 new FormationAppearanceOption(),
             ]),
         ]),
@@ -164,7 +173,7 @@ public partial class CompanionSettingsView
                     (settings, value) => settings with { AffinityAffectsMartialChains = value }),
                 new ToggleOption("箕形利于联动、雁行附加阻击", "按配置预设交换阵型的兵法联动倍率和阻击加成。原版为锥行的联动优势移给箕形、箕形的阻击优势移给雁行。",
                     settings => settings.RedistributeFormationTacticBonuses,
-                    (settings, value) => settings with { RedistributeFormationTacticBonuses = value }),
+                    (settings, value) => settings with { RedistributeFormationTacticBonuses = value }, PresetValue: false),
             ]),
             new("效果",
             [

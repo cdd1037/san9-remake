@@ -2,11 +2,15 @@ using System.Text.Json.Serialization;
 
 namespace San9.Core.Domain;
 
+public enum PlayerCorpsAutomationMode { Disabled, DomesticAndSearch, Full }
+
 /// <summary>Companion options supplied by the host, independently of game saves.</summary>
 public sealed record CompanionSettings
 {
     public static CompanionSettings Default { get; } = new();
 
+    [JsonRequired] public PlayerCorpsAutomationMode PlayerCorpsAutomation { get; init; }
+    [JsonRequired] public bool AllowDelegatedCorpsOrders { get; init; }
     [JsonRequired] public bool PlayerAutoDomesticEnabled { get; init; }
     [JsonRequired] public bool PlayerAutoSearchEnabled { get; init; }
     [JsonRequired] public int PlayerAutoSearchMinimumPolitics { get; init; } = 45;
@@ -61,6 +65,7 @@ public sealed record CompanionSettings
 
     public void Validate()
     {
+        if (!Enum.IsDefined(PlayerCorpsAutomation)) throw new ArgumentOutOfRangeException(nameof(PlayerCorpsAutomation));
         ArgumentOutOfRangeException.ThrowIfNegative(PlayerAutoSearchMinimumPolitics);
         ArgumentOutOfRangeException.ThrowIfNegative(ComputerRevenuePercent);
         ArgumentOutOfRangeException.ThrowIfNegative(ComputerHarvestPercent);

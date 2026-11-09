@@ -31,7 +31,7 @@ public static class ProgressMessages
         bool Player(int? force) => force is int id && before.World.Simulation.Controls.Any(c => c.ForceId == id && c.Kind == ControllerKind.Player);
         bool DirectPlayer(BattleObjectContext? obj) => obj is { ForceId: int force } && Player(force) &&
             !before.World.Corps.Any(c => c.OwnerId == force && (obj.CorpsId is int corps ? c.Id == corps : c.IsRoot) &&
-                c.ControlMode == CorpsControlMode.Automatic);
+                !CorpsControl.PlayerOperates(c, before.Companion));
         MapCell? PlaceLocation(int id) => after.Settlements.Concat(before.Settlements).FirstOrDefault(s => s.Id == id) is { } place
             ? new(place.X, place.Y) : null;
         int? DetentionOwner(int? settlement, int? unit) => settlement is int place

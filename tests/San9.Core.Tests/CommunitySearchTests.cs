@@ -29,7 +29,7 @@ public sealed class CommunitySearchTests
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(60, 30, 80, 70), false)],
             treasures: [new(50, 2, TreasureDiscovery.Discovered, null)],
-            corps: [new(7, 1, 2, new(5000, 5000)) { ControlMode = CorpsControlMode.Direct }, new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 0)) { IsRoot = true }],
+            corps: [new(7, 1, 2, new(5000, 5000)), new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 0)) { IsRoot = true }],
             controls: [new("player", 1, ControllerKind.Player)]).BeginMutation(new OfficerAbilityRules(new([new(50, default, 0)]), new([])));
         ulong seed = TestSeeds.StateForRoll(0);
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", seed)] });

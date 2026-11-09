@@ -28,7 +28,7 @@ public sealed class SearchConflictTests
              new(3, null, null, default, false) { Status = OfficerStatus.Special },
              new(4, null, null, default, false) { Status = OfficerStatus.Special }],
             treasures: [new(50, 3, TreasureDiscovery.Discovered, null)],
-            corps: [new(7, 1, 2, new(5000, 0)) { ControlMode = CorpsControlMode.Direct }, new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 0)) { IsRoot = true }],
+            corps: [new(7, 1, 2, new(5000, 0)), new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 0)) { IsRoot = true }],
             controls: [new("player", 1, ControllerKind.Player)]).BeginMutation();
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", Seed(0)), new("event-search-conflict", Seed(roll))] });
         var task = new PersistentTask(Guid.NewGuid(), "personnel-search", "player", 1, 2, 1, world.Clock, world.Clock, 0, 0) { Journey = new(1, null, 0) };

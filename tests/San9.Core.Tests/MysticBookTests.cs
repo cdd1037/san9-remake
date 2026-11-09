@@ -78,7 +78,7 @@ public sealed class MysticBookTests
     public void OfferChargesTheQualifyingCorpsForAcceptanceAndRefusal(bool accept, uint rootMoney)
     {
         var (world, task) = Create();
-        world.AddCorps(new(7, 1, 2, new(1501, 0)) { ControlMode = CorpsControlMode.Direct });
+        world.AddCorps(new(7, 1, 2, new(1501, 0)));
         world.Replace(world.Settlements[1] with { CorpsId = 7 }); world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Money = rootMoney } });
         Assert.True(MysticBook.Prepare(world, task, Offer)); List<DomainEvent> events = [];
         MysticBook.Resolve(world, task, Rules, new MysticBookOfferEncounter(Offer.Id), accept, events);

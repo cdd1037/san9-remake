@@ -48,7 +48,7 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
             8481, 8482, 8517, 8518, 8500, 8501, 8505, 8506, 8510, 8511];
         for (int i = 0; i < messages.Length; i++) Add(StrategyHintText.Key(StrategyHintText.Roles[i]), Text(messages[i]));
     }
-    private void ReadCommandMenuText()
+    public void ReadCommandText()
     {
         CommandText.AddRemakeEntries(_entries);
         foreach (var (role, rva) in CommandTextSources.Labels)
@@ -60,6 +60,10 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
         }
         foreach (var (role, message) in CommandTextSources.Messages)
             Add(CommandText.Key(role), MultilineText(message));
+    }
+    private void ReadCommandMenuText()
+    {
+        ReadCommandText();
         // RE-0137: construction preparation and shared fixed-formation destination workflow.
         foreach (var (role, message) in new[] { ("build",6013), ("transport",6109), ("officers",8168),
             ("soldiers",8169), ("facility",8170), ("need-officers",8037), ("need-soldiers",8157),

@@ -2,12 +2,51 @@ using System.Text.Json;
 using San9.Content.Packages;
 using San9.Content.Scenarios;
 using San9.Content.Text;
+using San9.Tests;
 
 namespace San9.Content.Tests;
 
 public sealed class ScenarioContentFilesTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "san9-split-" + Guid.NewGuid().ToString("N"));
+
+    [Fact]
+    public async Task CommandTextPublicationPreservesOtherDataAndDoesNotLoadWorldDependencies()
+    {
+        var original = Fixture();
+        original.Text.Entries.Add("ui.commands.retired-role", "retired");
+        await ScenarioContentFiles.WriteAsync(_root, original);
+        string textPath = PublishedPath("text.json");
+        string manifestPath = Path.Combine(_root, "content.json");
+        var manifestBytes = await File.ReadAllBytesAsync(manifestPath);
+        var presentationBytes = await File.ReadAllBytesAsync(PublishedPath("presentation.json"));
+        File.Delete(PublishedPath("scenario.json"));
+        var entries = CommandTextFixture.Entries();
+        Assert.Equal(1, await ScenarioContentFiles.WriteCommandTextAsync([_root, _root], entries));
+        var updated = await PackageFiles.ReadAsync<StaticTextContent>(textPath);
+        Assert.Equal("简体", updated.Entries["name"]);
+        Assert.False(updated.Entries.ContainsKey("ui.commands.retired-role"));
+        Assert.Equal(original.Text.MessagePeople, updated.MessagePeople);
+        Assert.Equal(manifestBytes, await File.ReadAllBytesAsync(manifestPath));
+        Assert.Equal(presentationBytes, await File.ReadAllBytesAsync(PublishedPath("presentation.json")));
+        Assert.Equal(0, await ScenarioContentFiles.WriteCommandTextAsync([_root], entries));
+    }
+
+    [Fact]
+    public async Task CommandTextPublicationDoesNotPublishAPartialBatchOrInvalidRoles()
+    {
+        await ScenarioContentFiles.WriteAsync(_root, Fixture());
+        string path = PublishedPath("text.json");
+        byte[] original = await File.ReadAllBytesAsync(path);
+        var entries = CommandTextFixture.Entries();
+        await Assert.ThrowsAsync<DirectoryNotFoundException>(() => ScenarioContentFiles.WriteCommandTextAsync(
+            [_root, Path.Combine(_root,"missing")], entries));
+        Assert.Equal(original, await File.ReadAllBytesAsync(path));
+        entries[CommandText.Key("result.reward")] = "invalid {2}";
+        await Assert.ThrowsAsync<InvalidDataException>(() => ScenarioContentFiles.WriteCommandTextAsync([_root], entries));
+        Assert.Equal(original, await File.ReadAllBytesAsync(path));
+        Assert.Empty(Directory.EnumerateFiles(_root, "*.pending", SearchOption.AllDirectories));
+    }
 
     private string PublishedPath(string name)
     {

@@ -13,7 +13,7 @@ Console.InputEncoding = new UTF8Encoding(false);
 
 try
 {
-    if(args.Length==0)throw new ArgumentException("Commands: prepare-content --game-dir PATH --output PATH [--ffmpeg PATH] [--audio true|false] [--movies true|false]; import-audio --game-dir PATH --output PATH [--group bgm|effects|all]; import-movies --game-dir PATH --output PATH [--group events|scenarios|startup|all]; upgrade-portrait-anchors --texture-package PATH | --portrait-pack PATH; import-content --game-dir PATH --output PATH [--rebuild opening|worlds]; verify-content --content-root PATH; import-textures --game-dir PATH --output PATH [--rebuild all|cursors|skin|map|map/formation-appearance|portraits|library/ARCHIVE]; import-client --game-dir PATH --scenario FILENAME --texture-package PATH --output PATH [--message-reports true|false]; verify-textures --texture-package PATH; verify-client --content-package PATH; import-text --game-dir PATH --output PATH; render-map --content-package PATH --output PATH");
+    if(args.Length==0)throw new ArgumentException("Commands: prepare-content --game-dir PATH --output PATH [--ffmpeg PATH] [--audio true|false] [--movies true|false]; import-audio --game-dir PATH --output PATH [--group bgm|effects|all]; import-movies --game-dir PATH --output PATH [--group events|scenarios|startup|all]; upgrade-portrait-anchors --texture-package PATH | --portrait-pack PATH; import-content --game-dir PATH --output PATH [--rebuild opening|worlds|command-text]; verify-content --content-root PATH; verify-startup --content-root PATH [--scenario ID]; import-textures --game-dir PATH --output PATH [--rebuild all|cursors|skin|map|map/formation-appearance|portraits|library/ARCHIVE]; import-client --game-dir PATH --scenario FILENAME --texture-package PATH --output PATH [--message-reports true|false]; verify-textures --texture-package PATH; verify-client --content-package PATH; import-text --game-dir PATH --output PATH; render-map --content-package PATH --output PATH");
     Dictionary<string,string> options=[];
     for(int i=1;i<args.Length;i+=2)
         if(i+1>=args.Length||!args[i].StartsWith("--",StringComparison.Ordinal)||!options.TryAdd(args[i],args[i+1]))throw new ArgumentException("Invalid or duplicate option.");
@@ -24,6 +24,7 @@ try
         "upgrade-portrait-anchors" => ["--texture-package", "--portrait-pack"],
         "import-content" or "import-textures" => ["--game-dir", "--output", "--rebuild"],
         "verify-content" => ["--content-root"],
+        "verify-startup" => ["--content-root", "--scenario"],
         "verify-textures" => ["--texture-package"],
         "verify-client" => ["--content-package"],
         "import-text" => ["--game-dir", "--output", "--exe-evidence"],
@@ -78,9 +79,11 @@ try
     }
     else if (args[0] == "import-content")
     {
-        if (options.TryGetValue("--rebuild", out var unit) && unit is not ("opening" or "worlds"))
-            throw new ArgumentException("Content rebuild unit must be opening or worlds.");
-        if (unit == "worlds")
+        if (options.TryGetValue("--rebuild", out var unit) && unit is not ("opening" or "worlds" or "command-text"))
+            throw new ArgumentException("Content rebuild unit must be opening, worlds or command-text.");
+        if (unit == "command-text")
+            await CommandTextImporter.RebuildAsync(Required("--game-dir"), Required("--output"), Console.WriteLine);
+        else if (unit == "worlds")
             await ScenarioWorldImporter.RebuildAsync(Required("--game-dir"), Required("--output"), Console.WriteLine);
         else
             await ContentCatalogImporter.ImportAsync(Required("--game-dir"), Required("--output"), Console.WriteLine, openingOnly: unit == "opening");
@@ -88,6 +91,10 @@ try
     else if (args[0] == "verify-content")
     {
         await ContentVerification.VerifyAsync(Required("--content-root"), Console.WriteLine);
+    }
+    else if (args[0] == "verify-startup")
+    {
+        await NewGameVerification.VerifyAsync(Required("--content-root"), options.GetValueOrDefault("--scenario"), Console.WriteLine);
     }
     else if(args[0]=="verify-client")
     {

@@ -202,7 +202,7 @@ public sealed partial class GameSession
             var publishedEvents = events.ToImmutableArray();
             var commit = new OperationCommit(candidate, originalAi.Reconcile(snapshot), aiReports.ToImmutableArray(),
                 ending, strategicContexts, history, completed, note, deploymentPresets,
-                input.Definition.MilitaryRules is { } military ? terrainRoutes.TransitNetwork(military, snapshot) : null);
+                terrainRoutes.CachedTransitNetwork);
             return new(new(SessionDisposition.Accepted, SessionRejection.None, publishedEvents, snapshot, Development: development),
                 view, commit) { Transitions = transitions.ToArray() };
         }

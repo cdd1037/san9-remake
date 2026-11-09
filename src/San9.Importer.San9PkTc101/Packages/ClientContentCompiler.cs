@@ -6,7 +6,7 @@ using San9.Importer.San9PkTc101.Text;
 
 namespace San9.Importer.San9PkTc101.Packages;
 
-internal sealed record CompiledScenario(ScenarioContent Content, MessageContentAdaptation[] Adaptations);
+internal sealed record CompiledScenario(ScenarioContent Content, MessageContentAdaptation[] Adaptations, ClientContentPackage Package);
 
 internal static class ClientContentCompiler
 {
@@ -60,10 +60,10 @@ internal static class ClientContentCompiler
         var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion,
             dependency, MapInstance.From(map), scenario, text, roles)
         { Presentation = presentation, Preview = preview };
-        _ = ClientContentFiles.Resolve(content, textures, textureRoot);
+        var package = ClientContentFiles.Resolve(content, textures, textureRoot);
         foreach (string key in messages.Keys)
             if (!San9.Content.Text.MessageGraph.ReferencesValid(key, messages))
                 throw new InvalidDataException($"Invalid or cyclic message references: {key}.");
-        return new(content, adaptations.ToArray());
+        return new(content, adaptations.ToArray(), package);
     }
 }

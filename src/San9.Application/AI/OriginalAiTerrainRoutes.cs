@@ -12,6 +12,7 @@ internal sealed class OriginalAiTerrainRoutes(SettlementTransitNetwork? initialT
     private readonly Dictionary<Key, MovementRoute> routes = [];
     private SettlementTransitNetwork? transitNetwork = initialTransitNetwork;
     private IReadOnlyList<SettlementState>? transitSettlements;
+    internal SettlementTransitNetwork? CachedTransitNetwork => transitNetwork;
 
     internal SettlementTransitNetwork TransitNetwork(MilitaryRulebook rules, WorldSnapshot world)
     {

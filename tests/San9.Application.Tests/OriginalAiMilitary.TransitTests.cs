@@ -129,10 +129,14 @@ public sealed partial class OriginalAiMilitaryTests
     }
 
     [Fact]
-    public void NewGameHasACompleteReferenceNetworkAndReusesItAcrossOperationsAndTurns()
+    public void TransitNetworkIsBuiltOnFirstAiUseAndReusedAcrossOperationsAndTurns()
     {
         var content = HarborTransitFixture();
         var session = GameSession.Start(content, 42, playerForceController: ControllerKind.Automatic);
+        Assert.Null(session.TransitNetwork);
+        Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new PkSettingsOperation(true, true, false))).Disposition);
+        Assert.Null(session.TransitNetwork);
+        session.AdvanceXun();
         var network = Assert.IsType<SettlementTransitNetwork>(session.TransitNetwork);
         Assert.Equal(4, network.Nodes.Length);
         Assert.Equal(network.Nodes.Length, network.BuildSearches);
@@ -145,6 +149,8 @@ public sealed partial class OriginalAiMilitaryTests
         session.AdvanceXun();
         Assert.Same(network, session.TransitNetwork);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
+        Assert.Null(restored.TransitNetwork);
+        restored.AdvanceXun();
         var restoredNetwork = Assert.IsType<SettlementTransitNetwork>(restored.TransitNetwork);
         Assert.NotSame(network, restoredNetwork);
         Assert.Equal(network.Nodes.ToArray(), restoredNetwork.Nodes.ToArray());

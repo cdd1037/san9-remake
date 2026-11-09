@@ -42,6 +42,11 @@
 ```powershell
 dotnet run --project src/San9.Tools -- import-textures --game-dir "private/game-files" --output local/generated/content/textures-san9pk-tc101
 dotnet run --project src/San9.Tools -- import-client --game-dir "private/game-files" --scenario D_Sce002.S9 --texture-package local/generated/content/textures-san9pk-tc101 --output local/generated/content/scenario-190-live
+```
+
+手动排查示例默认不执行。`verify-textures`及`verify-client`仅在用户明确要求，或已有图片／独立包异常确需排查时选择使用，不在转换后固定追加；具体触发条件见[内容管线](client-content.md#校验职责)。纹理Importer内部的发布／复用校验仍自动执行。
+
+```powershell
 dotnet run --project src/San9.Tools -- verify-textures --texture-package local/generated/content/textures-san9pk-tc101
 dotnet run --project src/San9.Tools -- verify-client --content-package local/generated/content/scenario-190-live
 python research/scripts/verify_texture_library.py --package local/generated/content/textures-san9pk-tc101 --source private/game-files

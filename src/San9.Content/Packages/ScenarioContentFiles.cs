@@ -68,6 +68,36 @@ public static class ScenarioContentFiles
         own?.Commit(token);
     }
 
+    /// <summary>Replaces only command-interface text in matching-format packages; all other data stays published as-is.</summary>
+    public static async Task<int> WriteCommandTextAsync(IReadOnlyList<string> roots,
+        IReadOnlyDictionary<string, string> entries, CancellationToken token = default)
+    {
+        if (!entries.Keys.ToHashSet(StringComparer.Ordinal).SetEquals(CommandText.Parameters.Keys.Select(CommandText.Key)))
+            throw new InvalidDataException("Command text replacement must contain exactly the current command roles.");
+        CommandText.Validate(new(TextCatalog.CurrentSchemaVersion, new(entries)));
+        using var publication = new ContentPublication();
+        var written = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        int changed = 0;
+        foreach (string root in roots)
+        {
+            token.ThrowIfCancellationRequested();
+            var manifest = await ReadManifestAsync(root, token);
+            string path = PackageFiles.Resolve(ResolveResourceRoot(root, manifest.ResourceRoot), manifest.Text);
+            if (!written.Add(path)) continue;
+            var text = await PackageFiles.ReadAsync<StaticTextContent>(path, token);
+            if (text.SchemaVersion != TextCatalog.CurrentSchemaVersion)
+                throw new InvalidDataException("Unsupported text version; reconvert the package.");
+            var previous = text.Entries.Where(p => p.Key.StartsWith("ui.commands.", StringComparison.Ordinal)).ToArray();
+            if (previous.Length == entries.Count && previous.All(p => entries.TryGetValue(p.Key, out var value) && p.Value == value)) continue;
+            var replacement = text.Entries.Where(p => !p.Key.StartsWith("ui.commands.", StringComparison.Ordinal))
+                .Concat(entries).ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
+            await publication.StageAsync(path, text with { Entries = replacement }, DataJsonOptions, token);
+            changed++;
+        }
+        publication.Commit(token);
+        return changed;
+    }
+
     /// <summary>Publishes shared inputs and rebuilt worlds together, preserving map and presentation resources.</summary>
     public static async Task WriteWorldsAsync(string resourceRoot, SharedScenarioData shared,
         IReadOnlyList<(string Package, ScenarioInitialState Scenario, TextCatalog Text)> worlds, CancellationToken token = default)

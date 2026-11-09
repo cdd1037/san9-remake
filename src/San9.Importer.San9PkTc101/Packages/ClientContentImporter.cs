@@ -17,7 +17,7 @@ public static class ClientContentImporter
         using var publication = new ContentPublication();
         await StageAsync(output, compiled, publication, messageReports, progress, token);
         publication.Commit(token);
-        return ClientContentFiles.Resolve(compiled.Content, textures, textureRoot) with { ContentRoot = output };
+        return compiled.Package with { ContentRoot = output };
     }
 
     internal sealed record SharedContent(string Root, SharedMessageLibrary Messages, SharedMapDefinition Map, SharedScenarioData Scenario);

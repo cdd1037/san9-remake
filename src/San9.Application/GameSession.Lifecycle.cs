@@ -13,8 +13,6 @@ public sealed partial class GameSession
     {
         _definition = definition;
         _simulation = simulation;
-        _transitNetwork = definition.MilitaryRules is { } military
-            ? SettlementTransitNetwork.Build(military, simulation.Snapshot.Settlements) : null;
         _lastXunStartDay = simulation.Snapshot.Clock.DayNumber;
         _originalAi = OriginalAiState.Create(definition.Content);
         _initialEvents = simulation.InitialEvents;

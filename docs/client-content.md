@@ -115,9 +115,27 @@ TC101地域记录双坐标均为无效哨兵时不生成对象；单轴无效或
 | --- | --- |
 | 定义、人物默认资料、世界初始态或地理契约 | `import-content --rebuild worlds`；现有工具不能定向处理的世界变化才完整转换，复用纹理 |
 | 开局预览、城市范围、头像／旗字目录或开局资源引用 | `import-content --rebuild opening`，不重建未变世界 |
-| 消息、表现绑定或静态文本 | 更新受影响数据及共享消息；未变图片、音频、影片复用 |
+| 命令界面词条 `ui.commands.*` | `import-content --rebuild command-text`，只更新现有同格式包的静态文本；不编译世界、消息图、表现或纹理 |
+| 其他消息、表现绑定或静态文本 | 更新受影响数据及共享消息；未变图片、音频、影片复用 |
 | 皮肤、地图或指定素材图集 | 对应`import-textures --rebuild`单元；语义引用随契约需要更新数据 |
 | 消费者逻辑、文档或版本号变化但产物内容未失效 | 不转换 |
+
+## 校验职责
+
+`verify-content`、`verify-startup`、`verify-textures`、`verify-client`四个手动命令默认不调用。仅在用户明确要求，或已有具体异常、失败证据确有必要排查时，选择与问题相符的入口和最小范围；不作为开发、转换、提交或交付后的固定步骤，不为“更放心”追加执行。转换器内部的契约校验、纹理发布／复用检查及玩家完整导入末尾的包检查仍按产品流程执行，不因此再手动运行一遍。
+
+| 手动入口 | 用户未明确要求时，确有必要排查的情形 |
+| --- | --- |
+| `verify-content` | 已有目录包加载失败，需定位清单、依赖或跨文件引用问题 |
+| `verify-startup` | 出现开局失败、特定势力／模式的初始化或开局介绍异常；优先用`--scenario`限定问题剧本 |
+| `verify-textures` | 图片解码失败，或有具体证据怀疑PNG损坏、格式／尺寸与清单不符 |
+| `verify-client` | 单个独立剧本包的加载或图片依赖异常，需要联合检查该包及其引用图片 |
+
+转换器在发布前检查编译结果的结构、契约及引用，独立 `verify-content` 回读落盘包，确认清单、依赖、预览、音视频引用及纹理文件存在，不创建游戏会话。共享音频目录在一次校验内只检查一次。纹理Importer在发布或复用时执行必要的PNG解码校验；`verify-textures`和`verify-client`提供手动排查用的图片检查。玩家内容准备流程调用相同的包检查入口，不把全部势力开局作为转换成功条件。
+
+`verify-startup` 是显式运行验证：创建会话核对初始身份及目录查询，并遍历所选剧本的所有可选势力与史实／假想模式，检查开局介绍；它不再由普通内容转换或包校验隐式调用。交通网在AI首次实际查询时完整构建并随成功操作保留，不在开场介绍、读档或普通设置操作中无条件构建。
+
+`--rebuild command-text`只转换公共命令词条，复用EXE／消息文件中的原作标签、提示及重制词条输入，替换`ui.commands.*`范围，保留其他静态文本、人物资料和消息标签。相关文本全批暂存后发布，任一包失败则不写回，内容未变化时不重写文件；不读取世界、图片、音频或消息图，不自动追加完整包或开局回归。
 
 ## 转换与运行
 
@@ -133,12 +151,13 @@ TC101地域记录双坐标均为无效哨兵时不生成对象；单轴无效或
 
 情报定义必填`Information.ShowOfficerAges`独立声明年龄可见性：TC101模式1为false，其余为true；武将一览与详情关闭时显示`**`且不提供年龄数值排序键，不影响出生年、登场、自然死亡或伴侣“无限寿命”。20个正式剧本已原位重建，逐项核对源模式与该字段，并确认人物集合和出生年保持不变；报告`local/generated/verification/officer-age-display.json`。采用行为见[情报规格](../specs/behavior/BEH-UI-0004-information-browser.md#状态与不变量)。
 
-从仓库根运行、写回原目录；只有独立对照才留副本。import-content负责目录型全剧本发布，import-client会重新生成一个剧本包全部JSON并复制已准备音频，没有局部／增量入口；两者都只引用共享纹理。原位不等于增量，相关改动收敛后集中执行一次，不为未变化产物反复转换。
+从仓库根运行、写回原目录；只有独立对照才留副本。import-content负责目录型发布，支持opening、worlds和command-text三个定向重建单元；import-client会重新生成一个剧本包全部JSON并复制已准备音频，没有局部／增量入口；两者都只引用共享纹理。原位不等于增量，相关改动收敛后集中执行一次，不为未变化产物反复转换。
 
 ```powershell
 dotnet run --project src/San9.Tools -- import-textures --game-dir "private/game-files" --output "local/generated/content/shared/textures"
 dotnet run --project src/San9.Tools -- import-content --game-dir "private/game-files" --output "local/generated/content"
-dotnet run --project src/San9.Tools -- verify-content --content-root "local/generated/content"
+# 仅更新命令界面词条（需现有包格式匹配；不用于升级世界／表现格式）。
+dotnet run --project src/San9.Tools -- import-content --game-dir "private/game-files" --output "local/generated/content" --rebuild command-text
 & "<Godot Mono可执行文件>" --path src/San9.Client.Godot
 # 显式直接进入某个剧本及玩家势力：
 & "<Godot Mono可执行文件>" --path src/San9.Client.Godot -- --scenario 4 --player-force 6
@@ -147,6 +166,14 @@ dotnet run --project src/San9.Tools -- verify-content --content-root "local/gene
 
 ```powershell
 dotnet run --project src/San9.Tools -- import-client --game-dir "private/game-files" --scenario D_Sce002.S9 --texture-package "local/generated/content/shared/textures" --output "local/generated/content/scenario-190-live"
+```
+
+以下手动排查示例默认不执行，仅按[校验职责](#校验职责)中的触发条件选择所需命令，不串联全跑：
+
+```powershell
+dotnet run --project src/San9.Tools -- verify-content --content-root "local/generated/content"
+dotnet run --project src/San9.Tools -- verify-startup --content-root "local/generated/content" --scenario 0
+dotnet run --project src/San9.Tools -- verify-textures --texture-package "local/generated/content/shared/textures"
 dotnet run --project src/San9.Tools -- verify-client --content-package "local/generated/content/scenario-190-live"
 ```
 
@@ -180,7 +207,7 @@ dotnet run --project src/San9.Tools -- import-textures --game-dir "private/game-
 
 内容准备页的“开始转换”直接调用导出时引用的 Importer，在后台任务中执行，与游戏共用一份 .NET 运行时，不启动额外转换器进程，也不附带 `importer/` 目录。源格式解释仍封装在 Importer，正常游戏加载仍只消费转换包。当前仅支持繁体中文 PK 1.0.1.0 的已登记构建，原版目录须直接包含 `San9PK.exe` 和 S9，内容目录与原版目录不得相同或互相包含；始终写入界面显示的内容目录，保留源文件不变。
 
-界面先选择原版目录、确认音频／影片选项，再点击“开始转换”；内容路径可选中复制，加载错误与转换日志分别折叠显示，成功后显示就绪状态。转换器先检查版本，再依次转换纹理、所选音频、全部剧本和所选影片，最后复用 `verify-content` 完整校验。音频开关同时控制背景音乐与音效；关闭后不处理音频，保留已有文件，首次准备也允许不安装音频。影片可选，关闭后保留已有影片。至少选中一项媒体时才检查 FFmpeg：从系统 PATH 查找，也可在界面选择；要求 Vorbis 编码器，选中影片时还要求 Theora。两项都关闭不检查 FFmpeg；发行包不捆绑或下载 FFmpeg，需要转码却缺失或编码器不满足时报错，不跳过后宣告成功。
+界面先选择原版目录、确认音频／影片选项，再点击“开始转换”；内容路径可选中复制，加载错误与转换日志分别折叠显示，成功后显示就绪状态。转换器先检查版本，再依次转换纹理、所选音频、全部剧本和所选影片，最后复用 `verify-content` 检查落盘包的结构与引用，不执行游戏开局回归或重复解码PNG。音频开关同时控制背景音乐与音效；关闭后不处理音频，保留已有文件，首次准备也允许不安装音频。影片可选，关闭后保留已有影片。至少选中一项媒体时才检查 FFmpeg：从系统 PATH 查找，也可在界面选择；要求 Vorbis 编码器，选中影片时还要求 Theora。两项都关闭不检查 FFmpeg；发行包不捆绑或下载 FFmpeg，需要转码却缺失或编码器不满足时报错，不跳过后宣告成功。
 
 转换期间显示日志并禁用重复转换和内容加载，允许取消；关闭客户端也会请求取消转换任务及活动转码。各阶段原位写入，目录型剧本发布为统一批次，纹理和媒体分别提交；失败或取消可能保留此前已完成阶段的产物，允许重试，不清空目录或删除玩家文件。完整校验通过且任务正常结束才显示“进入游戏”。所有公共导入入口对输出目录及其资源子目录互斥；玩家入口持锁至最终校验结束。
 

@@ -10,7 +10,7 @@ public static class MapUnitCompiler
 {
     // RE-SAN9PK-0156: source tables supply body identities, anchors and idle sheets.
     public static MapUnitCatalog Compile(byte[] exe, string dataDirectory, Func<string, byte[]> read,
-        Func<string, string, PngImage, ImageAsset> save, List<ImageAsset> assets, List<MapAnimationClip> clips)
+        Func<string, string, TextureSourceImage, ImageAsset> save, List<ImageAsset> assets, List<MapAnimationClip> clips)
     {
         int Int(int offset) => BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(offset, 4));
         var units = IndexedImageArchive.ReadArchive(read(Path.Combine(dataDirectory, "G_UnitS.s9")));
@@ -28,17 +28,21 @@ public static class MapUnitCompiler
             var frames = Enumerable.Range(0, sequence.Length).Select(frame =>
             {
                 string id = $"{key}-{frame}";
-                var image = IndexedImageArchive.Decode(IndexedImageArchive.Frame(sheet, frameCount, 1, sequence[frame], 0),
-                    archive.Palettes[palettes[resource] - paletteBase], true, paletteAlpha);
-                // Fixed-weight additive consumers do not read palette alpha (RE-SAN9PK-0156).
-                if (additiveWeight != 0)
-                    for (int pixel = 0; pixel < image.Pixels.Length; pixel += 4)
-                        for (int channel = 0; channel < 3; channel++)
-                            image.Pixels[pixel + channel] = (byte)(image.Pixels[pixel + channel] * additiveWeight * (fade ? (1 + Math.Cos(Math.PI * frame / frameCount)) / 2 : 1) / 256);
-                if (opacity != 256)
-                    for (int pixel = 3; pixel < image.Pixels.Length; pixel += 4)
-                        image.Pixels[pixel] = (byte)(image.Pixels[pixel] * opacity / 256);
-                assets.Add(save(id, $"animations/{key}/{frame}.png", image));
+                PngImage Decode()
+                {
+                    var image = IndexedImageArchive.Decode(IndexedImageArchive.Frame(sheet, frameCount, 1, sequence[frame], 0),
+                        archive.Palettes[palettes[resource] - paletteBase], true, paletteAlpha);
+                    // Fixed-weight additive consumers do not read palette alpha (RE-SAN9PK-0156).
+                    if (additiveWeight != 0)
+                        for (int pixel = 0; pixel < image.Pixels.Length; pixel += 4)
+                            for (int channel = 0; channel < 3; channel++)
+                                image.Pixels[pixel + channel] = (byte)(image.Pixels[pixel + channel] * additiveWeight * (fade ? (1 + Math.Cos(Math.PI * frame / frameCount)) / 2 : 1) / 256);
+                    if (opacity != 256)
+                        for (int pixel = 3; pixel < image.Pixels.Length; pixel += 4)
+                            image.Pixels[pixel] = (byte)(image.Pixels[pixel] * opacity / 256);
+                    return image;
+                }
+                assets.Add(save(id, $"animations/{key}/{frame}.png", new TextureSourceImage(sheet.Width / frameCount, sheet.Height, 4, Decode)));
                 return id;
             }).ToArray();
             clips.Add(new(key, frames, milliseconds, []) { BlendMode = additiveWeight != 0 ? MapBlendMode.Additive : MapBlendMode.Alpha });
@@ -139,7 +143,7 @@ public static class MapUnitCompiler
             var frames = Enumerable.Range(0, count).Select(i =>
             {
                 string key = $"projectile-{name}-{i}";
-                var image = IndexedImageArchive.Decode(IndexedImageArchive.Frame(sheet, count, 1, directional ? (i + 3) % count : i, 0),
+                var image = TextureSourceImage.Indexed(IndexedImageArchive.Frame(sheet, count, 1, directional ? (i + 3) % count : i, 0),
                     units.Palettes[palettes[resource]], true, false);
                 assets.Add(save(key, $"animations/projectile-{name}/{i}.png", image));
                 return key;

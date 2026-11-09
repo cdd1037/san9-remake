@@ -7,7 +7,7 @@ namespace San9.Importer.San9PkTc101.Interface;
 public static partial class InterfaceSkinCompiler
 {
     private static void CompileEditors(Dictionary<int, int> bindings, string directory, Func<string, byte[]> read,
-        Func<string, string, PngImage, ImageAsset> save, List<ImageAsset> assets, Dictionary<string, string> roles)
+        Func<string, string, TextureSourceImage, ImageAsset> save, List<ImageAsset> assets, Dictionary<string, string> roles)
     {
         var archive = IndexedImageArchive.ReadCombined(read(Path.Combine(directory, "G_EditPK.s9")), 16, 113);
         void Export(string role, int resource, int columns = 1)

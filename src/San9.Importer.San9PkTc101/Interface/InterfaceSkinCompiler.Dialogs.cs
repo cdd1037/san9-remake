@@ -26,7 +26,7 @@ public static partial class InterfaceSkinCompiler
 
     private sealed record SkinSources((byte[][] Palettes, IndexedImage[] Images) Common,
         (byte[][] Palettes, IndexedImage[] Images) Marker, Dictionary<int, int> Bindings,
-        List<ImageAsset> Assets, Dictionary<string, string> Roles, Func<string, string, PngImage, ImageAsset> Save)
+        List<ImageAsset> Assets, Dictionary<string, string> Roles, Func<string, string, TextureSourceImage, ImageAsset> Save)
     {
         internal void Export(string role, int resource, int palette, bool alpha)
         {
@@ -78,7 +78,7 @@ public static partial class InterfaceSkinCompiler
             for (int i = 0; i < mask.Pixels.Length; i++)
                 if (mask.Pixels[i] != 0) pixels.AsSpan(i * 4, 4).Fill(255);
             string key = role.StartsWith("small-", StringComparison.Ordinal) ? "deployment-small-cutout-" + role[6..] : "deployment-cutout-" + role;
-            assets.Add(save("ui-" + key, "ui/" + key + ".png", new(mask.Width, mask.Height, 4, pixels)));
+            assets.Add(save("ui-" + key, "ui/" + key + ".png", new PngImage(mask.Width, mask.Height, 4, pixels)));
             ui.Add(key, "ui-" + key);
         }
         var deploymentField = CompileDeploymentField(common.Images.Skip(242).Take(9).ToArray());

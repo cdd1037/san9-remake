@@ -7,7 +7,7 @@ namespace San9.Importer.San9PkTc101.Packages;
 internal static class TexturePackagePacking
 {
     public static TexturePackage Pack(string output, TexturePackage package, string directory, CancellationToken token,
-        Action<string, byte[]>? write = null)
+        Action<string, byte[]>? write = null, Func<ImageAsset, PngImage>? decode = null)
     {
         var map = package.Map;
         var skin = package.Skin;
@@ -63,15 +63,14 @@ internal static class TexturePackagePacking
             .Concat(portraits.Select(p => new TextureAtlasCompiler.Source(p.Image, null, "portraits", p.Id))).ToArray();
         // Resolve consumers to their declared source before packing. No pixel comparison occurs.
         // Display/CPU definitions own placement; the complete library references those definitions.
-        var selected = requests.Where(s => s.Asset.Path.StartsWith(".sources/", StringComparison.Ordinal) ||
-            s.Asset.Path.StartsWith(directory + "/", StringComparison.Ordinal)).ToArray();
-        // Retained consumers in this output directory are repacked with corrected images.
-        // A source region, rather than an atlas file, identifies their unchanged pixels.
+        var selected = requests.Where(s => s.Asset.Path.StartsWith(".sources/", StringComparison.Ordinal)).ToArray();
+        // Only new sources enter packing. Local rebuilds use independent output directories;
+        // retained consumers keep referencing their existing PNGs.
         static (ImageFile File, int X, int Y, int Width, int Height) Region(ImageAsset image) => (image.File, image.X, image.Y, image.Width, image.Height);
         var owners = selected.GroupBy(s => Region(s.Asset)).Select(g => g
             .OrderBy(s => s.Asset.Id.StartsWith("library/", StringComparison.Ordinal))
             .ThenBy(s => s.Asset.Id, StringComparer.Ordinal).First()).ToArray();
-        var pages = TextureAtlasCompiler.Compile(output, owners, directory, token, write).ToDictionary(a => a.Id);
+        var pages = TextureAtlasCompiler.Compile(output, owners, directory, token, write, decode).ToDictionary(a => a.Id);
         var bySource = owners.ToDictionary(s => Region(s.Asset), s => pages[s.Asset.Id]);
         var packed = requests.ToDictionary(s => s.Asset.Id, s => bySource.TryGetValue(Region(s.Asset), out var asset) ? asset with { Id = s.Asset.Id } : s.Asset);
         map = map with { Assets = map.Assets.Select(a => packed[a.Id]).ToArray(),

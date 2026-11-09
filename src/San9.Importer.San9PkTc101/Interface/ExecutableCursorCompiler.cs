@@ -1,3 +1,4 @@
+using San9.Importer.San9PkTc101.Images;
 using System.Buffers.Binary;
 using System.Reflection.PortableExecutable;
 using San9.Content.Images;
@@ -8,7 +9,7 @@ namespace San9.Importer.San9PkTc101.Interface;
 internal static class ExecutableCursorCompiler
 {
     public static Dictionary<string, CursorDefinition> Compile(PEReader pe, List<ImageAsset> assets,
-        Func<string, string, PngImage, ImageAsset> save)
+        Func<string, string, TextureSourceImage, ImageAsset> save)
     {
         var table = pe.PEHeaders.PEHeader!.ResourceTableDirectory;
         byte[] directory = pe.GetSectionData(table.RelativeVirtualAddress).GetContent(0, table.Size).ToArray();

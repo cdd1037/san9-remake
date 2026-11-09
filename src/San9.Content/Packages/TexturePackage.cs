@@ -47,6 +47,14 @@ public sealed record TexturePackage(int SchemaVersion, int ConversionVersion, st
 
 public static class TexturePackageFiles
 {
+    /// <summary>Materializes an already parsed manifest without reading or parsing its JSON again.</summary>
+    public static TexturePackage Read(JsonElement manifest)
+    {
+        var package = TexturePackageJsonConverter.ReadManifest(manifest, PackageFiles.JsonOptions);
+        package.Validate();
+        return package;
+    }
+
     private static ImageFileTable ReadFiles(JsonObject manifest)
     {
         var files = manifest["files"]?.Deserialize<ImageFile[]>(PackageFiles.JsonOptions)

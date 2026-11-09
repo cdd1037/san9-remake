@@ -51,33 +51,19 @@ internal static class TexturePackageRebuilder
                 MapUnitCompiler.CompileFormationAppearance(), PackageFiles.JsonOptions);
             var rebuilt = manifest.Deserialize<TexturePackage>(PackageFiles.JsonOptions)
                 ?? throw new InvalidDataException("Empty texture package.");
-            using var metadata = new TexturePublication();
-            await TexturePackageImporter.PublishAsync(output, rebuilt, token, metadata);
+            TexturePackageImporter.Publish(output, rebuilt, token);
             progress?.Invoke("Rebuilt map/formation-appearance; retained all images and other resource definitions.");
             return rebuilt;
         }
-        var source = new San9SourceDirectory(gameDirectory);
-        var identity = await San9PkTc101Detector.DetectAsync(source.Executable, token);
-        if (!identity.IsMatch) throw new InvalidDataException(identity.Reason);
+        var imported = await San9ImportSource.OpenAsync(gameDirectory, token);
+        var source = imported.Directory;
         byte[] Read(string path)
         {
             token.ThrowIfCancellationRequested();
-            return File.ReadAllBytes(path);
+            return imported.Read(Path.GetFileName(path));
         }
-        Dictionary<string, ImageAsset> images = new(StringComparer.Ordinal);
-        ImageAsset Save(string id, string sourcePath, PngImage image)
-        {
-            token.ThrowIfCancellationRequested();
-            if (images.TryGetValue(sourcePath, out var existing)) return existing with { Id = id };
-            string relative = $".sources/{images.Count}.png";
-            string path = PackageFiles.Resolve(output, relative);
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            using (var stream = File.Create(path))
-                image.Encode(stream, System.IO.Compression.CompressionLevel.Fastest);
-            var asset = new ImageAsset(id, relative, image.Width, image.Height, image.Channels);
-            images.Add(sourcePath, asset);
-            return asset;
-        }
+        var images = new TextureImageSources(token);
+        ImageAsset Save(string id, string sourcePath, TextureSourceImage image) => images.Add(id, sourcePath, image);
         progress?.Invoke($"Rebuilding {scope} from source using current conversion rules.");
         TexturePackage package;
         switch (scope)
@@ -109,10 +95,11 @@ internal static class TexturePackageRebuilder
                 break;
         }
         // Sources certifies the entire package. A local rebuild cannot certify retained units.
-        // Repack retained consumers of the selected output directory together with corrected images.
-        using var publication = new TexturePublication();
-        package = TexturePackagePacking.Pack(output, package, "images/rebuilt/" + scope, token, publication.Write);
-        await TexturePackageImporter.PublishAsync(output, package, token, publication);
+        // Retained consumers continue referencing their existing files.
+        // A fresh directory keeps retained references intact without reading or backing up old PNGs.
+        string directory = "images/rebuilt/" + scope + "/" + Guid.NewGuid().ToString("N");
+        package = TexturePackagePacking.Pack(output, package, directory, token, TexturePublication.Write, images.Load);
+        TexturePackageImporter.Publish(output, package, token);
         progress?.Invoke($"Rebuilt {scope}: {images.Count} source images; retained other published resource definitions.");
         return package;
     }

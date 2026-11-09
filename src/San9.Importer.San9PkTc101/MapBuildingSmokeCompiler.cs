@@ -10,7 +10,7 @@ public static class MapBuildingSmokeCompiler
 {
     // RE-0156: the switches select fixed building types; these are not smoke-state numbers.
     public static MapBuildingSmoke[] Compile(byte[] exe, string dataDirectory, Func<string, byte[]> read,
-        Func<string, string, PngImage, ImageAsset> save, List<ImageAsset> assets, List<MapAnimationClip> clips)
+        Func<string, string, TextureSourceImage, ImageAsset> save, List<ImageAsset> assets, List<MapAnimationClip> clips)
     {
         using var pe = new PEReader(new MemoryStream(exe));
         int At(int address) => BinaryPrimitives.ReadInt32LittleEndian(pe.GetSectionData(address - (int)pe.PEHeaders.PEHeader!.ImageBase).GetContent(0, 4).AsSpan());
@@ -27,7 +27,7 @@ public static class MapBuildingSmokeCompiler
             {
                 string id = $"{clip}-{i}";
                 // draw_flags 0x40: palette alpha, not fixed opacity or additive blending.
-                var image = IndexedImageArchive.Decode(IndexedImageArchive.Frame(sheet, 8, 1, i, 0), archive.Palettes[palettes[resource] - 21], true, true);
+                var image = TextureSourceImage.Indexed(IndexedImageArchive.Frame(sheet, 8, 1, i, 0), archive.Palettes[palettes[resource] - 21], true, true);
                 assets.Add(save(id, $"animations/{clip}/{i}.png", image));
                 return id;
             }).ToArray();

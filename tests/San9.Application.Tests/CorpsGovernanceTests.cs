@@ -48,7 +48,7 @@ public sealed class CorpsGovernanceTests
         };
         var session = GameSession.Start(definition, 190);
         var before = session.Snapshot;
-        Assert.True(session.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [3], 100, 200, new GeneralDelegation())).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new CreateCorpsCommand(Guid.NewGuid(), 1, 0, [3], 100, 200, new GeneralDelegation(), CorpsControlMode.Automatic)).Submission.Accepted);
         var created = session.Snapshot.Corps.Single(c => !c.IsRoot);
         Assert.Equal(1001, created.Id);
         Assert.Equal(2, created.LeaderId);
@@ -57,8 +57,8 @@ public sealed class CorpsGovernanceTests
         var saveState = session.Capture();
         var save = SaveService.Encode(session);
         StateAssert.Equal(saveState, SaveService.Decode(save, definition).Capture());
-        Assert.True(session.Execute(new("player"), new ChangeCorpsCommand(Guid.NewGuid(), 1, 1, created.Id, [3], 50, 300, new DomesticDelegation())).Submission.Accepted);
-        Assert.Equal(created.Id, session.Snapshot.Units.Single(u => u.Id == 21).CorpsId);
+        Assert.True(session.Execute(new("player"), new ChangeCorpsCommand(Guid.NewGuid(), 1, 1, created.Id, [3], 50, 300, new DomesticDelegation(), CorpsControlMode.Automatic)).Submission.Accepted);
+        Assert.Equal(1000, session.Snapshot.Units.Single(u => u.Id == 21).CorpsId);
         var changedSaveState = session.Capture();
         var changedSave = SaveService.Encode(session);
         var restored = SaveService.Decode(changedSave, definition);

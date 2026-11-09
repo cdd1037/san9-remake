@@ -29,7 +29,7 @@ internal sealed partial class MapCommandAvailability(StrategySnapshot view)
             return "unavailable";
         // Management must remain reachable so a player can restore directly controlled corps.
         if (command == "delegate") return null;
-        if (!Controlled(home.CorpsId)) return "unavailable";
+        if (!(command is "move" or "summon" ? Controlled(null) : Controlled(home.CorpsId))) return "unavailable";
         if (IsDomestic(command) && home.Kind != SettlementKind.City && command is not ("repair" or "train"))
             return "unavailable";
         if (command is "strategist" or "rank" or "reward" or "bestow" or "confiscate" or "execute" or "exile")
@@ -41,7 +41,7 @@ internal sealed partial class MapCommandAvailability(StrategySnapshot view)
         // Deployment and transport remain available under siege; ordinary missions do not.
         if (command is not ("sortie" or "build" or "transport") && view.IsSettlementEngaged(id)) return "engaged";
         if (command == "demolish") return null;
-        if (command == "move" && !OtherHomes(home).Any()) return "no-move-destination";
+        if (command == "move" && !OtherHomes(home, directOnly: false).Any()) return "no-move-destination";
         if (command == "transport" && !OtherHomes(home, directOnly: false).Any()) return "no-other-facility";
         if (command == "build" && !BuildableTypes().Any()) return "no-construction-site";
         if (command == "employ" && !view.World.Officers.Any(Recruitable)) return "no-employ-target";

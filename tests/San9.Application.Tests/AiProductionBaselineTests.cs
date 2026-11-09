@@ -10,6 +10,7 @@ public sealed class AiProductionBaselineTests
 {
     [Theory]
     [InlineData(ControllerKind.Player, CorpsControlMode.Automatic)]
+    [InlineData(ControllerKind.Player, CorpsControlMode.Cooperative)]
     [InlineData(ControllerKind.Automatic, CorpsControlMode.Direct)]
     [InlineData(ControllerKind.Automatic, CorpsControlMode.Automatic)]
     public void AutomaticControlsRunEconomicWorkOnceAndRestoreExactly(

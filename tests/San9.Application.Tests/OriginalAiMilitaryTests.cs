@@ -63,7 +63,8 @@ public sealed partial class OriginalAiMilitaryTests
                 Simulation = world.Simulation with { Boundary = SimulationBoundary.Stable }
             };
             Engine = GameSession.EngineFactory(content)(WorldState.Restore(change?.Invoke(world) ?? world));
-            var context = new CommandContext("player");
+            var mode = Engine.Snapshot.Corps.Single(c => c.Id == 1).ControlMode;
+            var context = new CommandContext(mode.AllowsAutomaticOrders() ? CorpsControl.ControllerId(1) : "player");
             var rules = Rules = definition.Rules.Military!;
             Military = new(Engine, content, rules, definition.Rules,
                 new(content, rules), TerrainRoutes, 1, context, new OriginalAiRandom(draw ?? (_ => 0)), (command, prepared) =>
@@ -1143,7 +1144,11 @@ public sealed partial class OriginalAiMilitaryTests
     [InlineData(UnitCondition.Disguised, false)]
     [InlineData(UnitCondition.NoFormation, false)]
     [InlineData(UnitCondition.Routed, false)]
-    public void StrategicRecallUsesItsOwnConditionGate(UnitCondition condition, bool expected)
+    [InlineData(UnitCondition.Normal, false, CorpsControlMode.Cooperative, true)]
+    [InlineData(UnitCondition.Normal, true, CorpsControlMode.Cooperative, false)]
+    [InlineData(UnitCondition.Normal, true, CorpsControlMode.Automatic, true)]
+    public void StrategicRecallUsesItsOwnConditionGate(UnitCondition condition, bool expected,
+        CorpsControlMode mode = CorpsControlMode.Direct, bool commanded = true)
     {
         var content = Fixture();
         content = content with { Settlements = content.Settlements.Select(s => s.Id == 1 ? s with { Soldiers = 5000 } : s).ToArray() };
@@ -1152,10 +1157,11 @@ public sealed partial class OriginalAiMilitaryTests
             var enemy = EnemyArmy(w);
             return enemy with
             {
+                Corps = enemy.Corps.Select(c => c.Id == 1 ? c with { ControlMode = mode } : c).ToArray(),
                 Officers = enemy.Officers.Select(p => p.Id == 2 ? p with { SettlementId = null, UnitId = 901 } : p).ToImmutableArray(),
                 Units = enemy.Units.ToImmutableArray().Add(new(901, 1, new(17, 7), 5000)
                 {
-                    FormationId = 400, CommanderId = 2, CorpsId = 1, ServicePlaceId = 1, Morale = 100, CommandedThisXun = true,
+                    FormationId = 400, CommanderId = 2, CorpsId = 1, ServicePlaceId = 1, Morale = 100, CommandedThisXun = commanded,
                     Condition = condition, ConditionDaysRemaining = 2, HighSpiritsMoralePenaltyPending = condition == UnitCondition.HighSpirits,
                     Order = new(MilitaryOrderKind.Move, new(47, 7), null),
                     MemberPositions = San9.Tests.FormationTestData.Members(ImmutableDictionary<int, BattleRank>.Empty.Add(2, BattleRank.Middle))

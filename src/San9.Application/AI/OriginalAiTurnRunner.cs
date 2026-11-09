@@ -43,7 +43,7 @@ internal static class OriginalAiTurnRunner
                 continue;
             }
             geography = geographyContext.Get(engine.Snapshot);
-            var context = new CommandContext(corps.ControlMode == CorpsControlMode.Automatic ? CorpsControl.ControllerId(corps.Id) : seat.ControllerId);
+            var context = new CommandContext(corps.ControlMode.AllowsAutomaticOrders() ? CorpsControl.ControllerId(corps.Id) : seat.ControllerId);
             var stream = new StableRandom(cursor.Prepared ? cursor.RandomState : StableRandom.DeriveSeed(engine.Snapshot.Simulation.RunSeed,
                 FormattableString.Invariant($"original-ai:{corps.Id}:{engine.Snapshot.Clock.DayNumber}")));
             var random = new OriginalAiRandom(stream);

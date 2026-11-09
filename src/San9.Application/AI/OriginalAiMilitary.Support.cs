@@ -49,6 +49,7 @@ internal sealed partial class OriginalAiMilitary
         {
             if (!More) break;
             var available = World.Units.Where(u => Direct(u) && Departed(u) &&
+                (Corps.ControlMode != CorpsControlMode.Cooperative || !u.CommandedThisXun) &&
                 u.Condition is (UnitCondition.Normal or UnitCondition.HighSpirits) && !processed.Contains(u.Id));
             if (Force.IsBarbarian)
             {

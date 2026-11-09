@@ -337,19 +337,28 @@ public sealed class MilitaryMovementTests
         Assert.True(Assert.Single(engine.Snapshot.Units).HasEnteredDailyCycle);
     }
 
-    [Fact]
-    public void CommandMarkerSurvivesRestoreAndResetsAtNewXun()
+    [Theory]
+    [InlineData(CorpsControlMode.Direct)]
+    [InlineData(CorpsControlMode.Cooperative)]
+    public void CommandMarkerSurvivesRestoreAndResetsAtNewXun(CorpsControlMode mode)
     {
         var rules = Rules();
-        var engine = Engine(World(), rules);
+        var initial = Engine(World(), rules).Snapshot;
+        var engine = Engine(WorldState.Restore(initial with { Corps = initial.Corps.Select(c => c with { ControlMode = mode }).ToArray() }), rules);
         Assert.True(engine.Execute(Player, Deploy()).Submission.Accepted);
         Assert.True(Assert.Single(engine.Snapshot.Units).CommandedThisXun);
         engine = Engine(WorldState.Restore(engine.CaptureStableState()), rules);
         Assert.True(Assert.Single(engine.Snapshot.Units).CommandedThisXun);
+        var automatic = new CommandContext(CorpsControl.ControllerId(Assert.Single(engine.Snapshot.Corps).Id));
+        var returnOrder = new OrderUnitCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence,
+            Assert.Single(engine.Snapshot.Units).Id, new(MilitaryOrderKind.Return, null, 1));
+        Assert.Equal(CommandRejection.NotActiveController, engine.GetPreparationEligibility(automatic, returnOrder));
         engine.EndControl(Player);
         engine.AdvanceXun();
         var unit = Assert.Single(engine.Snapshot.Units);
         Assert.False(unit.CommandedThisXun);
+        Assert.Equal(mode == CorpsControlMode.Cooperative ? CommandRejection.None : CommandRejection.NotActiveController,
+            engine.GetPreparationEligibility(automatic, returnOrder with { Sequence = engine.Snapshot.Simulation.NextSequence }));
         var invalid = new OrderUnitCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, unit.Id,
             new(MilitaryOrderKind.Move, new(900, 900), null));
         Assert.False(engine.Execute(Player, invalid).Submission.Accepted);

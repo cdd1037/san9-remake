@@ -19,7 +19,7 @@ internal static class TacticStudy
         world.Settlements.TryGetValue(cityId, out var city) && city.Kind == SettlementKind.City &&
         city.CanHostPersons && !city.IsDestroyed && city.Durability > 0 && city.OwnerId is int owner &&
         world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player) &&
-        (city.CorpsId is not int corps || world.Corps[corps].ControlMode == CorpsControlMode.Direct);
+        (city.CorpsId is not int corps || world.Corps[corps].ControlMode.AllowsPlayerOrders());
 
     internal static ImmutableArray<int> Candidates(WorldMutation world, SimulationRules rules, int cityId)
     {

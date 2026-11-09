@@ -97,6 +97,8 @@ public sealed class HeadlessHostTests : IDisposable
             InfiniteLifespan = true,
             ComputerDiplomacyPermissions = new() { Gift = false, RequestAttack = false, Surrender = false },
             PlayerDelegatedDiplomacyPermissions = new() { ReturnPrisoner = false },
+            ComputerCorpsOptions = new() { DomesticDelegationRecruitment = true, CrossCorpsTransport = false },
+            PlayerDelegatedCorpsOptions = new() { CrossCorpsRelief = false },
         });
         var header = CommandLogService.CreateHeader(session);
         var end = session.Request(new EndControlOperation());

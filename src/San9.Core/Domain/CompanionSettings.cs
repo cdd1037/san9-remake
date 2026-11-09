@@ -22,6 +22,8 @@ public sealed record CompanionSettings
     [JsonRequired] public AutomaticStrategyPermissions PlayerDelegatedStrategyPermissions { get; init; } = AutomaticStrategyPermissions.All;
     [JsonRequired] public AutomaticDiplomacyPermissions ComputerDiplomacyPermissions { get; init; } = AutomaticDiplomacyPermissions.All;
     [JsonRequired] public AutomaticDiplomacyPermissions PlayerDelegatedDiplomacyPermissions { get; init; } = AutomaticDiplomacyPermissions.All;
+    [JsonRequired] public AutomaticCorpsOptions ComputerCorpsOptions { get; init; } = AutomaticCorpsOptions.Default;
+    [JsonRequired] public AutomaticCorpsOptions PlayerDelegatedCorpsOptions { get; init; } = AutomaticCorpsOptions.Default;
     [JsonRequired] public bool DynamicOfficerAbilityGrowth { get; init; }
     [JsonRequired] public bool InfiniteLifespan { get; init; }
     [JsonRequired] public int OfficerAbilityCap { get; init; } = 100;
@@ -72,6 +74,8 @@ public sealed record CompanionSettings
         ArgumentNullException.ThrowIfNull(PlayerDelegatedStrategyPermissions);
         ArgumentNullException.ThrowIfNull(ComputerDiplomacyPermissions);
         ArgumentNullException.ThrowIfNull(PlayerDelegatedDiplomacyPermissions);
+        ArgumentNullException.ThrowIfNull(ComputerCorpsOptions);
+        ArgumentNullException.ThrowIfNull(PlayerDelegatedCorpsOptions);
         if (OfficerAbilityCap < 100)
             throw new ArgumentOutOfRangeException(nameof(OfficerAbilityCap), "The base ability cap must be at least 100.");
         if (MartialTacticDamageCoefficient is < 5 or > 10)

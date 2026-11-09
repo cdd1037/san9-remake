@@ -108,6 +108,7 @@ internal sealed partial class OriginalAiMilitary
 
     private void Deploy()
     {
+        bool crossCorpsRelief = OriginalAiActionPermissions.CorpsOptions(World, engine.Companion, Owner).CrossCorpsRelief;
         var failedSources = new HashSet<int>();
         var rejectedPlans = new List<DeployUnitCommand>();
         var failureWorld = World;
@@ -189,7 +190,8 @@ internal sealed partial class OriginalAiMilitary
             }
             if (chosen) continue;
             // Group 2 has a different source order and a single-person plan, with no random selection.
-            foreach (var target in World.Settlements.Where(s => s.OwnerId == Owner && !s.IsDormant && !s.IsDestroyed && s.ConfusionDaysRemaining == 0 &&
+            foreach (var target in World.Settlements.Where(s => s.OwnerId == Owner && (crossCorpsRelief || Direct(s)) &&
+                !s.IsDormant && !s.IsDestroyed && s.ConfusionDaysRemaining == 0 &&
                 s.Durability > 0 && s.CanHostPersons && s.Facility?.BuilderUnitId is null)
                 .Where(s => Fortified(s) || rules.TryPlace(s, out var p) && p.FacilityTypeId is int type && rules.Facilities[type].IsHarbor &&
                 Policy.HarborReliefTacticId is int tactic && Force.ProvidedTactics.Contains(tactic))
@@ -249,6 +251,7 @@ internal sealed partial class OriginalAiMilitary
     }
     private void Transport()
     {
+        bool crossCorpsTransport = OriginalAiActionPermissions.CorpsOptions(World, engine.Companion, Owner).CrossCorpsTransport;
         bool Front(SettlementState s) => ReinforcementArea(s.Id).Any(p => p.OwnerId != Owner && p.OwnerId is int id &&
             !World.Forces.Single(f => f.Id == id).IsBarbarian);
         var geography = Geography;
@@ -264,7 +267,8 @@ internal sealed partial class OriginalAiMilitary
         var sources = WorkSources.Where(s => budgets[s.Id] > 0 && (!Front(s) || !geography.Priority(s.Id, Owner)) && s.Morale >= 70 &&
             People(s.Id).Length > 0 && (s.Kind != SettlementKind.City || budgets[s.Id] >= 10000))
             .OrderByDescending(s => budgets[s.Id]).Select(s => s.Id).ToArray();
-        var targets = receivers.Where(s => capacity[s.Id] > 0 && budgets[s.Id] > 0 && Front(s) && geography.Priority(s.Id, Owner) &&
+        var targets = receivers.Where(s => (crossCorpsTransport || Direct(s)) &&
+            capacity[s.Id] > 0 && budgets[s.Id] > 0 && Front(s) && geography.Priority(s.Id, Owner) &&
             (s.Kind == SettlementKind.City || World.Officers.Any(p => p.SettlementId == s.Id && p.IsServing)))
             .OrderBy(s => budgets[s.Id]).Select(s => s.Id).ToList();
         foreach (int home in sources)

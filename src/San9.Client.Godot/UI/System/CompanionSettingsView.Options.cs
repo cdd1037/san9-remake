@@ -93,6 +93,7 @@ public partial class CompanionSettingsView
             ]),
             new("自动计略", [], StrategyPermissions),
             new("自动外交", [], DiplomacyPermissions),
+            new("军团自动行为", [], CorpsOptions),
         ]),
         new("武将",
         [
@@ -283,4 +284,32 @@ public partial class CompanionSettingsView
                 ? settings with { PlayerDelegatedDiplomacyPermissions = settings.PlayerDelegatedDiplomacyPermissions.WithAllowed(option.Kind, allowed) }
                 : settings with { ComputerDiplomacyPermissions = settings.ComputerDiplomacyPermissions.WithAllowed(option.Kind, allowed) },
             EnabledText: "允许", DisabledText: "禁止", PresetValue: option.Kind == AutomaticDiplomacyKind.ReturnPrisoner));
+
+    private static ToggleOption[] CorpsOptions(bool delegated)
+    {
+        AutomaticCorpsOptions Read(CompanionSettings settings) => delegated
+            ? settings.PlayerDelegatedCorpsOptions : settings.ComputerCorpsOptions;
+        CompanionSettings Write(CompanionSettings settings, AutomaticCorpsOptions options) => delegated
+            ? settings with { PlayerDelegatedCorpsOptions = options } : settings with { ComputerCorpsOptions = options };
+        ToggleOption Option(string title, string note, Func<AutomaticCorpsOptions, bool> read,
+            Func<AutomaticCorpsOptions, bool, AutomaticCorpsOptions> write) => new(title, note,
+                settings => read(Read(settings)), (settings, allowed) => Write(settings, write(Read(settings), allowed)),
+                EnabledText: "允许", DisabledText: "禁止");
+
+        return
+        [
+            Option("重视内政方针允许征兵",
+                "仅委任方针为“重视内政”时，允许在训练前自动征兵。一般委任自动进入内政模式不受此项影响；仍受征兵资格与资源约束。默认禁止。",
+                options => options.DomesticDelegationRecruitment,
+                (options, allowed) => options with { DomesticDelegationRecruitment = allowed }),
+            Option("跨军团输送",
+                "允许向同势力其他军团据点自动输送兵力。禁止时仍可在本军团内输送；手动命令和在途部队不受影响。默认允许。",
+                options => options.CrossCorpsTransport,
+                (options, allowed) => options with { CrossCorpsTransport = allowed }),
+            Option("跨军团救援",
+                "允许自动出兵增援同势力其他军团的受威胁据点。禁止时仍可增援本军团据点；不影响迎击、救援计略、手动命令或在途部队。默认允许。",
+                options => options.CrossCorpsRelief,
+                (options, allowed) => options with { CrossCorpsRelief = allowed }),
+        ];
+    }
 }

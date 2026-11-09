@@ -6,10 +6,17 @@ namespace San9.Application.AI;
 
 internal static class OriginalAiActionPermissions
 {
+    private static bool PlayerForce(WorldSnapshot world, int forceId) =>
+        world.Simulation.Controls.Any(c => c.ForceId == forceId && c.Kind == ControllerKind.Player);
+
+    internal static AutomaticCorpsOptions CorpsOptions(WorldSnapshot world, CompanionSettings companion, int forceId) =>
+        PlayerForce(world, forceId)
+            ? companion.PlayerDelegatedCorpsOptions : companion.ComputerCorpsOptions;
+
     internal static bool Allows(WorldSnapshot world, CompanionSettings companion, int forceId, OriginalAiWork work)
     {
         if (!OriginalAiActions.Handles(work)) return true;
-        bool player = world.Simulation.Controls.Any(c => c.ForceId == forceId && c.Kind == ControllerKind.Player);
+        bool player = PlayerForce(world, forceId);
         var strategy = player ? companion.PlayerDelegatedStrategyPermissions : companion.ComputerStrategyPermissions;
         var diplomacy = player ? companion.PlayerDelegatedDiplomacyPermissions : companion.ComputerDiplomacyPermissions;
         return work switch

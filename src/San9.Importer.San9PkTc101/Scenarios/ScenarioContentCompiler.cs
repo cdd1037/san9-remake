@@ -108,9 +108,7 @@ public static class ScenarioContentCompiler
             settlements.Where(s => s.CorpsId is not null).Select(s => s.CorpsId!.Value).Distinct().Order().Select(id =>
                 new San9.Core.Domain.CorpsState(id, Root(id)!.Value, forces[id].LeaderId ?? throw new InvalidDataException("Missing corps leader."),
                     new San9.Core.Domain.CorpsTreasury(forces[id].Money, forces[id].Food))
-                { IsRoot = id == Root(id), Delegation = new San9.Core.Domain.GeneralDelegation(),
-                  ControlMode = id == Root(id) || forces[id].IsPlayerControlled
-                    ? San9.Core.Domain.CorpsControlMode.Direct : San9.Core.Domain.CorpsControlMode.Automatic }).ToArray(),
+                { IsRoot = id == Root(id), Delegation = new San9.Core.Domain.GeneralDelegation() }).ToArray(),
             treasureStates)
         {
             ShowOfficerAges = !header.IgnoresPersonAge,

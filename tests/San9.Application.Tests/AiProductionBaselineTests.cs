@@ -9,19 +9,18 @@ namespace San9.Application.Tests;
 public sealed class AiProductionBaselineTests
 {
     [Theory]
-    [InlineData(ControllerKind.Player, CorpsControlMode.Automatic)]
-    [InlineData(ControllerKind.Player, CorpsControlMode.Cooperative)]
-    [InlineData(ControllerKind.Automatic, CorpsControlMode.Direct)]
-    [InlineData(ControllerKind.Automatic, CorpsControlMode.Automatic)]
-    public void AutomaticControlsRunEconomicWorkOnceAndRestoreExactly(
-        ControllerKind controller, CorpsControlMode corpsMode)
+    [InlineData(ControllerKind.Player)]
+    [InlineData(ControllerKind.Automatic)]
+    public void AutomaticControlsRunEconomicWorkOnceAndRestoreExactly(ControllerKind controller)
     {
         var basis = G01ScenarioTests.Fixture();
         var content = basis with { Information = basis.Information with { Corps = basis.Information.Corps
-            .Select(c => c with { ControlMode = corpsMode }).ToArray() } };
-        var session = GameSession.Start(content, 190, playerForceController: controller);
+            .Select(c => c with {  }).ToArray() } };
+        var session = GameSession.Start(content, 190, playerForceController: controller,
+            companionSettings: new() { PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full });
         var before = session.Capture();
         var restored = SaveService.Decode(SaveService.Encode(session), content);
+        restored.ConfigureCompanion(session.Companion);
         var invalid = session.Apply(session.Request(new EndControlOperation(), "forged"));
         Assert.Equal(SessionDisposition.Rejected, invalid.Disposition);
         StateAssert.Equal(before, session.Capture());

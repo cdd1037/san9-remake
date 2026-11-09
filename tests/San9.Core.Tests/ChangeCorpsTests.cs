@@ -30,7 +30,7 @@ public sealed class ChangeCorpsTests
             new Dictionary<int, int> { [1] = 1, [2] = 2, [3] = 3, [4] = 4, [5] = 2, [6] = 3, [8] = 3, [9] = 9 }));
         var before = engine.Snapshot;
         var command = new ChangeCorpsCommand(Guid.NewGuid(), 1, 0, 11, [3], 100, 200,
-            new GeneralDelegation(), CorpsControlMode.Direct);
+            new GeneralDelegation());
         Assert.True(engine.Validate(new("controller"), command).Accepted);
         StateAssert.Equal(before, engine.Snapshot);
 
@@ -70,7 +70,7 @@ public sealed class ChangeCorpsTests
     {
         var engine = Engine(controller: controller);
         var before = engine.Snapshot;
-        var command = new ChangeCorpsCommand(Guid.NewGuid(), 1, 0, 11, [3], 50, 300, new DomesticDelegation(), CorpsControlMode.Direct);
+        var command = new ChangeCorpsCommand(Guid.NewGuid(), 1, 0, 11, [3], 50, 300, new DomesticDelegation());
         Assert.True(engine.Validate(new("controller"), command).Accepted);
         StateAssert.Equal(before, engine.Snapshot);
         var result = engine.Execute(new("controller"), command);
@@ -99,13 +99,12 @@ public sealed class ChangeCorpsTests
         var engine = Engine();
         var before = engine.Snapshot;
         var result = engine.Execute(new("controller"), new ChangeCorpsCommand(Guid.NewGuid(), 1, 0,
-            11, [2], 50, 300, new DomesticDelegation(), CorpsControlMode.Cooperative));
+            11, [2], 50, 300, new DomesticDelegation()));
 
         Assert.True(result.Submission.Accepted);
         Assert.Equal(before.Settlements, result.Snapshot.Settlements);
         Assert.Equal(before.Units, result.Snapshot.Units);
         var corps = result.Snapshot.Corps.Single(c => c.Id == 11);
-        Assert.Equal(CorpsControlMode.Cooperative, corps.ControlMode);
         Assert.IsType<DomesticDelegation>(corps.Delegation);
         Assert.Equal(50u, corps.Treasury.Money);
         Assert.Equal(300u, corps.Treasury.Food);
@@ -124,7 +123,7 @@ public sealed class ChangeCorpsTests
         var before = engine.Snapshot;
         var result = engine.Execute(new("controller"), new ChangeCorpsCommand(Guid.NewGuid(), 1, 0,
             branch == 0 ? 10 : 11, branch == 1 ? [1] : branch == 2 ? [2, 2] : [3],
-            branch == 3 ? uint.MaxValue : 0, 0, branch == 5 ? new DefeatForceDelegation(1) : new GeneralDelegation(), CorpsControlMode.Direct));
+            branch == 3 ? uint.MaxValue : 0, 0, branch == 5 ? new DefeatForceDelegation(1) : new GeneralDelegation()));
         Assert.False(result.Submission.Accepted);
         Assert.Empty(result.Events);
         StateAssert.Equal(before, engine.Snapshot);

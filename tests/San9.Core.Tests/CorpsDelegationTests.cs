@@ -21,7 +21,7 @@ public sealed class CorpsDelegationTests
          new OfficerState(12, 1, 2, new(50, 50, 100, 50), false) { Status = OfficerStatus.Governor },
          new OfficerState(21, 2, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
          new OfficerState(31, 3, 4, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-        corps: [new(10, 1, 11, new(100000, 100000)) { IsRoot = true }, new(20, 1, 12, new(1000, 1000)) { ControlMode = CorpsControlMode.Automatic }, new San9.Core.Domain.CorpsState(2, 2, 21, new(100000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(100000, 100000)) { IsRoot = true }],
+        corps: [new(10, 1, 11, new(100000, 100000)) { IsRoot = true }, new(20, 1, 12, new(1000, 1000)), new San9.Core.Domain.CorpsState(2, 2, 21, new(100000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(100000, 100000)) { IsRoot = true }],
         controls: [new("first", 1, ControllerKind.Player), new("second", 2, ControllerKind.Automatic), new("third", 3, ControllerKind.Automatic)]);
 
     private static SimulationRules Rules() => new() { Personnel = new([new(1, new(0, 0)), new(2, new(30, 0)), new(3, new(90, 0)), new(4, new(180, 0))]) };

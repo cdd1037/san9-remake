@@ -35,7 +35,7 @@ public sealed class CrossCorpsArrivalTests
          new(8, 1, new(31, 7), 100) { CorpsId = 11, ServicePlaceId = 2, IsPersonnel = true }],
         controls: [new("player", 1, ControllerKind.Player)],
         corps: [new(10, 1, 1, new(rootMoney, 10000)) { IsRoot = true },
-            new(11, 1, 2, new(2000, 3000)) { ControlMode = CorpsControlMode.Automatic }]);
+            new(11, 1, 2, new(2000, 3000))]);
         var mutation = world.BeginMutation();
         mutation.SetSimulation(mutation.Simulation with { Boundary = SimulationBoundary.Stable });
         world.Commit(mutation);

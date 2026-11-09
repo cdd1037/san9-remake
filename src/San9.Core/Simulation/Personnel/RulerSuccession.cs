@@ -49,7 +49,7 @@ internal static class RulerSuccession
                 GovernanceMaintenance.DissolveForced(world, id, "ruler-succession", events);
             int destination = root?.Id ?? id;
             world.Replace(world.Corps[destination] with { LeaderId = successorId, IsRoot = true,
-                ControlMode = CorpsControlMode.Direct, Delegation = new GeneralDelegation() });
+                Delegation = new GeneralDelegation() });
         }
         events.Add(new ForceLeaderChangedEvent(world.Clock, forceId, previousId, successorId));
     }

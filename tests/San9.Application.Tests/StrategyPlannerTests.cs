@@ -19,7 +19,7 @@ public sealed class StrategyPlannerTests
             Officers = basis.Officers.Select(p => p.State.Id == 1 ? p with { State = p.State with { SettlementId = 4 } } :
                 p.State.Id == 2 ? p with { State = p.State with { Status = OfficerStatus.Governor } } : p).ToArray(),
             Information = basis.Information with { Corps = [.. basis.Information.Corps.Where(c => c.OwnerId != 1), new(10, 1, 1, new(10000, 10000)) { IsRoot = true },
-                new(11, 1, 2, new(1000, 1000)) { ControlMode = CorpsControlMode.Automatic }] },
+                new(11, 1, 2, new(1000, 1000))] },
             Military = basis.Military! with { Places = [.. basis.Military.Places, new(4, new(127, 7), new(1, 1))] }
         };
         var session = GameSession.Start(content, 42);

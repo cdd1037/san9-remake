@@ -115,7 +115,7 @@ public sealed partial class OriginalAiActionsTests
         return content with
         {
             Information = content.Information with { Corps = [.. content.Information.Corps.Select(c => c.Id == 1
-                ? c with { ControlMode = CorpsControlMode.Automatic } : c)] },
+                ? c : c)] },
             OriginalAi = content.OriginalAi with
             {
                 WorkRules = content.OriginalAi.WorkRules.ToImmutableDictionary(p => p.Key, p => p.Value with
@@ -132,7 +132,7 @@ public sealed partial class OriginalAiActionsTests
     public void ProductionSchedulerReportsProhibitedActionsWithoutPlanning(bool player)
     {
         var session = GameSession.Start(PermissionContent(), 42, playerForceController: player ? ControllerKind.Player : ControllerKind.Automatic,
-            companionSettings: player ? new() { PlayerDelegatedStrategyPermissions = NoStrategies, PlayerDelegatedDiplomacyPermissions = NoDiplomacy }
+            companionSettings: player ? new() { PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full, PlayerDelegatedStrategyPermissions = NoStrategies, PlayerDelegatedDiplomacyPermissions = NoDiplomacy }
                 : new() { ComputerStrategyPermissions = NoStrategies, ComputerDiplomacyPermissions = NoDiplomacy });
         if (player) session.EndControl(new("player")); else session.AdvanceXun();
         var reports = session.LastOriginalAiWork.Where(r => r.CorpsId == 1 && PermissionWorks.Contains(r.Work)).ToArray();
@@ -168,7 +168,7 @@ public sealed partial class OriginalAiActionsTests
         var content = basis with
         {
             Information = basis.Information with { Corps = [.. basis.Information.Corps.Select(c => diplomacy && c.Id == 1
-                ? c with { ControlMode = CorpsControlMode.Direct } : c)] },
+                ? c : c)] },
             OriginalAi = basis.OriginalAi with
             {
                 WorkRules = basis.OriginalAi.WorkRules.ToImmutableDictionary(p => p.Key, p => p.Value with
@@ -177,7 +177,7 @@ public sealed partial class OriginalAiActionsTests
                     _ => diplomacy ? ImmutableArray<OriginalAiWork>.Empty : [work]),
             },
         };
-        var session = GameSession.Start(content, 42);
+        var session = GameSession.Start(content, 42, companionSettings: new() { PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full });
         var started = diplomacy
             ? session.Execute(new("player"), new RequestAttackCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, 11, 3, 2)).Events
             : session.EndControl(new("player")).Events;

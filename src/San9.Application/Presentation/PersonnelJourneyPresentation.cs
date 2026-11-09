@@ -14,7 +14,7 @@ internal static class PersonnelJourneyPresentation
         List<MapMessageRecord> records = [];
         Dictionary<string, MessageBinding> values = [];
         bool Direct(int force, int? corps) => before.World.Simulation.Controls.Any(c => c.ForceId == force && c.Kind == ControllerKind.Player) &&
-            !before.World.Corps.Any(c => c.Id == corps && c.ControlMode == CorpsControlMode.Automatic);
+            !before.World.Corps.Any(c => c.Id == corps && !CorpsControl.PlayerOperates(c, before.Companion));
         CommandMessage Produce(string role) => ProgressMessageProducer.Produce(content.Messages[role], context, texts, values, random);
         void Record(string role, int force, int home, string? detail = null)
         {

@@ -16,7 +16,7 @@ public sealed class ComputerIncomeTests
             [City(), City(2)], [new(1, 5, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
                 new(2, 5, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Governor }],
             corps: [new(1, 5, 1, new(balance, balance)) { IsRoot = true },
-                new(2, 5, 2, new(balance, balance)) { ControlMode = CorpsControlMode.Automatic }],
+                new(2, 5, 2, new(balance, balance))],
             controls: [new("controller", 5, player ? ControllerKind.Player : ControllerKind.Automatic)]);
 
     [Theory]

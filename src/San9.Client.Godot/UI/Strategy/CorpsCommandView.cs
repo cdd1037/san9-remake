@@ -17,7 +17,7 @@ public partial class CorpsCommandView : CommandPreparationView
     {
         // Original corps-management content rectangle and selector/card anchors (RE-0182).
         Vector2 at = new(360,148);
-        var window = new CommandWindow { Texts = Texts, Textures = Textures, Title = CommandText.Resolve(Texts, "title.delegate"), Position = at, Size = new(304,512), CanAccept = Draft.CanExecute,
+        var window = new CommandWindow { Texts = Texts, Textures = Textures, Title = CommandText.Resolve(Texts, "title.delegate"), Position = at, Size = new(304,472), CanAccept = Draft.CanExecute,
             Accepted = Submit, Closed = Closed,
             Help = () => Notice(CommandText.Resolve(Texts, "hint.corps")) };
         Body.AddChild(window);
@@ -31,50 +31,36 @@ public partial class CorpsCommandView : CommandPreparationView
         Value(cities,at+new Vector2(104,40),new(64,32));
         Caption(CommandText.Resolve(Texts, "label.governor"),at+new Vector2(0,80),new(96,32));
         Person(Draft.View,Draft.GovernorId,at+new Vector2(104,80));
-        window.ActionButton(CommandText.Resolve(Texts, "corps.control"), "edit", new(0,208,104,40), SelectControl).Disabled = !editing;
-        Value(ControlName(Draft.ControlMode), at+new Vector2(104,208), new(80,32));
-        window.ActionButton(CommandText.Resolve(Texts, "label.corps-policy"),"edit",new(0,248,104,40),SelectPolicy).Disabled = !ready;
+        window.ActionButton(CommandText.Resolve(Texts, "label.corps-policy"),"edit",new(0,208,104,40),SelectPolicy).Disabled = !ready;
         string policy = Draft.Policy switch { GeneralDelegation => CommandText.Resolve(Texts, "policy.general"), DomesticDelegation => CommandText.Resolve(Texts, "policy.domestic"), DefeatForceDelegation => CommandText.Resolve(Texts, "policy.defeat-force"), _ => CommandText.Resolve(Texts, "policy.capture-facility") };
-        Value(policy,at+new Vector2(104,248),new(80,32));
-        Caption(CommandText.Resolve(Texts, "label.target"),at+new Vector2(0,288),new(96,32));
+        Value(policy,at+new Vector2(104,208),new(80,32));
+        Caption(CommandText.Resolve(Texts, "label.target"),at+new Vector2(0,248),new(96,32));
         string target = Draft.Policy switch
         {
             DefeatForceDelegation force => Texts.Resolve(Draft.View.Forces.Single(f => f.Id == force.ForceId).NameKey),
             CaptureSettlementDelegation place => Draft.View.Settlements.Single(s => s.Id == place.SettlementId).ResolveName(Texts),
             _ => ""
         };
-        Value(target,at+new Vector2(104,288),new(160,32));
-        Body.AddChild(new CorpsBudgetHeadings { Textures = Textures, Position = at+new Vector2(104,328) });
-        Label(CommandText.Resolve(Texts, "title.delegate"),at+new Vector2(104,328),new(48,24));
-        Label(CommandText.Resolve(Texts, "label.ruler"),at+new Vector2(200,328),new(48,24));
-        window.ActionButton(CommandText.Resolve(Texts, "label.money"),"edit",new(0,360,104,40),() => Number(true)).Disabled = !ready || Draft.MaximumMoney == 0;
-        window.ActionButton(CommandText.Resolve(Texts, "label.food"),"edit",new(0,400,104,40),() => Number(false)).Disabled = !ready || Draft.MaximumFood == 0;
-        Value(populated ? Draft.Money.ToString() : "",at+new Vector2(104,360),new(72,32));
-        Value(populated ? Draft.Food.ToString() : "",at+new Vector2(104,400),new(72,32));
-        Value(populated ? ((long)Draft.MaximumMoney-Draft.Money).ToString() : "",at+new Vector2(200,360),new(72,32));
-        Value(populated ? ((long)Draft.MaximumFood-Draft.Food).ToString() : "",at+new Vector2(200,400),new(72,32));
+        Value(target,at+new Vector2(104,248),new(160,32));
+        Body.AddChild(new CorpsBudgetHeadings { Textures = Textures, Position = at+new Vector2(104,288) });
+        Label(CommandText.Resolve(Texts, "title.delegate"),at+new Vector2(104,288),new(48,24));
+        Label(CommandText.Resolve(Texts, "label.ruler"),at+new Vector2(200,288),new(48,24));
+        window.ActionButton(CommandText.Resolve(Texts, "label.money"),"edit",new(0,320,104,40),() => Number(true)).Disabled = !ready || Draft.MaximumMoney == 0;
+        window.ActionButton(CommandText.Resolve(Texts, "label.food"),"edit",new(0,360,104,40),() => Number(false)).Disabled = !ready || Draft.MaximumFood == 0;
+        Value(populated ? Draft.Money.ToString() : "",at+new Vector2(104,320),new(72,32));
+        Value(populated ? Draft.Food.ToString() : "",at+new Vector2(104,360),new(72,32));
+        Value(populated ? ((long)Draft.MaximumMoney-Draft.Money).ToString() : "",at+new Vector2(200,320),new(72,32));
+        Value(populated ? ((long)Draft.MaximumFood-Draft.Food).ToString() : "",at+new Vector2(200,360),new(72,32));
         var counts = Draft.Counts;
-        Caption(CommandText.Resolve(Texts, "label.officer"),at+new Vector2(0,440),new(96,32));
-        Value(populated ? counts.People.ToString() : "",at+new Vector2(104,440),new(40,32));
-        Value(populated ? (counts.TotalPeople-counts.People).ToString() : "",at+new Vector2(200,440),new(40,32));
-        Caption(CommandText.Resolve(Texts, "label.total-soldiers"),at+new Vector2(0,480),new(96,32));
-        Value(populated ? counts.Soldiers.ToString() : "",at+new Vector2(104,480),new(88,32));
-        Value(populated ? (counts.TotalSoldiers-counts.Soldiers).ToString() : "",at+new Vector2(200,480),new(88,32));
+        Caption(CommandText.Resolve(Texts, "label.officer"),at+new Vector2(0,400),new(96,32));
+        Value(populated ? counts.People.ToString() : "",at+new Vector2(104,400),new(40,32));
+        Value(populated ? (counts.TotalPeople-counts.People).ToString() : "",at+new Vector2(200,400),new(40,32));
+        Caption(CommandText.Resolve(Texts, "label.total-soldiers"),at+new Vector2(0,440),new(96,32));
+        Value(populated ? counts.Soldiers.ToString() : "",at+new Vector2(104,440),new(88,32));
+        Value(populated ? (counts.TotalSoldiers-counts.Soldiers).ToString() : "",at+new Vector2(200,440),new(88,32));
         Body.AddChild(new GameMessageBar { Textures = Textures, Text = CommandText.Resolve(Texts, "hint.corps") });
     }
 
-    private string ControlName(CorpsControlMode mode) => CorpsPresentation.ControlName(Texts, mode);
-
-    private void SelectControl()
-    {
-        CorpsControlMode[] modes = [CorpsControlMode.Direct, CorpsControlMode.Automatic, CorpsControlMode.Cooperative];
-        ReplaceChild(new CorpsChoiceDialog
-        {
-            Textures = Textures, Title = CommandText.Resolve(Texts, "corps.control"), Hint = CommandText.Resolve(Texts, "hint.corps"),
-            Options = modes.Select(ControlName).ToArray(), Closed = CloseChild,
-            Selected = id => { Draft.SetControl(modes[id]); CloseChild(); }
-        }, keepBodyVisible: true);
-    }
     private void SelectOperation() => ReplaceChild(new CorpsChoiceDialog
     {
         Textures = Textures, Title = CommandText.Resolve(Texts, "label.corps-operation"),

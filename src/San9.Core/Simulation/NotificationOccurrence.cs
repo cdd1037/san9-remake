@@ -43,7 +43,7 @@ public sealed record UnitPolicyRespondedEvent(GameClock Clock, BattleObjectConte
             PreviousPlaceId = previousPlaceId,
             ReturnOutcome = returnOutcome,
             ReportEligible = corps is not null &&
-                corps.OwnerId == unit.OwnerId && corps.ControlMode.AllowsPlayerOrders() &&
+                corps.OwnerId == unit.OwnerId && CorpsControl.PlayerOperates(corps, world.Companion) &&
                 world.Simulation.Controls.Any(c => c.ForceId == unit.OwnerId && c.Kind == ControllerKind.Player)
         };
     }

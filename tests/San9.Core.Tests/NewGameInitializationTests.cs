@@ -15,7 +15,7 @@ public sealed class NewGameInitializationTests
             new OfficerState(9004, 2, 2, new(40, 30, 20, 10), false),
             new OfficerState(9003, null, 2, new(10, 20, 30, 40), false) { Status = OfficerStatus.NotAppeared }],
         [new(10, 2, new(0, 0), 100) { Morale = 95 }],
-        corps: [new(1, 1, null, new(10001, 900001)) { IsRoot = true, ControlMode = CorpsControlMode.Automatic }, new(2, 2, null, new(10001, reserve)) { IsRoot = true },
+        corps: [new(1, 1, null, new(10001, 900001)) { IsRoot = true, }, new(2, 2, null, new(10001, reserve)) { IsRoot = true },
             new(3, 3, null, new(10001, 900001)) { IsRoot = true }, new(4, 4, null, new(10001, 900001)) { IsRoot = true }, new(20, 2, 9004, new(reserve, 100))],
         controls: [new("player", 1, ControllerKind.Player), new("ai:2", 2, ControllerKind.Automatic), new("ai:3", 3, ControllerKind.Automatic)],
         newGame: settings, officerStartingPlaces: [1, 2]);

@@ -31,7 +31,7 @@ public partial class WorkflowLifecycleVerification
             var battle = numbers.Single(n => n.TooltipText.StartsWith("攻城交战造成的民心", StringComparison.Ordinal));
             var preset = buttons.Single(b => b.Text == "预设配置");
             var reset = buttons.Single(b => b.Text == "原版配置");
-            var toggle = buttons.First(b => b.ToggleMode);
+            var toggle = buttons.Single(b => b.TooltipText.StartsWith("玩家可向子军团下令", StringComparison.Ordinal));
 
             view.Back();
             Check(writes == 0 && closes == 1, "Unchanged companion settings were saved.");
@@ -43,7 +43,7 @@ public partial class WorkflowLifecycleVerification
             Check(writes == 0 && closes == 1, "A failed companion save closed the draft.");
             failSave = false;
             view.Back();
-            Check(saved?.Rules is { ComputerRevenuePercent: 175, ComputerHarvestPercent: 225, PlayerAutoDomesticEnabled: true },
+            Check(saved?.Rules is { ComputerRevenuePercent: 175, ComputerHarvestPercent: 225, AllowDelegatedCorpsOrders: true },
                 "Editing another control or applying numeric fields lost pending companion input.");
 
             battle.GetLineEdit().Text = "75";
@@ -51,9 +51,9 @@ public partial class WorkflowLifecycleVerification
             view.Back();
             Check(saved?.Rules is { ComputerRevenuePercent: 200, ComputerHarvestPercent: 200, OfficerAbilityCap: 125,
                 NoRetreatCaptureBonus: 0, CityBattleDamagePercent: 75, DisableComputerPrisonerExecution: true,
-                DisablePlayerPrisonerExecution: true,
+                DisablePlayerPrisonerExecution: true, AllowDelegatedCorpsOrders: true,
                 ConfigureTacticsOnFormationSelection: true, BattleDeathProtectionThreshold: 125,
-                AllowCommanderBattleDeaths: true, DuelDeathCoefficient: 0, InfiniteLifespan: true } &&
+                AllowCommanderBattleDeaths: true, DuelDeathCoefficient: 0, InfiniteLifespan: true, RedistributeFormationTacticBonuses: false } &&
                 saved.Rules.ComputerStrategyPermissions is { Alienate: false, Burn: false, FalseReport: true } &&
                 saved.Rules.PlayerDelegatedStrategyPermissions == saved.Rules.ComputerStrategyPermissions &&
                 saved.Rules.ComputerDiplomacyPermissions is { Gift: false, RequestAttack: false, ReturnPrisoner: true, Surrender: false } &&
@@ -71,7 +71,7 @@ public partial class WorkflowLifecycleVerification
             Check(writes == 3 && closes == 5 && saved == new CompanionConfiguration(CompanionSettings.Default, true),
                 "A visual-only draft must save without changing simulation settings.");
             var computerGift = buttons.Single(b => b.TooltipText.StartsWith("电脑势力：自动向其他势力赠送", StringComparison.Ordinal));
-            var delegatedReturn = buttons.Single(b => b.TooltipText.StartsWith("玩家委任军团：自动派遣使者请求交还", StringComparison.Ordinal));
+            var delegatedReturn = buttons.Single(b => b.TooltipText.StartsWith("玩家势力AI：自动派遣使者请求交还", StringComparison.Ordinal));
             computerGift.ButtonPressed = false;
             delegatedReturn.ButtonPressed = false;
             view.Back();

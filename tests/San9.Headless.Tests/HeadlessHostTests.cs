@@ -90,7 +90,7 @@ public sealed class HeadlessHostTests : IDisposable
         File.WriteAllBytes(FilePath("scenario.json"), CanonicalJson.Encode(definition));
         var session = GameSession.Start(definition, 42, companionSettings: new()
         {
-            PlayerAutoDomesticEnabled = true, ConfigureTacticsOnFormationSelection = true,
+            PlayerCorpsAutomation = PlayerCorpsAutomationMode.DomesticAndSearch, PlayerAutoDomesticEnabled = true, ConfigureTacticsOnFormationSelection = true,
             DisableComputerRewardTimingRestrictions = true,
             BattleDeathProtectionThreshold = 125, AllowCommanderBattleDeaths = true, DuelDeathCoefficient = 5,
             DisablePlayerPrisonerExecution = true, DisableComputerPrisonerExecution = false,

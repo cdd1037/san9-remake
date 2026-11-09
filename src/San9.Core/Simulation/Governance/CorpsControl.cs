@@ -2,87 +2,75 @@ using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
 
-public sealed record SetCorpsControlCommand(Guid CommandId, int IssuerId, long Sequence, int CorpsId, CorpsControlMode Mode)
-    : GameCommand(CommandId, IssuerId, Sequence);
-public sealed record CorpsControlChangedEvent(GameClock Clock, int ForceId, int CorpsId, CorpsControlMode Mode) : DomainEvent;
-
+/// <summary>Authority follows force ownership and root/delegated membership; assistance is host configuration.</summary>
 public static class CorpsControl
 {
     public static string ControllerId(int corpsId) => $"corps:{corpsId}";
 
-    /// <summary>Control scope only; action eligibility and the active turn still require command validation.</summary>
-    public static bool CanControlSettlement(WorldSnapshot world, ControlSeat seat, CommandContext context, int settlementId)
+    public static bool PlayerOperates(CorpsState corps, CompanionSettings companion) =>
+        corps.IsRoot || companion.AllowDelegatedCorpsOrders;
+
+    public static bool CanControlSettlement(WorldSnapshot world, ControlSeat seat, CommandContext context, int settlementId,
+        CompanionSettings? companion = null)
     {
-        var automatic = AutomaticCorps(world, seat.ForceId, context);
-        if (automatic is null && (seat.ControllerId != context.ControllerId || PlayerRootDelegated(world, seat))) return false;
-        return OwnPlace(world, seat, automatic, settlementId);
+        var settings = companion ?? CompanionSettings.Default;
+        var automatic = AutomaticCorps(world, seat, context, settings);
+        if (automatic is null && seat.ControllerId != context.ControllerId) return false;
+        return OwnPlace(world, seat, automatic, settlementId, settings);
     }
 
-    /// <summary>Control scope only; it does not grant an extra opportunity to issue orders.</summary>
-    public static bool CanControlUnit(WorldSnapshot world, ControlSeat seat, CommandContext context, int unitId)
+    public static bool CanControlUnit(WorldSnapshot world, ControlSeat seat, CommandContext context, int unitId,
+        CompanionSettings? companion = null)
     {
-        var automatic = AutomaticCorps(world, seat.ForceId, context);
-        if (automatic is null && (seat.ControllerId != context.ControllerId || PlayerRootDelegated(world, seat))) return false;
-        return OwnUnit(world, seat, automatic, unitId);
+        var settings = companion ?? CompanionSettings.Default;
+        var automatic = AutomaticCorps(world, seat, context, settings);
+        if (automatic is null && seat.ControllerId != context.ControllerId) return false;
+        return OwnUnit(world, seat, automatic, unitId, settings);
     }
 
-    private static CorpsState? AutomaticCorps(WorldSnapshot world, int forceId, CommandContext context) =>
-        world.Corps.FirstOrDefault(c => c.OwnerId == forceId && c.ControlMode.AllowsAutomaticOrders() &&
-            ControllerId(c.Id) == context.ControllerId);
+    private static CorpsState? AutomaticCorps(WorldSnapshot world, ControlSeat seat, CommandContext context, CompanionSettings companion) =>
+        world.Corps.FirstOrDefault(c => c.OwnerId == seat.ForceId && ControllerId(c.Id) == context.ControllerId &&
+            (!c.IsRoot || seat.Kind == ControllerKind.Automatic || companion.PlayerCorpsAutomation == PlayerCorpsAutomationMode.Full));
 
-    private static bool PlayerRootDelegated(WorldSnapshot world, ControlSeat seat) =>
-        seat.Kind == ControllerKind.Player && world.Corps.Any(c => c.OwnerId == seat.ForceId && c.IsRoot &&
-            c.ControlMode == CorpsControlMode.Automatic);
-
-    private static bool OwnPlace(WorldSnapshot world, ControlSeat seat, CorpsState? automatic, int id)
+    private static bool OwnPlace(WorldSnapshot world, ControlSeat seat, CorpsState? automatic, int id, CompanionSettings companion)
     {
         var place = world.Settlements.FirstOrDefault(s => s.Id == id);
-        if (place?.OwnerId != seat.ForceId) return false;
-        return OwnCorps(world, seat, automatic, place.CorpsId);
+        return place?.OwnerId == seat.ForceId && OwnCorps(world, seat, automatic, place.CorpsId, companion);
     }
 
-    private static bool OwnUnit(WorldSnapshot world, ControlSeat seat, CorpsState? automatic, int id)
+    private static bool OwnUnit(WorldSnapshot world, ControlSeat seat, CorpsState? automatic, int id, CompanionSettings companion)
     {
         var unit = world.Units.FirstOrDefault(u => u.Id == id);
-        return unit?.OwnerId == seat.ForceId && OwnCorps(world, seat, automatic, unit.CorpsId);
+        return unit?.OwnerId == seat.ForceId && OwnCorps(world, seat, automatic, unit.CorpsId, companion);
     }
 
-    private static bool OwnCorps(WorldSnapshot world, ControlSeat seat, CorpsState? automatic, int? corpsId)
+    private static bool OwnCorps(WorldSnapshot world, ControlSeat seat, CorpsState? automatic, int? corpsId, CompanionSettings companion)
     {
-        // An omitted corps reference denotes the force's root, as it does for resource accounts.
+        // An omitted reference denotes the force's root.
         if (automatic is not null) return corpsId is int assigned ? assigned == automatic.Id : automatic.IsRoot;
-        return corpsId is null || world.Corps.Any(c => c.Id == corpsId &&
-            (c.ControlMode.AllowsPlayerOrders() || seat.Kind == ControllerKind.Automatic && c.IsRoot));
+        return corpsId is null || world.Corps.Any(c => c.Id == corpsId && c.OwnerId == seat.ForceId &&
+            (c.IsRoot || seat.Kind == ControllerKind.Player && companion.AllowDelegatedCorpsOrders));
     }
 
-    internal static CommandRejection Set(WorldMutation world, SetCorpsControlCommand command, List<DomainEvent> events)
+    internal static CommandRejection Authorize(WorldSnapshot world, ControlSeat seat, CommandContext context, GameCommand command,
+        CompanionSettings? companion = null)
     {
-        if (!Enum.IsDefined(command.Mode) || !world.Corps.TryGetValue(command.CorpsId, out var corps) || corps.OwnerId != command.IssuerId)
-            return CommandRejection.InvalidCorps;
-        world.Replace(corps with { ControlMode = command.Mode });
-        events.Add(new CorpsControlChangedEvent(world.Clock, command.IssuerId, corps.Id, command.Mode));
-        return CommandRejection.None;
-    }
-
-    internal static CommandRejection Authorize(WorldSnapshot world, ControlSeat seat, CommandContext context, GameCommand command)
-    {
+        var settings = companion ?? CompanionSettings.Default;
         if (seat.ForceId != command.IssuerId) return CommandRejection.NotActiveController;
-        var automatic = AutomaticCorps(world, command.IssuerId, context);
+        var automatic = AutomaticCorps(world, seat, context, settings);
         if (automatic is null && seat.ControllerId != context.ControllerId) return CommandRejection.NotActiveController;
         if (automatic is null && !world.Corps.Any(c => c.OwnerId == command.IssuerId)) return CommandRejection.None;
-        if (command is SetCorpsControlCommand or SetCorpsDelegationCommand)
+        if (command is SetCorpsDelegationCommand)
             return automatic is null ? CommandRejection.None : CommandRejection.NotActiveController;
-        if (automatic is null && PlayerRootDelegated(world, seat))
-            return CommandRejection.NotActiveController;
-        bool ControlsPlace(int id) => OwnPlace(world, seat, automatic, id);
+        bool ControlsPlace(int id) => OwnPlace(world, seat, automatic, id, settings);
         bool OwnPerson(int id) => world.Officers.FirstOrDefault(p => p.Id == id)?.SettlementId is int home && ControlsPlace(home);
         // The ruler retains force-wide personnel transfers across delegated corps.
         bool TransferPlace(int id) => automatic is null && seat.Kind == ControllerKind.Player
             ? world.Settlements.FirstOrDefault(s => s.Id == id)?.OwnerId == command.IssuerId : ControlsPlace(id);
         bool TransferPerson(int id) => world.Officers.FirstOrDefault(p => p.Id == id) is { } person &&
             person.OwnerId == command.IssuerId && person.SettlementId is int home && TransferPlace(home);
-        bool ControlsUnit(int id) => OwnUnit(world, seat, automatic, id) &&
-            (automatic?.ControlMode != CorpsControlMode.Cooperative || !world.Units.Single(u => u.Id == id).CommandedThisXun);
+        bool ControlsUnit(int id) => OwnUnit(world, seat, automatic, id, settings) &&
+            (automatic is null || seat.Kind != ControllerKind.Player || !world.Units.Single(u => u.Id == id).CommandedThisXun);
         bool permitted = command switch
         {
             WaitCommand => true,

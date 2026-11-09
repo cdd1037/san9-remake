@@ -99,7 +99,7 @@ public sealed class SearchHealingTests
         var original = new SimulationEngine(world).CaptureStableState();
         var delegated = WorldState.Restore(original with
         {
-            Corps = [..original.Corps.Where(c => c.OwnerId != 1), new(7, 1, 1, new(1000, 1000)) { IsRoot = true, ControlMode = CorpsControlMode.Automatic, Delegation = new GeneralDelegation() }],
+            Corps = [..original.Corps, new(7, 1, 1, new(1000, 1000)) { Delegation = new GeneralDelegation() }],
             Settlements = original.Settlements.Select(s => s.Id == 1 ? s with { CorpsId = 7 } : s).ToImmutableArray()
         });
         var mutation = delegated.BeginMutation();

@@ -62,7 +62,7 @@ public sealed class AttackRequestPlannerTests
             Officers = [.. basis.Officers.Select(p => p.State.Id == 11 ? p with { State = p.State with { SettlementId = 5 } } : p),
                 new("helper", new(13, 1, 1, new(50, 50, 50, 50), false))],
             Information = basis.Information with { Corps = [..basis.Information.Corps.Where(c => c.OwnerId != 1), new(10, 1, 11, new(100000, 100000)) { IsRoot = true },
-                new(20, 1, 12, new(10000, 10000)) { ControlMode = CorpsControlMode.Automatic }] },
+                new(20, 1, 12, new(10000, 10000))] },
             Military = basis.Military! with { Places = basis.Military.Places.Add(new(5, home.Position, new(1, 1))
                 { Combat = new(10, 10, 0, 10, 50), Attack = new(1, false) }) }
         };

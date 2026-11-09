@@ -171,8 +171,7 @@ public sealed class OriginalAiCycleTests
         var content = G01ScenarioTests.Fixture();
         var session = GameSession.Start(content, 190);
         Assert.True(session.Develop(new(1, 1, [1, 2, 3], DomesticActivity.Commerce)).Accepted);
-        Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1,
-            session.Snapshot.Simulation.NextSequence, 1, CorpsControlMode.Automatic)).Submission.Accepted);
+        session.ConfigureCompanion(new() { AllowDelegatedCorpsOrders = true, PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full });
         long sequence = session.Snapshot.Simulation.NextSequence;
         session.EndControl(new("player"));
         Assert.Equal(sequence, session.Snapshot.Simulation.NextSequence);
@@ -390,7 +389,7 @@ public sealed class OriginalAiCycleTests
             Settlements = [.. content.Settlements, content.Settlements[0] with { Id = 3, CorpsId = 3 }],
             Officers = content.Officers.Select(o => o.State.Id is 2 or 3 ? o with { State = o.State with { SettlementId = 3 } } : o).ToArray(),
             Information = content.Information with { Corps = [.. content.Information.Corps,
-                new(3, 1, 2, new(1000, 10000)) { ControlMode = CorpsControlMode.Automatic, Delegation = new DomesticDelegation() }] },
+                new(3, 1, 2, new(1000, 10000)) { Delegation = new DomesticDelegation() }] },
         };
         var session = GameSession.Start(content, 190);
         uint rootMoney = session.Snapshot.Corps.Single(c => c.Id == 1).Treasury.Money;

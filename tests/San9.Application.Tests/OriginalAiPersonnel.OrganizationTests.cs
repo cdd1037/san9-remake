@@ -35,7 +35,7 @@ public sealed partial class OriginalAiPersonnelTests
                 { State = o.State with { SettlementId = 3, Status = OfficerStatus.Governor } } : o).Append(
                 new("officer.110", content.Officers.Single(o => o.State.Id == 109).State with { Id = 110, SettlementId = 10 })).ToArray(),
             Information = content.Information with { Corps = content.Information.Corps.Append(
-                new CorpsState(10, 1, 2, new(1000, 5000)) { ControlMode = CorpsControlMode.Automatic }).ToArray() }
+                new CorpsState(10, 1, 2, new(1000, 5000))).ToArray() }
         };
         var h = new Harness(content);
         Assert.Equal(7, h.Engine.Snapshot.Settlements.Count(s => s.OwnerId == 1 && s.Kind == SettlementKind.City &&

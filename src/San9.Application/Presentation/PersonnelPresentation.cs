@@ -79,7 +79,7 @@ public static class PersonnelPresentation
         List<CommandMessage> result = [];
         bool Direct(int actor) => before.World.Simulation.Tasks.Any(t => t.OfficerId == actor && t.Kind is "personnel-search" or "personnel-recruit" &&
             before.World.Simulation.Controls.Any(c => c.ForceId == t.ForceId && c.Kind == ControllerKind.Player) &&
-            !before.World.Corps.Any(c => c.Id == before.World.Settlements.Single(s => s.Id == t.OriginSettlementId).CorpsId && c.ControlMode == CorpsControlMode.Automatic));
+            !before.World.Corps.Any(c => c.Id == before.World.Settlements.Single(s => s.Id == t.OriginSettlementId).CorpsId && !CorpsControl.PlayerOperates(c, before.Companion)));
         foreach (var outcome in events)
         {
             if (outcome is SearchResolvedEvent search && search.Result != SearchResultKind.Person && Direct(search.OfficerId))

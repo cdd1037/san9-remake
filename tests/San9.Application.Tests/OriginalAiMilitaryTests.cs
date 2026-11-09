@@ -52,7 +52,7 @@ public sealed partial class OriginalAiMilitaryTests
         internal OriginalAiTerrainRoutes TerrainRoutes { get; } = new();
         internal List<GameCommand> Commands { get; } = [];
         internal Harness(ScenarioInitialState content, Func<WorldSnapshot, WorldSnapshot>? change = null, Func<int, int>? draw = null, bool reject = false,
-            Func<GameCommand, bool>? rejectCommand = null)
+            Func<GameCommand, bool>? rejectCommand = null, bool automaticContext = false)
         {
             var definition = new ScenarioSessionDefinition(content);
             var world = definition.CreateWorld(190).CreateSnapshot();
@@ -63,8 +63,8 @@ public sealed partial class OriginalAiMilitaryTests
                 Simulation = world.Simulation with { Boundary = SimulationBoundary.Stable }
             };
             Engine = GameSession.EngineFactory(content)(WorldState.Restore(change?.Invoke(world) ?? world));
-            var mode = Engine.Snapshot.Corps.Single(c => c.Id == 1).ControlMode;
-            var context = new CommandContext(mode.AllowsAutomaticOrders() ? CorpsControl.ControllerId(1) : "player");
+            if (automaticContext) Engine.ConfigureCompanion(new() { PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full });
+            var context = new CommandContext(automaticContext ? CorpsControl.ControllerId(1) : "player");
             var rules = Rules = definition.Rules.Military!;
             Military = new(Engine, content, rules, definition.Rules,
                 new(content, rules), TerrainRoutes, 1, context, new OriginalAiRandom(draw ?? (_ => 0)), (command, prepared) =>
@@ -1144,11 +1144,10 @@ public sealed partial class OriginalAiMilitaryTests
     [InlineData(UnitCondition.Disguised, false)]
     [InlineData(UnitCondition.NoFormation, false)]
     [InlineData(UnitCondition.Routed, false)]
-    [InlineData(UnitCondition.Normal, false, CorpsControlMode.Cooperative, true)]
-    [InlineData(UnitCondition.Normal, true, CorpsControlMode.Cooperative, false)]
-    [InlineData(UnitCondition.Normal, true, CorpsControlMode.Automatic, true)]
+    [InlineData(UnitCondition.Normal, false, true, true)]
+    [InlineData(UnitCondition.Normal, true, true, false)]
     public void StrategicRecallUsesItsOwnConditionGate(UnitCondition condition, bool expected,
-        CorpsControlMode mode = CorpsControlMode.Direct, bool commanded = true)
+        bool assisted = false, bool commanded = true)
     {
         var content = Fixture();
         content = content with { Settlements = content.Settlements.Select(s => s.Id == 1 ? s with { Soldiers = 5000 } : s).ToArray() };
@@ -1157,7 +1156,7 @@ public sealed partial class OriginalAiMilitaryTests
             var enemy = EnemyArmy(w);
             return enemy with
             {
-                Corps = enemy.Corps.Select(c => c.Id == 1 ? c with { ControlMode = mode } : c).ToArray(),
+
                 Officers = enemy.Officers.Select(p => p.Id == 2 ? p with { SettlementId = null, UnitId = 901 } : p).ToImmutableArray(),
                 Units = enemy.Units.ToImmutableArray().Add(new(901, 1, new(17, 7), 5000)
                 {
@@ -1166,9 +1165,9 @@ public sealed partial class OriginalAiMilitaryTests
                     Order = new(MilitaryOrderKind.Move, new(47, 7), null),
                     MemberPositions = San9.Tests.FormationTestData.Members(ImmutableDictionary<int, BattleRank>.Empty.Add(2, BattleRank.Middle))
                 }),
-                Simulation = enemy.Simulation with { NextUnitId = 902 }
+                Simulation = enemy.Simulation with { NextUnitId = 902, Controls = enemy.Simulation.Controls.Select(c => c.ForceId == 1 ? c with { Kind = assisted ? ControllerKind.Player : ControllerKind.Automatic } : c).ToImmutableArray() }
             };
-        });
+        }, automaticContext: true);
 
         Assert.Equal(expected ? 1 : 0, h.Run(OriginalAiWork.Retreat, 1).Submitted);
         if (expected)

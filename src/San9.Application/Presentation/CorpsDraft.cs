@@ -19,7 +19,6 @@ public sealed class CorpsDraft
     public uint Money { get; private set; }
     public uint Food { get; private set; }
     public CorpsDelegation Policy { get; private set; } = new GeneralDelegation();
-    public CorpsControlMode ControlMode { get; private set; }
     public bool IsCurrent => session.Snapshot.Revision == View.World.Revision;
     public ImmutableArray<CorpsState> Corps => View.World.Corps.Where(c => c.OwnerId == View.RequirePlayerForce()).OrderBy(c => c.Id).ToImmutableArray();
     private CorpsState Root => Corps.Single(c => c.IsRoot);
@@ -43,7 +42,7 @@ public sealed class CorpsDraft
     public void SetOperation(CorpsOperation operation)
     {
         Operation = operation; Cities = []; Money = Food = 0;
-        CorpsId = null; Policy = new GeneralDelegation(); ControlMode = CorpsControlMode.Cooperative;
+        CorpsId = null; Policy = new GeneralDelegation();
         var candidate = Corps.FirstOrDefault(c => !c.IsRoot);
         if (operation != CorpsOperation.Create && candidate is not null) SelectCorps(candidate.Id);
     }
@@ -53,7 +52,7 @@ public sealed class CorpsDraft
         if (!IsCurrent || corps is null || corps.IsRoot) return false;
         CorpsId = id; Money = corps.Treasury.Money; Food = corps.Treasury.Food;
         Cities = View.World.Settlements.Where(s => s.CorpsId == id && s.Kind == SettlementKind.City).Select(s => s.Id).Order().ToImmutableArray();
-        Policy = corps.Delegation; ControlMode = corps.ControlMode; return true;
+        Policy = corps.Delegation; return true;
     }
     public bool SetCities(IEnumerable<int> ids)
     {
@@ -72,7 +71,6 @@ public sealed class CorpsDraft
     public void SetMoney(uint amount) => Money = amount;
     public void SetFood(uint amount) => Food = amount;
     public void SetPolicy(CorpsDelegation policy) => Policy = policy;
-    public void SetControl(CorpsControlMode mode) => ControlMode = mode;
     public bool HasInput => Operation == CorpsOperation.Create || CorpsId is not null;
     public CommandPreparationPreview Preview
     {
@@ -101,7 +99,7 @@ public sealed class CorpsDraft
     public bool HasChanges => Operation switch
     {
         CorpsOperation.Change => Selected is {} corps &&
-            (Money != corps.Treasury.Money || Food != corps.Treasury.Food || Policy != corps.Delegation || ControlMode != corps.ControlMode ||
+            (Money != corps.Treasury.Money || Food != corps.Treasury.Food || Policy != corps.Delegation ||
              !Cities.SequenceEqual(View.World.Settlements.Where(s => s.CorpsId == corps.Id && s.Kind == SettlementKind.City).Select(s => s.Id).Order())),
         _ => true
     };
@@ -141,8 +139,8 @@ public sealed class CorpsDraft
         int force = View.RequirePlayerForce(); long sequence = View.World.Simulation.NextSequence;
         return Operation switch
         {
-            CorpsOperation.Create => new CreateCorpsCommand(commandId, force, sequence, Cities, Money, Food, Policy, ControlMode),
-            CorpsOperation.Change => new ChangeCorpsCommand(commandId, force, sequence, CorpsId!.Value, Cities, Money, Food, Policy, ControlMode),
+            CorpsOperation.Create => new CreateCorpsCommand(commandId, force, sequence, Cities, Money, Food, Policy),
+            CorpsOperation.Change => new ChangeCorpsCommand(commandId, force, sequence, CorpsId!.Value, Cities, Money, Food, Policy),
             CorpsOperation.Dissolve => new DissolveCorpsCommand(commandId, force, sequence, CorpsId!.Value),
             _ => throw new InvalidOperationException("Unknown corps operation.")
         };

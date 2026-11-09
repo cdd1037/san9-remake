@@ -27,7 +27,7 @@ public sealed class FoodTradeSessionTests
     [InlineData(FoodTradeDirection.Sell)]
     public void PublicTradeUsesIndependentAccountAndSurvivesSaveReplayAndXunRecovery(FoodTradeDirection direction)
     {
-        var d = Definition(); var session = GameSession.Start(d, 190);         Assert.Contains("merchant", session.View.Settlements.Single(s => s.Id == 2).Icons);
+        var d = Definition(); var session = GameSession.Start(d, 190, companionSettings: new() { AllowDelegatedCorpsOrders = true });         Assert.Contains("merchant", session.View.Settlements.Single(s => s.Id == 2).Icons);
         var before = session.Snapshot; var quote = session.GetFoodTradeQuote(1, 2, [2], direction);
         Assert.True(quote.Available); Assert.Equal(new(ResourceOwnerKind.Corps, 2), quote.Account);
         Assert.Equal(6000u, quote.MaximumFoodAmount); StateAssert.Equal(before, session.Snapshot);
@@ -61,8 +61,7 @@ public sealed class FoodTradeSessionTests
             var hash = session.Snapshot;
             Assert.False(session.Execute(new("player"), invalid).Submission.Accepted); StateAssert.Equal(hash, session.Snapshot);
         }
-        Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1, 0, 2, CorpsControlMode.Automatic)).Submission.Accepted);
-        command = command with { Sequence = 1 };
+
         var delegated = session.Snapshot;
         Assert.Equal(CommandRejection.NotActiveController, session.Execute(new("player"), command).Submission.Rejection);
         StateAssert.Equal(delegated, session.Snapshot);

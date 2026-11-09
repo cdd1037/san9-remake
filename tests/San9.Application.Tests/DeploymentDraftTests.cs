@@ -291,7 +291,7 @@ public sealed class DeploymentDraftTests
             Corps = world.Corps.Append(new(99, 1, 2, new(10000, 10000))).ToArray(),
             Settlements = world.Settlements.Select(s => s with { OwnerId = 1, CorpsId = s.Id == 1 ? sourceCorps : targetCorps }).ToArray(),
             Units = [new(8, 1, MapCoordinates.Center(new(3, 0)), 100) { FormationId = 900, CorpsId = targetCorps }]
-        });
+        }, companion: new() { AllowDelegatedCorpsOrders = true });
         var draft = new DeploymentDraft(view, 1); Assert.True(draft.SetMembers([1])); draft.SetSoldiers(123);
         var targets = new DeploymentTargets(draft);
         Assert.Equal(MilitaryMarker.Enter, targets.Candidates[new(2, false)]);

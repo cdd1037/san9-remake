@@ -80,7 +80,7 @@ public sealed class MerchantInvestmentTests
     public void FoodInvestmentUsesCurrentRateAndIndependentCorpsForBothDebitAndReturn()
     {
         var (world, task) = Create(); task = task with { Journey = new(2, null, 0) };
-        world.AddCorps(new(7, 1, 3, new(5000, TreasuryRules.Capacity - 1000)) { ControlMode = CorpsControlMode.Direct });
+        world.AddCorps(new(7, 1, 3, new(5000, TreasuryRules.Capacity - 1000)));
         world.Replace(world.Settlements[1] with { CorpsId = 7 }); List<DomainEvent> events = [];
         Assert.True(MerchantInvestment.Prepare(world, task, Definition));
         MerchantInvestment.Resolve(world, task, Rules, new("merchant"), new(MerchantInvestmentChoice.Invest, 101), events);

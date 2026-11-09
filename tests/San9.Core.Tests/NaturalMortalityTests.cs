@@ -153,7 +153,7 @@ public sealed class NaturalMortalityTests
         var rules = new SimulationRules { Governance = new([new(5, 10000, 0)]), Treasures = new([new(7, default, 0)]) };
         var mutation = world.BeginMutation(rules.Abilities);
         var rootTreasury100 = ResourceAccounts.Root(mutation, 1).Treasury; mutation.RemoveCorps(ResourceAccounts.Root(mutation, 1).Id); mutation.AddCorps(new(100, 1, 1, rootTreasury100) { IsRoot = true });
-        mutation.AddCorps(new(200, 1, 11, new(300, 400)) { ControlMode = CorpsControlMode.Automatic });
+        mutation.AddCorps(new(200, 1, 11, new(300, 400)));
         mutation.Replace(mutation.Settlements[10] with { CorpsId = 100 });
         mutation.Replace(mutation.Settlements[20] with { CorpsId = 200 });
         mutation.Replace(mutation.Officers[11] with { Status = OfficerStatus.Governor, OfficeId = 5 });
@@ -173,7 +173,6 @@ public sealed class NaturalMortalityTests
         var snapshot = world.CreateSnapshot();
         Assert.Equal(100, Assert.Single(snapshot.Corps, c => c.OwnerId == 1).Id);
         Assert.True(Assert.Single(snapshot.Corps, c => c.OwnerId == 1).IsRoot);
-        Assert.Equal(CorpsControlMode.Direct, Assert.Single(snapshot.Corps, c => c.OwnerId == 1).ControlMode);
         Assert.All(snapshot.Settlements.Where(s => s.OwnerId == 1), s => Assert.Equal(100, s.CorpsId));
         Assert.Equal(1300u, snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Money);
         Assert.Equal(1400u, snapshot.Corps.Single(f => f.IsRoot && f.OwnerId == 1).Treasury.Food);

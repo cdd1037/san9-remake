@@ -37,13 +37,13 @@ internal static class OriginalAiTurnRunner
         {
             int selected = cursor.Queue[0];
             var corps = engine.Snapshot.Corps.FirstOrDefault(c => c.Id == selected);
-            if (corps is null || seat.Kind == ControllerKind.Player && corps.ControlMode == CorpsControlMode.Direct)
+            if (corps is null || seat.Kind == ControllerKind.Player && corps.IsRoot && engine.Companion.PlayerCorpsAutomation != PlayerCorpsAutomationMode.Full)
             {
                 cursor = cursor with { Queue = cursor.Queue.RemoveAt(0), Seen = cursor.Seen.Add(selected), Prepared = false, WorkIndex = 0 };
                 continue;
             }
             geography = geographyContext.Get(engine.Snapshot);
-            var context = new CommandContext(corps.ControlMode.AllowsAutomaticOrders() ? CorpsControl.ControllerId(corps.Id) : seat.ControllerId);
+            var context = new CommandContext(CorpsControl.ControllerId(corps.Id));
             var stream = new StableRandom(cursor.Prepared ? cursor.RandomState : StableRandom.DeriveSeed(engine.Snapshot.Simulation.RunSeed,
                 FormattableString.Invariant($"original-ai:{corps.Id}:{engine.Snapshot.Clock.DayNumber}")));
             var random = new OriginalAiRandom(stream);

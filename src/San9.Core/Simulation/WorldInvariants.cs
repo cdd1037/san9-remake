@@ -106,7 +106,7 @@ internal static class WorldInvariants
                     !leader.IsServing || leader.UnitId != unit.Id || leader.OwnerId != unit.OwnerId) ||
                 unit.CorpsId is int corpsId && (!state.AllCorps.TryGetValue(corpsId, out var corps) || corps.OwnerId != unit.OwnerId)) throw new ArgumentException("Invalid unit.");
         }
-        if (state.AllCorps.Values.Any(c => c.Treasury is null || c.Id < 0 || !Enum.IsDefined(c.ControlMode) || !ValidDelegation(state, c) || !state.AllForces.ContainsKey(c.OwnerId) ||
+        if (state.AllCorps.Values.Any(c => c.Treasury is null || c.Id < 0 || !ValidDelegation(state, c) || !state.AllForces.ContainsKey(c.OwnerId) ||
                 (c.LeaderId is int leaderId ? !state.AllOfficers.TryGetValue(leaderId, out var leader) || leader.OwnerId != c.OwnerId ||
                 !leader.IsServing && !(c.IsRoot && leader.Status == San9.Core.Domain.OfficerStatus.Captive &&
                     state.AllForces[c.OwnerId].LeaderId == leader.Id) : !c.IsRoot || state.AllForces[c.OwnerId].LeaderId is not null)) ||

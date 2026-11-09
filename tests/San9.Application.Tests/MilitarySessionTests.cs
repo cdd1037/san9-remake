@@ -586,8 +586,9 @@ public sealed partial class MilitarySessionTests
         {
             Forces = [baseline.Forces[0] with { LeaderId = 1 }],
             Settlements = [baseline.Settlements[0] with { Soldiers = 10000, CorpsId = 10 }, baseline.Settlements[1] with { CorpsId = 10 }],
-            Officers = [baseline.Officers[0] with { State = baseline.Officers[0].State with { Status = OfficerStatus.Ruler } }],
-            Information = baseline.Information with { Corps = [new(10, 1, 1, new(10000, 10000)) { ControlMode = CorpsControlMode.Automatic , IsRoot = true }] }
+            Officers = [baseline.Officers[0] with { State = baseline.Officers[0].State with { Status = OfficerStatus.Ruler } },
+                baseline.Officers[0] with { State = baseline.Officers[0].State with { Id = 2, Status = OfficerStatus.Governor } }],
+            Information = baseline.Information with { Corps = [new(10, 1, 2, new(10000, 10000)), new(11, 1, 1, new(10000, 10000)) { IsRoot = true }] }
         };
     }
 
@@ -654,7 +655,7 @@ public sealed partial class MilitarySessionTests
     }
 
     [Fact]
-    public void ControlChangeImmediatelyChangesFieldOrderAuthority()
+    public void AssistanceImmediatelyGrantsFieldOrderAuthorityWithoutRevokingAiAuthority()
     {
         var session = GameSession.Start(ReinforcementFixture(), 42);
         var deployment = MilitaryPlanner.Choose(session, new("corps:10", 1, ControllerKind.Automatic), Guid.NewGuid());
@@ -670,10 +671,9 @@ public sealed partial class MilitarySessionTests
         Assert.False(session.Validate(new("player"), Policies()).Accepted);
         Assert.True(session.Validate(new("corps:10"), Policies()).Accepted);
         StateAssert.Equal(before, session.Capture());
-        Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1,
-            session.Snapshot.Simulation.NextSequence, 10, CorpsControlMode.Direct)).Submission.Accepted);
-        Assert.False(session.Validate(new("corps:10"), Order()).Accepted);
-        Assert.False(session.Validate(new("corps:10"), Policies()).Accepted);
+        session.ConfigureCompanion(new() { AllowDelegatedCorpsOrders = true, PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full });
+        Assert.True(session.Validate(new("corps:10"), Order()).Accepted);
+        Assert.True(session.Validate(new("corps:10"), Policies()).Accepted);
         Assert.True(session.Execute(new("player"), Policies()).Submission.Accepted);
         Assert.True(session.Execute(new("player"), Order()).Submission.Accepted);
         Assert.Equal(1, Assert.Single(session.Snapshot.Units).Order!.SettlementId);

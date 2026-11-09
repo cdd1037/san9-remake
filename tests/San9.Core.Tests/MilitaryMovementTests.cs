@@ -191,7 +191,7 @@ public sealed class MilitaryMovementTests
         mutation.AddUnit(new(0, 1, new(12, 7), 100) { FormationId = 7, Policies = new(Pursue: true) });
         mutation.AddUnit(new(1, 1, new(22, 7), 100) { FormationId = 7, Policies = new(AutonomousRetreat: true),
             Condition = confused ? UnitCondition.Confused : UnitCondition.Normal, CorpsId = delegated ? 2 : null });
-        if (delegated) mutation.AddCorps(new CorpsState(2, 1, null, new(0, 0)) { ControlMode = CorpsControlMode.Automatic });
+        if (delegated) mutation.AddCorps(new CorpsState(2, 1, null, new(0, 0)));
         mutation.SetSimulation(mutation.Simulation with { NextUnitId = 2 });
         world.Commit(mutation);
         return Engine(world, Rules());
@@ -338,16 +338,19 @@ public sealed class MilitaryMovementTests
     }
 
     [Theory]
-    [InlineData(CorpsControlMode.Direct)]
-    [InlineData(CorpsControlMode.Cooperative)]
-    public void CommandMarkerSurvivesRestoreAndResetsAtNewXun(CorpsControlMode mode)
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CommandMarkerSurvivesRestoreAndResetsAtNewXun(bool fullAutomation)
     {
         var rules = Rules();
         var initial = Engine(World(), rules).Snapshot;
-        var engine = Engine(WorldState.Restore(initial with { Corps = initial.Corps.Select(c => c with { ControlMode = mode }).ToArray() }), rules);
+        var engine = Engine(WorldState.Restore(initial), rules);
+        var settings = new CompanionSettings { PlayerCorpsAutomation = fullAutomation ? PlayerCorpsAutomationMode.Full : PlayerCorpsAutomationMode.Disabled };
+        engine.ConfigureCompanion(settings);
         Assert.True(engine.Execute(Player, Deploy()).Submission.Accepted);
         Assert.True(Assert.Single(engine.Snapshot.Units).CommandedThisXun);
         engine = Engine(WorldState.Restore(engine.CaptureStableState()), rules);
+        engine.ConfigureCompanion(settings);
         Assert.True(Assert.Single(engine.Snapshot.Units).CommandedThisXun);
         var automatic = new CommandContext(CorpsControl.ControllerId(Assert.Single(engine.Snapshot.Corps).Id));
         var returnOrder = new OrderUnitCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence,
@@ -357,7 +360,7 @@ public sealed class MilitaryMovementTests
         engine.AdvanceXun();
         var unit = Assert.Single(engine.Snapshot.Units);
         Assert.False(unit.CommandedThisXun);
-        Assert.Equal(mode == CorpsControlMode.Cooperative ? CommandRejection.None : CommandRejection.NotActiveController,
+        Assert.Equal(fullAutomation ? CommandRejection.None : CommandRejection.NotActiveController,
             engine.GetPreparationEligibility(automatic, returnOrder with { Sequence = engine.Snapshot.Simulation.NextSequence }));
         var invalid = new OrderUnitCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, unit.Id,
             new(MilitaryOrderKind.Move, new(900, 900), null));

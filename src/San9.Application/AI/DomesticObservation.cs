@@ -24,7 +24,7 @@ public sealed record DomesticObservation(AiObservation Perspective, ImmutableArr
     public ImmutableDictionary<int, OfficerAbilities> Abilities { get; init; } = ImmutableDictionary<int, OfficerAbilities>.Empty;
     public int Trust { get; init; }
     public static DomesticObservation Capture(WorldSnapshot world, ControlSeat seat, CommandContext context,
-        IReadOnlyDictionary<int, OfficerAbilities> abilities)
+        IReadOnlyDictionary<int, OfficerAbilities> abilities, CompanionSettings? companion = null)
     {
         var perspective = AiObservation.FromSnapshot(seat.ForceId, world);
         if (!world.Forces.Any(f => f.Id == seat.ForceId && !f.IsDormant && !f.IsEliminated)) return new(perspective, []);
@@ -34,7 +34,7 @@ public sealed record DomesticObservation(AiObservation Perspective, ImmutableArr
         var accounts = world.Corps.Where(c => c.OwnerId == seat.ForceId).ToDictionary(c => c.Id);
         var root = accounts.Values.Single(c => c.IsRoot);
         var places = world.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed &&
-            CorpsControl.CanControlSettlement(world, seat, context, s.Id)).OrderBy(s => s.Id);
+            CorpsControl.CanControlSettlement(world, seat, context, s.Id, companion)).OrderBy(s => s.Id);
         return new(perspective, places.Select(s =>
         {
             var account = s.CorpsId is int id ? accounts[id] : root;

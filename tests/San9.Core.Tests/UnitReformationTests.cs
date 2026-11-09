@@ -42,7 +42,7 @@ public sealed class UnitReformationTests
             CorpsId = automaticCorps ? 1 : null,
             MemberPositions = San9.Tests.FormationTestData.Members(ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front).Add(12, BattleRank.Rear)) }] : [],
         controls: [new("player", 1, controller)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(1000, 10000)) { IsRoot = true,
-                ControlMode = automaticCorps ? CorpsControlMode.Automatic : CorpsControlMode.Direct }]);
+                }]);
 
     private static SimulationEngine Engine(WorldState world) => new(world, EconomyRulebook.Empty,
         PersonnelRulebook.Empty, TreasureRulebook.Empty, military: Rules());
@@ -57,6 +57,7 @@ public sealed class UnitReformationTests
     public void ReformationIsGloballyDisabled(ControllerKind controller, bool automaticCorps)
     {
         var engine = Engine(World(controller: controller, automaticCorps: automaticCorps));
+        if (automaticCorps) engine.ConfigureCompanion(new() { PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full });
         var context = automaticCorps ? new CommandContext(CorpsControl.ControllerId(1)) : Player;
         var command = Reform(engine, 20);
         var before = engine.Snapshot;

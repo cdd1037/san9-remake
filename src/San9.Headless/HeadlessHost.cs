@@ -185,7 +185,6 @@ public sealed class HeadlessHost
                 CorpsDissolvedEvent => "corps-dissolved",
                 CorpsCreatedEvent => "corps-created",
                 CorpsChangedEvent => "corps-changed",
-                CorpsControlChangedEvent => "corps-control-changed",
                 CorpsLeaderChangedEvent => "corps-leader-changed",
                 CommanderChangedEvent => "commander-changed",
                 PersonnelReturnedEvent => "personnel-returned",

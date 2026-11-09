@@ -18,11 +18,11 @@ internal static class PlayerDomesticAutomation
     {
         var companion = engine.Companion;
         var world = engine.Snapshot;
-        if (seat.Kind != ControllerKind.Player || (!companion.PlayerAutoDomesticEnabled && !companion.PlayerAutoSearchEnabled) ||
+        if (seat.Kind != ControllerKind.Player || companion.PlayerCorpsAutomation != PlayerCorpsAutomationMode.DomesticAndSearch || (!companion.PlayerAutoDomesticEnabled && !companion.PlayerAutoSearchEnabled) ||
             !world.Forces.Any(f => f.Id == seat.ForceId && !f.IsEliminated && !f.IsDormant && !f.IsBarbarian)) return;
         OriginalAiGeography? geography = null;
         var context = new CommandContext(seat.ControllerId);
-        foreach (var corps in world.Corps.Where(c => c.OwnerId == seat.ForceId && c.ControlMode == CorpsControlMode.Direct)
+        foreach (var corps in world.Corps.Where(c => c.OwnerId == seat.ForceId && c.IsRoot)
             .OrderByDescending(c => c.IsRoot).ThenBy(c => c.Id))
         {
             bool Submit(GameCommand command)

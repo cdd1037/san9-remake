@@ -47,8 +47,7 @@ public sealed class CorpsCommandTests
         {
             Officers = content.Officers.Select(p => p.State.Id == 3
                 ? p with { State = p.State with { SettlementId = origin } } : p).ToArray(),
-            Information = content.Information with { Corps = content.Information.Corps.Select(c => c.Id == 11
-                ? c with { ControlMode = CorpsControlMode.Automatic } : c).ToArray() }
+            Information = content.Information with { Corps = content.Information.Corps.ToArray() }
         };
         var session = GameSession.Start(content, 42);
         Assert.Null(PersonnelDraft.UnavailableReasonKey(session.View, home, kind));
@@ -64,47 +63,28 @@ public sealed class CorpsCommandTests
     }
 
     [Fact]
-    public void ChangeDraftSubmitsControlModeWithTheExistingOrganizationAtomically()
+    public void AssistanceChangesDoNotReorganizeCorpsAndRefreshMenuAuthority()
     {
-        var content = ManagementContent();
-        content = content with { Settlements = [.. content.Settlements,
-            content.Settlements[0] with { Id = 4, Kind = SettlementKind.Facility, CorpsId = 11, Soldiers = 123, Wounded = 7 }] };
-        var session = GameSession.Start(content, 42);
+        var session = ManagementSession();
         var before = session.Capture();
-        var draft = new CorpsDraft(session);
-        draft.SetOperation(CorpsOperation.Change);
-        Assert.True(draft.SelectCorps(11));
-        Assert.Equal(CorpsControlMode.Direct, draft.ControlMode);
-        Assert.Equal((ulong)before.World.Settlements.Where(s => s.CorpsId == 11).Sum(s => (long)s.Soldiers + s.Wounded), draft.Counts.Soldiers);
-        Assert.False(draft.CanExecute);
-        draft.SetControl(CorpsControlMode.Cooperative);
-        Assert.True(draft.CanExecute);
+        Assert.NotNull(MapCommandMenu.Settlement(session.View, 3).SelectMany(g => g.Children).Single(e => e.Id == "cultivate").UnavailableReasonKey);
+        session.ConfigureCompanion(new() { AllowDelegatedCorpsOrders = true });
+        Assert.Null(MapCommandMenu.Settlement(session.View, 3).SelectMany(g => g.Children).Single(e => e.Id == "cultivate").UnavailableReasonKey);
         StateAssert.Equal(before, session.Capture());
-        var command = Assert.IsType<ChangeCorpsCommand>(draft.CreateCommand());
-        Assert.Equal(CorpsControlMode.Cooperative, command.ControlMode);
-        Assert.True(session.Execute(new("player"), command).Submission.Accepted);
-        var original = before.World.Corps.Single(c => c.Id == 11);
-        var actual = session.Snapshot.Corps.Single(c => c.Id == 11);
-        Assert.Equal(original with { ControlMode = CorpsControlMode.Cooperative }, actual);
-        Assert.Equal(before.World.Settlements, session.Snapshot.Settlements);
-        draft = new(session);
-        draft.SetOperation(CorpsOperation.Change);
-        Assert.True(draft.SelectCorps(11));
-        Assert.Equal(CorpsControlMode.Cooperative, draft.ControlMode);
-        Assert.False(draft.CanExecute);
+        session.ConfigureCompanion(CompanionSettings.Default);
+        Assert.NotNull(MapCommandMenu.Settlement(session.View, 3).SelectMany(g => g.Children).Single(e => e.Id == "cultivate").UnavailableReasonKey);
     }
 
     [Theory]
     [InlineData(10, 1, 1)]
     [InlineData(11, 3, 2)]
-    public void CooperativeControlAllowsPlayerWorkAndUsesOnlyRemainingPeople(int corpsId, int cityId, int officerId)
+    public void AssistanceAllowsPlayerWorkAndUsesOnlyRemainingPeople(int corpsId, int cityId, int officerId)
     {
         var content = ManagementContent();
         content = content with { Officers = content.Officers.Select(p => p.State.Id == 3
             ? p with { State = p.State with { SettlementId = cityId } } : p).ToArray() };
         var session = GameSession.Start(content,42);
-        Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1,
-            session.Snapshot.Simulation.NextSequence, corpsId, CorpsControlMode.Cooperative)).Submission.Accepted);
+        session.ConfigureCompanion(new() { AllowDelegatedCorpsOrders = true, PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full });
         Assert.Null(MapCommandMenu.Settlement(session.View, cityId).SelectMany(g => g.Children)
             .Single(e => e.Id == "cultivate").UnavailableReasonKey);
         var command = new DevelopCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
@@ -115,6 +95,7 @@ public sealed class CorpsCommandTests
             { CommandId = Guid.NewGuid(), Sequence = occupied.Simulation.NextSequence }).Submission.Accepted);
         StateAssert.Equal(occupied, session.Snapshot);
         var restored = SaveService.Decode(SaveService.Encode(session), content);
+        restored.ConfigureCompanion(session.Companion);
         var result = session.Apply(session.Request(new EndControlOperation()));
         var replay = restored.Apply(restored.Request(new EndControlOperation()));
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
@@ -139,29 +120,13 @@ public sealed class CorpsCommandTests
         };
     }
 
-    [Fact]
-    public void ControlCommandRevokesOrdersAndKeepsManagementReachableUntilControlIsRestored()
-    {
-        var session = ManagementSession();
-        var before = session.Capture();
-        Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1,
-            session.Snapshot.Simulation.NextSequence, 10, CorpsControlMode.Automatic)).Submission.Accepted);
-        var entries = MapCommandMenu.Settlement(session.View,1).SelectMany(g => g.Children).ToArray();
-        Assert.Null(entries.Single(e => e.Id == "delegate").UnavailableReasonKey);
-        Assert.NotNull(entries.Single(e => e.Id == "cultivate").UnavailableReasonKey);
-        Assert.True(session.Execute(new("player"), new SetCorpsControlCommand(Guid.NewGuid(), 1,
-            session.Snapshot.Simulation.NextSequence, 10, CorpsControlMode.Direct)).Submission.Accepted);
-        Assert.Equal(before.World.Corps,session.Capture().World.Corps);
-        Assert.Null(MapCommandMenu.Settlement(session.View,1).SelectMany(g => g.Children).Single(e => e.Id == "cultivate").UnavailableReasonKey);
-    }
-
     [Theory]
     [InlineData(0)] [InlineData(2)] [InlineData(3)]
-    public void IndependentPolicyUsesPublicTargetsEvenWithDelegatedRootAndDoesNotReorganizeCorps(int kind)
+    public void IndependentPolicyUsesPublicTargetsWithAssistanceAndDoesNotReorganizeCorps(int kind)
     {
         var session = ManagementSession();
         Assert.True(session.Execute(new("player"),new SetCorpsDelegationCommand(Guid.NewGuid(),1,0,11,new DomesticDelegation())).Submission.Accepted);
-        Assert.True(session.Execute(new("player"),new SetCorpsControlCommand(Guid.NewGuid(),1,1,10,CorpsControlMode.Automatic)).Submission.Accepted);
+        session.ConfigureCompanion(new() { AllowDelegatedCorpsOrders = true, PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full });
         var draft = new CorpsDraft(session); draft.SetOperation(CorpsOperation.Change);
         Assert.False(draft.SelectCorps(10)); Assert.False(draft.SelectCorps(2)); Assert.True(draft.SelectCorps(11));
         Assert.False(draft.CanExecute);
@@ -188,7 +153,8 @@ public sealed class CorpsCommandTests
         Assert.False(session.Execute(new("player"),draft.CreateCommand()).Submission.Accepted);
         Assert.Same(before,session.Capture());
         draft.SetPolicy(new DefeatForceDelegation(2)); Assert.True(draft.CanExecute);
-        Assert.True(session.Execute(new("player"),new SetCorpsControlCommand(Guid.NewGuid(),1,0,11,CorpsControlMode.Automatic)).Submission.Accepted);
+        Assert.True(session.Execute(new("player"), new SetCorpsDelegationCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, 11, new DomesticDelegation())).Submission.Accepted);
         Assert.Equal(CommandRejection.NotStable,draft.Rejection); Assert.False(draft.CanExecute);
         Assert.Empty(draft.PolicyTargets(true));
     }
@@ -219,7 +185,6 @@ public sealed class CorpsCommandTests
         draft.SetMoney(100); draft.SetFood(200);
         Assert.Equal(2,draft.GovernorId); Assert.True(draft.CanExecute);
         Assert.IsType<GeneralDelegation>(draft.Policy);
-        Assert.Equal(CorpsControlMode.Cooperative, Assert.IsType<CreateCorpsCommand>(draft.CreateCommand()).ControlMode);
         var counts = draft.Counts;
         Assert.Equal(1UL,counts.People); Assert.Equal(3UL,counts.TotalPeople);
         draft.SetPolicy(new DomesticDelegation()); Assert.True(draft.CanExecute);
@@ -228,7 +193,6 @@ public sealed class CorpsCommandTests
         Assert.Equal(CommandRejection.NotStable,draft.Rejection);
         int corps = session.Snapshot.Corps.Single(c => c.OwnerId == 1 && !c.IsRoot).Id;
         Assert.IsType<DomesticDelegation>(session.Snapshot.Corps.Single(c => c.Id == corps).Delegation);
-        Assert.Equal(CorpsControlMode.Cooperative, session.Snapshot.Corps.Single(c => c.Id == corps).ControlMode);
         draft = new(session); draft.SetOperation(CorpsOperation.Change); Assert.True(draft.SelectCorps(corps)); Assert.False(draft.CanExecute);
         Assert.Equal(treasury.Money,draft.MaximumMoney); Assert.Equal(treasury.Food,draft.MaximumFood);
         draft.SetMoney(draft.MaximumMoney+1); Assert.Equal(CommandRejection.InsufficientFunds,draft.Rejection);

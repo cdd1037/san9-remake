@@ -68,17 +68,17 @@ public sealed class DomesticPlanningBoundaryTests
     }
 
     [Fact]
-    public void DelegatingPlayerRootRevokesPlayerObservationAndRunsOriginalWork()
+    public void HandingOverPlayerForceRevokesPlayerContextAndRunsOriginalWork()
     {
         var initial = G01ScenarioTests.Fixture();
         initial = initial with { Information = initial.Information with { Corps = initial.Information.Corps
-            .Select(c => c.OwnerId == 1 ? c with { ControlMode = CorpsControlMode.Automatic } : c).ToArray() } };
-        var session = GameSession.Start(initial, 190);
+            .ToArray() } };
+        var session = GameSession.Start(initial, 190, playerForceController: ControllerKind.Automatic);
         var world = session.Snapshot;
         var seat = world.Simulation.Controls[0];
         Assert.Empty(Observe(world, seat, new("player")).Settlements);
         Assert.Equal(1, Assert.Single(Observe(world, seat, new(CorpsControl.ControllerId(1))).Settlements).Id);
-        var result = session.Apply(session.Request(new EndControlOperation()));
+        var result = session.Apply(session.Request(new EndControlOperation(), seat.ControllerId));
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         Assert.NotEmpty(result.Events.OfType<DevelopmentCompletedEvent>());
         Assert.True(session.Snapshot.Simulation.NextSequence > world.Simulation.NextSequence);
@@ -94,7 +94,7 @@ public sealed class DomesticPlanningBoundaryTests
                 initial.Settlements[0] with { Id = 3, CorpsId = 3 }],
             Officers = initial.Officers.Select(p => p.State.Id == 2 ? p with { State = p.State with { SettlementId = 3 } } : p).ToArray(),
             Information = initial.Information with { Corps = [.. initial.Information.Corps,
-                new(3, 1, 2, new(500, 1000)) { ControlMode = CorpsControlMode.Automatic }] }
+                new(3, 1, 2, new(500, 1000))] }
         };
         var session = GameSession.Start(initial, 190);
         var world = session.Snapshot;
@@ -165,14 +165,12 @@ public sealed class DomesticPlanningBoundaryTests
         Assert.DoesNotContain(plan.Candidates, c => c.Activity is DomesticActivity.Train or DomesticActivity.Cultivation or DomesticActivity.Repair);
     }
 
-    [Theory]
-    [InlineData(CorpsControlMode.Direct)]
-    [InlineData(CorpsControlMode.Automatic)]
-    public void ComputerRootRunsOriginalWorkAcrossAdvanceEntryPointsAndReplays(CorpsControlMode mode)
+    [Fact]
+    public void ComputerRootRunsOriginalWorkAcrossAdvanceEntryPointsAndReplays()
     {
         var initial = G01ScenarioTests.Fixture();
         initial = initial with { Information = initial.Information with { Corps = initial.Information.Corps
-            .Select(c => c.OwnerId == 2 ? c with { ControlMode = mode } : c).ToArray() } };
+            .Select(c => c.OwnerId == 2 ? c with {  } : c).ToArray() } };
         var whole = GameSession.Start(initial, 190);
         var split = GameSession.Start(initial, 190);
         var result = whole.Apply(whole.Request(new AdvanceOperation()));

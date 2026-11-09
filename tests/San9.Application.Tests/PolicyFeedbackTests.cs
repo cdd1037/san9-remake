@@ -57,7 +57,8 @@ public sealed partial class ProgressFeedbackTests
         var world = session.View.World;
         world = world with
         {
-            Corps = world.Corps.Select(c => c.Id == 1 ? c with { ControlMode = direct ? CorpsControlMode.Direct : CorpsControlMode.Automatic } : c).ToArray(),
+            Corps = world.Corps.Append(world.Corps.Single(c => c.Id == 1) with { Id = 100, IsRoot = false }).ToArray(),
+            Units = world.Units.Select(u => u.OwnerId == 1 ? u with { CorpsId = direct ? 1 : 100 } : u).ToImmutableArray(),
             Simulation = world.Simulation with { Controls = world.Simulation.Controls.Select(c => c.ForceId == 1 ? c with
                 { Kind = player ? ControllerKind.Player : ControllerKind.Automatic } : c).ToImmutableArray() }
         };
@@ -67,7 +68,7 @@ public sealed partial class ProgressFeedbackTests
         Assert.Equal(player && direct, fact.ReportEligible);
         // Publication must use the captured authority even after control changes before the final snapshot.
         var changed = world with { Corps = world.Corps.Select(c => c.Id == 1 ? c with
-            { ControlMode = direct ? CorpsControlMode.Automatic : CorpsControlMode.Direct } : c).ToArray() };
+            { Treasury = new(0, 0) } : c).ToArray() };
         var view = new StrategySnapshot(definition, changed);
         var (texts, content) = Content(view);
         var context = new WorldMessageContext(definition, changed, texts);

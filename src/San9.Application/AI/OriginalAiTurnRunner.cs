@@ -56,8 +56,16 @@ internal static class OriginalAiTurnRunner
             }
             var forceState = state.Forces.Single(f => f.ForceId == seat.ForceId);
             var policy = state.Policy;
+            var secondary = force.IsBarbarian ? ImmutableArray<OriginalAiWork>.Empty : policy.SecondaryBatches[strategy.Mode];
+            if (!force.IsBarbarian && corps.Delegation is DomesticDelegation &&
+                OriginalAiActionPermissions.CorpsOptions(engine.Snapshot, engine.Companion, seat.ForceId).DomesticDelegationRecruitment &&
+                !secondary.Contains(OriginalAiWork.Recruit))
+            {
+                int training = secondary.IndexOf(OriginalAiWork.Train);
+                secondary = secondary.Insert(training >= 0 ? training : 0, OriginalAiWork.Recruit);
+            }
             var works = (force.IsBarbarian ? BarbarianFirst : corps.IsRoot ? RootFirst : ChildFirst)
-                .Concat(force.IsBarbarian ? [] : policy.SecondaryBatches[strategy.Mode]).Append(OriginalAiWork.Residual).ToArray();
+                .Concat(secondary).Append(OriginalAiWork.Residual).ToArray();
             var domestic = new OriginalAiProjection(engine, definition.Content, corps.Id, geography, policy.RecruitmentEnabled);
             OriginalDomesticInputs Capture() => domestic.Domestic();
             bool Submitted(CommandExecutionResult result)

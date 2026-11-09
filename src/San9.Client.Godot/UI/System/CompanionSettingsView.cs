@@ -55,7 +55,7 @@ public partial class CompanionSettingsView : ModalView
         hint.VerticalAlignment = VerticalAlignment.Center;
         actions.AddChild(hint);
         var preset = new Button { Text = "预设配置", CustomMinimumSize = new(104, 34),
-            TooltipText = "开启普通功能开关（含无限寿命）；允许伪报、扰乱、激励、救援、交还，禁止离间、流言、烧夷、夺取、赠与、请求、劝降。\n资金与兵粮倍率200%，能力上限与免阵亡能力门槛125，无退路俘获加成0%，其余数值保留当前输入。\n战斗阵亡仍须在PK设定中开启。" };
+            TooltipText = "开启普通功能开关（含无限寿命）；允许伪报、扰乱、激励、救援、交还、重视内政方针征兵及跨军团输送／救援，禁止离间、流言、烧夷、夺取、赠与、请求、劝降。\n资金与兵粮倍率200%，能力上限与免阵亡能力门槛125，无退路俘获加成0%，其余数值保留当前输入。\n战斗阵亡仍须在PK设定中开启。" };
         preset.Pressed += ApplyPreset; actions.AddChild(preset);
         var reset = new Button { Text = "原版配置", CustomMinimumSize = new(104, 34),
             TooltipText = "恢复原版对应配置。" };

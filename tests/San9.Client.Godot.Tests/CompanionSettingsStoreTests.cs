@@ -41,6 +41,8 @@ public sealed class CompanionSettingsStoreTests : IDisposable
             PlayerDelegatedStrategyPermissions = new() { Seize = false, Gossip = false },
             ComputerDiplomacyPermissions = new() { Gift = false, Surrender = false },
             PlayerDelegatedDiplomacyPermissions = new() { RequestAttack = false, ReturnPrisoner = false },
+            ComputerCorpsOptions = new() { DomesticDelegationRecruitment = true, CrossCorpsTransport = false },
+            PlayerDelegatedCorpsOptions = new() { CrossCorpsRelief = false },
         };
         store.Save(new(settings, true));
         Assert.Equal(new CompanionConfiguration(settings, true), new CompanionSettingsStore(FilePath).Load());
@@ -54,7 +56,8 @@ public sealed class CompanionSettingsStoreTests : IDisposable
             Assert.Throws<ArgumentOutOfRangeException>(() => store.Save(new(invalid, false)));
         foreach (var invalid in new[] {
             settings with { ComputerStrategyPermissions = null! }, settings with { PlayerDelegatedStrategyPermissions = null! },
-            settings with { ComputerDiplomacyPermissions = null! }, settings with { PlayerDelegatedDiplomacyPermissions = null! } })
+            settings with { ComputerDiplomacyPermissions = null! }, settings with { PlayerDelegatedDiplomacyPermissions = null! },
+            settings with { ComputerCorpsOptions = null! }, settings with { PlayerDelegatedCorpsOptions = null! } })
             Assert.Throws<ArgumentNullException>(() => store.Save(new(invalid, false)));
         Assert.Equal(saved, File.ReadAllBytes(FilePath));
 
@@ -83,7 +86,15 @@ public sealed class CompanionSettingsStoreTests : IDisposable
     [InlineData("playerDelegatedDiplomacyPermissions", "requestAttack")]
     [InlineData("computerDiplomacyPermissions", "returnPrisoner")]
     [InlineData("playerDelegatedDiplomacyPermissions", "surrender")]
-    public void IncompleteDiplomacyPermissionsAreRejectedWithoutChangingTheFile(string scope, string? field)
+    [InlineData("computerCorpsOptions", null)]
+    [InlineData("playerDelegatedCorpsOptions", null)]
+    [InlineData("computerCorpsOptions", "domesticDelegationRecruitment")]
+    [InlineData("playerDelegatedCorpsOptions", "domesticDelegationRecruitment")]
+    [InlineData("computerCorpsOptions", "crossCorpsTransport")]
+    [InlineData("playerDelegatedCorpsOptions", "crossCorpsTransport")]
+    [InlineData("computerCorpsOptions", "crossCorpsRelief")]
+    [InlineData("playerDelegatedCorpsOptions", "crossCorpsRelief")]
+    public void IncompleteAutomaticOptionsAreRejectedWithoutChangingTheFile(string scope, string? field)
     {
         var store = new CompanionSettingsStore(FilePath);
         store.Save(CompanionConfiguration.Default);

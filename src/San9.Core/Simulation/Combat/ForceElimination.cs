@@ -23,8 +23,9 @@ internal static class ForceElimination
         {
             if (force.IsBarbarian && person.Status != OfficerStatus.Captive)
             {
-                OfficerDeath.Remove(world, person.Id, OfficerDeathCause.ForceEliminated, rules.Personnel, events, afterDailyCommands);
-                OfficerDeath.SettleTreasures(world, person.Id, null, events);
+                OfficerDeath.Remove(world, person.Id, OfficerDeathCause.ForceEliminated, rules.Personnel, events, afterDailyCommands,
+                    out int? treasureDropRegionId);
+                OfficerDeath.SettleTreasures(world, person.Id, null, treasureDropRegionId, events);
             }
             else if (person.IsServing)
             {

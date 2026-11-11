@@ -56,8 +56,9 @@ internal static class BattlePersonnel
         bool dead = person.OwnerId is int owner && world.Forces[owner].IsBarbarian;
         if (dead)
         {
-            OfficerDeath.Remove(world, officerId, OfficerDeathCause.NoRetreat, places, events, world.CurrentDateCountdownConsumed);
-            OfficerDeath.SettleTreasures(world, officerId, null, events);
+            OfficerDeath.Remove(world, officerId, OfficerDeathCause.NoRetreat, places, events, world.CurrentDateCountdownConsumed,
+                out int? treasureDropRegionId);
+            OfficerDeath.SettleTreasures(world, officerId, null, treasureDropRegionId, events);
             return;
         }
         var candidates = originPlace is int place ? PersonnelRelocation.Destinations(world, place, places) : [];

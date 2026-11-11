@@ -38,7 +38,7 @@ public sealed class AllianceRulerDeathTests
                 Assert.Single(events.OfType<AllianceEndedEvent>()).Reason);
         }
         int count = events.Count;
-        Assert.False(OfficerDeath.Remove(m, victim, OfficerDeathCause.Natural, PersonnelRulebook.Empty, events, false));
+        Assert.False(OfficerDeath.Remove(m, victim, OfficerDeathCause.Natural, PersonnelRulebook.Empty, events, false, out _));
         Assert.Equal(count, events.Count);
         m.MaintainDerivedState(events);
         world.Commit(m);

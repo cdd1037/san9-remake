@@ -684,6 +684,8 @@ public sealed class MilitaryCombatTests
         var result = engine.AdvanceXun();
         Assert.Equal(OfficerStatus.Dead, engine.Snapshot.Officers.Single(p => p.Id == 30).Status);
         Assert.Null(Assert.Single(engine.Snapshot.Treasures).HolderId);
+        Assert.Equal(TreasureDiscovery.Buried, Assert.Single(engine.Snapshot.Treasures).Discovery);
+        Assert.Equal(1, Assert.Single(engine.Snapshot.Treasures).DiscoveryRegionId);
         Assert.Equal(OfficerStatus.Dead, engine.Snapshot.Officers.Single(p => p.Id == 22).Status);
         Assert.Null(engine.Snapshot.Officers.Single(p => p.Id == 22).OwnerId);
         Assert.Null(engine.Snapshot.Officers.Single(p => p.Id == 30).SettlementId);

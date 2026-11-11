@@ -58,9 +58,10 @@ internal static class ChainedPlot
             .OrderBy(p => p.Id).Select(p => p.Id).ToImmutableArray();
         foreach (int relative in relatives)
             OfficerDeath.Resolve(world, relative, OfficerDeathCause.HistoricalEvent, rules, events, afterDailyCommands: false);
-        OfficerDeath.Remove(world, ruler.Id, OfficerDeathCause.HistoricalEvent, rules.Personnel, events, afterDailyCommands: false);
+        OfficerDeath.Remove(world, ruler.Id, OfficerDeathCause.HistoricalEvent, rules.Personnel, events, afterDailyCommands: false,
+            out int? treasureDropRegionId);
         RulerSuccession.Appoint(world, forceId, ruler.Id, definition.SuccessorId, events);
-        OfficerDeath.SettleTreasures(world, ruler.Id, definition.SuccessorId, events);
+        OfficerDeath.SettleTreasures(world, ruler.Id, definition.SuccessorId, treasureDropRegionId, events);
         if (ruler.UnitId is int previousUnit && world.Units.ContainsKey(previousUnit) &&
             !world.Officers.Values.Any(p => p.UnitId == previousUnit && p.IsServing))
             BattleAftermath.TerminateUnit(world, previousUnit, null, rules, events);

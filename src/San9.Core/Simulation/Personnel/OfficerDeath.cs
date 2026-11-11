@@ -22,7 +22,7 @@ internal static class OfficerDeath
                 : previous.SettlementId is int prison ? world.Settlements[prison].OwnerId : null
             : previous.OwnerId;
         bool ruler = previous.OwnerId is int owner && world.Forces[owner].LeaderId == officerId;
-        if (!Remove(world, officerId, cause, rules.Personnel, events, afterDailyCommands)) return;
+        if (!Remove(world, officerId, cause, rules.Personnel, events, afterDailyCommands, out int? treasureDropRegionId)) return;
         if (previous.UnitId is int unit && world.Units.ContainsKey(unit) &&
             !world.Officers.Values.Any(p => p.UnitId == unit && p.IsServing))
             BattleAftermath.TerminateUnit(world, unit, null, rules, events);
@@ -33,15 +33,17 @@ internal static class OfficerDeath
         if (previous.OwnerId is int affected) GovernanceLifecycle.Reconcile(world, new HashSet<int> { affected }, rules, events, afterDailyCommands);
         int? recipient = recipientForce is int recipientOwner && !world.Forces[recipientOwner].IsEliminated
             ? world.Forces[recipientOwner].LeaderId : null;
-        SettleTreasures(world, officerId, recipient, events);
+        SettleTreasures(world, officerId, recipient, treasureDropRegionId, events);
         world.MaintainLeadership(events);
         ResolutionPipeline.CheckConquest(world, events);
     }
 
     internal static bool Remove(WorldMutation world, int officerId, OfficerDeathCause cause,
-        PersonnelRulebook places, List<DomainEvent> events, bool afterDailyCommands)
+        PersonnelRulebook places, List<DomainEvent> events, bool afterDailyCommands, out int? treasureDropRegionId)
     {
         var previous = world.Officers[officerId];
+        // Preserve the service place before task, unit and force cleanup removes its references.
+        treasureDropRegionId = PersonnelLocations.ServicePlace(world, previous) ?? previous.RegionId;
         if (previous.Status == OfficerStatus.Dead) return false;
         PersonnelTransitions.CancelMissions(world, officerId, "person-died", events, places, afterDailyCommands);
         foreach (var force in world.Forces.Values.Where(f => f.AdviserId == officerId).ToArray())
@@ -62,7 +64,8 @@ internal static class OfficerDeath
     }
 
     // Called after the enclosing transaction has resolved the final recipient, if any.
-    internal static void SettleTreasures(WorldMutation world, int officerId, int? recipientId, List<DomainEvent> events)
+    internal static void SettleTreasures(WorldMutation world, int officerId, int? recipientId,
+        int? treasureDropRegionId, List<DomainEvent> events)
     {
         if (world.Officers[officerId].Status != OfficerStatus.Dead)
             throw new InvalidOperationException("Only a deceased person's belongings can be settled here.");
@@ -75,7 +78,8 @@ internal static class OfficerDeath
                 PersonnelTreasures.Transfer(world, treasure, recipient.Id, recipient.OwnerId!.Value, "person-died", events);
             else
             {
-                world.Replace(treasure with { HolderId = null, Discovery = TreasureDiscovery.Discovered });
+                world.Replace(treasure with { HolderId = null, Discovery = TreasureDiscovery.Buried,
+                    DiscoveryRegionId = treasureDropRegionId ?? treasure.DiscoveryRegionId });
                 events.Add(new TreasureDroppedEvent(world.Clock, treasure.Id, officerId));
             }
         }

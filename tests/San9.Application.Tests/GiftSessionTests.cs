@@ -398,7 +398,7 @@ public sealed class GiftSessionTests
         var task = Assert.Single(world.Simulation.Tasks);
         List<DomainEvent> events = [];
         if (capture) PersonnelTransitions.Capture(world, 12, 2, null, session.View.Rules.Personnel, events);
-        else Assert.True(OfficerDeath.Remove(world, 12, OfficerDeathCause.Natural, session.View.Rules.Personnel, events, false));
+        else Assert.True(OfficerDeath.Remove(world, 12, OfficerDeathCause.Natural, session.View.Rules.Personnel, events, false, out _));
         TaskCancellation.Apply(world, task, "duplicate-cleanup", events);
         Assert.Empty(world.Simulation.Tasks);
         Assert.Equal(5000u, Assert.Single(events.OfType<ReturnCargoLostEvent>()).Amount);

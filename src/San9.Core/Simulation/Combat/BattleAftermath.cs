@@ -175,8 +175,9 @@ internal static class BattleAftermath
                 if (defeatedUnit is null && fallbackPlace is int lost && world.Settlements[lost].Kind == SettlementKind.City &&
                     original.OwnerId is int defender && world.Forces[defender].IsBarbarian)
                 {
-                    OfficerDeath.Remove(world, original.Id, OfficerDeathCause.NoRetreat, rules.Personnel, events, world.CurrentDateCountdownConsumed);
-                    OfficerDeath.SettleTreasures(world, original.Id, null, events);
+                    OfficerDeath.Remove(world, original.Id, OfficerDeathCause.NoRetreat, rules.Personnel, events, world.CurrentDateCountdownConsumed,
+                        out int? treasureDropRegionId);
+                    OfficerDeath.SettleTreasures(world, original.Id, null, treasureDropRegionId, events);
                     continue;
                 }
                 int nearby = BattleRetreat.CaptureParticipants(world,

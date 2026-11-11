@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using San9.Content.Images;
 using San9.Content.Packages;
 
@@ -59,7 +60,7 @@ public static class TextureAtlasCompiler
         ImageFile Save(string category, string name, PngImage image, int? fileId = null)
         {
             token.ThrowIfCancellationRequested();
-            var bytes = image.Encode();
+            var bytes = image.Encode(CompressionLevel.Optimal);
             var key = (category, name);
             int number = numbers.GetValueOrDefault(key); numbers[key] = number + 1;
             string filename = fileId is int id ? id.ToString(System.Globalization.CultureInfo.InvariantCulture) : $"{name}-{number}";

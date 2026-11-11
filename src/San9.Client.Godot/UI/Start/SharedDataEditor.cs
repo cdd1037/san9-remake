@@ -53,7 +53,8 @@ public partial class SharedDataEditor : ModalView
     {
         try
         {
-            _workspace = await Task.Run(() => SharedDataEditorWorkspace.OpenAsync(ContentRoot, ReferenceScenarioId, _lifetime.Token), _lifetime.Token);
+            _workspace = await Task.Run(() => SharedDataEditorWorkspace.OpenAsync(ContentRoot, ReferenceScenarioId, _lifetime.Token,
+                DataPaths?.TreasureIllustrations), _lifetime.Token);
             _lifetime.Token.ThrowIfCancellationRequested();
             string? appearanceError = await LoadAppearance();
             AddPage(new BasicRulesEditorPage { Name = "基础规则", Workspace = _workspace, ReportStatus = Status });
@@ -82,7 +83,8 @@ public partial class SharedDataEditor : ModalView
             if (_appearanceService is null)
             {
                 string root = PackageFiles.Resolve(ContentRoot, catalog.Textures);
-                var textures = await Task.Run(() => TexturePackageFiles.LoadAsync(root, _lifetime.Token, DataPaths?.PortraitPack), _lifetime.Token);
+                var textures = await Task.Run(() => TexturePackageFiles.LoadAsync(root, _lifetime.Token, DataPaths?.PortraitPack,
+                    DataPaths?.TreasureIllustrations), _lifetime.Token);
                 _lifetime.Token.ThrowIfCancellationRequested();
                 _appearanceService = new TextureService(); _appearanceService.Initialize(textures, root); AddChild(_appearanceService);
             }
@@ -112,6 +114,7 @@ public partial class SharedDataEditor : ModalView
         {
             await Task.Run(() => _workspace.SaveAsync(_lifetime.Token), _lifetime.Token);
             if (_lifetime.IsCancellationRequested) return false;
+            if (_workspace.Illustrations is { } illustrations) _appearanceService?.UpdateTreasureIllustrations(illustrations.Catalog);
             foreach (var page in _editors) page.Saved();
             UpdateTitleTooltip(); Status("已保存，重新开局后生效。"); return true;
         }

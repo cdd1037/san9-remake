@@ -9,7 +9,8 @@ namespace San9.Client.Godot;
 public partial class TextureService : Node
 {
     private Dictionary<string, PortraitDefinition> _portraits = [];
-    private IReadOnlyDictionary<string, string> _portraitImageSources = new Dictionary<string, string>();
+    private IReadOnlyDictionary<string, string> _imageSources = new Dictionary<string, string>();
+    public IReadOnlyDictionary<string, ImageAsset> ImageAssets { get; private set; } = null!;
     public IReadOnlyDictionary<string, PortraitDefinition> Portraits => _portraits;
     private TextureCache<ImageTexture> _cache = null!;
     private readonly Dictionary<ImageAsset, AlphaMask> _masks = [];
@@ -35,30 +36,42 @@ public partial class TextureService : Node
     public ImageTexture MinimapTerrain { get; private set; } = null!;
     public void Initialize(ClientContentPackage package, string root)
     {
-        _portraitImageSources = package.PortraitImageSources;
-        Initialize(package, (file, token) => ClientImageFiles.LoadFile(root, file, token, _portraitImageSources));
+        _imageSources = package.ImageSources;
+        Initialize(package, (file, token) => ClientImageFiles.LoadFile(root, file, token, _imageSources));
         var map = package.Map;
         OverviewMap = new(map.Width, map.Height, map.Squares, package.Scenario.RegionCityIds);
         MinimapTerrain = CreateTexture(MinimapRenderer.Compile(map.Width, map.Height, map.Squares, map.MinimapColors));
     }
     public void Initialize(TexturePackage package, string root)
     {
-        _portraitImageSources = package.PortraitImageSources;
+        _imageSources = package.ImageSources;
         Initialize(package.Portraits, package.Map.Assets, package.Library, package.Map.Clips, package.Skin, package.Map.Units,
-            (file, token) => ClientImageFiles.LoadFile(root, file, token, _portraitImageSources));
+            (file, token) => ClientImageFiles.LoadFile(root, file, token, _imageSources));
+        UpdateTreasureIllustrations(package.TreasureIllustrations);
     }
 
     public void UpdatePortraitCatalog(PortraitCatalog catalog)
     {
         _portraits = catalog.Portraits.ToDictionary(p => p.Image.Id);
-        _portraitImageSources = catalog.ImageSources;
+        _imageSources = _imageSources.Where(p => !p.Key.StartsWith("portrait-packs/", StringComparison.Ordinal))
+            .Concat(catalog.ImageSources).ToDictionary();
         var roles = Roles.Where(p => !p.Key.StartsWith("user/", StringComparison.Ordinal)).ToDictionary();
         foreach (var portrait in catalog.Portraits) roles[portrait.Image.Id] = portrait.Image;
         Roles = roles;
     }
 
-    internal void Initialize(ClientContentPackage package, Func<ImageFile, CancellationToken, PngImage> load) =>
+    internal void Initialize(ClientContentPackage package, Func<ImageFile, CancellationToken, PngImage> load)
+    {
         Initialize(package.Portraits, package.Map.Assets, package.Textures, package.Map.Animations.Clips, package.Skin, package.Map.Units, load);
+        UpdateTreasureIllustrations(package.TreasureIllustrations);
+    }
+
+    public void UpdateTreasureIllustrations(TreasureIllustrationCatalog catalog)
+    {
+        ImageAssets = LibraryAssets.Concat(catalog.Assets.Select(a => KeyValuePair.Create(a.Id, a))).ToDictionary();
+        _imageSources = _imageSources.Where(p => !p.Key.StartsWith("treasure-illustrations/", StringComparison.Ordinal))
+            .Concat(catalog.ImageSources).ToDictionary();
+    }
 
     private void Initialize(PortraitDefinition[] portraits, ImageAsset[] mapAssets, TextureLibrary library,
         San9.Content.Maps.MapAnimationClip[] clips, InterfaceSkin skin, San9.Content.Maps.MapUnitCatalog units,
@@ -67,6 +80,7 @@ public partial class TextureService : Node
         _portraits = portraits.ToDictionary(p => p.Image.Id);
         MapAssets = mapAssets.ToDictionary(a => a.Id);
         LibraryAssets = library.Assets.ToDictionary(a => a.Id);
+        ImageAssets = LibraryAssets;
         AnimationClips = clips.ToDictionary(c => c.Id);
         var ui = skin.Assets.ToDictionary(a => a.Id);
         Roles = skin.Roles.Select(p => KeyValuePair.Create(p.Key, ui[p.Value]))

@@ -9,7 +9,7 @@ using San9.Core.Domain;
 
 namespace San9.Application.Tests;
 
-public sealed class TreasureDataEditorWorkspaceTests : IDisposable
+public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "san9-treasure-data-" + Guid.NewGuid().ToString("N"));
 

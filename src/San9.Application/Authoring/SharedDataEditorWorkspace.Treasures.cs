@@ -8,6 +8,8 @@ public sealed partial class SharedDataEditorWorkspace
 {
     private readonly Dictionary<int, TreasureDefinition> _treasureBaselines;
     public IReadOnlyList<TreasureDefinition> Treasures => Definitions.Information.Treasures;
+    public IReadOnlyList<(string Key, string Name)> TreasureImageChoices => _baseDefinitions.Information.Treasures.Concat(Treasures)
+        .Where(t => t.ImageKey is not null).DistinctBy(t => t.ImageKey).Select(t => (t.ImageKey!, t.Name)).ToArray();
     public TreasureDefinition GetTreasure(int id) => Treasures.Single(t => t.Id == id);
     public bool IsTreasureChanged(int id) => !ContentComparison.Equal(GetTreasure(id), _saved.Information.Treasures.SingleOrDefault(t => t.Id == id));
 

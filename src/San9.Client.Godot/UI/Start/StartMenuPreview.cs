@@ -33,7 +33,8 @@ public partial class StartMenuPreview : Node
             var opening = await ContentCatalogFiles.LoadOpeningAsync(root, catalog, token);
             var paths = DataPaths ?? ClientDirectories.Resolve(OS.HasFeature("template"), OS.GetName(),
                 OS.GetExecutablePath(), ProjectSettings.GlobalizePath("res://"), ProjectSettings.GlobalizePath("user://"), OS.GetSystemDir(OS.SystemDir.Documents)).UserData;
-            var textures = await Task.Run(() => TexturePackageFiles.LoadAsync(PackageFiles.Resolve(root, catalog.Textures), token, paths.PortraitPack), token);
+            var textures = await Task.Run(() => TexturePackageFiles.LoadAsync(PackageFiles.Resolve(root, catalog.Textures), token,
+                paths.PortraitPack, paths.TreasureIllustrations), token);
             token.ThrowIfCancellationRequested();
             opening.Menu.Validate(textures.Assets); opening.Selection.Validate(textures.Assets);
             var service = new TextureService(); service.Initialize(textures, PackageFiles.Resolve(root, catalog.Textures)); AddChild(service);

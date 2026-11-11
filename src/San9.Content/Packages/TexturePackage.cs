@@ -23,11 +23,13 @@ public sealed record TexturePackage(int SchemaVersion, int ConversionVersion, st
     MapResources Map, InterfaceSkin Skin, TextureLibrary Library, PortraitDefinition[] Portraits)
 {
     [System.Text.Json.Serialization.JsonIgnore]
-    public IReadOnlyDictionary<string, string> PortraitImageSources { get; init; } = new Dictionary<string, string>();
+    public IReadOnlyDictionary<string, string> ImageSources { get; init; } = new Dictionary<string, string>();
+    [System.Text.Json.Serialization.JsonIgnore]
+    public TreasureIllustrationCatalog TreasureIllustrations { get; init; } = TreasureIllustrationCatalog.Empty;
     public const int CurrentSchemaVersion = 8;
     [System.Text.Json.Serialization.JsonIgnore]
     public IEnumerable<ImageAsset> Assets => Map.Assets.Concat(Map.Seasons.SelectMany(s => s.Textures))
-        .Concat(Skin.Assets).Concat(Library.Assets).Concat(Portraits.Select(p => p.Image));
+        .Concat(Skin.Assets).Concat(Library.Assets).Concat(Portraits.Select(p => p.Image)).Concat(TreasureIllustrations.Assets);
 
     public void Validate()
     {
@@ -79,7 +81,8 @@ public static class TexturePackageFiles
             ?? throw new InvalidDataException("Empty texture package.");
     }
 
-    public static async Task<TexturePackage> LoadAsync(string root, CancellationToken token = default, string? portraitPackRoot = null)
+    public static async Task<TexturePackage> LoadAsync(string root, CancellationToken token = default, string? portraitPackRoot = null,
+        string? treasureIllustrationRoot = null)
     {
         var package = await PackageFiles.ReadAsync<TexturePackage>(Path.Combine(root, "textures.json"), token);
         package.Validate();
@@ -87,7 +90,15 @@ public static class TexturePackageFiles
         {
             var pack = await PortraitPackFiles.LoadAsync(portraitPackRoot, token);
             var resolved = pack.Resolve(package.Portraits, portraitPackRoot);
-            package = package with { Portraits = resolved.Portraits, PortraitImageSources = resolved.ImageSources };
+            package = package with { Portraits = resolved.Portraits, ImageSources = resolved.ImageSources };
+            package.Validate();
+        }
+        if (treasureIllustrationRoot is not null)
+        {
+            var pack = await TreasureIllustrationPackFiles.LoadAsync(treasureIllustrationRoot, token);
+            var illustrations = pack.Resolve(treasureIllustrationRoot);
+            package = package with { TreasureIllustrations = illustrations,
+                ImageSources = package.ImageSources.Concat(illustrations.ImageSources).ToDictionary() };
             package.Validate();
         }
         return package;

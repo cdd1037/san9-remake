@@ -30,6 +30,7 @@ public sealed partial class SharedDataEditorWorkspace
     public string DefinitionPath { get; }
     public string PlayerDefinitionPath => PlayerDefinitionFiles.PlayerPath(DefinitionPath);
     public bool HasPlayerCopy => _expectedPlayer is not null || _expectedOfficers is not null;
+    public TreasureIllustrationWorkspace? Illustrations { get; private set; }
     public string ReferenceScenarioId { get; }
     public IReadOnlyDictionary<int, string> FormationNames => Catalog.FormationNames;
     public ImmutableArray<FormationRule> Formations => Catalog.Formations;
@@ -38,7 +39,7 @@ public sealed partial class SharedDataEditorWorkspace
     public IReadOnlyList<OfficerDefaults> Officers => OfficerCatalog.Officers;
     public ImmutableArray<TacticRule> Tactics => Catalog.Tactics;
     public int ScenarioCount => _scenarios.Length;
-    public bool HasChanges => !ContentComparison.Equal(Definitions, _saved) || _changedOfficers.Count != 0 || OfficerCatalog.NextOfficerId != _savedOfficers.NextOfficerId;
+    public bool HasChanges => !ContentComparison.Equal(Definitions, _saved) || _changedOfficers.Count != 0 || OfficerCatalog.NextOfficerId != _savedOfficers.NextOfficerId || Illustrations?.HasChanges == true;
 
     private SharedDataEditorWorkspace(string path, string reference, ScenarioDefinitions definitions,
         string officerPath, OfficerDefaultsCatalog officers, Dictionary<string, byte[]> inputs, byte[]? expectedPlayer,
@@ -63,7 +64,7 @@ public sealed partial class SharedDataEditorWorkspace
     }
 
     public static async Task<SharedDataEditorWorkspace> OpenAsync(string contentRoot, string? referenceScenarioId = null,
-        CancellationToken token = default)
+        CancellationToken token = default, string? treasureIllustrationRoot = null)
     {
         contentRoot = Path.GetFullPath(contentRoot);
         var files = new ContentReadSession();
@@ -105,8 +106,11 @@ public sealed partial class SharedDataEditorWorkspace
         var scenarios = entries.Where(e => PackageFiles.Resolve(e.Root, e.Manifest.Definitions)
             .Equals(path, StringComparison.OrdinalIgnoreCase) || PackageFiles.Resolve(e.Root, e.Manifest.OfficerDefaults)
             .Equals(officerPath, StringComparison.OrdinalIgnoreCase)).ToArray();
-        return new SharedDataEditorWorkspace(path, reference.Id, definitions, officerPath, officers,
+        var workspace = new SharedDataEditorWorkspace(path, reference.Id, definitions, officerPath, officers,
             files.Snapshots(), expectedPlayer, expectedOfficers, scenarios, baseOfficers, baseDefinitions);
+        if (treasureIllustrationRoot is not null)
+            workspace.Illustrations = await TreasureIllustrationWorkspace.OpenAsync(treasureIllustrationRoot, token);
+        return workspace;
     }
 
     private async Task<ContentReadSession> ValidateDraftAsync(ScenarioDefinitions draft, CancellationToken token)
@@ -201,8 +205,25 @@ public sealed partial class SharedDataEditorWorkspace
         // validation snapshot are still current before replacing the player copy.
         await EnsureUnchangedAsync(_inputs, token);
         await EnsureUnchangedAsync(validation.Snapshots(), token);
-        var published = await ScenarioDataFiles.WritePlayerDocumentsAsync([
-            new(PlayerDefinitionPath, Definitions, _expectedPlayer), new(PlayerOfficerPath, OfficerCatalog, _expectedOfficers)], token);
+        List<ScenarioDataFiles.PlayerDocument> documents = [new(PlayerDefinitionPath, Definitions, _expectedPlayer),
+            new(PlayerOfficerPath, OfficerCatalog, _expectedOfficers)];
+        var createdImages = new List<string>();
+        IReadOnlyDictionary<string, byte[]> published;
+        try
+        {
+            if (Illustrations is { } illustrations)
+            {
+                illustrations.PrepareImages(createdImages, token);
+                documents.Add(illustrations.Document);
+            }
+            published = await ScenarioDataFiles.WritePlayerDocumentsAsync(documents, token);
+        }
+        catch
+        {
+            foreach (string path in createdImages) File.Delete(path);
+            throw;
+        }
+        if (Illustrations is { } savedIllustrations) savedIllustrations.Saved(published[savedIllustrations.ManifestPath]);
         _expectedPlayer = published[PlayerDefinitionPath]; _expectedOfficers = published[PlayerOfficerPath];
         _inputs[PlayerDefinitionPath] = _expectedPlayer; _inputs[PlayerOfficerPath] = _expectedOfficers;
         _saved = Definitions; _savedOfficers = OfficerCatalog; _changedOfficers.Clear();

@@ -1,16 +1,13 @@
 using System.Collections.Immutable;
 using Godot;
-using San9.Content.Images;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
-using San9.Rendering;
 
 namespace San9.Client.Godot;
 
 public partial class TreasureEditorPage : SharedCatalogEditorPage
 {
     public TextureService? Service { get; init; }
-    private readonly ResourceSelection<TextureScope> _imageSelection = new();
     private SharedCatalogActions _actions = null!;
     public override bool HasPendingChanges => _actions.Busy;
     public override bool CommitPending() => !_actions.Busy;
@@ -31,7 +28,6 @@ public partial class TreasureEditorPage : SharedCatalogEditorPage
 
     protected override void RefreshActions()
     {
-        if (Current is null) _imageSelection.Dispose();
         _actions.Refresh();
     }
 
@@ -60,30 +56,7 @@ public partial class TreasureEditorPage : SharedCatalogEditorPage
         var treasure = Workspace.GetTreasure(id);
         var introduction = new HBoxContainer();
         introduction.AddThemeConstantOverride("separation", 18); Form.AddChild(introduction);
-        var image = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkBegin };
-        image.AddThemeStyleboxOverride("panel", ContentEditorStyle.Surface("151c24", "465260", 6));
-        introduction.AddChild(image);
-        string? assetId = treasure.ImageKey;
-        if (Service is { } service && assetId is not null && service.LibraryAssets.TryGetValue(assetId, out var asset))
-        {
-            _imageSelection.Select(assetId, key =>
-            {
-                var scope = service.CreateScope(new Dictionary<string, ImageAsset> { [key] = asset });
-                scope.Request([key]); return scope;
-            });
-            var preview = new TextureRect { Name = "TreasureImage", CustomMinimumSize = new(148, 148),
-                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-                MouseFilter = MouseFilterEnum.Ignore };
-            image.AddChild(preview);
-            preview.Texture = _imageSelection.Current!.Get(assetId, preview);
-        }
-        else
-        {
-            _imageSelection.Dispose();
-            image.AddChild(new Label { Text = assetId is null ? "未设置图片" : "图片不可用", CustomMinimumSize = new(148, 148),
-                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-                MouseFilter = MouseFilterEnum.Ignore });
-        }
+        BuildIllustration(introduction, id, treasure);
         var description = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         introduction.AddChild(description);
         var descriptionField = ContentEditorControls.TextArea(description, "说明", treasure.Description,
@@ -135,6 +108,4 @@ public partial class TreasureEditorPage : SharedCatalogEditorPage
         addPreference.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
         addPreference.Disabled = candidates.Length == 1;
     }
-
-    public override void _ExitTree() => _imageSelection.Dispose();
 }

@@ -316,7 +316,7 @@ public partial class Main : Node
                 (await ContentCatalogFiles.LoadAsync(options.ContentRoot, token)).RequireScenario(options.ScenarioId!).Package);
             var loaded = await Task.Run(async () =>
             {
-                var package = await ClientContentFiles.LoadAsync(packageRoot, token, DataPaths.PortraitPack);
+                var package = await ClientContentFiles.LoadAsync(packageRoot, token, DataPaths.PortraitPack, DataPaths.TreasureIllustrations);
                 double validationMs = startup.Elapsed.TotalMilliseconds;
                 token.ThrowIfCancellationRequested();
                 if (options.ScenarioId is { } scenarioId && package.Scenario.ScenarioId != scenarioId)

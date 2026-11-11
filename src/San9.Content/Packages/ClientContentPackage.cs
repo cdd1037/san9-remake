@@ -13,7 +13,9 @@ public sealed record ClientContentPackage(int SchemaVersion, MapPackage Map, Sce
 
     [System.Text.Json.Serialization.JsonIgnore] public San9.Content.Images.PortraitDefinition[] Portraits { get; init; } = [];
 
-    [System.Text.Json.Serialization.JsonIgnore] public IReadOnlyDictionary<string, string> PortraitImageSources { get; init; } = new Dictionary<string, string>();
+    [System.Text.Json.Serialization.JsonIgnore] public IReadOnlyDictionary<string, string> ImageSources { get; init; } = new Dictionary<string, string>();
+    [System.Text.Json.Serialization.JsonIgnore] public San9.Content.Images.TreasureIllustrationCatalog TreasureIllustrations { get; init; }
+        = San9.Content.Images.TreasureIllustrationCatalog.Empty;
 
     public CommandPresentation Presentation { get; init; } = CommandPresentation.Empty;
     [System.Text.Json.Serialization.JsonIgnore] public string ContentRoot { get; init; } = "";
@@ -123,12 +125,13 @@ public sealed record ClientContentPackage(int SchemaVersion, MapPackage Map, Sce
 
 public static class ClientContentFiles
 {
-    public static async Task<ClientContentPackage> LoadAsync(string root, CancellationToken token = default, string? portraitPackRoot = null)
+    public static async Task<ClientContentPackage> LoadAsync(string root, CancellationToken token = default, string? portraitPackRoot = null,
+        string? treasureIllustrationRoot = null)
     {
         var manifest = await ScenarioContentFiles.ReadManifestAsync(root, token);
         string textureRoot = Path.GetFullPath(Path.Combine(root, manifest.Textures.Path));
         var scenarioTask = ScenarioContentFiles.LoadAsync(root, manifest, token);
-        var texturesTask = Task.Run(() => TexturePackageFiles.LoadAsync(textureRoot, token, portraitPackRoot), token);
+        var texturesTask = Task.Run(() => TexturePackageFiles.LoadAsync(textureRoot, token, portraitPackRoot, treasureIllustrationRoot), token);
         await Task.WhenAll(scenarioTask, texturesTask);
         var instance = await scenarioTask;
         var content = Resolve(instance, await texturesTask, textureRoot) with { ContentRoot = instance.ResourceRoot };
@@ -144,10 +147,12 @@ public static class ClientContentFiles
         foreach (var role in instance.IllustrationRoles) roles.Add(role.Key, role.Value);
         foreach (var treasure in instance.Scenario.Information.Treasures.Where(t => t.ImageKey is not null))
             roles.Add(treasure.ImageRole!, treasure.ImageKey!);
-        var skin = textures.Skin with { Roles = roles, Assets = textures.Skin.Assets.Concat(textures.Library.Assets).Concat(textures.Portraits.Select(p => p.Image)).ToArray() };
+        var skin = textures.Skin with { Roles = roles, Assets = textures.Skin.Assets.Concat(textures.Library.Assets)
+            .Concat(textures.Portraits.Select(p => p.Image)).Concat(textures.TreasureIllustrations.Assets).ToArray() };
         var content = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, instance.Map.Resolve(textures.Map, instance.Scenario), instance.Scenario,
             instance.Text, skin, textures.Library)
-        { TextureRoot = textureRoot, Portraits = textures.Portraits, PortraitImageSources = textures.PortraitImageSources, Presentation = instance.Presentation };
+        { TextureRoot = textureRoot, Portraits = textures.Portraits, ImageSources = textures.ImageSources,
+            TreasureIllustrations = textures.TreasureIllustrations, Presentation = instance.Presentation };
         content.ValidateLinks();
         MapPackageFiles.Validate(content.Map);
         return content;

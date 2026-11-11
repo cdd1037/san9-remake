@@ -62,7 +62,7 @@ public static class ScenarioContentFiles
     {
         using var own = publication is null ? new ContentPublication() : null;
         var batch = publication ?? own!;
-        var manifest = await ReadManifestAsync(root, token);
+        var manifest = await ReadManifestAsync(root, token, usePlayerManifest: false);
         await batch.StageAsync(Path.Combine(root, "content.json"), manifest with { Preview = preview }, PackageFiles.JsonOptions, token);
         batch.AfterCommit(() => File.Delete(Path.Combine(root, "preview.json")));
         own?.Commit(token);
@@ -141,10 +141,11 @@ public static class ScenarioContentFiles
         return await ReadSelectionAsync(manifest, ResolveResourceRoot(root, manifest.ResourceRoot), token);
     }
 
-    public static async Task<ScenarioContentManifest> ReadManifestAsync(string root, CancellationToken token = default)
+    public static async Task<ScenarioContentManifest> ReadManifestAsync(string root, CancellationToken token = default, bool usePlayerManifest = true)
     {
         // Check the version before interpreting the layout, including older monolithic files.
-        await using var stream = File.OpenRead(Path.Combine(root, "content.json"));
+        string path = Path.Combine(root, "content.json");
+        await using var stream = File.OpenRead(usePlayerManifest ? PlayerDefinitionFiles.ActivePath(path) : path);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: token);
         if (!document.RootElement.TryGetProperty("schemaVersion", out var version)
             || !version.TryGetInt32(out int number) || number != ScenarioContent.CurrentSchemaVersion)
@@ -176,8 +177,14 @@ public static class ScenarioContentFiles
             throw new InvalidDataException("Unsupported scenario state version; reconvert the package.");
         var text = await ReadDataAsync<StaticTextContent>(resourceRoot, manifest.Text, token);
         var illustrations = await ReadDataAsync<Dictionary<string, string>>(resourceRoot, manifest.Illustrations, token);
-        return new(scenario, OfficerComposition.ProjectText(new(text.SchemaVersion, text.Entries)
-            { MessagePeople = text.MessagePeople, MessageTags = text.MessageTags }, profiles), OfficerComposition.ProjectPortraits(illustrations, profiles));
+        return new(scenario, OfficerComposition.ProjectText(ScenarioText(text, manifest.Preview), profiles), OfficerComposition.ProjectPortraits(illustrations, profiles));
+    }
+
+    private static TextCatalog ScenarioText(StaticTextContent text, ScenarioPreviewEntry? preview)
+    {
+        var entries = new Dictionary<string, string>(text.Entries);
+        if (preview is not null) entries[TextCatalog.ScenarioTitleKey] = MessageMarkup.Escape(preview.Title);
+        return new(text.SchemaVersion, entries) { MessagePeople = text.MessagePeople, MessageTags = text.MessageTags };
     }
 
     public static async Task<ScenarioContent> LoadAsync(string root, CancellationToken token = default) =>
@@ -225,8 +232,7 @@ public static class ScenarioContentFiles
         if (presentation.Battle is { } battle)
             presentation = presentation with { Battle = battle.BindCatalog(scenario.Information) };
         return new(ScenarioContent.CurrentSchemaVersion, manifest.Textures, await mapTask, scenario,
-            OfficerComposition.ProjectText(new(text.SchemaVersion, text.Entries) { Messages = await messagesTask,
-                MessagePeople = text.MessagePeople, MessageTags = text.MessageTags }, profiles), OfficerComposition.ProjectPortraits(display.Illustrations, profiles))
+            OfficerComposition.ProjectText(ScenarioText(text, manifest.Preview) with { Messages = await messagesTask }, profiles), OfficerComposition.ProjectPortraits(display.Illustrations, profiles))
             { Presentation = presentation, ResourceRoot = resourceRoot, Preview = manifest.Preview };
     }
 

@@ -33,7 +33,7 @@ public sealed partial class SharedDataEditorWorkspace
         var files = new ContentReadSession();
         foreach (var entry in _scenarios.Where(e => PackageFiles.Resolve(e.Root, e.Manifest.Definitions).Equals(DefinitionPath, StringComparison.OrdinalIgnoreCase)))
         {
-            var document = await files.ReadAsync<ScenarioDocument>(PackageFiles.Resolve(entry.Root, entry.Manifest.Scenario), token);
+            var document = await files.ReadAsync<ScenarioDocument>(PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(entry.Root, entry.Manifest.Scenario)), token);
             maximum = Math.Max(maximum, Ids(document.DefinitionOverrides.Apply(Definitions)).DefaultIfEmpty(-1).Max());
             if (kind == DefinitionKind.Office)
                 maximum = Math.Max(maximum, document.Officers.Select(o => o.OfficeId).OfType<int>().DefaultIfEmpty(-1).Max());

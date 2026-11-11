@@ -86,7 +86,7 @@ public sealed partial class SharedDataEditorWorkspace
         var files = new ContentReadSession();
         foreach (var entry in OfficerScenarios())
         {
-            var document = await files.ReadAsync<ScenarioDocument>(PackageFiles.Resolve(entry.Root, entry.Manifest.Scenario), token);
+            var document = await files.ReadAsync<ScenarioDocument>(PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(entry.Root, entry.Manifest.Scenario)), token);
             var definitions = await OfficerScenarioDefinitions(entry, document, files, token);
             foreach (var reference in ScenarioReferences(document, definitions, $"剧本 {entry.Id}")) yield return reference;
         }

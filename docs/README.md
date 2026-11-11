@@ -12,6 +12,7 @@
 | 音频、影片资源准备 | [音频](audio-preparation.md)、[影片](movie-preparation.md) |
 | 本地设置与跨局资料 | [用户设置](user-settings.md)、[玩家档案](player-profile.md) |
 | 独立公共资料编辑 | [资料编辑器](shared-data-editor.md) |
+| 剧本初始状态编辑 | [剧本编辑器](scenario-editor.md) |
 
 ## 架构与开发
 

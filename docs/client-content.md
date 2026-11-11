@@ -9,6 +9,7 @@
 | 标题菜单“编辑游戏资料”或`--shared-data-editor` | 各页共用草稿；保存完整`definitions.player.json`及`officer-defaults.player.json`，基础文件保留。加载优先玩家副本，再应用剧本差异；新局生效，不修改已有对局，副本不自动继承基础更新 | [资料编辑器](shared-data-editor.md)、[共享创作](../specs/behavior/BEH-CONTENT-0001-shared-scenario-authoring.md) |
 | 标题菜单“登录新武将”或`--officer-editor` | 用户目录的`created-officers.json`；只保存创作资料与头像引用，不创建世界、不读地图／音频或参考剧本。通过`catalog.json`读取共享资料并优先玩家副本 | [新武将规格](../specs/behavior/BEH-EDITOR-0002-created-officers.md) |
 | 主菜单“编辑头像” | 新增用户头像，供相同选择器引用；人物库不内嵌图片，缺头像不阻止其他资料编辑 | [头像编辑器](shared-data-editor.md#头像编辑器) |
+| 标题菜单“剧本编辑”或`--scenario-editor` | 保存单个剧本的完整初始状态与入口玩家副本，组合时继续读取共享资料；预览和新局共同生效 | [剧本编辑器](scenario-editor.md) |
 
 用户目录可用`--user-data-root`隔离。共享人物的新建／复制／删除只改共享资料，不自动部署；新局部署消费独立人物库。可空`PortraitKey`和身份高水位`nextOfficerId`随人物资料维护，删除仅限自建项并检查全部引用。
 

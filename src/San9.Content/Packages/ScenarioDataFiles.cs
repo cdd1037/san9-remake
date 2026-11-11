@@ -127,7 +127,8 @@ public static class ScenarioDataFiles
     internal static async Task<(ScenarioInitialState Scenario, OfficerDefaults[] Profiles)> LoadScenarioWithProfilesAsync(
         string resourceRoot, ScenarioContentManifest manifest, CancellationToken token)
     {
-        var document = await ReadAsync<ScenarioDocument>(resourceRoot, manifest.Scenario, token);
+        var document = await PackageFiles.ReadAsync<ScenarioDocument>(
+            PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, manifest.Scenario)), token);
         var shared = await LoadAsync(resourceRoot, manifest, token, usePlayerDefinitions: true);
         var scenario = document.Compile(shared.Definitions, shared.Officers.Officers, shared.Geography);
         ContentStructure.Validate(scenario);
@@ -141,7 +142,8 @@ public static class ScenarioDataFiles
     internal static async Task<(ScenarioSelectionState Scenario, OfficerDefaults[] Profiles)> LoadSelectionWithProfilesAsync(
         string resourceRoot, ScenarioContentManifest manifest, CancellationToken token)
     {
-        var document = await ReadAsync<SelectionDocument>(resourceRoot, manifest.Scenario, token);
+        var document = await PackageFiles.ReadAsync<SelectionDocument>(
+            PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, manifest.Scenario)), token);
         var definitions = await PackageFiles.ReadAsync<SelectionDefinitions>(
             PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, manifest.Definitions)), token);
         var officers = await PackageFiles.ReadAsync<OfficerDefaultsCatalog>(

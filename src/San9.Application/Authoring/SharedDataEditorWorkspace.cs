@@ -75,7 +75,7 @@ public sealed partial class SharedDataEditorWorkspace
         foreach (var entry in catalog.Scenarios)
         {
             string package = PackageFiles.Resolve(contentRoot, entry.Package);
-            var manifest = await files.ReadAsync<ScenarioContentManifest>(Path.Combine(package, "content.json"), token);
+            var manifest = await files.ReadAsync<ScenarioContentManifest>(PlayerDefinitionFiles.ActivePath(Path.Combine(package, "content.json")), token);
             if (manifest.SchemaVersion != ScenarioContent.CurrentSchemaVersion)
                 throw new InvalidDataException("内容包版本不符，请先重建世界内容。");
             entries.Add(new(entry.Id, ScenarioContentFiles.ResolveResourceRoot(package, manifest.ResourceRoot), manifest));
@@ -133,7 +133,7 @@ public sealed partial class SharedDataEditorWorkspace
             token.ThrowIfCancellationRequested();
             try
             {
-                var document = await files.ReadAsync<ScenarioDocument>(PackageFiles.Resolve(entry.Root, entry.Manifest.Scenario), token);
+                var document = await files.ReadAsync<ScenarioDocument>(PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(entry.Root, entry.Manifest.Scenario)), token);
                 string officersPath = PackageFiles.Resolve(entry.Root, entry.Manifest.OfficerDefaults);
                 var officers = officersPath.Equals(OfficerPath, StringComparison.OrdinalIgnoreCase) ? OfficerCatalog
                     : await files.ReadAsync<OfficerDefaultsCatalog>(PlayerDefinitionFiles.ActivePath(officersPath), token);

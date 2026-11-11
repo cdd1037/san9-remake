@@ -5,6 +5,16 @@ namespace San9.Client.Godot.Tests;
 public sealed class ClientOptionsTests
 {
     [Fact]
+    public void ScenarioEditorChoosesAScenarioAndRejectsOtherStartupModes()
+    {
+        var options = ClientOptions.Parse(["--scenario-editor", "--scenario", "custom"], Environment.CurrentDirectory);
+        Assert.True(options.ScenarioEditor); Assert.Equal("custom", options.ScenarioId);
+        foreach (string other in new[] { "--officer-editor", "--shared-data-editor", "--map-smoke", "--text-smoke" })
+            Assert.Throws<ArgumentException>(() => ClientOptions.Parse(["--scenario-editor", other], Environment.CurrentDirectory));
+        Assert.Throws<ArgumentException>(() => ClientOptions.Parse(["--scenario-editor", "--content-package", "package"], Environment.CurrentDirectory));
+    }
+
+    [Fact]
     public void SharedDataEditorCanChooseAReferenceWithoutStartingAWorld()
     {
         var options = ClientOptions.Parse(["--shared-data-editor", "--scenario", "custom"], Environment.CurrentDirectory);

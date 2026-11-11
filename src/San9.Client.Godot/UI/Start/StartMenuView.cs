@@ -11,7 +11,7 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
 {
     protected override Color PageBackground => Colors.Black;
     public StartMenuPresentation Definition { get; init; } = null!;
-    public ScenarioSelectionPresentation SelectionDefinition { get; init; } = null!;
+    public ScenarioSelectionPresentation SelectionDefinition { get; set; } = null!;
     public Func<string, CancellationToken, Task<NewGameDraft>> LoadScenario { get; init; } = null!;
     public Func<string, int[], San9.Core.Domain.NewGameSettings, int, NewGameSetup, Task> BeginGame { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
@@ -21,6 +21,7 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
     private CreatedOfficerEditor? _officerEditor;
     private SharedDataEditor? _sharedDataEditor;
     private PortraitEditor? _portraitEditor;
+    private ScenarioEditor? _scenarioEditor;
     private TextureScope _textures = null!;
     private StartMenuArtwork _artwork = null!;
     private Label _hint = null!;
@@ -73,6 +74,8 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
         close.Name = "Close"; close.MouseEntered += RestorePrompt; close.Pressed += RequestQuit;
         AddEditorButton("OpenSharedDataEditor", "编辑游戏资料", "game-data-editor.svg", new(32, 560), OpenSharedDataEditor);
         AddEditorButton("OpenPortraitEditor", "编辑头像", "portrait-editor.svg", new(120, 560), OpenPortraitEditor);
+        var scenarioEditor = new Button { Name = "OpenScenarioEditor", Text = "剧本编辑", Position = new(216, 582), Size = new(112, 38) };
+        scenarioEditor.Pressed += OpenScenarioEditor; _controls.AddChild(scenarioEditor);
         first?.GrabFocus();
         RestorePrompt();
     }
@@ -145,6 +148,21 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
                 _controls.GetNode<Button>("OpenPortraitEditor").GrabFocus();
             } };
         AddChild(_portraitEditor);
+    }
+    private void OpenScenarioEditor()
+    {
+        if (_scenarioEditor is not null) return;
+        _controls.Hide();
+        _scenarioEditor = new ScenarioEditor { Name = "ScenarioEditor", ContentRoot = ContentRoot, Published = preview =>
+        {
+            SelectionDefinition = SelectionDefinition with { Entries = SelectionDefinition.Entries.Select(e => e.Id == preview.Id ? preview : e).ToArray() };
+            _selection?.QueueFree(); _selection = null;
+        }, Closed = () =>
+        {
+            _scenarioEditor!.QueueFree(); _scenarioEditor = null; _controls.Show();
+            _controls.GetNode<Button>("OpenScenarioEditor").GrabFocus();
+        } };
+        AddChild(_scenarioEditor);
     }
     private void OpenScenarioSelection()
     {

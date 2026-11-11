@@ -11,7 +11,7 @@ public static class ScenarioContentCompiler
     public static ImmutableArray<FormationGrant> FormationGrants(int? countryTitleId) => countryTitleId is >= 4 and <= 8
         ? [new(countryTitleId.Value + 11, FormationGrantCondition.Barbarian), new(26, FormationGrantCondition.Barbarian)] : [];
 
-    public static (ScenarioInitialState Scenario, TextCatalog Text) Compile(byte[] exe, ScenarioSource scenario, byte[] messages, byte[] biographies, CancellationToken token = default)
+    public static (ScenarioInitialState Scenario, TextCatalog Text) Compile(byte[] exe, ScenarioSource scenario, byte[] messages, byte[] biographies, CancellationToken token = default, bool originalTextEdits = true)
     {
         T Read<T>(Func<Stream, T> parser) where T : notnull { token.ThrowIfCancellationRequested(); return scenario.Read(parser); }
         var header = Read(San9ScenarioArchive.ReadHeader);
@@ -33,7 +33,7 @@ public static class ScenarioContentCompiler
         var fixedBuildings = Read(San9ScenarioFixedBuildingArchive.ReadKnownRecords);
         var formations = Read(San9ScenarioFormationArchive.ReadKnownRecords);
         var facilityRules = ConstructionContentCompiler.Facilities(fixedBuildings, formations);
-        using var text = new ScenarioTextReader(messages, exe);
+        using var text = new ScenarioTextReader(messages, exe, originalTextEdits);
         text.ReadScenarioTitle(header.ScenarioId, header.ScenarioModeCode);
         text.ReadStrategyHints();
         int? Root(int? id)

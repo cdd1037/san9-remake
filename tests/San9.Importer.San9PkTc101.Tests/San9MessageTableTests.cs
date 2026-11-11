@@ -58,6 +58,32 @@ public sealed class San9MessageTableTests
         Assert.Equal(expected, reader.Catalog.Resolve(San9.Content.Text.TextCatalog.ScenarioTitleKey));
     }
 
+    [Theory]
+    [InlineData(true, "麋竺")]
+    [InlineData(false, "糜竺")]
+    public void PublicationAndStaticBiographyShareTheSelectedTextPolicy(bool originalTextEdits, string expected)
+    {
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        // Biography 159 is a reviewed name reference.
+        var records = Enumerable.Range(0, 160).Select(_ => Array.Empty<byte>()).ToArray();
+        records[1] = System.Text.Encoding.GetEncoding(950).GetBytes("翼德");
+        records[159] = System.Text.Encoding.GetEncoding(950).GetBytes("糜竺");
+        byte[] archive = Archive(Table(records));
+        var publication = MessageArchiveCompiler.CompileForPublication(archive, "fixture", "biographies",
+            originalTextEdits: originalTextEdits);
+        Assert.Equal(expected, publication.Messages["biographies.159"].Nodes.OfType<San9.Content.Text.MessageLiteral>().Single().BbCode);
+        var research = MessageArchiveCompiler.Compile(archive, "fixture", "biographies", originalTextEdits: originalTextEdits);
+        Assert.True(research.Audit.Records[159].SemanticsConfirmed);
+        Assert.Equal(expected, research.Messages["biographies.159"].Nodes.OfType<San9.Content.Text.MessageLiteral>().Single().BbCode);
+        using var reader = new ScenarioTextReader(Archive(Table(Array.Empty<byte>())),
+            File.ReadAllBytes(typeof(ScenarioTextReader).Assembly.Location), originalTextEdits);
+        reader.Biography("biography", 159, new(archive));
+        Assert.Equal(expected, reader.Catalog.Resolve("biography"));
+        if (originalTextEdits)
+            Assert.Throws<InvalidDataException>(() => reader.ValidatePersonReferences(348, 348, 349, 348));
+        else reader.ValidatePersonReferences(348, 348, 349, 348);
+    }
+
     private static byte[] Archive(byte[] payload, int? decodedSize = null)
     {
         byte[] archive = new byte[288 + payload.Length];

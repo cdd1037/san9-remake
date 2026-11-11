@@ -7,13 +7,18 @@ using San9.Importer.San9PkTc101.Images;
 
 namespace San9.Importer.San9PkTc101.Text;
 
-public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDisposable
+public sealed class ScenarioTextReader(byte[] messages, byte[] executable, bool originalTextEdits = true) : IDisposable
 {
     private readonly San9MessageTable _messages = new(messages);
     private readonly PEReader _executable = new(new MemoryStream(executable));
     private readonly Dictionary<string, string> _entries = [];
     private readonly Dictionary<int, MessagePersonProfile> _messagePeople = [];
-    private readonly OriginalTextConverter _converter = new();
+    private readonly OriginalTextConverter _converter = new(originalTextEdits);
+
+    public void ValidatePersonReferences(int id, int family, int given, int courtesy)
+    {
+        if (originalTextEdits) OriginalTextEditorial.ValidatePersonReferences(id, family, given, courtesy);
+    }
 
     public TextCatalog Catalog => new(TextCatalog.CurrentSchemaVersion, new(_entries)) { MessagePeople = new(_messagePeople) };
     // RE-0023 / RE-0180: title selection belongs to the source importer, not the client.
@@ -96,7 +101,7 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable) : IDi
             Add(CommandMenuSkin.ReasonKey(role), Text(message));
         foreach (var (role, message, amount) in Interface.CommandMenuSources.NumberedReasons)
         {
-            var parsed = new OriginalMessageParser().Parse(_messages.Record(message), messageId: message);
+            var parsed = new OriginalMessageParser(originalTextEdits).Parse(_messages.Record(message), messageId: message);
             if (!parsed.FullyParsed || !parsed.SemanticsConfirmed) throw new InvalidDataException($"Unconfirmed command reason {role} (message {message}).");
             var nodes = parsed.Definition.Nodes.TakeWhile(node => node is not MessageReturn).Select(node => node is MessageValue { Expression: { Operation: "binding", Binding: "number.0" }, Format: null }
                 ? new MessageLiteral(amount.ToString(System.Globalization.CultureInfo.InvariantCulture)) : node);

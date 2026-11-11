@@ -19,11 +19,17 @@ internal sealed class San9ImportSource
     internal San9SourceDirectory Directory { get; }
     internal byte[] Executable => Read("San9PK.exe");
 
-    private San9ImportSource(string directory) => Directory = new(directory);
+    internal bool OriginalTextEdits { get; }
 
-    internal static async Task<San9ImportSource> OpenAsync(string directory, CancellationToken token)
+    private San9ImportSource(string directory, bool originalTextEdits)
     {
-        var source = new San9ImportSource(directory);
+        Directory = new(directory);
+        OriginalTextEdits = originalTextEdits;
+    }
+
+    internal static async Task<San9ImportSource> OpenAsync(string directory, CancellationToken token, bool originalTextEdits = true)
+    {
+        var source = new San9ImportSource(directory, originalTextEdits);
         byte[] bytes = source.Executable;
         using var stream = new MemoryStream(bytes, writable: false);
         var identity = await San9PkTc101Detector.DetectAsync(stream, bytes.Length, token);
@@ -59,7 +65,7 @@ internal sealed class San9ImportSource
     internal (ScenarioInitialState Scenario, TextCatalog Text) World(string name, CancellationToken token)
     {
         if (_worlds.TryGetValue(name, out var value)) return value;
-        var result = ScenarioContentCompiler.Compile(Executable, Scenario(name), Read("M_MsgPK.s9"), Read("M_RtdnPK.s9"), token);
+        var result = ScenarioContentCompiler.Compile(Executable, Scenario(name), Read("M_MsgPK.s9"), Read("M_RtdnPK.s9"), token, OriginalTextEdits);
         _worlds.Add(name, result);
         return result;
     }
@@ -67,7 +73,7 @@ internal sealed class San9ImportSource
     internal (Dictionary<string, MessageDefinition> Messages, MessageContentAdaptation[] Adaptations) Messages(string file, string catalog, CancellationToken token)
     {
         if (_messages.TryGetValue((file, catalog), out var value)) return value;
-        var result = MessageArchiveCompiler.CompileForPublication(Read(file), file, catalog, token: token);
+        var result = MessageArchiveCompiler.CompileForPublication(Read(file), file, catalog, token: token, originalTextEdits: OriginalTextEdits);
         _messages.Add((file, catalog), result);
         return result;
     }

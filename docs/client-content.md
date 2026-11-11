@@ -256,6 +256,8 @@ macOS 发布前重新解压最终 ZIP，执行严格签名校验、权限读取�
 
 ## 原版文本统一入口
 
+内容准备界面的“应用原版文本修订”默认开启；转换改名Mod时可关闭。命令行`prepare-content`、`import-content`、`import-client`、`import-text`使用`--original-text-edits false`，作用与重建范围见[修订开关](../specs/text-and-translation.md#原版文本修订开关)。
+
 Importer将已登记的消息档案与可选EXE证据编译为静态文本、运行消息和诊断；解码、繁简转换、姓名与词汇校订以[文字规范](../specs/text-and-translation.md)为准。图标、调用／尾转移、样式和动态查询由统一消息图表达，运行时只消费语义引用及显式参数，不解释源地址或控制字节。普通参数转义，富文本组合通过消息引用；未知预设、未闭合样式或缺图拒绝。
 
 `Resolve`严格读取纯文本，`ResolveRich`用于提示、列传和说明；`MessageEvaluator`由显式上下文生成可保留的正文，重绘不重新求值。完整契约与绑定见[消息编写](ui/messages.md)，不在内容管线复制节点和控件实现。

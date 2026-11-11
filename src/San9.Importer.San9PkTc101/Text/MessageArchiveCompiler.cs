@@ -13,12 +13,12 @@ public sealed record MessageArchiveAudit(string File, string Sha256, string Enco
 public static class MessageArchiveCompiler
 {
     public static (Dictionary<string, MessageDefinition> Messages, MessageArchiveAudit Audit) Compile(byte[] bytes, string file, string catalog,
-        OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard)
+        OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard, bool originalTextEdits = true)
     {
         var table = new San9MessageTable(bytes);
         Dictionary<string, MessageDefinition> messages = [];
         List<MessageRecordAudit> records = [];
-        foreach (var (key, raw, encoding, offset, parsed) in ReadRecords(table, catalog, presentation))
+        foreach (var (key, raw, encoding, offset, parsed) in ReadRecords(table, catalog, presentation, originalTextEdits))
         {
             messages.Add(key, parsed.Definition);
             records.Add(new(key, encoding, offset, raw.Length, parsed.ConsumedBytes,
@@ -52,16 +52,16 @@ public static class MessageArchiveCompiler
 
     public static (Dictionary<string, MessageDefinition> Messages, MessageContentAdaptation[] Adaptations) CompileForPublication(
         byte[] bytes, string file, string catalog, OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard,
-        CancellationToken token = default)
+        CancellationToken token = default, bool originalTextEdits = true)
     {
         var table = new San9MessageTable(bytes);
-        return CompileRecordsForPublication(ReadRecords(table, catalog, presentation).Select(row => (row.Key, row.Raw, row.Parsed)),
-            file, catalog, presentation, token);
+        return CompileRecordsForPublication(ReadRecords(table, catalog, presentation, originalTextEdits).Select(row => (row.Key, row.Raw, row.Parsed)),
+            file, catalog, presentation, token, originalTextEdits);
     }
 
     internal static (Dictionary<string, MessageDefinition> Messages, MessageContentAdaptation[] Adaptations) CompileRecordsForPublication(
         IEnumerable<(string Key, byte[] Raw, ParsedMessage Parsed)> records, string file, string catalog,
-        OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard, CancellationToken token = default)
+        OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard, CancellationToken token = default, bool originalTextEdits = true)
     {
         List<MessageContentAdaptation> adaptations = [];
         Dictionary<string, MessageDefinition> source = [];
@@ -69,7 +69,7 @@ public static class MessageArchiveCompiler
         {
             token.ThrowIfCancellationRequested();
             source.Add(key, parsed.Definition);
-            if (MessageContentPolicy.Apply(key, raw, catalog, source, presentation) is { } adaptation)
+            if (MessageContentPolicy.Apply(key, raw, catalog, source, presentation, originalTextEdits) is { } adaptation)
                 adaptations.Add(adaptation);
             else if (!parsed.FullyParsed || !parsed.SemanticsConfirmed)
                 throw new InvalidDataException($"Message {key} in {file} cannot be published: " +
@@ -92,9 +92,9 @@ public static class MessageArchiveCompiler
     }
 
     private static IEnumerable<(string Key, byte[] Raw, string Encoding, int Offset, ParsedMessage Parsed)> ReadRecords(
-        San9MessageTable table, string catalog, OriginalMessagePresentation presentation)
+        San9MessageTable table, string catalog, OriginalMessagePresentation presentation, bool originalTextEdits)
     {
-        var parser = new OriginalMessageParser();
+        var parser = new OriginalMessageParser(originalTextEdits);
         for (int i = 0; i < table.Count; i++)
         {
             var raw = table.Record(i);
@@ -114,12 +114,12 @@ public static class MessageArchiveCompiler
         }
     }
 
-    public static void Export(string dataDirectory, string output, Action<string>? progress = null)
+    public static void Export(string dataDirectory, string output, Action<string>? progress = null, bool originalTextEdits = true)
     {
         Directory.CreateDirectory(output);
         foreach (var (file, catalog) in new[] { ("M_MsgPK.s9", "messages"), ("M_RtdnPK.s9", "biographies"), ("M_Msg.s9", "base-messages"), ("M_Rtdn.s9", "base-biographies") })
         {
-            var (messages, audit) = Compile(File.ReadAllBytes(Path.Combine(dataDirectory, file)), file, catalog);
+            var (messages, audit) = Compile(File.ReadAllBytes(Path.Combine(dataDirectory, file)), file, catalog, originalTextEdits: originalTextEdits);
             File.WriteAllText(Path.Combine(output, catalog + ".json"), JsonSerializer.Serialize(messages, PackageFiles.JsonOptions), System.Text.Encoding.UTF8);
             File.WriteAllText(Path.Combine(output, catalog + "-audit.json"), JsonSerializer.Serialize(audit, PackageFiles.JsonOptions), System.Text.Encoding.UTF8);
             progress?.Invoke($"{file}: {audit.Records.Length} records; {audit.Records.Count(r => r.FullyParsed)} fully consumed; {audit.Records.Count(r => r.SemanticsConfirmed)} confirmed; {audit.Records.Count(r => r.BindingFree && r.DependenciesConfirmed)} binding-free.");

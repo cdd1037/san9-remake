@@ -8,13 +8,13 @@ public static class PlayerContentImporter
 {
     public static async Task ImportAsync(string gameDirectory, string output, Func<CancellationToken, Task> validate,
         string? ffmpeg = null, bool audio = true, bool movies = true,
-        Action<ContentImportProgress>? progress = null, CancellationToken token = default)
+        Action<ContentImportProgress>? progress = null, CancellationToken token = default, bool originalTextEdits = true)
     {
         ArgumentNullException.ThrowIfNull(validate);
         ContentImportStage stage = ContentImportStage.Checking;
         void Log(string message) => progress?.Invoke(new(stage, message));
         void Stage(ContentImportStage next, string message) { stage = next; Log(message); }
-        var source = await San9ImportSource.OpenAsync(gameDirectory, token);
+        var source = await San9ImportSource.OpenAsync(gameDirectory, token, originalTextEdits);
         output = Path.TrimEndingDirectorySeparator(Path.GetFullPath(output));
         string sourceRoot = Path.TrimEndingDirectorySeparator(source.Directory.Root);
         var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;

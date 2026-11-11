@@ -7,12 +7,12 @@ namespace San9.Importer.San9PkTc101.Packages;
 public static class CommandTextImporter
 {
     public static async Task RebuildAsync(string gameDirectory, string output, Action<string>? progress = null,
-        CancellationToken token = default)
+        CancellationToken token = default, bool originalTextEdits = true)
     {
-        var source = await San9ImportSource.OpenAsync(gameDirectory, token);
+        var source = await San9ImportSource.OpenAsync(gameDirectory, token, originalTextEdits);
         using var operation = ImportOperation.Acquire(output);
         var catalog = await ContentCatalogFiles.LoadAsync(output, token);
-        using var reader = new ScenarioTextReader(source.Read("M_MsgPK.s9"), source.Executable);
+        using var reader = new ScenarioTextReader(source.Read("M_MsgPK.s9"), source.Executable, source.OriginalTextEdits);
         reader.ReadCommandText();
         int changed = await ScenarioContentFiles.WriteCommandTextAsync(catalog.Scenarios
             .Select(entry => PackageFiles.Resolve(output, entry.Package)).ToArray(), reader.Catalog.Entries, token);

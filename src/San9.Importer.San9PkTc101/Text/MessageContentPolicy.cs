@@ -9,7 +9,7 @@ public sealed record MessageContentAdaptation(string Key, string SourceSha256, s
 public static class MessageContentPolicy
 {
     public static MessageContentAdaptation? Apply(string key, byte[] raw, string catalog,
-        IDictionary<string, MessageDefinition> messages, OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard)
+        IDictionary<string, MessageDefinition> messages, OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard, bool originalTextEdits = true)
     {
         MessageDefinition replacement;
         string decision, discarded;
@@ -30,7 +30,7 @@ public static class MessageContentPolicy
             if (!raw.AsSpan().EndsWith(new byte[] { 5, 5, 5, 1, (byte)'J' }))
                 throw new InvalidDataException($"Message tail differs from the reviewed terminal-plus-incomplete-jump pattern: {key}.");
             int messageId = int.Parse(key[(key.LastIndexOf('.') + 1)..], System.Globalization.CultureInfo.InvariantCulture);
-            var parsed = new OriginalMessageParser().ParseSyntax(raw[..^2], catalog, presentation: presentation, messageId: messageId);
+            var parsed = new OriginalMessageParser(originalTextEdits).ParseSyntax(raw[..^2], catalog, presentation: presentation, messageId: messageId);
             if (!parsed.FullyParsed || !parsed.SemanticsConfirmed)
                 throw new InvalidDataException($"Message has an unsupported body before its reviewed tail: {key}.");
             replacement = parsed.Definition;

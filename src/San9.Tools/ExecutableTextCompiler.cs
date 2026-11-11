@@ -12,14 +12,14 @@ namespace San9.Tools;
 public static class ExecutableTextCompiler
 {
     // IDA supplies evidence locators only. All decoding uses the product parser.
-    public static void Export(string executable, string evidence, string output)
+    public static void Export(string executable, string evidence, string output, bool originalTextEdits = true)
     {
         byte[] bytes = File.ReadAllBytes(executable);
         using var pe = new PEReader(new MemoryStream(bytes));
         using var document = JsonDocument.Parse(File.ReadAllText(evidence,Encoding.UTF8));
         if (!string.Equals(document.RootElement.GetProperty("sha256").GetString(),Convert.ToHexString(SHA256.HashData(bytes)),StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("EXE string evidence belongs to a different sample.");
-        var parser = new OriginalMessageParser();
+        var parser = new OriginalMessageParser(originalTextEdits);
         var rows = new List<object>();
         foreach (var item in document.RootElement.GetProperty("strings").EnumerateArray())
         {

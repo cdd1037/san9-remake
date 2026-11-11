@@ -20,8 +20,9 @@ internal static class SimplifiedChineseText
     private static readonly HashSet<int> AuthorshipMessages =
         [7671, 7676, 7677, 7679, 7681, 7683, 7684, 7685, 7686, 7689, 7701, 7706, 7707, 7709, 7711, 7716, 7719];
 
-    public static MessageDefinition Convert(MessageDefinition canonical, string catalog, int? messageId)
+    public static MessageDefinition Convert(MessageDefinition canonical, string catalog, int? messageId, bool originalTextEdits = true)
     {
+        if (!originalTextEdits) return MessageTextRuns.Map(canonical, text => Converter.Value!.Convert(text));
         int start = catalog switch { "messages" => 1678, "base-messages" => 1610, _ => -1 };
         bool personField = start >= 0 && messageId is int id && id >= start && id < start + 2800 && (id - start) % 4 < 3;
         // The separate source name pool supplies authored/new officer name characters.

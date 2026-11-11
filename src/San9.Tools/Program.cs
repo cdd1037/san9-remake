@@ -13,27 +13,34 @@ Console.InputEncoding = new UTF8Encoding(false);
 
 try
 {
-    if(args.Length==0)throw new ArgumentException("Commands: prepare-content --game-dir PATH --output PATH [--ffmpeg PATH] [--audio true|false] [--movies true|false]; import-audio --game-dir PATH --output PATH [--group bgm|effects|all]; import-movies --game-dir PATH --output PATH [--group events|scenarios|startup|all]; upgrade-portrait-anchors --texture-package PATH | --portrait-pack PATH; import-content --game-dir PATH --output PATH [--rebuild opening|worlds|command-text]; verify-content --content-root PATH; verify-startup --content-root PATH [--scenario ID]; import-textures --game-dir PATH --output PATH [--rebuild all|cursors|skin|map|map/formation-appearance|portraits|library/ARCHIVE]; import-client --game-dir PATH --scenario FILENAME --texture-package PATH --output PATH [--message-reports true|false]; verify-textures --texture-package PATH; verify-client --content-package PATH; import-text --game-dir PATH --output PATH; render-map --content-package PATH --output PATH");
+    if(args.Length==0)throw new ArgumentException("Commands: prepare-content --game-dir PATH --output PATH [--ffmpeg PATH] [--audio true|false] [--movies true|false] [--original-text-edits true|false]; import-audio --game-dir PATH --output PATH [--group bgm|effects|all]; import-movies --game-dir PATH --output PATH [--group events|scenarios|startup|all]; upgrade-portrait-anchors --texture-package PATH | --portrait-pack PATH; import-content --game-dir PATH --output PATH [--rebuild opening|worlds|command-text] [--original-text-edits true|false]; verify-content --content-root PATH; verify-startup --content-root PATH [--scenario ID]; import-textures --game-dir PATH --output PATH [--rebuild all|cursors|skin|map|map/formation-appearance|portraits|library/ARCHIVE]; import-client --game-dir PATH --scenario FILENAME --texture-package PATH --output PATH [--message-reports true|false] [--original-text-edits true|false]; verify-textures --texture-package PATH; verify-client --content-package PATH; import-text --game-dir PATH --output PATH [--original-text-edits true|false]; render-map --content-package PATH --output PATH");
     Dictionary<string,string> options=[];
     for(int i=1;i<args.Length;i+=2)
         if(i+1>=args.Length||!args[i].StartsWith("--",StringComparison.Ordinal)||!options.TryAdd(args[i],args[i+1]))throw new ArgumentException("Invalid or duplicate option.");
     string[] allowed = args[0] switch
     {
-        "prepare-content" => ["--game-dir", "--output", "--ffmpeg", "--audio", "--movies"],
+        "prepare-content" => ["--game-dir", "--output", "--ffmpeg", "--audio", "--movies", "--original-text-edits"],
         "import-audio" or "import-movies" => ["--game-dir", "--output", "--group"],
         "upgrade-portrait-anchors" => ["--texture-package", "--portrait-pack"],
-        "import-content" or "import-textures" => ["--game-dir", "--output", "--rebuild"],
+        "import-content" => ["--game-dir", "--output", "--rebuild", "--original-text-edits"],
+        "import-textures" => ["--game-dir", "--output", "--rebuild"],
         "verify-content" => ["--content-root"],
         "verify-startup" => ["--content-root", "--scenario"],
         "verify-textures" => ["--texture-package"],
         "verify-client" => ["--content-package"],
-        "import-text" => ["--game-dir", "--output", "--exe-evidence"],
-        "import-client" => ["--game-dir", "--scenario", "--texture-package", "--output", "--message-reports"],
+        "import-text" => ["--game-dir", "--output", "--exe-evidence", "--original-text-edits"],
+        "import-client" => ["--game-dir", "--scenario", "--texture-package", "--output", "--message-reports", "--original-text-edits"],
         "render-map" => ["--content-package", "--season", "--output", "--x", "--y", "--width", "--height", "--terrain-only"],
         _ => throw new ArgumentException("Unknown command.")
     };
     if(options.Keys.Any(k=>!allowed.Contains(k)))throw new ArgumentException("Unknown option.");
     string Required(string key)=>options.TryGetValue(key,out var value)?value:throw new ArgumentException($"Missing {key}.");
+    bool originalTextEdits = options.GetValueOrDefault("--original-text-edits", "true") switch
+    {
+        "true" => true,
+        "false" => false,
+        _ => throw new ArgumentException("--original-text-edits must be true or false.")
+    };
     var watch=Stopwatch.StartNew();
     if (args[0] == "prepare-content")
     {
@@ -44,7 +51,7 @@ try
             _ => throw new ArgumentException($"{key} must be true or false.")
         };
         await PlayerContentPreparation.RunAsync(Required("--game-dir"), Required("--output"),
-            options.GetValueOrDefault("--ffmpeg"), Boolean("--audio", "true"), Boolean("--movies", "true"));
+            options.GetValueOrDefault("--ffmpeg"), Boolean("--audio", "true"), Boolean("--movies", "true"), originalTextEdits);
     }
     else if (args[0] == "import-audio")
     {
@@ -82,11 +89,11 @@ try
         if (options.TryGetValue("--rebuild", out var unit) && unit is not ("opening" or "worlds" or "command-text"))
             throw new ArgumentException("Content rebuild unit must be opening, worlds or command-text.");
         if (unit == "command-text")
-            await CommandTextImporter.RebuildAsync(Required("--game-dir"), Required("--output"), Console.WriteLine);
+            await CommandTextImporter.RebuildAsync(Required("--game-dir"), Required("--output"), Console.WriteLine, originalTextEdits: originalTextEdits);
         else if (unit == "worlds")
-            await ScenarioWorldImporter.RebuildAsync(Required("--game-dir"), Required("--output"), Console.WriteLine);
+            await ScenarioWorldImporter.RebuildAsync(Required("--game-dir"), Required("--output"), Console.WriteLine, originalTextEdits: originalTextEdits);
         else
-            await ContentCatalogImporter.ImportAsync(Required("--game-dir"), Required("--output"), Console.WriteLine, openingOnly: unit == "opening");
+            await ContentCatalogImporter.ImportAsync(Required("--game-dir"), Required("--output"), Console.WriteLine, openingOnly: unit == "opening", originalTextEdits: originalTextEdits);
     }
     else if (args[0] == "verify-content")
     {
@@ -109,10 +116,10 @@ try
         var source = new San9SourceDirectory(Required("--game-dir"));
         var identity=await San9PkTc101Detector.DetectAsync(source.Executable);
         if(!identity.IsMatch) throw new InvalidDataException(identity.Reason);
-        San9.Importer.San9PkTc101.Text.MessageArchiveCompiler.Export(source.Root, Required("--output"), Console.WriteLine);
+        San9.Importer.San9PkTc101.Text.MessageArchiveCompiler.Export(source.Root, Required("--output"), Console.WriteLine, originalTextEdits);
         MessageVerification.Run(Required("--output"));
         if(options.TryGetValue("--exe-evidence",out var evidence))
-            San9.Tools.ExecutableTextCompiler.Export(source.Executable,evidence,Required("--output"));
+            San9.Tools.ExecutableTextCompiler.Export(source.Executable,evidence,Required("--output"), originalTextEdits);
     }
     else if(args[0]=="import-textures")
     {
@@ -130,7 +137,7 @@ try
         bool messageReports = false;
         if (options.TryGetValue("--message-reports", out var reportOption) && !bool.TryParse(reportOption, out messageReports))
             throw new ArgumentException("--message-reports must be true or false.");
-        var content=await ClientContentImporter.ImportAsync(Required("--game-dir"),Required("--scenario"),Required("--texture-package"),Required("--output"),Console.WriteLine, messageReports: messageReports);
+        var content=await ClientContentImporter.ImportAsync(Required("--game-dir"),Required("--scenario"),Required("--texture-package"),Required("--output"),Console.WriteLine, messageReports: messageReports, originalTextEdits: originalTextEdits);
         Console.WriteLine($"Complete: {content.Scenario.ScenarioId}, {watch.Elapsed.TotalSeconds:F2}s");
     }
     else if(args[0]=="render-map")

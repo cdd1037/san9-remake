@@ -3,7 +3,7 @@ using San9.Importer.San9PkTc101.Packages;
 
 internal static class PlayerContentPreparation
 {
-    internal static async Task RunAsync(string gameDirectory, string output, string? ffmpeg, bool audio, bool movies)
+    internal static async Task RunAsync(string gameDirectory, string output, string? ffmpeg, bool audio, bool movies, bool originalTextEdits)
     {
         using var cancellation = new CancellationTokenSource();
         ConsoleCancelEventHandler cancel = (_, args) => { args.Cancel = true; cancellation.Cancel(); };
@@ -12,7 +12,7 @@ internal static class PlayerContentPreparation
         {
             await PlayerContentImporter.ImportAsync(gameDirectory, output,
                 token => ContentVerification.VerifyAsync(output, Console.WriteLine, token),
-                ffmpeg, audio, movies, update => Console.WriteLine(update.Message), cancellation.Token);
+                ffmpeg, audio, movies, update => Console.WriteLine(update.Message), cancellation.Token, originalTextEdits);
         }
         finally { Console.CancelKeyPress -= cancel; }
     }

@@ -109,6 +109,32 @@ public sealed class TextNormalizationTests
         Assert.Contains(parsed.Issues, issue => issue.Reason.Contains("Editorial source mismatch", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(5207, "建議校尉", "建议校尉")]
+    [InlineData(5207, "自訂官職", "自订官职")]
+    [InlineData(1679 + 4 * 527, "彤", "彤")]
+    [InlineData(1680 + 4 * 416, "翼德", "翼德")]
+    [InlineData(7671, "自訂寶物說明", "自订宝物说明")]
+    public void DisabledOriginalEditsKeepSourceTextAndUseGenericSimplification(int message, string original, string expected)
+    {
+        var converter = new OriginalTextConverter(originalTextEdits: false);
+        Assert.Equal(original, converter.Canonicalize(Encode(original), message));
+        Assert.Equal(expected, converter.Convert(Encode(original), message));
+        Assert.Throws<InvalidDataException>(() => new OriginalTextConverter().Convert(Encode("自訂官職"), 5207));
+    }
+
+    [Fact]
+    public void DisabledOriginalEditsPreserveDynamicMessageBindings()
+    {
+        byte[] bytes = [2, 1, 0xDA, .. Encode("驃駻"), 5, 5, 5];
+        var parsed = new OriginalMessageParser(originalTextEdits: false).Parse(bytes, messageId: 7122);
+        Assert.True(parsed.FullyParsed && parsed.SemanticsConfirmed);
+        var styled = Assert.IsType<MessageStyled>(parsed.Definition.Nodes[0]);
+        Assert.Equal("person.0.name", Assert.IsType<MessageValue>(Assert.Single(styled.Body)).Expression.Binding);
+        Assert.Equal("骠𫘣", Assert.IsType<MessageLiteral>(parsed.Definition.Nodes[1]).BbCode);
+        Assert.IsType<MessageReturn>(parsed.Definition.Nodes[2]);
+    }
+
     private static byte[] Encode(string text)
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);

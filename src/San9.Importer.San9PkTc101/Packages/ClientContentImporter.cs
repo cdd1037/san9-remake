@@ -6,11 +6,11 @@ namespace San9.Importer.San9PkTc101.Packages;
 public static class ClientContentImporter
 {
     public static async Task<ClientContentPackage> ImportAsync(string gameDirectory, string scenarioFile,
-        string textureRoot, string output, Action<string>? progress = null, bool messageReports = false, CancellationToken token = default)
+        string textureRoot, string output, Action<string>? progress = null, bool messageReports = false, CancellationToken token = default, bool originalTextEdits = true)
     {
         textureRoot = Path.GetFullPath(textureRoot); output = Path.GetFullPath(output);
         if (textureRoot == output) throw new InvalidDataException("Scenario and texture package directories must differ.");
-        var source = await San9ImportSource.OpenAsync(gameDirectory, token);
+        var source = await San9ImportSource.OpenAsync(gameDirectory, token, originalTextEdits);
         using var operation = ImportOperation.Acquire(output);
         var textures = await source.LoadTexturesAsync(textureRoot, token);
         var compiled = ClientContentCompiler.Compile(source, scenarioFile, textureRoot, textures, output, messageReports, token);

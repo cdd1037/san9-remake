@@ -10,7 +10,7 @@ public sealed record ParsedMessage(MessageDefinition Definition, int ConsumedByt
 }
 
 /// <summary>Grammar-driven TC-101 decoding. Unknown semantics remain explicit import diagnostics.</summary>
-public sealed class OriginalMessageParser
+public sealed class OriginalMessageParser(bool originalTextEdits = true)
 {
     private readonly List<MessageIssue> _issues = [];
     private byte[] _bytes = [];
@@ -52,14 +52,14 @@ public sealed class OriginalMessageParser
         OriginalMessagePresentation presentation = OriginalMessagePresentation.Standard, int? messageId = null)
     {
         var parsed = ParseCanonicalSyntax(bytes, catalog, terminated, formatString, presentation, messageId);
-        return Transform(parsed, definition => SimplifiedChineseText.Convert(definition, catalog, messageId));
+        return Transform(parsed, definition => SimplifiedChineseText.Convert(definition, catalog, messageId, originalTextEdits));
     }
 
     private ParsedMessage ParseCanonicalSyntax(byte[] bytes, string catalog, bool terminated, bool formatString,
         OriginalMessagePresentation presentation, int? messageId)
     {
         var parsed = ParseRawSyntax(bytes, catalog, terminated, formatString, presentation);
-        return parsed.FullyParsed ? Transform(parsed, definition => OriginalTextEditorial.Apply(definition, catalog, messageId)) : parsed;
+        return originalTextEdits && parsed.FullyParsed ? Transform(parsed, definition => OriginalTextEditorial.Apply(definition, catalog, messageId)) : parsed;
     }
 
     private ParsedMessage ParseRawSyntax(byte[] bytes, string catalog, bool terminated, bool formatString,

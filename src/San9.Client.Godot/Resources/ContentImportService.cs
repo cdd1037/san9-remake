@@ -12,7 +12,7 @@ internal static class ContentImportService
         false;
 #endif
 
-    internal static Task ImportAsync(string source, string output, string? ffmpeg, bool audio, bool movies,
+    internal static Task ImportAsync(string source, string output, string? ffmpeg, bool audio, bool movies, bool originalTextEdits,
         Action<ContentImportProgress> progress, CancellationToken token)
     {
 #if SAN9_EXPORT_IMPORTER
@@ -21,7 +21,7 @@ internal static class ContentImportService
             await San9.Importer.San9PkTc101.Packages.PlayerContentImporter.ImportAsync(source, output,
                 cancellation => San9.Application.Diagnostics.ContentVerification.VerifyAsync(output,
                     message => progress(new(ContentImportStage.Verifying, message)), cancellation),
-                ffmpeg, audio, movies, progress, token);
+                ffmpeg, audio, movies, progress, token, originalTextEdits);
         }, token);
 #else
         throw new InvalidOperationException("开发构建不包含内置转换器，请使用 San9.Tools。");

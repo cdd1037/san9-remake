@@ -10,9 +10,9 @@ namespace San9.Importer.San9PkTc101.Packages;
 public static class ContentCatalogImporter
 {
     public static async Task ImportAsync(string gameDirectory, string output, Action<string>? progress = null, CancellationToken token = default,
-        bool openingOnly = false)
+        bool openingOnly = false, bool originalTextEdits = true)
     {
-        var source = await San9ImportSource.OpenAsync(gameDirectory, token);
+        var source = await San9ImportSource.OpenAsync(gameDirectory, token, originalTextEdits);
         using var operation = ImportOperation.Acquire(output);
         await ImportCoreAsync(operation, source, output, progress, token, openingOnly);
     }
@@ -81,7 +81,7 @@ public static class ContentCatalogImporter
             { Audio = new("setup", "game-start", sounds) };
         opening.Audio.Validate(output);
         await Publish("shared/opening.json", opening);
-        using (var names = new ScenarioTextReader(messageBytes, exe))
+        using (var names = new ScenarioTextReader(messageBytes, exe, source.OriginalTextEdits))
         {
             var people = source.Scenario("D_Sce001.S9").Read(San9ScenarioPersonArchive.ReadKnownRecords);
             var flags = OfficerFlagCatalogCompiler.Compile(people, names.Surname);

@@ -38,6 +38,7 @@ public partial class ContentImportPanel : Control
     private Button _continue = null!;
     private CheckBox _audio = null!;
     private CheckBox _movies = null!;
+    private CheckBox _originalTextEdits = null!;
     private ProgressBar _progress = null!;
 
     public override void _Ready()
@@ -85,6 +86,9 @@ public partial class ContentImportPanel : Control
             catch (Exception error) { _status.Text = "打开目录失败：" + error.Message; }
         }));
 
+        _originalTextEdits = new CheckBox { Text = "应用原版文本修订", ButtonPressed = true,
+            TooltipText = "按原版编号校订姓名、表字、官职和用词。转换已改名的Mod时可关闭，关闭后使用通用繁简转换。" };
+        layout.AddChild(_originalTextEdits);
         var options = Row(layout);
         _audio = new CheckBox { Text = "转换音频（音乐与音效）", ButtonPressed = true,
             TooltipText = "关闭后不处理音频，保留内容目录中的已有音乐与音效。首次准备请开启。" };
@@ -212,7 +216,7 @@ public partial class ContentImportPanel : Control
         _cancellation = cancellation; SetBusy(true);
         try
         {
-            await ContentImportService.ImportAsync(_source, ContentRoot, _ffmpeg, _audio.ButtonPressed, _movies.ButtonPressed, _messages.Enqueue, cancellation.Token);
+            await ContentImportService.ImportAsync(_source, ContentRoot, _ffmpeg, _audio.ButtonPressed, _movies.ButtonPressed, _originalTextEdits.ButtonPressed, _messages.Enqueue, cancellation.Token);
             if (_exiting) return;
             DrainMessages();
             _title.Text = "游戏内容已准备就绪";
@@ -284,6 +288,7 @@ public partial class ContentImportPanel : Control
     {
         _busy = busy; _select.Disabled = busy || !ImportAvailable;
         _start.Disabled = busy || !ImportAvailable || _source is null;
+        _originalTextEdits.Disabled = busy || !ImportAvailable;
         _audio.Disabled = busy || !ImportAvailable; _movies.Disabled = busy || !ImportAvailable;
         _continue.Disabled = busy; _progress.Visible = busy;
         _cancel.Visible = busy && _cancellation is not null; _cancel.Disabled = !busy;

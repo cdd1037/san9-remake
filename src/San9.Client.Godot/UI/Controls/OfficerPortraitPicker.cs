@@ -21,7 +21,6 @@ internal static class OfficerPortraitPicker
         var portraits = service.Portraits.Values.OrderBy(p => p.Id).ToArray();
         if (portraits.Length == 0) return;
         const int pageSize = 24;
-        int page = Math.Max(0, Array.FindIndex(portraits, p => p.Image.Id == current)) / pageSize;
         var dialog = new AcceptDialog { Title = "选择头像", OkButtonText = "取消", Exclusive = true };
         var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 10); dialog.AddChild(column);
         var filter = new LineEdit { PlaceholderText = "搜索头像编号或名称", Name = "PortraitSearch" }; column.AddChild(filter);
@@ -29,29 +28,15 @@ internal static class OfficerPortraitPicker
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; column.AddChild(scroll);
         var grid = new GridContainer { Columns = 8 }; grid.AddThemeConstantOverride("h_separation", 10);
         grid.AddThemeConstantOverride("v_separation", 10); scroll.AddChild(grid);
-        var navigation = new HBoxContainer(); column.AddChild(navigation);
-        var previous = new Button { Text = "上一页", CustomMinimumSize = new(0, 34) }; navigation.AddChild(previous);
-        var pageControls = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, Alignment = BoxContainer.AlignmentMode.Center };
-        pageControls.AddThemeConstantOverride("separation", 8); navigation.AddChild(pageControls);
-        var pageNumber = new SpinBox { MinValue = 1, MaxValue = 1, Step = 1, Rounded = true,
-            CustomMinimumSize = new(88, 34), Name = "PortraitPage", TooltipText = "输入页码后按回车跳转，也可用上下箭头调整。" };
-        pageControls.AddChild(pageNumber);
-        var counter = new Label(); pageControls.AddChild(counter);
-        var next = new Button { Text = "下一页", CustomMinimumSize = new(0, 34) }; navigation.AddChild(next);
-        bool updatingPage = false;
-        previous.Pressed += () => { page--; Refresh(); };
-        next.Pressed += () => { page++; Refresh(); };
-        pageNumber.ValueChanged += value => { if (!updatingPage) { page = (int)value - 1; Refresh(); } };
+        var navigation = new PaginationBar { Name = "PortraitPagination" }; column.AddChild(navigation);
+        navigation.SetPage(Math.Max(0, Array.FindIndex(portraits, p => p.Image.Id == current)) / pageSize,
+            (portraits.Length + pageSize - 1) / pageSize);
         void Refresh()
         {
             foreach (var child in grid.GetChildren()) { grid.RemoveChild(child); child.QueueFree(); }
             var matching = portraits.Where(p => (p.DisplayName ?? p.Id.ToString()).Contains(filter.Text.Trim(), StringComparison.OrdinalIgnoreCase)).ToArray();
-            int pages = Math.Max(1, (matching.Length + pageSize - 1) / pageSize);
-            page = Math.Clamp(page, 0, pages - 1);
-            updatingPage = true;
-            pageNumber.MaxValue = pages; pageNumber.Value = page + 1; pageNumber.Editable = pages > 1;
-            updatingPage = false;
-            foreach (var portrait in matching.Skip(page * pageSize).Take(pageSize))
+            navigation.SetPage(navigation.PageIndex, (matching.Length + pageSize - 1) / pageSize, $"{matching.Length} 个头像");
+            foreach (var portrait in matching.Skip(navigation.PageIndex * pageSize).Take(pageSize))
             {
                 var button = new Button { CustomMinimumSize = new(88, 136), ToggleMode = true,
                     ButtonPressed = portrait.Image.Id == current, TooltipText = portrait.DisplayName ?? portrait.Id.ToString() };
@@ -69,11 +54,10 @@ internal static class OfficerPortraitPicker
                     selected(portrait.Image.Id); dialog.QueueFree();
                 };
             }
-            counter.Text = $"/ {pages} 页 · {matching.Length} 个头像";
-            previous.Disabled = page == 0; next.Disabled = page + 1 >= pages;
             scroll.ScrollVertical = 0;
         }
-        filter.TextChanged += _ => { page = 0; Refresh(); };
+        navigation.PageChanged += _ => Refresh();
+        filter.TextChanged += _ => { navigation.SetPage(0, navigation.PageCount); Refresh(); };
         dialog.Confirmed += () => dialog.QueueFree(); dialog.Canceled += () => dialog.QueueFree();
         owner.AddChild(dialog); Refresh(); dialog.PopupCentered(new(850, 620));
     }

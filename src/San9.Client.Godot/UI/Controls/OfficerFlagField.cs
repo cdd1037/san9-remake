@@ -40,23 +40,17 @@ internal static class OfficerFlagField
     {
         int[] glyphs = [-1, ..flags.Glyphs.Order()];
         const int pageSize = 24;
-        int page = Math.Max(0, Array.IndexOf(glyphs, current)) / pageSize;
         var dialog = new AcceptDialog { Title = "选择旗字", OkButtonText = "取消", Exclusive = true };
         var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 10); dialog.AddChild(column);
         var grid = new GridContainer { Columns = 8, CustomMinimumSize = new(704, 222) };
         grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 6); column.AddChild(grid);
-        var navigation = new HBoxContainer(); column.AddChild(navigation);
-        var previous = new Button { Text = "上一页", CustomMinimumSize = new(0, 34) }; navigation.AddChild(previous);
-        var counter = new Label { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, HorizontalAlignment = HorizontalAlignment.Center }; navigation.AddChild(counter);
-        var next = new Button { Text = "下一页", CustomMinimumSize = new(0, 34) }; navigation.AddChild(next);
-        previous.Pressed += () => { page--; Refresh(); };
-        next.Pressed += () => { page++; Refresh(); };
+        var navigation = new PaginationBar { Name = "FlagPagination" }; column.AddChild(navigation);
+        navigation.SetPage(Math.Max(0, Array.IndexOf(glyphs, current)) / pageSize, (glyphs.Length + pageSize - 1) / pageSize,
+            $"{glyphs.Length} 个旗字");
         void Refresh()
         {
             foreach (var child in grid.GetChildren()) { grid.RemoveChild(child); child.QueueFree(); }
-            int pages = Math.Max(1, (glyphs.Length + pageSize - 1) / pageSize);
-            page = Math.Clamp(page, 0, pages - 1);
-            foreach (int glyph in glyphs.Skip(page * pageSize).Take(pageSize))
+            foreach (int glyph in glyphs.Skip(navigation.PageIndex * pageSize).Take(pageSize))
             {
                 var button = new Button { CustomMinimumSize = new(82, 68), TooltipText = Name(flags, glyph) };
                 if (glyph == current) button.AddThemeStyleboxOverride("normal", ContentEditorStyle.Surface("33495c", "b3a36c", 4));
@@ -68,8 +62,8 @@ internal static class OfficerFlagField
                 };
                 grid.AddChild(button);
             }
-            previous.Disabled = page == 0; next.Disabled = page + 1 >= pages; counter.Text = $"{page + 1} / {pages}";
         }
+        navigation.PageChanged += _ => Refresh();
         dialog.Confirmed += () => dialog.QueueFree(); dialog.Canceled += () => dialog.QueueFree();
         owner.AddChild(dialog); Refresh(); dialog.PopupCentered(new(750, 310));
     }

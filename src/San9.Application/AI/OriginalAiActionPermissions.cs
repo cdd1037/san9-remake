@@ -15,6 +15,7 @@ internal static class OriginalAiActionPermissions
 
     internal static bool Allows(WorldSnapshot world, CompanionSettings companion, int forceId, OriginalAiWork work)
     {
+        if (work == OriginalAiWork.CreateCorps) return CorpsOptions(world, companion, forceId).AutomaticOrganization;
         if (!OriginalAiActions.Handles(work)) return true;
         bool player = PlayerForce(world, forceId);
         var strategy = player ? companion.PlayerDelegatedStrategyPermissions : companion.ComputerStrategyPermissions;

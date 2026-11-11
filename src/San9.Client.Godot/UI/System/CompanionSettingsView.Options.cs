@@ -307,6 +307,10 @@ public partial class CompanionSettingsView
 
         return
         [
+            Option("自动划分军团",
+                "允许AI自动新设、解散及重新划分军团。玩家势力仅在直属军团开启完整安排时执行；仍受工作日历和编组条件约束。默认允许。",
+                options => options.AutomaticOrganization,
+                (options, allowed) => options with { AutomaticOrganization = allowed }) with { PresetValue = false },
             Option("重视内政方针允许征兵",
                 "仅委任方针为“重视内政”时，允许在训练前自动征兵。一般委任自动进入内政模式不受此项影响；仍受征兵资格与资源约束。默认禁止。",
                 options => options.DomesticDelegationRecruitment,

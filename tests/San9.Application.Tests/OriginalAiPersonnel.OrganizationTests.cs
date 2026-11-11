@@ -20,6 +20,62 @@ public sealed partial class OriginalAiPersonnelTests
         return OriginalAiStaffing.Organize(harness.Engine, content, 1, new(content, null, harness.Engine.Snapshot), Submit);
     }
 
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public void OrganizationPermissionUsesTheActingForceAndPreservesExistingCorpsWhenDisabled(bool player, bool allowed)
+    {
+        var content = OrganizationFixture();
+        content = content with
+        {
+            Settlements = content.Settlements.Select(s => s.Id == 3 ? s with { CorpsId = 10 } : s).ToArray(),
+            Officers = content.Officers.Select(o => o.State.Id == 2 ? o with
+                { State = o.State with { SettlementId = 3, Status = OfficerStatus.Governor } } : o).ToArray(),
+            Information = content.Information with { Corps = content.Information.Corps.Append(new(10, 1, 2, new(1000, 5000))).ToArray() },
+            OriginalAi = content.OriginalAi with { WorkRules = content.OriginalAi.WorkRules
+                .ToImmutableDictionary(p => p.Key, p => p.Key == OriginalAiWork.CreateCorps ? p.Value : p.Value with { OpeningWaitDays = 10000 }) }
+        };
+        var initial = new Harness(content).Engine.Snapshot;
+        initial = initial with { Simulation = initial.Simulation with { Controls = initial.Simulation.Controls.Select(seat =>
+            seat with { Kind = (seat.ForceId == 1 ? player : !player) ? ControllerKind.Player : ControllerKind.Automatic,
+                ControllerId = (seat.ForceId == 1 ? player : !player) ? "player" : $"ai:{seat.ForceId}" }).ToImmutableArray() } };
+        var settings = new CompanionSettings
+        {
+            PlayerCorpsAutomation = PlayerCorpsAutomationMode.Full,
+            ComputerCorpsOptions = new() { AutomaticOrganization = player ? !allowed : allowed },
+            PlayerDelegatedCorpsOptions = new() { AutomaticOrganization = player ? allowed : !allowed }
+        };
+        var session = GameSession.Restore(content, new(initial, [], [], 0) { OriginalAi = OriginalAiState.Create(content) },
+            GameSession.EngineFactory(content));
+        session.ConfigureCompanion(settings);
+        var result = session.Apply(session.Request(new EndControlOperation(), initial.Simulation.Controls[0].ControllerId));
+        Assert.Equal(SessionDisposition.Accepted, result.Disposition);
+        var report = session.LastOriginalAiWork.Single(r => r.CorpsId == 1 && r.Work == OriginalAiWork.CreateCorps);
+        if (allowed)
+        {
+            Assert.True(report.Submitted > 0);
+            Assert.DoesNotContain(session.Snapshot.Corps, c => c.Id == 10);
+            Assert.NotEmpty(result.Events.OfType<CorpsCreatedEvent>());
+            return;
+        }
+        Assert.Equal(OriginalAiWorkEnd.Permission, report.End);
+        Assert.Equal(0, report.Attempts);
+        Assert.Equal(0, report.Submitted);
+        Assert.Equal(initial.Corps, session.Snapshot.Corps);
+        Assert.Equal(initial.Settlements, session.Snapshot.Settlements);
+        Assert.Empty(result.Events.OfType<CorpsCreatedEvent>());
+        Assert.Contains(session.LastOriginalAiWork, r => r.CorpsId == 10);
+
+        var manual = GameSession.Restore(content, new(initial, [], [], 0) { OriginalAi = OriginalAiState.Create(content) },
+            GameSession.EngineFactory(content));
+        manual.ConfigureCompanion(settings);
+        var command = new CreateCorpsCommand(Guid.NewGuid(), 1, initial.Simulation.NextSequence, [6, 7], 0, 0, new GeneralDelegation())
+            { GovernorId = 106 };
+        Assert.True(manual.Execute(new(initial.Simulation.Controls[0].ControllerId), command).Submission.Accepted);
+    }
+
     [Fact]
     public void OrganizationCanRegroupAnExistingChildCityWithTheRootCityInItsRegion()
     {

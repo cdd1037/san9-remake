@@ -41,7 +41,7 @@ public sealed class CompanionSettingsStoreTests : IDisposable
             PlayerDelegatedStrategyPermissions = new() { Seize = false, Gossip = false },
             ComputerDiplomacyPermissions = new() { Gift = false, Surrender = false },
             PlayerDelegatedDiplomacyPermissions = new() { RequestAttack = false, ReturnPrisoner = false },
-            ComputerCorpsOptions = new() { DomesticDelegationRecruitment = true, CrossCorpsTransport = false },
+            ComputerCorpsOptions = new() { AutomaticOrganization = false, DomesticDelegationRecruitment = true, CrossCorpsTransport = false },
             PlayerDelegatedCorpsOptions = new() { CrossCorpsRelief = false },
         };
         store.Save(new(settings, true));
@@ -88,6 +88,8 @@ public sealed class CompanionSettingsStoreTests : IDisposable
     [InlineData("playerDelegatedDiplomacyPermissions", "surrender")]
     [InlineData("computerCorpsOptions", null)]
     [InlineData("playerDelegatedCorpsOptions", null)]
+    [InlineData("computerCorpsOptions", "automaticOrganization")]
+    [InlineData("playerDelegatedCorpsOptions", "automaticOrganization")]
     [InlineData("computerCorpsOptions", "domesticDelegationRecruitment")]
     [InlineData("playerDelegatedCorpsOptions", "domesticDelegationRecruitment")]
     [InlineData("computerCorpsOptions", "crossCorpsTransport")]

@@ -119,7 +119,7 @@ public static class MissionPresentation
                     b.Success ? CommandText.Resolve(texts, "result.burn-gain", b.DurabilityLoss, b.FoodLoss) : Outcome(false)),
                 SeizeResolvedEvent s => CommandText.Resolve(texts, "result.seize", who, Place(s.TargetSettlementId), s.Outcome switch
                 {
-                    SeizeOutcomeKind.Item => CommandText.Resolve(texts, "result.treasure-gain", texts.Resolve(before.Information.Treasures.Single(t => t.Id == s.TreasureId).NameKey)),
+                    SeizeOutcomeKind.Item => CommandText.Resolve(texts, "result.treasure-gain", before.Information.Treasures.Single(t => t.Id == s.TreasureId).Name),
                     SeizeOutcomeKind.Person => CommandText.Resolve(texts, "result.person-gain", Person(s.RecoveredOfficerId!.Value)),
                     SeizeOutcomeKind.Money => CommandText.Resolve(texts, "result.money-gain", s.Money), _ => Outcome(false)
                 }),

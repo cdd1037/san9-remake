@@ -62,6 +62,8 @@ public partial class SharedDataEditor : ModalView
             AddPage(new OfficerEditorPage { Name = "武将", Workspace = _workspace, ReportStatus = Status, PortraitService = _appearanceService, Flags = _flags });
             AddPage(new FormationEditorPage { Name = "阵形", Workspace = _workspace, ReportStatus = Status });
             AddPage(new TacticEditorPage { Name = "兵法", Workspace = _workspace, ReportStatus = Status });
+            AddPage(new TreasureEditorPage { Name = "宝物", Workspace = _workspace, ReportStatus = Status,
+                Service = _appearanceService });
             _pages.TabChanged += index => _editors[(int)index].Activate();
             UpdateTitleTooltip(); _save.Disabled = false;
             Status(appearanceError ?? "", appearanceError is not null);
@@ -96,7 +98,7 @@ public partial class SharedDataEditor : ModalView
     private void UpdateTitleTooltip()
     {
         if (_workspace is not { } workspace) return;
-        _title.TooltipText = $"{(workspace.HasPlayerCopy ? "玩家配置" : "基础配置")}\n爵位 {workspace.Ranks.Count} 项 · 官职 {workspace.Offices.Count} 项 · 武将 {workspace.Officers.Count} 项 · 阵形 {workspace.Formations.Length} 项 · 兵法 {workspace.Tactics.Length} 项\n\n基础：{workspace.DefinitionPath}\n玩家副本：{workspace.PlayerDefinitionPath}\n人物资料：{workspace.PlayerOfficerPath}";
+        _title.TooltipText = $"{(workspace.HasPlayerCopy ? "玩家配置" : "基础配置")}\n爵位 {workspace.Ranks.Count} 项 · 官职 {workspace.Offices.Count} 项 · 武将 {workspace.Officers.Count} 项 · 阵形 {workspace.Formations.Length} 项 · 兵法 {workspace.Tactics.Length} 项 · 宝物 {workspace.Treasures.Count} 项\n\n基础：{workspace.DefinitionPath}\n玩家副本：{workspace.PlayerDefinitionPath}\n人物资料：{workspace.PlayerOfficerPath}";
     }
 
     private async Task<bool> Save()

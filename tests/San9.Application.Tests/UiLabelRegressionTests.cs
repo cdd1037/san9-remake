@@ -50,14 +50,13 @@ public sealed partial class OfficerCommandTests
     [InlineData(9009)]
     public void AuthoredTacticNamesAreSharedByOfficerUnitTreasureAndForceViews(int tacticId)
     {
-        texts.Entries[TreasureText.DescriptionKey(9000)] = "说明";
         var content = definition with
         {
             Military = definition.Military! with { Tactics = definition.Military.Tactics.Select(t => t.Id == 0 ? t with { Id = tacticId } : t).ToImmutableArray() },
             Information = definition.Information with
             {
                 Tactics = definition.Information.Tactics.Select(t => t.Id == 0 ? t with { Id = tacticId, Name = "自定义兵法" } : t).ToArray(),
-                Treasures = [definition.Information.Treasures[0] with { TacticId = tacticId }]
+                Treasures = [definition.Information.Treasures[0] with { TacticId = tacticId, Description = "说明" }]
             }
         };
         var world = Deployed();

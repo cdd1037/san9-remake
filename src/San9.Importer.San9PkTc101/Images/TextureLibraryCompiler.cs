@@ -6,6 +6,8 @@ namespace San9.Importer.San9PkTc101.Images;
 
 public static class TextureLibraryCompiler
 {
+    internal static string VariantKey(string archive, int image, int palette) => $"library/{archive}/variant-{palette:D3}/{image:D4}";
+
     internal static bool UsesPaletteAlpha(string archive, int image) =>
         archive == "G_LocSPK" || archive == "G_StrtPK" && image is 0 or 1 or 2 or 15 ||
         archive == "G_Start" && (image is 20 or 21 or 23 or 24 or 38 or 39 || image is >= 27 and <= 36 || image >= 45) ||
@@ -136,7 +138,7 @@ public static class TextureLibraryCompiler
                     bool paletteAlpha = UsesPaletteAlpha(name, b.Image);
                     bool openingLayer = openingLayers.TryGetValue(b.Image, out var layer);
                     return new TextureVariant(b.Image, b.Palette,
-                        save($"library/{id}/variant-{b.Palette:D3}/{b.Image:D4}",
+                        save(VariantKey(id, b.Image, b.Palette),
                             TextureSourcePath.Image(name, b.Image, b.Palette, !opaque, paletteAlpha, recipe.Palette,
                                 transform: openingLayer ? "opening-framed-island" : null),
                             openingLayer ? (TextureSourceImage)layer! : TextureSourceImage.Indexed(images[b.Image], palettes[b.Palette], !opaque, paletteAlpha)));

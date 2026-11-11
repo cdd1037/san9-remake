@@ -30,7 +30,7 @@ internal sealed partial class WorldEventSceneBuilder
                 clock = diviner.Clock; Search(diviner.SearchingOfficerId, diviner.DivinerOfficerId, diviner.PlaceId, diviner.ForceId); Visit(); Message("diviner-advice"); break;
             case PhysicianVisitResolvedEvent physician:
                 clock = physician.Clock; Search(physician.SearchingOfficerId, physician.PhysicianOfficerId, physician.PlaceId, physician.ForceId); Visit();
-                Message("physician-book"); values["treasure-name"] = new(0, texts.Resolve(before.Information.Treasures.Single(t => t.Id == physician.TreasureId).NameKey));
+                Message("physician-book"); values["treasure-name"] = new(0, before.Information.Treasures.Single(t => t.Id == physician.TreasureId).Name);
                 Message("treasure-acquired"); break;
             case WomenVisitResolvedEvent women:
                 clock = women.Clock; Search(women.SearchingOfficerId, women.VisitorOfficerId, women.PlaceId, women.ForceId); Visit(); Message("women-teaching");

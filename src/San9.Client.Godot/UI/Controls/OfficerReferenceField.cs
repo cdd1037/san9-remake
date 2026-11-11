@@ -6,9 +6,9 @@ namespace San9.Client.Godot;
 internal static class OfficerReferenceField
 {
     public static Button Add<T>(Node parent, string title, IReadOnlyList<(string Label, T Value)> candidates,
-        T current, Action<T> changed, string name, string tooltip, string unavailableLabel = "当前人物不可用")
+        T current, Action<T> changed, string name, string tooltip, string unavailableLabel = "当前人物不可用", bool showCaption = true)
     {
-        ContentEditorControls.Caption(parent, title);
+        if (showCaption) ContentEditorControls.Caption(parent, title);
         int selected = candidates.ToList().FindIndex(c => EqualityComparer<T>.Default.Equals(c.Value, current));
         var button = new Button
         {

@@ -11,7 +11,6 @@ public static class InformationArtCompiler
     public static Dictionary<string,string> Compile(byte[] executable, ScenarioSource source, ScenarioInitialState scenario, TextureLibrary library, PortraitDefinition[] portraits)
     {
         var people = source.Read(San9ScenarioPersonArchive.ReadKnownRecords);
-        var treasures = source.Read(San9ScenarioItemArchive.ReadKnownRecords);
         Dictionary<string,string> roles = [];
         string Image(string archive, int index, int palette = 0) => library.Archives.Single(a => a.Id == archive)
             .Variants.Single(v => v.ImageIndex == index && v.PaletteIndex == (archive == "g_still" ? index : palette)).Image.Id;
@@ -33,8 +32,6 @@ public static class InformationArtCompiler
             roles.Add($"information-person-{person.State.Id}", image);
             roles.Add($"catalog-person-{person.State.Id}", image);
         }
-        foreach (var treasure in scenario.Information.Treasures)
-            roles.Add($"information-treasure-{treasure.Id}", Image("g_still", treasures[treasure.Id].ImageId + 172));
         // RE-0137: 0x423B10 resolves fixed-building illustrations through 0x653210.
         int[] workImages = [276, 281, 282, 277, 278, 279, 274, 275, 272, 273, 280];
         foreach (var facility in scenario.Military!.Facilities.Where(f => f.Buildable))

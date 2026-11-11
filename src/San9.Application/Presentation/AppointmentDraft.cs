@@ -47,7 +47,7 @@ public sealed class AppointmentDraft
         if (kind is "bestow" or "confiscate")
         {
             TreasureIds = TreasureIds.OrderBy(id => View.Information.Treasures.Single(t => t.Id == id).Category)
-                .ThenByDescending(id => View.Information.Treasures.Single(t => t.Id == id).AbilityBonus).ThenBy(id => id).ToImmutableArray();
+                .ThenByDescending(id => View.Information.Treasures.Single(t => t.Id == id).MaximumAbilityBonus).ThenBy(id => id).ToImmutableArray();
             if (TreasureIds.Length == 1) TreasureId = TreasureIds[0];
         }
         OfficePlan = kind == "rank" ? new(View, Candidates, query.AppointmentOffices()) : null;

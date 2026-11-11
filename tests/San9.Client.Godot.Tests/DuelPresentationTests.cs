@@ -370,8 +370,8 @@ public sealed class DuelPresentationTests
         if (withTreasures)
             scenario = scenario with { Information = scenario.Information with
             {
-                Treasures = [new(7, "treasure.7", 1, 10, 0, null) { AbilityBonuses = new(10, 0, 0, 0) },
-                    new(8, "treasure.8", 1, 15, 0, null) { AbilityBonuses = new(15, 0, 0, 0) }],
+                Treasures = [new(7, "treasure.7", 1, 0, null) { AbilityBonuses = new(10, 0, 0, 0) },
+                    new(8, "treasure.8", 1, 0, null) { AbilityBonuses = new(15, 0, 0, 0) }],
                 TreasureStates = [new(7, 11, TreasureDiscovery.Discovered, null), new(8, null, TreasureDiscovery.Discovered, null)]
             } };
         var session = GameSession.Start(scenario, 42);

@@ -214,8 +214,8 @@ public sealed partial class OriginalAiPersonnelTests
     public void GrantUsesSharedRetentionPoolAndConfiscationKeepsStrongestNonexclusiveItem()
     {
         var content = Fixture();
-        var items = new[] { new TreasureDefinition(901, "item.a", 0, 0, 10, null), new(902, "item.b", 0, 0, 20, null),
-            new(903, "item.c", 0, 0, 30, null) };
+        var items = new[] { new TreasureDefinition(901, "item.a", 0, 10, null), new(902, "item.b", 0, 20, null),
+            new(903, "item.c", 0, 30, null) };
         content = content with
         {
             Officers = content.Officers.Select(o => o.State.Id == 2 ? o with { State = o.State.WithLoyalty(1, 70) } : o).ToArray(),
@@ -243,7 +243,7 @@ public sealed partial class OriginalAiPersonnelTests
     public void GrantStopsAtFirstOverloadedRecipientAndRulerPersonalityGate()
     {
         var content = Fixture();
-        var items = Enumerable.Range(900, 8).Select(id => new TreasureDefinition(id, $"item.{id}", 0, 0, id - 899, null)).ToArray();
+        var items = Enumerable.Range(900, 8).Select(id => new TreasureDefinition(id, $"item.{id}", 0, id - 899, null)).ToArray();
         content = content with
         {
             Officers = content.Officers.Select(o => o.State.Id is 2 or 3 ? o with { State = o.State.WithLoyalty(1, o.State.Id == 2 ? 70 : 80) } : o).ToArray(),
@@ -271,7 +271,7 @@ public sealed partial class OriginalAiPersonnelTests
             Officers = content.Officers.Select(o => o.State.Id == 5 ? o with { State = o.State.WithLoyalty(1, loyalty) with
                 { OwnerId = unaffiliated ? null : 2, Status = OfficerStatus.Captive, SettlementId = 1 } } : o).ToArray(),
             Information = content.Information with { Relations = [new(1, 2, relation)],
-                Treasures = [new(901, "item.a", 0, 0, 10, null), new(902, "item.b", 0, 0, 20, null)],
+                Treasures = [new(901, "item.a", 0, 10, null), new(902, "item.b", 0, 20, null)],
                 TreasureStates = [new(901, 5, TreasureDiscovery.Discovered, null), new(902, 5, TreasureDiscovery.Discovered, null)] }
         };
         var h = new Harness(content);
@@ -402,7 +402,7 @@ public sealed partial class OriginalAiPersonnelTests
         {
             Information = content.Information with
             {
-                Treasures = [new(901, "buried", 0, 0, 10, null)],
+                Treasures = [new(901, "buried", 0, 10, null)],
                 TreasureStates = [new(901, null, TreasureDiscovery.Buried, 1)]
             },
             Officers = content.Officers.Append(new OfficerInitialState("free", new(100, null, 1,

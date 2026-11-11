@@ -149,7 +149,7 @@ internal sealed class InformationPageFactory
                 Service = Service,
                 State = State.DetailSelection, Textures = Textures, Texts = Texts,
                 Read = id => TreasureDetails.Read(Session.View, Texts, id),
-                ReadName = id => Texts.Resolve(Session.View.Information.Treasures.Single(t => t.Id == id).NameKey),
+                ReadName = id => Session.View.Information.Treasures.Single(t => t.Id == id).Name,
                 CurrentChanged = State.Select, Closed = Back
             };
             return treasureDetail;
@@ -163,7 +163,7 @@ internal sealed class InformationPageFactory
                 Pages = TreasureCatalog.Pages, Textures = Textures,
                 ReadRows = _ => TreasureCatalog.Read(Session.View, Texts, State.HolderFilter, State.ForceFilter, State.SettlementFilter)
                     .Rows.Select(row => new CatalogRow(row.Key.Id, row.Cells)).ToArray(),
-                Portrait = id => $"information-treasure-{id}", PortraitSize = new(120, 120),
+                Portrait = id => Session.View.Information.Treasures.Single(t => t.Id == id).ImageRole, PortraitSize = new(120, 120),
                 Closed = Back, Activated = id =>
                 {
                     State.DetailSelection.Open(State.Catalog.Rows.Select(row => row.Id), id);

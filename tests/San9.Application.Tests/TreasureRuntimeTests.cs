@@ -17,7 +17,7 @@ public sealed class TreasureRuntimeTests
             UnbuiltPlaces = [new(15, San9.Core.Domain.MapCoordinates.Center(new(10, 10)))],
             Officers = [new("visible", new(1, null, null, new(50,50,50,50), false) { Status = OfficerStatus.Free, RegionId = 15 }),
                 new("hidden", new(2, null, null, new(50,50,50,50), false) { Status = OfficerStatus.Undiscovered, RegionId = 15 })],
-            Information = new([], [], [new(0, "buried", 1, 5, 10, null), new(1, "owned", 2, 3, 10, 0)], [new San9.Core.Domain.CorpsState(5, 5, null, new(100, 100)) { IsRoot = true }],
+            Information = new([], [], [new(0, "buried", 1, 10, null), new(1, "owned", 2, 10, 0)], [new San9.Core.Domain.CorpsState(5, 5, null, new(100, 100)) { IsRoot = true }],
                 [new(0, null, TreasureDiscovery.Buried, 15), new(1, 2, TreasureDiscovery.Discovered, 15),
                  new(100, null, TreasureDiscovery.Disabled, 15)])
         };
@@ -25,7 +25,8 @@ public sealed class TreasureRuntimeTests
         var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new[] { "force", "region", "visible", "hidden", "buried", "owned" }
             .ToDictionary(key => key, key => key));
 
-        foreach (int id in new[] { 0, 1 }) texts.Entries.Add(TreasureText.DescriptionKey(id), "Description");
+        definition = definition with { Information = definition.Information with
+        { Treasures = definition.Information.Treasures.Select(t => t with { Description = "Description" }).ToArray() } };
         var initial = GameSession.Start(definition, 1).View;
         Assert.Equal(2, initial.World.Officers.Count);
         Assert.Single(initial.Officers);

@@ -52,6 +52,7 @@ public sealed partial class SharedDataEditorWorkspace
         _officerBaselines = officers.Officers.ToDictionary(p => p.Id);
         _baseDefinitions = baseDefinitions;
         _officeBaselines = Offices.ToDictionary(o => o.Id);
+        _treasureBaselines = Treasures.ToDictionary(t => t.Id);
         _officeOrderBaseline = Offices.ToDictionary(o => o.Id, o => o.GovernorPriority);
         _rankBaselines = Ranks.ToDictionary(r => r.Id);
         _rankOrderBaseline = Ranks.ToDictionary(r => r.Id, r => r.Precedence);
@@ -89,8 +90,8 @@ public sealed partial class SharedDataEditorWorkspace
         byte[]? expectedPlayer = activePath == path ? null : inputs[activePath];
         if (definitions.SchemaVersion != ScenarioDefinitions.CurrentSchemaVersion || baseDefinitions.SchemaVersion != ScenarioDefinitions.CurrentSchemaVersion)
             throw new InvalidDataException("共享定义版本不符，请先重建世界内容。");
-        if (definitions.NextFormationId < 0 || definitions.NextTacticId < 0 || definitions.NextOfficeId < 0 || definitions.NextRankId < 0 ||
-            baseDefinitions.NextFormationId < 0 || baseDefinitions.NextTacticId < 0 || baseDefinitions.NextOfficeId < 0 || baseDefinitions.NextRankId < 0)
+        if (definitions.NextFormationId < 0 || definitions.NextTacticId < 0 || definitions.NextOfficeId < 0 || definitions.NextRankId < 0 || definitions.NextTreasureId < 0 ||
+            baseDefinitions.NextFormationId < 0 || baseDefinitions.NextTacticId < 0 || baseDefinitions.NextOfficeId < 0 || baseDefinitions.NextRankId < 0 || baseDefinitions.NextTreasureId < 0)
             throw new InvalidDataException("共享资料身份分配记录无效。");
         string officerPath = PackageFiles.Resolve(selected.Root, selected.Manifest.OfficerDefaults);
         var baseOfficers = await files.ReadAsync<OfficerDefaultsCatalog>(officerPath, token);
@@ -101,9 +102,6 @@ public sealed partial class SharedDataEditorWorkspace
         if (officers.NextOfficerId < 0 || baseOfficers.NextOfficerId < 0)
             throw new InvalidDataException("武将身份分配记录无效。请检查人物资料。");
         byte[]? expectedOfficers = activeOfficers == officerPath ? null : files.Snapshots()[activeOfficers];
-        if ((definitions.Military is null || definitions.Military.Formations.IsEmpty && definitions.Military.Tactics.IsEmpty) &&
-            definitions.Information.Offices.Length == 0 && definitions.Information.Ranks.Length == 0 && officers.Officers.Length == 0)
-            throw new InvalidDataException("该内容库没有当前支持编辑的数据。");
         var scenarios = entries.Where(e => PackageFiles.Resolve(e.Root, e.Manifest.Definitions)
             .Equals(path, StringComparison.OrdinalIgnoreCase) || PackageFiles.Resolve(e.Root, e.Manifest.OfficerDefaults)
             .Equals(officerPath, StringComparison.OrdinalIgnoreCase)).ToArray();
@@ -143,6 +141,10 @@ public sealed partial class SharedDataEditorWorkspace
                 string geographyPath = PackageFiles.Resolve(entry.Root, entry.Manifest.Geography);
                 var geography = await files.ReadAsync<ScenarioGeography>(geographyPath, token);
                 var effectiveDefinitions = document.DefinitionOverrides.Apply(definitions);
+                var missingActiveTreasures = document.Information.TreasureStates.Where(t => t.Discovery != TreasureDiscovery.Disabled &&
+                    !effectiveDefinitions.Information.Treasures.Any(d => d.Id == t.Id)).Select(t => t.Id).ToArray();
+                if (missingActiveTreasures.Length > 0)
+                    throw new InvalidDataException($"宝物 {string.Join('、', missingActiveTreasures)} 的初始状态仍已启用，请先在剧本编辑器中设为未启用。");
                 if (officers.SchemaVersion != OfficerDefaultsCatalog.CurrentSchemaVersion)
                     throw new InvalidDataException("人物默认资料版本不符。");
                 if (deletedOfficers.Count > 0 && officersPath.Equals(OfficerPath, StringComparison.OrdinalIgnoreCase))

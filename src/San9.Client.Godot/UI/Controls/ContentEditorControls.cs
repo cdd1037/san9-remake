@@ -21,8 +21,16 @@ internal static class ContentEditorControls
         column.AddThemeConstantOverride("separation", 12); margin.AddChild(column); return column;
     }
 
-    internal static void Caption(Node parent, string text) => parent.AddChild(new Label
-        { Text = text, CustomMinimumSize = new(56, 0), VerticalAlignment = VerticalAlignment.Center });
+    internal static void Caption(Node parent, string text, string tooltip = "")
+    {
+        var caption = new Label { Text = text, CustomMinimumSize = new(56, 0), VerticalAlignment = VerticalAlignment.Center };
+        if (tooltip.Length > 0)
+        {
+            caption.TooltipText = tooltip;
+            caption.MouseFilter = Control.MouseFilterEnum.Pass;
+        }
+        parent.AddChild(caption);
+    }
 
     internal static VBoxContainer Section(Node parent, string title, Action<HBoxContainer>? actions = null, string tooltip = "")
     {
@@ -44,11 +52,11 @@ internal static class ContentEditorControls
         Section(parent, title, actions, tooltip).AddChild(grid); return grid;
     }
 
-    internal static HFlowContainer ButtonGroup(Node parent, string title = "")
+    internal static HFlowContainer ButtonGroup(Node parent, string title = "", string tooltip = "")
     {
         var flow = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         flow.AddThemeConstantOverride("h_separation", 8); flow.AddThemeConstantOverride("v_separation", 8);
-        (title.Length == 0 ? parent : Section(parent, title)).AddChild(flow); return flow;
+        (title.Length == 0 ? parent : Section(parent, title, tooltip: tooltip)).AddChild(flow); return flow;
     }
 
     internal static Button ActionButton(Node parent, string title, Action pressed, string name = "")
@@ -98,10 +106,10 @@ internal static class ContentEditorControls
         field.Toggled += changed.Invoke; parent.AddChild(field); return field;
     }
 
-    internal static OptionButton Choices(Node parent, string title, IReadOnlyList<string> values, int selected, Action<int> changed, string name = "")
+    internal static OptionButton Choices(Node parent, string title, IReadOnlyList<string> values, int selected, Action<int> changed, string name = "", string tooltip = "")
     {
-        Caption(parent, title);
-        var field = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        Caption(parent, title, tooltip);
+        var field = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, TooltipText = tooltip };
         if (name.Length > 0) field.Name = name;
         foreach (string value in values) field.AddItem(value);
         field.Select(selected); field.ItemSelected += index => changed((int)index); parent.AddChild(field); return field;

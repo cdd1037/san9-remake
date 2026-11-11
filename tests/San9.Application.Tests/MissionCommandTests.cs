@@ -221,7 +221,7 @@ public sealed class MissionCommandTests
         var basis = MissionScenario.Create();
         var content = basis with { Information = basis.Information with
         {
-            Treasures = [new(101,"own",0,0,5,null),new(102,"granted",0,0,5,null),new(103,"foreign",0,0,5,null)],
+            Treasures = [new(101,"own",0,5,null),new(102,"granted",0,5,null),new(103,"foreign",0,5,null)],
             TreasureStates = [new(101,1,TreasureDiscovery.Discovered,null),new(102,3,TreasureDiscovery.Discovered,null),
                 new(103,21,TreasureDiscovery.Discovered,null)]
         } };

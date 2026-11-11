@@ -8,6 +8,12 @@ public static class TreasureContentCompiler
 {
     public const int BuiltInCount = 100;
 
+    public static string ImageKey(San9ScenarioItemRecord item)
+    {
+        int image = item.ImageId + 172;
+        return Images.TextureLibraryCompiler.VariantKey("g_still", image, image);
+    }
+
     public static TreasureRetentionGroup RetentionGroup(San9ScenarioItemRecord item) => item.CategoryId switch
     {
         1 => TreasureRetentionGroup.War,

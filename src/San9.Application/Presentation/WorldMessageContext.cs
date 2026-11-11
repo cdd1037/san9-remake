@@ -214,7 +214,7 @@ public sealed class WorldMessageContext
             "tactic.description" => Text(_definition.Information.Tactics.Single(t => t.Id == Id(0, MessageEntityKind.Tactic)).Description),
             "rank.name" => Text(_definition.Information.Ranks.Single(r => r.Id == Id(0, MessageEntityKind.Rank)).Name),
             "rank.description" => Text(_definition.Information.Ranks.Single(r => r.Id == Id(0, MessageEntityKind.Rank)).Description),
-            "treasure.name" => Text(_texts.Resolve(_definition.Information.Treasures.Single(t => t.Id == Id(0, MessageEntityKind.Treasure)).NameKey)),
+            "treasure.name" => Text(_definition.Information.Treasures.Single(t => t.Id == Id(0, MessageEntityKind.Treasure)).Name),
             "treasure.category" => new(_definition.Information.Treasures.Single(t => t.Id == Id(0, MessageEntityKind.Treasure)).Category),
             "tactic.name" => Text(_definition.Information.Tactics.Single(t => t.Id == Id(0, MessageEntityKind.Tactic)).Name),
             "tactic.category-name" => Text(TacticCategory(Id(0, MessageEntityKind.Tactic))),

@@ -37,7 +37,7 @@ public sealed partial class OriginalAiActionsTests
         var basis = Fixture();
         var content = basis with { Information = basis.Information with
         {
-            Treasures = [new(700, "item", 1, 0, 0, null) { AbilityBonuses = new(bonus, 0, 0, 0) }],
+            Treasures = [new(700, "item", 1, 0, null) { AbilityBonuses = new(bonus, 0, 0, 0) }],
             TreasureStates = [new(700, 4, TreasureDiscovery.Discovered, null)]
         } };
         var h = new Harness(content, change: world => world with

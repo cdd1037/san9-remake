@@ -46,6 +46,7 @@ public static class MessageGraph
         var ids = new Dictionary<MessageEntityKind, HashSet<int>>
         {
             [MessageEntityKind.Rank] = catalog.Ranks.Select(r => r.Id).ToHashSet(),
+            [MessageEntityKind.Treasure] = catalog.Treasures.Select(t => t.Id).ToHashSet(),
             [MessageEntityKind.Office] = catalog.Offices.Select(o => o.Id).ToHashSet(),
             [MessageEntityKind.Formation] = catalog.Formations.Select(f => f.Id).ToHashSet(),
             [MessageEntityKind.Tactic] = catalog.Tactics.Select(t => t.Id).ToHashSet()

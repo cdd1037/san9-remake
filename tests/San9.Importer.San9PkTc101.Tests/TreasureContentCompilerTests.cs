@@ -6,6 +6,16 @@ namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class TreasureContentCompilerTests
 {
+    [Theory]
+    [InlineData(0, "library/g_still/variant-172/0172")]
+    [InlineData(99, "library/g_still/variant-271/0271")]
+    public void TreasureImagesReferenceTheConvertedLibrary(ushort image, string key)
+    {
+        var item = new San9ScenarioItemRecord(500, 0, 0, image, 0, 0, 0, ushort.MaxValue, ushort.MaxValue, 0, ushort.MaxValue);
+        Assert.Equal(key, TreasureContentCompiler.ImageKey(item));
+        Assert.Equal(key, TreasureContentCompiler.ImageKey(item with { SerializedId = 900 }));
+    }
+
     private static San9ScenarioPersonRecord Person(ushort biography) => new(
         0, 6000, 0, 0, 0, 0, 0, biography, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         [], 0, 0, [], 0);

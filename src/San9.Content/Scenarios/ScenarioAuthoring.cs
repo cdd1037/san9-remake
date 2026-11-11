@@ -14,12 +14,13 @@ public sealed record ContentOverride<T>(T Value);
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ScenarioDefinitions
 {
-    public const int CurrentSchemaVersion = 8;
+    public const int CurrentSchemaVersion = 11;
     [JsonRequired] public int SchemaVersion { get; init; } = CurrentSchemaVersion;
     [JsonRequired] public long NextFormationId { get; init; }
     [JsonRequired] public long NextTacticId { get; init; }
     [JsonRequired] public long NextOfficeId { get; init; }
     [JsonRequired] public long NextRankId { get; init; }
+    [JsonRequired] public long NextTreasureId { get; init; }
     [JsonRequired] public required OfficerGrowthRules OfficerGrowth { get; init; }
     [JsonRequired] public required OriginalAiDefinition OriginalAi { get; init; }
     [JsonRequired] public required int DefaultLoyalty { get; init; }
@@ -54,6 +55,8 @@ public sealed record ScenarioDefinitions
         NextTacticId = (long)(scenario.Military?.Tactics.Select(t => t.Id).DefaultIfEmpty(-1).Max() ?? -1) + 1,
         NextOfficeId = (long)scenario.Information.Offices.Select(o => o.Id).DefaultIfEmpty(-1).Max() + 1,
         NextRankId = (long)scenario.Information.Ranks.Select(r => r.Id).DefaultIfEmpty(-1).Max() + 1,
+        NextTreasureId = (long)scenario.Information.Treasures.Select(t => t.Id)
+            .Concat(scenario.Information.TreasureStates.Select(t => t.Id)).DefaultIfEmpty(-1).Max() + 1,
         OfficerGrowth = scenario.OfficerGrowth,
         OriginalAi = scenario.OriginalAi,
         DefaultLoyalty = scenario.DefaultLoyalty,
@@ -226,7 +229,9 @@ public sealed record InformationCatalog
         CountryTitles = value.CountryTitles,
     };
 
-    public InformationDefinitions Compile(ScenarioInformationState state) => new(Ranks.ToArray(), Offices.ToArray(), Treasures.ToArray(), state.Corps, state.TreasureStates)
+    public InformationDefinitions Compile(ScenarioInformationState state) => new(Ranks.ToArray(), Offices.ToArray(), Treasures.ToArray(), state.Corps,
+        [.. state.TreasureStates, .. Treasures.Where(t => !state.TreasureStates.Any(s => s.Id == t.Id))
+            .Select(t => new TreasureState(t.Id, null, TreasureDiscovery.Disabled, null))])
     {
         MapContextExcludedFacilityIds = MapContextExcludedFacilityIds,
         Tactics = Tactics,
@@ -382,7 +387,7 @@ public sealed record ScenarioGeography
 public sealed record ScenarioDocument(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int? PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements)
 {
-    public const int CurrentSchemaVersion = 6;
+    public const int CurrentSchemaVersion = 9;
     [JsonRequired] public required GameClock? ThreeVisitsStarted { get; init; }
     [JsonRequired] public required bool UnitDefectionsEnabled { get; init; }
     [JsonRequired] public required bool SettlementDefectionsEnabled { get; init; }

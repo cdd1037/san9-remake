@@ -126,8 +126,8 @@ public abstract partial class SharedCatalogEditorPage : SharedDataEditorPage
         }
         UpdateHeading();
     }
-    protected GridContainer Section(string title) => ContentEditorControls.ProfileGrid(Form, title);
-    protected HFlowContainer Options(string title) => ContentEditorControls.ButtonGroup(Form, title);
+    protected GridContainer Section(string title, string tooltip = "") => ContentEditorControls.ProfileGrid(Form, title, tooltip: tooltip);
+    protected HFlowContainer Options(string title, string tooltip = "") => ContentEditorControls.ButtonGroup(Form, title, tooltip);
     protected void TextField(string title, string value, Action<string> changed, bool multiline = false, string name = "") =>
         ContentEditorControls.AddText(Form, title, value, Guard(changed), multiline, name);
 
@@ -140,9 +140,9 @@ public abstract partial class SharedCatalogEditorPage : SharedDataEditorPage
     {
         ContentEditorControls.Toggle(parent, title, value, Guard(changed), name, tooltip);
     }
-    protected void Choice(Node parent, string title, IReadOnlyList<string> labels, int selected, Action<int> changed)
+    protected void Choice(Node parent, string title, IReadOnlyList<string> labels, int selected, Action<int> changed, string tooltip = "")
     {
-        ContentEditorControls.Choices(parent, title, labels, selected, Guard(changed));
+        ContentEditorControls.Choices(parent, title, labels, selected, Guard(changed), tooltip: tooltip);
     }
     protected void SelectEntry(int? id)
     {

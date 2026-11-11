@@ -93,7 +93,7 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts, San
             ImageRole = key.Category switch
             {
                 InformationCategory.Officers => $"information-person-{key.Id}",
-                InformationCategory.Treasures => $"information-treasure-{key.Id}",
+                InformationCategory.Treasures => View.Information.Treasures.Single(t => t.Id == key.Id).ImageRole,
                 InformationCategory.Forces when View.Forces.Single(f => f.Id == key.Id).LeaderId is int leader => $"information-person-{leader}",
                 InformationCategory.Corps => $"information-person-{View.World.Corps.Single(c => c.Id == key.Id).LeaderId}",
                 _ => null

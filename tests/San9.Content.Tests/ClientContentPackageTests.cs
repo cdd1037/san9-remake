@@ -133,13 +133,23 @@ public sealed class ClientContentPackageTests
         var changed = p with { Text = translated }; changed.ValidateLinks();
         var treasurePackage = p with { Scenario = p.Scenario with
         {
-            Information = new([], [], [new(0, "treasure", 0, 0, 0, null)], p.Scenario.Information.Corps, [new(0, null, San9.Core.Domain.TreasureDiscovery.Discovered, 15)])
+            Information = new([], [], [new(0, "treasure", 0, 0, null) { ImageKey = "ui" }], p.Scenario.Information.Corps, [new(0, null, San9.Core.Domain.TreasureDiscovery.Discovered, 15)])
         }, Text = new(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new(text.Entries)), Skin = skin with { Roles = new(skin.Roles) } };
         treasurePackage.Skin.Roles.Add("information-treasure-0", "ui");
         treasurePackage.Text.Entries.Add("treasure", "Treasure");
-        Assert.Throws<InvalidDataException>(treasurePackage.ValidateLinks);
-        treasurePackage.Text.Entries.Add(TreasureText.DescriptionKey(0), "First\nSecond");
         treasurePackage.ValidateLinks();
+        treasurePackage.Skin.Roles.Remove("information-treasure-0");
+        Assert.Throws<InvalidDataException>(treasurePackage.ValidateLinks);
+        treasurePackage.Skin.Roles.Add("information-treasure-0", "ui");
+        Assert.Throws<InvalidDataException>(() => (treasurePackage with { Scenario = treasurePackage.Scenario with
+        { Information = treasurePackage.Scenario.Information with
+        { Treasures = [treasurePackage.Scenario.Information.Treasures[0] with { ImageKey = "missing" }] } } }).ValidateLinks());
+        var noImage = treasurePackage with { Scenario = treasurePackage.Scenario with
+        { Information = treasurePackage.Scenario.Information with
+        { Treasures = [treasurePackage.Scenario.Information.Treasures[0] with { ImageKey = null }] } },
+            Skin = treasurePackage.Skin with { Roles = new(treasurePackage.Skin.Roles) } };
+        noImage.Skin.Roles.Remove("information-treasure-0");
+        noImage.ValidateLinks();
         Assert.Throws<InvalidDataException>(() => (treasurePackage.Scenario with
         {
             Information = treasurePackage.Scenario.Information with

@@ -62,7 +62,7 @@ public partial class DiplomacyDecisionView
             CompensationKind.Free => "",
             CompensationKind.Prisoner => Texts.Resolve(Draft.Before.MessageSpeaker(offer.PrisonerId!.Value).NameKey),
             CompensationKind.Money => Text("value.money-offer", Text("label.money"), offer.Money),
-            CompensationKind.Treasure => Texts.Resolve(Draft.Before.Information.Treasures.Single(t => t.Id == offer.TreasureId).NameKey),
+            CompensationKind.Treasure => Draft.Before.Information.Treasures.Single(t => t.Id == offer.TreasureId).Name,
             _ => throw new InvalidDataException("A refusal has no terms window.")
         };
         LargeField(window, valueX, termsY, 112, description);

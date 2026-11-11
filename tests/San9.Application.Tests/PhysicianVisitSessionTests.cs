@@ -25,7 +25,7 @@ public sealed class PhysicianVisitSessionTests
         Information = InformationDefinitions.Empty with
         {
             Corps = [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }],
-            Treasures = [new(500, "book", 2, 10, 50, null)],
+            Treasures = [new(500, "book", 2, 50, null)],
             TreasureStates = [new(500, 3, TreasureDiscovery.Discovered, null)]
         }
     };

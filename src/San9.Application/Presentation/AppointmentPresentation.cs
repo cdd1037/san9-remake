@@ -8,7 +8,7 @@ public static class AppointmentPresentation
     public static string Person(AppointmentDraft draft, TextCatalog texts, int id) => texts.Resolve(draft.View.Officers.Single(p => p.Id == id).NameKey);
     public static string Office(AppointmentDraft draft, TextCatalog texts, int? id) => id is int key
         ? draft.View.Information.Offices.Single(o => o.Id == key).Name : CommandText.Resolve(texts, "label.none");
-    public static string Treasure(AppointmentDraft draft, TextCatalog texts, int id) => texts.Resolve(draft.View.Information.Treasures.Single(t => t.Id == id).NameKey);
+    public static string Treasure(AppointmentDraft draft, TextCatalog texts, int id) => draft.View.Information.Treasures.Single(t => t.Id == id).Name;
 
     public static string Result(AppointmentDraft draft, TextCatalog texts, AppointmentSubmission result)
     {

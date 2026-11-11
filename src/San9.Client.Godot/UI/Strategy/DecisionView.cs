@@ -180,7 +180,7 @@ public partial class DecisionView : FixedPage
                 return TreasureCatalog.Read(Draft.Before, Texts).Rows.Where(r => option.Candidates.Contains(r.Key.Id))
                     .Select(r => new CatalogRow(r.Key.Id, r.Cells)).ToArray();
             return option.Candidates.Select(id => new CatalogRow(id, [new CatalogCell(option.Input==DecisionInputKind.Country ?
-                Texts.Resolve(Draft.Before.Information.CountryTitles.Single(t=>t.Id==id).NameKey) : Texts.Resolve(Draft.Before.Information.Treasures.Single(t=>t.Id==id).NameKey))])).ToArray();
+                Texts.Resolve(Draft.Before.Information.CountryTitles.Single(t=>t.Id==id).NameKey) : Draft.Before.Information.Treasures.Single(t=>t.Id==id).Name)])).ToArray();
         }
         Replace(new CatalogView
         {

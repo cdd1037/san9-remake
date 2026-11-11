@@ -11,6 +11,7 @@ public partial class SharedCatalogActions : HBoxContainer
     public string SuccessMessage { get; init; } = "已更新草稿，尚未保存。";
     public Func<int?> Current { get; init; } = null!;
     public Func<int, bool> CanDelete { get; init; } = null!;
+    public string? DeleteUnavailableTooltip { get; init; }
     public Func<int, string> EntryName { get; init; } = null!;
     public Func<int?, CancellationToken, Task<int>> Create { get; init; } = null!;
     public Func<int, CancellationToken, Task> Delete { get; init; } = null!;
@@ -38,13 +39,13 @@ public partial class SharedCatalogActions : HBoxContainer
         if (!IsNodeReady()) return;
         _copy.Disabled = Busy || Current() is null;
         _delete.Disabled = Busy || Current() is not int id || !CanDelete(id);
-        _delete.TooltipText = _delete.Disabled ? $"仅能删除自建{Subject}；原有项可编辑、可复制。" : "检查引用后删除，保存全部修改后生效。";
+        _delete.TooltipText = _delete.Disabled ? DeleteUnavailableTooltip ?? $"仅能删除自建{Subject}；原有项可编辑、可复制。" : "检查引用后删除，保存全部修改后生效。";
     }
 
     private void ConfirmDelete()
     {
         if (Current() is not int id || !CanDelete(id) || Busy || !Commit()) return;
-        var dialog = new ConfirmationDialog { Title = "删除自建" + Subject, DialogText = $"删除“{EntryName(id)}”？保存全部修改后生效。",
+        var dialog = new ConfirmationDialog { Title = "删除" + Subject, DialogText = $"删除“{EntryName(id)}”？保存全部修改后生效。",
             OkButtonText = "删除", CancelButtonText = "取消", Exclusive = true };
         dialog.Confirmed += () => { dialog.QueueFree(); _ = Run(async token => { await Delete(id, token); return null; }); };
         dialog.Canceled += () => dialog.QueueFree();

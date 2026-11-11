@@ -20,7 +20,7 @@ public sealed class AppointmentDraftTests
                 new("captive", new OfficerState(7, 2, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Captive })],
             Information = basis.Information with {
                 Offices = [new(401, "office.a", 20000, 8), new(902, "office.b", 18000, 4)],
-                Treasures = [new(301, "treasure.a", 1, 0, 8, null), new(702, "treasure.b", 1, 0, 5, null)],
+                Treasures = [new(301, "treasure.a", 1, 8, null), new(702, "treasure.b", 1, 5, null)],
                 TreasureStates = [new(301, 1, TreasureDiscovery.Discovered, null), new(702, 2, TreasureDiscovery.Discovered, null)]
             }
         };

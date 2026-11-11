@@ -20,7 +20,7 @@ public sealed class ScenarioEditorWorkspaceTests : IDisposable
         scenario ??= G01ScenarioTests.Fixture();
         scenario = scenario with { Settlements = scenario.Settlements.Select(s => s with { Kind = SettlementKind.City }).ToArray() };
         var entries = scenario.Forces.Select(f => f.NameKey).Concat(scenario.Settlements.Select(s => s.NameKey))
-            .Concat(scenario.Officers.Select(o => o.NameKey)).Concat(scenario.Information.Treasures.Select(t => t.NameKey))
+            .Concat(scenario.Officers.Select(o => o.NameKey))
             .Concat(scenario.RegionNameKeys.Values).Distinct(StringComparer.Ordinal).ToDictionary(key => key, key => key);
         entries[TextCatalog.ScenarioTitleKey] = "原剧本";
         var text = new TextCatalog(TextCatalog.CurrentSchemaVersion, entries);
@@ -164,8 +164,8 @@ public sealed class ScenarioEditorWorkspaceTests : IDisposable
             Officers = scenario.Officers.Select(o => o.State.Id == 6 ? o with { State = o.State with { IsDormant = true, Status = OfficerStatus.Dead } } : o).ToArray(),
             Information = scenario.Information with
             {
-                Treasures = [new(7001, "treasure.weapon", 1, 5, 10, null) { AbilityBonuses = new(5, 0, 0, 0) },
-                    new(7002, "treasure.book", 8, 0, 0, null), new(7003, "treasure.disabled", 11, 0, 0, null)],
+                Treasures = [new(7001, "treasure.weapon", 1, 10, null) { AbilityBonuses = new(5, 0, 0, 0) },
+                    new(7002, "treasure.book", 8, 0, null), new(7003, "treasure.disabled", 11, 0, null)],
                 TreasureStates = [new(7001, 1, TreasureDiscovery.Discovered, 1), new(7002, null, TreasureDiscovery.Buried, 701),
                     new(7003, null, TreasureDiscovery.Disabled, null), new(90000, null, TreasureDiscovery.Disabled, 701)]
             }

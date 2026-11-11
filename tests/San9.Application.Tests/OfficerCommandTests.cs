@@ -27,7 +27,7 @@ public sealed partial class OfficerCommandTests
             },
             RegionNameKeys = new() { [1] = "city.1", [2] = "city.2" },
             FacilityNameSuffixKeys = new() { [9000] = "fort" },
-            Information = basis.Information with { Treasures = [new(9000, "treasure", 1, 5, 10, null)], Tactics = [new(0, "奋战"), new(2, "奋迅")] }
+            Information = basis.Information with { Treasures = [new(9000, "宝刀", 1, 10, null)], Tactics = [new(0, "奋战"), new(2, "奋迅")] }
         };
         texts = new(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new Dictionary<string, string>
         {

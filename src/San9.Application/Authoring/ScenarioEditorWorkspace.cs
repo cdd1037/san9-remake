@@ -95,7 +95,12 @@ public sealed class ScenarioEditorWorkspace
     public string Name(string key) => Text.Entries.GetValueOrDefault(key, key);
     public string RegionName(int id) => _shared.Geography.RegionNameKeys.TryGetValue(id, out string? key) ? Name(key) : $"地域 {id}";
 
-    public TreasureState GetTreasureState(int id) => Document.Information.TreasureStates.Single(t => t.Id == id);
+    public TreasureState GetTreasureState(int id)
+    {
+        if (!Definitions.Information.Treasures.Any(t => t.Id == id)) throw new InvalidDataException("找不到宝物定义。");
+        return Document.Information.TreasureStates.SingleOrDefault(t => t.Id == id)
+            ?? new TreasureState(id, null, TreasureDiscovery.Disabled, null);
+    }
 
     public void SetTreasureState(TreasureState treasure)
     {
@@ -107,8 +112,8 @@ public sealed class ScenarioEditorWorkspace
             throw new InvalidDataException("宝物出土地域必须引用当前地图中的地域。");
         var states = Document.Information.TreasureStates.ToArray();
         int index = Array.FindIndex(states, t => t.Id == treasure.Id);
-        if (index < 0) throw new InvalidDataException("找不到宝物的剧本初始状态。");
-        states[index] = treasure;
+        if (index < 0) states = [.. states, treasure];
+        else states[index] = treasure;
         Update(Document with { Information = Document.Information with { TreasureStates = states } });
     }
 

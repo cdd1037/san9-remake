@@ -42,7 +42,7 @@ public partial class DiplomacyDecisionView
             {
                 GiftKind.Money => Text("label.money") + Number(offer.Amount),
                 GiftKind.Food => Text("label.food") + Number(offer.Amount),
-                GiftKind.Treasure => Texts.Resolve(Draft.Before.Information.Treasures.Single(t => t.Id == offer.TreasureId).NameKey),
+                GiftKind.Treasure => Draft.Before.Information.Treasures.Single(t => t.Id == offer.TreasureId).Name,
                 _ => throw new InvalidDataException("Unknown gift kind.")
             };
             Large(0, 114, 96, Text("label.gift"), true); Large(104, 114, 128, description);

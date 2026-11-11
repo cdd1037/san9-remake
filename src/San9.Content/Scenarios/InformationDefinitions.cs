@@ -12,9 +12,15 @@ public sealed record RankDefinition(int Id, string Name, uint CommandCapacity, i
     [JsonRequired] public string Description { get; init; } = "";
     public PeerageRule ToRule() => new(Id, Precedence, RequiredTrust, LoyaltyBonus) { IsUnranked = IsUnranked };
 }
-public sealed record TreasureDefinition(int Id, string NameKey, int Category, int AbilityBonus, int LoyaltyBonus, int? TacticId)
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record TreasureDefinition(int Id, [property: JsonRequired] string Name, int Category, int LoyaltyBonus, int? TacticId)
 {
+    [JsonRequired] public string Description { get; init; } = "";
+    [JsonRequired] public string? ImageKey { get; init; }
+    [JsonIgnore] public string? ImageRole => ImageKey is null ? null : $"information-treasure-{Id}";
     [JsonRequired] public OfficerAbilities AbilityBonuses { get; init; }
+    [JsonIgnore] public int MaximumAbilityBonus => Math.Max(Math.Max(AbilityBonuses.War, AbilityBonuses.Intelligence),
+        Math.Max(AbilityBonuses.Politics, AbilityBonuses.Leadership));
     [JsonRequired] public bool EscapeMount { get; init; }
     [JsonRequired] public TreasureRetentionGroup RetentionGroup { get; init; }
     [JsonRequired] public bool AutomaticDiplomacyOfferAllowed { get; init; } = true;
@@ -25,6 +31,16 @@ public sealed record TreasureDefinition(int Id, string NameKey, int Category, in
         EscapeMount = EscapeMount, TacticId = TacticId, RetentionGroup = RetentionGroup,
         AutomaticDiplomacyOfferAllowed = AutomaticDiplomacyOfferAllowed, FavoredOwnerIds = FavoredOwnerIds
     };
+
+    public void Validate()
+    {
+        if (Id < 0 || string.IsNullOrWhiteSpace(Name) || Description is null || Category is < 0 or > 12)
+            throw new InvalidDataException("宝物身份、名称、说明或种类无效。");
+        if (ImageKey is not null && string.IsNullOrWhiteSpace(ImageKey))
+            throw new InvalidDataException("宝物插图引用必须为空值或有效资源标识。");
+        try { _ = new TreasureRulebook([ToRule()]); }
+        catch (ArgumentException error) { throw new InvalidDataException($"宝物 {Id} 的规则参数无效。", error); }
+    }
 }
 public enum OfficeAppointmentGroup { Military, Civil }
 public sealed record OfficeDefinition(int Id, string Name, uint CommandCapacity, int Salary)
@@ -135,7 +151,7 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
         if (Ranks.Any(r => string.IsNullOrWhiteSpace(r.Name) || r.Description is null || r.RequiredTrust < 0 || r.LoyaltyBonus < 0 || r.Precedence < 0) ||
             Offices.Any(o => string.IsNullOrWhiteSpace(o.Name) || o.Description is null || o.Salary < 0 || o.GovernorPriority < 0 ||
                 !Enum.IsDefined(o.AppointmentGroup) || !o.AbilityBonuses.IsNonnegative || o.RequiredRankId is int rank && !Ranks.Any(r => r.Id == rank)) ||
-            Treasures.Any(t => string.IsNullOrWhiteSpace(t.NameKey) || t.Category is < 0 or > 12 || !Enum.IsDefined(t.RetentionGroup) || t.AbilityBonus < 0 || !t.AbilityBonuses.IsNonnegative || t.LoyaltyBonus < 0 ||
+            Treasures.Any(t => string.IsNullOrWhiteSpace(t.Name) || t.Description is null || t.ImageKey is not null && string.IsNullOrWhiteSpace(t.ImageKey) || t.Category is < 0 or > 12 || !Enum.IsDefined(t.RetentionGroup) || !t.AbilityBonuses.IsNonnegative || t.LoyaltyBonus < 0 ||
                 t.FavoredOwnerIds.IsDefault || t.FavoredOwnerIds.Distinct().Count() != t.FavoredOwnerIds.Length ||
                 t.FavoredOwnerIds.Any(id => !scenario.Officers.Any(o => o.State.Id == id))) ||
             Treasures.Any(t => !TreasureStates.Any(state => state.Id == t.Id)) ||

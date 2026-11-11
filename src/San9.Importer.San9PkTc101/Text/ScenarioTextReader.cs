@@ -142,12 +142,12 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable, bool 
     public string RankName(int id) => MessageMarkup.Plain(Text(id == 8 ? 5217 : 1652 + 2 * id));
     public string RankDescription(int id) => id == 8 ? "" : MessageMarkup.Plain(Text(7761 + id));
     public string Province(int id) => Add($"province.{id}", Text(San9ScenarioAreaArchive.GetNameMessageId(id)));
-    public string TreasureDescription(int id, int resourceId)
+    public string TreasureDescription(int resourceId)
     {
         if ((uint)resourceId >= 100) throw new InvalidDataException("Unsupported expansion treasure description.");
-        return Add(TreasureText.DescriptionKey(id), MultilineText(7641 + resourceId));
+        return MessageMarkup.Plain(MultilineText(7641 + resourceId));
     }
-    public string Treasure(string key, int id) => Add(key, Text(1392 + 2 * id));
+    public string Treasure(int id) => MessageMarkup.Plain(Text(1392 + 2 * id));
     public string Tactic(int id) => MessageMarkup.Plain(Text(1219 + 3 * id));
     public string TacticDescription(int id) => MessageMarkup.Plain(Text(1221 + 3 * id));
     public string Formation(int id) => MessageMarkup.Plain(Text(5363 + 3 * id));

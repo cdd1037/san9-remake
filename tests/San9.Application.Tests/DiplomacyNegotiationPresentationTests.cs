@@ -25,7 +25,7 @@ public sealed class DiplomacyNegotiationPresentationTests
                 new("exchange-prisoner", new(14, 1, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Captive })],
             Information = definition.Information with
             {
-                Treasures = [new(9, "treasure", 0, 0, 1, null)],
+                Treasures = [new(9, "treasure", 0, 1, null)],
                 TreasureStates = [new(9, 21, TreasureDiscovery.Discovered, null)]
             }
         };

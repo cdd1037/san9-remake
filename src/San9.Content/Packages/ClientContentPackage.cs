@@ -81,7 +81,6 @@ public sealed record ClientContentPackage(int SchemaVersion, MapPackage Map, Sce
         foreach (string icon in markup.SelectMany(MessageMarkup.IconIds).Distinct())
             if (!Skin.Roles.ContainsKey($"text-icon-{icon}-16") && !Skin.Roles.ContainsKey($"text-icon-{icon}-24"))
                 throw new InvalidDataException($"Missing inline image: {icon}");
-        foreach (var treasure in Scenario.Information.Treasures) _ = Text.ResolveRich(TreasureText.DescriptionKey(treasure.Id));
         foreach (string key in Scenario.Officers.Select(o => o.BiographyKey).OfType<string>()) _ = Text.ResolveRich(key);
         _ = Text.ResolveRich(CommandMenuSkin.OfficerSelectionHintKey);
         foreach (string id in CommandMenuSkin.ReasonIds) _ = Text.ResolveRich(CommandMenuSkin.ReasonKey(id));
@@ -96,9 +95,11 @@ public sealed record ClientContentPackage(int SchemaVersion, MapPackage Map, Sce
         foreach (string column in ExecutionPanelSkin.Columns) _ = Text.ResolveRich(ExecutionPanelSkin.HeaderKey(column));
         foreach (string role in Scenario.Officers.Where(o => !Text.MessagePeople.TryGetValue(o.State.Id, out var person) || person.PortraitKey is not null)
                      .SelectMany(o => new[] { $"information-person-{o.State.Id}", $"catalog-person-{o.State.Id}" })
-                     .Concat(Definitions.Officers.Where(p => p.PortraitKey is not null).SelectMany(p => new[] { $"information-person-{p.Id}", $"catalog-person-{p.Id}" }))
-                     .Concat(Scenario.Information.Treasures.Select(t => $"information-treasure-{t.Id}")))
+                     .Concat(Definitions.Officers.Where(p => p.PortraitKey is not null).SelectMany(p => new[] { $"information-person-{p.Id}", $"catalog-person-{p.Id}" })))
             if (!Skin.Roles.ContainsKey(role)) throw new InvalidDataException($"Missing information illustration: {role}");
+        foreach (var treasure in Scenario.Information.Treasures.Where(t => t.ImageKey is not null))
+            if (Skin.Roles.GetValueOrDefault(treasure.ImageRole!) != treasure.ImageKey)
+                throw new InvalidDataException($"Missing or mismatched treasure illustration: {treasure.Id}");
         foreach (var person in Definitions.Officers)
         {
             if (!Text.MessagePeople.TryGetValue(person.Id, out var profile) || profile.PortraitKey != person.PortraitKey ||
@@ -115,7 +116,7 @@ public sealed record ClientContentPackage(int SchemaVersion, MapPackage Map, Sce
         foreach (var s in Scenario.Settlements)
             if (s.X != buildings[s.Id].X || s.Y != buildings[s.Id].Y)
                 throw new InvalidDataException("Scenario and map coordinates differ.");
-        foreach (string key in Scenario.Forces.Select(f => f.NameKey).Concat(Scenario.Settlements.Select(s => s.NameKey)).Concat(Scenario.RegionNameKeys.Values).Concat(Scenario.ProvinceNameKeys.Values).Concat(Scenario.FacilityNameSuffixKeys.Values).Concat(Scenario.Officers.SelectMany(o => new[] { o.NameKey, o.CourtesyNameKey }.OfType<string>())).Concat(Scenario.Information.CountryTitles.Select(t => t.NameKey)).Concat(Scenario.Information.Treasures.Select(t => t.NameKey)))
+        foreach (string key in Scenario.Forces.Select(f => f.NameKey).Concat(Scenario.Settlements.Select(s => s.NameKey)).Concat(Scenario.RegionNameKeys.Values).Concat(Scenario.ProvinceNameKeys.Values).Concat(Scenario.FacilityNameSuffixKeys.Values).Concat(Scenario.Officers.SelectMany(o => new[] { o.NameKey, o.CourtesyNameKey }.OfType<string>())).Concat(Scenario.Information.CountryTitles.Select(t => t.NameKey)))
             _ = Text.Resolve(key);
     }
 }
@@ -141,6 +142,8 @@ public static class ClientContentFiles
         if (textures.SourceBuild != instance.Map.Definition.SourceBuild) throw new InvalidDataException("Texture source build differs.");
         var roles = new Dictionary<string,string>(textures.Skin.Roles);
         foreach (var role in instance.IllustrationRoles) roles.Add(role.Key, role.Value);
+        foreach (var treasure in instance.Scenario.Information.Treasures.Where(t => t.ImageKey is not null))
+            roles.Add(treasure.ImageRole!, treasure.ImageKey!);
         var skin = textures.Skin with { Roles = roles, Assets = textures.Skin.Assets.Concat(textures.Library.Assets).Concat(textures.Portraits.Select(p => p.Image)).ToArray() };
         var content = new ClientContentPackage(ScenarioContent.CurrentSchemaVersion, instance.Map.Resolve(textures.Map, instance.Scenario), instance.Scenario,
             instance.Text, skin, textures.Library)

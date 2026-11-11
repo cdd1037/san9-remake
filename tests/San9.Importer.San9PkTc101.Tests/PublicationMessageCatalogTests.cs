@@ -52,7 +52,7 @@ public sealed class PublicationMessageCatalogTests
         source["messages.8676"] = new([new MessageLiteral("同文")]);
         source["messages.8677"] = new([new MessageLiteral("同文")]);
         var result = PublicationMessageCatalog.Compile(source.Reverse().ToDictionary(p => p.Key, p => p.Value));
-        Assert.Equal(source.Count - 4354, result.Count);
+        Assert.Equal(source.Count - 4554, result.Count);
         Assert.Equal(PublicationMessageCatalog.Groups.Keys, result.Keys);
         Assert.Equal(2, result.Values.Count(value => value.Nodes is [MessageLiteral { BbCode: "同文" }]));
         Assert.Equal(result.Count - 3, result.Values.Count(value => value.Nodes.Length == 0));
@@ -72,6 +72,8 @@ public sealed class PublicationMessageCatalogTests
     [InlineData("messages.1652")]
     [InlineData("messages.136")]
     [InlineData("messages.5315")]
+    [InlineData("messages.1392")]
+    [InlineData("messages.7641")]
     [InlineData("biographies.0")]
     public void ExtractedDataIsOmittedButRetainedMessagesCannotReferenceIt(string key)
     {

@@ -13,7 +13,7 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
     private readonly Dictionary<int, ForceView> forces = view.Forces.ToDictionary(f => f.Id);
     private readonly Dictionary<int, UnitState> units = view.World.Units.ToDictionary(u => u.Id);
     private readonly Dictionary<int, SettlementView> places = view.Settlements.ToDictionary(s => s.Id);
-    private readonly Dictionary<int, string> treasures = view.Information.Treasures.ToDictionary(t => t.Id, t => t.NameKey);
+    private readonly Dictionary<int, string> treasures = view.Information.Treasures.ToDictionary(t => t.Id, t => t.Name);
     private readonly Dictionary<int, PersistentTask> tasks = view.World.Simulation.Tasks
         .Where(t => t.Journey is not null).ToDictionary(t => t.OfficerId);
     private string Person(int? id) => id is int key && people.TryGetValue(key, out var p) ? texts.Resolve(p.NameKey) : "";
@@ -139,7 +139,7 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
                 target = gift.Offer.Kind switch
                 {
                     GiftKind.Money => $"资金{gift.Offer.Amount}", GiftKind.Food => $"兵粮{gift.Offer.Amount}",
-                    GiftKind.Treasure => texts.Resolve(treasures[gift.Offer.TreasureId!.Value]),
+                    GiftKind.Treasure => treasures[gift.Offer.TreasureId!.Value],
                     _ => throw new ArgumentOutOfRangeException(nameof(task))
                 };
             }

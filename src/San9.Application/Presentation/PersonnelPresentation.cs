@@ -90,7 +90,8 @@ public static class PersonnelPresentation
                 if (search.TreasureId is int item) values["treasure"] = MessageBinding.Reference(MessageEntityKind.Treasure, item);
                 string role = search.Result switch { SearchResultKind.Treasure => "search-treasure", SearchResultKind.Money => "search-money", _ => "search-none" };
                 var message = Message(content, role, context, texts, values, random);
-                if (search.TreasureId is int treasure) message = message with { IllustrationRole = $"information-treasure-{treasure}" };
+                if (search.TreasureId is int treasure)
+                    message = message with { IllustrationRole = before.Information.Treasures.Single(t => t.Id == treasure).ImageRole };
                 result.Add(message);
                 if (search.Result == SearchResultKind.None) result.Add(Message(content, "search-empty", context, texts, values, random));
             }

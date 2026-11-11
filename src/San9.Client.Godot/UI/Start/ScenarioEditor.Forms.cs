@@ -149,7 +149,7 @@ public partial class ScenarioEditor
         var definition = workspace.Definitions.Information.Treasures.Single(t => t.Id == id);
         var treasure = workspace.GetTreasureState(id);
         void Change(Func<TreasureState, TreasureState> update) => workspace.SetTreasureState(update(workspace.GetTreasureState(id)));
-        var grid = Grid(body, workspace.Name(definition.NameKey));
+        var grid = Grid(body, definition.Name);
         ContentEditorControls.Choices(grid, "发现状态", ["未启用", "未出土", "已出土"], (int)treasure.Discovery,
             index => Change(t => t with { Discovery = (TreasureDiscovery)index }), "TreasureDiscovery");
         Reference(grid, "持有武将", treasure.HolderId, OfficerChoices(), value => Change(t => t with { HolderId = value }));

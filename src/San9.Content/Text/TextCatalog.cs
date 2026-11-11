@@ -2,7 +2,7 @@ namespace San9.Content.Text;
 
 public sealed record TextCatalog(int SchemaVersion, Dictionary<string, string> Entries)
 {
-    public const int CurrentSchemaVersion = 8;
+    public const int CurrentSchemaVersion = 9;
     public const string ScenarioTitleKey = "scenario.title";
     public Dictionary<string, MessageDefinition> Messages { get; init; } = [];
     public Dictionary<int, MessagePersonProfile> MessagePeople { get; init; } = [];

@@ -11,6 +11,10 @@ internal static class ContentEditorStyle
         var theme = CompanionPanelStyle.Create(font);
         Dialogs(theme);
         Tables(theme);
+        theme.SetStylebox("panel", "TooltipPanel", Surface("17212c", "66778a", 12));
+        theme.SetColor("font_color", "TooltipLabel", new("e8edf3"));
+        theme.SetColor("font_outline_color", "TooltipLabel", Colors.Transparent);
+        theme.SetConstant("outline_size", "TooltipLabel", 0);
         theme.SetStylebox("panel", "TabContainer", Surface("202833", "394758"));
         theme.SetStylebox("panel", "ItemList", Surface("151c24", "394758", 6));
         theme.SetStylebox("selected", "ItemList", Surface("294f4b", "60958b", 8));

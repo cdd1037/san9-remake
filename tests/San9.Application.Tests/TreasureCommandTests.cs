@@ -18,7 +18,7 @@ public sealed class TreasureCommandTests
         Officers = [new("ruler", new(1, 1, 1, new(50, 50, 50, 50), false)
             { Status = OfficerStatus.Ruler }),
             new("recipient", new OfficerState(2, 1, 1, new(50, 50, 50, 50), false).WithLoyalty(1, 98))],
-        Information = new([], [], [new(10, "treasure", 1, 10, 8, null) { AbilityBonuses = new(10, 0, 0, 0) }], [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }],
+        Information = new([], [], [new(10, "treasure", 1, 8, null) { AbilityBonuses = new(10, 0, 0, 0) }], [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }],
             [new(10, 1, TreasureDiscovery.Discovered, null)])
     };
 

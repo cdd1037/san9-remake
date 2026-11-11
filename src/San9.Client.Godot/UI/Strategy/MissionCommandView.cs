@@ -235,7 +235,7 @@ public partial class MissionCommandView : CommandPreparationView
         window.BindHint(treasureButton, Draft.Treasures.IsEmpty ? Texts.Resolve(CommandMenuSkin.ReasonKey("no-treasure")) : CommandText.Resolve(Texts, "hint.treasure"));
         Value(Amount(GiftKind.Money,root.Treasury.Money),at+new Vector2(104,216),new(120,32));
         Value(Amount(GiftKind.Food,root.Treasury.Food),at+new Vector2(104,256),new(128,32));
-        Value(Draft.Gift?.TreasureId is int item ? Texts.Resolve(Draft.View.Information.Treasures.Single(t => t.Id == item).NameKey) : "",at+new Vector2(104,296),new(112,32));
+        Value(Draft.Gift?.TreasureId is int item ? Draft.View.Information.Treasures.Single(t => t.Id == item).Name : "",at+new Vector2(104,296),new(112,32));
         string Amount(GiftKind kind, uint available) => Draft.Gift is { } gift && gift.Kind == kind ?
             CommandText.Resolve(Texts,"value.gift-amount",gift.Amount,available) : CommandText.Resolve(Texts,"value.gift-amount-empty",available);
     }

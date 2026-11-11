@@ -12,7 +12,7 @@ public static class PublicationMessageCatalog
         SourceGroups.Where(pair => !IsDataGroup(pair.Value)).ToDictionary(pair => pair.Key, pair => pair.Value));
 
     private static bool IsDataGroup(string group) => group is "scenario-catalog" or "person-names" or "names" or
-        "tactics" or "formations" or "offices" or "ranks" or "geography" or "country-titles" or "biographies";
+        "tactics" or "formations" or "offices" or "ranks" or "treasures" or "geography" or "country-titles" or "biographies";
 
     public static Dictionary<string, MessageDefinition> Compile(IReadOnlyDictionary<string, MessageDefinition> source)
     {
@@ -67,6 +67,8 @@ public static class PublicationMessageCatalog
             new[] { San9ScenarioAreaArchive.GetNameMessageId(id), San9ScenarioAreaArchive.GetNameReadingMessageId(id) }));
         Add("country-titles", Enumerable.Range(0, San9ScenarioCountryTitleArchive.RecordCount).SelectMany(id =>
             new[] { San9ScenarioCountryTitleArchive.GetNameMessageId(id), San9ScenarioCountryTitleArchive.GetNameReadingMessageId(id) }));
+        Add("treasures", Enumerable.Range(0, Scenarios.TreasureContentCompiler.BuiltInCount).Select(id => 1392 + 2 * id)
+            .Concat(Enumerable.Range(7641, Scenarios.TreasureContentCompiler.BuiltInCount)));
         return groups;
     }
 

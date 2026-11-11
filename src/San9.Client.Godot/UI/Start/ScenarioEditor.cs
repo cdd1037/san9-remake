@@ -101,7 +101,7 @@ public partial class ScenarioEditor : ModalView
         BuildListPage("势力", () => _workspace!.Document.Forces.Select(f => (f.Id, _workspace.Name(f.NameKey))), BuildForce);
         BuildListPage("据点", () => _workspace!.Document.Settlements.Select(s => (s.Id, _workspace.Name(s.NameKey))), BuildSettlement);
         BuildListPage("武将安置", () => _workspace!.Document.Officers.Select(o => (o.Id, _workspace.OfficerName(o.Id))), BuildOfficer);
-        BuildListPage("宝物", () => _workspace!.Definitions.Information.Treasures.Select(t => (t.Id, _workspace.Name(t.NameKey))), BuildTreasure);
+        BuildListPage("宝物", () => _workspace!.Definitions.Information.Treasures.Select(t => (t.Id, t.Name)), BuildTreasure);
         _dataTab = _pages.GetTabCount();
         var data = new VBoxContainer { Name = "完整初始状态" }; _pages.AddChild(data);
         ContentEditorControls.ActionButton(data, "应用完整数据", () =>

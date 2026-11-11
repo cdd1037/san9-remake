@@ -21,7 +21,7 @@
 
 | 文件／定义 | 所有权与约束 |
 | --- | --- |
-| `shared/definitions.json`、`shared/officer-defaults.json` | 规则／目录与人物基础资料；名称、说明、姓名、字、列传归有效定义，静态文本不再复制 |
+| `shared/definitions.json`、`shared/officer-defaults.json` | 规则／目录与人物基础资料。名称、说明、姓名、字、列传归有效定义，包含宝物名称、说明及插图资源引用 |
 | `shared/maps/china/geography.json` | 领域地理；不依赖皮肤、名称或势力摘要 |
 | 剧本`scenario.json` | `ScenarioDocument`创作契约，保存初始状态、额外人物及类型化差异，组合为`ScenarioInitialState`。四维逐项继承，未覆盖、显式null和空集合分别表达；共享库成员不自动进入世界 |
 | 剧本`map.json` | 引用共享地图定义，仅保存建筑稳定身份、位置与固定类型；共享定义保存方格、地形、桥／云／水面／边界及建筑组合 |

@@ -57,7 +57,7 @@ public sealed class ShoreMilitarySessionTests
             Military = original.Military! with { Tactics = [new(8000, 4, TacticEffect.FormationTechnology, 0, 0, 0, false, false, [20])],
                 Formations = original.Military.Formations
                 .Select(f => f.TravelMode == TravelMode.Water ? f with { RequiredTacticId = 8000 } : f).ToImmutableArray() },
-            Information = new([], [], [new(99, "treasure", 0, 0, 0, 8000)], original.Information.Corps,
+            Information = new([], [], [new(99, "treasure", 0, 0, 8000)], original.Information.Corps,
                 [new(99, hasTreasure ? 1 : null, TreasureDiscovery.Discovered, null)])
         };
         var session = GameSession.Start(definition, 42);

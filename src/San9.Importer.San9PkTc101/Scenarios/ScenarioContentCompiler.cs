@@ -98,9 +98,9 @@ public static class ScenarioContentCompiler
                   RequiredRankId = o.RankGroupId }).ToArray(),
             items.Where(i => i.SerializedId < TreasureContentCompiler.BuiltInCount).Select(i =>
             {
-                text.TreasureDescription(i.SerializedId, i.ResourceId2);
-                return new TreasureDefinition(i.SerializedId, text.Treasure($"treasure.{i.SerializedId}", i.ResourceId1), i.CategoryId, i.AbilityBonus, i.LoyaltyChange, i.TacticId)
-                { AbilityBonuses = TreasureContentCompiler.AbilityBonuses(i), EscapeMount = i.CategoryId == 0,
+                return new TreasureDefinition(i.SerializedId, text.Treasure(i.ResourceId1), i.CategoryId, i.LoyaltyChange, i.TacticId)
+                { Description = text.TreasureDescription(i.ResourceId2), ImageKey = TreasureContentCompiler.ImageKey(i),
+                  AbilityBonuses = TreasureContentCompiler.AbilityBonuses(i), EscapeMount = i.CategoryId == 0,
                   RetentionGroup = TreasureContentCompiler.RetentionGroup(i),
                   AutomaticDiplomacyOfferAllowed = treasureDiplomacy[i.SerializedId].AutomaticOfferAllowed,
                   FavoredOwnerIds = treasureDiplomacy[i.SerializedId].FavoredOwnerIds };

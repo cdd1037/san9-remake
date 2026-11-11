@@ -83,7 +83,7 @@ public sealed class InformationBrowserTests
             UnbuiltPlaces = [new(50, San9.Core.Domain.MapCoordinates.Center(new(85, 60)))],
             Officers = [new("ruler", new(1, 5, 15, new(90, 60, 80, 90), false) { Status = OfficerStatus.Ruler, BirthYear = 150, LearnedTactics = [0], TacticProficiencies = [200, 0, 0, 0, 0, 0, 0, 0, 0] }),
                 new("free", new(2, null, null, new(20, 60, 40, 50), false) { Status = OfficerStatus.Free, RegionId = 50 })],
-            Information = new([new(0, "rank", 60000, 1000, 5, 0)], [], [new(0, "treasure", 1, 5, 10, 2) { AbilityBonuses = new(5, 0, 0, 0) }],
+            Information = new([new(0, "rank", 60000, 1000, 5, 0)], [], [new(0, "treasure", 1, 10, 2) { Description = "第一行\n第二行", AbilityBonuses = new(5, 0, 0, 0) }],
                 [new(5, 5, 1, new(100, 200)) { IsRoot = true }], [new(0, 1, TreasureDiscovery.Discovered, 15)])
         };
         scenario = PresentationTacticFixture.WithInfantry(scenario);
@@ -107,7 +107,6 @@ public sealed class InformationBrowserTests
         var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new()
         {
             ["treasure"] = "测试宝物", ["ruler"] = "持有人", ["tactic.2"] = "奋迅",
-            [TreasureText.DescriptionKey(0)] = "第一行\n第二行"
         });
         long revision = session.Snapshot.Revision;
         var detail = TreasureDetails.Read(session.View, texts, 0);
@@ -118,8 +117,8 @@ public sealed class InformationBrowserTests
         Assert.Equal(0, detail.TacticGroup);
         Assert.Equal("奋迅", detail.Tactic);
         Assert.Equal(revision, session.Snapshot.Revision);
-        texts.Entries.Remove(TreasureText.DescriptionKey(0));
-        Assert.Throws<InvalidDataException>(() => TreasureDetails.Read(session.View, texts, 0));
+        texts.Entries.Remove("treasure");
+        Assert.Equal("第一行\n第二行", TreasureDetails.Read(session.View, texts, 0).Description);
     }
 
     [Fact]

@@ -19,6 +19,9 @@ public sealed class TextNormalizationTests
     [InlineData(1680 + 4 * 416, "翼德", "益德", "益德")]
     [InlineData(1679 + 4 * 348, "乾", "乾", "乾")]
     [InlineData(1678 + 4 * 120, "麴", "麴", "麹")]
+    [InlineData(1680 + 4 * 318, "景明", "子修", "子修")]
+    [InlineData(1680 + 4 * 186, "子則", "士則", "士则")]
+    [InlineData(1679 + 4 * 379, "潁", "穎", "颖")]
     [InlineData(6097, "進行人材的移動與挖掘。", "進行人材的移動與挖掘。", "进行人材的移动与挖掘。")]
     public void DecodingEditorialSourceAndTargetScriptAreSeparate(int message, string original, string canonical, string simplified)
     {
@@ -121,6 +124,22 @@ public sealed class TextNormalizationTests
         Assert.Equal(original, converter.Canonicalize(Encode(original), message));
         Assert.Equal(expected, converter.Convert(Encode(original), message));
         Assert.Throws<InvalidDataException>(() => new OriginalTextConverter().Convert(Encode("自訂官職"), 5207));
+    }
+
+    [Theory]
+    [InlineData("messages", 1678, 318, 2, "景明", "子修", "景明")]
+    [InlineData("base-messages", 1610, 318, 2, "景明", "子修", "景明")]
+    [InlineData("messages", 1678, 186, 2, "子則", "士则", "子则")]
+    [InlineData("base-messages", 1610, 186, 2, "子則", "士则", "子则")]
+    [InlineData("messages", 1678, 379, 1, "潁", "颖", "颍")]
+    [InlineData("base-messages", 1610, 379, 1, "潁", "颖", "颍")]
+    public void AdditionalPersonEditsRespectTheImportSwitchAndSourceIdentity(string catalog, int start, int person,
+        int field, string original, string expected, string unedited)
+    {
+        int message = start + 4 * person + field;
+        Assert.Equal(expected, new OriginalTextConverter().Convert(Encode(original), message, catalog));
+        Assert.Equal(unedited, new OriginalTextConverter(originalTextEdits: false).Convert(Encode(original), message, catalog));
+        Assert.Throws<InvalidDataException>(() => new OriginalTextConverter().Convert(Encode("自訂"), message, catalog));
     }
 
     [Fact]

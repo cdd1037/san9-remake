@@ -79,6 +79,7 @@ internal static class OriginalTextEditorial
         Person(133, "橋", "瑁", "元偉");
         Person(153, "吳", "懿", "子遠");
         Person(162, "高", "昇", "");
+        Person(186, "吾", "彥", "子則", courtesy: "士則");
         Person(226, "脩", "允", "");
         Person(231, "脩", "則", "");
         Person(239, "朱", "儁", "公偉");
@@ -86,9 +87,11 @@ internal static class OriginalTextEditorial
         Person(266, "鍾", "繇", "元常");
         Person(282, "徐", "盛", "文嚮");
         Person(292, "秦", "宓", "子勑");
+        Person(318, "曹", "昂", "景明", courtesy: "子修");
         Person(348, "孫", "乾", "公祐");
         Person(360, "孫", "綝", "子通");
         Person(368, "孫", "𩅦", "");
+        Person(379, "張", "潁", "", given: "穎");
         Person(395, "張", "郃", "儁艾", courtesy: "儁乂");
         Person(400, "張", "緝", "敬仲");
         Person(416, "張", "飛", "翼德", courtesy: "益德");

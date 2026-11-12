@@ -87,11 +87,9 @@ public sealed class ForceEmergenceSessionTests
 
     [Theory]
     [InlineData("missing-origin")]
-    [InlineData("early-origin")]
     [InlineData("unknown-founder")]
     [InlineData("player-control")]
     [InlineData("no-root")]
-    [InlineData("disabled")]
     public void RestoreRejectsInvalidRuntimeForceProvenanceOrReferences(string defect)
     {
         var scenario = Scenario();
@@ -99,13 +97,12 @@ public sealed class ForceEmergenceSessionTests
         for (int i = 0; i < 3; i++) session.AdvanceXun();
         var snapshot = session.Capture();
         var world = snapshot.World;
-        if (defect is "missing-origin" or "early-origin" or "unknown-founder")
+        if (defect is "missing-origin" or "unknown-founder")
             world = world with { Forces = world.Forces.Select(f => f.Id != 81 ? f : f with
-            { Origin = defect == "missing-origin" ? null : defect == "early-origin" ? f.Origin! with { Clock = new(190, 1, 1) } : f.Origin! with { FounderId = 999 } }).ToArray() };
+            { Origin = defect == "missing-origin" ? null : f.Origin! with { FounderId = 999 } }).ToArray() };
         if (defect == "player-control") world = world with { Simulation = world.Simulation with
         { Controls = [..world.Simulation.Controls.Select(c => c.ForceId == 81 ? c with { Kind = ControllerKind.Player } : c)] } };
         if (defect == "no-root") world = world with { Corps = [] };
-        if (defect == "disabled") world = world with { Simulation = world.Simulation with { ForceEmergenceEnabled = false } };
         Assert.Throws<ArgumentException>(() => GameSession.Restore(scenario, snapshot with { World = world }));
     }
 

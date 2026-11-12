@@ -63,19 +63,15 @@ public sealed partial class GameSession
     internal static GameSession Load(ScenarioSessionDefinition owned, SessionSnapshot snapshot,
         Func<WorldState, SimulationEngine>? factory)
     {
-        _ = WorldState.Restore(snapshot.World, owned.Content.DefaultLoyalty);
-        SessionValidation.Validate(owned, snapshot);
         ulong seed;
         do
         {
             seed = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(
                 System.Security.Cryptography.RandomNumberGenerator.GetBytes(sizeof(ulong)));
         } while (seed == snapshot.World.Simulation.RunSeed);
-        var next = snapshot with { World = snapshot.World with
-        {
-            Simulation = snapshot.World.Simulation with { RunSeed = seed, RandomStreams = [] }
-        } };
-        return RestoreValidated(owned, next, WorldState.Restore(next.World, owned.Content.DefaultLoyalty), factory);
+        var world = WorldState.Restore(snapshot.World, owned.Content.DefaultLoyalty, seed);
+        SessionValidation.Validate(owned, snapshot);
+        return RestoreValidated(owned, snapshot, world, factory);
     }
 
     internal static GameSession Restore(ScenarioInitialState definition, SessionSnapshot snapshot, Func<WorldState, SimulationEngine>? factory)

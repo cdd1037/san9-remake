@@ -95,7 +95,7 @@ public sealed class WorldState
     /// <summary>Clones committed runtime state, including pending interactions; save validation belongs to Application.</summary>
     public static WorldState Restore(WorldSnapshot snapshot) => Restore(snapshot, snapshot.DefaultLoyalty);
 
-    public static WorldState Restore(WorldSnapshot snapshot, int defaultLoyalty)
+    public static WorldState Restore(WorldSnapshot snapshot, int defaultLoyalty, ulong? runSeed = null)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         if (snapshot.Simulation.Boundary is not (SimulationBoundary.Stable or SimulationBoundary.Terminal or SimulationBoundary.AwaitingDecision or SimulationBoundary.Advancing))
@@ -117,6 +117,13 @@ public sealed class WorldState
         };
         world._activeRecords = ActiveWorldRecords.Create(world._forces, world._settlements, world._officers);
         WorldInvariants.Validate(world.BeginMutation());
+        world.Simulation = world.Simulation with
+        {
+            RunSeed = runSeed ?? world.Simulation.RunSeed,
+            RandomStreams = runSeed is null
+                ? world.Simulation.RandomStreams.OrderBy(s => s.Name, StringComparer.Ordinal).ToImmutableArray() : [],
+            ConsumedEventKeys = world.Simulation.ConsumedEventKeys.OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray()
+        };
         return world;
     }
 

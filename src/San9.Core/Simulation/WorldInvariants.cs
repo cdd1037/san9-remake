@@ -35,7 +35,7 @@ internal static class WorldInvariants
                 state.Units.Values.Any(u => u.OwnerId == force.Id) || state.AllCorps.Values.Any(c => c.OwnerId == force.Id) ||
                 state.Simulation.Controls.Any(c => c.ForceId == force.Id))) throw new ArgumentException("Eliminated force retains active references.");
             if (force.EventHistory.IsDefault || force.EventHistory.Any(k => string.IsNullOrWhiteSpace(k.Value)) ||
-                !force.EventHistory.Select(k => k.Value).SequenceEqual(force.EventHistory.Select(k => k.Value).Distinct().Order(StringComparer.Ordinal)))
+                force.EventHistory.Select(k => k.Value).Distinct(StringComparer.Ordinal).Count() != force.EventHistory.Length)
                 throw new ArgumentException("Invalid force event history.");
             if (force.FormationGrants.IsDefault || force.FormationGrants.Any(g => g is null || g.FormationId < 0 || !Enum.IsDefined(g.Condition)) ||
                 force.FormationGrants.Select(g => g.FormationId).Distinct().Count() != force.FormationGrants.Length)
@@ -166,7 +166,7 @@ internal static class WorldInvariants
             sim.Boundary != SimulationBoundary.Terminal && (!state.Clock.IsXunBoundary && !sim.HasPendingDailyResolution && sim.DailyAdvanceStarted is null || sim.TerminalReason is not null) ||
             sim.Boundary == SimulationBoundary.Terminal && (!TerminalEvaluation.IsKnownReason(sim.TerminalReason) || !sim.Tasks.IsEmpty) ||
             sim.RandomStreams.Any(s => string.IsNullOrWhiteSpace(s.Name)) ||
-            !sim.RandomStreams.Select(s => s.Name).SequenceEqual(sim.RandomStreams.Select(s => s.Name).Distinct().Order(StringComparer.Ordinal)))
+            sim.RandomStreams.Select(s => s.Name).Distinct(StringComparer.Ordinal).Count() != sim.RandomStreams.Length)
             throw new ArgumentException("Invalid simulation boundary, control, sequence or random state.");
         if (sim.DailyAdvanceStarted is { } advancing)
         {
@@ -194,8 +194,7 @@ internal static class WorldInvariants
         PoliticalEvents.ValidatePending(state);
         if (state.Simulation.ConsumedEventKeys.IsDefault ||
             state.Simulation.ConsumedEventKeys.Any(k => string.IsNullOrWhiteSpace(k.Value)) ||
-            !state.Simulation.ConsumedEventKeys.Select(k => k.Value).SequenceEqual(
-                state.Simulation.ConsumedEventKeys.Select(k => k.Value).Distinct().Order(StringComparer.Ordinal)))
+            state.Simulation.ConsumedEventKeys.Select(k => k.Value).Distinct(StringComparer.Ordinal).Count() != state.Simulation.ConsumedEventKeys.Length)
             throw new ArgumentException("Invalid consumed event keys.");
         if (sim.PendingEvent is not (null or AllianceEventSession or OfficeRequestEventSession or CountryTitleEventSession or EmperorTransferEventSession))
             throw new ArgumentException("Unknown event session.");

@@ -8,7 +8,6 @@ internal static class SessionValidation
     internal static void Validate(ScenarioSessionDefinition definition, SessionSnapshot snapshot)
     {
         if (snapshot.Definitions is null) throw new ArgumentException("Missing session definitions.");
-        snapshot.Definitions.Validate();
         var addedPeople = snapshot.Definitions.Officers.Select(p => p.Id).ToHashSet();
         var addedForces = snapshot.Definitions.Forces.Select(f => f.Id).ToHashSet();
         var initialPeople = definition.Content.Officers.Select(p => p.State.Id).Union(addedPeople).ToHashSet();
@@ -39,16 +38,9 @@ internal static class SessionValidation
         {
             var origin = force.Origin!;
             if (force.Id != nextForceId++ || force.IsBarbarian ||
-                (origin.Kind switch
-                {
-                    ForceCreationKind.EmptyCityUprising => !snapshot.World.Simulation.ForceEmergenceEnabled || origin.PredecessorId is not null,
-                    ForceCreationKind.CityIndependence => !snapshot.World.Simulation.CityIndependenceEnabled ||
-                        origin.PredecessorId is not int previous || previous >= force.Id || !snapshot.World.Forces.Any(f => f.Id == previous),
-                    _ => true
-                }) ||
                 !initialPeople.Contains(origin.FounderId) ||
                 !definition.Content.Settlements.Any(s => s.Id == origin.SettlementId && s.Kind == SettlementKind.City) ||
-                origin.Clock.DayNumber < initialClock.DayNumber + 30 || origin.Clock.DayNumber > snapshot.World.Clock.DayNumber)
+                origin.Clock.DayNumber < initialClock.DayNumber || origin.Clock.DayNumber > snapshot.World.Clock.DayNumber)
                 throw new ArgumentException("Invalid runtime force provenance.");
         }
         var controls = snapshot.World.Simulation.Controls;

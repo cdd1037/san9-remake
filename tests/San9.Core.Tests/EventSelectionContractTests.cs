@@ -102,10 +102,10 @@ public sealed class EventSelectionContractTests
     }
 
     [Fact]
-    public void RestoreRejectsBlankDuplicateOrUnorderedKeys()
+    public void RestoreRejectsBlankDuplicateOrMissingKeys()
     {
         var snapshot = new SimulationEngine(WorldState.Create(new(190, 1, 1), 1)).CaptureStableState();
-        ImmutableArray<PersistentEventKey>[] invalid = [default, [default], [new("same"), new("same")], [new("z"), new("a")]];
+        ImmutableArray<PersistentEventKey>[] invalid = [default, [default], [new("same"), new("same")]];
         foreach (var keys in invalid)
             Assert.Throws<ArgumentException>(() => WorldState.Restore(snapshot with
             { Simulation = snapshot.Simulation with { ConsumedEventKeys = keys } }));

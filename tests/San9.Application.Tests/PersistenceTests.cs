@@ -15,6 +15,33 @@ namespace San9.Application.Tests;
 public sealed class PersistenceTests : IDisposable
 {
     [Fact]
+    public void UnorderedStateKeysSurviveSaveAndPlayerLoad()
+    {
+        var definition = Fixture();
+        var save = SaveService.Capture(GameSession.Start(definition, 190));
+        var world = save.Session.World;
+        PersistentEventKey[] history = [new("scholar-punishment.yu-ji"), new("scholar-punishment.hua-tuo")];
+        world = world with
+        {
+            Forces = world.Forces.Select(f => f with { EventHistory = history.ToImmutableArray() }).ToArray(),
+            Simulation = world.Simulation with
+            {
+                RandomStreams = [new("z", 17), new("a", 23)],
+                ConsumedEventKeys = [new("z"), new("a")]
+            }
+        };
+        save = save with { Session = save.Session with { World = world } };
+        byte[] bytes = CanonicalJson.Encode(save);
+
+        var restored = SaveService.Decode(bytes, definition);
+        Assert.All(restored.Snapshot.Forces, force => Assert.Equal(history, force.EventHistory));
+        Assert.Equal(new RandomStreamState[] { new("a", 23), new("z", 17) }, restored.Snapshot.Simulation.RandomStreams);
+        Assert.Equal(new[] { "a", "z" }, restored.Snapshot.Simulation.ConsumedEventKeys.Select(k => k.Value));
+        var loaded = SaveService.Load(bytes, definition);
+        Assert.All(loaded.Snapshot.Forces, force => Assert.Equal(history, force.EventHistory));
+    }
+
+    [Fact]
     public void SaveOmitsGlobalLoyaltyDefaultAndRestoresSparseOverridesUsingContent()
     {
         var source = Fixture();

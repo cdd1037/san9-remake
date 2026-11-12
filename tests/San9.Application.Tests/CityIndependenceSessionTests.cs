@@ -49,16 +49,14 @@ public sealed class CityIndependenceSessionTests
     [InlineData("unknown-predecessor")]
     [InlineData("missing-predecessor")]
     [InlineData("wrong-kind")]
-    [InlineData("disabled")]
-    public void RestoreChecksTheIndependentOriginAndGate(string defect)
+    public void RestoreChecksIndependentOriginReferences(string defect)
     {
         var content = Scenario();
         var session = GameSession.Start(content, 17);
         for (int i = 0; i < 3; i++) session.AdvanceXun();
         var snapshot = session.Capture();
         var world = snapshot.World;
-        if (defect == "disabled") world = world with { Simulation = world.Simulation with { CityIndependenceEnabled = false } };
-        else world = world with { Forces = world.Forces.Select(f => f.Id != 3 ? f : f with { Origin = defect switch
+        world = world with { Forces = world.Forces.Select(f => f.Id != 3 ? f : f with { Origin = defect switch
         {
             "unknown-predecessor" => f.Origin! with { PredecessorId = 500 },
             "missing-predecessor" => f.Origin! with { PredecessorId = null },

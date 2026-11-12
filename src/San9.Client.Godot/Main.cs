@@ -373,19 +373,6 @@ public partial class Main : Node
             runtime.AddChild(music);
             runtime.MoveChild(music, 1);
             world.Session = session;
-            var initialPlace = session.View.PlayerRulerServicePlace;
-            var initialCell = options.ResolveMapCenter(content.Map.Width, content.Map.Height, initialPlace is null ? null : new(initialPlace.X, initialPlace.Y));
-            var center = MapGeometry.Center(initialCell.X, initialCell.Y, content.Map.Height);
-            world.FocusWorld(new(center.X, center.Y)); world.SetZoom(options.Zoom);
-            world.LoadMap(content.Map, content.TextureRoot, options.Season, options.AnimationTime);
-            while (!world.IsVisibleReady)
-            {
-                if (world.LoadError is { } error) throw new InvalidDataException(error);
-                await NextFrame(GetTree(), token);
-                token.ThrowIfCancellationRequested();
-            }
-            GD.Print($"CLIENT_READY total_ms={startup.Elapsed.TotalMilliseconds:F2}");
-            ui.AddChild(new MapAnnotations { World = world, Texts = content.Text, UiFont = ui.GetThemeFont("font") });
             var sessions = new SessionUiHost
             {
                 World = world, Textures = textures, Content = content, Definition = initial,
@@ -396,6 +383,23 @@ public partial class Main : Node
                 LoadGame = document => LoadGame(document, transition: false)
             };
             ui.AddChild(sessions);
+            // Session settings can change the window mode. Let the viewport and HUD
+            // anchors update before requesting the first map frame at their final size.
+            await NextFrame(GetTree(), token);
+            token.ThrowIfCancellationRequested();
+            var initialPlace = session.View.PlayerRulerServicePlace;
+            var initialCell = options.ResolveMapCenter(content.Map.Width, content.Map.Height, initialPlace is null ? null : new(initialPlace.X, initialPlace.Y));
+            var center = MapGeometry.Center(initialCell.X, initialCell.Y, content.Map.Height);
+            world.FocusWorld(new(center.X, center.Y)); world.SetZoom(options.Zoom);
+            world.LoadMap(content.Map, content.TextureRoot, options.Season, options.AnimationTime);
+            ui.AddChild(new MapAnnotations { World = world, Texts = content.Text, UiFont = ui.GetThemeFont("font") });
+            while (!world.IsVisibleReady)
+            {
+                if (world.LoadError is { } error) throw new InvalidDataException(error);
+                await NextFrame(GetTree(), token);
+                token.ThrowIfCancellationRequested();
+            }
+            GD.Print($"CLIENT_READY total_ms={startup.Elapsed.TotalMilliseconds:F2}");
             if (!options.RequiresWorldVerification)
                 ui.AddChild(new Persistence.QuickSaveShortcuts
                 {

@@ -22,8 +22,21 @@ public partial class Main : Node
     private ClientDirectories _directories = null!;
     private readonly CancellationTokenSource _startup = new();
     private UiPreferencesSession _preferences = new();
+    private WindowDisplay? _windowDisplay;
+    private bool _rememberWindow;
+
+    public override void _Process(double delta) => RememberWindow();
+
+    private void RememberWindow()
+    {
+        if (_rememberWindow && _windowDisplay?.Capture() is { } placement && placement != _preferences.Current.Window)
+            _preferences.Update(p => p with { Window = placement });
+    }
+
     public override void _ExitTree()
     {
+        RememberWindow();
+        _windowDisplay?.Dispose();
         try { _preferences.Save(); }
         catch (Exception error) { GD.PushWarning($"界面偏好保存失败：{error.Message}"); }
         _startup.Cancel(); _startup.Dispose();
@@ -58,6 +71,23 @@ public partial class Main : Node
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Text.DecoderFallbackException or InvalidDataException)
             { GD.PushWarning($"界面偏好读取失败，使用默认值：{error.Message}"); }
             _preferences = new(preferences, preferenceStore.Save);
+            _windowDisplay = new(GetWindow());
+            var arguments = OS.GetCmdlineArgs().TakeWhile(argument => argument != "--").ToArray();
+            _rememberWindow = DisplayServer.GetName() != "headless" && !GetWindow().IsEmbedded() &&
+                !arguments.Any(argument => argument is "--resolution" or "--position" or "--fullscreen" or "-f" or
+                    "--maximized" or "-m" or "--windowed" or "-w" or "--embedded" or "--wid");
+            if (_rememberWindow)
+            {
+                if (preferences.Window is { } placement) _windowDisplay.Restore(placement);
+                try
+                {
+                    var settings = new UserSettingsStore(DataPaths.Settings).Load();
+                    _windowDisplay.Apply(settings.FullscreenEnabled, false);
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or
+                    System.Text.DecoderFallbackException or InvalidDataException)
+                { GD.PushWarning($"窗口显示设置读取失败：{error.Message}"); }
+            }
             if (options.MapEditor)
             {
                 GetWindow().Title = "San9R · 地图编辑器";
@@ -375,6 +405,7 @@ public partial class Main : Node
             world.Session = session;
             var sessions = new SessionUiHost
             {
+                WindowDisplay = _windowDisplay!,
                 World = world, Textures = textures, Content = content, Definition = initial,
                 DataPaths = dataPaths, SaveStore = saveStore, Music = music, InitialSession = session,
                 Preferences = _preferences,

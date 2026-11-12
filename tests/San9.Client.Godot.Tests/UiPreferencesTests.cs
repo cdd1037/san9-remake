@@ -46,6 +46,27 @@ public sealed class UiPreferencesTests : IDisposable
     }
 
     [Fact]
+    public void DesktopPlacementPersistsIndependentlyOfEnvironmentSettings()
+    {
+        var store = new UiPreferencesStore(FilePath);
+        store.Save(UiPreferences.Default);
+        var json = JsonNode.Parse(File.ReadAllText(FilePath, Encoding.UTF8))!;
+        json["preferences"]!.AsObject().Remove("window");
+        File.WriteAllText(FilePath, json.ToJsonString(), Encoding.UTF8);
+        Assert.Null(store.Load().Window);
+
+        var placement = new WindowPlacement(-1400, 80, 1280, 960, true);
+        var preferences = new UiPreferencesSession(store.Load(), store.Save);
+        preferences.Update(p => p with { Window = placement });
+        Assert.Null(store.Load().Window);
+        preferences.Save();
+        Assert.Equal(placement, store.Load().Window);
+        Assert.Throws<InvalidDataException>(() => preferences.Update(p => p with
+            { Window = placement with { Width = 0 } }));
+        Assert.Equal(placement, preferences.Current.Window);
+    }
+
+    [Fact]
     public void UnchangedAndRevertedNavigationDoesNotRewriteAndFailedShutdownCanRetry()
     {
         int writes = 0;

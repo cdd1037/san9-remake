@@ -1,4 +1,5 @@
 using Godot;
+using San9.Client.Godot.Settings;
 
 namespace San9.Client.Godot;
 
@@ -18,6 +19,38 @@ internal sealed class WindowDisplay : IDisposable
     }
 
     private bool IsDesktop => DisplayServer.GetName() != "headless" && !_window.IsEmbedded();
+
+    public WindowPlacement? Capture()
+    {
+        if (!IsDesktop) return null;
+        if (_window.Mode == Window.ModeEnum.Windowed)
+        {
+            _position = _window.Position;
+            _size = _window.Size;
+            _mode = Window.ModeEnum.Windowed;
+        }
+        else if (_window.Mode == Window.ModeEnum.Maximized) _mode = Window.ModeEnum.Maximized;
+        return new(_position.X, _position.Y, _size.X, _size.Y, _mode == Window.ModeEnum.Maximized);
+    }
+
+    public void Restore(WindowPlacement placement)
+    {
+        if (!IsDesktop) return;
+        placement.Validate();
+        var position = new Vector2I(placement.X, placement.Y);
+        var size = new Vector2I(placement.Width, placement.Height);
+        int screen = DisplayServer.GetScreenFromRect(new Rect2I(position, size));
+        if (screen < 0) screen = _window.CurrentScreen;
+        var usable = DisplayServer.ScreenGetUsableRect(screen);
+        var decorations = DisplayServer.WindowGetSizeWithDecorations(_window.GetWindowId()) - _window.Size;
+        var offset = _window.Position - DisplayServer.WindowGetPositionWithDecorations(_window.GetWindowId());
+        size = size.Clamp(Vector2I.One, (usable.Size - decorations).Max(Vector2I.One));
+        position = position.Clamp(usable.Position + offset, usable.End - size - decorations + offset);
+        _window.Mode = Window.ModeEnum.Windowed;
+        _window.Size = _size = size;
+        _window.Position = _position = position;
+        _window.Mode = _mode = placement.Maximized ? Window.ModeEnum.Maximized : Window.ModeEnum.Windowed;
+    }
 
     public bool HandleInput(InputEvent input)
     {
@@ -48,9 +81,7 @@ internal sealed class WindowDisplay : IDisposable
         {
             if (!isFullscreen)
             {
-                _position = window.Position;
-                _size = window.Size;
-                _mode = window.Mode == Window.ModeEnum.Maximized ? Window.ModeEnum.Maximized : Window.ModeEnum.Windowed;
+                Capture();
             }
             // Fullscreen covers the monitor without decorations or a display-mode change.
             window.Mode = Window.ModeEnum.Fullscreen;

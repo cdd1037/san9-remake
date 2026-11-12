@@ -23,7 +23,7 @@ public sealed class ForceConsolidationSessionTests
             new OfficerState(i, i, i == 1 ? 1 : i + 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler })).ToArray(),
         Military = new(4, 1, [0, 0, 0, 0], [new(0, 1, null)], [],
             Enumerable.Range(1, 4).Select(i => new BattlefieldPlace(i, new(5 * (i - 1) + 2, 2), new(1, 1))).ToImmutableArray())
-            { RegionIds = [1, 2, 3, 4], TerritoryExits = [TerritoryExits.All, TerritoryExits.All, TerritoryExits.All, TerritoryExits.All] },
+            { RegionIds = [1, 2, 3, 4] },
         Information = new([], [], [], Enumerable.Range(1, 3).Select(i => new San9.Core.Domain.CorpsState(i, i, i, new(1000, 1000)) { IsRoot = true }).ToArray(), []) { Relations = [new(1, 2, 0), new(1, 3, 0), new(2, 3, 100)] }
     };
 

@@ -16,6 +16,7 @@ public sealed class ScenarioEditorWorkspace
     private readonly SharedScenarioData _shared;
     private readonly Dictionary<string, byte[]?> _inputs;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
+    private (ScenarioMapManifest Manifest, MapDefinition Definition)? _map;
     private ScenarioDocument _saved;
     private ScenarioPreviewEntry _savedPreview;
     public string ScenarioPath { get; }
@@ -76,12 +77,23 @@ public sealed class ScenarioEditorWorkspace
         var definitions = await ReadActive<ScenarioDefinitions>(PackageFiles.Resolve(root, manifest.Definitions));
         var officers = await ReadActive<OfficerDefaultsCatalog>(PackageFiles.Resolve(root, manifest.OfficerDefaults));
         var geography = await Read<ScenarioGeography>(PackageFiles.Resolve(root, manifest.Geography));
+        (ScenarioMapManifest Manifest, MapDefinition Definition)? authoredMap = null;
+        if (geography.Military is not null)
+        {
+            var mapManifest = await Read<ScenarioMapManifest>(PackageFiles.Resolve(root, manifest.Map));
+            var map = await Read<MapDefinition>(PackageFiles.Resolve(root, mapManifest.Definition));
+            geography = San9.Content.Maps.MapGeographyCompiler.Resolve(mapManifest, map, geography, document, definitions, officers, token);
+            authoredMap = (mapManifest with
+            {
+                GeographyInputHash = San9.Content.Maps.MapGeographyCompiler.InputHash(map, geography, document, definitions)
+            }, map);
+        }
         var shared = new SharedScenarioData(manifest.Definitions, manifest.OfficerDefaults, manifest.Geography, definitions, officers, geography);
         shared.Validate();
         document.Compile(definitions, officers.Officers, geography);
         var text = await Read<StaticTextContent>(PackageFiles.Resolve(root, manifest.Text));
         var catalogText = new TextCatalog(text.SchemaVersion, text.Entries) { MessagePeople = text.MessagePeople, MessageTags = text.MessageTags };
-        return new(scenarioPath, manifestPath, manifest, document, shared, catalogText, inputs);
+        return new(scenarioPath, manifestPath, manifest, document, shared, catalogText, inputs) { _map = authoredMap };
     }
 
     public string OfficerName(int id)
@@ -144,7 +156,9 @@ public sealed class ScenarioEditorWorkspace
 
     private void Validate(ScenarioDocument document)
     {
-        var scenario = document.Compile(_shared.Definitions, _shared.Officers.Officers, _shared.Geography);
+        var geography = _map is { } map ? San9.Content.Maps.MapGeographyCompiler.Resolve(map.Manifest, map.Definition,
+            _shared.Geography, document, _shared.Definitions, _shared.Officers) : _shared.Geography;
+        var scenario = document.Compile(_shared.Definitions, _shared.Officers.Officers, geography);
         var profiles = OfficerComposition.Profiles(document.Officers, [.. _shared.Officers.Officers, .. document.AdditionalOfficerDefaults]);
         var text = OfficerComposition.ProjectText(Text, profiles);
         text.Validate();

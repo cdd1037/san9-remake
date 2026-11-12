@@ -25,7 +25,7 @@ public sealed class DiplomacyPlannerTests
                 [new(1, MapCoordinates.Center(new(1, 1)), new(1, 1)), new(2, MapCoordinates.Center(new(2, 2)), new(1, 1))])
             {
                 RegionIds = Enumerable.Range(0, 25).Select(i => (int?)(i % 5 < 2 ? 1 : 2)).ToImmutableArray(),
-                TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 25).ToImmutableArray()
+
             }
         };
         var session = GameSession.Start(content, 42);

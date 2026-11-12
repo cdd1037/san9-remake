@@ -101,8 +101,7 @@ public sealed class SurrenderDiplomacyTests
         Military = new(new(200, 3, Enumerable.Repeat(0, 600).ToImmutableArray(), [new(0, 1, null)],
             [new(9, 1, 0, 10000, 5, new(1, 1), TravelMode.Land)],
             [new(1, new(2, 2), new(1, 1)), new(2, new(92, 2), new(1, 1)), new(3, new(182, 2), new(1, 1)), new(4, new(112, 2), new(1, 1))])
-            { RegionIds = Enumerable.Range(0, 600).Select(i => (int?)(i % 200 < 18 ? 1 : i % 200 < 36 ? 2 : 3)).ToImmutableArray(),
-              TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 600).ToImmutableArray() })
+            { RegionIds = Enumerable.Range(0, 600).Select(i => (int?)(i % 200 < 18 ? 1 : i % 200 < 36 ? 2 : 3)).ToImmutableArray() })
     };
     private static OfficerState Person(int id, int force, int? home, OfficerStatus status = OfficerStatus.Serving, int loyalty = 255) =>
         new(id, force, home, new(50, 50, 100, 50), false) { Status = status, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(force, loyalty) };

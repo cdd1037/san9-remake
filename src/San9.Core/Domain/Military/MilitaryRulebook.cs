@@ -103,7 +103,6 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
     [JsonRequired] public ImmutableArray<TrapTerrainRule> TrapTerrains { get; init; } = [];
     [JsonRequired] public HigherGroundTrapRule? HigherGroundTrap { get; init; }
     [JsonRequired] public ImmutableArray<int?> RegionIds { get; init; } = [];
-    [JsonRequired] public ImmutableArray<TerritoryExits> TerritoryExits { get; init; } = [];
     [JsonRequired] public ImmutableArray<TacticRule> Tactics { get; init; } = [];
     [JsonRequired] public TacticLinkRules LinkRules { get; init; } = TacticLinkRules.Empty;
     [JsonRequired] public CityInfluenceRule? CityInfluence { get; init; }
@@ -162,7 +161,7 @@ public sealed partial class MilitaryRulebook
         RegionIds = definition.RegionIds;
         if (RegionIds.IsDefault || !RegionIds.IsEmpty && RegionIds.Length != definition.TerrainIds.Length || RegionIds.Any(id => id < 0))
             throw new ArgumentException("Invalid battlefield region geography.");
-        territoryBorders = BuildTerritoryBorders(definition.TerritoryExits);
+        territoryBorders = BuildTerritoryBorders();
         Formations = definition.Formations.ToImmutableDictionary(f => f.Id);
         if (Formations.Values.Any(f => f.SnipingChanceBonus is < 0 or > 100))
             throw new ArgumentException("Invalid sniping formation bonus.");

@@ -322,7 +322,6 @@ public sealed record MilitaryRulesDefinition
             ConstructionSites = geography.ConstructionSites,
             Elevations = geography.Elevations,
             RegionIds = geography.RegionIds,
-            TerritoryExits = geography.TerritoryExits,
             Geography = geography.Geography,
             BlockedCells = geography.BlockedCells,
         };
@@ -337,7 +336,6 @@ public sealed record MilitaryGeographyDefinition
     [JsonRequired] public required ImmutableArray<ConstructionSite> ConstructionSites { get; init; }
     [JsonRequired] public required ImmutableArray<int> Elevations { get; init; }
     [JsonRequired] public required ImmutableArray<int?> RegionIds { get; init; }
-    [JsonRequired] public required ImmutableArray<TerritoryExits> TerritoryExits { get; init; }
     [JsonRequired] public required BattlefieldGeography Geography { get; init; }
     [JsonRequired] public required ImmutableArray<MapCell> BlockedCells { get; init; }
 
@@ -349,7 +347,6 @@ public sealed record MilitaryGeographyDefinition
         ConstructionSites = value.ConstructionSites,
         Elevations = value.Elevations,
         RegionIds = value.RegionIds,
-        TerritoryExits = value.TerritoryExits,
         Geography = value.Geography,
         BlockedCells = value.BlockedCells,
     };
@@ -358,7 +355,7 @@ public sealed record MilitaryGeographyDefinition
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ScenarioGeography
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
     [JsonRequired] public int SchemaVersion { get; init; } = CurrentSchemaVersion;
     [JsonRequired] public required Dictionary<int, string> RegionNameKeys { get; init; }
     [JsonRequired] public required Dictionary<int, int> RegionCityIds { get; init; }

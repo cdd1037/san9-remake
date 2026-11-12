@@ -15,6 +15,7 @@ public sealed record MapResources(MapSeason[] Seasons, ImageAsset[] Assets, MapM
     int[] MaskHeightAdjustments, CloudPlacement[] CloudPlacements, byte[] MinimapColors)
 {
     [System.Text.Json.Serialization.JsonRequired] public MapUnitCatalog Units { get; init; } = MapUnitCatalog.Empty;
+    [System.Text.Json.Serialization.JsonRequired] public TerrainStyle[] TerrainStyles { get; init; } = [];
 }
 
 /// <summary>Source-version resources. No scenario state or scenario identifier belongs here.</summary>
@@ -26,7 +27,7 @@ public sealed record TexturePackage(int SchemaVersion, int ConversionVersion, st
     public IReadOnlyDictionary<string, string> ImageSources { get; init; } = new Dictionary<string, string>();
     [System.Text.Json.Serialization.JsonIgnore]
     public TreasureIllustrationCatalog TreasureIllustrations { get; init; } = TreasureIllustrationCatalog.Empty;
-    public const int CurrentSchemaVersion = 8;
+    public const int CurrentSchemaVersion = 10;
     [System.Text.Json.Serialization.JsonIgnore]
     public IEnumerable<ImageAsset> Assets => Map.Assets.Concat(Map.Seasons.SelectMany(s => s.Textures))
         .Concat(Skin.Assets).Concat(Library.Assets).Concat(Portraits.Select(p => p.Image)).Concat(TreasureIllustrations.Assets);
@@ -35,6 +36,11 @@ public sealed record TexturePackage(int SchemaVersion, int ConversionVersion, st
     {
         if (SchemaVersion != CurrentSchemaVersion || Map.MinimapColors.Length != 32 || Map.MaskPositions.Length != 288 ||
             Map.MaskHeightAdjustments.Length != 16) throw new InvalidDataException("Invalid texture package.");
+        if (Map.TerrainStyles.Select(s => s.Id).Distinct().Count() != Map.TerrainStyles.Length ||
+            Map.TerrainStyles.Any(s => s.Id < 0 || s.VariantCount == 0 || s.Levels.Length == 0 ||
+                s.Levels.Select(l => l.Elevation).Distinct().Count() != s.Levels.Length ||
+                s.Levels.Any(l => l.Elevation < 0 || l.Resources.Length != 16 * s.VariantCount)))
+            throw new InvalidDataException("Invalid terrain styles.");
         if (Sources.Any(s => string.IsNullOrWhiteSpace(s.Name) || s.Name.IndexOfAny(['/', '\\', ':']) >= 0 ||
             s.Length < 0 || s.Sha256 is null || s.Sha256.Length != 64 || s.Sha256.Any(c => !Uri.IsHexDigit(c))))
             throw new InvalidDataException("Invalid texture source fingerprint.");

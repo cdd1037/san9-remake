@@ -209,8 +209,7 @@ public sealed class AdministrativeInformationTests
                 [new(15, MapCoordinates.Center(new(0, 0)), new(1, 1)),
                  new(16, MapCoordinates.Center(new(1, 0)), new(1, 1)),
                  new(17, MapCoordinates.Center(new(2, 0)), new(1, 1))]) {
-                RegionIds = [15, 50, 17], TerritoryExits = [TerritoryExits.East, TerritoryExits.East, TerritoryExits.None]
-            }
+                RegionIds = [15, 50, 17] }
         };
         var world = session.View.World;
         var view = new StrategySnapshot(definition, world with {
@@ -238,8 +237,7 @@ public sealed class AdministrativeInformationTests
                 [new(15, MapCoordinates.Center(new(0, 0)), new(1, 1)),
                  new(16, MapCoordinates.Center(new(1, 0)), new(1, 1)),
                  new(17, MapCoordinates.Center(new(2, 0)), new(1, 1))]) {
-                RegionIds = [16, 15, 17], TerritoryExits = [TerritoryExits.None, TerritoryExits.All, TerritoryExits.None]
-            }
+                RegionIds = [16, 15, 17] }
         };
         var catalog = new AdministrativeCatalog(new StrategySnapshot(definition, session.View.World), text);
         Assert.Equal("安平‧港口原名", catalog.Cell(InformationCategory.Regions, 15, "adjacent").Text);
@@ -278,7 +276,7 @@ public sealed class AdministrativeInformationTests
                  new(16, MapCoordinates.Center(new(1, 0)), new(1, 1)),
                  new(17, MapCoordinates.Center(new(2, 0)), new(1, 1))]) {
                 RegionIds = [15, 50, 17],
-                TerritoryExits = [TerritoryExits.None, borderOpen ? TerritoryExits.East : TerritoryExits.None, TerritoryExits.None]
+                Geography = new(1, borderOpen ? [new(0, 0)] : [new(0, 0), new(2, 0)])
             }
         };
         var world = session.View.World;

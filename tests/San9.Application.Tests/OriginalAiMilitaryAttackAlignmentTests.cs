@@ -191,7 +191,7 @@ public sealed partial class OriginalAiMilitaryTests
             RegionCityIds = new(basis.RegionCityIds) { [3] = 3 },
             RegionNameKeys = new(basis.RegionNameKeys) { [3] = "weaker" },
             Military = basis.Military! with { Height = 20, TerrainIds = Enumerable.Repeat(0, 400).ToImmutableArray(),
-                TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 400).ToImmutableArray(),
+
                 Places = basis.Military.Places.Add(new(3, new(67, 67), new(1, 1)) { Combat = basis.Military.Places[1].Combat }),
                 RegionIds = Enumerable.Range(0, 400).Select(i => (int?)(i / 20 >= 10 ? 3 : i % 20 < 10 ? 1 : 2)).ToImmutableArray() }
         };

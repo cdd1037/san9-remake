@@ -1,3 +1,4 @@
+using San9.Content.Maps;
 using San9.Importer.San9PkTc101.Images;
 using San9.Importer.San9PkTc101;
 
@@ -8,12 +9,12 @@ public sealed class MapAnimationCompilerTests
     [Fact]
     public void WaterQualificationUsesOnlySpecifiedBridgeOffsets()
     {
-        foreach (int terrain in new[] { 9, 10, 15, 16 }) Assert.True(MapAnimationCompiler.HasWater(terrain, 10, 10, (_, _) => false));
+        foreach (int terrain in new[] { 9, 10, 15, 16 }) Assert.True(MapLayoutCompiler.HasWater(MapResourceCompiler.TerrainStyles()[terrain], 10, 10, (_, _) => false));
         foreach (var (x, y) in new[] { (11, 9), (7, 9), (9, 11), (9, 7) })
-            Assert.True(MapAnimationCompiler.HasWater(12, 10, 10, (bx, by) => bx == x && by == y));
-        Assert.False(MapAnimationCompiler.HasWater(12, 10, 10, (x, y) => x == 11 && y == 10));
-        Assert.False(MapAnimationCompiler.HasWater(11, 10, 10, (_, _) => true));
-        Assert.False(MapAnimationCompiler.HasWater(1, 10, 10, (_, _) => true));
+            Assert.True(MapLayoutCompiler.HasWater(MapResourceCompiler.TerrainStyles()[12], 10, 10, (bx, by) => bx == x && by == y));
+        Assert.False(MapLayoutCompiler.HasWater(MapResourceCompiler.TerrainStyles()[12], 10, 10, (x, y) => x == 11 && y == 10));
+        Assert.False(MapLayoutCompiler.HasWater(MapResourceCompiler.TerrainStyles()[11], 10, 10, (_, _) => true));
+        Assert.False(MapLayoutCompiler.HasWater(MapResourceCompiler.TerrainStyles()[1], 10, 10, (_, _) => true));
     }
 
     [Fact]

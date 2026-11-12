@@ -295,7 +295,7 @@ public sealed class ProgressPresentationTests
         definition = definition with { Military = definition.Military! with
         {
             RegionIds = Enumerable.Range(0, 90).Select(i => (int?)(i % 30 < 10 ? 1 : 2)).ToImmutableArray(),
-            TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 90).ToImmutableArray()
+
         } };
         var world = GameSession.Start(definition, 42).Snapshot;
         return (definition, world with

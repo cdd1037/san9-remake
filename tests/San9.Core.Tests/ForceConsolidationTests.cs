@@ -21,13 +21,13 @@ public sealed class ForceConsolidationTests
         controls: [new("player", 1, ControllerKind.Player), new("ai:2", 2, ControllerKind.Automatic), new("ai:3", 3, ControllerKind.Automatic)],
         annualAppearancesEnabled: false, naturalDeathsEnabled: false, freeOfficerMigrationEnabled: false, officeRequestsEnabled: false, corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(100, 100)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(200, 300)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(400, 500)) { IsRoot = true }]);
 
-    private static SimulationRules Rules(TerritoryExits exits = TerritoryExits.All) => new()
+    private static SimulationRules Rules(bool connected = true) => new()
     {
         Personnel = new(Enumerable.Range(1, 4).Select(i => new PersonPlace(i, new(5 * (i - 1) + 2, 2)))),
         Military = new(new(4, 1, [0, 0, 0, 0], [new(0, 1, null)],
             [new(9, 1, 0, 10000, 5, new(1, 1), TravelMode.Land)],
             Enumerable.Range(1, 4).Select(i => new BattlefieldPlace(i, new(5 * (i - 1) + 2, 2), new(1, 1))).ToImmutableArray())
-            { RegionIds = [1, 2, 3, 4], TerritoryExits = [exits, exits, exits, exits] })
+            { RegionIds = [1, 2, 3, 4], Geography = new(1, connected ? [] : [new(0, 0), new(1, 0), new(2, 0), new(3, 0)]) })
     };
 
     private static WorldMutation Pending(WorldState world)
@@ -185,7 +185,7 @@ public sealed class ForceConsolidationTests
         if (reason == "alliance") world.SetSimulation(world.Simulation with { Alliance = new(1, 2, [2, 3], 1) });
         if (reason == "one-player-city") world.Replace(world.Settlements[2] with { Kind = SettlementKind.Facility });
         List<DomainEvent> events = [];
-        ForceConsolidation.Apply(world, Rules(reason == "no-neighbors" ? TerritoryExits.None : TerritoryExits.All), events);
+        ForceConsolidation.Apply(world, Rules(reason != "no-neighbors"), events);
         Assert.Empty(events);
         Assert.Empty(world.Simulation.RandomStreams);
     }
@@ -228,17 +228,6 @@ public sealed class ForceConsolidationTests
         Assert.False(mutation.Simulation.ForceConsolidationPending);
         mutation.Replace(mutation.Settlements[3] with { OwnerId = 1 });
         Assert.True(mutation.Simulation.ForceConsolidationPending);
-    }
-
-    [Theory]
-    [InlineData(TerritoryExits.West, true)]
-    [InlineData(TerritoryExits.East, false)]
-    public void NeighborsKeepTheirDirection(TerritoryExits exits, bool merges)
-    {
-        var world = Pending(World());
-        List<DomainEvent> events = [];
-        ForceConsolidation.Apply(world, Rules(exits), events);
-        Assert.Equal(merges, events.OfType<ForcesConsolidatedEvent>().Any());
     }
 
     [Fact]

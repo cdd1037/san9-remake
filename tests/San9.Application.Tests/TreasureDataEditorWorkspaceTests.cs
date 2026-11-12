@@ -34,7 +34,9 @@ public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
             if (id == "private") world = world with { Information = source.Information with
             { Treasures = source.Information.Treasures.Select(t => t.Id == 901 ? t with { Name = "剧本专属" } : t).ToArray() } };
             var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion, new("textures"),
-                new(new(MapDefinition.CurrentSchemaVersion, "fixture", 4, 4, 4, 4, [], [], [], [], [], [], [], [], []), []), world, text, [])
+                new(new(MapDefinition.CurrentSchemaVersion, "fixture", world.Military?.Width ?? 4, world.Military?.Height ?? 4,
+                    Enumerable.Repeat(new San9.Content.Maps.MapCellDefinition(0, 0, 0, null),
+                        (world.Military?.Width ?? 4) * (world.Military?.Height ?? 4)).ToArray(), []), []), world, text, [])
             { Preview = new(id, "custom", world.Year, world.Month, "测试剧本", "测试简介", []) };
             await ScenarioContentFiles.WriteAsync(Path.Combine(_root, id), content, resourceRoot: _root, sharedScenario: shared);
         }

@@ -58,6 +58,13 @@ public partial class Main : Node
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Text.DecoderFallbackException or InvalidDataException)
             { GD.PushWarning($"界面偏好读取失败，使用默认值：{error.Message}"); }
             _preferences = new(preferences, preferenceStore.Save);
+            if (options.MapEditor)
+            {
+                GetWindow().Title = "San9R · 地图编辑器";
+                ui.AddChild(new MapEditor { ContentRoot = options.ContentRoot, ScenarioId = options.ScenarioId,
+                    Closed = () => GetTree().Quit() });
+                return;
+            }
             if (options.ScenarioEditor)
             {
                 GetWindow().Title = "San9R · 剧本编辑器";

@@ -11,7 +11,7 @@ public sealed class OfficeRequestTests
     {
         Personnel = new([new(1, new(0, 0)), new(2, new(30, 0)), new(3, new(60, 0))]),
         Military = new(new(3, 1, [0, 0, 0], [new(0, 1, null)], [], [])
-        { RegionIds = [1, 2, 3], TerritoryExits = [TerritoryExits.East, TerritoryExits.East, TerritoryExits.None] })
+        { RegionIds = [1, 2, 3] })
     };
 
     private static WorldState World(ulong seed = 0, bool player = true, int count = 1, bool enabled = true) => WorldState.Create(new(190, 1, 1), seed,

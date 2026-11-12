@@ -30,7 +30,8 @@ public sealed partial class SharedDataEditorWorkspaceTests : IDisposable
             var world = scenario with { ScenarioId = id };
             if (id == "private") world = world with { Military = world.Military! with { Formations = [formation with { MovementBudget = 70 }] } };
             var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion, new("../textures"),
-                new(new(MapDefinition.CurrentSchemaVersion, "fixture", 2, 2, 2, 2, [], [], [], [], [], [], [], [], []), []), world,
+                new(new(MapDefinition.CurrentSchemaVersion, "fixture", 2, 2,
+                    Enumerable.Repeat(new San9.Content.Maps.MapCellDefinition(0, 0, 0, null), 4).ToArray(), []), []), world,
                 new(TextCatalog.CurrentSchemaVersion, new() { ["shape"] = "自制阵形", ["office"] = "自制官职" }), []);
             await ScenarioContentFiles.WriteAsync(Path.Combine(_root, id), content, resourceRoot: _root, sharedScenario: shared);
         }

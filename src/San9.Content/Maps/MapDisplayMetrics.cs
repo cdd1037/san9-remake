@@ -8,6 +8,8 @@ public static class MapDisplayMetrics
     public const int OriginX = 96;
     public const int OriginY = 112;
     public const int ElevationStep = 10;
+    public static (int X, int Y) Center(int x, int y, int mapHeight) =>
+        (HalfCellWidth * (x + mapHeight - y) + OriginX, HalfCellHeight * (x + y + 1) + OriginY);
     public static (int Width, int Height) CanvasSize(int width, int height) =>
         (checked((width + height) * HalfCellWidth + 256), checked((width + height) * HalfCellHeight + 256));
 }

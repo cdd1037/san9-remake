@@ -1,5 +1,4 @@
 using San9.Content.Maps;
-using static San9.Content.Maps.MapDisplayMetrics;
 
 namespace San9.Rendering;
 
@@ -69,18 +68,8 @@ public static class MapCameraBoundary
         for (int row = Math.Max(0, y - 4); row <= Math.Min((height - 1), y + 4); row++)
         for (int column = Math.Max(0, x - 4); column <= Math.Min((width - 1), x + 4); column++)
         {
-            var square = squares[column + row * width];
-            var center = MapGeometry.Center(column, row, height);
-            double dx = px - center.X;
-            if (Math.Abs(dx) > HalfCellWidth) continue;
-            int mask = square.ElevationMask;
-            double side = (mask & (dx < 0 ? 4 : 8)) != 0 ? -ElevationStep : 0;
-            double top = -HalfCellHeight - ((mask & 1) != 0 ? ElevationStep : 0);
-            double bottom = HalfCellHeight - ((mask & 2) != 0 ? ElevationStep : 0);
-            double t = Math.Abs(dx) / HalfCellWidth;
-            double cy = center.Y - ElevationStep * (square.Elevation - 1);
-            if (py >= cy + top + (side - top) * t && py < cy + bottom + (side - bottom) * t)
-                return (px, py);
+            var surface = MapCellSurface.Create(column, row, height, squares[column + row * width]);
+            if (surface.Contains(px, py)) return (px, py);
         }
         // Constrain continuously to the perimeter; never snap the window to a square center.
         double best = double.PositiveInfinity;
@@ -101,18 +90,11 @@ public static class MapCameraBoundary
     {
         IEnumerable<Segment> Square(int column, int row)
         {
-            var square = squares[column + row * width];
-            var center = MapGeometry.Center(column, row, height);
-            double cy = center.Y - ElevationStep * (square.Elevation - 1);
-            int mask = square.ElevationMask;
-            double top = cy - HalfCellHeight - ((mask & 1) != 0 ? ElevationStep : 0);
-            double bottom = cy + HalfCellHeight - ((mask & 2) != 0 ? ElevationStep : 0);
-            double left = cy - ((mask & 4) != 0 ? ElevationStep : 0);
-            double right = cy - ((mask & 8) != 0 ? ElevationStep : 0);
-            if (column == 0) yield return new(center.X - HalfCellWidth, left, center.X, top);
-            if (row == 0) yield return new(center.X, top, center.X + HalfCellWidth, right);
-            if (column == width - 1) yield return new(center.X + HalfCellWidth, right, center.X, bottom);
-            if (row == height - 1) yield return new(center.X, bottom, center.X - HalfCellWidth, left);
+            var surface = MapCellSurface.Create(column, row, height, squares[column + row * width]);
+            if (column == 0) yield return new(surface.LeftX, surface.LeftY, surface.CenterX, surface.TopY);
+            if (row == 0) yield return new(surface.CenterX, surface.TopY, surface.RightX, surface.RightY);
+            if (column == width - 1) yield return new(surface.RightX, surface.RightY, surface.CenterX, surface.BottomY);
+            if (row == height - 1) yield return new(surface.CenterX, surface.BottomY, surface.LeftX, surface.LeftY);
         }
         for (int x = 0; x < width; x++)
         {

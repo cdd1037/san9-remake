@@ -4,39 +4,37 @@ using San9.Content.Text;
 
 namespace San9.Content.Packages;
 
-/// <summary>Fixed geography and display placements shared by explicitly referencing scenarios.</summary>
+/// <summary>Authoritative map inputs shared by explicitly referencing scenarios.</summary>
 public sealed record MapDefinition(int SchemaVersion, string SourceBuild,
-    int Width, int Height, int CanvasWidth, int CanvasHeight, MapSquare[] Squares,
-    TerrainStamp[] Terrain, MapSprite[] Bridges,
-    MapSprite[] Clouds, int?[] LeftEdge, int?[] RightEdge,
-    MapAnimatedSprite[] Water, MapSprite[] Boundaries, MapBuildingType[] BuildingTypes)
+    int Width, int Height, MapCellDefinition[] Cells, MapBuildingType[] BuildingTypes)
 {
-    public const int CurrentSchemaVersion = 1;
-    public static MapDefinition From(MapPackage m) => new(CurrentSchemaVersion, m.SourceBuild,
-        m.Width,m.Height,m.CanvasWidth,m.CanvasHeight,m.Squares,m.Terrain,m.Bridges,
-        m.Clouds,m.LeftEdge,m.RightEdge,m.Animations.Water,m.Boundaries,m.BuildingTypes);
+    public const int CurrentSchemaVersion = 3;
+    [System.Text.Json.Serialization.JsonRequired]
+    public MapBlockingDefaults BlockingDefaults { get; init; } = new([], [], 2);
+
+    public void Validate()
+    {
+        if (SchemaVersion != CurrentSchemaVersion || Width <= 0 || Height <= 0 ||
+            (long)Width * Height != Cells.Length)
+            throw new InvalidDataException("Invalid map definition version or dimensions; rebuild the content package.");
+        _ = MapDisplayMetrics.CanvasSize(Width, Height);
+        BlockingDefaults.Validate();
+        if (Cells.Any(c => c.Terrain < 0 || c.Elevation < 0 || c.TextureVariant < 0 ||
+                c.RegionId < 0 || c.BridgeOrientation is < 0 or > 1 ||
+                ((int)c.Construction & ~7) != 0) ||
+            BuildingTypes.Select(t => t.Id).Distinct().Count() != BuildingTypes.Length)
+            throw new InvalidDataException("Invalid map cell inputs or building types.");
+    }
 }
 
-/// <summary>A scenario owns building placements and references a fixed map definition.</summary>
+/// <summary>A scenario owns building placements and references an authored map.</summary>
 public sealed record MapInstance(MapDefinition Definition, MapBuildingPlacement[] Buildings)
 {
-    public static MapInstance From(MapPackage m) => new(MapDefinition.From(m), m.Buildings);
+    public static MapInstance From(MapPackage map) => new(map.Authoring
+        ?? throw new InvalidDataException("Map authoring inputs are required."), map.Buildings);
 
-    public MapPackage Resolve(MapResources r, ScenarioInitialState scenario)
-    {
-        var d = Definition;
-        if (d.SchemaVersion != MapDefinition.CurrentSchemaVersion) throw new InvalidDataException("Unsupported map definition version.");
-        string season = scenario.Month switch
-        {
-            >= 1 and <= 3 => "spring", >= 4 and <= 6 => "summer",
-            >= 7 and <= 9 => "autumn", >= 10 and <= 12 => "winter",
-            _ => throw new InvalidDataException("Invalid initial map month.")
-        };
-        return new(MapPackage.CurrentSchemaVersion,d.SourceBuild,scenario.ScenarioId,season,d.Width,d.Height,
-            d.CanvasWidth,d.CanvasHeight,d.Squares,r.Seasons,r.Assets,r.Masks,d.Terrain,d.Bridges,Buildings,
-            r.Compositions,d.Clouds,d.LeftEdge,d.RightEdge,[],new(r.Clips,d.Water),d.Boundaries)
-            { Units = r.Units.BindFormations(scenario.Information.Formations), BuildingTypes = d.BuildingTypes, MinimapColors = r.MinimapColors };
-    }
+    public MapPackage Resolve(MapResources resources, ScenarioInitialState scenario) =>
+        MapLayoutCompiler.Compile(Definition, Buildings, resources, scenario);
 }
 
 public sealed record TextureDependency(string Path);
@@ -48,7 +46,7 @@ public sealed record ScenarioContent(int SchemaVersion, TextureDependency Textur
     [System.Text.Json.Serialization.JsonRequired]
     public San9.Content.Interface.CommandPresentation Presentation { get; init; } = San9.Content.Interface.CommandPresentation.Empty;
     [System.Text.Json.Serialization.JsonIgnore] public string ResourceRoot { get; init; } = "";
-    public const int CurrentSchemaVersion = 260;
+    public const int CurrentSchemaVersion = 261;
 }
 
 /// <summary>Selected scenario data and static display references, read from the authoritative content files.</summary>

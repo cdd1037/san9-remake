@@ -5,7 +5,7 @@ namespace San9.Rendering;
 
 public static class MapGeometry
 {
-    public static (int X, int Y) Center(int x, int y, int mapHeight) => (HalfCellWidth * (x + mapHeight - y) + OriginX, HalfCellHeight * (x + y + 1) + OriginY);
+    public static (int X, int Y) Center(int x, int y, int mapHeight) => MapDisplayMetrics.Center(x, y, mapHeight);
     public static bool TrySquare(double px, double py, out int x, out int y, int width, int height)
     {
         double difference = (px - OriginX) / HalfCellWidth - height;

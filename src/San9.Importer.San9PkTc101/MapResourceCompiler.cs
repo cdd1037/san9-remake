@@ -10,6 +10,34 @@ namespace San9.Importer.San9PkTc101;
 
 public static class MapResourceCompiler
 {
+    public static TerrainStyle[] TerrainStyles()
+    {
+        int[] bases = [10331, 10006, 10525, 10198, 10717, 10255, 10523, 10774, 10312, 10315, 10319, 10315, 10315, 10006, 10006, 10323, 10327];
+        int[] variants = [3, 3, 3, 3, 3, 3, 2, 3, 3, 4, 4, 1, 1, 3, 3, 4, 4];
+        int[] low = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1];
+        int[] high = [7, 7, 7, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 7, 7, 1, 1];
+        int[] priority = [12, 14, 7, 9, 8, 11, 5, 6, 10, 4, 3, 4, 4, 15, 13, 2, 1];
+        int[] edge = [0, 5, 8, 0, 7, 2, 4, 7, 6, 1, 3, 6, 0, 5, 8, 0];
+        return Enumerable.Range(0, bases.Length).Select(id =>
+        {
+            bool transitions = id is 0 or 1 or 2 or 3 or 4 or 5 or 13 or 14;
+            int Resource(int h, int mask, int value)
+            {
+                if (h < low[id] || h > high[id]) return bases[id];
+                int variant = value switch { 4 => 2, 5 => 1, _ => value };
+                int resource = bases[id] + (transitions && h != high[id] ? edge[mask] : 0) +
+                    variant * (h == high[id] ? 1 : 9) + variants[id] * (transitions ? 9 : 1) * (h - low[id]);
+                return TerrainResourceBindings.Palette(resource) is null ? -1 : resource;
+            }
+            return new TerrainStyle(id, priority[id], transitions,
+                Enumerable.Range(0, 6).Select(v => id is 9 or 10 or 15 or 16 ? v switch { 0 => 3, 3 => 0, 4 => 1, 5 => 2, _ => v } : v).ToArray(),
+                Enumerable.Range(0, 8).Select(h => new TerrainLevel(h,
+                    Enumerable.Range(0, 16).SelectMany(mask => Enumerable.Range(0, 6).Select(v => Resource(h, mask, v))).ToArray())).ToArray())
+            { Water = id is 9 or 10 or 15 or 16, BridgeWater = id == 12,
+                WaterEdge = id is 9 or 10 or 11 or 12 or 15 or 16, ShoreEdge = id is 0 or 5 };
+        }).ToArray();
+    }
+
     public static MapResources Compile(byte[] exe, string dataDir, Func<string, byte[]> Read,
         Func<string, string, TextureSourceImage, ImageAsset> Save, Action<string>? progress, CancellationToken token)
     {
@@ -23,7 +51,7 @@ public static class MapResourceCompiler
             int id = Int(0x25cfd0 + i * 8), slot = Int(0x25cfd0 + i * 8 + 4);
             if (id is >= 10006 and <= 10776) paletteBindings.Add(id, slot - 91);
         }
-        if (paletteBindings.Count != 771 || paletteBindings.Any(p => MapTerrainCompiler.Palette(p.Key) != p.Value))
+        if (paletteBindings.Count != 771 || paletteBindings.Any(p => TerrainResourceBindings.Palette(p.Key) != p.Value))
             throw new InvalidDataException("Source land registry does not match confirmed bindings.");
         var positions = Enumerable.Range(0, 288).Select(i => Int(root.GetProperty("maskPositionOffset").GetInt32() + 4 * i)).ToArray();
         var adjustments = Enumerable.Range(0, 16).Select(i => Int(root.GetProperty("maskHeightOffset").GetInt32() + 4 * i)).ToArray();
@@ -123,6 +151,6 @@ public static class MapResourceCompiler
         }).ToList();
         var colors = Palettes("P_MapEtc", 2)[0].Skip(4).Take(32).ToArray();
         return new(seasons.ToArray(), assets.ToArray(), maskRecords.ToArray(), compositions.ToArray(), clips.ToArray(),
-            positions, adjustments, cloudPlacements.Select(c => new CloudPlacement(c.Item1,c.Item2,c.Item3,c.Item4)).ToArray(), colors) { Units = units };
+            positions, adjustments, cloudPlacements.Select(c => new CloudPlacement(c.Item1,c.Item2,c.Item3,c.Item4)).ToArray(), colors) { Units = units, TerrainStyles = TerrainStyles() };
     }
 }

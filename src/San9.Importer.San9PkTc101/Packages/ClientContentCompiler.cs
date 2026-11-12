@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using San9.Content.Packages;
 using San9.Importer.San9PkTc101.Interface;
 using San9.Importer.San9PkTc101.Scenarios;
@@ -16,11 +15,8 @@ internal static class ClientContentCompiler
     {
         token.ThrowIfCancellationRequested();
         var scenarioSource = source.Scenario(scenarioFile);
-        byte[] exe = source.Executable, scenarioBytes = scenarioSource.Bytes;
-        string sourceExe = source.Directory.Executable;
-        var map = MapImporter.Build(scenarioSource, textures.Map,
-            [new(Path.GetFileName(sourceExe), Convert.ToHexString(SHA256.HashData(exe))),
-             new(Path.GetFileName(scenarioFile), Convert.ToHexString(SHA256.HashData(scenarioBytes)))]);
+        byte[] exe = source.Executable;
+        var map = MapImporter.Build(scenarioSource);
         var (scenario, text) = source.World(scenarioFile, token);
         Dictionary<string, San9.Content.Text.MessageDefinition> messages = [];
         List<MessageContentAdaptation> adaptations = [];
@@ -58,7 +54,7 @@ internal static class ClientContentCompiler
         foreach (var sound in mapAudio.Sources.Concat(MapAudioCompiler.MusicSources).Concat(battle.Sources))
             presentation.Sounds.Add(sound.Role, AudioAssetCompiler.Path(AudioAssetCompiler.Resolve(audioFiles, sound.File)));
         var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion,
-            dependency, MapInstance.From(map), scenario, text, roles)
+            dependency, map, scenario, text, roles)
         { Presentation = presentation, Preview = preview };
         var package = ClientContentFiles.Resolve(content, textures, textureRoot);
         foreach (string key in messages.Keys)

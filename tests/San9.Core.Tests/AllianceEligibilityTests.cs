@@ -96,7 +96,7 @@ public sealed class AllianceEligibilityTests
         {
             Personnel = new(provinces.Keys.Select(id => new PersonPlace(id, new(0, 0))), regions, cityProvinces: provinces),
             Military = new(new(1, 1, [0], [new(0, 1, null)], [], [new(201, MapCoordinates.Center(new(0, 0)), new(1, 1))])
-                { RegionIds = [9201], TerritoryExits = [TerritoryExits.All] })
+                { RegionIds = [9201] })
         };
         Assert.Null(AllianceEligibility.Find(world, rules).LargestRealm);
         world.AddSettlement(new SettlementState(201, 1, 0, 100, 100, 50, 0, 0, 0, 0, 0) { Kind = SettlementKind.Facility });
@@ -124,8 +124,7 @@ public sealed class AllianceEligibilityTests
              new(200, MapCoordinates.Center(new(0, 0)), new(1, 1)),
              new(300, MapCoordinates.Center(new(2, 0)), new(1, 1)),
              new(400, MapCoordinates.Center(new(1, 1)), new(1, 1))])
-        { RegionIds = [902, 901, 903, null, 904, null],
-          TerritoryExits = [TerritoryExits.None, TerritoryExits.All, TerritoryExits.None, TerritoryExits.None, TerritoryExits.None, TerritoryExits.None] };
+        { RegionIds = [902, 901, 903, null, 904, null] };
         var rules = new SimulationRules { Military = new(military) };
         Assert.Equal(new[] { 2, 3, 4 }, AllianceEligibility.Find(world, rules).LargestRealm!.EligibleMemberForceIds);
         world.Replace(world.Settlements[400] with { OwnerId = 3 });

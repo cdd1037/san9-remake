@@ -24,7 +24,7 @@ public sealed partial class OriginalAiMilitaryTests
                 Height = 20,
                 TerrainIds = Enumerable.Range(0, 400).Select(i => i % 20 == 10 ? 1 : 0).ToImmutableArray(),
                 Terrains = [new(0, 1, null), new(1, null, null)],
-                TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 400).ToImmutableArray(),
+
                 Places = basis.Military.Places.Add(new(3, new(7, 67), new(1, 1)) { Combat = basis.Military.Places[1].Combat }),
                 RegionIds = Enumerable.Range(0, 400).Select(i => (int?)(i % 20 >= 10 ? 2 : i / 20 >= 10 ? 3 : 1)).ToImmutableArray()
             }
@@ -66,7 +66,7 @@ public sealed partial class OriginalAiMilitaryTests
             {
                 Height = 20,
                 TerrainIds = Enumerable.Repeat(0, 400).ToImmutableArray(),
-                TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 400).ToImmutableArray(),
+
                 Places = basis.Military.Places
                     .Add(new(3, new(27, 7), new(1, 1)) { Combat = basis.Military.Places[0].Combat })
                     .Add(new(4, new(47, 7), new(1, 1)) { Combat = basis.Military.Places[1].Combat })

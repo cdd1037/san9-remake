@@ -24,7 +24,7 @@ public sealed class ScenarioCompositionTests : IDisposable
         null, [], [], [], []) { Officers = [Person(1200)], ImperialSealId = 7 };
 
     private static ScenarioContent Content(ScenarioInitialState scenario) => new(ScenarioContent.CurrentSchemaVersion, new("../textures"),
-        new(new(MapDefinition.CurrentSchemaVersion, "custom", 1, 1, 1, 1, [], [], [], [], [], [], [], [], []), []),
+        new(new(MapDefinition.CurrentSchemaVersion, "custom", 1, 1, [], []), []),
         scenario, Texts(scenario), []);
 
     private static SharedScenarioData Shared(ScenarioInitialState scenario) => SharedScenarioData.From(scenario,

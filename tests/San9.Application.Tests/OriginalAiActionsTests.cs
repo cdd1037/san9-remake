@@ -45,8 +45,7 @@ public sealed partial class OriginalAiActionsTests
                 [new(400, 10, 0, 30000, 5, new(1, 1), TravelMode.Land)
                     { Positions = San9.Tests.FormationTestData.Layout(Enumerable.Repeat(BattleRank.Middle, 5).ToImmutableArray()) }],
                 [new(1, new(7, 7), new(1, 1)), new(2, new(37, 7), new(1, 1)), new(3, new(67, 7), new(1, 1))])
-                { RegionIds = Enumerable.Range(0, 60).Select(i => (int?)(i % 20 < 6 ? 1 : i % 20 < 12 ? 2 : 3)).ToImmutableArray(),
-                    TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 60).ToImmutableArray() },
+                { RegionIds = Enumerable.Range(0, 60).Select(i => (int?)(i % 20 < 6 ? 1 : i % 20 < 12 ? 2 : 3)).ToImmutableArray() },
             OriginalAi = OriginalAiDefinition.Default with { Advanced = true,
                 WorkRules = OriginalAiDefinition.Default.WorkRules.ToImmutableDictionary(p => p.Key,
                     p => p.Value with { OpeningWaitDays = 0, PeriodDays = 0 }) }
@@ -718,7 +717,6 @@ public sealed partial class OriginalAiActionsTests
                 Width = 26,
                 TerrainIds = Enumerable.Repeat(0, 78).ToImmutableArray(),
                 RegionIds = Enumerable.Range(0, 78).Select(i => (int?)(i % 26 < 6 ? 1 : i % 26 < 12 ? 2 : i % 26 < 18 ? 3 : 5)).ToImmutableArray(),
-                TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 78).ToImmutableArray(),
                 Places = content.Military.Places.Add(new(5, new(107, 7), new(1, 1)))
             },
             Information = content.Information with { Relations = [new(1, 2, 0), new(1, 3, 100), new(2, 3, 20)] }

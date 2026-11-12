@@ -66,6 +66,7 @@ public sealed record MapPackage(
     ContentSource[] Sources, MapAnimations Animations, MapSprite[] Boundaries)
 {
     public const int CurrentSchemaVersion = 20;
+    [JsonIgnore] public MapDefinition? Authoring { get; init; }
     [JsonRequired] public MapUnitCatalog Units { get; init; } = MapUnitCatalog.Empty;
     public byte[] MinimapColors { get; init; } = new byte[32];
     [JsonRequired] public MapBuildingType[] BuildingTypes { get; init; } = [];
@@ -106,7 +107,7 @@ public static class MapPackageFiles
         if (!common.ContainsKey("cloud-fill") || map.LeftEdge.Length != map.CanvasHeight || map.RightEdge.Length != map.CanvasHeight)
             throw new InvalidDataException("Invalid cloud boundaries.");
         foreach (var square in map.Squares)
-            if (square.Terrain is < 0 or > 16 || square.Elevation is < 0 or > 7 || square.ElevationMask is < 0 or > 15 || square.TextureVariant < 0)
+            if (square.Terrain < 0 || square.Elevation < 0 || square.ElevationMask is < 0 or > 15 || square.TextureVariant < 0)
                 throw new InvalidDataException("Invalid square.");
         foreach (var building in map.Buildings)
             if (building.X < 0 || building.X >= map.Width || building.Y < 0 || building.Y >= map.Height)

@@ -8,16 +8,14 @@ public sealed class TerritoryConnectionTests
     private static MilitaryDefinition Definition(int width, params int?[] regions) => new(width, regions.Length / width,
         regions.Select(_ => 0).ToImmutableArray(), [new(0, 1, null), new(1, null, 1) { IsWater = true }], [], [])
     {
-        RegionIds = regions.ToImmutableArray(),
-        TerritoryExits = regions.Select(_ => TerritoryExits.All).ToImmutableArray()
+        RegionIds = regions.ToImmutableArray()
     };
 
     [Fact]
-    public void ConnectionsAreDirectedAndUseRegionsInsteadOfCitiesOrRecursiveReachability()
+    public void ConnectionsUseAdjacentRegionsInsteadOfCitiesOrRecursiveReachability()
     {
-        var definition = Definition(3, 101, 702, 9901) with
-        { TerritoryExits = [TerritoryExits.None, TerritoryExits.All, TerritoryExits.All] };
-        Assert.Equal(new TerritoryConnection[] { new(702, 101), new(702, 9901), new(9901, 702) },
+        var definition = Definition(3, 101, 702, 9901);
+        Assert.Equal(new TerritoryConnection[] { new(101, 702), new(702, 101), new(702, 9901), new(9901, 702) },
             new MilitaryRulebook(definition).TerritoryConnections([]));
     }
 
@@ -56,12 +54,12 @@ public sealed class TerritoryConnectionTests
     }
 
     [Fact]
-    public void InvalidTopologyIsRejectedAndAbsentTopologyDoesNotInventConnections()
+    public void InvalidRegionsAreRejectedAndAbsentRegionsDoNotInventConnections()
     {
         var definition = Definition(2, 1, 2);
-        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with { TerritoryExits = [(TerritoryExits)16, TerritoryExits.All] }));
-        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with { TerritoryExits = [TerritoryExits.All] }));
-        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with { TerritoryExits = default }));
-        Assert.Empty(new MilitaryRulebook(definition with { TerritoryExits = [] }).TerritoryConnections([]));
+        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with { RegionIds = [-1, 2] }));
+        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with { RegionIds = [1] }));
+        Assert.Throws<ArgumentException>(() => new MilitaryRulebook(definition with { RegionIds = default }));
+        Assert.Empty(new MilitaryRulebook(definition with { RegionIds = [] }).TerritoryConnections([]));
     }
 }

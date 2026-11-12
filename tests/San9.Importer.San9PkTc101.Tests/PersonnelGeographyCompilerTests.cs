@@ -5,25 +5,14 @@ namespace San9.Importer.San9PkTc101.Tests;
 
 public sealed class PersonnelGeographyCompilerTests
 {
-    [Theory]
-    [InlineData(0, TerritoryExits.All)]
-    [InlineData(2, TerritoryExits.East | TerritoryExits.South | TerritoryExits.West)]
-    [InlineData(8, TerritoryExits.North | TerritoryExits.South | TerritoryExits.West)]
-    [InlineData(32, TerritoryExits.North | TerritoryExits.East | TerritoryExits.West)]
-    [InlineData(128, TerritoryExits.North | TerritoryExits.East | TerritoryExits.South)]
-    [InlineData(0x1FE, TerritoryExits.None)]
-    [InlineData(0x401, TerritoryExits.All)]
-    public void TerritoryExitConversionPreservesCardinalDirectionsOnly(ushort flags, TerritoryExits expected) =>
-        Assert.Equal(expected, PersonnelGeographyCompiler.TerritoryExits(flags));
-
     private static San9ScenarioSquareRecord Square(int id, ushort region, ushort flags = 0, byte terrain = 0) =>
         new(id, (ushort)id, flags, region, 0, 0, 0, terrain, 0, 0, 0, 0);
 
     [Theory]
-    [InlineData(8, false)]
+    [InlineData(8, true)]
     [InlineData(2, true)]
     [InlineData(0x1FE, false)]
-    public void HorizontalConnectionsRespectSourceDirectionRatherThanAnyBlockingBit(ushort flags, bool forward)
+    public void HorizontalConnectionsUseInfluenceBlockingAndIgnorePartialDirectionBits(ushort flags, bool forward)
     {
         var connections = PersonnelGeographyCompiler.CityConnections([Square(0, 1, flags), Square(1, 2)], 2, 1,
             new Dictionary<int, int> { [1] = 1, [2] = 2 }, new HashSet<int>());

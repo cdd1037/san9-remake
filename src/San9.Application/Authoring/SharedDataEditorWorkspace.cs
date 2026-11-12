@@ -144,6 +144,12 @@ public sealed partial class SharedDataEditorWorkspace
                     : await files.ReadAsync<ScenarioDefinitions>(PlayerDefinitionFiles.ActivePath(definitionsPath), token);
                 string geographyPath = PackageFiles.Resolve(entry.Root, entry.Manifest.Geography);
                 var geography = await files.ReadAsync<ScenarioGeography>(geographyPath, token);
+                if (geography.Military is not null)
+                {
+                    var mapManifest = await files.ReadAsync<ScenarioMapManifest>(PackageFiles.Resolve(entry.Root, entry.Manifest.Map), token);
+                    var map = await files.ReadAsync<MapDefinition>(PackageFiles.Resolve(entry.Root, mapManifest.Definition), token);
+                    geography = San9.Content.Maps.MapGeographyCompiler.Resolve(mapManifest, map, geography, document, definitions, officers, token);
+                }
                 var effectiveDefinitions = document.DefinitionOverrides.Apply(definitions);
                 var missingActiveTreasures = document.Information.TreasureStates.Where(t => t.Discovery != TreasureDiscovery.Disabled &&
                     !effectiveDefinitions.Information.Treasures.Any(d => d.Id == t.Id)).Select(t => t.Id).ToArray();

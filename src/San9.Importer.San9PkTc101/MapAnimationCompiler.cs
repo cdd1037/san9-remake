@@ -7,25 +7,6 @@ namespace San9.Importer.San9PkTc101;
 
 public static class MapAnimationCompiler
 {
-    public static bool HasWater(int terrain, int x, int y, Func<int, int, bool> bridge)
-    {
-        if (terrain is 9 or 10 or 15 or 16) return true;
-        return terrain == 12 && (bridge(x + 1, y - 1) || bridge(x - 3, y - 1) || bridge(x - 1, y + 1) || bridge(x - 1, y - 3));
-    }
-
-    public static MapAnimatedSprite[] PlaceWater(IReadOnlyList<San9ScenarioSquareRecord> squares)
-    {
-        List<MapAnimatedSprite> water = [];
-        bool Bridge(int x, int y) => x is >= 0 and < 200 && y is >= 0 and < 200 && squares[y * 200 + x].TerrainCode == 11 && squares[y * 200 + x].HasSquareFlagBit(9);
-        for (int y = 0; y < 200; y++) for (int x = 0; x < 200; x++)
-            if (HasWater(squares[y * 200 + x].TerrainCode, x, y, Bridge))
-            {
-                var center = MapTerrainCompiler.Center(x, y);
-                water.Add(new($"water-{(x & 1) + 2 * (y & 1)}", center.X - 32, center.Y - 16, 0, -1));
-            }
-        return water.ToArray();
-    }
-
     public static MapAnimations Compile(byte[] exe, string dataDir,
         byte[] waterPalette, Func<string, byte[]> read,
         Func<string, string, TextureSourceImage, ImageAsset> save, List<ImageAsset> assets)

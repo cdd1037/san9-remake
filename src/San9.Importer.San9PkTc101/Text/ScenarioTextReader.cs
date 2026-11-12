@@ -21,6 +21,12 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable, bool 
     }
 
     public TextCatalog Catalog => new(TextCatalog.CurrentSchemaVersion, new(_entries)) { MessagePeople = new(_messagePeople) };
+    public void ReadTerrainNames()
+    {
+        for (int id = 0; id < San9ScenarioTerrainArchive.RecordCount; id++)
+            Add($"terrain.{id}", Text(San9ScenarioTerrainArchive.GetNameMessageId(id)));
+    }
+
     // RE-0023 / RE-0180: title selection belongs to the source importer, not the client.
     public void ReadScenarioTitle(int scenarioId, int mode) =>
         Add(TextCatalog.ScenarioTitleKey, Text(checked(2 * scenarioId + (mode == 2 ? 60 : 0))));

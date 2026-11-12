@@ -36,6 +36,7 @@ public static class ScenarioContentCompiler
         using var text = new ScenarioTextReader(messages, exe, originalTextEdits);
         text.ReadScenarioTitle(header.ScenarioId, header.ScenarioModeCode);
         text.ReadStrategyHints();
+        text.ReadTerrainNames();
         int? Root(int? id)
         {
             if (id is null) return null;

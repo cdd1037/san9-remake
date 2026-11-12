@@ -27,7 +27,9 @@ public sealed class ScenarioEditorWorkspaceTests : IDisposable
         var shared = SharedScenarioData.From(scenario, "shared/definitions.json", "shared/officers.json", "shared/geography.json", text);
         await ScenarioDataFiles.WriteSharedAsync(_root, shared);
         var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion, new("textures"),
-            new(new(MapDefinition.CurrentSchemaVersion, "fixture", 4, 4, 4, 4, [], [], [], [], [], [], [], [], []), []), scenario, text, [])
+            new(new(MapDefinition.CurrentSchemaVersion, "fixture", scenario.Military?.Width ?? 4, scenario.Military?.Height ?? 4,
+                Enumerable.Repeat(new San9.Content.Maps.MapCellDefinition(0, 0, 0, null),
+                    (scenario.Military?.Width ?? 4) * (scenario.Military?.Height ?? 4)).ToArray(), []), []), scenario, text, [])
         { Preview = new(ScenarioId, "historical", 190, 1, "原剧本", "原简介", new() { [1] = "color-1", [2] = "color-2" }) };
         await ScenarioContentFiles.WriteAsync(Package, content, resourceRoot: _root, sharedScenario: shared);
         var catalog = new ContentCatalog(ContentCatalog.CurrentSchemaVersion, "textures", "opening.json", [new(ScenarioId, "scenario")])

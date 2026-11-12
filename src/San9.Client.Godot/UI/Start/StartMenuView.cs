@@ -22,6 +22,7 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
     private SharedDataEditor? _sharedDataEditor;
     private PortraitEditor? _portraitEditor;
     private ScenarioEditor? _scenarioEditor;
+    private MapEditor? _mapEditor;
     private TextureScope _textures = null!;
     private StartMenuArtwork _artwork = null!;
     private Label _hint = null!;
@@ -76,6 +77,8 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
         AddEditorButton("OpenPortraitEditor", "编辑头像", "portrait-editor.svg", new(120, 560), OpenPortraitEditor);
         var scenarioEditor = new Button { Name = "OpenScenarioEditor", Text = "剧本编辑", Position = new(216, 582), Size = new(112, 38) };
         scenarioEditor.Pressed += OpenScenarioEditor; _controls.AddChild(scenarioEditor);
+        var mapEditor = new Button { Name = "OpenMapEditor", Text = "地图编辑", Position = new(344, 582), Size = new(112, 38) };
+        mapEditor.Pressed += OpenMapEditor; _controls.AddChild(mapEditor);
         first?.GrabFocus();
         RestorePrompt();
     }
@@ -163,6 +166,18 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
             _controls.GetNode<Button>("OpenScenarioEditor").GrabFocus();
         } };
         AddChild(_scenarioEditor);
+    }
+    private void OpenMapEditor()
+    {
+        if (_mapEditor is not null) return;
+        _controls.Hide();
+        _mapEditor = new MapEditor { Name = "MapEditor", ContentRoot = ContentRoot, Closed = () =>
+        {
+            _mapEditor!.QueueFree(); _mapEditor = null; _controls.Show();
+            _selection?.QueueFree(); _selection = null;
+            _controls.GetNode<Button>("OpenMapEditor").GrabFocus();
+        } };
+        AddChild(_mapEditor);
     }
     private void OpenScenarioSelection()
     {

@@ -325,7 +325,11 @@ public static class ScenarioContentFiles
             await batch.StageAsync(target, value, options, token);
         }
         if (sharedMap is null) await Stage(mapDefinitionPath, content.Map.Definition, DataJsonOptions);
-        await Stage(manifest.Map, new ScenarioMapManifest(mapDefinitionPath, content.Map.Buildings), DataJsonOptions);
+        await Stage(manifest.Map, new ScenarioMapManifest(mapDefinitionPath, content.Map.Buildings)
+        {
+            GeographyInputHash = scenarioData.Geography.Military is null ? null :
+                San9.Content.Maps.MapGeographyCompiler.InputHash(content.Map.Definition, scenarioData.Geography, scenarioDocument, scenarioData.Definitions)
+        }, DataJsonOptions);
         if (sharedScenario is null)
         {
             await Stage(scenarioData.DefinitionsPath, scenarioData.Definitions, DataJsonOptions);

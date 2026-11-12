@@ -10,6 +10,7 @@ public sealed record ClientOptions(string? PackageRoot, int? CenterX, int? Cente
     public bool OfficerEditor { get; init; }
     public bool SharedDataEditor { get; init; }
     public bool ScenarioEditor { get; init; }
+    public bool MapEditor { get; init; }
     public int? PlayerForceId { get; init; }
     public string? UserDataRoot { get; init; }
     public int ComputerDamageBonusPercent { get; init; }
@@ -58,6 +59,7 @@ public sealed record ClientOptions(string? PackageRoot, int? CenterX, int? Cente
             OfficerEditor = args.Contains("--officer-editor"),
             SharedDataEditor = args.Contains("--shared-data-editor"),
             ScenarioEditor = args.Contains("--scenario-editor"),
+            MapEditor = args.Contains("--map-editor"),
             PlayerForceId = Argument("--player-force") is { } player ? int.Parse(player, CultureInfo.InvariantCulture) : null,
             UserDataRoot = Argument("--user-data-root") is { } dataRoot ? Path.GetFullPath(dataRoot) : null,
             ComputerDamageBonusPercent = bonus,
@@ -72,6 +74,8 @@ public sealed record ClientOptions(string? PackageRoot, int? CenterX, int? Cente
             throw new ArgumentException("Shared data editor runs separately from other editors, package startup and verification.");
         if (options.ScenarioEditor && (options.OfficerEditor || options.SharedDataEditor || options.PackageRoot is not null || options.RequiresWorldVerification || options.TextSmoke))
             throw new ArgumentException("Scenario editor runs separately from other editors, package startup and verification.");
+        if (options.MapEditor && (options.OfficerEditor || options.SharedDataEditor || options.ScenarioEditor || options.PackageRoot is not null || options.RequiresWorldVerification || options.TextSmoke))
+            throw new ArgumentException("Map editor runs separately from other editors, package startup and verification.");
         if (options.PackageRoot is not null && options.ScenarioId is not null)
             throw new ArgumentException("Specify either --scenario or --content-package.");
         if (options.TextSmoke && options.RequiresWorldVerification)

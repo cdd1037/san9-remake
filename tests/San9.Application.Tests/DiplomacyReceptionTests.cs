@@ -27,7 +27,7 @@ public sealed class DiplomacyReceptionTests
             Military = definition.Military! with
             {
                 RegionIds = Enumerable.Range(0, 90).Select(i => (int?)(i % 30 < 10 ? 1 : i % 30 < 20 ? 2 : 3)).ToImmutableArray(),
-                TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 90).ToImmutableArray()
+
             }
         };
         var session = GameSession.Start(definition, 42);

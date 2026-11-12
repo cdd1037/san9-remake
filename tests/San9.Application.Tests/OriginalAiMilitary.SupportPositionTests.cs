@@ -58,7 +58,7 @@ public sealed partial class OriginalAiMilitaryTests
                     .Add(new(4, new(87, 7), new(1, 1))),
                 RegionIds = Enumerable.Range(0, 60).Select(i =>
                     (int?)(i % 20 == 3 ? 3 : i % 20 < 10 ? 1 : i % 20 > 16 ? 4 : 2)).ToImmutableArray(),
-                TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 60).ToImmutableArray()
+
             }
         };
     }

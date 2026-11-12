@@ -46,35 +46,9 @@ public static class ConstructionContentCompiler
             throw new InvalidDataException("Incomplete construction square grid.");
         if (!buildings.Select(b => b.Id).SequenceEqual(Enumerable.Range(0, San9ScenarioFixedBuildingArchive.RecordCount)))
             throw new InvalidDataException("Incomplete fixed building catalog.");
-        var facilities = buildings.Where(b => b.Id >= 6).ToArray();
-        var result = ImmutableArray.CreateBuilder<ConstructionSite>();
-        foreach (var square in squares)
-        {
-            if (square.RegionCode is not int region || !configuredRegions.Contains(region) ||
-                square.GridX == 0 || square.GridY == 0 || square.GridX == width - 1 || square.GridY == height - 1) continue;
-            var eligible = facilities.Where(f => Eligible(square, f)).Select(f => f.Id).ToImmutableArray();
-            if (!eligible.IsEmpty) result.Add(new(region, MapCoordinates.Center(new(square.GridX, square.GridY)), eligible)
-            {
-                PreferenceDirections = ((square.SquareFlags & (1 << 12)) != 0 ? ConstructionDirection.Horizontal : ConstructionDirection.None) |
-                    ((square.SquareFlags & (1 << 13)) != 0 ? ConstructionDirection.Vertical : ConstructionDirection.None)
-            });
-        }
-        return result.ToImmutable();
-
-        bool Eligible(San9ScenarioSquareRecord center, San9ScenarioFixedBuildingRecord facility)
-        {
-            int mask = facility.Id switch { 10 or 12 or 14 => 1 << 13, 11 or 13 or 15 => 1 << 12, _ => 1 };
-            // Source placement templates use whole terrain squares, independent of normalized runtime occupancy.
-            var source = buildings[facility.Id];
-            int left = center.GridX - source.FootprintWidth / 2, top = center.GridY - source.FootprintHeight / 2;
-            if (left < 0 || top < 0 || left + source.FootprintWidth > width || top + source.FootprintHeight > height) return false;
-            for (int y = top; y < top + source.FootprintHeight; y++)
-            for (int x = left; x < left + source.FootprintWidth; x++)
-            {
-                var square = squares[y * width + x];
-                if (square.RegionCode != center.RegionCode || (square.SquareFlags & mask) == 0) return false;
-            }
-            return true;
-        }
+        var map = new San9.Content.Packages.MapDefinition(San9.Content.Packages.MapDefinition.CurrentSchemaVersion,
+            San9PkTc101Detector.SourceBuildId, width, height, squares.Select(MapImporter.Cell).ToArray(), []);
+        return San9.Content.Maps.MapGeographyCompiler.ConstructionSites(map,
+            buildings.Where(b => b.Id >= 6).Select(b => (b.Id, new Footprint(b.FootprintWidth, b.FootprintHeight))), configuredRegions);
     }
 }

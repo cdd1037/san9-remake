@@ -13,6 +13,7 @@
 | 本地设置与跨局资料 | [用户设置](user-settings.md)、[玩家档案](player-profile.md) |
 | 独立公共资料编辑 | [资料编辑器](shared-data-editor.md) |
 | 剧本初始状态编辑 | [剧本编辑器](scenario-editor.md) |
+| 地貌、地域与据点布局编辑 | [地图编辑器](map-editor.md) |
 
 ## 架构与开发
 

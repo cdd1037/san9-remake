@@ -1,6 +1,4 @@
-using San9.Content.Maps;
-
-namespace San9.Rendering;
+namespace San9.Content.Maps;
 
 /// <summary>Shared building composition and body geometry for import-time bounds and runtime drawing.</summary>
 public static class BuildingAppearance

@@ -130,7 +130,15 @@ public static class ScenarioDataFiles
         var document = await PackageFiles.ReadAsync<ScenarioDocument>(
             PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, manifest.Scenario)), token);
         var shared = await LoadAsync(resourceRoot, manifest, token, usePlayerDefinitions: true);
-        var scenario = document.Compile(shared.Definitions, shared.Officers.Officers, shared.Geography);
+        var geography = shared.Geography;
+        if (geography.Military is not null)
+        {
+            var mapManifest = await ReadAsync<ScenarioMapManifest>(resourceRoot, manifest.Map, token);
+            var map = await ReadAsync<MapDefinition>(resourceRoot, mapManifest.Definition, token);
+            geography = San9.Content.Maps.MapGeographyCompiler.Resolve(mapManifest, map, geography,
+                document, shared.Definitions, shared.Officers, token);
+        }
+        var scenario = document.Compile(shared.Definitions, shared.Officers.Officers, geography);
         ContentStructure.Validate(scenario);
         return (scenario, OfficerComposition.Profiles(document.Officers, [.. shared.Officers.Officers, .. document.AdditionalOfficerDefaults]));
     }

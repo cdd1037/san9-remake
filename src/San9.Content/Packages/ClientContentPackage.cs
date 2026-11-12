@@ -111,6 +111,11 @@ public sealed record ClientContentPackage(int SchemaVersion, MapPackage Map, Sce
         }
         if (Scenario.Military is { } geography && (geography.Width != Map.Width || geography.Height != Map.Height))
             throw new InvalidDataException("Scenario and map dimensions differ.");
+        if (Scenario.Military is { } topology &&
+            (!topology.TerrainIds.SequenceEqual(Map.Squares.Select(s => s.Terrain)) ||
+             !topology.Elevations.SequenceEqual(Map.Squares.Select(s => s.Elevation)) ||
+             !topology.RegionIds.SequenceEqual(Map.Squares.Select(s => s.RegionId < 0 ? (int?)null : s.RegionId))))
+            throw new InvalidDataException("Domain geography and authored map cells differ; rebuild the map geography before loading.");
         if (Map.ScenarioId != Scenario.ScenarioId ||
             !Map.Buildings.Select(b => b.Id).Order().SequenceEqual(Scenario.Settlements.Select(s => s.Id).Order()))
             throw new InvalidDataException("Scenario and map identities differ.");

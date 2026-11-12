@@ -105,7 +105,7 @@ public sealed partial class OriginalAiMilitaryTests
             {
                 Width = 100, Height = 5,
                 TerrainIds = Enumerable.Repeat(0, 500).ToImmutableArray(),
-                TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 500).ToImmutableArray(),
+
                 Formations = basis.Military.Formations.Add(basis.Military.Formations[0] with { Id = 778, MovementBudget = 1, SoldierCapacity = 200000 }),
                 Places = basis.Military.Places.Add(new(3, new(27, 17), new(1, 1)) { Combat = new(1, 1, 1, 1, 10) }),
                 RegionIds = Enumerable.Range(0, 500).Select(i => (int?)(i % 100 < 4 ? 1 : i % 100 < 10 && i / 100 >= 2 ? 3 : 2)).ToImmutableArray()

@@ -56,8 +56,7 @@ public sealed class ScenarioContentFilesTests : IDisposable
     }
 
     private static ScenarioContent Fixture() => new(ScenarioContent.CurrentSchemaVersion, new("../textures"),
-        new(new(MapDefinition.CurrentSchemaVersion, "source", 200, 200, 13056, 6656,
-            [], [], [], [], [], [], [], [], []), []),
+        new(new(MapDefinition.CurrentSchemaVersion, "source", 200, 200, [], []), []),
         new(ScenarioInitialState.CurrentSchemaVersion, "first", 190, 1, 1, 0, [], [], [], []),
         new(TextCatalog.CurrentSchemaVersion, new() { ["name"] = "简体" })
         {
@@ -321,7 +320,7 @@ public sealed class ScenarioContentFilesTests : IDisposable
         var manifest = await PackageFiles.ReadAsync<ScenarioMapManifest>(Path.Combine(second, "map.json"));
         Assert.Equal("shared/maps/custom/map.json", manifest.Definition);
         using var document = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(second, "map.json")));
-        Assert.Equal(new[] { "buildings", "definition" }, document.RootElement.EnumerateObject().Select(p => p.Name).Order());
+        Assert.Equal(new[] { "buildings", "definition", "geographyInputHash" }, document.RootElement.EnumerateObject().Select(p => p.Name).Order());
         var different = content with { Map = content.Map with { Definition = content.Map.Definition with { SourceBuild = "another-map" } } };
         await Assert.ThrowsAsync<InvalidDataException>(() => ScenarioContentFiles.WriteAsync(first, different,
             resourceRoot: _root, sharedMap: shared));
@@ -346,7 +345,7 @@ public sealed class ScenarioContentFilesTests : IDisposable
     public async Task SplitFilesPreserveFullModelAndRequiredNulls()
     {
         var content = Fixture();
-        content = content with { Map = content.Map with { Definition = content.Map.Definition with { LeftEdge = [null], RightEdge = [null] } } };
+        content = content with { Map = content.Map with { Definition = content.Map.Definition with { Cells = [new(0, 1, 0, null)] } } };
         await ScenarioContentFiles.WriteAsync(_root, content);
         using var manifestDocument = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(_root, "content.json")));
         Assert.False(manifestDocument.RootElement.TryGetProperty("sources", out _));

@@ -35,8 +35,7 @@ public sealed partial class OriginalAiMilitaryTests
                 [new(1, new(7, 7), new(1, 1)) { Combat = new(1, 1, 1, 1, 10) },
                  new(2, new(67, 7), new(1, 1)) { Combat = new(1, 1, 1, 1, 10) }])
                     { TransportFormations = new(500, null),
-                        RegionIds = Enumerable.Range(0, 60).Select(i => (int?)(i % 20 < 10 ? 1 : 2)).ToImmutableArray(),
-                        TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 60).ToImmutableArray() },
+                        RegionIds = Enumerable.Range(0, 60).Select(i => (int?)(i % 20 < 10 ? 1 : 2)).ToImmutableArray() },
             OriginalAi = OriginalAiDefinition.Default with { Advanced = true,
                 Military = new() { Formations = new Dictionary<OriginalAiFormationRole, int>
                     { [OriginalAiFormationRole.March] = 400, [OriginalAiFormationRole.Defense] = 400 }.ToImmutableDictionary() },
@@ -1473,8 +1472,7 @@ public sealed partial class OriginalAiMilitaryTests
             RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 3 },
             RegionNameKeys = new() { [1] = "region.1", [2] = "region.2", [3] = "region.3" },
             Military = content.Military! with { Places = content.Military.Places.Add(new(3, new(17, 7), new(1, 1)) { Combat = new(10, 10, 10, 10, 50) }),
-                RegionIds = Enumerable.Range(0, 60).Select(i => (int?)(i % 20 == 3 ? 3 : i % 20 < 10 ? 1 : 2)).ToImmutableArray(),
-                TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 60).ToImmutableArray() }
+                RegionIds = Enumerable.Range(0, 60).Select(i => (int?)(i % 20 == 3 ? 3 : i % 20 < 10 ? 1 : 2)).ToImmutableArray() }
         };
         var h = new Harness(content, w =>
         {
@@ -1830,8 +1828,7 @@ public sealed partial class OriginalAiMilitaryTests
             RegionCityIds = new() { [1] = 1, [2] = 2, [3] = 4, [4] = 4 },
             RegionNameKeys = new() { [1] = "region.1", [2] = "region.2", [3] = "region.3", [4] = "region.4" },
             Military = content.Military! with { Places = content.Military.Places.Add(new(3, new(17, 7), new(1, 1))).Add(new(4, new(87, 7), new(1, 1))),
-                RegionIds = Enumerable.Range(0, 60).Select(i => (int?)(i % 20 == 3 ? 3 : i % 20 < 10 ? 1 : i % 20 > 16 ? 4 : 2)).ToImmutableArray(),
-                TerritoryExits = Enumerable.Repeat(TerritoryExits.All, 60).ToImmutableArray() }
+                RegionIds = Enumerable.Range(0, 60).Select(i => (int?)(i % 20 == 3 ? 3 : i % 20 < 10 ? 1 : i % 20 > 16 ? 4 : 2)).ToImmutableArray() }
         };
         var h = new Harness(content, draw: _ => throw new InvalidOperationException("Unexpected fallback draw"));
         Assert.Equal(1, h.Run(OriginalAiWork.Transport).Submitted);

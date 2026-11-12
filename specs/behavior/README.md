@@ -5,6 +5,7 @@
 ## 内容与导入
 
 - [BEH-CONTENT-0001：共享内容与剧本初始状态](BEH-CONTENT-0001-shared-scenario-authoring.md)
+- [BEH-EDITOR-0003 地图编辑器与地图创作输入](BEH-EDITOR-0003-map-editor.md)
 - [BEH-IMPORT-0001：繁中 PK 1.0.1.0 源容器校验](BEH-IMPORT-0001-source-container-validation.md)
 - [BEH-IMPORT-0002：剧本宝物记录解析](BEH-IMPORT-0002-scenario-item-records.md)
 - [BEH-IMPORT-0003：剧本城市记录解析](BEH-IMPORT-0003-scenario-city-records.md)

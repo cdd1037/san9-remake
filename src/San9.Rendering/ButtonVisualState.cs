@@ -2,7 +2,8 @@ namespace San9.Rendering;
 
 public static class ButtonVisualState
 {
-    public static (int X, int Y) TextOffset(bool selected) => selected ? (2, 2) : (0, 0);
+    // Original buttons center the text, shift the origin by (-1, -1), then add (2, 2) when selected.
+    public static (int X, int Y) TextOffset(bool selected) => selected ? (1, 1) : (-1, -1);
 
     public static int Frame(bool territory, bool hovered, bool selected, bool disabled)
     {

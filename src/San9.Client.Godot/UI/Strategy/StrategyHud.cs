@@ -133,7 +133,7 @@ public partial class StrategyHud : Control
         _frames.Add(("ruler-frame", new(275, 11)));
         var force = p.Forces.SingleOrDefault(f => f.Id == p.PlayerForceId);
         _year = LabelAt($"{p.Year}年", new(104, 11), new(66, 32), 24);
-        _date = LabelAt($"{p.Month}月上旬", new(182, 11), new(89, 32), 24);
+        _date = LabelAt($"{p.Month}月上旬", new(173, 11), new(96, 32), 24);
         _rulerName = LabelAt(force is null ? "" : Texts.Resolve(force.NameKey), new(280, 11), new(92, 32), 24, HorizontalAlignment.Left);
         _strategicHeader.Add(_rulerName);
         AddResourceField("信望", force?.Trust.ToString() ?? "", 385, 425, 32);
@@ -164,7 +164,8 @@ public partial class StrategyHud : Control
         _minimap = new StrategyMinimap { World = World, Session = Session, Skin = Skin, Textures = _textures, Position = new(643, 31), Size = new(320, 160) };
         _topRight.AddChild(_minimap);
         foreach (var (text, x, y) in new[] { ("东", 880, 154), ("西", 710, 52), ("南", 710, 154), ("北", 880, 52) })
-            _text.Apply(LabelAt(text, new(x, y), new(16, 16), 16, parent: _topRight), GameTextStyles.For(GameTextRole.Compass));
+            _text.ApplyAtGlyphCell(LabelAt(text, new(x, y), new(16, 16), 16, parent: _topRight),
+                GameTextStyles.For(GameTextRole.Compass), new(x, y));
         _rosterList = new StrategyRosterList
         {
             Position = new(892, 303),

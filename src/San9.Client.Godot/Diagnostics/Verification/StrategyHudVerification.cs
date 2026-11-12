@@ -39,7 +39,7 @@ public partial class StrategyHud
             var expectedStyle = GameTextStyles.Button(GameButtonTextRole.Territory, highlighted, selected, disabled);
             Check(settings.FontColor == expectedStyle.Foreground && settings.OutlineColor == GameTextEffects.OutlineColor(expectedStyle) &&
                 settings.OutlineSize == GameTextEffects.OutlineSize(expectedStyle) && settings.StackedShadowCount == 0 && settings.ShadowColor.A == 0, "Button text effect mismatch.");
-            Check(territoryButton.TextPosition == (selected ? new Vector2(2, 2) : Vector2.Zero),
+            Check(territoryButton.TextPosition == (selected ? Vector2.One : -Vector2.One),
                 "Button text offset drifted or disagreed with selected state.");
             Check(territoryButton.VisualFrame == San9.Rendering.ButtonVisualState.Frame(true, highlighted, selected, disabled),
                 "Territory background state mismatch.");
@@ -203,8 +203,8 @@ public partial class StrategyHud
         await Click(new(922,649));
         ((StrategyButton)_large!).RefreshVisual();
         ((StrategyButton)_small!).RefreshVisual();
-        Check(((StrategyButton)_large).TextPosition == new Vector2(2, 2) &&
-            ((StrategyButton)_small).TextPosition == Vector2.Zero, "Map mode button text did not follow selection.");
+        Check(((StrategyButton)_large).TextPosition == Vector2.One &&
+            ((StrategyButton)_small).TextPosition == -Vector2.One, "Map mode button text did not follow selection.");
         bool boundaries = World.ShowBoundaries;
         await Click(new(726, 28));
         Check(World.ShowBoundaries != boundaries && _territory!.ButtonPressed == World.ShowBoundaries, "Boundary toggle failed.");

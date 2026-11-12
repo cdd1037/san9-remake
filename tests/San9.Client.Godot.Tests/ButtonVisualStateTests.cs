@@ -5,8 +5,8 @@ namespace San9.Client.Godot.Tests;
 public sealed class ButtonVisualStateTests
 {
     [Theory]
-    [InlineData(false, 0)]
-    [InlineData(true, 2)]
+    [InlineData(false, -1)]
+    [InlineData(true, 1)]
     public void TextUsesAbsoluteLogicalOffset(bool selected, int offset)
     {
         Assert.Equal((offset, offset), ButtonVisualState.TextOffset(selected));

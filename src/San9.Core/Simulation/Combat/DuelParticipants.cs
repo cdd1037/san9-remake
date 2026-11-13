@@ -17,7 +17,7 @@ internal static class DuelParticipants
             .Where(p => p.OwnerId == unit.OwnerId && rules.Rank(unit, p.Id) == BattleRank.Front).OrderBy(p => p.Id).ToArray();
         var attackFront = Front(attacker);
         var defenseFront = Front(defender);
-        var first = attackFront.Where(p => p.Injury == 0 && p.TacticCooldown == 0 && !p.Acted && p.Personality != 3)
+        var first = attackFront.Where(p => p.Injury == 0 && p.TacticCooldown == 0 && p.Personality != 3)
             .OrderByDescending(p => world.Abilities(p).War).ThenBy(p => p.Id).FirstOrDefault();
         var second = defenseFront.Where(p => p.Injury == 0).OrderByDescending(p => world.Abilities(p).War).ThenBy(p => p.Id).FirstOrDefault();
         if (first is null || second is null) return null;
@@ -30,7 +30,7 @@ internal static class DuelParticipants
             var selected = new List<OfficerState>();
             foreach (var candidate in front)
             {
-                if (candidate.Id == initial.Id || candidate.Injury != 0 || candidate.TacticCooldown != 0 || candidate.Acted) continue;
+                if (candidate.Id == initial.Id || candidate.Injury != 0 || candidate.TacticCooldown != 0) continue;
                 int support = rules.LinkRules.Chance(initial, candidate, formation.Tactics?.LinkMultiplier ?? 2, world.Simulation.NewGame.Mode == GameMode.Historical);
                 if (support > 0 && (support >= 100 || world.NextRandom("duel-support") % 100 < (uint)support)) selected.Add(candidate);
             }

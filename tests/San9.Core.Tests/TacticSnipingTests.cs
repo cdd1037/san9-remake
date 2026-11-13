@@ -65,10 +65,34 @@ public sealed class TacticSnipingTests
         if (gate == "proficiency") m.Replace(m.Officers[11] with { TacticProficiencies = [0, 0, 0, 300, 0, 0, 0, 0, 0] });
         if (gate == "rear") m.Replace(m.Units[2] with { MemberPositions = m.Units[2].MemberPositions.SetItem(22, new(0, BattleRank.Rear)) });
         if (gate == "injured") m.Replace(m.Officers[22] with { Injury = 1 });
-        if (settlement) m.Replace(m.Officers[22] with { Acted = true });
+        if (settlement)
+        {
+            var task = new PersistentTask(Guid.NewGuid(), TacticStudy.Kind, "ai:2", 2, 22, 2,
+                m.Clock, new(190, 4, 1), 0, m.Simulation.NextSequence) { StudyTacticId = 9000 };
+            m.SetSimulation(m.Simulation with { Tasks = m.Simulation.Tasks.Add(task) });
+            Assert.False(m.Officers[22].Acted);
+        }
         Assert.Null(TacticSniping.Select(m, new(1, false), tactic with { SnipingProficiencyCategory = gate == "unsupported" ? null : 3 },
             settlement ? PlaceTarget : UnitTarget, gate == "absent-participant" ? [] : [11], gate == "effect" ? 9 : 10, rules.Military!));
         Assert.Empty(m.Simulation.RandomStreams);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ActedResidentsRemainEligibleForSniping(bool acted)
+    {
+        var (world, rules, tactic) = Create(settlement: true);
+        var m = world.BeginMutation();
+        foreach (var person in m.ServingSettlementMembers(2).ToArray())
+            m.Replace(person with { Acted = acted });
+        Roll(m, "military-sniping", 0);
+
+        var outcome = TacticSniping.Select(m, new(1, false), tactic, PlaceTarget, [11], 10, rules.Military!);
+
+        Assert.Equal(22, Assert.IsType<SnipingOutcome>(outcome).OfficerId);
+        Assert.All(m.ServingSettlementMembers(2), p => Assert.Equal(acted, p.Acted));
+        world.Commit(m);
     }
 
     [Theory]

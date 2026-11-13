@@ -74,6 +74,39 @@ public sealed class FieldRecruitmentTests
     }
 
     [Fact]
+    public void RecruitedCommanderAndFollowerCanActivateAndLinkInTheSameXun()
+    {
+        var (world, task) = Submit();
+        Complete(world, task);
+        Assert.All(world.ServingUnitMembers(100), p => Assert.True(p.Acted));
+        foreach (var person in world.ServingUnitMembers(100).ToArray())
+            world.Replace(person with { LearnedTactics = [9000], EquippedTacticId = 9000, TacticLinkBonus = 100 });
+        var military = new MilitaryRulebook(new(200, 2, Enumerable.Repeat(0, 400).ToImmutableArray(),
+            [new(0, 1, null)],
+            [new(1, 1, 0, 10000, 3, new(1, 1), TravelMode.Land)
+                { Positions = FormationTestData.Layout([BattleRank.Front, BattleRank.Middle, BattleRank.Rear]),
+                    Combat = new(0, 0, 0, 1000, 50), Attack = new(5, false), Tactics = new(100, 2, [0], []) }],
+            [new(1, new(2, 2), new(1, 1)), new(2, new(902, 2), new(1, 1))])
+        {
+            Tactics = [new(9000, 0, TacticEffect.Martial, 1, 9, 0, true, false, [1])]
+        });
+        world.Replace(world.Officers[2] with { SettlementId = null, UnitId = 200, IsCommander = false });
+        world.AddUnit(new(200, 2, new(337, 2), 10000) { FormationId = 1, Morale = 100, CommanderId = 2,
+            ServicePlaceId = 2, CorpsId = 2 });
+        world.SetSimulation(world.Simulation with { NextUnitId = 201, RandomStreams =
+            [new("military-tactic-member", TestSeeds.StateForRoll(0))] });
+        List<DomainEvent> events = [];
+
+        Assert.True(TacticCombat.TryUnit(world, 100,
+            new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 200 },
+            new() { Personnel = Rules.Personnel, Military = military }, events));
+
+        Assert.Equal(new[] { 20, 22 }, Assert.Single(events.OfType<TacticActivatedEvent>()).Participants.Select(p => p.OfficerId));
+        Assert.All(world.ServingUnitMembers(100), p => Assert.True(p.Acted));
+        WorldInvariants.Validate(world);
+    }
+
+    [Fact]
     public void OrdinaryMemberLeavesWithoutTakingTheArmy()
     {
         var (world, task) = Submit(22);

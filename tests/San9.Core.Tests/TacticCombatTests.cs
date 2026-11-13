@@ -27,6 +27,40 @@ public sealed class TacticCombatTests
     private static readonly CommandContext Player = new("player");
 
     [Fact]
+    public void NewlyDeployedMembersActivateAndLinkOnFirstDayAfterRestore()
+    {
+        var initial = Engine(members: 2, linkMultiplier: 4).Snapshot;
+        var beforeDeployment = initial with
+        {
+            Units = initial.Units.Where(u => u.Id != 0).ToImmutableArray(),
+            Officers = initial.Officers.Select(p => p.UnitId == 0
+                ? p with { UnitId = null, SettlementId = 1, Personality = 3 } : p).ToImmutableArray(),
+            Simulation = initial.Simulation with
+            {
+                ActiveControl = 0,
+                RandomStreams = [new("military-tactic-member", TestSeeds.StateForRoll(0))]
+            }
+        };
+        var engine = Engine(members: 2, linkMultiplier: 4, restoredState: beforeDeployment);
+        var order = new MilitaryOrder(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 };
+        var command = new DeployUnitCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence,
+            1, [11, 12], 100, 100, order);
+        Assert.True(engine.Execute(Player, command).Submission.Accepted);
+        Assert.All(engine.Snapshot.Officers.Where(p => p.OwnerId == 1), p => Assert.True(p.Acted));
+        var restored = Engine(members: 2, linkMultiplier: 4, restoredState: engine.CaptureStableState());
+
+        engine.EndControl(Player);
+        restored.EndControl(Player);
+        var result = engine.AdvanceXun();
+
+        EventAssert.Equal(result.Events, restored.AdvanceXun().Events);
+        StateAssert.Equal(engine.Snapshot, restored.Snapshot);
+        var activation = result.Events.OfType<TacticActivatedEvent>().First();
+        Assert.Equal(new GameClock(190, 1, 1), activation.Clock);
+        Assert.Equal(new[] { 11, 12 }, activation.Participants.Select(p => p.OfficerId));
+    }
+
+    [Fact]
     public void ActivationRetainsAllSourceMembersEvenWhenOnlyOneActivates()
     {
         var fact = Engine(members: 2, seed: 29, linkMultiplier: 2).AdvanceXun().Events.OfType<TacticActivatedEvent>().First();

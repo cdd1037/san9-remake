@@ -15,7 +15,7 @@ public sealed class DuelCombatIntegrationTests
         return seed;
     }
 
-    private static SimulationEngine Engine(bool deaths = false, int opportunity = 0, int defensiveChance = 0, bool counterOnly = false, bool laterBattle = false, int cooldown = 0, bool normalPower = false, CompanionSettings? companion = null)
+    private static SimulationEngine Engine(bool deaths = false, int opportunity = 0, int defensiveChance = 0, bool counterOnly = false, bool laterBattle = false, int cooldown = 0, bool normalPower = false, CompanionSettings? companion = null, bool acted = false)
     {
         var combat = normalPower ? new CombatProfile(10, 10, 0, 10, 50) : new CombatProfile(0, 0, 0, 1000, 50);
         var military = new MilitaryRulebook(new(4, 1, [0, 0, 0, 0], [new(0, 1, null)],
@@ -33,7 +33,7 @@ public sealed class DuelCombatIntegrationTests
             DuelContestTests.Person(22, 2, 50) with { Status = OfficerStatus.Ruler },
             DuelContestTests.Person(23, 2, 30)
         };
-        var world = DuelContestTests.World(people, Seed());
+        var world = DuelContestTests.World(people.Select(p => p with { Acted = acted }).ToArray(), Seed());
         var change = world.BeginMutation();
         if (counterOnly) change.Replace(change.Officers[11] with { Personality = 3, BaseAbilities = new(40, 50, 50, 50) });
         change.Replace(change.Forces[1] with { LeaderId = 11 }); change.Replace(ResourceAccounts.Root(change, 1) with { LeaderId = 11 });
@@ -66,11 +66,13 @@ public sealed class DuelCombatIntegrationTests
     }
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(100)]
-    public void PassiveEquipmentAndFailedTacticOpportunityDoNotPreventDuel(int opportunity)
+    [InlineData(0, false)]
+    [InlineData(100, false)]
+    [InlineData(0, true)]
+    [InlineData(100, true)]
+    public void PassiveEquipmentAndFailedTacticOpportunityDoNotPreventDuel(int opportunity, bool acted)
     {
-        var engine = Engine(opportunity: opportunity);
+        var engine = Engine(opportunity: opportunity, acted: acted);
         var result = engine.AdvanceXun();
         Assert.Contains(result.Events.OfType<DuelStartedEvent>(), e => e.Clock.Day == 1);
         Assert.Contains(result.Events.OfType<DuelCompletedEvent>(), e => e.Clock.Day == 1);

@@ -57,12 +57,16 @@ public sealed class NavalTacticOpportunityTests
              new("military-tactic-member", TestSeeds.StateForRoll(0))] });
 
     [Theory]
-    [InlineData(9, 14, 5000)]
-    [InlineData(10, 14, 6100)]
-    [InlineData(10, 15, null)]
-    public void AutomaticAndPersonalPhasesHaveIndependentBoundaries(int automatic, int personal, int? expected)
+    [InlineData(9, 14, 5000, false)]
+    [InlineData(10, 14, 6100, false)]
+    [InlineData(10, 15, null, false)]
+    [InlineData(9, 14, 5000, true)]
+    [InlineData(10, 14, 6100, true)]
+    [InlineData(10, 15, null, true)]
+    public void AutomaticAndPersonalPhasesHaveIndependentBoundaries(int automatic, int personal, int? expected, bool acted)
     {
         var m = World().BeginMutation();
+        m.Replace(m.Officers[11] with { Acted = acted });
         Rolls(m, automatic, personal);
         List<DomainEvent> events = [];
         TacticCombat.TryUnit(m, 1, Target, new() { Military = new(Definition()) }, events);

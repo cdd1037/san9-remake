@@ -43,7 +43,7 @@ internal static class TacticCombat
             !MilitaryCombat.ValidTarget(world, unit.OwnerId, target, formation, military) ||
             !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), MilitaryCombat.UnitRange(world, unit, target, military))) return TacticOpportunity.Unavailable;
         if (!world.ServingUnitMembers(sourceId).Any(p => p.OwnerId == unit.OwnerId &&
-            p.Injury == 0 && p.TacticCooldown == 0 && !p.Acted)) return TacticOpportunity.Unavailable;
+            p.Injury == 0 && p.TacticCooldown == 0)) return TacticOpportunity.Unavailable;
         if (counter && (unit.Condition is not (UnitCondition.Normal or UnitCondition.HighSpirits) ||
             !Roll(world, "military-tactic-counter", military.DefensiveTacticChance +
                 (world.Companion.MoraleAffectsTacticCounters ? unit.Morale - 80 : 0)))) return TacticOpportunity.Unavailable;
@@ -70,7 +70,7 @@ internal static class TacticCombat
         if (world.Simulation.TerminalReason is not null) return false;
         var members = IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = unit.Id });
         var candidates = members.OrderBy(p => military.Rank(unit, p.Id)).ThenBy(p => p.Id)
-            .Where(p => p.Injury == 0 && p.TacticCooldown == 0 && !p.Acted)
+            .Where(p => p.Injury == 0 && p.TacticCooldown == 0)
             .Select(p => new { Officer = p, Tactic = ChooseEquippedTactic(world, p, unit.OwnerId, formation, target, rules) })
             .Where(p => p.Tactic is not null).Select(p => new Participant(p.Officer, p.Tactic!)).ToArray();
         if (candidates.Length == 0) return false;
@@ -158,7 +158,7 @@ internal static class TacticCombat
         var members = IntelligenceTactics.Defenders(world, new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = unit.Id });
         // Original naval follow-ups exclude the intelligence actor but do not gate their new primary on cooldown.
         var actors = members.Where(p => p.Injury == 0 && p.Id != originalActorId &&
-            (originalActorId is not null || p.TacticCooldown == 0 && !p.Acted)).OrderBy(p => p.Id).ToArray();
+            (originalActorId is not null || p.TacticCooldown == 0)).OrderBy(p => p.Id).ToArray();
         if (actors.Length == 0) return TacticOpportunity.Unavailable;
         string stream = originalActorId is null ? "military-tactic-member" : "military-tactic-chain-member";
         // Roll the whole chain pool before taking its first member; naval tactics have no personal allocation roll.

@@ -70,15 +70,18 @@ public sealed class DuelContestTests
         }
     }
 
-    [Fact]
-    public void TiedInitialsAndSupportersUseIdentityOrderAndActedExcludesAttackerButNotDefender()
+    [Theory]
+    [InlineData(80, 11)]
+    [InlineData(90, 19)]
+    public void ActedParticipantsUseHighestMartialInitialAndStableSupportOrder(int martial, int initial)
     {
-        var world = World([Person(19, 1) with { Acted = true }, Person(11, 1) with { TacticLinkBonus = 100 },
+        var world = World([Person(19, 1, martial) with { Acted = true, TacticLinkBonus = 100 }, Person(11, 1) with { TacticLinkBonus = 100 },
             Person(15, 1) with { TacticLinkBonus = 100 }, Person(13, 1) with { Acted = true, TacticLinkBonus = 100 },
-            Person(21, 2) with { Acted = true }], SeedForTrigger(0)).BeginMutation();
+            Person(21, 2) with { Acted = true }, Person(23, 2, 70) with { Acted = true, TacticLinkBonus = 100 }], SeedForTrigger(0)).BeginMutation();
         var roster = DuelParticipants.Select(world, world.Units[1], world.Units[2], Rules())!;
-        Assert.Equal(new[] { 11, 15 }, roster.Attackers);
-        Assert.Equal(new[] { 21 }, roster.Defenders);
+        Assert.Equal(initial, roster.Attackers[0]);
+        Assert.Equal(new[] { 11, 13, 15, 19 }.Where(id => id != initial), roster.Attackers.Skip(1));
+        Assert.Equal(new[] { 21, 23 }, roster.Defenders);
         Assert.DoesNotContain(world.Simulation.RandomStreams, s => s.Name == "duel-support");
     }
 
@@ -111,14 +114,14 @@ public sealed class DuelContestTests
     }
 
     [Fact]
-    public void SupportQualificationExcludesInjuredCooldownActedAndNonFrontMembers()
+    public void SupportQualificationAllowsActedButExcludesInjuredCooldownAndNonFrontMembers()
     {
         var world = World([Person(11, 1, 100), Person(12, 1) with { Injury = 1 },
-            Person(13, 1) with { TacticCooldown = 1 }, Person(14, 1) with { Acted = true }, Person(15, 1),
+            Person(13, 1) with { TacticCooldown = 1 }, Person(14, 1) with { Acted = true, TacticLinkBonus = 100 }, Person(15, 1),
             Person(21, 2, 100)], SeedForTrigger(0)).BeginMutation();
         world.Replace(world.Units[1] with { MemberPositions = world.Units[1].MemberPositions.SetItem(15, new(0, BattleRank.Rear)) });
         var roster = DuelParticipants.Select(world, world.Units[1], world.Units[2], Rules())!;
-        Assert.Equal(new[] { 11 }, roster.Attackers);
+        Assert.Equal(new[] { 11, 14 }, roster.Attackers);
         Assert.DoesNotContain(world.Simulation.RandomStreams, s => s.Name == "duel-support");
     }
 

@@ -80,7 +80,8 @@ internal static class MilitaryMovement
             }
             if (unit.FormationId is not int id || !rules.Formations.TryGetValue(id, out var formation) ||
                 !rules.ValidUnitFormations(id, unit.NavalFormationId) || !rules.AllowsOrder(id, unit.Order) ||
-                rules.Purpose(id) != UnitPurpose.Combat && (unit.EngagementTargetId is not null || unit.ContactTarget is not null || unit.AwaitingPostAction) ||
+                rules.Purpose(id) != UnitPurpose.Combat && (unit.EngagementTargetId is not null ||
+                    unit.ContactTarget is { IsSettlement: false } || unit.AwaitingPostAction) ||
                 unit.NavalFormationId is int naval && (unit.Soldiers > rules.Formations[naval].SoldierCapacity ||
                     world.Officers.Count(p => p.UnitId == unit.Id && p.IsServing) > rules.Formations[naval].OfficerCapacity) ||
                 unit.MovementRemainder >= rules.Travel(unit).Map.MaximumStepCost(rules.Travel(unit).Mode) ||
@@ -290,6 +291,13 @@ internal static class MilitaryMovement
         if (policies != unit.Policies) events.Add(new UnitPoliciesChangedEvent(world.Clock, unit.Id, policies));
     }
 
+    // Contact actions use current combat capability while persistent missions retain their purpose restrictions.
+    internal static bool ValidAction(IWorldQuery world, UnitState unit, MilitaryRulebook rules) =>
+        unit.EffectiveOrder is { } order && (unit.ContactTarget is { } contact && !unit.HasForcedReturn
+            ? MilitaryContacts.Valid(world, unit, contact, rules)
+            : ValidOrder(world, unit.OwnerId, order, rules.Formations[unit.FormationId!.Value], rules,
+                unit.NavalFormationId, unit.Soldiers));
+
     internal static bool ValidOrder(IWorldQuery world, int owner, MilitaryOrder? order, FormationRule formation, MilitaryRulebook rules, int? navalFormationId = null, uint soldiers = 1)
     {
         if (order is null || !order.IsValid || !rules.AllowsOrder(formation.Id, order)) return false;
@@ -325,8 +333,7 @@ internal static class MilitaryMovement
             if (unit.DepartureDaysRemaining > 0) continue;
             if (unit.EffectiveOrder is not { } order || unit.Condition == UnitCondition.Confused) continue;
             if (order.Kind == MilitaryOrderKind.Construct) continue;
-            var formation = rules.Formations[unit.FormationId!.Value];
-            if (!ValidOrder(world, unit.OwnerId, order, formation, rules, unit.NavalFormationId, unit.Soldiers))
+            if (!ValidAction(world, unit, rules))
             {
                 // Forced returns are projections over the stored mission, not replacements for it.
                 if (!unit.HasForcedReturn) MilitaryOrders.ResolveOrder(world, unit, rules, events);
@@ -366,7 +373,7 @@ internal static class MilitaryMovement
     internal static void Absorb(WorldMutation world, UnitState unit, int destinationId, GovernanceRulebook governance, PersonnelRulebook geography, MilitaryRulebook military, List<DomainEvent> events)
     {
         var home = world.Settlements[destinationId];
-        var returnHome = unit.EffectiveOrder?.Kind == MilitaryOrderKind.Transport && unit.ServicePlaceId != home.Id
+        var returnHome = unit.Order?.Kind == MilitaryOrderKind.Transport && unit.ServicePlaceId != home.Id
             ? PersonnelReturns.TransportDestination(world, unit, home, military) : home;
         int root = ResourceAccounts.Root(world, unit.OwnerId).Id;
         int sourceCorps = unit.CorpsId ?? root, previousCorps = home.CorpsId ?? root;

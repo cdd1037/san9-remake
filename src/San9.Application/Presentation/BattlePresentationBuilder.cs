@@ -28,6 +28,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
     private double _impact = MapMovementCadence.DayMilliseconds / 1000.0, _mapAvailable;
     private readonly List<BattleMapBatch> _batches = [];
     private bool _batchOpen;
+    private bool _supportPresentationVisible;
     private int _index;
 
     private int _feedbackIndex = -1;

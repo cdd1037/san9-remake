@@ -116,15 +116,18 @@ internal sealed partial class BattlePresentationBuilder
 
     private void PresentHealing(TacticHealingEvent healing)
     {
-        if (healing.Occurrence is not { } heal || healing.TacticId is not int healTactic ||
-            content.Battle is not { } battle || !battle.Tactics.TryGetValue(healTactic, out var healDefinition) || !Visible(heal)) return;
-        Capture(heal.Source, heal.Target);
-        var sprite = healDefinition.MapEffect;
-        _visuals.Add(new(Identity("healing"), _impact, _impact + (sprite?.Columns * sprite?.FrameMilliseconds ?? 0) / 1000.0,
-            heal.Source, heal.Target, healTactic, healing.ActorId ?? Soldier, false, false, 0, 0, 0, sprite, null)
-        { SoldierGain = healing.RecoveredSoldiers });
         _stateValues.Add(new(_impact, healing.TargetUnitId, false, healing.RecoveredSoldiers, 0, 0));
-        Number(heal.Target, healing.RecoveredSoldiers, _impact, "map-healing");
+        if (healing.Occurrence is not { } heal || healing.TacticId is not int healTactic ||
+            content.Battle is not { } battle || !battle.Tactics.TryGetValue(healTactic, out var healDefinition)) return;
+        Capture(heal.Source, heal.Target);
+        if (_supportPresentationVisible)
+        {
+            var sprite = healDefinition.MapEffect;
+            _visuals.Add(new(Identity("healing"), _impact, _impact + (sprite?.Columns * sprite?.FrameMilliseconds ?? 0) / 1000.0,
+                heal.Source, heal.Target, healTactic, healing.ActorId ?? Soldier, false, false, 0, 0, 0, sprite, null)
+            { SoldierGain = healing.RecoveredSoldiers });
+            Number(heal.Target, healing.RecoveredSoldiers, _impact, "map-healing");
+        }
         if (healing.RecoveredSoldiers > 0) Outcome("healed", healing.Clock, heal, healing.RecoveredSoldiers, heal.Source.ForceId);
         _cursor = Math.Max(_cursor, _impact);
     }
@@ -156,6 +159,7 @@ internal sealed partial class BattlePresentationBuilder
         TacticOccurrence? occurrence; int tacticId, actor, effect; GameClock clock;
         if (fact is TacticActivatedEvent activation)
         {
+            _supportPresentationVisible = false;
             occurrence = activation.Occurrence; tacticId = activation.TacticId; actor = activation.Participants[0].OfficerId; effect = activation.Effect; clock = activation.Clock;
         }
         else if (fact is IntelligenceEffectResolvedEvent intelligence)
@@ -207,7 +211,13 @@ internal sealed partial class BattlePresentationBuilder
             if (preludeId is not null) _preludes.Add(new(preludeId, _cursor, end, target));
             return end;
         }
-        if (!Visible(occurrence))
+        bool visible = Visible(occurrence);
+        if (fact is TacticActivatedEvent supportActivation && definition.Support)
+        {
+            visible = DirectPlayer(source) || supportActivation.Opponent is { } opponent && DirectPlayer(opponent);
+            _supportPresentationVisible = visible;
+        }
+        if (!visible)
         {
             if (fact is TacticActivatedEvent && !definition.Support)
             {

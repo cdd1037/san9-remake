@@ -52,7 +52,11 @@ internal static class TacticSupport
             new(inspireGarrison ? MilitaryOrderKind.AttackSettlement : MilitaryOrderKind.AttackUnit,
                 null, inspireGarrison ? source.Id : null) { UnitId = inspireGarrison ? null : targets[0] }, tactic, military);
         events.Add(new TacticActivatedEvent(world.Clock, source.Id, source.IsSettlement, targets[0],
-            inspireGarrison, tactic.Id, [new(actor.Id, tactic.Id)], false, 10) { Occurrence = activation });
+            inspireGarrison, tactic.Id, [new(actor.Id, tactic.Id)], false, 10)
+        {
+            Occurrence = activation,
+            Opponent = opponent is { } combatOpponent ? BattleObjectContext.Capture(world, combatOpponent) : null
+        });
         if (opponent is { } enemy)
             MilitaryCombat.CommitOrdinary(world, source, enemy, damage, military, events);
         int proficiency = actor.TacticProficiencies[tactic.Category!.Value];

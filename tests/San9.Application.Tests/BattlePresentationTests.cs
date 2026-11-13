@@ -211,7 +211,7 @@ public sealed class BattlePresentationTests
         var source = occurrence.Source; var target = occurrence.Target;
         ImmutableArray<int> participants = enemySource ? [23, 22] : [3, 2];
         DomainEvent[] facts = [new TacticActivatedEvent(session.Snapshot.Clock, source.Id, false, target.Id, false, 99, participants.Select(id => new TacticParticipant(id, 99)).ToImmutableArray(), false, 10)
-            { Occurrence = occurrence, IsChain = chain },
+            { Occurrence = occurrence, IsChain = chain, Opponent = support ? target : null },
             new BattleDamageEvent(session.Snapshot.Clock, source.Id, target.Id, null, 500, 0, 500, 0, 0)
             { TacticId = 99, Source = source, Target = target }];
         var plan = BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content, tacticScenesEnabled: false);
@@ -652,6 +652,43 @@ public sealed class BattlePresentationTests
         if (scenesEnabled) Assert.Equal("奋迅", Assert.Single(plan.Messages, c => c.Message.Message.Key == "hit-reaction").Message.Message.BbCode);
         else Assert.DoesNotContain(plan.Messages, c => c.Message.Message.Key == "hit-reaction");
         Assert.Equal(BattleMessageChannel.Dialogue, linked.Channel);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void HealingUsesActivationAdmissionForAllTargets(bool reverseTargets)
+    {
+        var (session, texts, content, occurrence) = Fixture(false);
+        content.Battle!.Tactics[99] = content.Battle.Tactics[99] with { Support = true };
+        content.Battle.Messages["healed"] = content.Battle.Messages["damage"];
+        var before = session.View.ForWorld(session.Snapshot with
+        {
+            Corps = [.. session.Snapshot.Corps, new(4, 1, 2, new(10000, 10000))],
+            Simulation = session.Snapshot.Simulation with
+            { Controls = [new("player", 1, ControllerKind.Player), new("second-player", 2, ControllerKind.Player)] }
+        });
+        var source = occurrence.Source with { CorpsId = 4 };
+        var ally = occurrence.Target with { ForceId = 1, CorpsId = 1 };
+        var opponent = new BattleObjectContext(2, true, 2, 21, null, 2, true) { CorpsId = 2 };
+        var targets = reverseTargets ? new[] { ally, source } : [source, ally];
+        List<DomainEvent> facts = [];
+        foreach (var combatOpponent in new[] { opponent, null })
+        {
+            facts.Add(new TacticActivatedEvent(before.World.Clock, source.Id, false, targets[0].Id, false, 99, [new(3, 99)], false, 10)
+            { Occurrence = occurrence with { Source = source, Target = targets[0] }, Opponent = combatOpponent });
+            facts.AddRange(targets.Select(target => new TacticHealingEvent(before.World.Clock, new(source.Id, false), target.Id, 100, [], false)
+            { TacticId = 99, ActorId = 3, Occurrence = occurrence with { Source = source, Target = target } }));
+        }
+
+        var plan = BattlePresentationPlan.Create(before, before, facts, session.Messages(texts).ForWorld(before.World), texts, content,
+            tacticScenesEnabled: false);
+
+        Assert.Equal(3, plan.Messages.Count);
+        Assert.All(plan.Messages, cue => Assert.Equal(0, cue.FactIndex));
+        Assert.Equal(targets.Select(target => target.Id), plan.Visuals.Select(cue => cue.Target.Id));
+        Assert.All(plan.Visuals, cue => Assert.InRange(cue.FactIndex, 1, 2));
+        Assert.Equal(4, plan.Values.Count);
     }
 
     private static (GameSession Session, TextCatalog Texts, CommandPresentation Content, TacticOccurrence Occurrence) Fixture(bool martial = true)

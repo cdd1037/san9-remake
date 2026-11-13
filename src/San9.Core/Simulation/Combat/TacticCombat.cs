@@ -9,6 +9,8 @@ public sealed record TacticActivatedEvent(GameClock Clock, int SourceId, bool So
     bool TargetIsSettlement, int TacticId, ImmutableArray<TacticParticipant> Participants, bool Doubled, int Effect) : DomainEvent
 {
     public TacticOccurrence? Occurrence { get; init; }
+    /// <summary>The opposing combat object when support activates during an exchange.</summary>
+    public BattleObjectContext? Opponent { get; init; }
     public bool IsChain { get; init; }
 }
 public sealed record TacticProficiencyGrownEvent(GameClock Clock, int OfficerId, int Category, int Previous, int Current) : DomainEvent;

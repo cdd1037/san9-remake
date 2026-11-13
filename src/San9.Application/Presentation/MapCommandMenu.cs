@@ -58,7 +58,19 @@ public static class MapCommandMenu
                 : Facilities.Children.Where(c => c.Id is "repair" or "train").ToArray() };
         }
         var availability = new MapCommandAvailability(view);
-        return new[] { facilities }.Concat(Common).Select(group => group with {
+        bool researchAvailable = view.MilitaryRules is not null && view.World.Simulation.NewGame.MixedTroopsEnabled;
+        bool armamentsAvailable = view.World.Simulation.NewGame.MixedTroopsEnabled && view.MilitaryRules?.Armaments.IsEmpty == false;
+        bool purchaseAvailable = armamentsAvailable;
+        bool peerageAvailable = view.World.Simulation.NewGame.PersonalPeerageEnabled != false && view.World.Forces.FirstOrDefault(f => f.Id == view.PlayerForceId)?.PersonalPeerageRegimeId is not null;
+        var groups = Common.Select(group => group.Id == "appointments" && peerageAvailable
+            ? group with { Children = [.. group.Children, new MapCommandEntry("personal-peerage", MapCommandTone.Brown, [])] }
+            : group.Id == "military"
+            ? group with { Children = [.. group.Children,
+                .. view.MilitaryRules is not null && view.World.Simulation.NewGame.FormationTrainingEnabled ? new[] { new MapCommandEntry("formation-teaching", MapCommandTone.Green, []) } : [],
+                .. researchAvailable ? new[] { new MapCommandEntry("research", MapCommandTone.Green, []) } : [],
+                .. armamentsAvailable ? new[] { new MapCommandEntry("equipment-production", MapCommandTone.Green, []) } : [],
+                .. purchaseAvailable ? new[] { new MapCommandEntry("equipment-purchase", MapCommandTone.Green, []) } : []] } : group);
+        return new[] { facilities }.Concat(groups).Select(group => group with {
             Children = group.Children.Select(entry => entry with {
                 UnavailableReasonKey = availability.SettlementReasonKey(id, entry.Id)
             }).ToArray()
@@ -73,7 +85,8 @@ public static class MapCommandMenu
         IReadOnlyList<MapCommandEntry> entries = view.MilitaryRules?.Purpose(formation) switch {
             UnitPurpose.Construction => [UnitEntries.Single(e => e.Id == "march")],
             UnitPurpose.Transport => [Group("redirect-transport", MapCommandTone.Green)],
-            _ => UnitEntries
+            _ => view.World.Simulation.NewGame.MixedTroopsEnabled && !unit.Detachments.IsEmpty
+                ? [.. UnitEntries, Group("armament-resupply", MapCommandTone.Green), Group("armament-configure", MapCommandTone.Green)] : UnitEntries
         };
         string? reason = new MapCommandAvailability(view).UnitReasonKey(unit);
         return entries.Select(entry => entry with { UnavailableReasonKey = reason }).ToArray();

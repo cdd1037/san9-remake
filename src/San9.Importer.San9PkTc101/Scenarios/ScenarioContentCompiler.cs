@@ -3,6 +3,7 @@ using San9.Content.Scenarios;
 using San9.Content.Text;
 using San9.Core.Domain;
 using San9.Importer.San9PkTc101.Text;
+using San9.Importer.San9PkTc101.Packages;
 
 namespace San9.Importer.San9PkTc101.Scenarios;
 
@@ -122,13 +123,28 @@ public static class ScenarioContentCompiler
                 .Select(f => new FormationCatalogDefinition(f.Id, text.Formation(f.Id)) { Description = text.FormationDescription(f.Id),
                     Presentation = new(3, 3, Enumerable.Range(0, f.DeploymentSlotCodes.Count).Select(f.GetDeploymentSlotPosition)
                         .Where(p => p is not null).Select(p => new FormationSlot(p!.Value.Column, p.Value.Row)).ToImmutableArray(),
-                        f.VisionRadius, f.VisionAngleDegrees, $"formation-diagram-{f.Id}", $"formation-available-{f.Id}") }).ToArray(),
+                        f.VisionRadius, f.VisionAngleDegrees, $"formation-diagram-{f.Id}", $"formation-available-{f.Id}") })
+                .Concat(new[] { (Id: 28, Name: "偃月", Source: 7), (Id: 29, Name: "衡轭", Source: 4),
+                    (Id: 30, Name: "钩行", Source: 1), (Id: 31, Name: "车悬", Source: 2) }
+                    .Select(item =>
+                    {
+                        var f = formations.Single(formation => formation.Id == item.Source);
+                        return new FormationCatalogDefinition(item.Id, item.Name)
+                        {
+                            Description = MixedTroopPreset.FormationDescription(item.Id - 28),
+                            MapAppearanceId = item.Source,
+                            Presentation = new(3, 3, MixedTroopPreset.FormationPositions(item.Id - 28)
+                                .Select(p => new FormationSlot(p.Column, (int)p.Rank)).ToImmutableArray(),
+                                f.VisionRadius, f.VisionAngleDegrees, null, null)
+                        };
+                    })).ToArray(),
             CountryTitles = PoliticalContentCompiler.Titles(countryTitles, persons, officers.Select(o => o.State.Id),
                 id => text.CountryTitle($"country-title.{id}", id),
                 id => System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + id * 4, 4))),
             Relations = summaries.SelectMany(a => summaries.Where(b => b.Id > a.Id).Select(b =>
                 new San9.Core.Domain.ForceRelation(a.Id, b.Id, forces[a.Id].DiplomaticRelations[b.Id]))).ToArray()
         };
+        information = information with { Equipment = LegacyEquipmentMigration.Convert(information.Treasures, information.TreasureStates, EquipmentPreset.Basic()).Definitions };
         var suffixKeys = fixedBuildings.Select(f => (f.Id, Key: text.FacilitySuffix($"facility-suffix.{f.Id}", f.Id)))
                 .Where(p => p.Key is not null).ToDictionary(p => p.Id, p => p.Key!);
         var provinceNames = settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => (int)cities[s.Id].AreaCode).Distinct().ToDictionary(id => id, text.Province);
@@ -211,6 +227,10 @@ public static class ScenarioContentCompiler
             new(snapshot.Military!), settlements.Where(s => s.Kind == San9.Core.Domain.SettlementKind.City).Select(s => s.Id), token: token).Connections };
         snapshot = EventContentCompiler.InitializePenglai(snapshot);
         snapshot = InitialLeadershipCompiler.Compile(snapshot);
+        snapshot = LegacyHistoricalPeerageEvidence.Apply(snapshot, catalog, header.ScenarioId <= 9);
+        snapshot = HistoricalPeerageContent.Apply(snapshot, header.ScenarioId <= 9);
+        snapshot = CuratedFormationEvidence.Apply(snapshot, catalog);
+        snapshot = FeaturedEquipmentPreset.Apply(snapshot);
         snapshot.Validate(); catalog.Validate(); return (snapshot, catalog);
     }
 }

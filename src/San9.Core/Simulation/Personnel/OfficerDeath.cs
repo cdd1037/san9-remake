@@ -54,6 +54,7 @@ internal static class OfficerDeath
             EquippedTacticId = null, TacticCooldown = 0, RewardedThisXun = false,
             HasRecruitmentPoliticsBonus = false
         });
+        EquipmentOwnership.OfficerDied(world, previous, events);
         events.Add(new OfficerDiedEvent(world.Clock, officerId, cause, previous.Status, previous.OwnerId,
             previous.SettlementId, previous.RegionId, previous.UnitId));
         if (previous.OwnerId is int owner && world.Forces[owner].LeaderId == officerId)

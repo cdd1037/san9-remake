@@ -1,10 +1,78 @@
 using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
+using System.Collections.Immutable;
 
 namespace San9.Core.Tests;
 public sealed class EconomicOutlookTests
 {
+    [Fact]
+    public void ConfiguredPeriodSalaryIsSharedBySettlementAndForecast()
+    {
+        var grades = PersonalPeeragePolicy.Default.Grades.Values.OrderBy(r => r.Grade)
+            .Select(r => r.Grade == PersonalPeerageGrade.CountyMarquis ? r with { Salary = 12 } : r).ToImmutableArray();
+        var period = new PersonalPeeragePeriod(180, 220, ImmutableDictionary<PersonalPeerageGrade, ImmutableArray<int>>.Empty, []) { GradeRules = grades };
+        var economy = new EconomyRulebook([], []) { PersonalPeerageRegimes = ImmutableDictionary<string, PersonalPeerageRegime>.Empty.Add("han", new([period])) };
+        var force = new ForceState(5, 100) { LeaderId = 1, PersonalPeerageRegimeId = "han" };
+        var world = WorldState.Create(new(190, 6, 21), 1, [force],
+            [new SettlementState(15, 5, 0, 100, 100, 0, 100, 0, 100, 0, 100)],
+            [new OfficerState(1, 5, 15, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
+             new OfficerState(2, 5, 15, new(50, 50, 50, 50), false) { PersonalPeerage = new(PersonalPeerageGrade.CountyMarquis, null) }],
+            corps: [new CorpsState(10, 5, 1, new(1000, 1000)) { IsRoot = true }]);
+        Assert.Equal(130, EconomicOutlook.Read(world.CreateSnapshot(), new Dictionary<int, int>(), 5, CompanionSettings.Default,
+            peerages: economy.PeeragePolicy(force, 190)).Money.Expenditure);
+        var mutation = world.BeginMutation();
+        EconomicCycle.Apply(ResolutionStage.XunUpdate, mutation, economy, []);
+        Assert.Equal(987u, mutation.Corps[10].Treasury.Money);
+    }
+
+    [Fact]
+    public void PersonalPeeragePayUsesServingOfficersCorpsAndIncludesRuler()
+    {
+        var clock = new GameClock(190, 6, 21);
+        var world = WorldState.Create(clock, 1,
+            [new ForceState(5, 100) { LeaderId = 1 }],
+            [new SettlementState(15, 5, 0, 100, 100, 0, 100, 0, 100, 0, 100) { CorpsId = 10 },
+             new SettlementState(16, 5, 0, 100, 100, 0, 100, 0, 100, 0, 100) { CorpsId = 11 }],
+            [new OfficerState(1, 5, 15, new(50, 50, 50, 50), false)
+                { Status = OfficerStatus.Ruler, PersonalPeerage = new(PersonalPeerageGrade.ImperialMarquis, null) },
+             new OfficerState(2, 5, 16, new(50, 50, 50, 50), false)
+                { PersonalPeerage = new(PersonalPeerageGrade.CountyMarquis, null) }],
+            corps: [new CorpsState(10, 5, 1, new(1000, 1000)) { IsRoot = true },
+                new CorpsState(11, 5, 2, new(1000, 1000))]);
+        var snapshot = world.CreateSnapshot();
+        Assert.Equal(10, EconomicOutlook.Read(snapshot, new Dictionary<int, int>(), 5, CompanionSettings.Default, 10).Money.Expenditure);
+        Assert.Equal(70, EconomicOutlook.Read(snapshot, new Dictionary<int, int>(), 5, CompanionSettings.Default, 11).Money.Expenditure);
+        var withCaptive = snapshot with { Officers = [.. snapshot.Officers,
+            new OfficerState(3, 5, 16, new(50, 50, 50, 50), false)
+            { Status = OfficerStatus.Captive, PersonalPeerage = new(PersonalPeerageGrade.King, null) }] };
+        Assert.Equal(70, EconomicOutlook.Read(withCaptive, new Dictionary<int, int>(), 5, CompanionSettings.Default, 11).Money.Expenditure);
+        var mutation = world.BeginMutation();
+        List<DomainEvent> events = [];
+        EconomicCycle.Apply(ResolutionStage.XunUpdate, mutation, EconomyRulebook.Empty, events);
+        Assert.Equal(999u, mutation.Corps[10].Treasury.Money);
+        Assert.Equal(993u, mutation.Corps[11].Treasury.Money);
+    }
+
+    [Fact]
+    public void InsufficientPersonalPeeragePayIsReportedWithoutPartialPayment()
+    {
+        var world = WorldState.Create(new(190, 6, 21), 1,
+            [new ForceState(5, 100) { LeaderId = 1 }],
+            [new SettlementState(15, 5, 0, 100, 100, 0, 100, 0, 100, 0, 100)],
+            [new OfficerState(1, 5, 15, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
+             new OfficerState(2, 5, 15, new(50, 50, 50, 50), false)
+                { PersonalPeerage = new(PersonalPeerageGrade.CountyMarquis, null) }],
+            corps: [new CorpsState(10, 5, 1, new(3, 1000)) { IsRoot = true }]);
+        var mutation = world.BeginMutation();
+        List<DomainEvent> events = [];
+        EconomicCycle.Apply(ResolutionStage.XunUpdate, mutation, EconomyRulebook.Empty, events);
+        var payment = Assert.Single(events.OfType<ResourceChangedEvent>(), e => e.Reason == "peerage-salary");
+        Assert.Equal(0, payment.Actual);
+        Assert.Equal(6, payment.Shortfall);
+        Assert.Equal(2u, mutation.Corps[10].Treasury.Money);
+    }
+
     [Fact]
     public void AccountGroupingKeepsFieldPersonnelAndTransportCostsWithTheirCurrentCorps()
     {

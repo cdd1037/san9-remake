@@ -172,6 +172,7 @@ internal static class GiftDiplomacy
             ForceRelations.Change(world, task.ForceId, gift.TargetForceId, Math.Max(60 - relation, 20), rules.Military, events);
             var actor = world.Officers[task.OfficerId];
             OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Politics, "diplomacy-politics-growth", events);
+            OfficerServiceMerit.Credit(world, actor.Id, task.ForceId, 1, "gift-accepted", events);
         }
         else
         {

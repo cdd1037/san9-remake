@@ -34,6 +34,7 @@ internal static class FacilityDemolition
                 s.Facility?.BuilderUnitId is null && military.TryPlace(s, out _))
             .OrderBy(s => s.Id == cityId ? 0 : s.CorpsId == facility.CorpsId ? 1 : 2)
             .ThenBy(s => MapCoordinates.Distance(definition.Position, military.Place(s).Position)).ThenBy(s => s.Id).FirstOrDefault();
+        MilitaryResearch.CancelAt(world, facility.Id, events);
         world.Replace(facility with { IsDestroyed = true, OwnerId = null, CorpsId = null, Soldiers = 0, Wounded = 0,
             Durability = 0, Morale = 0, ConfusionDaysRemaining = 0 });
         foreach (var entry in new[] { (ResourceKind.Soldiers, facility.Soldiers), (ResourceKind.Wounded, facility.Wounded) })

@@ -10,6 +10,64 @@ namespace San9.Application.Tests;
 public sealed class DecisionDraftTests
 {
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void EquipmentGiftUsesNamedConfirmationAndRetainsChoiceAcrossSave(bool accept)
+    {
+        var basis = CommunitySearchSessionTests.Definition("training");
+        var item = new EquipmentDefinition("gift", EquipmentSlot.Treasure, EquipmentRarity.Rare, default, default) { Name = "温玉佩" };
+        var scenario = basis with
+        {
+            Information = basis.Information with { Equipment = [item] },
+            InitialEquipment = [new EquipmentInstance(200, item.Id, null, null, false) { IsLost = true, EventGiftKey = "gift.1" }],
+            SearchEvents = [new EquipmentGiftSearchEventDefinition(1, 200, item.Id, new("gift.1"))
+                { Id = "gift-event", Consumption = EventConsumption.OnSuccess, ChanceAbility = CommunityAbility.Politics }]
+        };
+        var session = GameSession.Start(scenario, 20);
+        Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission.Accepted);
+        var restored = San9.Application.Persistence.SaveService.Decode(San9.Application.Persistence.SaveService.Encode(session), scenario);
+        restored.AdvanceXun();
+        var draft = DecisionDraft.Read(restored, new TextCatalog(TextCatalog.CurrentSchemaVersion, []), CommandPresentation.Empty)!;
+        Assert.Contains("温玉佩", Assert.Single(draft.Introduction).Message.BbCode);
+        string choice = accept ? "Accept" : "Decline";
+        var command = draft.Options.Single(option => option.Role == choice)
+            .CreateCommand(Guid.NewGuid(), restored.Snapshot.Simulation.NextSequence, null, 0);
+        var result = restored.Execute(new(draft.ControllerId), command);
+        Assert.True(result.Submission.Accepted);
+        Assert.Contains(accept ? "温玉佩" : "婉拒", Assert.Single(draft.Results(choice, result.Events, null, 0)).Message.BbCode);
+        Assert.Equal(accept ? 1 : (int?)null, restored.Snapshot.Equipment.Single(value => value.Id == 200).OfficerId);
+    }
+
+    [Fact]
+    public void EquipmentGiftRespectsAuthoredPresentation()
+    {
+        var session = SearchSession(CommunitySearchSessionTests.Definition("gift"), 20);
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, [])
+        { Messages = new() { ["gift.prompt"] = new([new MessageLiteral("自定义提示")]) } };
+        var presentation = CommandPresentation.Empty with
+        {
+            Decisions = new(new()
+            {
+                ["equipment-gift"] = new(DecisionWindowKind.Confirmation, new("gift.prompt", []), [], [],
+                    new() { ["Accept"] = "收下", ["Decline"] = "谢绝" })
+            }, [])
+        };
+        var draft = DecisionDraft.Read(session, texts, presentation)!;
+        Assert.Equal("自定义提示", draft.Prompt.BbCode);
+        Assert.Equal("收下", draft.Options.Single(option => option.Role == "Accept").Title);
+    }
+
+    [Fact]
+    public void EquipmentGiftNameCannotBeConfusedWithAnotherEventRole()
+    {
+        var basis = CommunitySearchSessionTests.Definition("gift");
+        var scenario = basis with { SearchEvents = [basis.SearchEvents.Single() with { Id = "training-site" }] };
+        var session = SearchSession(scenario, 20);
+        var draft = DecisionDraft.Read(session, new TextCatalog(TextCatalog.CurrentSchemaVersion, []), CommandPresentation.Empty)!;
+        Assert.Contains("玉佩", Assert.Single(draft.Introduction).Message.BbCode);
+    }
+
+    [Theory]
     [InlineData("bandit", "bandit-suppression")]
     [InlineData("rescue", "traveler-rescue")]
     [InlineData("mediation", "bandit-mediation")]

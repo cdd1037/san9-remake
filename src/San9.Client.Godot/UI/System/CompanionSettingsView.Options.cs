@@ -218,7 +218,7 @@ public partial class CompanionSettingsView
                 new NumericOption("武力兵法伤害系数", "武力兵法本体伤害乘以此数值÷10；范围5～10，10保持原值。",
                     5, 10, settings => settings.MartialTacticDamageCoefficient,
                     (settings, value) => settings with { MartialTacticDamageCoefficient = value }, "/10"),
-                new ToggleOption("远程兵法攻击设施减伤", "弓骑、弩兵系兵法攻击设施时，耐久提供额外保护，最多减半；井阑的弩兵兵法不受此项影响。",
+                new ToggleOption("远程兵法攻击设施减伤", "弓骑、弓弩系兵法攻击设施时，耐久提供额外保护，最多减半；井阑的弓弩兵法不受此项影响。",
                     settings => settings.ReduceRangedTacticDamageAgainstFacilities,
                     (settings, value) => settings with { ReduceRangedTacticDamageAgainstFacilities = value }),
                 new ToggleOption("提高耐久普防系数", "设施耐久计入普通防御的系数从0.4提高到0.6，不改变城墙自身受到的耐久伤害。",

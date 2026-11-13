@@ -22,7 +22,7 @@ public static class ConstructionContentCompiler
             b.Id < 10, b.Id < 10, b.Id == 0 ? 500000u : 250000u, b.Id == 16 ? 20 : null,
             b.Id >= 6 ? 19 : null, b.TacticId,
             Enumerable.Range(0, San9ScenarioFixedBuildingArchive.TacticCount).Where(b.HasTactic).ToImmutableArray())
-            { Combat = combat, Attack = b.Id < 10 ? new(10, false) { ElevationBonusPerLevel = 5, MaximumElevationBonus = 10 } : null, DestroyedAtZeroDurability = b.Id is >= 6 and <= 16,
+            { Combat = combat, Attack = b.Id < 10 ? new(10, false) { IsRangedAttack = true, ElevationBonusPerLevel = 5, MaximumElevationBonus = 10 } : null, DestroyedAtZeroDurability = b.Id is >= 6 and <= 16,
                 IsHarbor = b.Id == 1, IsWork = b.Id >= 10,
                 Reprisal = b.Id == 16 ? new(6, 1000, 10, 10, 10, 5) : null,
                 ConstructionGrowthTacticId = b.Id >= 6 ? b.Id == 16 ? 20 : 19 : null,

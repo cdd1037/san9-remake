@@ -102,6 +102,7 @@ internal static class BattleAftermath
         if (!settlement.CanHostPersons)
         {
             if (!winner.IsSettlement) BattleLearning.DestroyedWork(world, winner.Id, definition, rules.Military, events);
+            MilitaryResearch.CancelAt(world, id, events);
             world.Replace(settlement with { IsDestroyed = true, OwnerId = null, CorpsId = null,
                 Soldiers = 0, Wounded = 0, Morale = 0, Durability = 0, ConfusionDaysRemaining = 0 });
             MilitaryOrders.RemoveTarget(world, id, true, events);
@@ -141,6 +142,7 @@ internal static class BattleAftermath
                 "settlement-captured", events);
         }
         int publicOrder = cleared ? settlement.PublicOrder : CityBattleEffects.CapturedPublicOrder(world, settlement, winner.Owner(world), events);
+        MilitaryResearch.CancelAt(world, id, events);
         world.Replace(settlement with { SiegeContributions = null, PublicOrder = publicOrder, OwnerId = cleared ? null : winner.Owner(world), CorpsId = cleared ? null : winner.Corps(world),
             Facility = settlement.Facility is { } instance ? instance with { BuilderUnitId = null } : null,
             ConfusionDaysRemaining = 0,

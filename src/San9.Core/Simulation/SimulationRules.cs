@@ -20,10 +20,11 @@ public class SimulationRules
     public TerminalDefinition? Terminal { get; init; }
     public EconomyRulebook Economy { get; init; } = EconomyRulebook.Empty;
     public TreasureRulebook Treasures { get; init; } = TreasureRulebook.Empty;
+    public EquipmentRulebook Equipment { get; init; } = EquipmentRulebook.Empty;
     public PersonnelRulebook Personnel { get; init; } = PersonnelRulebook.Empty;
     public GovernanceRulebook Governance { get; init; } = new([]);
     public MilitaryRulebook? Military { get; init; }
-    internal OfficerAbilityRules Abilities => new(Treasures, Governance, OfficerGrowth);
+    internal OfficerAbilityRules Abilities => new(Treasures, Governance, OfficerGrowth, Equipment);
     internal virtual TaskRule? FindTask(string kind) => kind is PersonnelMissions.RecruitKind or PersonnelMissions.MoveKind or PersonnelMissions.SearchKind
         ? new PersonnelMissionRule(this, kind) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel, Military)
         : kind == UnitStrategies.Kind ? new UnitStrategyRule(this) : kind == BurnStrategies.Kind ? new BurnRule(this)
@@ -39,6 +40,11 @@ public class SimulationRules
     internal void ValidateEvents(WorldMutation initial)
     {
         var rules = this;
+        var peerageRegimes = Economy.PersonalPeerageRegimes;
+        if (peerageRegimes is null || peerageRegimes.Any(p => string.IsNullOrWhiteSpace(p.Key) || p.Value is null) ||
+            initial.AllForces.Values.Any(f => f.PersonalPeerageRegimeId is string id && !peerageRegimes.ContainsKey(id)) ||
+            Politics.Titles.Values.Any(t => t.PersonalPeerageRegimeId is string id && !peerageRegimes.ContainsKey(id)))
+            throw new ArgumentException("Unknown personal peerage regime.");
         rules.QiaoMarriage?.Validate(initial.AllOfficers.Keys.ToHashSet(), rules.Personnel.CityProvinces);
         rules.SunMarriage?.Validate(initial.AllOfficers.Keys.ToHashSet(),
             rules.Military?.Tactics.Values.Where(t => t.Category is >= 0 and <= 8).Select(t => t.Id).ToHashSet() ?? []);

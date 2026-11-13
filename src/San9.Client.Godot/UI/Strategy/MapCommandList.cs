@@ -24,7 +24,7 @@ public partial class MapCommandList : Control
         {
             var button = new InformationMenuButton
             {
-                Title = CommandText.Resolve(Texts, "title." + entry.Id), Disabled = !entry.Enabled,
+                Title = entry.Id == "armament-resupply" ? "补充军械" : entry.Id == "armament-configure" ? "调整军械" : CommandText.Resolve(Texts, "title." + entry.Id), Disabled = !entry.Enabled,
                 Textures = Textures, Position = new(11, 16 + _items.Count * 28), Size = new(68, 28),
                 SkinPrefix = $"command-primary-{entry.Tone.ToString().ToLowerInvariant()}"
             };

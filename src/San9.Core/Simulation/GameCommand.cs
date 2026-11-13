@@ -15,6 +15,16 @@ public sealed record RespondDailyTaskCommand(Guid CommandId, int IssuerId, long 
 
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(WaitCommand), "wait")]
+[JsonDerivedType(typeof(StartResearchCommand), "start-research")]
+[JsonDerivedType(typeof(StartFormationTeachingCommand), "start-formation-teaching")]
+[JsonDerivedType(typeof(ConfigureEquipmentCommand), "configure-equipment")]
+[JsonDerivedType(typeof(TransferEquipmentCommand), "transfer-equipment")]
+[JsonDerivedType(typeof(StartEquipmentProductionCommand), "start-equipment-production")]
+[JsonDerivedType(typeof(PurchaseEquipmentCommand), "purchase-equipment")]
+[JsonDerivedType(typeof(PurchaseArmamentCommand), "purchase-armament")]
+[JsonDerivedType(typeof(StartArmamentProductionCommand), "start-armament-production")]
+[JsonDerivedType(typeof(ResupplyUnitArmamentsCommand), "resupply-unit-armaments")]
+[JsonDerivedType(typeof(ConfigureUnitArmamentCommand), "configure-unit-armament")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(RespondDailyTaskCommand), "respond-daily-task")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(GiftCommand), "gift")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(RequestAttackCommand), "request-attack")]
@@ -60,6 +70,7 @@ public sealed record RespondDailyTaskCommand(Guid CommandId, int IssuerId, long 
 [JsonDerivedType(typeof(ChooseDuelSuccessorCommand), "choose-duel-successor")]
 [JsonDerivedType(typeof(ChooseExecutionSuccessorCommand), "choose-execution-successor")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(AssignOfficesCommand), "assign-offices")]
+[JsonDerivedType(typeof(SetPersonalPeerageCommand), "set-personal-peerage")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SetCorpsControlCommand), "set-corps-control")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SetCorpsDelegationCommand), "set-corps-delegation")]
 public abstract record GameCommand(
@@ -112,6 +123,13 @@ public enum CommandRejection
     SettlementConfused,
     FormationUnavailable,
     PrisonerExecutionProhibited,
+    PeerageRegimeUnavailable,
+    PeerageUnauthorized,
+    PeerageQuotaFull,
+    PeerageRoyalLineageRequired,
+    PeerageEmperorRequired,
+    PeerageCourtControlRequired,
+    PeerageUnchanged,
 }
 
 public readonly record struct CommandSubmissionResult(

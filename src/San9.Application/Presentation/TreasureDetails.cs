@@ -3,7 +3,7 @@ using San9.Content.Text;
 namespace San9.Application.Presentation;
 
 public sealed record TreasureDetailData(string Name, string PortraitRole, string Holder, string Description,
-    string Category, string Effect, string Ability, string Tactic, int? TacticGroup);
+    string Category, string Effect, string Ability, string Tactic, int? TacticGroup, string EquipmentStatus = "");
 
 public static class TreasureDetails
 {
@@ -14,8 +14,10 @@ public static class TreasureDetails
         string ability = cells[2].Text.Length == 0 ? "" : $"{cells[2].Text}+{cells[3].Text}";
         int? tacticId = view.Information.Treasures.Single(t => t.Id == id).TacticId;
         int? group = tacticId is int tactic ? view.TacticCategory(tactic) : null;
+        var equipment = view.World.Equipment.FirstOrDefault(item => item.LegacyTreasureId == id);
+        string status = equipment is null ? "" : equipment.Equipped ? "已装备" : "未装备";
         return new(cells[0].Text, $"information-treasure-{id}", cells[6].Text,
             texts.ResolveRich(TreasureText.DescriptionKey(id)), cells[1].Text,
-            cells[5].IsUnavailable ? "" : cells[5].Text, ability, cells[4].Text, group);
+            cells[5].IsUnavailable ? "" : cells[5].Text, ability, cells[4].Text, group, status);
     }
 }

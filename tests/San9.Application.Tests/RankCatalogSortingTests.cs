@@ -25,7 +25,7 @@ public sealed class RankCatalogSortingTests
         var view = new StrategySnapshot(definition, world);
         var table = OfficerCatalog.Read(view, texts, 3, null, null);
         var state = State(table);
-        int column = Array.IndexOf(table.Columns, "爵位");
+        int column = Array.IndexOf(table.Columns, "官职");
 
         state.Sort(column);
         Assert.Equal(new[] { 1, 2, 3, 4, 5, 6 }, state.Rows.Select(r => r.Id));
@@ -53,7 +53,7 @@ public sealed class RankCatalogSortingTests
         var table = OfficerCatalog.Read(view, texts, 3, 1, null);
         var ruler = table.Rows.Single(r => r.Key.Id == 1);
         var detail = OfficerDetails.Read(view, texts, 1);
-        foreach (string title in new[] { "爵位", "俸禄", "仕官" })
+        foreach (string title in new[] { "官职", "俸禄", "仕官" })
         {
             int column = Array.IndexOf(table.Columns, title);
             Assert.Equal(new CatalogCell("—", long.MaxValue), ruler.Cells[column]);
@@ -69,8 +69,8 @@ public sealed class RankCatalogSortingTests
     }
 
     [Theory]
-    [InlineData(InformationCategory.Offices, 0, "爵位", 3, 900)]
-    [InlineData(InformationCategory.Offices, 1, "爵位", 3, 900)]
+    [InlineData(InformationCategory.Offices, 0, "官职", 3, 900)]
+    [InlineData(InformationCategory.Offices, 1, "官职", 3, 900)]
     [InlineData(InformationCategory.Ranks, 0, "官爵", 3, 900)]
     [InlineData(InformationCategory.Forces, 0, "官爵", 1, 2)]
     public void RankColumnsSortByContentPrecedenceInsteadOfNameOrIdentity(

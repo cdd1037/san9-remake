@@ -31,6 +31,24 @@ internal static class OccurrenceFeedback
             messages.Clear(); records.Clear();
         }
         var fact = events[index];
+        if (fact is ResearchCompletedEvent researchCompleted && before.World.Simulation.Controls.Any(c =>
+            c.ForceId == researchCompleted.ForceId && c.Kind == ControllerKind.Player))
+        {
+            string name = MessageMarkup.Escape(ResearchDisplay.Name(before.MilitaryRules, researchCompleted.ProjectId));
+            var message = new ProducedMessage("research-completed", researchCompleted.Clock, $"{name}研究完成。");
+            messages.Add(new(message, null, null));
+            records.Add(new($"research:{before.World.Revision}:{index}", message));
+            Flush(FeedbackKind.Outcome);
+        }
+        if (fact is ResearchCancelledEvent researchCancelled && before.World.Simulation.Controls.Any(c =>
+            c.ForceId == researchCancelled.ForceId && c.Kind == ControllerKind.Player))
+        {
+            string name = MessageMarkup.Escape(ResearchDisplay.Name(before.MilitaryRules, researchCancelled.ProjectId));
+            var message = new ProducedMessage("research-cancelled", researchCancelled.Clock, $"{name}研究已取消。");
+            messages.Add(new(message, null, null));
+            records.Add(new($"research:{before.World.Revision}:{index}", message));
+            Flush(FeedbackKind.Outcome);
+        }
         var nonExecutionPolicy = !executionMap && fact is UnitPolicyRespondedEvent policy &&
             ProgressFeedback.IsPolicyDecision(policy.Response) ? policy : null;
         if (content.Progress is { } feedback)

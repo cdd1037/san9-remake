@@ -59,7 +59,7 @@ public sealed partial class SimulationEngine
             step = new(task.Id, task.ResolutionStep, task.SearchEncounter, task.AttackRequest?.Offer, task.PrisonerReturn?.Offer);
             if (task.ForceId == daily.RespondingForceId)
             {
-                var world = _world.BeginMutation(_rules.Abilities, _rules.Economy);
+                var world = BeginMutation();
                 int? corpsId = PersonnelLocations.Corps(world, world.Officers[task.OfficerId]) ??
                     world.Corps.Values.SingleOrDefault(c => c.OwnerId == force && c.IsRoot)?.Id;
                 if (corpsId is int id && world.Corps[id].ControlMode == San9.Core.Domain.CorpsControlMode.Automatic)

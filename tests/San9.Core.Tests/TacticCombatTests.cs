@@ -65,6 +65,34 @@ public sealed class TacticCombatTests
         Assert.Equal(fact.Participants.ToArray(), restored.Participants.ToArray());
     }
 
+    [Fact]
+    public void MixedDetachmentCannotLinkWithAnUnsupportedTactic()
+    {
+        var fact = Engine(members: 2, seed: 22, linkMultiplier: 4, distinctLinkedTactic: true, mixed: true)
+            .AdvanceXun().Events.OfType<TacticActivatedEvent>().First();
+        Assert.Single(fact.Participants);
+        Assert.Equal(11, fact.Participants[0].OfficerId);
+    }
+
+    [Fact]
+    public void DeputyFormationProficiencyChangesTheirLinkedDamage()
+    {
+        uint Damage(int skill) => Engine(members: 2, seed: 22, linkMultiplier: 4, mixed: true,
+                deputyFormationProficiency: skill).AdvanceXun().Events.OfType<BattleDamageEvent>()
+            .First(e => e.AttackerId == 0 && e.TacticId is not null).CalculatedSoldierLoss!.Value;
+        Assert.True(Damage(1000) > Damage(0));
+    }
+
+    [Fact]
+    public void FullShieldCoverBlocksRealRangedTacticDamage()
+    {
+        var result = Engine(fullShield: true).AdvanceXun();
+        Assert.Contains(result.Events.OfType<TacticActivatedEvent>(), activated => activated.SourceId == 0);
+        var damage = result.Events.OfType<BattleDamageEvent>().First(e => e.AttackerId == 0 && e.TacticId == 9000);
+        Assert.Equal(0u, damage.SoldierLoss);
+        Assert.Equal(0u, damage.CalculatedSoldierLoss);
+    }
+
     [Theory]
     [InlineData(2, 22UL, 2)] // Link stream rolls 49: below the ordinary 50% threshold.
     [InlineData(2, 29UL, 1)] // 50 is outside that threshold.
@@ -91,7 +119,7 @@ public sealed class TacticCombatTests
     private static SimulationEngine Engine(int members = 1, bool water = false, bool settlement = false,
         int power = 13, bool equipped = true, int injury = 0, int cooldown = 0, bool allowedFacility = true, bool counter = false,
         int primaryProficiency = 0, int linkedProficiency = 0, ulong seed = 42, int linkMultiplier = 2, TacticLinkRules? links = null,
-        int? vulnerableCategory = null, int defenderProficiency = 0, CityInfluenceRule? influence = null, int opportunityChance = 100, int computerBonus = 0, bool normalPower = false, bool waterLearning = false, bool differentCommander = false, WorldSnapshot? restoredState = null, bool distinctLinkedTactic = false)
+        int? vulnerableCategory = null, int defenderProficiency = 0, CityInfluenceRule? influence = null, int opportunityChance = 100, int computerBonus = 0, bool normalPower = false, bool waterLearning = false, bool differentCommander = false, WorldSnapshot? restoredState = null, bool distinctLinkedTactic = false, bool mixed = false, bool fullShield = false, int? deputyFormationProficiency = null)
     {
         var combat = normalPower ? new CombatProfile(10, 10, 0, 10, 50) : new CombatProfile(0, 0, 0, 1000, 50);
         var mode = water ? TravelMode.Water : TravelMode.Land;
@@ -100,7 +128,7 @@ public sealed class TacticCombatTests
                 AutomaticTacticLearningId = waterLearning ? 9020 : null,
                 Positions = San9.Tests.FormationTestData.Layout([BattleRank.Front, BattleRank.Front]), Tactics = new(opportunityChance, linkMultiplier, [0], water ? [9000] : [])
                     { AutomaticOpportunityChance = water ? opportunityChance : null } },
-             new(200, 5, 0, 100000, 1, new(1, 1), mode) { Combat = combat, Positions = San9.Tests.FormationTestData.Layout([BattleRank.Middle]),
+             new(200, 5, 0, 100000, 1, new(1, 1), mode) { Combat = combat, Positions = San9.Tests.FormationTestData.Layout([BattleRank.Middle]), SupportsShieldCover = fullShield,
                 MartialTacticVulnerabilities = vulnerableCategory is int weak ? [weak] : [],
                 Attack = counter ? new(1, false) : null, Tactics = counter ? new(opportunityChance, 2, [0], []) : null }],
             [new(1, new(2, 2), new(1, 1)) { Combat = combat }, new(2, new(17, 2), new(1, 1)) { Combat = combat }])
@@ -108,6 +136,11 @@ public sealed class TacticCombatTests
             DefensiveTacticChance = counter ? 100 : 0,
             LinkRules = links ?? TacticLinkRules.Empty,
             CityInfluence = influence,
+            TroopTypes = fullShield ?
+                [new(1, "射兵", 1, new Dictionary<int, int> { [9000] = 1 }.ToImmutableDictionary()) { IsRangedAttack = true },
+                 new(2, "盾兵", 1, ImmutableDictionary<int, int>.Empty) { SupportsShieldCover = true }] :
+                mixed ? [new(1, "兵种", 1, new Dictionary<int, int> { [9000] = 1 }.ToImmutableDictionary())] : [],
+            MixedTroopCombat = fullShield ? new(20, 100, 15, 10) : null,
             Tactics = [new(9000, 0, TacticEffect.Martial, power, 9, 0, !water, allowedFacility, [100, 200]),
                 new(9001, 0, TacticEffect.Martial, power + 1, 9, 0, true, allowedFacility, [100, 200]),
                 new(9020, 4, TacticEffect.FormationTechnology, 0, 0, 0, false, false, [100])]
@@ -119,6 +152,7 @@ public sealed class TacticCombatTests
         if (members == 2) officers.Add(new(12, 1, null, new(80, 70, 70, 70), false)
         {
             UnitId = 0,
+            FormationProficiencies = deputyFormationProficiency is int skill ? ImmutableSortedDictionary<int, int>.Empty.Add(100, skill) : null,
             LearnedTactics = [distinctLinkedTactic ? 9001 : 9000],
             EquippedTacticId = distinctLinkedTactic ? 9001 : 9000,
             TacticProficiencies = [linkedProficiency, 0, 0, 0, waterLearning ? 1000 : 0, 0, 0, 0, 0]
@@ -139,6 +173,15 @@ public sealed class TacticCombatTests
             ServicePlaceId = 2,
             MemberPositions = San9.Tests.FormationTestData.Members(ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Middle))
         });
+        if (mixed)
+            units[0] = units[0] with { Detachments = new Dictionary<int, DetachmentState>
+                { [11] = new(1, 1, 50000), [12] = new(1, 1, 50000) }.ToImmutableDictionary() };
+        if (fullShield)
+        {
+            units[0] = units[0] with { Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(11, new(1, 1, 100000)) };
+            units[1] = units[1] with { Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(21, new(2, 1, 100000)),
+                MemberPositions = San9.Tests.FormationTestData.Members(ImmutableDictionary<int, BattleRank>.Empty.Add(21, BattleRank.Front)) };
+        }
         if (differentCommander)
             units[0] = units[0] with { CommanderId = 12, };
         var world = WorldState.Create(new(190, 1, 1), seed,

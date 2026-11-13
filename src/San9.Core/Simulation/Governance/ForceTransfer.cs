@@ -23,6 +23,7 @@ internal static class ForceTransfer
         var places = world.Settlements.Values.Where(s => s.OwnerId == force).OrderBy(s => s.Id).ToArray();
         foreach (var place in places)
         {
+            MilitaryResearch.CancelAt(world, place.Id, events);
             world.Replace(place with { OwnerId = recipient, CorpsId = root });
             events.Add(new SettlementTransferredEvent(world.Clock, place.Id, force, recipient));
         }

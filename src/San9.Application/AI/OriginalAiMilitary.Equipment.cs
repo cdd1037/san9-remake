@@ -9,7 +9,7 @@ internal sealed partial class OriginalAiMilitary
 {
     private TacticRule[] Tactics(OfficerState person)
     {
-        var available = TacticAvailability.ForOfficer(person, Force, World.Treasures, Treasures);
+        var available = TacticAvailability.ForOfficer(person, Force, World.Treasures, Treasures, World.EquipmentInitialized ? World.Equipment : null);
         return rules.Tactics.Values.Where(t => t.Selectable && t.Category is 0 or 1 or 2 or 3 or 6 or 7 or 8 &&
             available.ContainsKey(t.Id)).OrderBy(t => t.Id).ToArray();
     }
@@ -73,6 +73,11 @@ internal sealed partial class OriginalAiMilitary
         SettlementState? building, UnitState? target, Route route, bool deployment, bool fallback)
     {
         var land = AvailableFormations(people, false, Corps.Treasury.Money);
+        if (World.Simulation.NewGame.MixedTroopsEnabled)
+        {
+            var withFront = land.Where(f => f.Positions.Any(position => position.Rank == BattleRank.Front)).ToArray();
+            if (withFront.Length > 0) land = withFront;
+        }
         FormationRule? Role(OriginalAiFormationRole role) => Policy.Formations.TryGetValue(role, out int id) ? land.FirstOrDefault(f => f.Id == id) : null;
         FormationRule? First(params OriginalAiFormationRole[] roles) => roles.Select(Role).OfType<FormationRule>().FirstOrDefault();
         FormationRule? selected = null;
@@ -166,9 +171,28 @@ internal sealed partial class OriginalAiMilitary
             ? new FormationPosition(i, (BattleRank)Math.Min(2, (start + i) / 2))
             : formation.Positions[Math.Min(start + i, formation.Positions.Length - 1)]))
             .ToImmutableDictionary(p => p.Id, p => p.Position);
+        var detachments = World.Simulation.NewGame.MixedTroopsEnabled
+            ? DetachmentAllocation.CreateDefault(people.Select(p => p.Id), tactics, soldiers, Force, rules)
+            : ImmutableDictionary<int, DetachmentState>.Empty;
+        if (!detachments.IsEmpty)
+        {
+            (positions, detachments) = MixedDeploymentSelection.EnsureFrontLine(formation, positions, detachments, rules, Force);
+            detachments = MixedDeploymentSelection.EquipArmaments(detachments, rules, Force);
+        }
+        int? navalTraining = World.Simulation.NewGame.MixedTroopsEnabled && pair.Naval is not null
+            ? rules.NavalTraining.Values.Where(t => t.ResearchProjectId is null || Force.CompletedResearch.Contains(t.ResearchProjectId))
+                .OrderBy(t => t.DeploymentCost).ThenByDescending(t => t.Id).Select(t => (int?)t.Id).FirstOrDefault()
+            : null;
+        long cost = formation.DeploymentCost + (pair.Naval is int ship ? (long)rules.Formations[ship].DeploymentCost : 0) +
+            rules.DetachmentEquipmentCost(detachments.Values) +
+            (navalTraining is int training ? rules.NavalTraining[training].DeploymentCost : 0);
+        int? siege = World.Simulation.NewGame.MixedTroopsEnabled && order.Kind == MilitaryOrderKind.AttackSettlement && building is not null
+            ? MixedDeploymentSelection.SiegeEquipment(rules, Force, people, World.Treasures, Treasures, (long)Corps.Treasury.Money - cost, World.EquipmentInitialized ? World.Equipment : null)
+            : null;
         var command = (DeployUnitCommand)Command((id, owner, sequence) => new DeployUnitCommand(id, owner, sequence, source.Id,
             people.Select(p => p.Id).ToImmutableArray(), soldiers, pair.Land, order)
             { NavalFormationId = pair.Naval, Tactics = tactics.ToImmutableDictionary(), Positions = positions,
+                Detachments = detachments, NavalTrainingId = navalTraining, SiegeEquipmentId = siege,
                 DepartureDelayDays = Math.Clamp(delay, 0, 9), Policies = Policies(fallback), ConfirmAttack = order.IsAttack });
         return command;
     }

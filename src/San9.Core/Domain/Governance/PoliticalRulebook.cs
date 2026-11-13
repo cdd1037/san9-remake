@@ -22,6 +22,7 @@ public sealed record CountryTitleRule(
     [property: JsonRequired] ImmutableArray<int> PreferredBloodlineIds)
 {
     [JsonRequired] public bool ForcesEmperorDeposition { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? PersonalPeerageRegimeId { get; init; }
 }
 
 public sealed class PoliticalRulebook
@@ -38,7 +39,7 @@ public sealed class PoliticalRulebook
             Ranks.Values.Count(r => r.IsUnranked) > 1 ||
             Ranks.Values.Any(r => r.IsUnranked && Ranks.Values.Any(other => !other.IsUnranked && other.Precedence <= r.Precedence)) ||
             Ranks.Values.Select(r => r.Precedence).Distinct().Count() != Ranks.Count ||
-            Titles.Values.Any(t => t.Id < 0 || t.PreferredRulerIds.IsDefault || t.PreferredBloodlineIds.IsDefault ||
+            Titles.Values.Any(t => t.Id < 0 || t.PersonalPeerageRegimeId is not null && string.IsNullOrWhiteSpace(t.PersonalPeerageRegimeId) || t.PreferredRulerIds.IsDefault || t.PreferredBloodlineIds.IsDefault ||
                 t.PreferredRulerIds.Any(id => id < 0) || t.PreferredBloodlineIds.Any(id => id < 0)) ||
             Duplicate(Titles.Values.SelectMany(t => t.PreferredRulerIds)) ||
             Duplicate(Titles.Values.SelectMany(t => t.PreferredBloodlineIds)) ||

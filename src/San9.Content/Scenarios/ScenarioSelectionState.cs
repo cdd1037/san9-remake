@@ -7,7 +7,8 @@ public sealed record ScenarioSelectionState(int SchemaVersion, int Year, int Mon
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, OfficerInitialState[] Officers,
     UnitState[] Units, InformationDefinitions Information, AllianceState? Alliance)
 {
+    public PersonalPeerageRegimeDefinition[]? PersonalPeerageRegimes { get; init; }
     public static ScenarioSelectionState From(ScenarioInitialState scenario) => new(scenario.SchemaVersion,
         scenario.Year, scenario.Month, scenario.Day, scenario.Forces, scenario.Settlements, scenario.Officers,
-        scenario.Units, scenario.Information, scenario.Alliance);
+        scenario.Units, scenario.Information, scenario.Alliance) { PersonalPeerageRegimes = scenario.PersonalPeerageRegimes };
 }

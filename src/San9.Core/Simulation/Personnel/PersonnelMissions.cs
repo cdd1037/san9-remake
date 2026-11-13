@@ -38,11 +38,13 @@ public sealed record ScholarReturnEncounter(string EventId) : SearchEncounter;
 public sealed record TreasureMonumentEncounter(string EventId) : SearchEncounter;
 public sealed record ShanyangGongEncounter(bool ChoosingCountryTitle = false) : SearchEncounter;
 public sealed record SearchRecruitmentPrompt(Guid TaskId, int Step, int ForceId, int SearchingOfficerId, int DiscoveredOfficerId, int PlaceId);
-public enum SearchResultKind { None, Person, Treasure, Money }
+public enum SearchResultKind { None, Person, Treasure, Money, Equipment }
 public sealed record SearchResolvedEvent(GameClock Clock, int OfficerId, int PlaceId, int? DiscoveredOfficerId, bool Recruited) : DomainEvent
 {
     public SearchResultKind Result { get; init; }
     public int? TreasureId { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? EquipmentId { get; init; }
     public long Money { get; init; }
 }
 public sealed record RecruitmentResolvedEvent(GameClock Clock, int OfficerId, int TargetOfficerId, int Threshold, int Roll, bool Success) : DomainEvent
@@ -67,6 +69,10 @@ internal static class PersonnelMissions
     internal const string RecruitKind = "personnel-recruit";
     internal const string MoveKind = "personnel-move";
     internal const string SearchKind = "personnel-search";
+
+    internal static bool DirectSearch(WorldMutation world, int forceId, SettlementState home) =>
+        world.Simulation.Controls.Any(c => c.ForceId == forceId && c.Kind == ControllerKind.Player) &&
+        (home.CorpsId is not int corpsId || world.Corps[corpsId].ControlMode == CorpsControlMode.Direct);
 
     internal static bool CanAct(WorldMutation world, int force, int id) =>
         world.Officers.TryGetValue(id, out var person) && person.IsServing && person.OwnerId == force &&
@@ -264,8 +270,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
          journey.TargetOfficerId is >= 0 && journey.SuccessRoll is >= 0 and < 100);
 
     private static bool Direct(WorldMutation world, PersistentTask task) =>
-        world.Simulation.Controls.Any(c => c.ForceId == task.ForceId && c.Kind == ControllerKind.Player) &&
-        (PersonnelLocations.TaskHome(world, task).CorpsId is not int corpsId || world.Corps[corpsId].ControlMode == CorpsControlMode.Direct);
+        PersonnelMissions.DirectSearch(world, task.ForceId, PersonnelLocations.TaskHome(world, task));
 
     internal override int? DecisionRecipient(WorldMutation world, PersistentTask task) =>
         task.SearchEncounter is not null ? task.ForceId : null;
@@ -345,7 +350,8 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
         else if (task.SearchEncounter is MerchantInvestmentEncounter merchant)
             MerchantInvestment.Resolve(world, task, simulationRules, merchant, new(MerchantInvestmentChoice.Decline, 0), events);
         else if (task.SearchEncounter is CommunitySearchEncounter community)
-            CommunitySearch.Resolve(world, task, simulationRules, community, CommunitySearchChoice.Decline, events);
+            CommunitySearch.Resolve(world, task, simulationRules, community,
+                rules.SearchEvents[community.EventId] is EquipmentGiftSearchEventDefinition ? CommunitySearchChoice.Accept : CommunitySearchChoice.Decline, events);
         else if (task.SearchEncounter is ConflictSearchEncounter conflict)
             SearchConflicts.Resolve(world, task, simulationRules, conflict,
                 SearchConflicts.Options(world, task, (ConflictSearchEventDefinition)rules.SearchEvents[conflict.EventId])[0].Choice, events);
@@ -358,7 +364,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
             if (Direct(world, task) && ThreeVisits.Search(world, task, simulationRules.ThreeVisits, rules, economy, events)) return null;
             if (Direct(world, task) && ShanyangGong.Eligible(world, task, simulationRules))
                 return task with { SearchEncounter = new ShanyangGongEncounter() };
-            if (Direct(world, task) && SearchEvents.Prepare(world, task, simulationRules, events, out var special))
+            if (SearchEvents.Prepare(world, task, simulationRules, events, out var special, onlyEquipmentGifts: !Direct(world, task)))
             {
                 if (special is not null) return task with { SearchEncounter = special };
                 PersonnelReturns.Start(world, task, rules, events, true);
@@ -449,6 +455,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
             bool transferredObject = PersonnelDefection.Recruit(world, task, simulationRules, events);
             if (!transferredObject) PersonnelReturns.Start(world, task, rules, events, true, target.Id);
             PersonnelMissions.GrowPolitics(world, task.OfficerId, events);
+            OfficerServiceMerit.Credit(world, task.OfficerId, task.ForceId, 2, "recruitment-succeeded", events);
         }
         else RecruitmentRules.Failure(world, task.ForceId, target.Id, threshold, events);
         events.Add(new RecruitmentResolvedEvent(world.Clock, task.OfficerId, target.Id, threshold, roll, success) { Occurrence = occurrence });
@@ -490,6 +497,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
                 RecruitmentRules.SetLoyalty(world, target.Id, task.ForceId, 49, "search-recruit-failed", events);
         }
         PersonnelMissions.GrowPolitics(world, task.OfficerId, events);
+        OfficerServiceMerit.Credit(world, task.OfficerId, task.ForceId, recruited ? 2 : 1, "search-person", events);
         events.Add(new SearchResolvedEvent(world.Clock, task.OfficerId, destination, target.Id, recruited) { Result = SearchResultKind.Person });
     }
 
@@ -497,19 +505,34 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
     {
         int destination = task.Journey!.DestinationPlaceId;
         int? corpsId = PersonnelLocations.TaskHome(world, task).CorpsId;
-        if (Direct(world, task))
         {
-            var items = world.Treasures.Values.Where(t => t.Discovery == TreasureDiscovery.Buried && t.HolderId is null &&
-                t.DiscoveryRegionId == destination && treasures.Items.ContainsKey(t.Id)).OrderBy(t => t.Id).ToArray();
-            long threshold = PersonnelSearchChances.Treasure(politicsScore, items.Length);
-            if (items.Length > 0 && task.Journey.SuccessRoll < threshold)
+            bool direct = Direct(world, task);
+            var items = direct ? world.Treasures.Values.Where(t => t.Discovery == TreasureDiscovery.Buried && t.HolderId is null &&
+                t.DiscoveryRegionId == destination && treasures.Items.ContainsKey(t.Id)).OrderBy(t => t.Id).ToArray() : [];
+            var equipment = world.AllEquipment.Values.Where(item => item.IsLost && item.SearchPlaceId == destination &&
+                simulationRules.Equipment.Items.ContainsKey(item.DefinitionId)).OrderBy(item => item.Id).ToArray();
+            int count = checked(items.Length + equipment.Length);
+            long threshold = PersonnelSearchChances.Treasure(politicsScore, count);
+            if (count > 0 && task.Journey.SuccessRoll < threshold)
             {
-                var item = items[world.NextRandom("personnel-search-treasure") % (ulong)items.Length];
+                int selected = (int)(world.NextRandom("personnel-search-treasure") % (ulong)count);
                 int rulerId = world.Forces[task.ForceId].LeaderId!.Value;
-                world.Replace(item with { Discovery = TreasureDiscovery.Discovered, HolderId = rulerId });
+                if (selected < items.Length)
+                {
+                    var item = items[selected];
+                    world.Replace(item with { Discovery = TreasureDiscovery.Discovered, HolderId = rulerId });
+                    PersonnelMissions.GrowPolitics(world, task.OfficerId, events);
+                    OfficerServiceMerit.Credit(world, task.OfficerId, task.ForceId, 1, "search-treasure", events);
+                    events.Add(new SearchResolvedEvent(world.Clock, task.OfficerId, destination, null, false)
+                        { Result = SearchResultKind.Treasure, TreasureId = item.Id });
+                    return;
+                }
+                var found = equipment[selected - items.Length];
+                world.SetEquipment(EquipmentRules.MoveToOfficer(found, rulerId));
                 PersonnelMissions.GrowPolitics(world, task.OfficerId, events);
+                OfficerServiceMerit.Credit(world, task.OfficerId, task.ForceId, 1, "search-equipment", events);
                 events.Add(new SearchResolvedEvent(world.Clock, task.OfficerId, destination, null, false)
-                    { Result = SearchResultKind.Treasure, TreasureId = item.Id });
+                    { Result = SearchResultKind.Equipment, EquipmentId = found.Id });
                 return;
             }
         }
@@ -520,6 +543,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
             var account = ResourceAccounts.Resolve(world, task.ForceId, corpsId);
             uint before = ResourceAccounts.Balance(world, account, ResourceKind.Money);
             uint after = ResourceAccounts.Change(world, account, ResourceKind.Money, funds, "search-funds", destination, events);
+            if (after > before) OfficerServiceMerit.Credit(world, task.OfficerId, task.ForceId, 1, "search-funds", events);
             events.Add(new SearchResolvedEvent(world.Clock, task.OfficerId, destination, null, false)
                 { Result = SearchResultKind.Money, Money = (long)after - before });
             return;

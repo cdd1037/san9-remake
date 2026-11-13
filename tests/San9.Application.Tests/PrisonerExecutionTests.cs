@@ -28,6 +28,22 @@ public sealed class PrisonerExecutionTests
         };
     }
 
+    [Fact]
+    public void CaptiveKeepsLegacyTreasureUnequippedOnNewGameAndOldSaveMigration()
+    {
+        var definition = Fixture();
+        var session = GameSession.Start(definition, 190);
+        var initial = Assert.Single(session.Snapshot.Equipment, item => item.LegacyTreasureId == 100);
+        Assert.Equal(7, initial.OfficerId);
+        Assert.False(initial.Equipped);
+        var capture = session.Capture();
+        var oldSave = capture with { World = capture.World with { Equipment = [], EquipmentInitialized = false } };
+        var restored = GameSession.Restore(definition, oldSave);
+        var migrated = Assert.Single(restored.Snapshot.Equipment, item => item.LegacyTreasureId == 100);
+        Assert.Equal(7, migrated.OfficerId);
+        Assert.False(migrated.Equipped);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -65,7 +81,8 @@ public sealed class PrisonerExecutionTests
         Assert.Equal(0, session.Snapshot.Officers.Single(p => p.Id == 6).LoyaltyTo(1));
         Assert.InRange(Assert.Single(session.Snapshot.Relations).Value, 73, 75);
         Assert.Equal(1, Assert.Single(session.Snapshot.Treasures).HolderId);
-        Assert.Contains(result.Events.OfType<ForceTrustChangedEvent>(), e => e.ForceId == 1);
+        Assert.False(Assert.Single(session.Snapshot.Equipment, item => item.LegacyTreasureId == 100).Equipped);
+        Assert.DoesNotContain(result.Events.OfType<ForceTrustChangedEvent>(), e => e.ForceId == 1);
         Assert.Single(result.Events.OfType<TaskCancelledEvent>());
         Assert.All(session.Snapshot.Simulation.Tasks, t => Assert.Equal("personnel-return", t.Kind));
         Assert.DoesNotContain(session.View.Officers, p => p.Id == 7);

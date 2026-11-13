@@ -36,6 +36,7 @@ public sealed record ScenarioDefinitions
     [JsonRequired] public required ThreeVisitsDefinition? ThreeVisits { get; init; }
     [JsonRequired] public required QiaoMarriageDefinition? QiaoMarriage { get; init; }
     [JsonRequired] public required PoliticalEventsDefinition? PoliticalEvents { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public PersonalPeerageRegimeDefinition[]? PersonalPeerageRegimes { get; init; }
     [JsonRequired] public required ImmutableDictionary<int, int> ProvinceCountryTitleIds { get; init; }
     [JsonRequired] public required ImmutableArray<SearchEventDefinition> SearchEvents { get; init; }
     [JsonRequired] public required TerminalDefinition? Terminal { get; init; }
@@ -70,6 +71,7 @@ public sealed record ScenarioDefinitions
         ThreeVisits = scenario.ThreeVisits,
         QiaoMarriage = scenario.QiaoMarriage,
         PoliticalEvents = scenario.PoliticalEvents,
+        PersonalPeerageRegimes = scenario.PersonalPeerageRegimes,
         ProvinceCountryTitleIds = scenario.ProvinceCountryTitleIds,
         SearchEvents = scenario.SearchEvents,
         Terminal = scenario.Terminal,
@@ -118,6 +120,7 @@ public sealed record ScenarioDefinitionsOverrides
     public ContentOverride<QiaoMarriageDefinition?>? QiaoMarriage { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ContentOverride<PoliticalEventsDefinition?>? PoliticalEvents { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public ContentOverride<PersonalPeerageRegimeDefinition[]?>? PersonalPeerageRegimes { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ContentOverride<ImmutableDictionary<int, int>>? ProvinceCountryTitleIds { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -159,6 +162,7 @@ public sealed record ScenarioDefinitionsOverrides
         ThreeVisits = ThreeVisits is { } changeThreeVisits ? changeThreeVisits.Value : defaults.ThreeVisits,
         QiaoMarriage = QiaoMarriage is { } changeQiaoMarriage ? changeQiaoMarriage.Value : defaults.QiaoMarriage,
         PoliticalEvents = PoliticalEvents is { } changePoliticalEvents ? changePoliticalEvents.Value : defaults.PoliticalEvents,
+        PersonalPeerageRegimes = PersonalPeerageRegimes is { } changePersonalPeerageRegimes ? changePersonalPeerageRegimes.Value : defaults.PersonalPeerageRegimes,
         ProvinceCountryTitleIds = ProvinceCountryTitleIds is { } changeProvinceCountryTitleIds ? changeProvinceCountryTitleIds.Value : defaults.ProvinceCountryTitleIds,
         SearchEvents = SearchEvents is { } changeSearchEvents ? changeSearchEvents.Value : defaults.SearchEvents,
         Terminal = Terminal is { } changeTerminal ? changeTerminal.Value : defaults.Terminal,
@@ -190,6 +194,7 @@ public sealed record ScenarioDefinitionsOverrides
         ThreeVisits = ContentComparison.Equal(defaults.ThreeVisits, value.ThreeVisits) ? null : new(value.ThreeVisits),
         QiaoMarriage = ContentComparison.Equal(defaults.QiaoMarriage, value.QiaoMarriage) ? null : new(value.QiaoMarriage),
         PoliticalEvents = ContentComparison.Equal(defaults.PoliticalEvents, value.PoliticalEvents) ? null : new(value.PoliticalEvents),
+        PersonalPeerageRegimes = ContentComparison.Equal(defaults.PersonalPeerageRegimes, value.PersonalPeerageRegimes) ? null : new(value.PersonalPeerageRegimes),
         ProvinceCountryTitleIds = ContentComparison.Equal(defaults.ProvinceCountryTitleIds, value.ProvinceCountryTitleIds) ? null : new(value.ProvinceCountryTitleIds),
         SearchEvents = ContentComparison.Equal(defaults.SearchEvents, value.SearchEvents) ? null : new(value.SearchEvents),
         Terminal = ContentComparison.Equal(defaults.Terminal, value.Terminal) ? null : new(value.Terminal),
@@ -210,6 +215,7 @@ public sealed record InformationCatalog
     [JsonRequired] public required RankDefinition[] Ranks { get; init; }
     [JsonRequired] public required OfficeDefinition[] Offices { get; init; }
     [JsonRequired] public required TreasureDefinition[] Treasures { get; init; }
+    public ImmutableArray<EquipmentDefinition> Equipment { get; init; } = [];
     [JsonRequired] public required ImmutableArray<int> MapContextExcludedFacilityIds { get; init; }
     [JsonRequired] public required TacticCatalogDefinition[] Tactics { get; init; }
     [JsonRequired] public required FormationCatalogDefinition[] Formations { get; init; }
@@ -220,6 +226,7 @@ public sealed record InformationCatalog
         Ranks = value.Ranks,
         Offices = value.Offices,
         Treasures = value.Treasures,
+        Equipment = value.Equipment,
         MapContextExcludedFacilityIds = value.MapContextExcludedFacilityIds,
         Tactics = value.Tactics,
         Formations = value.Formations,
@@ -229,6 +236,7 @@ public sealed record InformationCatalog
     public InformationDefinitions Compile(ScenarioInformationState state) => new(Ranks.ToArray(), Offices.ToArray(), Treasures.ToArray(), state.Corps, state.TreasureStates)
     {
         MapContextExcludedFacilityIds = MapContextExcludedFacilityIds,
+        Equipment = Equipment,
         Tactics = Tactics,
         Formations = Formations,
         CountryTitles = CountryTitles,
@@ -245,6 +253,13 @@ public sealed record ScenarioInformationState(CorpsState[] Corps, TreasureState[
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record MilitaryRulesDefinition
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ImmutableArray<ArmamentDefinition>? Armaments { get; init; }
+    public ImmutableArray<TroopTypeDefinition> TroopTypes { get; init; } = [];
+    public ImmutableArray<NavalTrainingDefinition> NavalTraining { get; init; } = [];
+    public ImmutableArray<SiegeEquipmentDefinition> SiegeEquipment { get; init; } = [];
+    public MixedTroopCombatProfile? MixedTroopCombat { get; init; }
+    public ImmutableArray<ResearchProjectDefinition> ResearchProjects { get; init; } = [];
     [JsonRequired] public required ImmutableArray<TerrainPassage> Terrains { get; init; }
     [JsonRequired] public required ImmutableArray<FormationRule> Formations { get; init; }
     [JsonRequired] public required CompanionCombatDefinition? CompanionCombat { get; init; }
@@ -269,6 +284,12 @@ public sealed record MilitaryRulesDefinition
 
     public static MilitaryRulesDefinition From(MilitaryDefinition value) => new()
     {
+        Armaments = value.Armaments,
+        TroopTypes = value.TroopTypes,
+        NavalTraining = value.NavalTraining,
+        SiegeEquipment = value.SiegeEquipment,
+        MixedTroopCombat = value.MixedTroopCombat,
+        ResearchProjects = value.ResearchProjects,
         Terrains = value.Terrains,
         Formations = value.Formations,
         CompanionCombat = value.CompanionCombat,
@@ -295,6 +316,12 @@ public sealed record MilitaryRulesDefinition
     public MilitaryDefinition Compile(MilitaryGeographyDefinition geography, ImmutableArray<BattlefieldPlace> places) =>
         new(geography.Width, geography.Height, geography.TerrainIds, Terrains, Formations, places)
         {
+            Armaments = Armaments,
+            TroopTypes = TroopTypes,
+            NavalTraining = NavalTraining,
+            SiegeEquipment = SiegeEquipment,
+            MixedTroopCombat = MixedTroopCombat,
+            ResearchProjects = ResearchProjects,
             CompanionCombat = CompanionCombat,
             CompanionTactics = CompanionTactics,
             ConstructionFormations = ConstructionFormations,
@@ -382,6 +409,8 @@ public sealed record ScenarioGeography
 public sealed record ScenarioDocument(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int? PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public ScenarioAppearanceEvidence[]? AppearanceEvidence { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public EquipmentInstance[]? InitialEquipment { get; init; }
     public const int CurrentSchemaVersion = 5;
     [JsonRequired] public required GameClock? ThreeVisitsStarted { get; init; }
     [JsonRequired] public required bool UnitDefectionsEnabled { get; init; }
@@ -411,6 +440,8 @@ public sealed record ScenarioDocument(int SchemaVersion, string ScenarioId, int 
         var additional = value.Officers.Where(p => !known.Contains(p.State.Id)).Select(p => OfficerDefaults.From(p, texts)).ToArray();
         return new(CurrentSchemaVersion, value.ScenarioId, value.Year, value.Month, value.Day, value.PlayerForceId, value.Forces, value.Settlements)
         {
+            AppearanceEvidence = value.AppearanceEvidence,
+            InitialEquipment = value.InitialEquipment,
             ThreeVisitsStarted = value.ThreeVisitsStarted,
             UnitDefectionsEnabled = value.UnitDefectionsEnabled,
             SettlementDefectionsEnabled = value.SettlementDefectionsEnabled,
@@ -447,6 +478,8 @@ public sealed record ScenarioDocument(int SchemaVersion, string ScenarioId, int 
         return new(ScenarioInitialState.CurrentSchemaVersion, ScenarioId, Year, Month, Day, PlayerForceId, Forces, Settlements,
             new(geography.RegionNameKeys), new(geography.RegionCityIds))
         {
+            AppearanceEvidence = AppearanceEvidence,
+            InitialEquipment = InitialEquipment,
             ThreeVisitsStarted = ThreeVisitsStarted,
             UnitDefectionsEnabled = UnitDefectionsEnabled,
             SettlementDefectionsEnabled = SettlementDefectionsEnabled,
@@ -479,6 +512,7 @@ public sealed record ScenarioDocument(int SchemaVersion, string ScenarioId, int 
             ThreeVisits = definitions.ThreeVisits,
             QiaoMarriage = definitions.QiaoMarriage,
             PoliticalEvents = definitions.PoliticalEvents,
+            PersonalPeerageRegimes = definitions.PersonalPeerageRegimes,
             ProvinceCountryTitleIds = definitions.ProvinceCountryTitleIds,
             SearchEvents = definitions.SearchEvents,
             Terminal = definitions.Terminal,

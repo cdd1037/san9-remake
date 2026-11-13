@@ -12,6 +12,9 @@ public sealed class WorldState
     private ImmutableArray<int> _unitOrder = [];
     private ImmutableDictionary<int, CorpsState> _corps = ImmutableDictionary<int, CorpsState>.Empty;
     private ImmutableDictionary<int, TreasureState> _treasures = ImmutableDictionary<int, TreasureState>.Empty;
+    private ImmutableDictionary<long, EquipmentInstance> _equipment = ImmutableDictionary<long, EquipmentInstance>.Empty;
+    private bool _equipmentInitialized;
+    internal bool EquipmentInitialized => _equipmentInitialized;
     private ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> _relations =
         ImmutableDictionary<(int FirstId, int SecondId), ForceRelation>.Empty;
     public long Revision { get; private set; }
@@ -31,6 +34,7 @@ public sealed class WorldState
     private IReadOnlyList<UnitState>? _publishedUnits;
     private IReadOnlyList<CorpsState>? _publishedCorps;
     private IReadOnlyList<TreasureState>? _publishedTreasures;
+    private IReadOnlyList<EquipmentInstance>? _publishedEquipment;
     private IReadOnlyList<ForceRelation>? _publishedRelations;
     internal bool IsExecuting { get; private set; }
     internal void EnterExecution()
@@ -55,7 +59,7 @@ public sealed class WorldState
     public static WorldState Create(GameClock clock, ulong seed) => Create(clock, seed, [], [], []);
 
     public static WorldState Create(GameClock clock, ulong seed, IEnumerable<ForceState> forces,
-        IEnumerable<SettlementState> settlements, IEnumerable<OfficerState> officers, IEnumerable<UnitState>? units = null, IEnumerable<CorpsState>? corps = null, IEnumerable<TreasureState>? treasures = null, IEnumerable<ForceRelation>? relations = null, IEnumerable<ControlSeat>? controls = null, int computerDamageBonusPercent = 0, AllianceState? alliance = null, IEnumerable<AttackRequestState>? attackRequests = null, bool annualAppearancesEnabled = true, bool naturalDeathsEnabled = true, bool freeOfficerMigrationEnabled = true, bool battleDeathsEnabled = false, bool officeRequestsEnabled = true, IEnumerable<PersistentEventKey>? consumedEventKeys = null, bool forceConsolidationEnabled = true, bool forceEmergenceEnabled = true, bool cityIndependenceEnabled = true, bool imperialCourtEnded = false, GameClock? threeVisitsStarted = null, int foodExchangeRate = 1, bool settlementDefectionsEnabled = true, bool unitDefectionsEnabled = true, NewGameSettings? newGame = null, IReadOnlyList<int>? officerStartingPlaces = null, IReadOnlySet<int>? initialPlayerForces = null, IReadOnlySet<int>? foundedForceIds = null, IReadOnlySet<int>? createdOfficerIds = null, int defaultLoyalty = 50)
+        IEnumerable<SettlementState> settlements, IEnumerable<OfficerState> officers, IEnumerable<UnitState>? units = null, IEnumerable<CorpsState>? corps = null, IEnumerable<TreasureState>? treasures = null, IEnumerable<ForceRelation>? relations = null, IEnumerable<ControlSeat>? controls = null, int computerDamageBonusPercent = 0, AllianceState? alliance = null, IEnumerable<AttackRequestState>? attackRequests = null, bool annualAppearancesEnabled = true, bool naturalDeathsEnabled = true, bool freeOfficerMigrationEnabled = true, bool battleDeathsEnabled = false, bool officeRequestsEnabled = true, IEnumerable<PersistentEventKey>? consumedEventKeys = null, bool forceConsolidationEnabled = true, bool forceEmergenceEnabled = true, bool cityIndependenceEnabled = true, bool imperialCourtEnded = false, GameClock? threeVisitsStarted = null, int foodExchangeRate = 1, bool settlementDefectionsEnabled = true, bool unitDefectionsEnabled = true, NewGameSettings? newGame = null, IReadOnlyList<int>? officerStartingPlaces = null, IReadOnlySet<int>? initialPlayerForces = null, IReadOnlySet<int>? foundedForceIds = null, IReadOnlySet<int>? createdOfficerIds = null, int defaultLoyalty = 50, IEnumerable<EquipmentInstance>? equipment = null)
     {
         var world = new WorldState(clock, seed) { DefaultLoyalty = defaultLoyalty };
         world._forces = IndexUnique(forces, value => value.Id);
@@ -66,6 +70,8 @@ public sealed class WorldState
         world._unitOrder = declaredUnits.Select(u => u.Id).ToImmutableArray();
         world._corps = IndexUnique(corps ?? [], value => value.Id);
         world._treasures = IndexUnique(treasures ?? [], value => value.Id);
+        world._equipment = IndexUnique(equipment ?? [], value => value.Id);
+        world._equipmentInitialized = equipment is not null;
         world._relations = IndexUnique(relations ?? [], value => (value.FirstId, value.SecondId));
         world.Simulation = world.Simulation with { Controls = (controls ?? []).ToImmutableArray(), ComputerDamageBonusPercent = computerDamageBonusPercent, Alliance = alliance,
             UnitDefectionsEnabled = unitDefectionsEnabled, SettlementDefectionsEnabled = settlementDefectionsEnabled, FoodExchangeRate = foodExchangeRate, ThreeVisitsStarted = threeVisitsStarted, ImperialCourtEnded = imperialCourtEnded,
@@ -110,6 +116,8 @@ public sealed class WorldState
             _unitOrder = snapshot.Units.Select(u => u.Id).ToImmutableArray(),
             _corps = IndexUnique(snapshot.Corps, value => value.Id),
             _treasures = IndexUnique(snapshot.Treasures, value => value.Id),
+            _equipment = IndexUnique(snapshot.Equipment, value => value.Id),
+            _equipmentInitialized = snapshot.EquipmentInitialized,
             _relations = IndexUnique(snapshot.Relations, value => (value.FirstId, value.SecondId)),
             DefaultLoyalty = defaultLoyalty,
             Simulation = snapshot.Simulation,
@@ -127,7 +135,7 @@ public sealed class WorldState
         return new(Clock, Simulation.InitialSeed)
         {
             _forces = _forces, _settlements = _settlements, _officers = _officers, _units = _units, _unitOrder = _unitOrder,
-            _corps = _corps, _treasures = _treasures, _relations = _relations,
+            _corps = _corps, _treasures = _treasures, _equipment = _equipment, _equipmentInitialized = _equipmentInitialized, _relations = _relations,
             _activeRecords = _activeRecords,
             DefaultLoyalty = DefaultLoyalty, Simulation = Simulation, Revision = Revision, _snapshot = _snapshot, LeadershipConsistent = LeadershipConsistent,
             GovernanceConsistent = GovernanceConsistent,
@@ -138,6 +146,7 @@ public sealed class WorldState
             _publishedUnits = _publishedUnits,
             _publishedCorps = _publishedCorps,
             _publishedTreasures = _publishedTreasures,
+            _publishedEquipment = _publishedEquipment,
             _publishedRelations = _publishedRelations,
         };
     }
@@ -156,8 +165,8 @@ public sealed class WorldState
     }
 
     internal WorldMutation BeginMutation(OfficerAbilityRules? abilities = null, EconomyRulebook? economy = null,
-        CompanionSettings? companion = null) => new(this, abilities ?? OfficerAbilityRules.Empty, economy ?? EconomyRulebook.Empty, Revision, Clock, Simulation, _forces, _settlements,
-        _officers, _units, _unitOrder, _corps, _treasures, _relations, _activeRecords, companion ?? CompanionSettings.Default);
+        CompanionSettings? companion = null, EquipmentRulebook? equipment = null) => new(this, abilities ?? OfficerAbilityRules.Empty, economy ?? EconomyRulebook.Empty, equipment ?? EquipmentRulebook.Empty, Revision, Clock, Simulation, _forces, _settlements,
+        _officers, _units, _unitOrder, _corps, _treasures, _equipment, _relations, _activeRecords, companion ?? CompanionSettings.Default);
 
     // Loading reconstructs derived totals without creating another gameplay transaction or revision.
     internal void RestoreDerivedTrust(WorldMutation mutation)
@@ -183,6 +192,7 @@ public sealed class WorldState
         if (!ReferenceEquals(_units, mutation.Units)) _publishedUnits = null;
         if (!ReferenceEquals(_corps, mutation.AllCorps)) _publishedCorps = null;
         if (!ReferenceEquals(_treasures, mutation.AllTreasures)) _publishedTreasures = null;
+        if (!ReferenceEquals(_equipment, mutation.AllEquipment)) _publishedEquipment = null;
         if (!ReferenceEquals(_relations, mutation.AllRelations)) _publishedRelations = null;
         _forces = mutation.AllForces;
         _settlements = mutation.AllSettlements;
@@ -191,6 +201,7 @@ public sealed class WorldState
         _unitOrder = mutation.UnitOrder;
         _corps = mutation.AllCorps;
         _treasures = mutation.AllTreasures;
+        _equipment = mutation.AllEquipment;
         _relations = mutation.AllRelations;
         _activeRecords = mutation.ActiveRecords;
         LeadershipConsistent = mutation.LeadershipConsistentAtCommit;
@@ -212,8 +223,9 @@ public sealed class WorldState
         var corps = _publishedCorps ??= Array.AsReadOnly(_corps.Values.OrderBy(c => c.Id).ToArray());
         var relations = _publishedRelations ??= Array.AsReadOnly(_relations.Values.OrderBy(r => r.FirstId).ThenBy(r => r.SecondId).ToArray());
         var treasures = _publishedTreasures ??= Array.AsReadOnly(_treasures.Values.OrderBy(t => t.Id).ToArray());
+        var equipment = _publishedEquipment ??= Array.AsReadOnly(_equipment.Values.OrderBy(t => t.Id).ToArray());
         var units = _publishedUnits ??= Array.AsReadOnly(_unitOrder.Select(id => _units[id]).ToArray());
-        return _snapshot = new WorldSnapshot(Clock, SnapshotSimulation()) { DefaultLoyalty = DefaultLoyalty, Forces = forces, Settlements = settlements, Officers = officers, Units = units, Corps = corps, Treasures = treasures, Relations = relations, Revision = Revision };
+        return _snapshot = new WorldSnapshot(Clock, SnapshotSimulation()) { DefaultLoyalty = DefaultLoyalty, Forces = forces, Settlements = settlements, Officers = officers, Units = units, Corps = corps, Treasures = treasures, Equipment = equipment, EquipmentInitialized = _equipmentInitialized, Relations = relations, Revision = Revision };
     }
 
     private SimulationState SnapshotSimulation() => Simulation with
@@ -236,5 +248,7 @@ public sealed record WorldSnapshot(
     public IReadOnlyList<ForceRelation> Relations { get; init; } = [];
     public IReadOnlyList<CorpsState> Corps { get; init; } = [];
     public IReadOnlyList<TreasureState> Treasures { get; init; } = [];
+    public IReadOnlyList<EquipmentInstance> Equipment { get; init; } = [];
+    public bool EquipmentInitialized { get; init; }
     public long Revision { get; init; }
 }

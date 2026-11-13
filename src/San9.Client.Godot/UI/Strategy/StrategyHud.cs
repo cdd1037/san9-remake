@@ -5,6 +5,8 @@ using San9.Content.Text;
 using San9.Content.Interface;
 using San9.Content.Images;
 using San9.Rendering;
+using San9.Core.Domain;
+using San9.Core.Simulation;
 
 namespace San9.Client.Godot;
 
@@ -13,6 +15,7 @@ public partial class StrategyHud : Control
     public MapWorld World { get; init; } = null!;
     public StrategySelection Selection { get; init; } = null!;
     public San9.Application.GameSession Session { get; init; } = null!;
+    public ScenarioInitialState? AppearanceScenario { get; init; }
     public MapMessageLog RecordsLog { get; init; } = null!;
     public San9.Application.Presentation.StrategySnapshot Scenario => World.View;
     public TextCatalog Texts { get; init; } = null!;
@@ -28,6 +31,8 @@ public partial class StrategyHud : Control
     private Label _footer = null!, _rulerName = null!;
     private GameMessageBar _message = null!;
     private GameDialog _notice = null!;
+    private GameDialog _armamentResupply = null!;
+    private int? _resupplyUnit;
     private Label _footerCity = null!;
     private readonly List<Label> _regionLabels = [];
     private (bool Strategy, bool Targeting, bool Command, bool Region)? _drawState;
@@ -89,6 +94,11 @@ public partial class StrategyHud : Control
         _notice.Closed += () => _notice.Hide();
         OverlayHost.AddChild(_notice);
         _notice.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _armamentResupply = new GameDialog { Textures = _textures, Visible = false, PreferredWidth = 480 };
+        _armamentResupply.Dismissed += () => { _armamentResupply.Hide(); _resupplyUnit = null; };
+        _armamentResupply.Confirmed += ConfirmArmamentResupply;
+        OverlayHost.AddChild(_armamentResupply);
+        _armamentResupply.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         World.EdgeScrollModeChanged += ShowScrollModeNotice;
         Label RegionLabel(string value, int x, int width)
         {
@@ -214,6 +224,7 @@ public partial class StrategyHud : Control
             Texts = Texts,
             Store = SaveStore,
             Session = Session,
+            AppearanceScenario = AppearanceScenario, AppearanceContentRoot = ContentRoot,
             CreateSummary = SaveSummary,
             ExitMessages = CommandPresentation.ExitMenu,
             ActivateSession = ActivateSession,
@@ -426,6 +437,34 @@ public partial class StrategyHud : Control
         { _notice.SetNotice("内容包没有提供军事指令表现定义。"); _notice.Show(); return; }
         if (target.IsUnit)
         {
+            if (command == "armament-configure")
+            {
+                _commandMenu.Close(); Overview.Close();
+                UnitArmamentsView? window = null;
+                window = new UnitArmamentsView { Session = Session, Texts = Texts, Textures = _textures, Service = Textures,
+                    UnitId = target.Id, Closed = () => { if (window is null) return; OverlayHost.RemoveChild(window); window.QueueFree(); } };
+                OverlayHost.AddChild(window);
+                return;
+            }
+            if (command == "armament-resupply")
+            {
+                _commandMenu.Close(); Overview.Close();
+                if (Session.View.PlayerForceId is not int force) return;
+                var candidate = new ResupplyUnitArmamentsCommand(Guid.NewGuid(), force, Session.Snapshot.Simulation.NextSequence, target.Id);
+                var preview = Session.Preview(new("player"), candidate);
+                if (preview.Rejection != CommandRejection.None)
+                {
+                    _notice.SetNotice("须位于己方可驻军的据点地域，部队未交战，且库存有已研究的同类军械可补充。");
+                    _notice.Show();
+                    return;
+                }
+                _resupplyUnit = target.Id;
+                long weaponCount = preview.ArmamentResupply.Where(line => line.Slot == ArmamentSlot.Weapon).Sum(line => (long)line.Sets);
+                long armorCount = preview.ArmamentResupply.Where(line => line.Slot == ArmamentSlot.Armor).Sum(line => (long)line.Sets);
+                _armamentResupply.SetMessage($"补充军械？\n武器：{weaponCount}套  防具：{armorCount}套\n库存不足时部分配发。");
+                _armamentResupply.Show();
+                return;
+            }
             if (command is not ("attack" or "march" or "redirect-transport")) return;
             _commandReturn = (target, _commandMenu.Navigation.Anchor, _commandMenu.Navigation.GroupId);
             _commandMenu.Close(); Overview.Close();
@@ -437,11 +476,16 @@ public partial class StrategyHud : Control
             });
             return;
         }
-        if (command is not ("sortie" or "patrol" or "build" or "transport" or "demolish" or "delegate") && !MissionDraft.Supports(command) && !FacilityCommandDraft.Supports(command) && !AppointmentDraft.Supports(command) && !PersonnelDraft.Supports(command)) return;
+        if (command is not ("sortie" or "patrol" or "build" or "transport" or "demolish" or "delegate" or "research" or "equipment-production" or "equipment-purchase" or "personal-peerage" or "formation-teaching") && !MissionDraft.Supports(command) && !FacilityCommandDraft.Supports(command) && !AppointmentDraft.Supports(command) && !PersonnelDraft.Supports(command)) return;
         _commandReturn = (target, _commandMenu.Navigation.Anchor, _commandMenu.Navigation.GroupId);
         _commandMenu.Close();
         Overview.Close();
-        if (command == "patrol") _patrolFlow.Open(target.Id);
+        if (command == "research") SystemMenu.OpenResearchAt(target.Id);
+        else if (command == "formation-teaching") SystemMenu.OpenFormationTeachingAt(target.Id);
+        else if (command == "personal-peerage") SystemMenu.OpenPersonalPeerage();
+        else if (command == "equipment-production") SystemMenu.OpenEquipmentProductionAt(target.Id);
+        else if (command == "equipment-purchase") SystemMenu.OpenEquipmentPurchaseAt(target.Id);
+        else if (command == "patrol") _patrolFlow.Open(target.Id);
         else if (command == "demolish") _demolitionFlow.Open(target.Id);
         else if (command == "delegate") _corpsFlow.Open();
         else if (MissionDraft.Supports(command)) _missionFlow.Open(target.Id,command);
@@ -450,6 +494,24 @@ public partial class StrategyHud : Control
         else if (AppointmentDraft.Supports(command)) _appointmentFlow.Open(target.Id, command);
         else if (FacilityCommandDraft.Supports(command)) _facilityFlow.Open(target.Id,command);
         else _flow.Open(target.Id);
+    }
+
+    private void ConfirmArmamentResupply()
+    {
+        int? unit = _resupplyUnit;
+        _resupplyUnit = null;
+        _armamentResupply.Hide();
+        if (unit is not int id || Session.View.PlayerForceId is not int force) return;
+        var result = Session.Execute(new("player"), new ResupplyUnitArmamentsCommand(Guid.NewGuid(), force, Session.Snapshot.Simulation.NextSequence, id));
+        if (!result.Submission.Accepted) _notice.SetNotice("补充失败，请检查部队位置与军械库存。");
+        else
+        {
+            var lines = result.Events.OfType<UnitArmamentsResuppliedEvent>().Single().Lines;
+            long weapons = lines.Where(line => line.Slot == ArmamentSlot.Weapon).Sum(line => (long)line.Sets);
+            long armor = lines.Where(line => line.Slot == ArmamentSlot.Armor).Sum(line => (long)line.Sets);
+            _notice.SetNotice($"已补充武器 {weapons} 套、防具 {armor} 套。");
+        }
+        _notice.Show();
     }
 
     private void ShowUnitContext(int id, Vector2 point)

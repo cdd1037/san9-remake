@@ -33,10 +33,13 @@ internal static class SunMarriage
         if (settlement is int destination && (!world.Settlements.TryGetValue(destination, out var place) ||
             place.IsDestroyed || !place.CanHostPersons || place.OwnerId != recipient || place.Durability <= 0)) return false;
         if (settlement is null && unit is null) return false;
+        PersonnelTransitions.PreparedFieldJoin? preparedFieldUnit = null;
+        if (unit is int fieldUnit && (rules.Military is null ||
+            !PersonnelTransitions.PrepareMixedFieldJoin(world, bride.Id, fieldUnit, rules.Military, out preparedFieldUnit))) return false;
         bool grants = world.Simulation.Controls.Any(c => c.ForceId == recipient && c.Kind == ControllerKind.Player);
         // The destination and complete eligibility are fixed before any effect is written.
         PersonnelTransitions.RelocateAllegiance(world, bride.Id, recipient, definition.Loyalty, settlement, unit, rules, events,
-            "sun-marriage", afterDailyCommands: false);
+            "sun-marriage", afterDailyCommands: false, preparedFieldUnit: preparedFieldUnit);
         if (recipient != donor.Id) ForceRelations.Change(world, recipient, donor.Id, definition.RelationBonus, rules.Military, events);
         if (grants)
             foreach (int person in new[] { ruler.Id, bride.Id })

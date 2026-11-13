@@ -2,6 +2,8 @@ using System.Text.Json.Serialization;
 
 namespace San9.Content.Scenarios;
 
+public sealed record ScenarioAppearanceEvidence(int OfficerId, int LeaderId, int? SettlementId, string SourceScenarioId, int Year);
+
 public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, int Trust)
 {
     [JsonRequired] public long? AutomaticSchedulingKey { get; init; }
@@ -17,6 +19,7 @@ public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, in
     [JsonRequired] public int? AdviserId { get; init; }
     [JsonRequired] public int? RankId { get; init; }
     [JsonRequired] public int? CountryTitleId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? PersonalPeerageRegimeId { get; init; }
 }
 public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId, int X, int Y,
     uint Soldiers, int Durability, int MaxDurability, int Morale, string[] Icons)
@@ -44,6 +47,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int? PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public ScenarioAppearanceEvidence[]? AppearanceEvidence { get; init; }
     public const int CurrentSchemaVersion = 158;
     [JsonRequired] public San9.Core.Domain.OfficerGrowthRules OfficerGrowth { get; init; } = San9.Core.Domain.OfficerGrowthRules.Default;
     [JsonRequired] public int[] FictionalOfficerPlaceIds { get; init; } = [];
@@ -90,14 +94,34 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.DomesticPair> DomesticPairs { get; init; } = [];
     [JsonRequired] public int? ImperialSealId { get; init; }
     [JsonRequired] public San9.Core.Domain.ImperialCourtDefinition ImperialCourt { get; init; } = San9.Core.Domain.ImperialCourtDefinition.Empty;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public San9.Core.Domain.PersonalPeerageRegimeDefinition[]? PersonalPeerageRegimes { get; init; }
     [JsonRequired] public bool ImperialCourtEnded { get; init; }
     [JsonRequired] public OfficerInitialState[] Officers { get; init; } = [];
     [JsonRequired] public San9.Core.Domain.UnitState[] Units { get; init; } = [];
     [JsonRequired] public InformationDefinitions Information { get; init; } = InformationDefinitions.Empty;
+    /// <summary>Independent, scenario-authored equipment instances; legacy treasures are migrated separately.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public San9.Core.Domain.EquipmentInstance[]? InitialEquipment { get; init; }
     public void Validate() => Validate(null);
 
     public void Validate(ScenarioValidationContext? context)
     {
+        if (InitialEquipment is { } initialEquipment)
+        {
+            var migrated = LegacyEquipmentMigration.Convert(Information.Treasures, Information.TreasureStates, Information.Equipment);
+            var definitions = migrated.Definitions.ToDictionary(item => item.Id, StringComparer.Ordinal);
+            if (initialEquipment.Any(item => item is null || item.LegacyTreasureId is not null ||
+                    item.SearchPlaceId is int place && !Settlements.Any(s => s.Id == place) && !UnbuiltPlaces.Any(p => p.Id == place) ||
+                    item.OfficerId is int officer && !Officers.Any(o => o.State.Id == officer) ||
+                    item.InventoryForceId is int force && !Forces.Any(f => f.Id == force)) ||
+                !San9.Core.Domain.EquipmentRules.ValidInventory(migrated.Instances.Concat(initialEquipment), definitions))
+                throw new InvalidDataException("Invalid initial independent equipment.");
+        }
+        if (AppearanceEvidence is { } evidence && evidence.Any(e => e is null || e.OfficerId < 0 || e.LeaderId < 0 ||
+            e.SettlementId is < 0 || e.Year <= 0 || string.IsNullOrWhiteSpace(e.SourceScenarioId) ||
+            !Officers.Any(o => o.State.Id == e.OfficerId) || !Officers.Any(o => o.State.Id == e.LeaderId) ||
+            e.SettlementId is int place && !Settlements.Any(s => s.Id == place)))
+            throw new InvalidDataException("Invalid scenario appearance evidence.");
         if (DefaultLoyalty is < 0 or > 255) throw new InvalidDataException("Invalid default loyalty.");
         if (OfficerGrowth is null || OfficerGrowth.MaximumBaseAbility < San9.Core.Domain.OfficerGrowthRules.MinimumEditableAbility || OfficerGrowth.TacticProficiencyCap <= 0)
             throw new InvalidDataException("Invalid officer growth rules.");
@@ -119,6 +143,33 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             FictionalOfficerPlaceIds.Any(id => !Settlements.Any(s => s.Id == id && !s.IsDormant) && !UnbuiltPlaces.Any(p => p.Id == id)))
             throw new InvalidDataException("Invalid fictional officer starting places.");
         Information.Validate(this);
+        if (Officers.Any(o => o.PersonalPeerageEvidenceRecords.Any(e => e is null || !e.IsValid) ||
+            o.PersonalPeerageEvidenceRecords.OrderBy(e => e.From.DayNumber).Zip(
+                o.PersonalPeerageEvidenceRecords.OrderBy(e => e.From.DayNumber).Skip(1))
+                .Any(pair => pair.First.Until is null || pair.First.Until.Value.DayNumber >= pair.Second.From.DayNumber)))
+            throw new InvalidDataException("Invalid initial personal peerage evidence.");
+        if (Officers.Any(o => o.InitialFormationEvidence is { } evidence &&
+            (evidence.Any(e => e is null || !e.IsValid || Military is null ||
+                !Military.Formations.Any(f => f.Id == e.FormationId && f.TravelMode == San9.Core.Domain.TravelMode.Land)) ||
+             evidence.Select(e => e.FormationId).Distinct().Count() != evidence.Length)))
+            throw new InvalidDataException("Invalid initial formation evidence or missing formation proficiency.");
+        var peerageRegimes = PersonalPeerageRegimes ?? [];
+        if (peerageRegimes.Any(r => r is null || string.IsNullOrWhiteSpace(r.Id) || r.Name is not null && string.IsNullOrWhiteSpace(r.Name) || r.Periods.IsDefaultOrEmpty) ||
+            peerageRegimes.Select(r => r.Id).Distinct(StringComparer.Ordinal).Count() != peerageRegimes.Length ||
+            Forces.Any(f => f.PersonalPeerageRegimeId is string id && !peerageRegimes.Any(r => r.Id == id)) ||
+            Information.CountryTitles.Any(t => t.Rule.PersonalPeerageRegimeId is string id && !peerageRegimes.Any(r => r.Id == id)))
+            throw new InvalidDataException("Invalid personal peerage regime references.");
+        try
+        {
+            foreach (var regime in peerageRegimes)
+            {
+                _ = new San9.Core.Domain.PersonalPeerageRegime(regime.Periods);
+                if (regime.Periods.SelectMany(p => p.AuthorizedRanks.Values).SelectMany(ids => ids)
+                    .Any(id => !Information.Ranks.Any(rank => rank.Id == id)))
+                    throw new InvalidDataException("Unknown personal peerage political rank.");
+            }
+        }
+        catch (ArgumentException error) { throw new InvalidDataException("Invalid personal peerage regime.", error); }
         try { Alliance?.Validate(Forces.Where(f => !f.IsDormant && !f.IsBarbarian).Select(f => f.Id).ToHashSet()); }
         catch (ArgumentException error) { throw new InvalidDataException("Invalid initial alliance.", error); }
         if (Forces.Any(f => f.FormationGrants.IsDefault ||
@@ -129,6 +180,9 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         if (Military is { } military)
         {
             var rules = context is null ? new San9.Core.Domain.MilitaryRulebook(military) : context.ValidateMilitary(military);
+            if (Officers.Any(o => o.InitialFormationEvidence?.Any(e => rules.IsFixedFormation(e.FormationId) ||
+                e.FormationId == rules.UnformedFormationId || rules.SiegeEquipment.Values.Any(s => s.FormationId == e.FormationId)) == true))
+                throw new InvalidDataException("Initial formation evidence must reference a selectable land formation.");
             if (context is not null) San9.Content.Packages.ContentStructure.Validate(military.Places);
             var places = context is null ? rules.Places : rules.ValidatePlaces(military.Places);
             if (Units.Any(u => u.FormationId is int id && !rules.ValidFormationPair(id, u.NavalFormationId)))
@@ -140,6 +194,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
                 throw new InvalidDataException("Unknown battlefield region reference.");
             if (rules.ConstructionSites.Values.Any(site => !RegionNameKeys.ContainsKey(site.RegionId) || !RegionCityIds.ContainsKey(site.RegionId)))
                 throw new InvalidDataException("Unknown construction region.");
+            if (Officers.Any(o => o.State.FormationProficiencies?.Keys.Any(id => !rules.Formations.ContainsKey(id)) == true))
+                throw new InvalidDataException("Unknown officer formation reference.");
             if (Officers.Any(o => o.State.EquippedTacticId is int id && !rules.Tactics.ContainsKey(id)))
                 throw new InvalidDataException("Unknown equipped tactic reference.");
             if (!places.Keys.Order().SequenceEqual(Settlements.Select(s => s.Id).Order()) ||
@@ -186,6 +242,49 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
                 if (memorial.Sites.Any(s => s.RewardTacticIds.Any(t => !tactics.Contains(t)) ||
                     s.RequiredTreasureId is int treasure && !Information.Treasures.Any(t => t.Id == treasure)))
                     throw new InvalidDataException("Unknown commemoration reward or treasure.");
+            var equipmentGifts = SearchEvents.OfType<San9.Core.Domain.EquipmentGiftSearchEventDefinition>().ToArray();
+            var otherWorldKeys = new HashSet<string>(StringComparer.Ordinal);
+            void AddWorldKey(San9.Core.Simulation.PersistentEventKey? key)
+            {
+                if (key is { } value) otherWorldKeys.Add(value.Value);
+            }
+            foreach (var entry in SearchEvents)
+            {
+                switch (entry)
+                {
+                    case San9.Core.Domain.HealingSearchEventDefinition e: AddWorldKey(e.ConsumptionKey); break;
+                    case San9.Core.Domain.BeastSearchEventDefinition e:
+                        foreach (var site in e.Sites) AddWorldKey(site.ConsumptionKey); break;
+                    case San9.Core.Domain.ScholarReturnSearchEventDefinition e: AddWorldKey(e.ConsumptionKey); break;
+                    case San9.Core.Domain.ImperialCeremonySearchEventDefinition e: AddWorldKey(e.ConsumptionKey); break;
+                    case San9.Core.Domain.TreasureMonumentSearchEventDefinition e: AddWorldKey(e.ConsumptionKey); break;
+                    case San9.Core.Domain.ForceActivationSearchEventDefinition e: AddWorldKey(e.ConsumptionKey); break;
+                    case San9.Core.Domain.CommemorationSearchEventDefinition e:
+                        foreach (var site in e.Sites) AddWorldKey(site.ConsumptionKey); break;
+                    case San9.Core.Domain.WomenVisitSearchEventDefinition e:
+                        foreach (var site in e.Sites) AddWorldKey(site.RequiredWorldKey); break;
+                    case San9.Core.Domain.ScholarPunishmentSearchEventDefinition e:
+                        foreach (var site in e.Sites) AddWorldKey(site.WithdrawalKey); break;
+                }
+            }
+            AddWorldKey(HanzhongKing?.ConsumptionKey); AddWorldKey(FiveTigers?.ConsumptionKey);
+            AddWorldKey(ExpeditionMemorial?.ConsumptionKey); AddWorldKey(SunMarriage?.ConsumptionKey);
+            AddWorldKey(ShanyangGong?.ConsumptionKey); AddWorldKey(RedCliffs?.ConsumptionKey);
+            AddWorldKey(Guandu?.ConsumptionKey); AddWorldKey(QiaoMarriage?.ConsumptionKey);
+            AddWorldKey(ChainedPlot?.StartedKey); AddWorldKey(ChainedPlot?.CompletedKey);
+            AddWorldKey(ThreeVisits?.StartedKey); AddWorldKey(ThreeVisits?.FirstVisitKey); AddWorldKey(ThreeVisits?.CompletedKey);
+            if (equipmentGifts.Select(g => g.EquipmentInstanceId).Distinct().Count() != equipmentGifts.Length ||
+                equipmentGifts.Select(g => g.ConsumptionKey).Distinct().Count() != equipmentGifts.Length ||
+                equipmentGifts.Any(g => otherWorldKeys.Contains(g.ConsumptionKey.Value)) ||
+                equipmentGifts.Any(g => !Information.Equipment.Any(definition => definition.Id == g.EquipmentDefinitionId &&
+                    definition.LegacyTreasureId is null && !definition.IsOrdinaryArmament)) ||
+                equipmentGifts.Any(g => !(InitialEquipment ?? []).Any(item => item.Id == g.EquipmentInstanceId &&
+                    item.DefinitionId == g.EquipmentDefinitionId &&
+                    item.EventGiftKey == g.ConsumptionKey.Value &&
+                    item.IsLost && item.SearchPlaceId is null && item.LegacyTreasureId is null && item.PendingArmamentCredit is null)) ||
+                (InitialEquipment ?? []).Any(item => item.EventGiftKey is not null &&
+                    !equipmentGifts.Any(g => g.EquipmentInstanceId == item.Id && g.ConsumptionKey.Value == item.EventGiftKey)))
+                throw new InvalidDataException("Invalid or conflicting equipment gift reward.");
             foreach (var conflict in SearchEvents.OfType<San9.Core.Domain.ConflictSearchEventDefinition>()) conflict.ValidateReferences(ids, tactics);
             foreach (var bookReturn in SearchEvents.OfType<San9.Core.Domain.MysticBookReturnSearchEventDefinition>())
                 if (!ids.Contains(bookReturn.MysticOfficerId) || !Information.Treasures.Any(t => t.Id == bookReturn.TreasureId) ||
@@ -279,6 +378,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         if (Officers.Any(o => o.FlagGlyph < -1 || string.IsNullOrWhiteSpace(o.NameKey) || o.State is null || !o.State.IsValid()) ||
             Officers.Select(o => o.State.Id).Distinct().Count() != Officers.Length || Officers.Any(o =>
                 o.State.ForceLoyalties.Keys.Any(id => !forceIds.Contains(id)) ||
+                o.State.BattleMerit?.Keys.Any(id => !forceIds.Contains(id)) == true ||
+                o.State.ServiceMerit?.Keys.Any(id => !forceIds.Contains(id)) == true ||
                 o.State.SettlementId is int location && !settlementIds.Contains(location) ||
                 o.State.OwnerId is int owner && !forceIds.Contains(owner) ||
                 o.State.UnitId is int unit && !Units.Any(u => u.Id == unit &&

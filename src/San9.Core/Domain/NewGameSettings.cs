@@ -8,6 +8,13 @@ public enum GameMode { Historical, Fictional }
 /// <summary>Confirmed new-game choices. Resource additions are applied once before first-xun preparation.</summary>
 public sealed record NewGameSettings
 {
+    public bool MixedTroopsEnabled { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? NaturalDeathsEnabled { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? EquipmentDevelopmentEnabled { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? FormationLearningEnabled { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? PersonalPeerageEnabled { get; init; }
+    [JsonIgnore] public bool FormationKnowledgeEnabled => MixedTroopsEnabled || FormationLearningEnabled == true;
+    [JsonIgnore] public bool FormationTrainingEnabled => FormationKnowledgeEnabled && FormationLearningEnabled != false;
     [JsonRequired] public GameDifficulty Difficulty { get; init; }
     [JsonRequired] public GameMode Mode { get; init; }
     [JsonRequired] public int MoneyBonus { get; init; }

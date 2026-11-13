@@ -3,20 +3,29 @@ using System.Collections.Immutable;
 namespace San9.Core.Domain;
 
 /// <summary>Derives effective abilities from a supplied state. Holds definitions, never mutable world state or cached results.</summary>
-public sealed class OfficerAbilityRules(TreasureRulebook treasures, GovernanceRulebook governance, OfficerGrowthRules? growth = null)
+public sealed class OfficerAbilityRules(TreasureRulebook treasures, GovernanceRulebook governance, OfficerGrowthRules? growth = null,
+    EquipmentRulebook? equipment = null)
 {
+    private readonly EquipmentRulebook _equipment = equipment ?? EquipmentRulebook.Empty;
     public OfficerGrowthRules Growth { get; } = growth ?? OfficerGrowthRules.Default;
     internal GovernanceRulebook Governance => governance;
     internal TreasureRulebook Treasures => treasures;
     public static OfficerAbilityRules Empty { get; } = new(TreasureRulebook.Empty, new([]));
 
-    public OfficerAbilities Evaluate(OfficerState person, IEnumerable<TreasureState> holdings) =>
-        Calculate(person, treasures.HeldBonuses(holdings, person.Id));
+    public OfficerAbilities Evaluate(OfficerState person, IEnumerable<TreasureState> holdings,
+        IEnumerable<EquipmentInstance>? equipment = null) => Calculate(person, equipment is null
+            ? treasures.HeldBonuses(holdings, person.Id) : EquipmentRules.Bonuses(equipment, _equipment.Items, person.Id));
 
     internal OfficerAbilities EvaluateWithTreasureBonus(OfficerState person, OfficerAbilities bonus) => Calculate(person, bonus);
 
-    public ImmutableDictionary<int, OfficerAbilities> EvaluateMany(IEnumerable<OfficerState> people, IEnumerable<TreasureState> holdings)
+    public ImmutableDictionary<int, OfficerAbilities> EvaluateMany(IEnumerable<OfficerState> people, IEnumerable<TreasureState> holdings,
+        IEnumerable<EquipmentInstance>? equipment = null)
     {
+        if (equipment is not null)
+        {
+            var itemBonuses = EquipmentRules.BonusesByOfficer(equipment, _equipment.Items);
+            return people.ToImmutableDictionary(p => p.Id, p => Calculate(p, itemBonuses.GetValueOrDefault(p.Id)));
+        }
         var bonuses = holdings.Where(t => t.HolderId is not null && t.Discovery != TreasureDiscovery.Disabled)
             .GroupBy(t => t.HolderId!.Value).ToDictionary(g => g.Key,
                 g => TreasureRulebook.MaximumBonuses(g.Select(t => treasures.Items[t.Id].AbilityBonuses)));

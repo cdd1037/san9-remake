@@ -8,7 +8,7 @@ public sealed partial class SimulationEngine
         if (_world.IsExecuting || GetPendingResponse() is not { } response ||
             Snapshot.Simulation.PendingDailyTask is not { } pending || pending.RemainingTaskIds[0] != taskId)
             return new(CommandRejection.InvalidTask, null, AdviserOpinion.Unavailable);
-        var world = _world.BeginMutation(_rules.Abilities, _rules.Economy);
+        var world = BeginMutation();
         var task = world.Simulation.Tasks.Single(t => t.Id == taskId);
         if (task.ResolutionStep != 0 || task.AttackRequest is null && task.PrisonerReturn is null ||
             !_rules.FindTask(task.Kind)!.AcceptsResponse(world, task,

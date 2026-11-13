@@ -77,6 +77,8 @@ public sealed class PersonnelMissionTests
             outcomes.AddRange(events);
         }
         Assert.True(Assert.Single(outcomes.OfType<RecruitmentResolvedEvent>()).Success);
+        Assert.Single(outcomes.OfType<OfficerServiceMeritChangedEvent>(), e =>
+            e.OfficerId == 11 && e.ForceId == 1 && e.Current == 2 && e.Reason == "recruitment-succeeded");
         Assert.Contains(outcomes.OfType<TaskCancelledEvent>(),e => e.TaskId == tasks[1].Id);
         Assert.DoesNotContain(outcomes.OfType<OfficerLoyaltyChangedEvent>(),e => e.Reason.StartsWith("recruit-failure"));
         Assert.All(engine.Snapshot.Simulation.Tasks,t => Assert.Equal("personnel-return",t.Kind));

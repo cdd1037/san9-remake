@@ -7,6 +7,327 @@ namespace San9.Core.Tests;
 
 public sealed class MilitaryCombatTests
 {
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 1)]
+    public void RestoredEquipmentDevelopmentSwitchControlsCombatGrowth(bool enabled, int expected)
+    {
+        var equipment = new EquipmentRulebook([new("sword", EquipmentSlot.MainHand, EquipmentRarity.Ordinary, default, default)]);
+        var source = Engine(World(defenders: 10000)).CaptureStableState();
+        var snapshot = source with { EquipmentInitialized = true,
+            Equipment = [new EquipmentInstance(1, "sword", 11, null, true)],
+            Simulation = source.Simulation with { NewGame = source.Simulation.NewGame with { EquipmentDevelopmentEnabled = enabled } } };
+        var mutation = WorldState.Restore(snapshot).BeginMutation(equipment: equipment);
+        mutation.BeginEquipmentExchange(new(0, false), new(2, true));
+        mutation.RecordEquipmentUse([11], EquipmentUse.Attack);
+        Assert.Equal(expected, mutation.AllEquipment[1].Experience);
+    }
+
+    [Fact]
+    public void EquipmentGainsExperienceOncePerExchangeAcrossDamageAndRestore()
+    {
+        var equipment = new EquipmentRulebook([
+            new("sword", EquipmentSlot.MainHand, EquipmentRarity.Ordinary, default, default),
+            new("helmet", EquipmentSlot.Helmet, EquipmentRarity.Ordinary, default, default)]);
+        var source = Engine(World(defenders: 10000)).CaptureStableState();
+        var world = WorldState.Restore(source with { EquipmentInitialized = true, Equipment = [
+            new EquipmentInstance(1, "sword", 11, null, true, 1, 99),
+            new EquipmentInstance(2, "helmet", 22, null, true)] });
+        var mutation = world.BeginMutation(equipment: equipment);
+        mutation.BeginEquipmentExchange(new(0, false), new(2, true));
+        MilitaryCombat.DamageSettlement(mutation, mutation.Settlements[2], 10, Profile, 0, []);
+        MilitaryCombat.DamageSettlement(mutation, mutation.Settlements[2], 10, Profile, 0, []);
+        Assert.Equal(2, mutation.AllEquipment[1].Level);
+        Assert.Equal(0, mutation.AllEquipment[1].Experience);
+        Assert.Equal(1, mutation.AllEquipment[2].Experience);
+        world.Commit(mutation);
+        var resumedWorld = WorldState.Restore(world.CreateSnapshot());
+        var resumed = resumedWorld.BeginMutation(equipment: equipment);
+        resumed.BeginEquipmentExchange(new(0, false), new(2, true));
+        MilitaryCombat.DamageSettlement(resumed, resumed.Settlements[2], 10, Profile, 0, []);
+        Assert.Equal(0, resumed.AllEquipment[1].Experience);
+        Assert.Equal(1, resumed.AllEquipment[2].Experience);
+        resumed.BeginEquipmentExchange(new(0, false), new(1, true));
+        resumed.RecordEquipmentUse([11], EquipmentUse.Attack);
+        Assert.Equal(1, resumed.AllEquipment[1].Experience);
+        resumed.BeginEquipmentExchange(new(0, false), new(2, true));
+        resumed.RecordEquipmentUse([11], EquipmentUse.Attack);
+        Assert.Equal(1, resumed.AllEquipment[1].Experience);
+        resumedWorld.Commit(resumed);
+        var savedWorld = WorldState.Restore(resumedWorld.CreateSnapshot());
+        var loaded = savedWorld.BeginMutation(equipment: equipment);
+        loaded.BeginEquipmentExchange(new(0, false), new(1, true));
+        loaded.RecordEquipmentUse([11], EquipmentUse.Attack);
+        Assert.Equal(1, loaded.AllEquipment[1].Experience);
+        loaded.SetClock(loaded.Clock.NextDay());
+        loaded.BeginEquipmentExchange(new(0, false), new(2, true));
+        loaded.RecordEquipmentUse([11], EquipmentUse.Attack);
+        Assert.Equal(2, loaded.AllEquipment[1].Experience);
+        Assert.Single(loaded.AllEquipment[1].ExperienceExchanges!);
+    }
+
+    [Fact]
+    public void RealCombatAndRestoredCombatAdvanceEquipmentEqually()
+    {
+        var equipment = new EquipmentRulebook([
+            new("sword", EquipmentSlot.MainHand, EquipmentRarity.Ordinary, default, default),
+            new("helmet", EquipmentSlot.Helmet, EquipmentRarity.Ordinary, default, default)]);
+        var initial = Engine(World(defenders: 10000, controlled: true)).CaptureStableState() with
+        {
+            EquipmentInitialized = true,
+            Equipment = [new EquipmentInstance(1, "sword", 11, null, true), new EquipmentInstance(2, "helmet", 22, null, true)]
+        };
+        var rules = new SimulationRules { Military = Rules(), Equipment = equipment };
+        var first = new SimulationEngine(WorldState.Restore(initial), rules);
+        var second = new SimulationEngine(WorldState.Restore(initial), rules);
+        first.EndControl(new("player"));
+        second.EndControl(new("player"));
+        var events = first.AdvanceXun().Events;
+        second.AdvanceXun();
+        Assert.Contains(events, e => e is BattleDamageEvent { SoldierLoss: > 0 });
+        Assert.True(first.Snapshot.Equipment.Single(e => e.Id == 1).Experience > 0);
+        Assert.True(first.Snapshot.Equipment.Single(e => e.Id == 2).Experience > 0);
+        StateAssert.Equal(first.Snapshot, second.Snapshot);
+    }
+
+    [Fact]
+    public void SiegeEquipmentIsSharedByTargetEligibilityAndArrivalForecast()
+    {
+        var original = Rules();
+        var land = original.Formations[7] with { Attack = null };
+        var siege = original.Formations[7] with { Id = 8, Attack = new(20, true) { RangedSiege = true } };
+        var rules = new MilitaryRulebook(new MilitaryDefinition(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(),
+            [new(0, 1, null)], [land, siege], original.Places.Values.OrderBy(place => place.Id).ToImmutableArray())
+        {
+            ResearchProjects = [new("siege", 0, 1, [])],
+            SiegeEquipment = [new(1, "冲车", "siege", 8, 0)]
+        });
+        var state = World(defenders: 100000);
+        var mutation = state.BeginMutation();
+        mutation.Replace(mutation.Units[0] with { SiegeEquipmentId = 1 });
+        state.Commit(mutation);
+        var snapshot = state.CreateSnapshot();
+        var order = new MilitaryOrder(MilitaryOrderKind.AttackSettlement, null, 2);
+        Assert.True(new MilitaryOrderQuery(snapshot, rules).CanAssign(0, order));
+        Assert.False(new MilitaryOrderQuery(snapshot with { Units = snapshot.Units.Select(u => u with { SiegeEquipmentId = null }).ToArray() }, rules)
+            .CanAssign(0, order));
+        var forecast = new MilitaryArrivalForecast(snapshot, rules);
+        var request = new DeploymentArrivalRequest(1, 7, null, order, new(), Soldiers: 10000);
+        Assert.Equal(ArrivalEstimateStatus.NotApplicable, forecast.EstimateDeployment(request).Status);
+        Assert.Equal(ArrivalEstimateStatus.Known, forecast.EstimateDeployment(request with { SiegeEquipmentId = 1 }).Status);
+        Assert.Equal(ArrivalEstimateStatus.NotApplicable, forecast.EstimateDeployment(request with { SiegeEquipmentId = 99 }).Status);
+        Assert.Equal(ArrivalEstimateStatus.Known, forecast.Estimate(0).Status);
+    }
+
+    [Fact]
+    public void FeatureWeaponChangesNormalCombatWithoutMixedTroops()
+    {
+        var weapon = new EquipmentDefinition("special-weapon", EquipmentSlot.MainHand, EquipmentRarity.Precious, default, default)
+            { CombatEffects = new(AttackPercent: 10) };
+        var world = World(defenders: 10000).BeginMutation(equipment: new EquipmentRulebook([weapon]));
+        var source = new BattleSource(0, false);
+        var target = new BattleSource(2, true);
+        uint before = MilitaryCombat.NormalDamage(world, source, target, Rules());
+        world.SetEquipment(new(101, weapon.Id, 11, null, true));
+        uint after = MilitaryCombat.NormalDamage(world, source, target, Rules());
+        Assert.True(before > 0);
+        Assert.Equal((uint)((ulong)before * 110 / 100), after);
+    }
+
+    [Fact]
+    public void EquippedEffectsApplyToOrdinaryAndMartialDamageWithRangedDefenseAndMixedWeights()
+    {
+        var weapon = new EquipmentDefinition("special-weapon", EquipmentSlot.MainHand, EquipmentRarity.Precious, default, default)
+            { CombatEffects = new(AttackPercent: 10, MartialTacticPercent: 5) };
+        var armor = new EquipmentDefinition("special-armor", EquipmentSlot.Armor, EquipmentRarity.Precious, default, default)
+            { CombatEffects = new(DefensePercent: 8, RangedDefensePercent: 5) };
+        var rules = new EquipmentRulebook([weapon, armor]);
+        var world = World().BeginMutation(equipment: rules);
+        world.AddUnit(new(1, 2, new(36, 7), 10000) { FormationId = 7, Morale = 90,
+            MemberPositions = ImmutableDictionary<int, FormationPosition>.Empty.Add(22, new(0, BattleRank.Front)) });
+        world.Replace(world.Officers[22] with { SettlementId = null, UnitId = 1 });
+        world.SetEquipment(new(101, weapon.Id, 11, null, true));
+        world.SetEquipment(new(102, armor.Id, 22, null, true));
+        var attacker = new BattleSource(0, false);
+        var defender = new BattleSource(1, false);
+
+        Assert.Equal(10120u, EquipmentCombat.Adjust(world, attacker, defender, 10000));
+        Assert.Equal(9570u, EquipmentCombat.Adjust(world, attacker, defender, 10000, ranged: true));
+        Assert.Equal(10580u, EquipmentCombat.Adjust(world, attacker, defender, 10000, 11, tactic: true));
+        world.SetEquipment(world.AllEquipment[101] with { Equipped = false });
+        Assert.Equal(9200u, EquipmentCombat.Adjust(world, attacker, defender, 10000));
+
+        world.SetEquipment(world.AllEquipment[101] with { Equipped = true });
+        world.Replace(world.Officers[12] with { SettlementId = null, UnitId = 0 });
+        world.Replace(world.Units[0] with { Detachments = ImmutableDictionary<int, DetachmentState>.Empty
+            .Add(11, new(0, 1, 2500)).Add(12, new(0, 1, 7500)) });
+        Assert.Equal(9430u, EquipmentCombat.Adjust(world, attacker, defender, 10000));
+    }
+
+    [Fact]
+    public void ShieldCoverReducesDeclaredRangedFacilityDamage()
+    {
+        var baseline = Rules();
+        var formation = baseline.Formations[7] with { SupportsShieldCover = true };
+        var rules = new MilitaryRulebook(new MilitaryDefinition(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(),
+            [new(0, 1, null)], [formation], baseline.Places.Values.OrderBy(place => place.Id).ToImmutableArray())
+        {
+            TroopTypes = [new(1, "盾兵", 1, ImmutableDictionary<int, int>.Empty) { SupportsShieldCover = true }],
+            MixedTroopCombat = new(20, 15, 15, 10)
+        });
+        var world = World().BeginMutation();
+        world.Replace(world.Units[0] with { Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(11, new(1, 1, 10000)) });
+        Assert.Equal(85u, MixedTroopCombat.Adjust(world, new(2, true), new(0, false), 100, rules, rangedSource: true));
+        Assert.Equal(100u, MixedTroopCombat.Adjust(world, new(2, true), new(0, false), 100, rules));
+    }
+
+    [Fact]
+    public void ArmamentsAffectLandCombatOnlyWhenMixedTroopModuleIsEnabled()
+    {
+        var baseline = Rules();
+        var rules = new MilitaryRulebook(new MilitaryDefinition(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(),
+            [new(0, 1, null)], [baseline.Formations[7]], baseline.Places.Values.OrderBy(place => place.Id).ToImmutableArray())
+        {
+            TroopTypes = [new(1, "枪兵", 1, ImmutableDictionary<int, int>.Empty)],
+            Armaments = [new("spear", "铁矛", ArmamentSlot.Weapon, [1], 20, 0, 100, null),
+                new("armor", "皮甲", ArmamentSlot.Armor, [], 0, 10, 100, null)]
+        });
+        var world = World().BeginMutation();
+        world.SetSimulation(world.Simulation with { NewGame = world.Simulation.NewGame with { MixedTroopsEnabled = true } });
+        world.Replace(world.Units[0] with { Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(11,
+            new(1, 1, 10000) { Weapon = new("spear", 5000, 10000, 0) }) });
+        world.AddUnit(new(1, 2, new(36, 7), 10000)
+        {
+            FormationId = 7, Morale = 90,
+            MemberPositions = ImmutableDictionary<int, FormationPosition>.Empty.Add(22, new(0, BattleRank.Front)),
+            Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(22,
+                new(1, 1, 10000) { Armor = new("armor", 10000, 10000, 0) })
+        });
+        Assert.Equal(99u, MixedTroopCombat.Adjust(world, new(0, false), new(1, false), 100, rules, 11));
+        world.Replace(world.Units[0] with { Detachments = world.Units[0].Detachments.SetItem(11,
+            world.Units[0].Detachments[11] with { Weapon = new("spear", 250, 10000, 0) }) });
+        world.Replace(world.Units[1] with { Detachments = world.Units[1].Detachments.SetItem(22,
+            world.Units[1].Detachments[22] with { Armor = null }) });
+        Assert.Equal(1005u, MixedTroopCombat.Adjust(world, new(0, false), new(1, false), 1000, rules, 11));
+        world.SetSimulation(world.Simulation with { NewGame = world.Simulation.NewGame with { MixedTroopsEnabled = false } });
+        Assert.Equal(100u, MixedTroopCombat.Adjust(world, new(0, false), new(1, false), 100, rules, 11));
+    }
+
+    [Fact]
+    public void OrdinaryCombatUsesIssuedWeaponsAndArmorAndStopsWhenModuleIsDisabled()
+    {
+        var baseline = Rules();
+        var rules = new MilitaryRulebook(new MilitaryDefinition(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(),
+            [new(0, 1, null)], [baseline.Formations[7]], baseline.Places.Values.OrderBy(place => place.Id).ToImmutableArray())
+        {
+            TroopTypes = [new(1, "枪兵", 1, ImmutableDictionary<int, int>.Empty)],
+            Armaments = [new("spear", "铁矛", ArmamentSlot.Weapon, [1], 20, 0, 100, null),
+                new("armor", "皮甲", ArmamentSlot.Armor, [], 0, 10, 100, null)]
+        });
+        var world = World().BeginMutation();
+        world.SetSimulation(world.Simulation with { NewGame = world.Simulation.NewGame with { MixedTroopsEnabled = true } });
+        world.Replace(world.Units[0] with { Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(11, new(1, 1, 10000)) });
+        world.AddUnit(new(1, 2, new(36, 7), 10000)
+        {
+            FormationId = 7, Morale = 90,
+            MemberPositions = ImmutableDictionary<int, FormationPosition>.Empty.Add(22, new(0, BattleRank.Front)),
+            Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(22, new(1, 1, 10000))
+        });
+        var attacker = new BattleSource(0, false);
+        var defender = new BattleSource(1, false);
+        uint original = MilitaryCombat.NormalDamage(world, attacker, defender, rules);
+        Assert.True(original > 0);
+        world.Replace(world.Units[0] with { Detachments = world.Units[0].Detachments.SetItem(11,
+            world.Units[0].Detachments[11] with { Weapon = new("spear", 10000, 10000, 0) }) });
+        uint armed = MilitaryCombat.NormalDamage(world, attacker, defender, rules);
+        Assert.Equal((uint)((ulong)original * 120 / 100), armed);
+        world.Replace(world.Units[1] with { Detachments = world.Units[1].Detachments.SetItem(22,
+            world.Units[1].Detachments[22] with { Armor = new("armor", 10000, 10000, 0) }) });
+        Assert.Equal((uint)((ulong)armed * 90 / 100), MilitaryCombat.NormalDamage(world, attacker, defender, rules));
+        world.SetSimulation(world.Simulation with { NewGame = world.Simulation.NewGame with { MixedTroopsEnabled = false } });
+        Assert.Equal(original, MilitaryCombat.NormalDamage(world, attacker, defender, rules));
+    }
+
+    [Fact]
+    public void MixedOrdinaryLossUsesFrontForMeleeAndProportionForRanged()
+    {
+        var world = World().BeginMutation();
+        var unit = world.Units[0] with
+        {
+            MemberPositions = new Dictionary<int, FormationPosition>
+            { [11] = new(0, BattleRank.Front), [12] = new(0, BattleRank.Rear) }.ToImmutableDictionary(),
+            Detachments = new Dictionary<int, DetachmentState>
+            { [11] = new(1, 1, 2000) { Weapon = new("spear", 1000, 2000, 0) },
+                [12] = new(2, 1, 8000) { Armor = new("armor", 4000, 8000, 0) } }.ToImmutableDictionary()
+        };
+        world.Replace(unit);
+        MilitaryCombat.ApplyUnitLoss(world, unit, 4000, 0, Profile, new(2, true), [], rangedDamage: 2000);
+        Assert.Equal(0u, world.Units[0].Detachments[11].Soldiers);
+        Assert.Equal(6000u, world.Units[0].Detachments[12].Soldiers);
+        Assert.Equal(0u, world.Units[0].Detachments[11].Weapon!.RemainingSets);
+        Assert.Equal(3000u, world.Units[0].Detachments[12].Armor!.RemainingSets);
+        Assert.Equal(6000u, world.Units[0].Soldiers);
+    }
+
+    [Fact]
+    public void OrdinaryDamageBreakdownRoundTripsAndLegacyPayloadDefaultsToUnspecified()
+    {
+        var original = new CombatExchangeDamage(120, 75) { OutgoingRanged = 80, IncomingRanged = 20 };
+        string json = System.Text.Json.JsonSerializer.Serialize(original);
+        var restored = System.Text.Json.JsonSerializer.Deserialize<CombatExchangeDamage>(json);
+        Assert.Equal(original, restored);
+        Assert.Equal(20u, restored.Reverse().OutgoingRanged);
+        var legacy = System.Text.Json.JsonSerializer.Deserialize<CombatExchangeDamage>("{\"Outgoing\":120,\"Incoming\":75}");
+        Assert.Null(legacy.OutgoingRanged);
+        Assert.Null(legacy.IncomingRanged);
+    }
+
+    [Fact]
+    public void SpearDefenseAppliesToMountedDetachmentOnlyWhileFormationIsReady()
+    {
+        var baseline = Rules();
+        var formation = baseline.Formations[7] with { SupportsSpearDefense = true };
+        var rules = new MilitaryRulebook(new MilitaryDefinition(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(),
+            [new(0, 1, null)], [formation], baseline.Places.Values.OrderBy(place => place.Id).ToImmutableArray())
+        {
+            TroopTypes = [new(1, "骑兵", 1, ImmutableDictionary<int, int>.Empty) { IsMountedMelee = true },
+                new(2, "枪兵", 1, ImmutableDictionary<int, int>.Empty) { SupportsSpearDefense = true }],
+            MixedTroopCombat = new(20, 15, 15, 10)
+        });
+        var world = World().BeginMutation();
+        world.Replace(world.Units[0] with { Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(11, new(1, 1, 10000)) });
+        world.AddUnit(new(1, 2, new(36, 7), 10000)
+        {
+            FormationId = 7, Morale = 90,
+            MemberPositions = ImmutableDictionary<int, FormationPosition>.Empty.Add(22, new(0, BattleRank.Front)),
+            Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(22, new(2, 1, 10000))
+        });
+        Assert.Equal(80u, MixedTroopCombat.Adjust(world, new(0, false), new(1, false), 100, rules, 11));
+        world.Replace(world.Units[1] with { Condition = UnitCondition.Confused });
+        Assert.Equal(100u, MixedTroopCombat.Adjust(world, new(0, false), new(1, false), 100, rules, 11));
+    }
+
+    [Fact]
+    public void AttachedSiegeEquipmentUsesItsWallAttackDuringCombat()
+    {
+        var original = Rules();
+        var land = original.Formations[7] with { Attack = new(1, false) };
+        var siege = original.Formations[7] with { Id = 8, Attack = new(1, true), Combat = Profile };
+        var rules = new MilitaryRulebook(new MilitaryDefinition(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(),
+            [new(0, 1, null)], [land, siege], original.Places.Values.OrderBy(place => place.Id).ToImmutableArray())
+        {
+            ResearchProjects = [new("siege", 0, 1, [])],
+            SiegeEquipment = [new(1, "冲车", "siege", 8, 0)]
+        });
+        var state = World(defenders: 100000);
+        var mutation = state.BeginMutation();
+        mutation.Replace(mutation.Units[0] with { SiegeEquipmentId = 1 });
+        state.Commit(mutation);
+        var engine = Engine(state, rules);
+        var result = engine.AdvanceXun();
+        Assert.Contains(result.Events.OfType<BattleDamageEvent>(), damage => damage.AttackerId == 0 && damage.DurabilityLoss > 0);
+    }
+
     [Fact]
     public void OpeningCombatPersistsMovementEngagementThroughDamage()
     {

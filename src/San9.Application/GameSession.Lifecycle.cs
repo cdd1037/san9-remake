@@ -13,6 +13,7 @@ public sealed partial class GameSession
     {
         _definition = definition;
         _simulation = simulation;
+        _initializedSearchEquipment = EquipmentMigration.SearchKeys(definition.Content);
         _lastXunStartDay = simulation.Snapshot.Clock.DayNumber;
         _originalAi = OriginalAiState.Create(definition.Content);
         _initialEvents = simulation.InitialEvents;
@@ -40,7 +41,8 @@ public sealed partial class GameSession
     internal static GameSession Start(ScenarioInitialState definition, ulong seed, Func<WorldState, SimulationEngine>? factory, int computerDamageBonusPercent = 0, bool battleDeathsEnabled = false, ControllerKind playerForceController = ControllerKind.Player, bool enableXunStartCheckpoints = false, NewGameSettings? settings = null, IReadOnlyCollection<int>? playerForceIds = null, CompanionSettings? companionSettings = null, San9.Content.Authoring.NewGameSetup? setup = null)
     {
         var input = setup ?? San9.Content.Authoring.NewGameSetup.Empty;
-        var composition = Authoring.NewGameComposer.Compose(definition, input, playerForceIds);
+        var scenario = settings?.NaturalDeathsEnabled is bool naturalDeaths ? definition with { NaturalDeathsEnabled = naturalDeaths } : definition;
+        var composition = Authoring.NewGameComposer.Compose(scenario, input, playerForceIds);
         var owned = new ScenarioSessionDefinition(composition.Scenario, playerForceIds, composition.Definitions);
         var simulation = (factory ?? owned.Rules.CreateEngine)(owned.CreateWorld(seed, computerDamageBonusPercent, battleDeathsEnabled, playerForceController, settings));
         if (companionSettings is not null) simulation.ConfigureCompanion(companionSettings);
@@ -63,6 +65,9 @@ public sealed partial class GameSession
     internal static GameSession Load(ScenarioSessionDefinition owned, SessionSnapshot snapshot,
         Func<WorldState, SimulationEngine>? factory)
     {
+        snapshot = FormationKnowledgeMigration.Initialize(snapshot, owned.MilitaryRules);
+        snapshot = EquipmentMigration.Initialize(snapshot, owned.Content, owned.Rules.Equipment);
+        snapshot = PersonalPeerageMigration.Initialize(snapshot, owned.Content);
         _ = WorldState.Restore(snapshot.World, owned.Content.DefaultLoyalty);
         SessionValidation.Validate(owned, snapshot);
         ulong seed;
@@ -86,6 +91,9 @@ public sealed partial class GameSession
 
     internal static GameSession Restore(ScenarioSessionDefinition owned, SessionSnapshot snapshot, Func<WorldState, SimulationEngine>? factory)
     {
+        snapshot = FormationKnowledgeMigration.Initialize(snapshot, owned.MilitaryRules);
+        snapshot = EquipmentMigration.Initialize(snapshot, owned.Content, owned.Rules.Equipment);
+        snapshot = PersonalPeerageMigration.Initialize(snapshot, owned.Content);
         var world = WorldState.Restore(snapshot.World, owned.Content.DefaultLoyalty);
         SessionValidation.Validate(owned, snapshot);
         return RestoreValidated(owned, snapshot, world, factory);
@@ -106,6 +114,7 @@ public sealed partial class GameSession
         session._originalAi = snapshot.OriginalAi;
         session.PlayerForceController = snapshot.PlayerForceController;
         session.InitialPlayerForceIds = snapshot.InitialPlayerForceIds;
+        session._initializedSearchEquipment = snapshot.InitializedSearchEquipment ?? [];
         session.HasUnsavedChanges = false;
         return session;
     }

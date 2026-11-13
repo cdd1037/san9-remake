@@ -8,6 +8,28 @@ namespace San9.Core.Tests;
 public sealed class BattleRoutingTests
 {
     [Fact]
+    public void DefeatedUnitReturnsSurvivingArmamentsOnceDuringPersonnelResolution()
+    {
+        var (world, military) = Fixture(80, false, 10000);
+        var state = world.BeginMutation();
+        state.Replace(state.Forces[1] with { IsBarbarian = true });
+        state.Replace(state.Forces[2] with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("spear", 300) });
+        state.Replace(state.Units[1] with { Soldiers = 4000, Wounded = 200,
+            Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(22,
+                new DetachmentState(1, 1, 4000) { Weapon = new("spear", 2500, 5000, 1000) }) });
+        List<DomainEvent> events = [];
+
+        BattleAftermath.TerminateUnit(state, 1, new(0, false), new SimulationRules { Military = military }, events);
+
+        Assert.DoesNotContain(1, state.Units.Keys);
+        Assert.Equal(2300u, state.Forces[2].ArmamentInventory!["spear"]);
+        Assert.Single(events.OfType<UnitTerminatedEvent>());
+        state.SetSimulation(state.Simulation with { Boundary = SimulationBoundary.Stable });
+        world.Commit(state);
+        Assert.Equal(2300u, WorldState.Restore(world.CreateSnapshot()).CreateSnapshot().Forces.Single(f => f.Id == 2).ArmamentInventory!["spear"]);
+    }
+
+    [Fact]
     public void DefeatOrdersVictoryWoundedPostActionPersonnelAndMoraleBeforeRemoval()
     {
         var (world, military) = Fixture(80, false, 10000);

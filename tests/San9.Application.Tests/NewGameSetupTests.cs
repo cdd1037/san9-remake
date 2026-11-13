@@ -12,6 +12,53 @@ namespace San9.Application.Tests;
 public sealed class NewGameSetupTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NewGameModuleChoicesSurviveSaveAndControlNaturalDeaths(bool enabled)
+    {
+        var source = Source();
+        var settings = new NewGameSettings { NaturalDeathsEnabled = enabled, EquipmentDevelopmentEnabled = enabled,
+            FormationLearningEnabled = enabled, PersonalPeerageEnabled = enabled };
+        var session = GameSession.Start(source, 123, settings: settings);
+        var restored = SaveService.Decode(SaveService.Encode(session), source);
+        Assert.Equal(enabled, restored.Snapshot.Simulation.NaturalDeathsEnabled);
+        Assert.Equal(settings, restored.Snapshot.Simulation.NewGame);
+    }
+
+    [Fact]
+    public void IndependentModuleChoicesSurviveSaveAndLegacyMissingChoicesLoad()
+    {
+        var source = Source();
+        for (var flags = 0; flags < 16; flags++)
+        {
+            var settings = new NewGameSettings
+            {
+                NaturalDeathsEnabled = (flags & 1) != 0,
+                EquipmentDevelopmentEnabled = (flags & 2) != 0,
+                FormationLearningEnabled = (flags & 4) != 0,
+                PersonalPeerageEnabled = (flags & 8) != 0
+            };
+            var session = GameSession.Start(source, 123, settings: settings);
+            var bytes = SaveService.Encode(session);
+            var restored = SaveService.Decode(bytes, source);
+            Assert.Equal(settings, restored.Snapshot.Simulation.NewGame);
+            Assert.Equal(settings.NaturalDeathsEnabled, restored.Snapshot.Simulation.NaturalDeathsEnabled);
+
+            var json = System.Text.Json.Nodes.JsonNode.Parse(bytes)!;
+            var newGame = json["session"]!["world"]!["simulation"]!["newGame"]!.AsObject();
+            newGame.Remove("naturalDeathsEnabled");
+            newGame.Remove("equipmentDevelopmentEnabled");
+            newGame.Remove("formationLearningEnabled");
+            newGame.Remove("personalPeerageEnabled");
+            var legacy = SaveService.Decode(System.Text.Encoding.UTF8.GetBytes(json.ToJsonString()), source);
+            Assert.Null(legacy.Snapshot.Simulation.NewGame.NaturalDeathsEnabled);
+            Assert.Null(legacy.Snapshot.Simulation.NewGame.EquipmentDevelopmentEnabled);
+            Assert.Null(legacy.Snapshot.Simulation.NewGame.FormationLearningEnabled);
+            Assert.Null(legacy.Snapshot.Simulation.NewGame.PersonalPeerageEnabled);
+        }
+    }
+
+    [Theory]
     [InlineData(true, 4)]
     [InlineData(false, null)]
     public void NewForceUsesTheUnrankedIdentityWithoutInferringAnInitialRank(bool marked, int? expected)

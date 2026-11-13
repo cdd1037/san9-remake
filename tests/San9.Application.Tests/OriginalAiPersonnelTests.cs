@@ -413,6 +413,22 @@ public sealed partial class OriginalAiPersonnelTests
         Assert.Empty(h.Commands);
     }
 
+    [Fact]
+    public void SearchExploresOwnedCitiesForIndependentEquipmentWithoutReadingItsLocation()
+    {
+        var basis = Fixture();
+        var item = new EquipmentDefinition("featured-test", EquipmentSlot.MainHand, EquipmentRarity.Precious,
+            new(1, 0, 0, 0), default) { Name = "玄纹剑", Origin = EquipmentOrigin.Project };
+        var content = basis with
+        {
+            Information = basis.Information with { Equipment = [item] },
+            InitialEquipment = [new EquipmentInstance(10000, item.Id, null, null, false) { IsLost = true, SearchPlaceId = 2 }]
+        };
+        var h = new Harness(content);
+        Assert.Equal(1, h.Run(OriginalAiWork.Search, 3).Submitted);
+        Assert.Equal(1, Assert.IsType<SearchCommand>(Assert.Single(h.Commands)).DestinationId);
+    }
+
     [Theory]
     [InlineData(0, 60, 41, 89, 2)]
     [InlineData(0, 59, 41, 89, 0)]

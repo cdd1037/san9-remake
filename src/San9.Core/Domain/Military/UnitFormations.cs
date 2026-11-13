@@ -19,6 +19,14 @@ public sealed partial class MilitaryRulebook
     public FormationRule Formation(UnitState unit, WorldPosition? position = null) =>
         Formation(unit.FormationId!.Value, unit.NavalFormationId, position ?? unit.Position);
 
+    public FormationRule AttackFormation(UnitState unit, WorldPosition? position = null, bool againstSettlement = true)
+    {
+        var actualPosition = position ?? unit.Position;
+        if (againstSettlement && !Map.IsWater(actualPosition) && unit.SiegeEquipmentId is int equipment &&
+            SiegeEquipment.TryGetValue(equipment, out var definition)) return Formations[definition.FormationId];
+        return Formation(unit, actualPosition);
+    }
+
     public FormationRule Formation(int formationId, int? navalFormationId, WorldPosition position) =>
         Formations[navalFormationId is int naval && Map.IsWater(position) ? naval : formationId];
 

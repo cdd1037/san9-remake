@@ -68,7 +68,7 @@ public sealed class MissionDraft
             var treasures = View.Rules.Treasures;
             var tactics = session.MilitaryRules?.Tactics.Values.Where(t => t.Effect == TacticEffect.Inspire).Select(t => t.Id).ToHashSet() ?? [];
             return View.World.Officers.Where(p => p.OwnerId == force.Id &&
-                tactics.Overlaps(TacticAvailability.ForOfficer(p,force,View.World.Treasures,treasures).Keys))
+                tactics.Overlaps(TacticAvailability.ForOfficer(p,force,View.World.Treasures,treasures,View.EquippedItems).Keys))
                 .Select(p => p.Id).ToImmutableHashSet();
         });
         Home = View.World.Settlements.Single(s => s.Id == homeId);

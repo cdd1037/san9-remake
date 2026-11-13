@@ -23,15 +23,18 @@ public sealed record ScenarioForceSelection(string Title, int Year, int Month, O
         // for its preview, including payroll, without activating or modifying the source.
         var world = new WorldSnapshot(clock, new(clock, 0))
         {
-            Forces = scenario.Forces.Select(f => new ForceState(f.Id, f.Trust) { IsBarbarian = f.IsBarbarian }).ToArray(),
+            Forces = scenario.Forces.Select(f => new ForceState(f.Id, f.Trust) { IsBarbarian = f.IsBarbarian, PersonalPeerageRegimeId = f.PersonalPeerageRegimeId }).ToArray(),
             Settlements = scenario.Settlements.Select(s => new SettlementState(s.Id, s.OwnerId, s.Soldiers, s.Durability,
                 s.MaxDurability, s.Morale, s.PublicOrder, s.Commerce, s.MaxCommerce, s.Cultivation, s.MaxCultivation)
                 { Kind = s.Kind, CorpsId = s.CorpsId, Population = s.Population, DraftPopulation = s.DraftPopulation,
                     ConsumesFood = s.ConsumesFood, Wounded = s.Wounded }).ToArray(),
-            Officers = scenario.Officers.Select(o => o.State with { IsDormant = false }).ToArray(),
+            Officers = PersonalPeerageMigration.Initialize(scenario.Officers.Select(o => o.State with { IsDormant = false }), scenario.Officers, clock),
             Units = scenario.Units, Corps = scenario.Information.Corps
         };
         var salaries = scenario.Information.Offices.ToDictionary(o => o.Id, o => o.Salary);
+        var regimes = (scenario.PersonalPeerageRegimes ?? []).ToDictionary(r => r.Id, r => new PersonalPeerageRegime(r.Periods), StringComparer.Ordinal);
+        PersonalPeeragePolicy PeeragePolicy(ForceInitialState force) => force.PersonalPeerageRegimeId is string id &&
+            regimes.TryGetValue(id, out var regime) && regime.Period(scenario.Year) is { } period ? period.Policy(PersonalPeeragePolicy.Default) : PersonalPeeragePolicy.Default;
         var forces = scenario.Forces.Select(f =>
         {
             var owned = cities.Where(c => c.OwnerId == f.Id).ToArray();
@@ -50,7 +53,7 @@ public sealed record ScenarioForceSelection(string Title, int Year, int Month, O
                 Wounded = scenario.Settlements.Where(s => s.OwnerId == f.Id).Sum(s => (long)s.Wounded) + scenario.Units.Where(u => u.OwnerId == f.Id).Sum(u => (long)u.Wounded),
                 AllianceDays = scenario.Alliance is { } alliance && (alliance.TargetForceId == f.Id || alliance.MemberForceIds.Contains(f.Id)) ? alliance.RemainingXun * 10 : 0,
                 IsAllianceLeader = scenario.Alliance?.LeaderForceId == f.Id, IsAllianceTarget = scenario.Alliance?.TargetForceId == f.Id,
-                Outlook = EconomicOutlook.Read(world, salaries, f.Id, CompanionSettings.Default)
+                Outlook = EconomicOutlook.Read(world, salaries, f.Id, CompanionSettings.Default, peerages: PeeragePolicy(f))
             };
         }).Where(f => f.CityIds.Length > 0).ToArray();
         return new(text.Resolve("scenario.title"), scenario.Year, scenario.Month, forces, cities.ToDictionary(c => c.Id,

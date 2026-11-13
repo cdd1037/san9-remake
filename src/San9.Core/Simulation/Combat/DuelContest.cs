@@ -5,7 +5,11 @@ namespace San9.Core.Simulation;
 
 /// <summary>Participant state and holdings at this contest, before strikes or aftermath mutate them.</summary>
 public sealed record DuelStartedEvent(GameClock Clock, DuelRoster Roster,
-    ImmutableArray<OfficerState> Participants, ImmutableArray<TreasureState> Treasures) : DomainEvent;
+    ImmutableArray<OfficerState> Participants, ImmutableArray<TreasureState> Treasures) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public ImmutableArray<EquipmentInstance>? Equipment { get; init; }
+}
 public sealed record DuelStrikeEvent(GameClock Clock, int AttackerId, int DefenderId, DuelStrikeKind Kind,
     int Damage, int DefenderHitPoints, int DefenderInjury) : DomainEvent;
 public sealed record DuelPairWonEvent(GameClock Clock, int WinnerId, int LoserId, int RemainingHitPoints) : DomainEvent;
@@ -26,7 +30,9 @@ internal static class DuelContest
         var participantIds = participants.Select(p => p.Id).ToHashSet();
         events.Add(new DuelStartedEvent(world.Clock, roster, participants,
             world.Treasures.Values.Where(t => t.HolderId is int holder && participantIds.Contains(holder))
-                .OrderBy(t => t.Id).ToImmutableArray()));
+                .OrderBy(t => t.Id).ToImmutableArray())
+        { Equipment = world.EquipmentInitialized ? world.AllEquipment.Values
+            .Where(item => item.OfficerId is int holder && participantIds.Contains(holder)).OrderBy(item => item.Id).ToImmutableArray() : null });
         int Strike(int source, int target, int sourceHp, int targetHp)
         {
             DuelFighter Fighter(int id, int hp)
@@ -35,6 +41,11 @@ internal static class DuelContest
                 return new(world.Abilities(p).War, p.Personality, hp, p.Injury, p.DuelAdvantages);
             }
             var result = DuelStrike.Resolve(Fighter(source, sourceHp), Fighter(target, targetHp), () => world.NextRandom("duel-strike"));
+            if (result.Damage > 0)
+            {
+                world.RecordEquipmentUse([source], EquipmentUse.Attack);
+                world.RecordEquipmentUse([target], EquipmentUse.Defense);
+            }
             if (result.DefenderInjury != world.Officers[target].Injury)
                 world.Replace(world.Officers[target] with { Injury = result.DefenderInjury });
             int remaining = targetHp - result.Damage;

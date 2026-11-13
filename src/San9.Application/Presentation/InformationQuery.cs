@@ -14,7 +14,7 @@ public sealed class InformationQuery(GameSession session, TextCatalog texts, San
         InformationCategory.Ranks => "全官爵", InformationCategory.Forces => "全势力", InformationCategory.Corps => "全军团",
         InformationCategory.Cities => "全都市", InformationCategory.Regions => "全地域", InformationCategory.Units => "全部队",
         InformationCategory.Officers => "全武将", InformationCategory.Treasures => "全宝物", InformationCategory.Records => "进行记录",
-        InformationCategory.Chronicle => "年表", InformationCategory.Offices => "全爵位",
+        InformationCategory.Chronicle => "年表", InformationCategory.Offices => "全官职",
         InformationCategory.Tactics => "全兵法", InformationCategory.Formations => "全阵形", InformationCategory.Ships => "全船", _ => throw new ArgumentOutOfRangeException(nameof(category))
     };
     public bool Available(InformationCategory category) => category switch

@@ -53,6 +53,7 @@
 - [BEH-PERSON-0001：人物发现、登用与归属初始化](BEH-PERSON-0001-discovery-recruitment-and-affiliation.md)
 - [BEH-PERSON-0002：人物奖惩与忠诚周期](BEH-PERSON-0002-rewards-exile-and-loyalty-cycle.md)
 - [BEH-PERSON-0003：人物召回、移动与行动占用](BEH-PERSON-0003-recall-movement-and-action-reservation.md)
+- [BEH-PERSON-0004：装备、成长与制造（草案）](BEH-PERSON-0004-equipment.md)
 - [BEH-PERSON-LIFECYCLE-0001：能力、熟练度与兵法习得](BEH-PERSON-LIFECYCLE-0001-growth-and-learning.md)
 - [BEH-PERSON-LIFECYCLE-0002：登场、伤势与死亡](BEH-PERSON-LIFECYCLE-0002-appearance-injury-and-death.md)
 - [BEH-PERSON-LIFECYCLE-0003：培养人物状态机](BEH-PERSON-LIFECYCLE-0003-trainee-development.md)
@@ -80,6 +81,7 @@
 - [BEH-WAR-0004：普通战斗与兵员损失](BEH-WAR-0004-normal-combat.md)
 - [BEH-WAR-0005：兵法配置、机会与效果](BEH-WAR-0005-tactics.md)
 - [BEH-WAR-0006：设施内容、选址与建设](BEH-WAR-0006-facility-construction.md)
+- [BEH-WAR-0007：混编兵种、阵形与研究（草案）](BEH-WAR-0007-troop-formations-research.md)
 
 ## 界面与显示
 

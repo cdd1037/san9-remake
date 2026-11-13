@@ -75,7 +75,7 @@ public partial class SpecialDeploymentView : FixedPage
             Position = Construction ? new(248,56) : new(104,48) });
         var properties = new OfficerPropertyList { Textures = Textures, LabelSkinPrefix = "deployment-mode", Position = Construction ? new(464,56) : new(312,48) };
         var commander = Draft.CommanderId is int person ? Draft.View.World.Officers.Single(o => o.Id == person) : null;
-        properties.SetProperties([new("爵位", commander is null ? "" : Draft.View.Information.Offices.FirstOrDefault(o => o.Id == commander.OfficeId) is { } office ? office.Name : "无",80),
+        properties.SetProperties([new("官职", commander is null ? "" : Draft.View.Information.Offices.FirstOrDefault(o => o.Id == commander.OfficeId) is { } office ? office.Name : "无",80),
             new("指挥", commander is null ? "" : Draft.CommandCapacity(commander.Id).ToString(),56)]);
         _body.AddChild(properties);
         if (Construction)

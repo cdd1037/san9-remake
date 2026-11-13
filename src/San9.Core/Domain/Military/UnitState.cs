@@ -11,6 +11,9 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
 {
     [JsonRequired] public WorldDirection Facing { get; init; } = WorldDirection.South;
     [JsonRequired] public System.Collections.Immutable.ImmutableDictionary<int, FormationPosition> MemberPositions { get; init; } = System.Collections.Immutable.ImmutableDictionary<int, FormationPosition>.Empty;
+    public System.Collections.Immutable.ImmutableDictionary<int, DetachmentState> Detachments { get; init; } = System.Collections.Immutable.ImmutableDictionary<int, DetachmentState>.Empty;
+    public int? NavalTrainingId { get; init; }
+    public int? SiegeEquipmentId { get; init; }
     [JsonRequired] public int? FormationId { get; init; }
     [JsonRequired] public int? NavalFormationId { get; init; }
     [JsonRequired] public int Morale { get; init; }
@@ -94,6 +97,8 @@ public sealed record UnitState(int Id, int OwnerId, [property: JsonRequired] Wor
         (!PursuitResponsePending || AutonomousReturn) &&
         (FormationId is not null || EngagementTargetId is null && !AwaitingPostAction && CommanderId is null) &&
         MemberPositions is not null && MemberPositions.All(p => p.Key >= 0 && p.Value.IsValid) &&
+        NavalTrainingId is not < 0 && SiegeEquipmentId is not < 0 && Detachments is not null && Detachments.All(p => p.Key >= 0 && p.Value is not null && p.Value.IsValid) &&
+        (Detachments.IsEmpty || Detachments.Values.Aggregate(0UL, (sum, d) => sum + d.Soldiers) == Soldiers) &&
         (Order is null || FormationId is not null && Order.IsValid) &&
         (MovementRemainder == 0 || FormationId is not null && EffectiveOrder is not null && Condition != UnitCondition.Confused);
 }

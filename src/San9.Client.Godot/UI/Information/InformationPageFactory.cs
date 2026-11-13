@@ -63,7 +63,7 @@ internal sealed class InformationPageFactory
             {
                 Service = Service, Textures = Textures, TableState = State.Catalog,
                 Title = State.Category is InformationCategory.Offices or InformationCategory.Tactics or InformationCategory.Formations or InformationCategory.Ships ? InformationQuery.MenuTitle(State.Category)[1..] + "一览" : "势力" + InformationQuery.MenuTitle(State.Category)[1..],
-                HintText = State.Category == InformationCategory.Offices ? "画面显示君主能任命的爵位。"
+                HintText = State.Category == InformationCategory.Offices ? "画面显示君主能任命的官职。"
                     : State.Category == InformationCategory.Ships ? "画面显示着能使用的船。"
                     : State.Category == InformationCategory.Formations ? "画面显示着能使用的阵形。"
                     : "查看" + Texts.Resolve(Session.View.Forces.Single(f => f.Id == State.ForceFilter).NameKey) + "势力可用的项目。",
@@ -134,10 +134,9 @@ internal sealed class InformationPageFactory
             var officerDetail = new OfficerDetailView
             {
                 Service = Service,
-                State = State.OfficerDetail, Textures = Textures, Texts = Texts,
+                State = State.OfficerDetail, Textures = Textures, Texts = Texts, Session = Session,
                 Read = id => OfficerDetails.Read(Session.View, Texts, id),
                 ReadName = id => Texts.Resolve(Session.View.Officers.Single(o => o.Id == id).NameKey),
-                OpenTreasures = id => { Navigate(new("宝物", InformationCategory.Treasures, HolderId: id)); Rebuild(); },
                 CurrentChanged = State.Select, Closed = Back
             };
             return officerDetail;

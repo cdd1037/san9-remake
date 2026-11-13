@@ -110,7 +110,7 @@ internal static class SurrenderMerge
             world.RemoveCorps(c.Id);
             events.Add(new CorpsDissolvedEvent(world.Clock, force, c.Id, root ?? -1));
         }
-        ForceLifecycle.Retire(world, force, events);
+        ForceLifecycle.Retire(world, force, events, recipient);
         foreach (var unit in oldUnits) MilitaryPolicies.AfterTransfer(world, unit.Id, rules.Military, events, force);
         if (rules.Military is { } military)
         {

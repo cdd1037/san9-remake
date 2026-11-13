@@ -21,7 +21,8 @@ public sealed class DuelPresentationTests
         {
             Participants = initial.Participants.Select(p => p.Id == 11
                 ? p with { Injury = 5, BaseAbilities = new(80, 50, 50, 50) } : p).ToImmutableArray(),
-            Treasures = [new(8, 11, TreasureDiscovery.Discovered, null)]
+            Treasures = [new(8, 11, TreasureDiscovery.Discovered, null)],
+            Equipment = [session.View.World.Equipment.Single(e => e.LegacyTreasureId == 8) with { OfficerId = 11, Equipped = true }]
         };
         texts.Messages["entry"] = new([new MessageValue(new("property", "person.war",
             Arguments: [new("binding", "person.0")])), new MessageLiteral(":"),

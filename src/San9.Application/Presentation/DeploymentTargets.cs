@@ -12,6 +12,7 @@ public sealed class DeploymentTargets(DeploymentDraft draft)
     protected override uint Soldiers => Draft.Soldiers;
     protected override int FormationId => Draft.FormationId!.Value;
     protected override int? NavalFormationId => Draft.NavalFormationId;
+    protected override int? SiegeEquipmentId => Draft.SiegeEquipmentId;
     public override bool IsDeployment => true;
     public override MilitaryTarget Source => new(Draft.Home.Id, false);
     protected override WorldPosition? Start(UnitTravel travel, IReadOnlyList<MapOccupancy> occupancy) =>
@@ -24,7 +25,8 @@ public sealed class DeploymentTargets(DeploymentDraft draft)
     {
         if (Selected is not { } target || !CanProceed) return new(ArrivalEstimateStatus.NotApplicable);
         var request = new DeploymentArrivalRequest(Draft.Home.Id, FormationId, NavalFormationId,
-            OrderFor(target), Policies, DepartureDelayDays, WaypointPosition, Draft.Soldiers);
+            OrderFor(target), Policies, DepartureDelayDays, WaypointPosition, Draft.Soldiers)
+            { SiegeEquipmentId = Draft.SiegeEquipmentId };
         if (_request != request)
         {
             _arrival = (_forecast ??= new(View.World, Rules)).EstimateDeployment(request);
@@ -38,6 +40,10 @@ public sealed class DeploymentTargets(DeploymentDraft draft)
         {
             NavalFormationId = NavalFormationId, Policies = Policies, ConfirmAttack = confirmAttack,
             DepartureDelayDays = DepartureDelayDays, Waypoint = WaypointPosition,
-            Tactics = Draft.Tactics, Positions = Draft.Positions.ToImmutableDictionary(p => p.Key, p => new FormationPosition(p.Value.Column, (BattleRank)p.Value.Row))
+            Tactics = Draft.Tactics, Detachments = Draft.Detachments,
+            NavalTrainingId = NavalFormationId is not null || Draft.FormationId is int land && Draft.Rules.NavalFormationForDeployment(land) is not null
+                ? Draft.NavalTrainingId : null,
+            SiegeEquipmentId = Draft.SiegeEquipmentId,
+            Positions = Draft.Positions.ToImmutableDictionary(p => p.Key, p => new FormationPosition(p.Value.Column, (BattleRank)p.Value.Row))
         };
 }

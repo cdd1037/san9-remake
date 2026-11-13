@@ -8,6 +8,10 @@ public sealed record EconomyRulebook(ImmutableArray<OfficeSalary> Salaries, Immu
     int? ImperialSealId = null)
 {
     public FoodMarketDefinition? FoodMarket { get; init; }
+    public PersonalPeeragePolicy PersonalPeerages { get; init; } = PersonalPeeragePolicy.Default;
+    public ImmutableDictionary<string, PersonalPeerageRegime> PersonalPeerageRegimes { get; init; } = ImmutableDictionary<string, PersonalPeerageRegime>.Empty;
+    public PersonalPeeragePolicy PeeragePolicy(ForceState force, int year) => force.PersonalPeerageRegimeId is string id &&
+        PersonalPeerageRegimes.TryGetValue(id, out var regime) && regime.Period(year) is { } period ? period.Policy(PersonalPeerages) : PersonalPeerages;
     public ImperialCourtDefinition ImperialCourt { get; init; } = ImperialCourtDefinition.Empty;
     public ImmutableDictionary<int, int> RegionCityIds { get; init; } = ImmutableDictionary<int, int>.Empty;
     public static EconomyRulebook Empty { get; } = new([], []);
@@ -16,6 +20,8 @@ public sealed record EconomyRulebook(ImmutableArray<OfficeSalary> Salaries, Immu
     public void Validate()
     {
         ArgumentNullException.ThrowIfNull(ImperialCourt);
+        ArgumentNullException.ThrowIfNull(PersonalPeerages);
+        ArgumentNullException.ThrowIfNull(PersonalPeerageRegimes);
         ImperialCourt.Validate();
         FoodMarket?.Validate();
         if (Salaries.IsDefault || Pairs.IsDefault || Salaries.Any(s => s.OfficeId < 0 || s.Amount < 0) ||

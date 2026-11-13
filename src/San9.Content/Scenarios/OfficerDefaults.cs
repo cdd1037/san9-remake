@@ -30,6 +30,7 @@ public sealed record OfficerDefaults(int Id)
     [JsonRequired] public required DuelAdvantages DuelAdvantages { get; init; }
     [JsonRequired] public required ImmutableArray<int> MasteredCategories { get; init; }
     [JsonRequired] public required ImmutableSortedSet<int> LearnedTactics { get; init; }
+    public ImmutableSortedDictionary<int, int>? FormationProficiencies { get; init; }
     [JsonRequired] public required ImmutableArray<int> TacticProficiencies { get; init; }
     [JsonRequired] public required int? ParentId { get; init; }
     [JsonRequired] public required bool IsFemale { get; init; }
@@ -79,6 +80,7 @@ public sealed record OfficerDefaults(int Id)
         DuelAdvantages = value.State.DuelAdvantages,
         MasteredCategories = value.State.MasteredCategories,
         LearnedTactics = value.State.LearnedTactics,
+        FormationProficiencies = value.State.FormationProficiencies,
         TacticProficiencies = value.State.TacticProficiencies,
         ParentId = value.State.ParentId,
         IsFemale = value.State.IsFemale,
@@ -136,6 +138,8 @@ public sealed record OfficerDefaultsOverrides
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ContentOverride<ImmutableArray<int>>? TacticProficiencies { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ContentOverride<ImmutableSortedDictionary<int, int>?>? FormationProficiencies { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ContentOverride<int?>? ParentId { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ContentOverride<bool>? IsFemale { get; init; }
@@ -186,6 +190,7 @@ public sealed record OfficerDefaultsOverrides
         DuelAdvantages = DuelAdvantages is { } changeDuelAdvantages ? changeDuelAdvantages.Value : defaults.DuelAdvantages,
         MasteredCategories = MasteredCategories is { } changeMasteredCategories ? changeMasteredCategories.Value : defaults.MasteredCategories,
         LearnedTactics = LearnedTactics is { } changeLearnedTactics ? changeLearnedTactics.Value : defaults.LearnedTactics,
+        FormationProficiencies = FormationProficiencies is { } changeFormationProficiencies ? changeFormationProficiencies.Value : defaults.FormationProficiencies,
         TacticProficiencies = TacticProficiencies is { } changeTacticProficiencies ? changeTacticProficiencies.Value : defaults.TacticProficiencies,
         ParentId = ParentId is { } changeParentId ? changeParentId.Value : defaults.ParentId,
         IsFemale = IsFemale is { } changeIsFemale ? changeIsFemale.Value : defaults.IsFemale,
@@ -224,6 +229,7 @@ public sealed record OfficerDefaultsOverrides
         DuelAdvantages = ContentComparison.Equal(defaults.DuelAdvantages, value.DuelAdvantages) ? null : new(value.DuelAdvantages),
         MasteredCategories = ContentComparison.Equal(defaults.MasteredCategories, value.MasteredCategories) ? null : new(value.MasteredCategories),
         LearnedTactics = ContentComparison.Equal(defaults.LearnedTactics, value.LearnedTactics) ? null : new(value.LearnedTactics),
+        FormationProficiencies = ContentComparison.Equal(defaults.FormationProficiencies, value.FormationProficiencies) ? null : new(value.FormationProficiencies),
         TacticProficiencies = ContentComparison.Equal(defaults.TacticProficiencies, value.TacticProficiencies) ? null : new(value.TacticProficiencies),
         ParentId = ContentComparison.Equal(defaults.ParentId, value.ParentId) ? null : new(value.ParentId),
         IsFemale = ContentComparison.Equal(defaults.IsFemale, value.IsFemale) ? null : new(value.IsFemale),
@@ -258,6 +264,12 @@ public sealed record ScenarioOfficerState(int Id)
     [JsonRequired] public required OfficerStatus Status { get; init; }
     [JsonRequired] public required int? RegionId { get; init; }
     [JsonRequired] public required int? OfficeId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public PersonalPeerage? PersonalPeerage { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public ImmutableSortedDictionary<int, int>? BattleMerit { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public ImmutableSortedDictionary<int, int>? ServiceMerit { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public PersonalPeerageEvidence? InitialPersonalPeerage { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public PersonalPeerageEvidence[]? InitialPersonalPeerageHistory { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FormationEvidence[]? InitialFormationEvidence { get; init; }
     [JsonRequired] public required bool IsCommander { get; init; }
     [JsonRequired] public required ImmutableDictionary<int, int> ForceLoyalties { get; init; }
     [JsonRequired] public required bool RewardedThisXun { get; init; }
@@ -277,6 +289,12 @@ public sealed record ScenarioOfficerState(int Id)
         Status = value.State.Status,
         RegionId = value.State.RegionId,
         OfficeId = value.State.OfficeId,
+        PersonalPeerage = value.State.PersonalPeerage,
+        BattleMerit = value.State.BattleMerit,
+        ServiceMerit = value.State.ServiceMerit,
+        InitialPersonalPeerage = value.InitialPersonalPeerage,
+        InitialPersonalPeerageHistory = value.InitialPersonalPeerageHistory,
+        InitialFormationEvidence = value.InitialFormationEvidence,
         IsCommander = value.State.IsCommander,
         ForceLoyalties = value.State.WithLoyaltyDefault(defaultLoyalty).ForceLoyalties,
         RewardedThisXun = value.State.RewardedThisXun,
@@ -299,6 +317,9 @@ public sealed record ScenarioOfficerState(int Id)
             Status = Status,
             RegionId = RegionId,
             OfficeId = OfficeId,
+            PersonalPeerage = PersonalPeerage,
+            BattleMerit = BattleMerit,
+            ServiceMerit = ServiceMerit,
             IsCommander = IsCommander,
             ForceLoyalties = ForceLoyalties,
             RewardedThisXun = RewardedThisXun,
@@ -307,6 +328,7 @@ public sealed record ScenarioOfficerState(int Id)
             DuelAdvantages = profile.DuelAdvantages,
             MasteredCategories = profile.MasteredCategories,
             LearnedTactics = profile.LearnedTactics,
+            FormationProficiencies = profile.FormationProficiencies,
             TacticProficiencies = profile.TacticProficiencies,
             ParentId = profile.ParentId,
             IsFemale = profile.IsFemale,
@@ -325,6 +347,9 @@ public sealed record ScenarioOfficerState(int Id)
             HasRecruitmentPoliticsBonus = profile.HasRecruitmentPoliticsBonus,
         })
         {
+            InitialPersonalPeerage = InitialPersonalPeerage,
+            InitialPersonalPeerageHistory = InitialPersonalPeerageHistory,
+            InitialFormationEvidence = InitialFormationEvidence,
             AgeAtScenarioStart = profile.AgeAtScenarioStart,
             FlagGlyph = profile.FlagGlyph,
             CourtesyNameKey = profile.CourtesyName is null ? null : profile.CourtesyNameKey ?? $"officer-courtesy.{Id}",

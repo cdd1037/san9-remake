@@ -18,6 +18,7 @@ public abstract class MilitaryTargets
     protected abstract uint Soldiers { get; }
     protected abstract int FormationId { get; }
     protected abstract int? NavalFormationId { get; }
+    protected virtual int? SiegeEquipmentId => null;
     protected abstract WorldPosition? Start(UnitTravel travel, IReadOnlyList<MapOccupancy> occupancy);
     public abstract bool IsDeployment { get; }
     public abstract MilitaryTarget Source { get; }
@@ -197,6 +198,7 @@ public abstract class MilitaryTargets
         var plan = MilitaryRouteQuery.Plan(world, rules, source.WithMilitaryOrder(order, policies, waypoint) with
         {
             Position = start.Value, FormationId = formation, NavalFormationId = naval,
+            SiegeEquipmentId = moving is null ? SiegeEquipmentId : source.SiegeEquipmentId,
             Condition = UnitCondition.Normal
         }, moving);
         if (plan.Status != NavigationStatus.Arrived)

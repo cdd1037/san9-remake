@@ -11,6 +11,76 @@ namespace San9.Application.Tests;
 
 public sealed class CommunitySearchSessionTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void CompetingEquipmentGiftSearchesNeverDuplicateTheReward(bool acceptFirst)
+    {
+        var basis = Definition("training");
+        var item = new EquipmentDefinition("gift", EquipmentSlot.Treasure, EquipmentRarity.Rare, default, default) { Name = "玉佩" };
+        var scenario = basis with
+        {
+            Officers = [.. basis.Officers, new("second", basis.Officers[1].State with { Id = 3 })],
+            Information = basis.Information with { Equipment = [item] },
+            InitialEquipment = [new EquipmentInstance(200, item.Id, null, null, false) { IsLost = true, EventGiftKey = "gift.1" }],
+            SearchEvents = [new EquipmentGiftSearchEventDefinition(1, 200, item.Id, new("gift.1"))
+                { Id = "gift-event", Consumption = EventConsumption.OnSuccess, ChanceAbility = CommunityAbility.Politics }]
+        };
+        var session = GameSession.Start(scenario, 20);
+        foreach (int actor in new[] { 2, 3 })
+            Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence, [actor], 1)).Submission.Accepted);
+        session.AdvanceXun();
+        var first = Assert.IsType<CommunitySearchPrompt>(session.GetCommunitySearchPrompt());
+        Assert.True(session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
+            first.TaskId, first.Step, acceptFirst) { CommunitySearch = acceptFirst ? CommunitySearchChoice.Accept : CommunitySearchChoice.Decline }).Submission.Accepted);
+        if (!acceptFirst)
+        {
+            var second = Assert.IsType<CommunitySearchPrompt>(session.GetCommunitySearchPrompt());
+            Assert.NotEqual(first.OfficerId, second.OfficerId);
+            Assert.True(session.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1, session.Snapshot.Simulation.NextSequence,
+                second.TaskId, second.Step, true) { CommunitySearch = CommunitySearchChoice.Accept }).Submission.Accepted);
+        }
+        Assert.Null(session.GetCommunitySearchPrompt());
+        Assert.Equal(1, Assert.Single(session.Snapshot.Equipment, equipment => equipment.Id == 200).OfficerId);
+        Assert.Single(session.Snapshot.Simulation.ConsumedEventKeys, key => key.Value == "gift.1");
+    }
+
+    [Fact]
+    public void EquipmentGiftResultKeepsFullInstanceIdInEventJson()
+    {
+        DomainEvent result = new CommunitySearchResolvedEvent(new(190, 1, 1), "gift-event", 1, 2, 1,
+            CommunitySearchChoice.Accept, new(ResourceOwnerKind.Corps, 1), ResourceKind.Money, 0, 0, 0, null, 100)
+            { EquipmentId = (long)int.MaxValue + 100 };
+        var restored = StrictJson.Deserialize<DomainEvent>(JsonSerializer.SerializeToUtf8Bytes(result, StrictJson.Options));
+        Assert.Equal((long)int.MaxValue + 100, Assert.IsType<CommunitySearchResolvedEvent>(restored).EquipmentId);
+        var oldJson = JsonNode.Parse(JsonSerializer.Serialize(result, StrictJson.Options))!.AsObject();
+        oldJson.Remove("equipmentId");
+        var legacy = StrictJson.Deserialize<DomainEvent>(Encoding.UTF8.GetBytes(oldJson.ToJsonString()));
+        Assert.Null(Assert.IsType<CommunitySearchResolvedEvent>(legacy).EquipmentId);
+    }
+
+    [Fact]
+    public void EquipmentGiftContentRejectsMissingDuplicateAndSearchableRewards()
+    {
+        var basis = Definition("training");
+        var item = new EquipmentDefinition("gift", EquipmentSlot.Treasure, EquipmentRarity.Rare, default, default) { Name = "玉佩" };
+        var hidden = new EquipmentInstance(200, item.Id, null, null, false) { IsLost = true, EventGiftKey = "gift.1" };
+        var gift = new EquipmentGiftSearchEventDefinition(1, 200, item.Id, new("gift.1"))
+            { Id = "gift-event", Consumption = EventConsumption.OnSuccess, ChanceAbility = CommunityAbility.Politics };
+        var scenario = basis with { Information = basis.Information with { Equipment = [item] }, InitialEquipment = [hidden], SearchEvents = [gift] };
+        scenario.Validate();
+        Assert.Throws<InvalidDataException>(() => (scenario with { InitialEquipment = [] }).Validate());
+        Assert.Throws<InvalidDataException>(() => (scenario with { InitialEquipment = [hidden with { SearchPlaceId = 1, EventGiftKey = null }] }).Validate());
+        Assert.Throws<InvalidDataException>(() => (scenario with { SearchEvents = [gift, gift with { Id = "another" }] }).Validate());
+        Assert.Throws<InvalidDataException>(() => (scenario with { SearchEvents = [gift, gift with { Id = "another", EquipmentInstanceId = 201 }],
+            InitialEquipment = [hidden, hidden with { Id = 201 }] }).Validate());
+        var memorial = new CommemorationSearchEventDefinition([new(1, null, CommunityAbility.War, [], new("gift.1"))], 0, 0, 0)
+            { Id = "memorial", Consumption = EventConsumption.OnSuccess, ChanceAbility = CommunityAbility.Politics };
+        Assert.Throws<InvalidDataException>(() => (scenario with { SearchEvents = [gift, memorial] }).Validate());
+        var ordinary = item with { Slot = EquipmentSlot.MainHand, Rarity = EquipmentRarity.Ordinary, PurchaseCost = 100 };
+        Assert.Throws<InvalidDataException>(() => (scenario with { Information = scenario.Information with { Equipment = [ordinary] } }).Validate());
+    }
+
     private static CommunitySearchEventDefinition Event(string kind) => (kind switch
     {
         "relief" => (CommunitySearchEventDefinition)new CivicSearchEventDefinition(CivicSearchKind.DisasterRelief) { CostAbilityCeiling = 120, MoneyCostMultiplier = 4, FoodCostMultiplier = 6, TrustReward = 2, TrustPenalty = 2 },
@@ -21,6 +91,7 @@ public sealed class CommunitySearchSessionTests
         "monument" => new CommemorationSearchEventDefinition([new(1, null, CommunityAbility.Intelligence, [], new("monument.1"))], 1500, 2, 2) { Consumption = EventConsumption.OnSuccess },
         "sacrifice" => new CommemorationSearchEventDefinition([new(1, null, CommunityAbility.War, [], new("sacrifice.1"))], 1000, 1, 2) { Consumption = EventConsumption.OnSuccess },
         "training" => new TrainingSiteSearchEventDefinition([new(1, 2)], 500, 0, 600, 4),
+        "gift" => new EquipmentGiftSearchEventDefinition(1, 200, "gift", new("gift.1")) { Consumption = EventConsumption.OnSuccess },
         _ => throw new ArgumentException()
     }) with { Id = kind, ChanceAbility = CommunityAbility.Politics, ChanceDivisor = 1 };
     internal static ScenarioInitialState Definition(string kind) => new(ScenarioInitialState.CurrentSchemaVersion, "community", 190, 1, 1, 1,
@@ -29,14 +100,17 @@ public sealed class CommunitySearchSessionTests
     {
         Officers = [new("ruler", new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
             new("actor", new(2, 1, 1, new(60, 30, 100, 70), false))],
-        SearchEvents = [Event(kind)]
-    , Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], []) };
+        SearchEvents = [Event(kind)],
+        InitialEquipment = kind == "gift" ? [new EquipmentInstance(200, "gift", null, null, false) { IsLost = true, EventGiftKey = "gift.1" }] : null,
+        Information = new([], [], [], [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }], [])
+            { Equipment = kind == "gift" ? [new EquipmentDefinition("gift", EquipmentSlot.Treasure, EquipmentRarity.Rare, default, default) { Name = "玉佩" }] : [] }
+    };
     public static IEnumerable<object[]> Choices()
     {
         yield return ["relief", CommunitySearchChoice.DonateMoney]; yield return ["relief", CommunitySearchChoice.DonateFood];
-        foreach (string kind in new[] { "volunteers", "bribe", "permit", "festival", "monument", "sacrifice", "training" })
+        foreach (string kind in new[] { "volunteers", "bribe", "permit", "festival", "monument", "sacrifice", "training", "gift" })
             yield return [kind, CommunitySearchChoice.Accept];
-        foreach (string kind in new[] { "relief", "volunteers", "bribe", "permit", "festival", "monument", "sacrifice", "training" })
+        foreach (string kind in new[] { "relief", "volunteers", "bribe", "permit", "festival", "monument", "sacrifice", "training", "gift" })
             yield return [kind, CommunitySearchChoice.Decline];
         yield return ["bribe", CommunitySearchChoice.DemandMoney]; yield return ["permit", CommunitySearchChoice.DemandMoney];
         yield return ["festival", CommunitySearchChoice.Execute];

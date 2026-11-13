@@ -32,7 +32,7 @@ public partial class DeploymentTacticMenu : ModalView
                     DeploymentTacticMode.Infantry => "步兵",
                     DeploymentTacticMode.Cavalry => "骑兵",
                     DeploymentTacticMode.MountedArchery => "弓骑",
-                    DeploymentTacticMode.Crossbow => "弩兵",
+                    DeploymentTacticMode.Crossbow => "弓弩",
                     DeploymentTacticMode.Intelligence => "智略",
                     _ => throw new ArgumentOutOfRangeException(nameof(mode))
                 }, Textures = Textures,

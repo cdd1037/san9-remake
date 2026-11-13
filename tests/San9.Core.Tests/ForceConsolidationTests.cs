@@ -107,6 +107,149 @@ public sealed class ForceConsolidationTests
     }
 
     [Fact]
+    public void MergeWithFullSuccessorInventoryPreservesReturningFieldArmamentsInReserve()
+    {
+        var world = World(); var mutation = Pending(world);
+        mutation.Replace(mutation.Settlements[4] with { Soldiers = 12000 });
+        mutation.Replace(mutation.Forces[3] with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("spear", uint.MaxValue) });
+        mutation.SetSimulation(mutation.Simulation with { NextUnitId = 51 });
+        mutation.AddUnit(new(50, 2, new(12, 2), 1000)
+        {
+            FormationId = 9, ServicePlaceId = 3, CommanderId = 22,
+            MemberPositions = ImmutableDictionary<int, FormationPosition>.Empty.Add(22, new(0, BattleRank.Front)),
+            Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(22,
+                new DetachmentState(1, 1, 1000) { Weapon = new("spear", 600, 1000, 0) })
+        });
+        mutation.Replace(mutation.Officers[22] with { SettlementId = null, UnitId = 50 });
+        List<DomainEvent> events = [];
+        ForceConsolidation.Apply(mutation, Rules(), events);
+        Assert.Equal(3, mutation.Units[50].OwnerId);
+
+        mutation.Replace(mutation.Officers[22] with { UnitId = null, SettlementId = 3 });
+        Assert.Equal(uint.MaxValue, mutation.Forces[3].ArmamentInventory!["spear"]);
+        Assert.Equal(600ul, mutation.Forces[3].ArmamentReserve!["spear"]);
+        mutation.RemoveUnit(50);
+        mutation.SetSimulation(mutation.Simulation with { Boundary = SimulationBoundary.Stable });
+        world.Commit(mutation);
+        var restored = WorldState.Restore(world.CreateSnapshot());
+        var resumed = restored.BeginMutation();
+        Assert.Equal(600ul, resumed.Forces[3].ArmamentReserve!["spear"]);
+        resumed.Replace(resumed.Forces[3] with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("spear", uint.MaxValue - 400) });
+        ForceLifecycle.RetryArmamentTransfers(resumed, events);
+        Assert.Equal(uint.MaxValue, resumed.Forces[3].ArmamentInventory!["spear"]);
+        Assert.Equal(200ul, resumed.Forces[3].ArmamentReserve!["spear"]);
+    }
+
+    [Fact]
+    public void MergeKeepsFieldDetachmentArmamentsAndTransfersStockWithoutDuplication()
+    {
+        var mutation = Pending(World());
+        mutation.Replace(mutation.Forces[2] with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("spear", 300) });
+        mutation.Replace(mutation.Settlements[4] with { Soldiers = 12000 });
+        mutation.SetSimulation(mutation.Simulation with { NextUnitId = 51 });
+        mutation.AddUnit(new(50, 2, new(12, 2), 1000)
+        {
+            FormationId = 9, ServicePlaceId = 3, CommanderId = 22,
+            MemberPositions = ImmutableDictionary<int, FormationPosition>.Empty.Add(22, new(0, BattleRank.Front)),
+            Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(22,
+                new DetachmentState(1, 1, 1000) { Weapon = new("spear", 600, 1000, 0) })
+        });
+        mutation.Replace(mutation.Officers[22] with { SettlementId = null, UnitId = 50 });
+        List<DomainEvent> events = [];
+
+        ForceConsolidation.Apply(mutation, Rules(), events);
+
+        Assert.True(mutation.Forces[2].IsEliminated);
+        Assert.Equal(3, mutation.Units[50].OwnerId);
+        Assert.Equal(600u, mutation.Units[50].Detachments[22].Weapon!.RemainingSets);
+        Assert.Equal(300u, mutation.Forces[3].ArmamentInventory!["spear"]);
+        Assert.Null(mutation.Forces[2].ArmamentInventory);
+        Assert.Equal(3, mutation.Officers[22].OwnerId);
+    }
+
+    [Fact]
+    public void MergeTransfersArmamentStockAndMigrationCreditToTheSurvivor()
+    {
+        var mutation = Pending(World());
+        mutation.Replace(mutation.Forces[2] with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("spear", 900), ArmamentMigrationCredit = 40 });
+        mutation.Replace(mutation.Forces[3] with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("spear", 100).Add("armor", 300), ArmamentMigrationCredit = 60 });
+        List<DomainEvent> events = [];
+
+        ForceConsolidation.Apply(mutation, Rules(), events);
+
+        Assert.Null(mutation.Forces[2].ArmamentInventory);
+        Assert.Null(mutation.Forces[2].ArmamentMigrationCredit);
+        Assert.Equal(1000u, mutation.Forces[3].ArmamentInventory!["spear"]);
+        Assert.Equal(300u, mutation.Forces[3].ArmamentInventory!["armor"]);
+        Assert.Equal(100, mutation.Forces[3].ArmamentMigrationCredit);
+        Assert.True(Assert.Single(events.OfType<ArmamentAssetsTransferredEvent>()).Transferred);
+    }
+
+    [Fact]
+    public void MergeRetainsAssetsIfTheSurvivorCannotReceiveThemWithoutOverflow()
+    {
+        var mutation = Pending(World());
+        mutation.Replace(mutation.Forces[2] with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("spear", 1), ArmamentMigrationCredit = 40 });
+        mutation.Replace(mutation.Forces[3] with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("spear", uint.MaxValue), ArmamentMigrationCredit = 60 });
+        List<DomainEvent> events = [];
+
+        ForceConsolidation.Apply(mutation, Rules(), events);
+
+        Assert.Equal(1u, mutation.Forces[2].ArmamentInventory!["spear"]);
+        Assert.Equal(40, mutation.Forces[2].ArmamentMigrationCredit);
+        Assert.Equal(uint.MaxValue, mutation.Forces[3].ArmamentInventory!["spear"]);
+        Assert.Equal(60, mutation.Forces[3].ArmamentMigrationCredit);
+        Assert.False(Assert.Single(events.OfType<ArmamentAssetsTransferredEvent>()).Transferred);
+        Assert.Equal(3, mutation.Forces[2].ArmamentEscrowSuccessorId);
+
+        List<DomainEvent> retry = [];
+        ForceLifecycle.RetryArmamentTransfers(mutation, retry);
+        Assert.Empty(retry);
+        mutation.Replace(mutation.Forces[3] with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("spear", uint.MaxValue - 1) });
+        ForceLifecycle.RetryArmamentTransfers(mutation, retry);
+        Assert.True(Assert.Single(retry.OfType<ArmamentAssetsTransferredEvent>()).Transferred);
+        Assert.Equal(uint.MaxValue, mutation.Forces[3].ArmamentInventory!["spear"]);
+        Assert.Equal(100, mutation.Forces[3].ArmamentMigrationCredit);
+        Assert.Null(mutation.Forces[2].ArmamentInventory);
+        Assert.Null(mutation.Forces[2].ArmamentEscrowSuccessorId);
+    }
+
+    [Fact]
+    public void DeferredArmamentAssetsFollowTheSuccessorIfThatForceAlsoRetires()
+    {
+        var mutation = Pending(World());
+        mutation.Replace(mutation.Forces[2] with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("spear", 1) });
+        mutation.Replace(mutation.Forces[3] with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("spear", uint.MaxValue) });
+        List<DomainEvent> events = [];
+        ForceConsolidation.Apply(mutation, Rules(), events);
+        Assert.Equal(3, mutation.Forces[2].ArmamentEscrowSuccessorId);
+
+        ForceLifecycle.Retire(mutation, 3, events, 1);
+        Assert.Equal(1, mutation.Forces[2].ArmamentEscrowSuccessorId);
+        Assert.Equal(uint.MaxValue, mutation.Forces[1].ArmamentInventory!["spear"]);
+        mutation.Replace(mutation.Forces[1] with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("spear", uint.MaxValue - 1) });
+        ForceLifecycle.RetryArmamentTransfers(mutation, events);
+        Assert.Null(mutation.Forces[2].ArmamentInventory);
+        Assert.Equal(uint.MaxValue, mutation.Forces[1].ArmamentInventory!["spear"]);
+    }
+
+    [Fact]
+    public void MergeCancelsAbsorbedForcesArmamentProductionImmediately()
+    {
+        var mutation = Pending(World());
+        mutation.Replace(mutation.Forces[2] with { ArmamentProduction = new("iron-spear", 3, 1, 20) });
+        List<DomainEvent> events = [];
+
+        ForceConsolidation.Apply(mutation, Rules(), events);
+
+        Assert.True(mutation.Forces[2].IsEliminated);
+        Assert.Null(mutation.Forces[2].ArmamentProduction);
+        var cancelled = Assert.Single(events.OfType<ArmamentProductionCancelledEvent>());
+        Assert.Equal((2, 3, "iron-spear", 1u),
+            (cancelled.ForceId, cancelled.SettlementId, cancelled.DefinitionId, cancelled.Batches));
+    }
+
+    [Fact]
     public void SuccessfulMergeMovesAllPeopleAssetsRewardsAndConsumesOnce()
     {
         var world = World();

@@ -46,6 +46,7 @@ public sealed class AttackRequestNegotiationSessionTests
         EventAssert.Equal(result.Events, restored.Execute(new("player"), response).Events);
         Assert.Equal(accept ? AttackRequestOutcome.Accepted : AttackRequestOutcome.Refused,
             Assert.Single(result.Events.OfType<AttackRequestResolvedEvent>()).Outcome);
+        Assert.Equal(accept ? 2 : 0, session.Snapshot.Officers.Single(p => p.Id == 12).ServiceMeritFor(1));
         DecisionResponses.DeclineAll(session);
     }
 }

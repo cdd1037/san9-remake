@@ -136,6 +136,7 @@ public sealed class PersonnelRulebook
                 community.Validate(Places.Keys.ToHashSet());
                 if (community is CommemorationSearchEventDefinition memorial)
                     foreach (var site in memorial.Sites) _ = community.Candidate(site.ConsumptionKey);
+                else if (community is EquipmentGiftSearchEventDefinition gift) _ = community.Candidate(gift.ConsumptionKey);
                 else _ = community.Candidate(null);
             }
             else if (entry is ConflictSearchEventDefinition conflict)

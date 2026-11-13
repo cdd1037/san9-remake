@@ -59,6 +59,8 @@ public sealed class SearchDecisionTests
         var resolved = engine.Execute(new("player"), answer);
         Assert.True(resolved.Submission.Accepted);
         Assert.Equal(accept, Assert.Single(resolved.Events.OfType<SearchResolvedEvent>()).Recruited);
+        Assert.Equal(accept ? 2 : 1, engine.Snapshot.Officers.Single(o => o.Id == 2).ServiceMeritFor(1));
+        Assert.Single(resolved.Events.OfType<OfficerServiceMeritChangedEvent>(), e => e.Reason == "search-person");
         Assert.Equal(accept ? OfficerStatus.Serving : OfficerStatus.Free, engine.Snapshot.Officers.Single(o => o.Id == 3).Status);
         Assert.Equal(new GameClock(190, 1, 11), engine.Snapshot.Clock);
         Assert.Equal(SimulationBoundary.Stable, engine.Snapshot.Simulation.Boundary);

@@ -40,13 +40,17 @@ internal sealed partial class BattlePresentationBuilder
         var treasures = before.World.Treasures.ToDictionary(t => t.Id,
             t => t.HolderId is int holder && participantIds.Contains(holder) ? t with { HolderId = null } : t);
         foreach (var treasure in started.Treasures) treasures[treasure.Id] = treasure;
-        var occurrenceWorld = before.World with { Treasures = treasures.Values.ToImmutableArray() };
+        var occurrenceEquipment = before.World.Equipment.Where(e => e.OfficerId is not int holder || !participantIds.Contains(holder))
+            .Where(e => started.Equipment is null || !started.Equipment.Value.Any(captured => captured.Id == e.Id))
+            .Concat(started.Equipment ?? []).ToImmutableArray();
+        var occurrenceWorld = before.World with { Treasures = treasures.Values.ToImmutableArray(), Equipment = occurrenceEquipment,
+            EquipmentInitialized = started.Equipment is not null && before.World.EquipmentInitialized };
         WorldMessageContext OccurrenceContext() => context.ForWorld(occurrenceWorld with { Officers = people.Values.ToImmutableArray() })
             .AtOccurrence(started.Clock, source, target);
         var occurrenceContext = OccurrenceContext();
         var abilities = before.Rules.Abilities;
         DuelFighterView Fighter(int id, int hp = 100) => new(id, people[id].IsFemale,
-            abilities.Evaluate(people[id], occurrenceWorld.Treasures).War, people[id].Injury, hp);
+            abilities.Evaluate(people[id], occurrenceWorld.Treasures, occurrenceWorld.EquipmentInitialized ? occurrenceWorld.Equipment : null).War, people[id].Injury, hp);
         var random = new StableRandom(StableRandom.DeriveSeed((ulong)before.World.Revision, Identity("duel")));
         int Next(int n) => (int)(random.NextUInt64() % (ulong)n);
         string id = Identity("duel");

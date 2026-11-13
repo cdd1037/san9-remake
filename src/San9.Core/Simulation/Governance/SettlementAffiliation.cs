@@ -25,6 +25,7 @@ internal static class SettlementAffiliation
         BattleTreasury.TransferTo(world, owner, place.CorpsId, BattleTreasury.Weight(place),
             ResourceAccounts.Resolve(world, recipient, root), new(place.Id, true), Reason, events);
         int publicOrder = CityBattleEffects.CapturedPublicOrder(world, place, recipient, events);
+        MilitaryResearch.CancelAt(world, place.Id, events);
         world.Replace(place with { OwnerId = recipient, CorpsId = root, PublicOrder = publicOrder });
         foreach (var unit in world.Units.Values.Where(u => u.IsEmbedded && u.ServicePlaceId == place.Id && u.OwnerId == owner).ToArray())
             world.Replace(unit with { OwnerId = recipient, CorpsId = root, Order = null, AutonomousReturn = false, PursuitResponsePending = false, EngagementTargetId = null });

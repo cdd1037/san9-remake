@@ -9,6 +9,7 @@ internal sealed partial class WorldMutation
     internal void MaintainDerivedState(List<DomainEvent> events)
     {
         MaintainLeadership(events);
+        FormationTeaching.Reconcile(this, events);
         PublishTrustChanges(events);
     }
 

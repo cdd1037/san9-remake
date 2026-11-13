@@ -93,7 +93,7 @@ internal static class ForceConsolidation
             world.RemoveCorps(corps.Id);
             events.Add(new CorpsDissolvedEvent(world.Clock, absorbed, corps.Id, root ?? -1));
         }
-        ForceLifecycle.Retire(world, absorbed, events);
+        ForceLifecycle.Retire(world, absorbed, events, survivor);
         foreach (var unit in transferred) MilitaryPolicies.AfterTransfer(world, unit.Id, rules.Military, events, absorbed);
         if (rules.Military is { } military)
         {

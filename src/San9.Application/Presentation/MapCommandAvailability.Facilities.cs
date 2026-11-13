@@ -48,6 +48,6 @@ internal sealed partial class MapCommandAvailability
             p.OwnerId == Owner && p.SettlementId == home.Id).ToArray();
         var treasures = view.Rules.Treasures;
         return BuildableTypes().Select(type => type.Cost(type.CostReductionTacticId is int tactic ?
-            actors.Count(p => TacticAvailability.HasForMembers(tactic, [p], Force, view.World.Treasures, treasures)) : 0)).DefaultIfEmpty(int.MaxValue).Min();
+            actors.Count(p => TacticAvailability.HasForMembers(tactic, [p], Force, view.World.Treasures, treasures, view.EquippedItems)) : 0)).DefaultIfEmpty(int.MaxValue).Min();
     }
 }

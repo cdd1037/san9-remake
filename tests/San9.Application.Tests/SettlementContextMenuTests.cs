@@ -182,7 +182,7 @@ public sealed class SettlementContextMenuTests
             Assert.All(table.Rows, row => Assert.Equal(table.Columns.Length, row.Cells.Length));
         }
         var offices = query.Read(InformationCategory.Offices, force: 1);
-        Assert.Equal(["爵位", "武将", "指挥", "俸禄", "统率", "武力", "智力", "政治", "忠诚上升"], offices.Columns);
+        Assert.Equal(["官职", "武将", "指挥", "俸禄", "统率", "武力", "智力", "政治", "忠诚上升"], offices.Columns);
         var office = Assert.Single(offices.Rows);
         Assert.Equal(888, office.Key.Id);
         Assert.Equal("officer.2", office.Cells[1].Text);

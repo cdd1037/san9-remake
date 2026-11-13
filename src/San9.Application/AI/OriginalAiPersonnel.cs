@@ -160,7 +160,18 @@ internal sealed partial class OriginalAiPersonnel(SimulationEngine engine, Scena
             case OriginalAiWork.Search:
                 var undiscoveredPlaces = World.Officers.Where(p => !p.IsDormant && p.Status == OfficerStatus.Undiscovered)
                     .Select(p => p.SettlementId ?? p.RegionId).OfType<int>().ToHashSet();
-                return Search(limit, engine.GetSearchPlaces(Owner).Where(undiscoveredPlaces.Contains));
+                var availableSearchPlaces = engine.GetSearchPlaces(Owner);
+                var personTargets = availableSearchPlaces.Where(undiscoveredPlaces.Contains).ToArray();
+                if (personTargets.Length != 0) return Search(limit, personTargets);
+                bool undiscoveredGift = content.SearchEvents.OfType<EquipmentGiftSearchEventDefinition>().Any(gift =>
+                    !World.Simulation.ConsumedEventKeys.Contains(gift.ConsumptionKey) && World.Equipment.Any(item => item.Id == gift.EquipmentInstanceId &&
+                        item.DefinitionId == gift.EquipmentDefinitionId && item.EventGiftKey == gift.ConsumptionKey.Value && item.IsLost && item.SearchPlaceId is null));
+                if (!undiscoveredGift && !World.Equipment.Any(item => item.IsLost && item.SearchPlaceId is not null)) return Search(limit, []);
+                // Explore owned cities in a stable rotation without consulting hidden item locations.
+                var cities = Places.Where(place => place.Kind == SettlementKind.City && availableSearchPlaces.Contains(place.Id))
+                    .Select(place => place.Id).Order().ToArray();
+                int offset = cities.Length == 0 ? 0 : (int)((World.Clock.DayNumber / 10 + Owner) % cities.Length);
+                return Search(Math.Min(limit, 1), cities.Skip(offset).Concat(cities.Take(offset)));
             case OriginalAiWork.RecruitLocal:
             case OriginalAiWork.RecruitEnemy:
                 var ownGroup = state.Forces.Single(f => f.ForceId == Owner).Group;

@@ -100,7 +100,50 @@ public sealed partial class GameSession
                     if (request.ControllerId != "player") return Rejected(SessionRejection.InvalidRequest);
                     if (candidate.Snapshot.Simulation.Boundary != SimulationBoundary.Stable || originalAi.Continuation is not null)
                         return Rejected(SessionRejection.NotStable);
-                    try { events.AddRange(candidate.EditWorld(edit.Kind, edit.Edits)); }
+                    try
+                    {
+                        if (edit.Kind == WorldEditorKind.Equipment && edit.Edits.IsEmpty && edit.EquipmentEdits is { } equipment)
+                            events.AddRange(candidate.EditEquipment(equipment));
+                        else if (edit.EquipmentEdits is null) events.AddRange(candidate.EditWorld(edit.Kind, edit.Edits));
+                        else return Rejected(SessionRejection.InvalidRequest);
+                    }
+                    catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
+                    break;
+                case ConfigureOfficerAppearanceOperation appearance:
+                    if (request.ControllerId != "player" || input.View.PlayerForceId is not int actingForce ||
+                        appearance.Plan is null || appearance.Plan.ForceId is int targetForce && targetForce != actingForce)
+                        return Rejected(SessionRejection.InvalidRequest);
+                    if (candidate.Snapshot.Simulation.Boundary != SimulationBoundary.Stable || originalAi.Continuation is not null)
+                        return Rejected(SessionRejection.NotStable);
+                    try { events.AddRange(candidate.ConfigureOfficerAppearance(appearance.OfficerId, appearance.Plan)); }
+                    catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
+                    break;
+                case ConfigureOfficerAppearancesOperation appearances:
+                    if (request.ControllerId != "player" || input.View.PlayerForceId is not int batchForce ||
+                        appearances.Plan is null || appearances.Plan.ForceId is int target && target != batchForce ||
+                        appearances.OfficerIds.IsDefaultOrEmpty || appearances.OfficerIds.Distinct().Count() != appearances.OfficerIds.Length)
+                        return Rejected(SessionRejection.InvalidRequest);
+                    if (candidate.Snapshot.Simulation.Boundary != SimulationBoundary.Stable || originalAi.Continuation is not null)
+                        return Rejected(SessionRejection.NotStable);
+                    try
+                    {
+                        foreach (int id in appearances.OfficerIds.Order())
+                            events.AddRange(candidate.ConfigureOfficerAppearance(id, appearances.Plan));
+                    }
+                    catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
+                    break;
+                case ConfigureIndividualAppearancesOperation individual:
+                    if (request.ControllerId != "player" || input.View.PlayerForceId is null ||
+                        individual.Assignments.IsDefaultOrEmpty || individual.Assignments.Any(a => a is null || a.Plan is null) ||
+                        individual.Assignments.Select(a => a.OfficerId).Distinct().Count() != individual.Assignments.Length)
+                        return Rejected(SessionRejection.InvalidRequest);
+                    if (candidate.Snapshot.Simulation.Boundary != SimulationBoundary.Stable || originalAi.Continuation is not null)
+                        return Rejected(SessionRejection.NotStable);
+                    try
+                    {
+                        foreach (var assignment in individual.Assignments.OrderBy(a => a.OfficerId))
+                            events.AddRange(candidate.ConfigureOfficerAppearance(assignment.OfficerId, assignment.Plan));
+                    }
                     catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
                     break;
                 case EndingOperation selection:

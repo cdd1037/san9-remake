@@ -11,10 +11,15 @@ public sealed record CommunitySearchPrompt(Guid TaskId, int Step, string EventId
 {
     public uint OfferedSoldiers { get; init; }
     public uint OfferedMoney { get; init; }
+    public string? EquipmentDefinitionId { get; init; }
 }
 public sealed record CommunitySearchResolvedEvent(GameClock Clock, string EventId, int ForceId, int OfficerId,
     int PlaceId, CommunitySearchChoice Choice, ResourceAccount Account, ResourceKind PaymentResource, uint Cost,
-    long MoneyReward, uint Soldiers, int? LearnedTacticId, int BaseTrust) : DomainEvent;
+    long MoneyReward, uint Soldiers, int? LearnedTacticId, int BaseTrust) : DomainEvent
+{
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? EquipmentId { get; init; }
+}
 
 internal static class CommunitySearch
 {
@@ -32,7 +37,7 @@ internal static class CommunitySearch
     }
     private static bool BeforeChance(WorldMutation world, PersistentTask task, PersonnelRulebook rules, CommunitySearchEventDefinition d) =>
         task.Journey is not null && world.Forces.TryGetValue(task.ForceId, out var force) && !force.IsEliminated &&
-        world.Simulation.Controls.Any(c => c.ForceId == force.Id && c.Kind == ControllerKind.Player) &&
+        (d is EquipmentGiftSearchEventDefinition || world.Simulation.Controls.Any(c => c.ForceId == force.Id && c.Kind == ControllerKind.Player)) &&
         (d is not CivicSearchEventDefinition { Activity: not CivicSearchKind.TravelPermit } || Owned(world, task, rules));
     internal static CommemorationSite? Site(PersistentTask task, CommemorationSearchEventDefinition d) =>
         d.Sites.SingleOrDefault(s => s.PlaceId == task.Journey!.DestinationPlaceId);
@@ -56,6 +61,13 @@ internal static class CommunitySearch
             TrainingSiteSearchEventDefinition training => Site(task, training) is { } site &&
                 world.Officers[task.OfficerId].TacticProficiencies[site.Category] < training.MaximumProficiencyExclusive &&
                 SoldierTotals.Force(world, task.ForceId) > training.MinimumForceSoldiersExclusive,
+            EquipmentGiftSearchEventDefinition gift => task.Journey!.DestinationPlaceId == gift.PlaceId &&
+                !world.Simulation.ConsumedEventKeys.Contains(gift.ConsumptionKey) &&
+                world.Forces[task.ForceId].LeaderId is not null &&
+                world.AllEquipment.TryGetValue(gift.EquipmentInstanceId, out var item) && item.IsLost &&
+                item.DefinitionId == gift.EquipmentDefinitionId &&
+                item.EventGiftKey == gift.ConsumptionKey.Value &&
+                item.SearchPlaceId is null && item.LegacyTreasureId is null && item.PendingArmamentCredit is null,
             _ => false
         };
         return eligible && Options(world, task, d).All(o => ResourceAccounts.Balance(world, account, o.Resource) >= o.Cost);
@@ -63,6 +75,7 @@ internal static class CommunitySearch
     internal static bool Prepare(WorldMutation world, PersistentTask task, PersonnelRulebook rules, CommunitySearchEventDefinition d)
     {
         if (!BeforeChance(world, task, rules, d)) return false;
+        if (d is EquipmentGiftSearchEventDefinition && !AfterChance(world, task, rules, d)) return false;
         if (d.ChanceDivisor is int divisor && world.NextRandom("event-search-eligibility") % 100 >=
             (ulong)(Ability(world.Abilities(world.Officers[task.OfficerId]), d.ChanceAbility) / divisor)) return false;
         return AfterChance(world, task, rules, d);
@@ -86,6 +99,7 @@ internal static class CommunitySearch
             CivicSearchEventDefinition => [accept, decline],
             CommemorationSearchEventDefinition memorial => [accept with { Cost = memorial.Cost }, decline],
             TrainingSiteSearchEventDefinition training => [accept with { Cost = training.Cost }, decline],
+            EquipmentGiftSearchEventDefinition => [accept, decline],
             _ => throw new ArgumentException("Unknown community search.")
         };
     }
@@ -157,6 +171,10 @@ internal static class CommunitySearch
             case TrainingSiteSearchEventDefinition training when choice == CommunitySearchChoice.Accept:
                 OfficerTacticGrowth.IncreaseRaw(world, task.OfficerId, Site(task, training)!.Category, a.Leadership / training.LeadershipRewardDivisor, events);
                 break;
+            case EquipmentGiftSearchEventDefinition gift when choice == CommunitySearchChoice.Accept:
+                world.SetEquipment(EquipmentRules.MoveToOfficer(world.AllEquipment[gift.EquipmentInstanceId], world.Forces[task.ForceId].LeaderId!.Value));
+                world.ConsumeEvent(d.Candidate(gift.ConsumptionKey), new(d.Id, EventOutcomeKind.Completed, false, EventResult.Succeeded));
+                break;
         }
         if (money > 0)
         {
@@ -169,6 +187,7 @@ internal static class CommunitySearch
             world.Replace(force with { BaseTrust = (int)Math.Clamp((long)force.BaseTrust + trust, 0, 1000) });
         }
         events.Add(new CommunitySearchResolvedEvent(world.Clock, d.Id, task.ForceId, task.OfficerId, task.Journey!.DestinationPlaceId,
-            choice, account, option.Resource, option.Cost, money, soldiers, learned, world.Forces[task.ForceId].BaseTrust));
+            choice, account, option.Resource, option.Cost, money, soldiers, learned, world.Forces[task.ForceId].BaseTrust)
+            { EquipmentId = choice == CommunitySearchChoice.Accept && d is EquipmentGiftSearchEventDefinition reward ? reward.EquipmentInstanceId : null });
     }
 }

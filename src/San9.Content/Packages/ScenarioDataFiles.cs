@@ -151,9 +151,10 @@ public static class ScenarioDataFiles
             throw new InvalidDataException("Unsupported authored scenario data version; reconvert the package.");
         var catalog = document.DefinitionOverrides.Information is { } change ? change.Value : definitions.Information;
         ContentStructure.Validate(catalog);
-        return (new(ScenarioInitialState.CurrentSchemaVersion, document.Year, document.Month, document.Day,
+        return (new ScenarioSelectionState(ScenarioInitialState.CurrentSchemaVersion, document.Year, document.Month, document.Day,
             document.Forces, document.Settlements, OfficerComposition.Compile(document.Officers, [.. officers.Officers, .. document.AdditionalOfficerDefaults]),
-            document.Units, catalog.Compile(document.Information), document.Alliance),
+            document.Units, catalog.Compile(document.Information), document.Alliance)
+            { PersonalPeerageRegimes = document.DefinitionOverrides.PersonalPeerageRegimes is { } changeRegimes ? changeRegimes.Value : definitions.PersonalPeerageRegimes },
             OfficerComposition.Profiles(document.Officers, [.. officers.Officers, .. document.AdditionalOfficerDefaults]));
     }
 
@@ -172,8 +173,12 @@ public static class ScenarioDataFiles
     private static Task<T> ReadAsync<T>(string root, string path, CancellationToken token) =>
         PackageFiles.ReadAsync<T>(PackageFiles.Resolve(root, path), token);
 
-    private sealed record SelectionDefinitions(int SchemaVersion, InformationCatalog Information);
-    private sealed record SelectionOverrides(ContentOverride<InformationCatalog>? Information = null);
+    private sealed record SelectionDefinitions(int SchemaVersion, InformationCatalog Information)
+    {
+        public San9.Core.Domain.PersonalPeerageRegimeDefinition[]? PersonalPeerageRegimes { get; init; }
+    }
+    private sealed record SelectionOverrides(ContentOverride<InformationCatalog>? Information = null,
+        ContentOverride<San9.Core.Domain.PersonalPeerageRegimeDefinition[]?>? PersonalPeerageRegimes = null);
     private sealed record SelectionDocument(int SchemaVersion, int Year, int Month, int Day,
         Scenarios.ForceInitialState[] Forces, Scenarios.SettlementInitialState[] Settlements, ScenarioOfficerState[] Officers,
         OfficerDefaults[] AdditionalOfficerDefaults, San9.Core.Domain.UnitState[] Units, ScenarioInformationState Information,

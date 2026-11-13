@@ -8,7 +8,7 @@ public enum DeploymentPresetFailure
 {
     None, InvalidPreset, WrongForce, OfficerDead, OfficerCaptured, OfficerTransferred,
     OfficerElsewhere, OfficerBusy, FormationUnavailable, ShipUnavailable, TacticUnavailable,
-    InsufficientSoldiers, InsufficientMoney, NoAvailableMembers
+    InsufficientSoldiers, InsufficientMoney, NoAvailableMembers, MissingDetachments
 }
 
 public sealed record DeploymentPresetMissingMember(int OfficerId, DeploymentPresetFailure Reason);
@@ -44,6 +44,7 @@ public sealed record DeploymentPresetCheck(DeploymentPresetFailure Failure, int?
             DeploymentPresetFailure.InsufficientSoldiers => $"兵力超过当前上限（{MaximumSoldiers}人）",
             DeploymentPresetFailure.InsufficientMoney => "当前军团出征资金不足",
             DeploymentPresetFailure.NoAvailableMembers => "编队当前没有可出征的成员",
+            DeploymentPresetFailure.MissingDetachments => "旧编队缺少兵种和分兵配置，请重新设置后保存",
             _ => "编队配置无效"
         };
     }
@@ -54,17 +55,21 @@ public sealed partial class DeploymentDraft
     private DeploymentPreset? _presetBaseline;
     public Guid? SourcePresetId => _presetBaseline?.Id;
     public bool HasPresetChanges => _presetBaseline is { } baseline &&
-        (FormationId != baseline.FormationId || NavalFormationId != baseline.NavalFormationId || Soldiers != baseline.Soldiers ||
+        (FormationId != baseline.FormationId || NavalFormationId != baseline.NavalFormationId || NavalTrainingId != baseline.NavalTrainingId ||
+         SiegeEquipmentId != baseline.SiegeEquipmentId || Soldiers != baseline.Soldiers ||
          Members.Length != baseline.Members.Length || baseline.Members.Any(m => !Members.Contains(m.OfficerId) ||
              !Positions.TryGetValue(m.OfficerId, out var position) || position != m.Position ||
-             !Tactics.TryGetValue(m.OfficerId, out var tactic) || tactic != m.TacticId));
+             !Tactics.TryGetValue(m.OfficerId, out var tactic) || tactic != m.TacticId ||
+             Detachments.GetValueOrDefault(m.OfficerId) != m.Detachment));
 
     public DeploymentPreset CreatePreset(Guid id, string name, DeploymentSoldierMode soldierMode)
     {
         if (!CanProceed) throw new InvalidOperationException("A complete deployment preparation is required.");
         var preset = new DeploymentPreset(id, Force.Id, name.Trim(),
-            Members.Select(person => new DeploymentPresetMember(person, Positions[person], Tactics[person])).ToImmutableArray(),
-            FormationId!.Value, NavalFormationId, soldierMode, soldierMode == DeploymentSoldierMode.Maximum ? 0 : Soldiers);
+            Members.Select(person => new DeploymentPresetMember(person, Positions[person], Tactics[person])
+                { Detachment = Detachments.GetValueOrDefault(person) }).ToImmutableArray(),
+            FormationId!.Value, NavalFormationId, soldierMode, soldierMode == DeploymentSoldierMode.Maximum ? 0 : Soldiers)
+            { NavalTrainingId = NavalTrainingId, SiegeEquipmentId = SiegeEquipmentId };
         preset.Validate(View);
         return preset;
     }
@@ -95,6 +100,9 @@ public sealed partial class DeploymentDraft
         if (!check.CanApply) return check;
         Members = candidate!.Members; Positions = candidate.Positions; Tactics = candidate.Tactics;
         FormationId = candidate.FormationId; NavalFormationId = candidate.NavalFormationId; Soldiers = candidate.Soldiers;
+        NavalTrainingId = candidate.NavalTrainingId;
+        SiegeEquipmentId = candidate.SiegeEquipmentId;
+        _detachments = candidate.Detachments;
         MarkPresetSaved(preset);
         return check;
     }
@@ -106,6 +114,10 @@ public sealed partial class DeploymentDraft
         try { preset.Validate(View); }
         catch (ArgumentException) { return new(DeploymentPresetFailure.InvalidPreset); }
         if (preset.ForceId != Force.Id) return new(DeploymentPresetFailure.WrongForce);
+        if (View.World.Simulation.NewGame.MixedTroopsEnabled && preset.Members.Any(member => member.Detachment is null))
+            return new(DeploymentPresetFailure.MissingDetachments);
+        if (View.World.Simulation.NewGame.MixedTroopsEnabled && preset.NavalFormationId is not null && preset.NavalTrainingId is null)
+            return new(DeploymentPresetFailure.MissingDetachments);
         var missing = preset.Members.Select(m => new DeploymentPresetMissingMember(m.OfficerId, MemberFailure(m.OfficerId)))
             .Where(m => m.Reason != DeploymentPresetFailure.None).ToImmutableArray();
         DeploymentPresetCheck Result(DeploymentPresetFailure reason, int? officerId = null, uint maximumSoldiers = 0) =>
@@ -121,16 +133,26 @@ public sealed partial class DeploymentDraft
         // Validate the saved land/water pair together; an intermediate default pair is irrelevant.
         prepared.FormationId = preset.FormationId;
         prepared.NavalFormationId = preset.NavalFormationId;
-        foreach (var member in members)
-            if (!prepared.SetTactic(member.OfficerId, member.TacticId))
-                return Result(DeploymentPresetFailure.TacticUnavailable, member.OfficerId);
+        if (preset.NavalTrainingId is int training && !prepared.SetNavalTraining(training))
+            return Result(DeploymentPresetFailure.ShipUnavailable);
+        if (View.World.Simulation.NewGame.MixedTroopsEnabled && !prepared.SetSiegeEquipment(preset.SiegeEquipmentId))
+            return Result(DeploymentPresetFailure.FormationUnavailable);
         prepared.Positions = members.ToImmutableDictionary(m => m.OfficerId, m => m.Position);
         uint maximum = prepared.MaximumSoldiers;
         uint soldiers = preset.SoldierMode == DeploymentSoldierMode.Maximum ? maximum : Math.Min(preset.Soldiers, maximum);
         if (soldiers == 0)
             return Result(DeploymentPresetFailure.InsufficientSoldiers, maximumSoldiers: maximum);
-        if (prepared.Cost > Money) return Result(DeploymentPresetFailure.InsufficientMoney);
         prepared.Soldiers = soldiers;
+        if (View.World.Simulation.NewGame.MixedTroopsEnabled && members.All(member => member.Detachment is not null))
+        {
+            var saved = members.ToImmutableDictionary(member => member.OfficerId, member => member.Detachment!);
+            if (!prepared.SetDetachments(DetachmentAllocation.Resize(saved, soldiers)))
+                return Result(DeploymentPresetFailure.InvalidPreset);
+        }
+        foreach (var member in members)
+            if (!prepared.SetTactic(member.OfficerId, member.TacticId))
+                return Result(DeploymentPresetFailure.TacticUnavailable, member.OfficerId);
+        if (prepared.Cost > Money) return Result(DeploymentPresetFailure.InsufficientMoney);
         candidate = prepared;
         return Result(DeploymentPresetFailure.None, maximumSoldiers: maximum);
     }

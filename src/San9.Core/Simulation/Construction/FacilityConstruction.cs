@@ -65,7 +65,7 @@ internal static class FacilityConstruction
         var deployment = new DeployUnitCommand(command.CommandId, command.IssuerId, command.Sequence, home.Id,
             command.OfficerIds, command.Soldiers, pair.LandFormationId, new(MilitaryOrderKind.Construct, null, null) { Construction = plan })
             { Policies = command.Policies, NavalFormationId = pair.NavalFormationId, Waypoint = command.Waypoint };
-        var rejection = MilitaryMovement.PrepareDeployment(world, deployment, military, rules.Treasures,
+        var rejection = MilitaryMovement.PrepareDeployment(world, deployment, military, rules.Governance, rules.Treasures,
             UnitPurpose.Construction, 0, 0, out var prepared);
         if (rejection != CommandRejection.None) return rejection;
         if (military.Travel(pair.LandFormationId, pair.NavalFormationId, command.Soldiers).AreaAt(prepared!.Start)
@@ -79,6 +79,7 @@ internal static class FacilityConstruction
     {
         foreach (var place in world.Settlements.Values.Where(s => s.Facility?.BuilderUnitId == unitId).ToArray())
         {
+            MilitaryResearch.CancelAt(world, place.Id, events);
             world.Replace(place with { IsDestroyed = true, OwnerId = null, CorpsId = null, Durability = 0, Soldiers = 0,
                 Wounded = 0, Morale = 0, ConfusionDaysRemaining = 0, Facility = place.Facility! with { BuilderUnitId = null } });
             events.Add(new FacilityConstructionChangedEvent(world.Clock, place.Id, unitId, "cancelled", 0, null) { Result = world.Settlements[place.Id] });

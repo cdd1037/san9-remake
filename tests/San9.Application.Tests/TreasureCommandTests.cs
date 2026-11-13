@@ -23,6 +23,32 @@ public sealed class TreasureCommandTests
     };
 
     [Fact]
+    public void ImperialSealTrustRequiresEquippingAndTracksTransferAndRestore()
+    {
+        var definition = Fixture();
+        var session = GameSession.Start(definition, 190);
+        int Trust() => session.Snapshot.Forces.Single(force => force.Id == 1).Trust;
+        Assert.Equal(1000, Trust());
+        Assert.True(session.Execute(new("player"), new ConfigureEquipmentCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, 1, EquipmentSlot.MainHand, null)).Submission.Accepted);
+        Assert.Equal(950, Trust());
+        Assert.True(session.Execute(new("player"), new ConfigureEquipmentCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, 1, EquipmentSlot.MainHand, 10)).Submission.Accepted);
+        Assert.Equal(1000, Trust());
+        Assert.True(session.Execute(new("player"), new GrantTreasureCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, 10, 2)).Submission.Accepted);
+        Assert.Equal(950, Trust());
+        Assert.True(session.Execute(new("player"), new ConfiscateTreasureCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, 10)).Submission.Accepted);
+        Assert.Equal(950, Trust());
+        var restored = SaveService.Decode(SaveService.Encode(session), definition);
+        Assert.Equal(950, restored.Snapshot.Forces.Single(force => force.Id == 1).Trust);
+        Assert.True(restored.Execute(new("player"), new ConfigureEquipmentCommand(Guid.NewGuid(), 1,
+            restored.Snapshot.Simulation.NextSequence, 1, EquipmentSlot.MainHand, 10)).Submission.Accepted);
+        Assert.Equal(1000, restored.Snapshot.Forces.Single(force => force.Id == 1).Trust);
+    }
+
+    [Fact]
     public void TransferCommandsKeepQueriesSaveRestoreConsistent()
     {
         var definition = Fixture();
@@ -34,11 +60,14 @@ public sealed class TreasureCommandTests
         var texts = new TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new[] { "treasure", "recipient", "ruler" }
             .ToDictionary(k => k, k => k));
         Assert.Empty(TreasureCatalog.Read(session.View, texts, holderId: 1).Rows);
-        Assert.Single(TreasureCatalog.Read(session.View, texts, holderId: 2).Rows);
+        Assert.Equal("未装备", Assert.Single(TreasureCatalog.Read(session.View, texts, holderId: 2).Rows).Cells[7].Text);
+        Assert.Equal(50, session.View.Officers.Single(p => p.Id == 2).Abilities.War);
+        Assert.True(session.Execute(new("player"), new ConfigureEquipmentCommand(Guid.NewGuid(), 1, 1, 2, EquipmentSlot.MainHand, 10)).Submission.Accepted);
+        Assert.Equal("已装备", Assert.Single(TreasureCatalog.Read(session.View, texts, holderId: 2).Rows).Cells[7].Text);
         Assert.Equal(60, session.View.Officers.Single(p => p.Id == 2).Abilities.War);
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         id = Guid.NewGuid();
-        var request = session.Request(new CommandOperation(new ConfiscateTreasureCommand(id, 1, 1, 10)), id: id);
+        var request = session.Request(new CommandOperation(new ConfiscateTreasureCommand(id, 1, 2, 10)), id: id);
         var result = session.Apply(request);
         Assert.Equal(SessionDisposition.Accepted, result.Disposition);
         EventAssert.Equal(result.Events, restored.Apply(request).Events);
@@ -72,12 +101,14 @@ public sealed class TreasureCommandTests
 
         Assert.True(session.Execute(new("player"), new GrantTreasureCommand(Guid.NewGuid(), 1, 0, 10, 2)).Submission.Accepted);
         Assert.Equal(1, Count(session.View, 1));
+        Assert.Equal(1, Count(session.View, 2));
+        Assert.True(session.Execute(new("player"), new ConfigureEquipmentCommand(Guid.NewGuid(), 1, 1, 2, EquipmentSlot.MainHand, 10)).Submission.Accepted);
         Assert.Equal(2, Count(session.View, 2));
         Assert.Equal(["△", "○", ""], Marks(session.View, 2));
         var restored = SaveService.Decode(SaveService.Encode(session), definition);
         Assert.Equal(2, Count(restored.View, 2));
-        Assert.True(session.Execute(new("player"), new ConfiscateTreasureCommand(Guid.NewGuid(), 1, 1, 10)).Submission.Accepted);
-        Assert.Equal(2, Count(session.View, 1));
+        Assert.True(session.Execute(new("player"), new ConfiscateTreasureCommand(Guid.NewGuid(), 1, 2, 10)).Submission.Accepted);
+        Assert.Equal(1, Count(session.View, 1));
         Assert.Equal(1, Count(session.View, 2));
         Assert.Equal(["", "○", ""], Marks(session.View, 2));
         Assert.All(session.Snapshot.Officers, p => Assert.Equal([1], p.LearnedTactics.ToArray()));
@@ -92,8 +123,9 @@ public sealed class TreasureCommandTests
         var session = GameSession.Start(definition, 190);
         var state = session.Capture();
         var changed = state with { World = state.World with
-        { Treasures = [state.World.Treasures.Single() with { HolderId = 2 }] } };
-        Assert.Equal(60, GameSession.Restore(definition, changed).View.Officers.Single(p => p.Id == 2).Abilities.War);
+        { Treasures = [state.World.Treasures.Single() with { HolderId = 2 }],
+          Equipment = [state.World.Equipment.Single() with { OfficerId = 2, Equipped = false }] } };
+        Assert.Equal(50, GameSession.Restore(definition, changed).View.Officers.Single(p => p.Id == 2).Abilities.War);
         var initial = definition with { Information = definition.Information with
         { TreasureStates = [definition.Information.TreasureStates.Single() with { HolderId = 2 }] } };
         initial.Validate();

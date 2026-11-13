@@ -84,6 +84,15 @@ public static class PersonnelPresentation
         {
             if (outcome is SearchResolvedEvent search && search.Result != SearchResultKind.Person && Direct(search.OfficerId))
             {
+                if (search.Result == SearchResultKind.Equipment && search.EquipmentId is long equipmentId)
+                {
+                    var instance = before.World.Equipment.Single(item => item.Id == equipmentId);
+                    var definition = before.Rules.Equipment.Items[instance.DefinitionId];
+                    string name = string.IsNullOrWhiteSpace(definition.Name) ? definition.Id : definition.Name;
+                    result.Add(new CommandMessage(new ProducedMessage("search-equipment", search.Clock,
+                        $"发现了「{MessageMarkup.Escape(name)}」，已交给君主。"), search.OfficerId, null));
+                    continue;
+                }
                 if (before.Companion.HideRoutineSearchReports && search.Result is SearchResultKind.Money or SearchResultKind.None) continue;
                 var values = Values(before, search.OfficerId, search.PlaceId);
                 values["money"] = new(search.Money);

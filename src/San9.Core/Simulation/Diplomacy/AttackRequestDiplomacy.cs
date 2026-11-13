@@ -176,6 +176,7 @@ internal static class AttackRequestDiplomacy
                 int relation = MilitaryDiplomacy.Relation(world, task.ForceId, mission.TargetForceId);
                 ForceRelations.Change(world, task.ForceId, mission.TargetForceId, Math.Max(40 - relation, 10), rules.Military, events);
                 DiplomacySettlement.Grow(world, task.OfficerId, events);
+                OfficerServiceMerit.Credit(world, task.OfficerId, task.ForceId, 2, "attack-request-accepted", events);
             }
             else ForceRelations.Change(world, task.ForceId, mission.TargetForceId, -5, rules.Military, events);
         }

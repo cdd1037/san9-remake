@@ -10,6 +10,11 @@ public sealed record FormationVision(int Radius, int ArcDegrees);
 public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCost, uint SoldierCapacity,
     int OfficerCapacity, Footprint Footprint, TravelMode TravelMode)
 {
+    public bool MixedTroopsOnly { get; init; }
+    public string? ResearchProjectId { get; init; }
+    public bool SupportsSpearDefense { get; init; }
+    public bool SupportsShieldCover { get; init; }
+    public bool SupportsSpearBowSynergy { get; init; }
     [JsonRequired] public ImmutableArray<SoldierFootprint> SoldierFootprints { get; init; } = [];
     [JsonRequired] public FormationVision? Vision { get; init; }
     public Footprint FootprintFor(uint soldiers)
@@ -48,6 +53,7 @@ public sealed record FormationRule(int Id, int MovementBudget, int DeploymentCos
 
 public sealed record OrdinaryAttack(int Range, bool DamagesWalls)
 {
+    public bool IsRangedAttack { get; init; }
     [JsonRequired] public int ElevationBonusPerLevel { get; init; }
     [JsonRequired] public int MaximumElevationBonus { get; init; }
     [JsonRequired] public bool RequiresWaterContact { get; init; }
@@ -85,6 +91,13 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
     ImmutableArray<TerrainPassage> Terrains, ImmutableArray<FormationRule> Formations,
     ImmutableArray<BattlefieldPlace> Places)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ImmutableArray<ArmamentDefinition>? Armaments { get; init; }
+    public ImmutableArray<TroopTypeDefinition> TroopTypes { get; init; } = [];
+    public ImmutableArray<NavalTrainingDefinition> NavalTraining { get; init; } = [];
+    public ImmutableArray<SiegeEquipmentDefinition> SiegeEquipment { get; init; } = [];
+    public MixedTroopCombatProfile? MixedTroopCombat { get; init; }
+    public ImmutableArray<ResearchProjectDefinition> ResearchProjects { get; init; } = [];
     [JsonRequired] public CompanionCombatDefinition? CompanionCombat { get; init; }
     [JsonRequired] public CompanionTacticPresets? CompanionTactics { get; init; }
     [JsonRequired] public FixedUnitFormations? ConstructionFormations { get; init; }
@@ -114,14 +127,34 @@ public sealed record MilitaryDefinition(int Width, int Height, ImmutableArray<in
 
 public sealed partial class MilitaryRulebook
 {
+    public ImmutableDictionary<string, ArmamentDefinition> Armaments { get; }
+    public ImmutableDictionary<int, TroopTypeDefinition> TroopTypes { get; }
+    public ImmutableDictionary<int, NavalTrainingDefinition> NavalTraining { get; }
+    public ImmutableDictionary<int, SiegeEquipmentDefinition> SiegeEquipment { get; }
+    public MixedTroopCombatProfile? MixedTroopCombat { get; }
+    public ImmutableDictionary<string, ResearchProjectDefinition> ResearchProjects { get; }
     public const uint WoundedCapacity = 50000;
     public int DefensiveTacticChance { get; }
     public bool BattleDeathsAllowed { get; }
     public bool DuelCapturesAllowed { get; }
     public CompanionCombatDefinition? CompanionCombat { get; }
     public CompanionTacticPresets? CompanionTactics { get; }
+    /// <summary>Recognizes obsolete formation-only projects retained for older saves.</summary>
+    public bool IsLegacyFormationResearch(string id) =>
+        Formations.Values.Any(f => f.MixedTroopsOnly && f.ResearchProjectId == id) &&
+        !Formations.Values.Any(f => !f.MixedTroopsOnly && f.ResearchProjectId == id) &&
+        !TroopTypes.Values.Any(t => t.LevelResearchProjects.Values.Contains(id)) &&
+        !NavalTraining.Values.Any(t => t.ResearchProjectId == id) &&
+        !SiegeEquipment.Values.Any(e => e.ResearchProjectId == id) &&
+        !ResearchProjects.Values.Any(p => p.Prerequisites.Contains(id));
+
     public MilitaryRulebook(MilitaryDefinition definition)
     {
+        MixedTroopCombat = definition.MixedTroopCombat;
+        if (MixedTroopCombat is { } combat && (combat.SpearDefensePercent is < 0 or > 100 ||
+            combat.ShieldCoverPercent is < 0 or > 100 || combat.MountedAttackPercent is < 0 or > 100 || combat.SpearBowPercent is < 0 or > 100))
+            throw new ArgumentException("Invalid mixed troop combat profile.");
+        ResearchProjects = ResearchProjectDefinition.ValidateCatalog(definition.ResearchProjects);
         ValidateDefensiveTacticChance(definition.DefensiveTacticChance);
         DefensiveTacticChance = definition.DefensiveTacticChance;
         BattleDeathsAllowed = definition.BattleDeathsAllowed;
@@ -164,6 +197,17 @@ public sealed partial class MilitaryRulebook
             throw new ArgumentException("Invalid battlefield region geography.");
         territoryBorders = BuildTerritoryBorders(definition.TerritoryExits);
         Formations = definition.Formations.ToImmutableDictionary(f => f.Id);
+        if (definition.SiegeEquipment.IsDefault || definition.SiegeEquipment.Any(item => item is null))
+            throw new ArgumentException("Missing siege equipment definitions.");
+        SiegeEquipment = definition.SiegeEquipment.ToImmutableDictionary(item => item.Id);
+        if (SiegeEquipment.Values.Select(item => item.FormationId).Distinct().Count() != SiegeEquipment.Count ||
+            SiegeEquipment.Values.Any(item => item.Id < 0 || string.IsNullOrWhiteSpace(item.Name) ||
+            string.IsNullOrWhiteSpace(item.ResearchProjectId) || !ResearchProjects.ContainsKey(item.ResearchProjectId) ||
+            item.DeploymentCost < 0 || !Formations.TryGetValue(item.FormationId, out var equipmentFormation) ||
+            equipmentFormation.Combat is null || equipmentFormation.Attack is null || equipmentFormation.TravelMode != TravelMode.Land))
+            throw new ArgumentException("Invalid siege equipment definition.");
+        if (Formations.Values.Any(f => f.ResearchProjectId is not null && !ResearchProjects.ContainsKey(f.ResearchProjectId)))
+            throw new ArgumentException("Invalid formation research reference.");
         if (Formations.Values.Any(f => f.SnipingChanceBonus is < 0 or > 100))
             throw new ArgumentException("Invalid sniping formation bonus.");
         BasicNavalFormationId = definition.BasicNavalFormationId;
@@ -182,6 +226,32 @@ public sealed partial class MilitaryRulebook
         if (definition.Tactics.IsDefault) throw new ArgumentException("Missing tactic definitions.");
         Tactics = definition.Tactics.ToImmutableDictionary(t => t.Id);
         foreach (var tactic in Tactics.Values) tactic.Validate(Formations);
+        if (definition.TroopTypes.IsDefault || definition.TroopTypes.Any(type => type is null))
+            throw new ArgumentException("Missing troop type definitions.");
+        TroopTypes = definition.TroopTypes.ToImmutableDictionary(type => type.Id);
+        if (TroopTypes.Values.Any(type => type.Id < 0 || string.IsNullOrWhiteSpace(type.Name) ||
+            type.MaximumLevel <= 0 || type.TacticMinimumLevels is null || type.LevelResearchProjects is null || type.EquipmentCostPerThousand is null ||
+            type.EquipmentCostPerThousand.Any(pair => pair.Key <= 0 || pair.Key > type.MaximumLevel || pair.Value < 0) ||
+            type.LevelResearchProjects.Any(pair => pair.Key <= 0 || pair.Key > type.MaximumLevel || string.IsNullOrWhiteSpace(pair.Value) ||
+                !ResearchProjects.ContainsKey(pair.Value)) ||
+            type.TacticMinimumLevels.Any(pair => pair.Value <= 0 || pair.Value > type.MaximumLevel ||
+                !Tactics.TryGetValue(pair.Key, out var tactic) || tactic.Effect != TacticEffect.Martial)))
+            throw new ArgumentException("Invalid troop type definition.");
+        var armaments = definition.Armaments ?? [];
+        if (armaments.IsDefault || armaments.Any(item => item is null || !item.IsValid ||
+                item.TroopTypeIds.Any(id => !TroopTypes.ContainsKey(id)) ||
+                item.ResearchProjectId is string project && !ResearchProjects.ContainsKey(project)) ||
+            armaments.Select(item => item.Id).Distinct(StringComparer.Ordinal).Count() != armaments.Length)
+            throw new ArgumentException("Invalid armament definition.");
+        Armaments = armaments.ToImmutableDictionary(item => item.Id, StringComparer.Ordinal);
+        if (definition.NavalTraining.IsDefault || definition.NavalTraining.Any(training => training is null))
+            throw new ArgumentException("Missing naval training definitions.");
+        NavalTraining = definition.NavalTraining.ToImmutableDictionary(training => training.Id);
+        if (NavalTraining.Values.Any(training => training.Id < 0 || string.IsNullOrWhiteSpace(training.Name) ||
+            training.DeploymentCost < 0 || training.ResearchProjectId is not null && !ResearchProjects.ContainsKey(training.ResearchProjectId) ||
+            training.AllowedTactics.IsDefault || training.AllowedTactics.Distinct().Count() != training.AllowedTactics.Length ||
+            training.AllowedTactics.Any(id => !Tactics.TryGetValue(id, out var tactic) || tactic.Effect != TacticEffect.Martial)))
+            throw new ArgumentException("Invalid naval training definition.");
         CompanionCombat = definition.CompanionCombat;
         CompanionCombat?.Validate(Formations, Tactics);
         if (definition.Facilities.IsDefault || definition.ConstructionSites.IsDefault)
@@ -347,6 +417,17 @@ public sealed partial class MilitaryRulebook
         unit.Condition is UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed && UnformedFormationId is int unformed
             ? unformed : Formation(unit).Id].Combat;
     public ImmutableDictionary<int, FormationRule> Formations { get; }
+    public long DetachmentEquipmentCost(IEnumerable<DetachmentState> detachments)
+    {
+        if (!Armaments.IsEmpty) return 0;
+        System.Numerics.BigInteger total = 0;
+        foreach (var detachment in detachments)
+        {
+            int cost = TroopTypes[detachment.TroopTypeId].EquipmentCostPerThousand.GetValueOrDefault(detachment.Level);
+            total += ((System.Numerics.BigInteger)detachment.Soldiers * cost + 999) / 1000;
+        }
+        return (long)System.Numerics.BigInteger.Min(total, (long)uint.MaxValue + 1);
+    }
     public TacticLinkRules LinkRules { get; }
     public CityInfluenceRule? CityInfluence { get; }
     public BattlefieldGeography Geography { get; }

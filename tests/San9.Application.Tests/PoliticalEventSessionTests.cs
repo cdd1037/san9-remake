@@ -12,6 +12,28 @@ namespace San9.Application.Tests;
 
 public sealed class PoliticalEventSessionTests
 {
+    [Fact]
+    public void ExplicitRegimeFollowsProclamationAndSurvivesSave()
+    {
+        var basis = Scenario(true);
+        var regimes = HistoricalPeeragePresets.Create(basis.Information.Ranks, 101, 102, 103);
+        var scenario = basis with
+        {
+            PersonalPeerageRegimes = regimes.ToArray(),
+            Forces = basis.Forces.Select(f => f with { PersonalPeerageRegimeId = HistoricalPeeragePresets.Han }).ToArray(),
+            Information = basis.Information with { CountryTitles = basis.Information.CountryTitles.Select(t => t.Id == 500
+                ? t with { Rule = t.Rule with { PersonalPeerageRegimeId = HistoricalPeeragePresets.Wei } } : t).ToArray() }
+        };
+        var session = GameSession.Start(scenario, 17);
+        for (int i = 0; i < 3; i++) session.AdvanceXun();
+        Assert.Equal(HistoricalPeeragePresets.Han, session.Snapshot.Forces.Single(f => f.Id == 1).PersonalPeerageRegimeId);
+        Assert.True(session.Execute(new("player"), new ChooseCountryTitleCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, 500)).Submission.Accepted);
+        Assert.Equal(HistoricalPeeragePresets.Wei, session.Snapshot.Forces.Single(f => f.Id == 1).PersonalPeerageRegimeId);
+        Assert.Equal(HistoricalPeeragePresets.Wei, SaveService.Decode(SaveService.Encode(session), scenario)
+            .Snapshot.Forces.Single(f => f.Id == 1).PersonalPeerageRegimeId);
+    }
+
     internal static ScenarioInitialState Scenario(bool ended = false) => new(ScenarioInitialState.CurrentSchemaVersion, "politics", 190, 3, 1, 1,
         [new(1, "force.1", 1, 1000) { BaseTrust = ended ? 1000 : 900, LeaderId = 1, RankId = 5, FlagGlyph = 10 },
          new(2, "force.2", 2, 100) { BaseTrust = 100, LeaderId = 2, RankId = 700, CountryTitleId = 900 }],

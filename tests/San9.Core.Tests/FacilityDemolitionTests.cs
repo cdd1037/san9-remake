@@ -8,7 +8,7 @@ public sealed class FacilityDemolitionTests
 {
     private static readonly CommandContext Player = new("player");
     private static SimulationEngine Engine(bool allowed = true, bool friendlyCity = true, uint soldiers = 1000, bool confused = false, bool engaged = false,
-        bool otherHome = false)
+        bool otherHome = false, bool research = false)
     {
         var military = new MilitaryRulebook(new(6, 1, [0, 0, 0, 0, 0, 0], [new(0, 1, null)],
             [new(1, 5, 0, 10000, 1, new(1, 1), TravelMode.Land),
@@ -16,7 +16,9 @@ public sealed class FacilityDemolitionTests
                 { Combat = new(10, 10, 10, 10, 50), Attack = new(10, true), Positions = San9.Tests.FormationTestData.Layout([BattleRank.Middle]) }],
             [new(1, new(2, 2), new(1, 1)), new(2, new(12, 2), new(1, 1))
                 { CanDemolish = allowed, Combat = new(10, 10, 10, 10, 50) },
-                new(3, new(27, 2), new(1, 1))]) { TransportFormations = new(1, null) });
+                new(3, new(27, 2), new(1, 1))]) { TransportFormations = new(1, null),
+                    ResearchProjects = [new("test-research", 100, 30, [])],
+                    TroopTypes = [new(0, "枪兵", 1, System.Collections.Immutable.ImmutableDictionary<int, int>.Empty)] });
         var geography = new PersonnelRulebook([new(1, new(2, 2)), new(2, new(12, 2)), new(3, new(27, 2))],
             new Dictionary<int, int> { [1] = 1, [2] = 1, [3] = 3 });
         return new(WorldState.Create(new(190, 1, 1), 42,
@@ -32,8 +34,22 @@ public sealed class FacilityDemolitionTests
                 CargoFood = 100, Order = new(MilitaryOrderKind.Transport, null, 2) },
                 .. engaged ? new UnitState[] { new(1, 2, new(14, 2), 100)
                     { FormationId = 2, Morale = 100, Order = new(MilitaryOrderKind.AttackSettlement, null, 2) } } : []],
-            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }]), EconomyRulebook.Empty, geography,
+            controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }],
+            newGame: research ? new NewGameSettings { MixedTroopsEnabled = true } : null), EconomyRulebook.Empty, geography,
             TreasureRulebook.Empty, military: military);
+    }
+
+    [Fact]
+    public void DemolitionImmediatelyCancelsResearchAtFacility()
+    {
+        var engine = Engine(research: true);
+        var started = engine.Execute(Player, new StartResearchCommand(Guid.NewGuid(), 1, 0, 2, "test-research"));
+        Assert.True(started.Submission.Accepted, started.Submission.Rejection.ToString());
+        var result = engine.Execute(Player, new DemolishFacilityCommand(Guid.NewGuid(), 1, 1, 2));
+        Assert.True(result.Submission.Accepted, result.Submission.Rejection.ToString());
+        Assert.Single(result.Events.OfType<ResearchCancelledEvent>());
+        Assert.Null(engine.Snapshot.Forces.Single(force => force.Id == 1).ActiveResearch);
+        Assert.DoesNotContain("test-research", engine.Snapshot.Forces.Single(force => force.Id == 1).CompletedResearch);
     }
 
     [Theory]

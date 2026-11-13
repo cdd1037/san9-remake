@@ -71,7 +71,7 @@ internal static class ForceElimination
                     -(long)ResourceAccounts.Balance(world, new(ResourceOwnerKind.Corps, corps.Id), resource), Reason, null, events);
             world.RemoveCorps(corps.Id);
         }
-        ForceLifecycle.Retire(world, forceId, events);
+        ForceLifecycle.Retire(world, forceId, events, victorForceId);
     }
 
     private static void ReleaseCaptives(WorldMutation world, IEnumerable<OfficerState> occupants, int? origin,

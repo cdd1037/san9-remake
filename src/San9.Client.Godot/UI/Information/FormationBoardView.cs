@@ -117,6 +117,10 @@ public partial class FormationBoardView : Control
                 DrawTextureRectRegion(texture, new(slot.Column * Size.X / columns, slot.Row * Size.Y / rows, Size.X / columns, Size.Y / rows),
                     new(slot.Column * texture.GetWidth() / columns, slot.Row * texture.GetHeight() / rows, texture.GetWidth() / columns, texture.GetHeight() / rows));
             }
+        else if (presentation is not null)
+            foreach (var slot in presentation.Slots)
+                DrawRect(new(slot.Column * Size.X / columns, slot.Row * Size.Y / rows, Size.X / columns, Size.Y / rows),
+                    new Color(0.45f, 0.39f, 0.22f, 0.45f));
         for (int x = 1; x < columns; x++) DrawLine(new(x * Size.X / columns, 0), new(x * Size.X / columns, Size.Y), new Color(0,0,0,.5f));
         for (int y = 1; y < rows; y++) DrawLine(new(0, y * Size.Y / rows), new(Size.X, y * Size.Y / rows), new Color(0,0,0,.5f));
         if (_target is { } target)

@@ -30,6 +30,7 @@ namespace San9.Core.Domain;
 [JsonDerivedType(typeof(BanditMediationSearchEventDefinition), "bandit-mediation")]
 [JsonDerivedType(typeof(CivicSearchEventDefinition), "civic")]
 [JsonDerivedType(typeof(CommemorationSearchEventDefinition), "commemoration")]
+[JsonDerivedType(typeof(EquipmentGiftSearchEventDefinition), "equipment-gift")]
 [JsonDerivedType(typeof(TrainingSiteSearchEventDefinition), "training-site")]
 public abstract record SearchEventDefinition
 {

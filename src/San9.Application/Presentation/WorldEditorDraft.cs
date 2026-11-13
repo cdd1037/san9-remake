@@ -178,7 +178,7 @@ public sealed class WorldEditorDraft
             Number<OfficerEdit>("寿命", 0, 7, p => (uint)p.LifespanTier, (p, v) => p with { LifespanTier = (int)v });
             if (((OfficerEdit)_edits[id]).Loyalty is not null)
                 Number<OfficerEdit>("忠诚", 0, 100, p => (uint)p.Loyalty!.Value, (p, v) => p with { Loyalty = (int)v });
-            string[] categories = ["步兵", "骑兵", "弓骑", "弩兵", "水军", "攻城", "智略", "谋略", "策略"];
+            string[] categories = ["步兵", "骑兵", "弓骑", "弓弩", "水军", "攻城", "智略", "谋略", "策略"];
             for (int i = 0; i < categories.Length; i++)
             {
                 int category = i;

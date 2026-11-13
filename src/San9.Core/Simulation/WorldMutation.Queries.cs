@@ -136,6 +136,13 @@ internal sealed partial class WorldMutation
 
     private HeldTreasureEffects TreasureEffects(int officerId, TreasureRulebook rules)
     {
+        if (_owner.EquipmentInitialized)
+        {
+            var items = AllEquipment.Values.Where(item => item.Equipped && item.OfficerId == officerId)
+                .Select(item => _equipmentRules.Items[item.DefinitionId]).ToArray();
+            return new(default, items.Any(item => item.EscapeMount),
+                items.Where(item => item.TacticId is not null).Select(item => item.TacticId!.Value).ToImmutableHashSet());
+        }
         if (!_treasureEffects.TryGetValue(rules, out var effects))
         {
             effects = [];

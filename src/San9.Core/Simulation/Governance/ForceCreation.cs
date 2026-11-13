@@ -25,6 +25,7 @@ internal static class ForceCreation
             Origin = new(kind, founder.Id, cityId, world.Clock) { PredecessorId = predecessor }
         });
         world.AddCorps(new(corpsId, forceId, founder.Id, new(0, 0)) { IsRoot = true, ControlMode = CorpsControlMode.Automatic });
+        MilitaryResearch.CancelAt(world, city.Id, events);
         world.Replace(city with { OwnerId = forceId, CorpsId = corpsId });
         ControlRotation.Replace(world, world.Simulation.Controls.Add(new($"ai:{forceId}", forceId, ControllerKind.Automatic)));
         foreach (var person in members.OrderBy(p => p.Id))

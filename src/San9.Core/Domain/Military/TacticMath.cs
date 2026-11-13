@@ -2,7 +2,12 @@ using System.Numerics;
 
 namespace San9.Core.Domain;
 
-public readonly record struct MartialTacticMember(int Power, int Proficiency, int War, bool Linked);
+public readonly record struct MartialTacticMember(int Power, int Proficiency, int War, bool Linked)
+{
+    public ulong StrengthNumerator { get; init; }
+    public ulong StrengthDenominator { get; init; }
+    public uint? DamageModifierBasisPoints { get; init; }
+}
 public readonly record struct MartialTacticDamage(uint Calculated, uint Applied);
 public readonly record struct MartialTacticContext(uint SourceSoldiers, int SourceLeadership,
     int TargetDurability, bool RangedAgainstGarrison);
@@ -61,6 +66,10 @@ public static class TacticMath
             ArgumentOutOfRangeException.ThrowIfNegative(member.War);
             BigInteger damage = (BigInteger)member.Power * (member.Proficiency / 2 + 1000L) *
                 BigInteger.Max(70, (BigInteger)EconomyMath.ExecutedAbility(member.War) + 45) / 1000;
+            if (member.StrengthDenominator != 0)
+                damage = damage * member.StrengthNumerator / member.StrengthDenominator;
+            if (member.DamageModifierBasisPoints is uint modifier)
+                damage = damage * modifier / 10000;
             total += member.Linked ? damage / 2 : damage;
         }
         if (doubled) total *= 2;

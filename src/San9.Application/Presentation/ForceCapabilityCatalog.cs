@@ -13,7 +13,7 @@ public static class ForceCapabilityCatalog
         CatalogColumn Column(string title, int width = 8) => new(title, title, width, CatalogAlignment.Center);
         if (category == InformationCategory.Offices)
         {
-            CatalogColumn Name() => new("name", "爵位", 8, CatalogAlignment.Left);
+            CatalogColumn Name() => new("name", "官职", 8, CatalogAlignment.Left);
             CatalogColumn Number(string title, int width = 6) => new(title, title, width, CatalogAlignment.Right);
             return [new("特征", [Name(), new("holder", "武将", 8, CatalogAlignment.Center), Number("指挥"), Number("俸禄"),
                 Number("统率"), Number("武力"), Number("智力"), Number("政治"), Number("忠诚上升", 10)]),
@@ -35,7 +35,7 @@ public static class ForceCapabilityCatalog
         throw new ArgumentOutOfRangeException(nameof(category));
     }
 
-    public static InformationTable Read(GameSession session, TextCatalog texts, InformationCategory category, int forceId, int pageIndex = 0)
+    public static InformationTable Read(GameSession session, TextCatalog texts, InformationCategory category, int forceId, int pageIndex = 0, bool personalFormations = false)
     {
         var pages = Pages(category);
         if ((uint)pageIndex >= pages.Count) throw new ArgumentOutOfRangeException(nameof(pageIndex));
@@ -44,7 +44,7 @@ public static class ForceCapabilityCatalog
         var members = view.World.Officers.Where(o => o.OwnerId == forceId && o.IsServing && !o.IsDormant && o.IsVisible).ToArray();
         var treasures = view.Rules.Treasures;
         string Person(int id) => texts.Resolve(view.Officers.Single(o => o.Id == id).NameKey);
-        bool HasTactic(int id) => TacticAvailability.HasForMembers(id, members, force, view.World.Treasures, treasures);
+        bool HasTactic(int id) => TacticAvailability.HasForMembers(id, members, force, view.World.Treasures, treasures, view.EquippedItems);
         string Tactic(int? id) => id is int key ? view.Information.Tactics.Single(t => t.Id == key).Name : "—";
         InformationRow Row(int id, params CatalogCell[] cells) => new(new(category, id), cells);
         IEnumerable<InformationRow> rows;
@@ -61,7 +61,7 @@ public static class ForceCapabilityCatalog
         else if (session.MilitaryRules is not { } military) rows = [];
         else if (category == InformationCategory.Tactics)
         {
-            string[] categories = ["步兵", "骑兵", "弓骑", "弩兵", "水军", "攻城", "智略", "谋略", "策略"];
+            string[] categories = ["步兵", "骑兵", "弓骑", "弓弩", "水军", "攻城", "智略", "谋略", "策略"];
             rows = view.Information.Tactics.Where(t => military.Tactics[t.Id].Selectable && HasTactic(t.Id)).Select(t =>
             {
                 var rule = military.Tactics[t.Id];
@@ -78,9 +78,11 @@ public static class ForceCapabilityCatalog
             rows = view.Information.Formations.Where(f =>
             {
                 var rule = military.Formations[f.Id];
-                return military.CanSelectFormation(force, rule.Id) &&
+                bool personal = personalFormations && category == InformationCategory.Formations &&
+                    view.World.Simulation.NewGame.MixedTroopsEnabled;
+                return (personal ? !military.IsFixedFormation(rule.Id) : military.CanSelectFormation(force, rule.Id)) &&
                     (rule.TravelMode == TravelMode.Water) == (category == InformationCategory.Ships) &&
-                    (rule.RequiredTacticId is not int tactic || HasTactic(tactic));
+                    (personal || rule.RequiredTacticId is not int tactic || HasTactic(tactic));
             }).Select(f =>
             {
                 var rule = military.Formations[f.Id];
@@ -105,7 +107,7 @@ public static class ForceCapabilityCatalog
     }
     private static string FormationEffect(FormationRule rule)
     {
-        string[] categories = ["步兵", "骑兵", "弓骑", "弩兵", "水军", "攻城", "智略", "谋略", "策略"];
+        string[] categories = ["步兵", "骑兵", "弓骑", "弓弩", "水军", "攻城", "智略", "谋略", "策略"];
         List<string> effects = [];
         if (rule.Tactics is { FavoredCategories.Length: > 0 } tactics)
             effects.Add("易于发动" + string.Join("、", tactics.FavoredCategories.Select(c => categories[c])) + "系兵法");

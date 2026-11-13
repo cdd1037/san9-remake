@@ -22,6 +22,7 @@ public sealed partial class GameSession
         if (savedOperationSequence == NextOperationSequence) HasUnsavedChanges = false;
     }
     private SessionSnapshot? _capture;
+    private ImmutableArray<string> _initializedSearchEquipment;
     private SessionSnapshot? _xunStartCheckpoint;
     private bool _xunStartCheckpointsEnabled;
     private long _lastXunStartDay;
@@ -79,6 +80,6 @@ public sealed partial class GameSession
         var records = _records.ToImmutableArray();
         var chronicle = _chronicle.ToImmutableArray();
         return _capture = new(world, records, chronicle, NextOperationSequence)
-            { Definitions = Definitions, InitialPlayerForceIds = InitialPlayerForceIds, Ending = _ending, StrategicContexts = _strategicContexts, PlayerForceController = PlayerForceController, OriginalAi = _originalAi, History = History, DeploymentPresets = DeploymentPresets };
+            { Definitions = Definitions, InitialPlayerForceIds = InitialPlayerForceIds, Ending = _ending, StrategicContexts = _strategicContexts, PlayerForceController = PlayerForceController, OriginalAi = _originalAi, History = History, DeploymentPresets = DeploymentPresets, PersonalPeerageInitialized = true, InitialEquipmentIssued = true, ArmamentMigrationInitialized = true, InitializedSearchEquipment = _initializedSearchEquipment };
     }
 }

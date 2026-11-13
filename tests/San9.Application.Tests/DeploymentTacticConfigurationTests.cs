@@ -7,8 +7,9 @@ namespace San9.Application.Tests;
 
 public sealed class DeploymentTacticConfigurationTests
 {
-    private static StrategySnapshot View(ImmutableArray<int>? favored = null, bool configureOnSelection = false) => DeploymentDraftTests.View(world => world with
+    private static StrategySnapshot View(ImmutableArray<int>? favored = null, bool configureOnSelection = false, bool mixed = false) => DeploymentDraftTests.View(world => world with
     {
+        Simulation = world.Simulation with { NewGame = world.Simulation.NewGame with { MixedTroopsEnabled = mixed } },
         Forces = world.Forces.Select(f => f.Id == 1 ? f with { ProvidedTactics = [6201] } : f).ToArray(),
         Officers = world.Officers.Select(o => o.Id switch
         {
@@ -31,6 +32,8 @@ public sealed class DeploymentTacticConfigurationTests
         {
             Military = definition.Military! with
             {
+                TroopTypes = mixed ? [new(1, "弓兵", 2,
+                    new Dictionary<int, int> { [6101] = 1, [6103] = 2 }.ToImmutableDictionary())] : [],
                 Formations = definition.Military.Formations.Select(f => f with
                 { Tactics = f.Id == 200 ? null : new(15, 2, favored ?? [1], []) }).ToImmutableArray(),
                 Tactics = definition.Military.Tactics.AddRange(additions)
@@ -39,6 +42,42 @@ public sealed class DeploymentTacticConfigurationTests
             { Tactics = [.. definition.Information.Tactics, .. additions.Select(t => new TacticCatalogDefinition(t.Id, "tactic-" + t.Id))] }
         };
     }, companion: CompanionSettings.Default with { ConfigureTacticsOnFormationSelection = configureOnSelection });
+
+    [Fact]
+    public void MixedTacticPreviewAndRecommendationsUseTheSelectedDetachmentLevel()
+    {
+        var draft = new DeploymentDraft(View(mixed: true), 1);
+        Assert.True(draft.SetMembers([1]));
+        Assert.True(draft.SetFormation(100, false));
+        Assert.True(draft.SetDetachments(ImmutableDictionary<int, DetachmentState>.Empty.Add(1, new(1, 1, draft.Soldiers))));
+        Assert.False(draft.SetTactic(1, 6103));
+        Assert.DoesNotContain(draft.SelectableTactics(1), t => t.Id == 6103);
+        Assert.Contains(draft.SelectableTactics(1), t => t.Id == 6500);
+        draft.ConfigureTactics(DeploymentTacticMode.Infantry);
+        Assert.Equal(6101, draft.Tactics[1]);
+        Assert.True(draft.IsTacticCompatible(1));
+        Assert.True(draft.SetDetachments(ImmutableDictionary<int, DetachmentState>.Empty.Add(1, new(1, 2, draft.Soldiers))));
+        draft.ConfigureTactics(DeploymentTacticMode.Infantry);
+        Assert.Equal(6103, draft.Tactics[1]);
+        Assert.True(draft.IsTacticCompatible(1));
+        Assert.True(draft.SetDetachments(ImmutableDictionary<int, DetachmentState>.Empty.Add(1, new(1, 1, draft.Soldiers))));
+        Assert.Null(draft.Tactics[1]);
+    }
+
+    [Fact]
+    public void ChangingMembersPreservesRemainingDetachmentEquipment()
+    {
+        var draft = new DeploymentDraft(View(mixed: true), 1);
+        Assert.True(draft.SetMembers([1]));
+        Assert.True(draft.SetDetachments(ImmutableDictionary<int, DetachmentState>.Empty.Add(1, new(1, 2, draft.Soldiers))));
+        Assert.True(draft.SetMembers([1, 2]));
+        Assert.Equal(2, draft.Detachments[1].Level);
+        Assert.Equal(1, draft.Detachments[2].Level);
+        Assert.Equal((long)draft.Soldiers, draft.Detachments.Values.Sum(detachment => (long)detachment.Soldiers));
+        Assert.True(draft.SetMembers([1]));
+        Assert.Equal(2, draft.Detachments[1].Level);
+        Assert.Equal(draft.Soldiers, draft.Detachments[1].Soldiers);
+    }
 
     [Theory]
     [InlineData(false)]

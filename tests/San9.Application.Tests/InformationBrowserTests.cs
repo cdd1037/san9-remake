@@ -9,6 +9,28 @@ namespace San9.Application.Tests;
 public sealed class InformationBrowserTests
 {
     [Theory]
+    [InlineData(97, 97)]
+    [InlineData(100, 100)]
+    [InlineData(120, 100)]
+    [InlineData(150, 100)]
+    [InlineData(255, 100)]
+    public void OfficerLoyaltyDisplayHidesValuesAboveOneHundred(int loyalty, int expected)
+    {
+        var definition = G01ScenarioTests.Fixture();
+        var original = GameSession.Start(definition, 1).Snapshot;
+        var world = original with { Officers = original.Officers.Select(o => o.Id == 1
+            ? o with { Status = OfficerStatus.Serving, ForceLoyalties = o.ForceLoyalties.SetItem(o.OwnerId!.Value, loyalty) } : o).ToArray() };
+        var view = new StrategySnapshot(definition, world);
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, definition.Officers.Select(o => o.NameKey)
+            .Concat(definition.Settlements.Select(s => s.NameKey)).ToDictionary(key => key, key => key));
+        var table = OfficerCatalog.Read(view, texts, 1, null, null, 1);
+        var cell = Assert.Single(table.Rows).Cells[Array.IndexOf(table.Columns, "忠诚")];
+        Assert.Equal(new CatalogCell(expected.ToString(), expected), cell);
+        Assert.Equal(expected.ToString(), OfficerDetails.Read(view, texts, 1).Fields.SelectMany(f => f)
+            .Single(f => f.Label == "忠诚").Value);
+        Assert.Equal(loyalty, world.Officers.Single(o => o.Id == 1).Loyalty);
+    }
+    [Theory]
     [InlineData(false, true, false, 84, "**", null)]
     [InlineData(false, false, false, 84, "**", null)]
     [InlineData(false, false, true, 0, "**", null)]
@@ -161,7 +183,7 @@ public sealed class InformationBrowserTests
         detail.PointAt(2);
         browser.Navigate(new("宝物", InformationCategory.Treasures, HolderId: 1));
         var table = query.Read(browser);
-        Assert.Equal(["宝物", "种类", "能力", "上升", "兵法", "效果", "所有"], table.Columns);
+        Assert.Equal(["宝物", "种类", "能力", "上升", "兵法", "效果", "所有", "装备"], table.Columns);
         Assert.Equal("武力", Assert.Single(table.Rows).Cells[2].Text);
         Assert.Equal("奋迅", table.Rows[0].Cells[4].Text);
         browser.Back();
@@ -239,7 +261,7 @@ public sealed class InformationBrowserTests
 
         long before = session.Snapshot.Revision;
         var detail = OfficerDetails.Read(session.View, texts, 1);
-        Assert.Equal(new[] { 6, 4, 6, 6 }, detail.Fields.Select(c => c.Length));
+        Assert.Equal(new[] { 6, 5, 6, 6 }, detail.Fields.Select(c => c.Length));
         Assert.Equal(new[] { "性别", "性格", "相性", "父母", "年龄", "健康" }, detail.Fields[2].Select(f => f.Label));
         Assert.Equal(session.View.World.Officers.Single(o => o.Id == 1).Affinity.ToString(), detail.Fields[2][2].Value);
         Assert.Equal(session.View.Officers.Single(o => o.Id == 1).Abilities, detail.RadarAbilities);

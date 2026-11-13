@@ -7,6 +7,218 @@ namespace San9.Core.Tests;
 
 public sealed class MilitaryMovementTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MixedDeploymentRequiresCommanderKnowledgeInsteadOfFormationResearch(bool knows)
+    {
+        var definition = new MilitaryDefinition(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(),
+            [new(0, 1, null)], [new(7, 1, 50, 10000, 5, new(1, 1), TravelMode.Land)
+                { IsCommon = false, MixedTroopsOnly = true, ResearchProjectId = "old-formation" }],
+            [new(1, new(2, 7), new(1, 1)), new(2, new(37, 7), new(1, 1))])
+        {
+            TroopTypes = [new(1, "枪兵", 1, ImmutableDictionary<int, int>.Empty)],
+            ResearchProjects = [new("old-formation", 100, 30, [])]
+        };
+        var rules = new MilitaryRulebook(definition);
+        var original = Engine(World(), rules).Snapshot;
+        var enabled = original with
+        {
+            Simulation = original.Simulation with { NewGame = original.Simulation.NewGame with { MixedTroopsEnabled = true } },
+            Officers = original.Officers.Select(o => o.Id == 11 ? o with
+            { FormationProficiencies = knows ? ImmutableSortedDictionary<int, int>.Empty.Add(7, 250) : ImmutableSortedDictionary<int, int>.Empty } : o).ToArray()
+        };
+        var engine = Engine(WorldState.Restore(enabled), rules);
+        var command = new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 400, 7,
+            new(MilitaryOrderKind.Move, new(32, 7), null))
+        { Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(11, new(1, 1, 400)) };
+        var result = engine.Execute(Player, command);
+        Assert.Equal(knows, result.Submission.Accepted);
+        if (!knows) Assert.Equal(CommandRejection.MissingFormationTactic, result.Submission.Rejection);
+    }
+
+    [Fact]
+    public void MixedDeploymentRequiresResearchAndPreservesAllocatedSoldiers()
+    {
+        var definition = new MilitaryDefinition(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(),
+            [new(0, 1, null)], [new(7, 1, 50, 10000, 5, new(1, 1), TravelMode.Land)],
+            [new(1, new(2, 7), new(1, 1)), new(2, new(37, 7), new(1, 1))])
+        {
+            TroopTypes = [new(1, "枪兵", 2, ImmutableDictionary<int, int>.Empty)
+                { LevelResearchProjects = new Dictionary<int, string> { [2] = "advanced" }.ToImmutableDictionary() }],
+            ResearchProjects = [new("advanced", 100, 1, [])]
+        };
+        var rules = new MilitaryRulebook(definition);
+        var original = Engine(World(), rules).Snapshot;
+        var enabled = original with { Simulation = original.Simulation with
+            { NewGame = original.Simulation.NewGame with { MixedTroopsEnabled = true } } };
+        var engine = Engine(WorldState.Restore(enabled), rules);
+        var command = new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 400, 7,
+            new(MilitaryOrderKind.Move, new(32, 7), null))
+        { Detachments = new Dictionary<int, DetachmentState> { [11] = new(1, 2, 400) }.ToImmutableDictionary() };
+        Assert.Equal(CommandRejection.InvalidTask, engine.Execute(Player, command).Submission.Rejection);
+        var ready = enabled with { Forces = enabled.Forces.Select(force => force with { CompletedResearch = ["advanced"] }).ToArray() };
+        engine = Engine(WorldState.Restore(ready), rules);
+        Assert.True(engine.Execute(Player, command).Submission.Accepted);
+        var unit = Assert.Single(engine.Snapshot.Units);
+        Assert.Equal(400u, unit.Detachments[11].Soldiers);
+        Assert.Equal((long)unit.Soldiers, unit.Detachments.Values.Sum(detachment => (long)detachment.Soldiers));
+    }
+
+    [Fact]
+    public void ResupplyDrawsFromReserveWithoutWaitingForAnotherDay()
+    {
+        var definition = new MilitaryDefinition(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(),
+            [new(0, 1, null)], [new(7, 1, 0, 10000, 5, new(1, 1), TravelMode.Land)],
+            [new(1, new(2, 7), new(1, 1)), new(2, new(37, 7), new(1, 1))])
+        {
+            RegionIds = Enumerable.Repeat<int?>(1, 24).ToImmutableArray(),
+            TroopTypes = [new(1, "枪兵", 1, ImmutableDictionary<int, int>.Empty)],
+            ResearchProjects = [new("research", 100, 30, [])],
+            Armaments = [new("spear", "铁矛", ArmamentSlot.Weapon, [1], 10, 0, 100, null)]
+        };
+        var rules = new MilitaryRulebook(definition);
+        var initial = Engine(World(), rules).Snapshot;
+        var engine = Engine(WorldState.Restore(initial with
+        {
+            Simulation = initial.Simulation with { NewGame = initial.Simulation.NewGame with { MixedTroopsEnabled = true } },
+            Forces = initial.Forces.Select(force => force with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("spear", 100) }).ToArray()
+        }), rules);
+        var deploy = new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 1000, 7, new(MilitaryOrderKind.Move, new(32, 7), null))
+        { Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(11, new(1, 1, 1000) { Weapon = new("spear", 100, 1000, 0) }) };
+        Assert.True(engine.Execute(Player, deploy).Submission.Accepted);
+        var snapshot = engine.CaptureStableState();
+        engine = Engine(WorldState.Restore(snapshot with { Forces = snapshot.Forces.Select(force => force with
+            { ArmamentInventory = null, ArmamentReserve = ImmutableDictionary<string, ulong>.Empty.Add("spear", 300) }).ToArray() }), rules);
+        var command = new ResupplyUnitArmamentsCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, Assert.Single(engine.Snapshot.Units).Id);
+        Assert.Equal(300u, Assert.Single(engine.Preview(Player, command).ArmamentResupply).Sets);
+        Assert.True(engine.Execute(Player, command).Submission.Accepted);
+        Assert.Equal(400u, engine.Snapshot.Units.Single().Detachments[11].Weapon!.RemainingSets);
+        Assert.Null(engine.Snapshot.Forces.Single().ArmamentReserve);
+    }
+
+    [Fact]
+    public void ResupplyUsesRealStockOnceAndPreservesDetachmentStrength()
+    {
+        var definition = new MilitaryDefinition(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(),
+            [new(0, 1, null)], [new(7, 1, 0, 10000, 5, new(1, 1), TravelMode.Land)],
+            [new(1, new(2, 7), new(1, 1)), new(2, new(37, 7), new(1, 1))])
+        {
+            RegionIds = Enumerable.Repeat<int?>(1, 24).ToImmutableArray(),
+            TroopTypes = [new(1, "枪兵", 1, ImmutableDictionary<int, int>.Empty)],
+            ResearchProjects = [new("research", 100, 30, [])],
+            Armaments = [new("spear", "铁矛", ArmamentSlot.Weapon, [1], 10, 0, 100, null),
+                new("armor", "皮甲", ArmamentSlot.Armor, [], 0, 5, 100, null),
+                new("sword", "环首刀", ArmamentSlot.Weapon, [1], 5, 0, 100, null)]
+        };
+        var rules = new MilitaryRulebook(definition);
+        var initial = Engine(World(), rules).Snapshot;
+        var prepared = initial with
+        {
+            Simulation = initial.Simulation with { NewGame = initial.Simulation.NewGame with { MixedTroopsEnabled = true } },
+            Forces = initial.Forces.Select(force => force with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("spear", 800).Add("armor", 400).Add("sword", 200) }).ToArray()
+        };
+        var engine = Engine(WorldState.Restore(prepared), rules);
+        var deploy = new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 1000, 7, new(MilitaryOrderKind.Move, new(32, 7), null))
+        { Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(11, new(1, 1, 1000) { Weapon = new("spear", 500, 1000, 0) }) };
+        Assert.True(engine.Execute(Player, deploy).Submission.Accepted);
+        int unitId = Assert.Single(engine.Snapshot.Units).Id;
+        var restored = WorldState.Restore(engine.CaptureStableState());
+        var mutation = restored.BeginMutation();
+        mutation.Replace(mutation.Units[unitId] with { Soldiers = 800 });
+        var place = mutation.Settlements[1];
+        mutation.Replace(place with { OwnerId = null });
+        List<DomainEvent> deniedEvents = [];
+        var denied = new ResupplyUnitArmamentsCommand(Guid.NewGuid(), 1, mutation.Simulation.NextSequence, unitId);
+        Assert.Equal(CommandRejection.InvalidTask, ArmamentResupply.Execute(mutation, denied, rules, deniedEvents));
+        Assert.Empty(deniedEvents);
+        Assert.Equal(300u, mutation.Forces[1].ArmamentInventory!["spear"]);
+        Assert.Equal(400u, mutation.Units[unitId].Detachments[11].Weapon!.RemainingSets);
+        mutation.Replace(place);
+        restored.Commit(mutation);
+        engine = Engine(restored, rules);
+        var command = new ResupplyUnitArmamentsCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, unitId);
+        var beforePreview = engine.Snapshot;
+        var preview = engine.Preview(Player, command);
+        Assert.Equal(CommandRejection.None, preview.Rejection);
+        Assert.Equal(300u, Assert.Single(preview.ArmamentResupply).Sets);
+        StateAssert.Equal(beforePreview, engine.Snapshot);
+        var result = engine.Execute(Player, command);
+        Assert.True(result.Submission.Accepted);
+        Assert.Equal(300u, Assert.Single(Assert.Single(result.Events.OfType<UnitArmamentsResuppliedEvent>()).Lines).Sets);
+        Assert.Equal(700u, engine.Snapshot.Units.Single().Detachments[11].Weapon!.RemainingSets);
+        Assert.Equal(800u, engine.Snapshot.Units.Single().Soldiers);
+        Assert.False(engine.Snapshot.Forces.Single().ArmamentInventory!.ContainsKey("spear"));
+        var repeated = command with { CommandId = Guid.NewGuid(), Sequence = engine.Snapshot.Simulation.NextSequence };
+        Assert.Equal(CommandRejection.InvalidTask, engine.Execute(Player, repeated).Submission.Rejection);
+        Assert.Equal(700u, WorldState.Restore(engine.CaptureStableState()).CreateSnapshot().Units.Single().Detachments[11].Weapon!.RemainingSets);
+        var configure = new ConfigureUnitArmamentCommand(Guid.NewGuid(), 1, engine.Snapshot.Simulation.NextSequence, unitId, 11, ArmamentSlot.Armor, "armor");
+        Assert.True(engine.Execute(Player, configure).Submission.Accepted);
+        Assert.Equal(400u, engine.Snapshot.Units.Single().Detachments[11].Armor!.RemainingSets);
+        Assert.Equal(200u, engine.Snapshot.Forces.Single().ArmamentInventory!["sword"]);
+        var remove = configure with { CommandId = Guid.NewGuid(), Sequence = engine.Snapshot.Simulation.NextSequence, DefinitionId = null };
+        Assert.True(engine.Execute(Player, remove).Submission.Accepted);
+        Assert.Null(engine.Snapshot.Units.Single().Detachments[11].Armor);
+        Assert.Equal(400u, engine.Snapshot.Forces.Single().ArmamentInventory!["armor"]);
+        var replace = configure with { CommandId = Guid.NewGuid(), Sequence = engine.Snapshot.Simulation.NextSequence,
+            Slot = ArmamentSlot.Weapon, DefinitionId = "sword" };
+        var beforeChange = engine.Snapshot;
+        Assert.Equal(CommandRejection.None, engine.Preview(Player, replace).Rejection);
+        StateAssert.Equal(beforeChange, engine.Snapshot);
+        Assert.True(engine.Execute(Player, replace).Submission.Accepted);
+        Assert.Equal(200u, engine.Snapshot.Units.Single().Detachments[11].Weapon!.RemainingSets);
+        Assert.Equal(700u, engine.Snapshot.Forces.Single().ArmamentInventory!["spear"]);
+        var same = replace with { CommandId = Guid.NewGuid(), Sequence = engine.Snapshot.Simulation.NextSequence };
+        Assert.Equal(CommandRejection.InvalidTask, engine.Execute(Player, same).Submission.Rejection);
+        var bad = same with { CommandId = Guid.NewGuid(), DefinitionId = "armor" };
+        var beforeBad = engine.Snapshot;
+        Assert.Equal(CommandRejection.InvalidTask, engine.Execute(Player, bad).Submission.Rejection);
+        StateAssert.Equal(beforeBad, engine.Snapshot);
+        var basic = same with { CommandId = Guid.NewGuid(), DefinitionId = null };
+        Assert.True(engine.Execute(Player, basic).Submission.Accepted);
+        Assert.Equal(200u, engine.Snapshot.Forces.Single().ArmamentInventory!["sword"]);
+        Assert.Null(engine.Snapshot.Units.Single().Detachments[11].Weapon);
+    }
+
+    [Fact]
+    public void PreparedMixedDeploymentsReserveStockAndDeductOnlyOnCommit()
+    {
+        var definition = new MilitaryDefinition(8, 3, Enumerable.Repeat(0, 24).ToImmutableArray(),
+            [new(0, 1, null)], [new(7, 1, 50, 10000, 5, new(1, 1), TravelMode.Land)],
+            [new(1, new(2, 7), new(1, 1)), new(2, new(37, 7), new(1, 1))])
+        {
+            TroopTypes = [new(1, "枪兵", 1, ImmutableDictionary<int, int>.Empty)],
+            ResearchProjects = [new("research", 100, 1, [])],
+            Armaments = [new("spear", "铁矛", ArmamentSlot.Weapon, [1], 10, 0, 100, null)]
+        };
+        var rules = new MilitaryRulebook(definition);
+        var original = Engine(World(), rules).Snapshot;
+        var ready = original with
+        {
+            Simulation = original.Simulation with { NewGame = original.Simulation.NewGame with { MixedTroopsEnabled = true } },
+            Officers = [.. original.Officers, original.Officers[0] with { Id = 12 }],
+            Forces = original.Forces.Select(f => f with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("spear", 300) }).ToArray()
+        };
+        var engine = Engine(WorldState.Restore(ready), rules);
+        var first = new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1, [11], 400, 7, new(MilitaryOrderKind.Move, new(32, 7), null))
+        { Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(11, new(1, 1, 400) { Weapon = new("spear", 200, 400, 0) }) };
+        var second = first with { CommandId = Guid.NewGuid(), OfficerIds = [12],
+            Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(12, new(1, 1, 400) { Weapon = new("spear", 200, 400, 0) }) };
+        var plan = engine.PrepareDeployments(Player);
+        Assert.Equal(CommandRejection.None, plan.TryPrepare(first, out var prepared));
+        Assert.Equal(CommandRejection.InvalidTask, plan.TryPrepare(second, out _));
+        Assert.Equal(300u, engine.Snapshot.Forces.Single(f => f.Id == 1).ArmamentInventory!["spear"]);
+        Assert.True(engine.Execute(Player, first, prepared!).Submission.Accepted);
+        Assert.Equal(100u, engine.Snapshot.Forces.Single(f => f.Id == 1).ArmamentInventory!["spear"]);
+        Assert.Equal(200u, engine.Snapshot.Units.Single().Detachments[11].Weapon!.RemainingSets);
+        var mutation = WorldState.Restore(engine.CaptureStableState()).BeginMutation();
+        var officer = mutation.Officers[11];
+        mutation.Replace(officer with { UnitId = null, SettlementId = 1 });
+        Assert.Equal(300u, mutation.Forces[1].ArmamentInventory!["spear"]);
+        mutation.Replace(mutation.Officers[11]);
+        Assert.Equal(300u, mutation.Forces[1].ArmamentInventory!["spear"]);
+    }
+
     private static WorldState DeploymentPlanningWorld(uint money)
     {
         var snapshot = Engine(World(), Rules()).Snapshot;

@@ -7,7 +7,10 @@ public sealed record ArrivalEstimate(ArrivalEstimateStatus Status, int? Days = n
 
 /// <summary>Navigation inputs for a prospective deployment; no command or world identity is allocated.</summary>
 public sealed record DeploymentArrivalRequest(int SettlementId, int FormationId, int? NavalFormationId,
-    MilitaryOrder Order, UnitPolicies Policies, int DepartureDelayDays = 0, WorldPosition? Waypoint = null, uint Soldiers = 1);
+    MilitaryOrder Order, UnitPolicies Policies, int DepartureDelayDays = 0, WorldPosition? Waypoint = null, uint Soldiers = 1)
+{
+    public int? SiegeEquipmentId { get; init; }
+}
 
 /// <summary>Estimates current-route travel time without simulating future movement, combat or command changes.</summary>
 public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRulebook rules,
@@ -29,7 +32,8 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
         var home = snapshot.Settlements.FirstOrDefault(s => s.Id == request.SettlementId);
         if (home is not { OwnerId: int owner, CanHostPersons: true, IsDestroyed: false, IsDormant: false } || home.Durability == 0 ||
             request.DepartureDelayDays is < 0 or > 9 || request.Policies is null || request.Order is null ||
-            !request.Order.IsValid || !rules.Formations.ContainsKey(request.FormationId) || !rules.AllowsOrder(request.FormationId,request.Order))
+            !request.Order.IsValid || !rules.Formations.ContainsKey(request.FormationId) || !rules.AllowsOrder(request.FormationId,request.Order) ||
+            request.SiegeEquipmentId is int siege && !rules.SiegeEquipment.ContainsKey(siege))
             return new(ArrivalEstimateStatus.NotApplicable);
         int? naval = request.NavalFormationId ?? rules.NavalFormationForDeployment(request.FormationId);
         if (!rules.ValidUnitFormations(request.FormationId, naval) || !rules.TryPlace(home, out var place))
@@ -52,6 +56,7 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
         var unit = new UnitState((int)snapshot.Simulation.NextUnitId, owner, start.Value, request.Soldiers)
         {
             FormationId = request.FormationId, NavalFormationId = naval, Order = request.Order, Policies = request.Policies,
+            SiegeEquipmentId = request.SiegeEquipmentId,
             DepartureDaysRemaining = request.DepartureDelayDays, Waypoint = request.Waypoint, ServicePlaceId = home.Id,
             Morale = home.Morale
         };
@@ -86,5 +91,5 @@ public sealed class MilitaryArrivalForecast(WorldSnapshot snapshot, MilitaryRule
     private bool Valid(IWorldQuery world, UnitState unit) => unit.EffectiveOrder is { } order &&
         (order.Construction is not null
             ? regionCities is not null && treasures is not null && FacilityConstruction.CanContinue(world, unit, rules, regionCities, treasures)
-            : MilitaryMovement.ValidOrder(world, unit.OwnerId, order, rules.Formations[unit.FormationId!.Value], rules, unit.NavalFormationId, unit.Soldiers));
+            : MilitaryMovement.ValidOrder(world, unit.OwnerId, order, rules.Formations[unit.FormationId!.Value], rules, unit.NavalFormationId, unit.Soldiers, unit.SiegeEquipmentId));
 }

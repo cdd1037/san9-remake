@@ -65,10 +65,26 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
     [JsonRequired] public FormationCatalogDefinition[] Formations { get; init; } = [];
     [JsonRequired] public CountryTitleDefinition[] CountryTitles { get; init; } = [];
     [JsonRequired] public ForceRelation[] Relations { get; init; } = [];
+    public ImmutableArray<EquipmentDefinition> Equipment { get; init; } = [];
     public static InformationDefinitions Empty => new([], [], [], [], []);
-    public InformationDefinitions Copy() => new(Ranks.ToArray(), Offices.ToArray(), Treasures.ToArray(), Corps.ToArray(), TreasureStates.ToArray()) { ShowOfficerAges = ShowOfficerAges, MapContextExcludedFacilityIds = MapContextExcludedFacilityIds, Relations = Relations.ToArray(), CountryTitles = CountryTitles.ToArray(), Tactics = Tactics.ToArray(), Formations = Formations.ToArray() };
+    public InformationDefinitions Copy() => new(Ranks.ToArray(), Offices.ToArray(), Treasures.ToArray(), Corps.ToArray(), TreasureStates.ToArray()) { ShowOfficerAges = ShowOfficerAges, MapContextExcludedFacilityIds = MapContextExcludedFacilityIds, Relations = Relations.ToArray(), CountryTitles = CountryTitles.ToArray(), Tactics = Tactics.ToArray(), Formations = Formations.ToArray(), Equipment = Equipment };
     public void Validate(ScenarioInitialState scenario)
     {
+        try
+        {
+            if (Equipment.IsDefault) throw new ArgumentException("Missing equipment catalog.");
+            _ = new EquipmentRulebook(Equipment);
+            if (Equipment.Any(e => e.LegacyTreasureId is int id && !Treasures.Any(t => t.Id == id)))
+                throw new ArgumentException("Unknown legacy treasure reference.");
+            if (Tactics is null || Equipment.Any(e => e.TacticId is int id && !Tactics.Any(t => t is not null && t.Id == id)))
+                throw new ArgumentException("Unknown equipment tactic reference.");
+            if (Equipment.Any(e => e.PurchaseResearchProjectId is string project &&
+                project != EquipmentPreset.ResearchId && scenario.Military?.ResearchProjects.Any(r => r.Id == project) != true))
+                throw new ArgumentException("Unknown equipment purchase research reference.");
+            if (scenario.Military is { } military && Treasures.Any(e => e.TacticId is int id && !military.Tactics.Any(t => t.Id == id)))
+                throw new ArgumentException("Unknown treasure tactic reference.");
+        }
+        catch (ArgumentException error) { throw new InvalidDataException("Invalid equipment catalog.", error); }
         if (MapContextExcludedFacilityIds.IsDefault ||
             MapContextExcludedFacilityIds.Distinct().Count() != MapContextExcludedFacilityIds.Length ||
             MapContextExcludedFacilityIds.Any(id => scenario.Military?.Facilities.Any(f => f.Id == id) != true))
@@ -135,7 +151,7 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
         if (Ranks.Any(r => string.IsNullOrWhiteSpace(r.Name) || r.Description is null || r.RequiredTrust < 0 || r.LoyaltyBonus < 0 || r.Precedence < 0) ||
             Offices.Any(o => string.IsNullOrWhiteSpace(o.Name) || o.Description is null || o.Salary < 0 || o.GovernorPriority < 0 ||
                 !Enum.IsDefined(o.AppointmentGroup) || !o.AbilityBonuses.IsNonnegative || o.RequiredRankId is int rank && !Ranks.Any(r => r.Id == rank)) ||
-            Treasures.Any(t => string.IsNullOrWhiteSpace(t.NameKey) || t.Category is < 0 or > 12 || !Enum.IsDefined(t.RetentionGroup) || t.AbilityBonus < 0 || !t.AbilityBonuses.IsNonnegative || t.LoyaltyBonus < 0 ||
+            Treasures.Any(t => string.IsNullOrWhiteSpace(t.NameKey) || t.Category < 0 || !Enum.IsDefined(t.RetentionGroup) || t.AbilityBonus < 0 || !t.AbilityBonuses.IsNonnegative || t.LoyaltyBonus < 0 ||
                 t.FavoredOwnerIds.IsDefault || t.FavoredOwnerIds.Distinct().Count() != t.FavoredOwnerIds.Length ||
                 t.FavoredOwnerIds.Any(id => !scenario.Officers.Any(o => o.State.Id == id))) ||
             Treasures.Any(t => !TreasureStates.Any(state => state.Id == t.Id)) ||

@@ -40,6 +40,7 @@ public sealed class ImportOperationTests : IDisposable
     [Fact]
     public async Task FingerprintsIgnoreTouchButDetectEqualLengthEditsWithPreservedTime()
     {
+        Assert.False(await TexturePackageImporter.SourcesMatchAsync(_root, []));
         string file = Path.Combine(_root, "source.s9");
         await File.WriteAllBytesAsync(file, [1, 2, 3]);
         var stamp = new TextureSourceStamp("source.s9", 3, Convert.ToHexString(SHA256.HashData(new byte[] { 1, 2, 3 })));

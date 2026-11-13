@@ -20,10 +20,27 @@ public sealed partial class SimulationEngine
         try
         {
             var mutation = BeginMutation();
+            var editedRelations = new Dictionary<(int First, int Second), int>();
             foreach (var edit in edits)
             {
                 switch (edit)
                 {
+                    case ForceEdit force when kind == WorldEditorKind.Forces:
+                        if (force.BaseTrust is < 0 or > 1000 || force.ColorCode is < 0 or > 50 || force.Relations.IsDefault ||
+                            force.Relations.Any(r => r is null || r.FirstId >= r.SecondId || r.Value is < 0 or > 100 ||
+                                r.FirstId != force.Id && r.SecondId != force.Id || !mutation.Forces.ContainsKey(r.FirstId) || !mutation.Forces.ContainsKey(r.SecondId)) ||
+                            force.Relations.Select(r => (r.FirstId, r.SecondId)).Distinct().Count() != force.Relations.Length)
+                            throw new ArgumentException("Invalid force edit.");
+                        mutation.Replace(mutation.Forces[force.Id] with { BaseTrust = force.BaseTrust, ColorCode = force.ColorCode });
+                        foreach (var relation in force.Relations)
+                        {
+                            var pair = (relation.FirstId, relation.SecondId);
+                            if (editedRelations.TryGetValue(pair, out int value) && value != relation.Value)
+                                throw new ArgumentException("Conflicting force relationship edits.");
+                            editedRelations[pair] = relation.Value;
+                            mutation.SetRelation(relation);
+                        }
+                        break;
                     case OfficerEdit p when kind == WorldEditorKind.Officers:
                         var person = mutation.Officers[p.Id];
                         if (ChangedOutside(p.Abilities.War, person.BaseAbilities.War, OfficerGrowthRules.MinimumEditableAbility, OfficerGrowth.MaximumBaseAbility) ||
@@ -114,6 +131,7 @@ public static class WorldEditing
             WorldEditorKind.Cities => world.Settlements.Where(s => Available(s) && s.Kind == SettlementKind.City && s.OwnerId is not null).Select(s => s.Id).Order().ToArray(),
             WorldEditorKind.Facilities => world.Settlements.Where(s => Available(s) && s.Kind == SettlementKind.Facility && s.CanHostPersons && s.OwnerId is not null).Select(s => s.Id).Order().ToArray(),
             WorldEditorKind.Obstacles => world.Settlements.Where(s => Available(s) && s.Kind == SettlementKind.Facility && !s.CanHostPersons).Select(s => s.Id).Order().ToArray(),
+            WorldEditorKind.Forces => world.Forces.Where(f => !f.IsDormant && !f.IsEliminated).Select(f => f.Id).Order().ToArray(),
             _ => []
         };
     }

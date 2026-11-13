@@ -11,7 +11,7 @@ public sealed record EconomicOutlook(ResourceOutlook Money, ResourceOutlook Food
     /// <summary>Static current-state estimate to the next quarterly revenue / July harvest.
     /// Each account retains its own capacity and shortage floor. No simulation or RNG is advanced.</summary>
     public static EconomicOutlook Read(WorldSnapshot world, IReadOnlyDictionary<int, int> salaries, int forceId,
-        CompanionSettings companion, int? corpsId = null)
+        CompanionSettings companion, int? corpsId = null, PersonalPeeragePolicy? peerages = null)
     {
         var force = world.Forces.Single(f => f.Id == forceId && !f.IsDormant && !f.IsEliminated);
         var rates = EconomicIncomeRates.ForForce(world.Simulation, force, companion);
@@ -22,9 +22,11 @@ public sealed record EconomicOutlook(ResourceOutlook Money, ResourceOutlook Food
         int Account(int? id) => id ?? rootAccount;
         var places = query.Settlements.Values.Where(s => !s.IsDestroyed && s.OwnerId == forceId)
             .ToLookup(s => Account(s.CorpsId));
-        var payroll = query.Officers.Values.Where(o => o.IsServing && o.Status != OfficerStatus.Ruler && o.OwnerId == forceId)
+        peerages ??= PersonalPeeragePolicy.Default;
+        var payroll = query.Officers.Values.Where(o => o.IsServing && o.OwnerId == forceId)
             .ToLookup(o => Account(PersonnelLocations.Corps(query, o)),
-                o => (long)(o.OfficeId is int office && salaries.TryGetValue(office, out int amount) ? amount : 1));
+                o => (long)(o.Status == OfficerStatus.Ruler ? 0 : o.OfficeId is int office && salaries.TryGetValue(office, out int amount) ? amount : 1)
+                    + (world.Simulation.NewGame.PersonalPeerageEnabled == false ? 0 : peerages.Salary(o.PersonalPeerage)));
         int[] accounts = corpsId is int selected ? [selected] : [.. corps.Keys];
         int dayOfYear = (world.Clock.Month - 1) * 30 + world.Clock.Day - 1;
         int moneyDays = 90 - dayOfYear % 90;

@@ -43,7 +43,7 @@ public static class MilitaryContentCompiler
             {
                 FacilityTypeId = facility.Id,
                 EnabledTacticIds = enabledTactics[s.Id],
-                Combat = facility.Combat, Attack = s.CanHostPersons ? new(10, false) { ElevationBonusPerLevel = 5, MaximumElevationBonus = 10 } : null, DestroyedAtZeroDurability = destroyed,
+                Combat = facility.Combat, Attack = s.CanHostPersons ? new(10, false) { IsRangedAttack = true, ElevationBonusPerLevel = 5, MaximumElevationBonus = 10 } : null, DestroyedAtZeroDurability = destroyed,
                 WoundedRecovery = recovery, CanDemolish = demolishable
             };
         }).ToImmutableArray();
@@ -57,6 +57,9 @@ public static class MilitaryContentCompiler
                         .Select((minimum, index) => new SoldierFootprint(minimum, new(index + 5, index + 5))).ToImmutableArray() : [],
                     Vision = f.Id == 27 ? null : new(checked(f.VisionRadius * MapCoordinates.UnitsPerCell), f.VisionAngleDegrees),
                     IsCommon = f.Id is >= 0 and <= 11 or >= 20 and <= 23,
+                    SupportsSpearDefense = f.Id == 7,
+                    SupportsShieldCover = f.Id == 7,
+                    SupportsSpearBowSynergy = f.Id == 4,
                     Tactics = f.Id is 13 or 14 or 24 or 25 or 27 ? null : new(15,
                         f.Id == 2 ? 3 : 2,
                         Enumerable.Range(0, 4).Where(category => Favored(f.Id, category)).ToImmutableArray(),
@@ -91,6 +94,12 @@ public static class MilitaryContentCompiler
                             ? new FormationPosition(position.Column, (BattleRank)position.Row)
                             : throw new InvalidDataException("Missing formation member position.")).ToImmutableArray() }).ToImmutableArray(), places)
         {
+            TroopTypes = MixedTroopPreset.TroopTypes([0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]),
+            Armaments = ArmamentPreset.Basic(),
+            NavalTraining = MixedTroopPreset.NavalTraining(31, 32, 33, 34),
+            SiegeEquipment = MixedTroopPreset.SiegeEquipment(8, 9, 10, 11),
+            MixedTroopCombat = MixedTroopPreset.Combat(),
+            ResearchProjects = MixedTroopPreset.TroopResearchProjects(),
             BasicNavalFormationId = BasicNavalFormationId,
             CompanionCombat = new(new(2, 5), new(5, 4),
                 [new(21, [12, 14]), new(22, [13, 14]), new(23, [14])], new(5, [8, 9, 10, 11]), [8], 28),
@@ -119,7 +128,44 @@ public static class MilitaryContentCompiler
                 new(30000, 8), new(40000, 9), new(50000, 10)],
             BlockedCells = squares.Where(s => s.IsPathBlocked).Select(s => new MapCell(s.GridX, s.GridY)).ToImmutableArray()
         };
+        definition = AddMixedTroopFormations(definition);
         _ = new MilitaryRulebook(definition);
+        return definition;
+    }
+
+    public static MilitaryDefinition AddMixedTroopFormations(MilitaryDefinition definition)
+    {
+        var addedFormations = new[]
+        {
+            (Id: 28, BaseId: 7, Research: "formation-yanyue"),
+            (Id: 29, BaseId: 4, Research: "formation-henge"),
+            (Id: 30, BaseId: 1, Research: "formation-gouxing"),
+            (Id: 31, BaseId: 2, Research: "formation-chexuan")
+        };
+        definition = definition with
+        {
+            Formations = definition.Formations.Select(formation => formation with
+            {
+                ResearchProjectId = formation.Id switch
+                {
+                    8 => "siege-tower", 9 => "siege-ram", 10 => "siege-stone", 11 => "siege-elephant",
+                    21 => "naval-mengchong", 22 => "naval-louchuan", 23 => "naval-doujian", _ => null
+                }
+            }).ToImmutableArray().AddRange(addedFormations.Select(item =>
+                definition.Formations.Single(f => f.Id == item.BaseId) with
+                {
+                    Id = item.Id, MixedTroopsOnly = true, ResearchProjectId = item.Research,
+                    Positions = MixedTroopPreset.FormationPositions(item.Id - 28),
+                    SupportsSpearDefense = item.Id == 28,
+                    SupportsShieldCover = item.Id == 28,
+                    SupportsSpearBowSynergy = item.Id is 28 or 29
+                })),
+            Tactics = definition.Tactics.Select(tactic => tactic with
+            {
+                CompatibleFormations = tactic.CompatibleFormations.AddRange(addedFormations
+                    .Where(item => tactic.CompatibleFormations.Contains(item.BaseId)).Select(item => item.Id))
+            }).ToImmutableArray()
+        };
         return definition;
     }
 
@@ -142,7 +188,8 @@ public static class MilitaryContentCompiler
         }, t.Power, t.MinimumInterval, t.TrainingRequirement, t.Id is <= 11 or >= 21 and <= 30,
             t.AffectsFacilities, Enumerable.Range(0, San9ScenarioFormationArchive.RecordCount)
                 .Where(t.SupportsArrayType).ToImmutableArray())
-            { EffectRadius = t.Id is 26 or 29 or 30 ? 3 : 0, ContactRange = t.Id is >= 0 and <= 5 ? 5 : null,
+            { IsRangedAttack = t.Id is >= 6 and <= 11 or 31 or 32,
+                EffectRadius = t.Id is 26 or 29 or 30 ? 3 : 0, ContactRange = t.Id is >= 0 and <= 5 ? 5 : null,
                 CanRescuePrisoners = t.Id is >= 0 and <= 5 or 33 or 34,
                 SnipingProficiencyCategory = t.Id is >= 6 and <= 11 or 31 or 32 ? 3 : null,
                 FacilityAttack = t.Id switch { 39 => new(true, 0), 40 => new(false, 5), _ => null } }).ToImmutableArray();

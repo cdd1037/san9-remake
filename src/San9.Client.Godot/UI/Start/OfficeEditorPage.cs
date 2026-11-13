@@ -16,7 +16,7 @@ public partial class OfficeEditorPage : SharedCatalogEditorPage
             CanDelete = Workspace.IsCreatedOffice, EntryName = id => Workspace.GetOffice(id).Name,
             Create = async (id, token) => (await Workspace.CreateOfficeAsync(id, token)).Id,
             Delete = Workspace.DeleteOfficeAsync, Select = SelectEntry,
-            SuccessMessage = "已更新共享官职草稿，尚未保存；符合爵位条件后可供玩家及电脑任命。"
+            SuccessMessage = "已更新共享官职草稿，尚未保存；符合势力官爵条件后可供玩家及电脑任命。"
         };
         sidebar.AddChild(_actions);
     }
@@ -54,10 +54,10 @@ public partial class OfficeEditorPage : SharedCatalogEditorPage
         var requirements = Section("任命条件");
         var ranks = Workspace.Ranks.OrderBy(r => r.Precedence).ToArray();
         List<int?> rankIds = [null, .. ranks.Select(r => (int?)r.Id)];
-        List<string> names = ["无爵位要求", .. ranks.Select(r => r.Name)];
+        List<string> names = ["无势力官爵要求", .. ranks.Select(r => r.Name)];
         int selected = rankIds.IndexOf(office.RequiredRankId);
-        if (selected < 0) { selected = rankIds.Count; rankIds.Add(office.RequiredRankId); names.Add($"缺失爵位 {office.RequiredRankId}"); }
-        Choice(requirements, "所需爵位", names, selected, v => Edit(id, p => p with { RequiredRankId = rankIds[v] }));
+        if (selected < 0) { selected = rankIds.Count; rankIds.Add(office.RequiredRankId); names.Add($"缺失势力官爵 {office.RequiredRankId}"); }
+        Choice(requirements, "所需势力官爵", names, selected, v => Edit(id, p => p with { RequiredRankId = rankIds[v] }));
         Toggle(Form, "优先于普通官职分配", office.FillBeforeOrdinaryOffices, v => Edit(id, p => p with { FillBeforeOrdinaryOffices = v }));
     }
 }

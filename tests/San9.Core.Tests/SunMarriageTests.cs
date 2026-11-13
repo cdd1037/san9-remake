@@ -107,6 +107,84 @@ public sealed class SunMarriageTests
     }
 
     [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void FieldRulerMarriagePreservesSoldiersAndAddsDetachmentWhenCapacityAllows(int capacity)
+    {
+        var baseRules = Rules();
+        var military = new MilitaryRulebook(new MilitaryDefinition(10, 1, Enumerable.Repeat(0, 10).ToImmutableArray(),
+            [new(0, 1, null)], [new(1, 5, 0, 10000, capacity, new(1, 1), TravelMode.Land)],
+            Enumerable.Range(1, 4).Select(id => new BattlefieldPlace(id, new(id * 5 + 2, 2), new(1, 1))).ToImmutableArray())
+        { TroopTypes = [new(1, "枪兵", 1, ImmutableDictionary<int, int>.Empty)] });
+        var rules = new SimulationRules { SunMarriage = Definition(), Treasures = baseRules.Treasures,
+            Personnel = baseRules.Personnel, Military = military };
+        var state = World();
+        var world = state.BeginMutation(rules.Abilities);
+        world.SetSimulation(world.Simulation with { NextUnitId = 51,
+            NewGame = world.Simulation.NewGame with { MixedTroopsEnabled = true } });
+        world.AddUnit(new(50, 1, new(12, 2), 1000)
+        {
+            FormationId = 1, ServicePlaceId = null,
+            MemberPositions = ImmutableDictionary<int, FormationPosition>.Empty.Add(11, new(0, BattleRank.Front)),
+            Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(11, new(1, 1, 1000))
+        });
+        world.Replace(world.Officers[11] with { SettlementId = null, UnitId = 50 });
+        List<DomainEvent> events = [];
+        if (capacity == 1)
+        {
+            Assert.False(SunMarriage.Apply(world, rules, events));
+            Assert.Empty(events.OfType<SunMarriageEvent>());
+            Assert.Equal(1000u, world.Units[50].Soldiers);
+            state.Commit(world);
+            return;
+        }
+        Assert.True(SunMarriage.Apply(world, rules, events));
+        Assert.Equal(50, world.Officers[22].UnitId);
+        Assert.Equal(1000u, world.Units[50].Soldiers);
+        Assert.Equal(1000L, world.Units[50].Detachments.Values.Sum(detachment => (long)detachment.Soldiers));
+        Assert.Equal(capacity == 2, world.Units[50].Detachments.ContainsKey(22));
+        if (capacity == 2) Assert.True(world.Units[50].MemberPositions.ContainsKey(22));
+        Assert.Single(events.OfType<SunMarriageEvent>());
+        state.Commit(world);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    public void FieldJoinConservesArmamentsAndRespectsNewTroopCompatibility(bool compatible, bool full)
+    {
+        var baseRules = Rules();
+        var military = new MilitaryRulebook(new MilitaryDefinition(10, 1, Enumerable.Repeat(0, 10).ToImmutableArray(),
+            [new(0, 1, null)], [new(1, 5, 0, 10000, 2, new(1, 1), TravelMode.Land)],
+            Enumerable.Range(1, 4).Select(id => new BattlefieldPlace(id, new(id * 5 + 2, 2), new(1, 1))).ToImmutableArray())
+        {
+            TroopTypes = [new(1, "枪兵", 1, ImmutableDictionary<int, int>.Empty), new(2, "骑兵", 1, ImmutableDictionary<int, int>.Empty)],
+            Armaments = [new("weapon", "长兵", ArmamentSlot.Weapon, compatible ? [1, 2] : [2], 5, 0, 100, null)]
+        });
+        var rules = new SimulationRules { SunMarriage = Definition(), Treasures = baseRules.Treasures,
+            Personnel = baseRules.Personnel, Military = military };
+        var state = World(); var world = state.BeginMutation(rules.Abilities);
+        if (full) world.Replace(world.Forces[1] with { ArmamentInventory = ImmutableDictionary<string, uint>.Empty.Add("weapon", uint.MaxValue) });
+        world.SetSimulation(world.Simulation with { NextUnitId = 51, NewGame = world.Simulation.NewGame with { MixedTroopsEnabled = true } });
+        world.AddUnit(new(50, 1, new(12, 2), 1000)
+        {
+            FormationId = 1, MemberPositions = ImmutableDictionary<int, FormationPosition>.Empty.Add(11, new(0, BattleRank.Front)),
+            Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(11,
+                new DetachmentState(2, 1, 1000) { Weapon = new("weapon", 800, 1000, 0) })
+        });
+        world.Replace(world.Officers[11] with { SettlementId = null, UnitId = 50 });
+        List<DomainEvent> events = [];
+        Assert.True(SunMarriage.Apply(world, rules, events));
+        var detachments = world.Units[50].Detachments;
+        Assert.Equal(400u, detachments[11].Weapon!.RemainingSets);
+        Assert.Equal(compatible ? 400u : 0u, detachments[22].Weapon?.RemainingSets ?? 0);
+        Assert.Equal(full ? uint.MaxValue : compatible ? 0u : 400u, world.Forces[1].ArmamentInventory?.GetValueOrDefault("weapon") ?? 0);
+        Assert.Equal(full ? 400ul : 0ul, world.Forces[1].ArmamentReserve?.GetValueOrDefault("weapon") ?? 0);
+        state.Commit(world);
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void DepartingUnitCommanderReelectsOrTerminatesWithoutMovingOtherPeople(bool otherMember)

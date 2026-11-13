@@ -30,6 +30,7 @@ internal sealed partial class MapCommandAvailability(StrategySnapshot view)
         // Management must remain reachable so a player can restore directly controlled corps.
         if (command == "delegate") return null;
         if (!Controlled(home.CorpsId)) return "unavailable";
+        if (command == "personal-peerage") return view.World.Simulation.NewGame.PersonalPeerageEnabled == false || Force.PersonalPeerageRegimeId is null ? "unavailable" : null;
         if (IsDomestic(command) && home.Kind != SettlementKind.City && command is not ("repair" or "train"))
             return "unavailable";
         if (command is "strategist" or "rank" or "reward" or "bestow" or "confiscate" or "execute" or "exile")
@@ -41,6 +42,10 @@ internal sealed partial class MapCommandAvailability(StrategySnapshot view)
         // Deployment and transport remain available under siege; ordinary missions do not.
         if (command is not ("sortie" or "build" or "transport") && view.IsSettlementEngaged(id)) return "engaged";
         if (command == "demolish") return null;
+        if (command == "formation-teaching") return view.MilitaryRules is not null && view.World.Simulation.NewGame.FormationTrainingEnabled ? null : "unavailable";
+        bool armamentsAvailable = view.World.Simulation.NewGame.MixedTroopsEnabled && view.MilitaryRules?.Armaments.IsEmpty == false;
+        if (command is "equipment-purchase" or "equipment-production") return armamentsAvailable ? null : "unavailable";
+        if (command == "research") return view.MilitaryRules is not null && view.World.Simulation.NewGame.MixedTroopsEnabled ? null : "unavailable";
         if (command == "move" && !OtherHomes(home).Any()) return "no-move-destination";
         if (command == "transport" && !OtherHomes(home, directOnly: false).Any()) return "no-other-facility";
         if (command == "build" && !BuildableTypes().Any()) return "no-construction-site";

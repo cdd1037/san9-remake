@@ -39,7 +39,8 @@ public sealed class OfficeAppointmentPlan
     public ImmutableArray<int> AvailableOffices => available;
     public int? OfficeFor(int id) => assignments[id];
     public OfficeDefinition? Definition(int? id) => id is int value ? definitions[value] : null;
-    public OfficerAbilities Abilities(int id) => abilities.Evaluate(people[id] with { OfficeId = assignments[id] }, view.World.Treasures);
+    public OfficerAbilities Abilities(int id) => abilities.Evaluate(people[id] with { OfficeId = assignments[id] }, view.World.Treasures,
+        view.World.EquipmentInitialized ? view.World.Equipment : null);
     public uint Capacity(int id) => Definition(assignments[id])?.CommandCapacity ?? 10000;
     public int Direction(int id)
     {

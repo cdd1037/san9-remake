@@ -198,6 +198,7 @@ public sealed class SurrenderDiplomacyTests
         var task = Assert.Single(engine.Snapshot.Simulation.Tasks);
         var result = engine.Execute(new("second"), new RespondDailyTaskCommand(Guid.NewGuid(), 2, 1, task.Id, 0, false));
         Assert.False(Assert.Single(result.Events.OfType<SurrenderResolvedEvent>()).Accepted);
+        Assert.DoesNotContain(result.Events, e => e is OfficerServiceMeritChangedEvent);
         Assert.Equal(39, engine.Snapshot.Relations.Single(r => r.FirstId == 1 && r.SecondId == 2).Value);
         Assert.DoesNotContain(result.Events, e => e is ForceSurrenderedEvent or ForceEliminatedEvent);
     }
@@ -216,6 +217,8 @@ public sealed class SurrenderDiplomacyTests
         engine.EndControl(new("first")); engine.EndControl(new("second")); engine.EndControl(new("third"));
         var result = engine.AdvanceXun();
         Assert.True(Assert.Single(result.Events.OfType<SurrenderResolvedEvent>()).Accepted);
+        Assert.Contains(result.Events, e => e is OfficerServiceMeritChangedEvent
+            { OfficerId: 12, ForceId: 1, Current: 3, Reason: "surrender-accepted" });
         Assert.Null(engine.Snapshot.Simulation.TerminalReason);
         Assert.Null(engine.Snapshot.Simulation.PendingDailyTask);
         Assert.Single(result.Events.OfType<XunAdvancedEvent>());

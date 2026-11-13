@@ -7,9 +7,9 @@ namespace San9.Application;
 
 public static class SessionProtocol
 {
-    public const string RulesVersion = "san9-core-g10-v251";
+    public const string RulesVersion = "san9-core-g10-v280";
     public const int SaveFormatVersion = 137;
-    public const int LogFormatVersion = 166;
+    public const int LogFormatVersion = 181;
 }
 
 /// <summary>Non-authoritative load diagnostics; never included in saves or deterministic hashes.</summary>
@@ -30,12 +30,22 @@ public sealed record RulesVersionWarning(string SavedVersion, string CurrentVers
 [JsonDerivedType(typeof(ForceControlOperation), "force-control")]
 [JsonDerivedType(typeof(HandOverAllForcesOperation), "hand-over-all-forces")]
 [JsonDerivedType(typeof(WorldEditOperation), "world-edit")]
+[JsonDerivedType(typeof(ConfigureOfficerAppearanceOperation), "configure-officer-appearance")]
+[JsonDerivedType(typeof(ConfigureOfficerAppearancesOperation), "configure-officer-appearances")]
+[JsonDerivedType(typeof(ConfigureIndividualAppearancesOperation), "configure-individual-appearances")]
 [JsonDerivedType(typeof(SaveDeploymentPresetOperation), "save-deployment-preset")]
 [JsonDerivedType(typeof(DeleteDeploymentPresetOperation), "delete-deployment-preset")]
 public abstract record SessionOperation;
 public sealed record SaveDeploymentPresetOperation(DeploymentPreset Preset) : SessionOperation;
 public sealed record DeleteDeploymentPresetOperation(Guid PresetId) : SessionOperation;
-public sealed record WorldEditOperation(WorldEditorKind Kind, ImmutableArray<WorldEdit> Edits) : SessionOperation;
+public sealed record WorldEditOperation(WorldEditorKind Kind, ImmutableArray<WorldEdit> Edits) : SessionOperation
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public ImmutableArray<EquipmentInstanceEdit>? EquipmentEdits { get; init; }
+}
+public sealed record ConfigureOfficerAppearanceOperation(int OfficerId, ManualOfficerAppearance Plan) : SessionOperation;
+public sealed record ConfigureOfficerAppearancesOperation(ImmutableArray<int> OfficerIds, ManualOfficerAppearance Plan) : SessionOperation;
+public sealed record OfficerAppearanceAssignment(int OfficerId, ManualOfficerAppearance Plan);
+public sealed record ConfigureIndividualAppearancesOperation(ImmutableArray<OfficerAppearanceAssignment> Assignments) : SessionOperation;
 public sealed record ForceControlOperation(int ForceId, ControllerKind Kind) : SessionOperation;
 public sealed record HandOverAllForcesOperation : SessionOperation;
 public sealed record PkSettingsOperation(bool OtherForceOrdersVisible,
@@ -60,6 +70,10 @@ public sealed record SessionResult(SessionDisposition Disposition, SessionReject
 public sealed record SessionSnapshot(WorldSnapshot World, ImmutableArray<SessionRecord> Records,
     ImmutableArray<ChronicleEntry> Chronicle, long NextOperationSequence)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? PersonalPeerageInitialized { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? InitialEquipmentIssued { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? ArmamentMigrationInitialized { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public ImmutableArray<string>? InitializedSearchEquipment { get; init; }
     [JsonRequired] public San9.Content.Scenarios.SessionDefinitions Definitions { get; init; } = San9.Content.Scenarios.SessionDefinitions.Empty;
     [JsonRequired] public ImmutableArray<DeploymentPreset> DeploymentPresets { get; init; } = [];
     [JsonRequired] public ImmutableList<ChronicleFact> History { get; init; } = [];

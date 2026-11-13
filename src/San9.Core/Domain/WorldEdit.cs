@@ -3,13 +3,18 @@ using System.Text.Json.Serialization;
 
 namespace San9.Core.Domain;
 
-public enum WorldEditorKind { Officers, Corps, Cities, Facilities, Obstacles }
+public enum WorldEditorKind { Officers, Corps, Cities, Facilities, Obstacles, Forces, Equipment }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(OfficerEdit), "officer")]
 [JsonDerivedType(typeof(CorpsEdit), "corps")]
 [JsonDerivedType(typeof(SettlementEdit), "settlement")]
+[JsonDerivedType(typeof(ForceEdit), "force")]
 public abstract record WorldEdit(int Id);
+
+public sealed record ForceEdit(int Id, int BaseTrust, int ColorCode, ImmutableArray<ForceRelation> Relations) : WorldEdit(Id);
+
+public sealed record EquipmentInstanceEdit(long Id, int? OfficerId, int? InventoryForceId, bool Equipped, int Level, int Experience);
 
 public sealed record OfficerEdit(int Id, OfficerAbilities Abilities, int Personality, int Righteousness,
     int Ambition, int Affinity, int LifespanTier, int? Loyalty, ImmutableArray<int> Proficiencies,

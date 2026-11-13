@@ -51,6 +51,11 @@ public sealed class PrisonerReturnTests
         Assert.Equal(20L * xuns, PrisonerReturnDiplomacy.SalaryReserve(state, 1, rules));
         state.Replace(state.Officers[12] with { OfficeId = null });
         Assert.Equal((long)xuns, PrisonerReturnDiplomacy.SalaryReserve(state, 1, rules));
+        state.Replace(state.Officers[11] with { PersonalPeerage = new(PersonalPeerageGrade.ImperialMarquis, null) });
+        state.Replace(state.Officers[12] with { PersonalPeerage = new(PersonalPeerageGrade.CountyMarquis, null) });
+        state.Replace(state.Officers[13] with { PersonalPeerage = new(PersonalPeerageGrade.King, null) });
+        state.Replace(state.Officers[14] with { PersonalPeerage = new(PersonalPeerageGrade.King, null) });
+        Assert.Equal(8L * xuns, PrisonerReturnDiplomacy.SalaryReserve(state, 1, rules));
     }
 
     private static SimulationRules Rules() => new() { Personnel = new([new(1, new(0, 0)), new(2, new(90, 0))],
@@ -103,6 +108,8 @@ public sealed class PrisonerReturnTests
         EventAssert.Equal(result.Events, restored.Execute(new("first"), final).Events);
         var resolved = Assert.Single(result.Events.OfType<PrisonerReturnResolvedEvent>());
         Assert.True(resolved.Accepted);
+        Assert.Contains(result.Events, e => e is OfficerServiceMeritChangedEvent
+            { OfficerId: 12, ForceId: 1, Current: 1, Reason: "prisoner-return-accepted" });
         Assert.Equal(100u, resolved.Received);
         Assert.Equal(400u, resolved.Spent);
         Assert.Single(result.Events.OfType<ResourceChangedEvent>(), e => e.Reason == "prisoner-compensation" && e.Actual == -500);
@@ -123,6 +130,7 @@ public sealed class PrisonerReturnTests
         var result = engine.Execute(new("first"), new RespondDailyTaskCommand(Guid.NewGuid(), 1, 2, prompt.TaskId, 1, true));
         Assert.True(result.Submission.Accepted);
         Assert.Contains(result.Events, e => e is TaskCancelledEvent cancelled && cancelled.TaskId == prompt.TaskId);
+        Assert.DoesNotContain(result.Events, e => e is OfficerServiceMeritChangedEvent);
         Assert.DoesNotContain(result.Events, e => e is PrisonerReturnResolvedEvent or PrisonerRecoveredEvent);
         Assert.DoesNotContain(result.Events, e => e is ResourceChangedEvent resource && resource.Reason == "prisoner-compensation");
     }

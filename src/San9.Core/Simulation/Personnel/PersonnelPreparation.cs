@@ -56,15 +56,18 @@ public sealed partial class SimulationEngine
         var targets = pairs.Select(p => p.Target).Distinct().ToDictionary(id => id, id => kind == PersonnelJourneyKind.Recruit
             ? PersonnelMissions.RecruitTargetEligibility(world, forceId, id, _rules, out _, out _)
             : PersonnelMissions.CanSearch(world, forceId, id, _rules.Personnel) ? CommandRejection.None : CommandRejection.InvalidTask);
-        Dictionary<int, int> people = [], items = [];
+        Dictionary<int, int> people = [], legacyItems = [], equipment = [];
         if (kind == PersonnelJourneyKind.Search)
         {
             people = world.Officers.Values.Where(p => p.Status == OfficerStatus.Undiscovered)
                 .Where(p => (p.SettlementId ?? p.RegionId) is not null).GroupBy(p => (p.SettlementId ?? p.RegionId)!.Value)
                 .ToDictionary(g => g.Key, g => g.Count());
-            items = world.Treasures.Values.Where(t => t.Discovery == TreasureDiscovery.Buried && t.HolderId is null &&
+            legacyItems = world.Treasures.Values.Where(t => t.Discovery == TreasureDiscovery.Buried && t.HolderId is null &&
                     t.DiscoveryRegionId is not null && _rules.Treasures.Items.ContainsKey(t.Id))
                 .GroupBy(t => t.DiscoveryRegionId!.Value).ToDictionary(g => g.Key, g => g.Count());
+            equipment = world.AllEquipment.Values.Where(item => item.IsLost && item.SearchPlaceId is not null &&
+                    _rules.Equipment.Items.ContainsKey(item.DefinitionId)).GroupBy(item => item.SearchPlaceId!.Value)
+                .ToDictionary(group => group.Key, group => group.Count());
         }
         var result = ImmutableDictionary.CreateBuilder<(int Actor, int Target), PersonnelAdvicePreview>();
         foreach (var (actor, target) in pairs)
@@ -74,7 +77,9 @@ public sealed partial class SimulationEngine
                 ? new(new(rejection, null, AdviserOpinion.Unavailable))
                 : kind == PersonnelJourneyKind.Recruit
                     ? EvaluateRecruitmentAdvice(world, forceId, actor, target, RecruitmentRules.Threshold(world, actor, target, _rules))
-                    : EvaluateSearchAdvice(world, forceId, actor, target, people.GetValueOrDefault(target), items.GetValueOrDefault(target));
+                    : EvaluateSearchAdvice(world, forceId, actor, target, people.GetValueOrDefault(target),
+                        checked(equipment.GetValueOrDefault(target) + (PersonnelMissions.DirectSearch(world, forceId,
+                            world.Settlements[world.Officers[actor].SettlementId!.Value]) ? legacyItems.GetValueOrDefault(target) : 0)));
         }
         return result.ToImmutable();
     }
@@ -134,8 +139,11 @@ public sealed partial class SimulationEngine
         if (kind == PersonnelJourneyKind.Search && includeAdvice)
         {
             int people = world.Officers.Values.Count(p => p.Status == OfficerStatus.Undiscovered && (p.SettlementId ?? p.RegionId) == targetId);
-            int items = world.Treasures.Values.Count(t => t.Discovery == TreasureDiscovery.Buried && t.HolderId is null &&
-                t.DiscoveryRegionId == targetId && _rules.Treasures.Items.ContainsKey(t.Id));
+            int items = PersonnelMissions.DirectSearch(world, forceId, world.Settlements[world.Officers[officerId].SettlementId!.Value])
+                ? world.Treasures.Values.Count(t => t.Discovery == TreasureDiscovery.Buried && t.HolderId is null &&
+                    t.DiscoveryRegionId == targetId && _rules.Treasures.Items.ContainsKey(t.Id)) : 0;
+            items = checked(items + world.AllEquipment.Values.Count(item => item.IsLost && item.SearchPlaceId == targetId &&
+                _rules.Equipment.Items.ContainsKey(item.DefinitionId)));
             var search = EvaluateSearchAdvice(world, forceId, officerId, targetId, people, items);
             advice = search.Advice;
             searchAdvice = search.SearchAdvice;

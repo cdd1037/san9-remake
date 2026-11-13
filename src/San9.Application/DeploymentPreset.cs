@@ -11,7 +11,10 @@ public enum DeploymentSoldierMode { Fixed, Maximum }
 public sealed record DeploymentPresetMember(
     [property: JsonRequired] int OfficerId,
     [property: JsonRequired] FormationSlot Position,
-    [property: JsonRequired] int? TacticId);
+    [property: JsonRequired] int? TacticId)
+{
+    public DetachmentState? Detachment { get; init; }
+}
 
 /// <summary>Authored preparation preferences within one campaign; never reserves world resources.</summary>
 public sealed record DeploymentPreset(
@@ -25,6 +28,8 @@ public sealed record DeploymentPreset(
     [property: JsonRequired] uint Soldiers)
 {
     public const int MaximumNameLength = 32;
+    public int? NavalTrainingId { get; init; }
+    public int? SiegeEquipmentId { get; init; }
     public static bool IsValidName(string? name) => !string.IsNullOrWhiteSpace(name) &&
         name == name.Trim() && name.Length <= MaximumNameLength && !name.Any(char.IsControl);
 
@@ -38,14 +43,18 @@ public sealed record DeploymentPreset(
             !view.World.Forces.Any(f => f.Id == ForceId) || Members.IsDefaultOrEmpty ||
             Members.Any(m => m is null) || Members.Select(m => m.OfficerId).Distinct().Count() != Members.Length ||
             Members.Any(m => !view.World.Officers.Any(o => o.Id == m.OfficerId)) ||
-            rules is null || !rules.Formations.TryGetValue(FormationId, out var land) || land.TravelMode != TravelMode.Land ||
+            rules is null || NavalTrainingId is int training && !rules.NavalTraining.ContainsKey(training) ||
+            SiegeEquipmentId is int siege && !rules.SiegeEquipment.ContainsKey(siege) ||
+            !rules.Formations.TryGetValue(FormationId, out var land) || land.TravelMode != TravelMode.Land ||
             Members.Length > land.OfficerCapacity || !rules.ValidFormationPair(FormationId, NavalFormationId) ||
             NavalFormationId is int water && (!rules.Formations.TryGetValue(water, out var ship) ||
                 ship.TravelMode != TravelMode.Water || Members.Length > ship.OfficerCapacity))
             throw new ArgumentException("Invalid deployment preset.");
         var slots = DeploymentDraft.FormationSlots(view, FormationId);
         if (Members.Any(m => !slots.Contains(m.Position) ||
-            m.TacticId is int tactic && !rules.Tactics.ContainsKey(tactic)))
+            m.TacticId is int tactic && !rules.Tactics.ContainsKey(tactic) ||
+            m.Detachment is { } detachment && (!detachment.IsValid || detachment.Soldiers == 0 ||
+                !rules.TroopTypes.TryGetValue(detachment.TroopTypeId, out var type) || detachment.Level > type.MaximumLevel)))
             throw new ArgumentException("Invalid deployment preset member configuration.");
     }
 }

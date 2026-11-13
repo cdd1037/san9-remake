@@ -261,7 +261,7 @@ internal static class DecisionPresentationCompiler
         int[] sacrificePlaces = [30, 113, 80, 110, 11, 77, 9, 5, 78, 76, 105, 16, 21, 82, 15, 85];
         string[] sacrificeNames = ["养由基", "李广", "孙膑", "太公望", "黄石公", "司马穰且", "吴起", "信陵君", "管仲", "晏婴", "商鞅", "吕不韦", "淮南王‧刘安", "孔丘", "老子", "庄周"];
         for (int i = 0; i < sacrificePlaces.Length; i++) subjects["homecoming-sacrifice." + sacrificePlaces[i]] = sacrificeNames[i];
-        string[] tactics = ["步兵", "骑兵", "弓骑", "弩兵", "水军", "攻城", "智略", "谋略", "策略"];
+        string[] tactics = ["步兵", "骑兵", "弓骑", "弓弩", "水军", "攻城", "智略", "谋略", "策略"];
         for (int i = 0; i < tactics.Length; i++) subjects["tactic-category." + i] = tactics[i];
         // RE-0181: the source has no valid bandit name for the barbarian area; use the generic land bandits.
         int[] bandits = [0, 1, 0, 2, 1, 2, 1, 3, 3, 0, 4, 4, 1, 2, 3]; string[] banditNames = ["马贼", "山贼", "海贼", "盗贼", "江贼"];

@@ -33,7 +33,7 @@ public static class SettlementContextMenu
         }
         entries.Add(new("势力情报", new("", InformationCategory.Forces, ForceId: owner), owner));
         entries.Add(new("势力武将", new("", InformationCategory.Officers, ForceId: owner)));
-        if (!force.IsBarbarian) entries.Add(new("势力爵位", new("", InformationCategory.Offices, ForceId: owner)));
+        if (!force.IsBarbarian) entries.Add(new("势力官职", new("", InformationCategory.Offices, ForceId: owner)));
         entries.Add(new("势力兵法", new("", InformationCategory.Tactics, ForceId: owner)));
         entries.Add(new("势力阵形", new("", InformationCategory.Formations, ForceId: owner)));
         entries.Add(new("势力船", new("", InformationCategory.Ships, ForceId: owner)));

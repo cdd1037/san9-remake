@@ -33,6 +33,8 @@ internal sealed class WorldQuery : IWorldQuery
         Relations = snapshot.Relations.Where(r => Forces.ContainsKey(r.FirstId) && Forces.ContainsKey(r.SecondId))
             .ToDictionary(r => (r.FirstId, r.SecondId));
         treasures = snapshot.Treasures.Where(t => t.HolderId is int id && Officers.ContainsKey(id)).ToLookup(t => t.HolderId!.Value);
+        equipment = snapshot.EquipmentInitialized ? snapshot.Equipment.Where(e => e.Equipped && e.OfficerId is int id && Officers.ContainsKey(id))
+            .ToLookup(e => e.OfficerId!.Value) : null;
         members = Officers.Values.Where(p => p.IsServing && p.UnitId is not null).ToLookup(p => p.UnitId!.Value);
     }
 
@@ -44,6 +46,7 @@ internal sealed class WorldQuery : IWorldQuery
     public IReadOnlyDictionary<int, UnitState> Units { get; }
     public IReadOnlyDictionary<(int FirstId, int SecondId), ForceRelation> Relations { get; }
     private readonly ILookup<int, TreasureState> treasures;
+    private readonly ILookup<int, EquipmentInstance>? equipment;
     private readonly ILookup<int, OfficerState> members;
     private MovementOccupancy? occupancy;
     private readonly Dictionary<(int Owner, UnitPolicies Policies, int? MovingUnit, int? Entry, MilitaryOrder? Order, MilitaryOrder? EffectiveOrder), IReadOnlyList<MapOccupancy>> passages = [];
@@ -58,8 +61,9 @@ internal sealed class WorldQuery : IWorldQuery
     }
 
     public IEnumerable<OfficerState> ServingUnitMembers(int unitId) => members[unitId];
-    public bool HasTreasureTactic(int officerId, int tacticId, TreasureRulebook rules) => treasures[officerId].Any(t =>
-        t.Discovery != TreasureDiscovery.Disabled && t.Discovered && rules.Items[t.Id].TacticId == tacticId);
+    public bool HasTreasureTactic(int officerId, int tacticId, TreasureRulebook rules) => equipment is not null
+        ? equipment[officerId].Any(item => rules.Equipment.Items[item.DefinitionId].TacticId == tacticId)
+        : treasures[officerId].Any(t => t.Discovery != TreasureDiscovery.Disabled && t.Discovered && rules.Items[t.Id].TacticId == tacticId);
 
     public bool BlocksWaterContact(MilitaryRulebook rules, WorldPosition position, int? target) =>
         OccupancyFor(rules).BlocksContact(position, target);

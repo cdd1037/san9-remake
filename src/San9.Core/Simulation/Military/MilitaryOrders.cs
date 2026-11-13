@@ -63,7 +63,7 @@ internal static class MilitaryOrders
     // A persistent mission may require the other member of the land/naval pair later in its route.
     internal static bool ValidMission(IWorldQuery world, UnitState unit, MilitaryOrder order, MilitaryRulebook rules) =>
         MilitaryMovement.ValidOrder(world, unit.OwnerId, order, rules.Formations[unit.FormationId!.Value], rules,
-            unit.NavalFormationId, unit.Soldiers);
+            unit.NavalFormationId, unit.Soldiers, unit.SiegeEquipmentId);
 
     private static bool Matches(MilitaryOrder? order, MapObjectReference? target) => target is { } reference &&
         (reference.IsSettlement ? order?.SettlementId == reference.Id : order?.UnitId == reference.Id);

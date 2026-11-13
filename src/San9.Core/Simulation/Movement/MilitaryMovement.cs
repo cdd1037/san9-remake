@@ -9,6 +9,9 @@ public sealed record DeployUnitCommand(Guid CommandId, int IssuerId, long Sequen
 {
     [JsonRequired] public ImmutableDictionary<int, int?> Tactics { get; init; } = ImmutableDictionary<int, int?>.Empty;
     [JsonRequired] public ImmutableDictionary<int, FormationPosition> Positions { get; init; } = ImmutableDictionary<int, FormationPosition>.Empty;
+    public ImmutableDictionary<int, DetachmentState> Detachments { get; init; } = ImmutableDictionary<int, DetachmentState>.Empty;
+    public int? NavalTrainingId { get; init; }
+    public int? SiegeEquipmentId { get; init; }
     [JsonRequired] public int DepartureDelayDays { get; init; }
     [JsonRequired] public WorldPosition? Waypoint { get; init; }
     [JsonRequired] public int? NavalFormationId { get; init; }
@@ -62,8 +65,35 @@ internal static class MilitaryMovement
 {
     internal static void Validate(WorldSnapshot world, MilitaryRulebook? rules)
     {
+        if (world.Simulation.NewGame.MixedTroopsEnabled && (rules is null || rules.TroopTypes.IsEmpty || rules.ResearchProjects.IsEmpty ||
+            rules.Formations.Values.Any(formation => formation.TravelMode == TravelMode.Water) &&
+            !rules.NavalTraining.Values.Any(training => training.ResearchProjectId is null)))
+            throw new ArgumentException("Mixed troop rules are missing required content.");
+        if (world.Forces.Any(force => force.ArmamentInventory?.Keys.Any(id => rules is null || !rules.Armaments.ContainsKey(id)) == true ||
+            force.ArmamentReserve?.Keys.Any(id => rules is null || !rules.Armaments.ContainsKey(id)) == true ||
+            force.ArmamentProduction is { } production && (rules is null || force.IsDormant || force.IsEliminated ||
+                !rules.Armaments.TryGetValue(production.DefinitionId, out var item) || item.ProductionDays is not int days ||
+                production.DaysRemaining > days || item.ResearchProjectId is string project && !force.CompletedResearch.Contains(project) ||
+                !world.Settlements.Any(place => place.Id == production.SettlementId && place.OwnerId == force.Id &&
+                    !place.IsDormant && !place.IsDestroyed && place.CanHostPersons))))
+            throw new ArgumentException("Invalid force armament references.");
+        if (rules is not null)
+        foreach (var force in world.Forces)
+        {
+            if (force.CompletedResearch.Any(id => !rules.ResearchProjects.TryGetValue(id, out var project) ||
+                    project.Prerequisites.Any(required => !force.CompletedResearch.Contains(required))) ||
+                force.ActiveResearch is { } research && (!rules.ResearchProjects.TryGetValue(research.ProjectId, out var current) ||
+                    current.Prerequisites.Any(required => !force.CompletedResearch.Contains(required)) ||
+                    research.DaysRemaining > current.Days || !world.Settlements.Any(place => place.Id == research.SettlementId &&
+                        place.OwnerId == force.Id && !place.IsDormant && !place.IsDestroyed && place.CanHostPersons)))
+                throw new ArgumentException("Invalid force research references.");
+        }
         if (world.Forces.Any(f => f.FormationGrants.Any(g => rules is null || !rules.Formations.ContainsKey(g.FormationId))))
             throw new ArgumentException("Unknown force formation grant.");
+        if (world.Officers.Any(p => p.FormationProficiencies?.Keys.Any(id => rules is null || !rules.Formations.ContainsKey(id)) == true ||
+            p.FormationPractice?.Keys.Any(id => rules is null || !rules.Formations.ContainsKey(id)) == true ||
+            p.FormationTeaching is { } lesson && (rules is null || !rules.Formations.ContainsKey(lesson.FormationId))))
+            throw new ArgumentException("Unknown officer formation reference.");
         if (world.Officers.Any(p => p.EquippedTacticId is int id && (rules is null || !rules.Tactics.ContainsKey(id))))
             throw new ArgumentException("Unknown equipped tactic.");
         if (rules is not null && world.Settlements.Any(s => s.IsDestroyed &&
@@ -93,6 +123,22 @@ internal static class MilitaryMovement
                 throw new ArgumentException("Invalid navigation lookahead.");
             if (formation.Combat is not null && world.Officers.Any(p => p.IsServing && p.UnitId == unit.Id && !unit.MemberPositions.ContainsKey(p.Id)))
                 throw new ArgumentException("Missing battle member position.");
+            if (world.Simulation.NewGame.MixedTroopsEnabled && !unit.IsPersonnel && !unit.IsEmbedded &&
+                rules.Purpose(id) == UnitPurpose.Combat &&
+                (world.Officers.Any(person => person.IsServing && person.UnitId == unit.Id) && unit.Detachments.IsEmpty ||
+                 (unit.NavalFormationId is not null || formation.TravelMode == TravelMode.Water) && unit.NavalTrainingId is null))
+                throw new ArgumentException("Missing mixed troop unit configuration.");
+            if (!unit.Detachments.IsEmpty && (unit.Detachments.Any(pair =>
+                    !world.Officers.Any(p => p.Id == pair.Key && p.IsServing && p.UnitId == unit.Id) ||
+                    !rules.TroopTypes.TryGetValue(pair.Value.TroopTypeId, out var troop) || pair.Value.Level > troop.MaximumLevel ||
+                    !ValidArmament(pair.Value.Weapon, ArmamentSlot.Weapon, pair.Value.TroopTypeId, rules) ||
+                    !ValidArmament(pair.Value.Armor, ArmamentSlot.Armor, pair.Value.TroopTypeId, rules)) ||
+                world.Officers.Any(p => p.IsServing && p.UnitId == unit.Id && !unit.Detachments.ContainsKey(p.Id))))
+                throw new ArgumentException("Invalid unit detachment members or troop definitions.");
+            if (unit.NavalTrainingId is int training && !rules.NavalTraining.ContainsKey(training))
+                throw new ArgumentException("Invalid unit naval training reference.");
+            if (unit.SiegeEquipmentId is int siege && !rules.SiegeEquipment.ContainsKey(siege))
+                throw new ArgumentException("Invalid unit siege equipment reference.");
             if (unit.Order?.Construction is { } plan && (!rules.ConstructionSites.TryGetValue((plan.RegionId, plan.Position), out var site) ||
                 !site.FacilityIds.Contains(plan.FacilityTypeId) || !world.Officers.Any(p => p.Id == plan.LeaderId && p.UnitId == unit.Id && p.IsServing)))
                 throw new ArgumentException("Invalid construction plan.");
@@ -108,6 +154,10 @@ internal static class MilitaryMovement
         }
     }
 
+    private static bool ValidArmament(ArmamentAllocation? allocation, ArmamentSlot slot, int troopTypeId, MilitaryRulebook rules) =>
+        allocation is null || allocation.IsValid && rules.Armaments.TryGetValue(allocation.DefinitionId, out var definition) &&
+        definition.Slot == slot && definition.Supports(troopTypeId);
+
     internal static CommandRejection Transport(WorldMutation world, TransportUnitCommand command, MilitaryRulebook? rules,
         GovernanceRulebook governance, TreasureRulebook treasures, List<DomainEvent> events)
     {
@@ -117,8 +167,8 @@ internal static class MilitaryMovement
     }
 
     internal static CommandRejection TransportEligibility(WorldMutation world, TransportUnitCommand command,
-        MilitaryRulebook? rules, TreasureRulebook treasures) => rules?.TransportFormations is not { } pair
-        ? CommandRejection.UnsupportedCommand : PrepareDeployment(world, TransportDeployment(command, pair), rules, treasures,
+        MilitaryRulebook? rules, GovernanceRulebook governance, TreasureRulebook treasures) => rules?.TransportFormations is not { } pair
+        ? CommandRejection.UnsupportedCommand : PrepareDeployment(world, TransportDeployment(command, pair), rules, governance, treasures,
             UnitPurpose.Transport, command.CargoMoney, command.CargoFood, out _);
 
     private static DeployUnitCommand TransportDeployment(TransportUnitCommand command, FixedUnitFormations pair) =>
@@ -130,7 +180,7 @@ internal static class MilitaryMovement
         GovernanceRulebook governance, TreasureRulebook treasures, List<DomainEvent> events,
         UnitPurpose purpose = UnitPurpose.Combat, uint cargoMoney = 0, uint cargoFood = 0)
     {
-        var rejection = PrepareDeployment(world, command, rules, treasures, purpose, cargoMoney, cargoFood, out var prepared);
+        var rejection = PrepareDeployment(world, command, rules, governance, treasures, purpose, cargoMoney, cargoFood, out var prepared);
         if (rejection != CommandRejection.None) return rejection;
         return ApplyDeployment(world, command, governance, events, prepared!, cargoMoney, cargoFood);
     }
@@ -138,8 +188,20 @@ internal static class MilitaryMovement
     internal static CommandRejection ApplyDeployment(WorldMutation world, DeployUnitCommand command,
         GovernanceRulebook governance, List<DomainEvent> events, DeploymentPreparation prepared, uint cargoMoney = 0, uint cargoFood = 0)
     {
-        var (formation, navalId, start, account, deploymentCost) = prepared;
+        var (formation, navalId, start, account, deploymentCost, consumption) = prepared;
         var home = world.Settlements[command.SettlementId];
+        if (!consumption.IsEmpty)
+        {
+            var force = world.Forces[command.IssuerId];
+            var inventory = force.ArmamentInventory ?? ImmutableDictionary<string, uint>.Empty;
+            foreach (var (definitionId, count) in consumption)
+            {
+                uint available = inventory.GetValueOrDefault(definitionId);
+                if (count > available) return CommandRejection.InvalidTask;
+                inventory = count == available ? inventory.Remove(definitionId) : inventory.SetItem(definitionId, available - count);
+            }
+            world.Replace(force with { ArmamentInventory = inventory.IsEmpty ? null : inventory });
+        }
         int id = (int)world.Simulation.NextUnitId;
         int? commander = LeadershipMaintenance.SelectUnitCommander(world, command.OfficerIds, governance);
         var unit = new UnitState(id, home.OwnerId!.Value, start, command.Soldiers)
@@ -147,6 +209,9 @@ internal static class MilitaryMovement
             CorpsId = home.CorpsId, ServicePlaceId = home.Id, FormationId = formation.Id, NavalFormationId = navalId, Morale = home.Morale,
             MemberPositions = formation.Positions.IsEmpty ? command.Positions : command.OfficerIds
                 .Select((person, index) => (person, position: command.Positions.GetValueOrDefault(person, formation.Positions[index]))).ToImmutableDictionary(p => p.person, p => p.position),
+            Detachments = command.Detachments,
+            NavalTrainingId = command.NavalTrainingId,
+            SiegeEquipmentId = command.SiegeEquipmentId,
             CargoMoney = cargoMoney, CargoFood = cargoFood, Order = command.Order,
             DepartureDaysRemaining = command.DepartureDelayDays, Waypoint = command.Waypoint,
             Policies = command.Policies, CommanderId = commander, CommandedThisXun = true, HasEnteredDailyCycle = false,
@@ -171,21 +236,25 @@ internal static class MilitaryMovement
     }
 
     internal sealed record DeploymentPreparation(FormationRule Formation, int? NavalId,
-        WorldPosition Start, ResourceAccount Account, long Cost);
+        WorldPosition Start, ResourceAccount Account, long Cost, ImmutableDictionary<string, uint> ArmamentConsumption);
 
     internal static CommandRejection PrepareDeployment(WorldMutation world, DeployUnitCommand command,
-        MilitaryRulebook? rules, TreasureRulebook treasures, UnitPurpose purpose, uint cargoMoney, uint cargoFood,
+        MilitaryRulebook? rules, GovernanceRulebook governance, TreasureRulebook treasures, UnitPurpose purpose, uint cargoMoney, uint cargoFood,
         out DeploymentPreparation? prepared, DeploymentPlan? plan = null)
     {
         prepared = null;
         if (rules is null || !rules.Formations.TryGetValue(command.FormationId, out var formation))
             return CommandRejection.UnsupportedCommand;
+        if (world.Simulation.NewGame.MixedTroopsEnabled && rules.SiegeEquipment.Values.Any(item => item.FormationId == formation.Id))
+            return CommandRejection.FormationUnavailable;
         if (rules.Purpose(formation.Id) != purpose) return CommandRejection.FormationUnavailable;
         int? navalId = purpose == UnitPurpose.Combat
             ? command.NavalFormationId ?? rules.NavalFormationForDeployment(formation.Id) : command.NavalFormationId;
         if (!rules.ValidUnitFormations(formation.Id, navalId)) return CommandRejection.InvalidTask;
         var naval = navalId is int selected ? rules.Formations[selected] : null;
-        if (purpose == UnitPurpose.Combat && (!rules.CanSelectFormation(world.Forces[command.IssuerId], formation.Id) ||
+        if (purpose == UnitPurpose.Combat &&
+            (!(world.Simulation.NewGame.MixedTroopsEnabled && formation.TravelMode == TravelMode.Land) &&
+                !rules.CanSelectFormation(world.Forces[command.IssuerId], formation.Id) ||
             naval is not null && !rules.CanSelectFormation(world.Forces[command.IssuerId], naval.Id)))
             return CommandRejection.FormationUnavailable;
         var travel = rules.Travel(formation.Id, navalId, command.Soldiers);
@@ -203,17 +272,66 @@ internal static class MilitaryMovement
         if (command.OfficerIds.Any(id => plan?.IsOfficerReserved(id) == true ||
             !PersonnelMissions.CanAct(world, command.IssuerId, id) || world.Officers[id].SettlementId != home.Id))
             return CommandRejection.PersonUnavailable;
-        if (command.Tactics is null || command.Positions is null ||
+        if (command.Tactics is null || command.Positions is null || command.Detachments is null ||
             command.Tactics.Keys.Concat(command.Positions.Keys).Any(id => !command.OfficerIds.Contains(id)) ||
             command.Positions.Values.Any(position => !position.IsValid)) return CommandRejection.InvalidTask;
+        if (purpose == UnitPurpose.Combat && world.Simulation.NewGame.MixedTroopsEnabled == command.Detachments.IsEmpty)
+            return CommandRejection.InvalidTask;
+        if (command.SiegeEquipmentId is int siegeId)
+        {
+            if (purpose != UnitPurpose.Combat || !world.Simulation.NewGame.MixedTroopsEnabled ||
+                !rules.SiegeEquipment.TryGetValue(siegeId, out var siege) ||
+                !world.Forces[command.IssuerId].CompletedResearch.Contains(siege.ResearchProjectId)) return CommandRejection.InvalidTask;
+            deploymentCost += siege.DeploymentCost;
+        }
+        if (purpose == UnitPurpose.Combat && world.Simulation.NewGame.MixedTroopsEnabled && navalId is not null)
+        {
+            if (command.NavalTrainingId is not int trainingId || !rules.NavalTraining.TryGetValue(trainingId, out var training) ||
+                training.ResearchProjectId is string project && !world.Forces[command.IssuerId].CompletedResearch.Contains(project))
+                return CommandRejection.InvalidTask;
+            deploymentCost += training.DeploymentCost;
+        }
+        else if (command.NavalTrainingId is not null) return CommandRejection.InvalidTask;
+        if (!command.Detachments.IsEmpty && (purpose != UnitPurpose.Combat ||
+            command.Detachments.Count != command.OfficerIds.Length ||
+            command.Detachments.Any(pair => !command.OfficerIds.Contains(pair.Key) || pair.Value is null ||
+                !pair.Value.IsValid || pair.Value.Soldiers == 0 ||
+                !rules.TroopTypes.TryGetValue(pair.Value.TroopTypeId, out var troop) || pair.Value.Level > troop.MaximumLevel ||
+                troop.LevelResearchProjects.Any(research => research.Key <= pair.Value.Level &&
+                    !world.Forces[command.IssuerId].CompletedResearch.Contains(research.Value))) ||
+            command.Detachments.Values.Aggregate(0UL, (sum, d) => sum + d.Soldiers) != command.Soldiers))
+            return CommandRejection.InvalidTask;
+        var needed = new Dictionary<string, ulong>(StringComparer.Ordinal);
+        foreach (var detachment in command.Detachments.Values)
+        foreach (var (allocation, slot) in new[] { (detachment.Weapon, ArmamentSlot.Weapon), (detachment.Armor, ArmamentSlot.Armor) })
+        {
+            if (allocation is null) continue;
+            if (!ValidArmament(allocation, slot, detachment.TroopTypeId, rules) || allocation.IssuedSets == 0 ||
+                allocation.InitialSoldiers != detachment.Soldiers || allocation.Casualties != 0)
+                return CommandRejection.InvalidTask;
+            needed[allocation.DefinitionId] = needed.GetValueOrDefault(allocation.DefinitionId) + allocation.IssuedSets;
+        }
+        var stock = world.Forces[command.IssuerId].ArmamentInventory;
+        if (needed.Any(pair => pair.Value > uint.MaxValue || pair.Value + (plan?.ReservedArmament(pair.Key) ?? 0) >
+            (stock?.GetValueOrDefault(pair.Key) ?? 0))) return CommandRejection.InvalidTask;
+        deploymentCost += rules.DetachmentEquipmentCost(command.Detachments.Values);
         foreach (var (person, tacticId) in command.Tactics)
             if (tacticId is int tactic && (!rules.Tactics.TryGetValue(tactic, out var definition) || !definition.Selectable ||
                 !MilitaryTactics.HasTactic(world, command.IssuerId, [person], tactic, treasures))) return CommandRejection.TacticUnavailable;
-        if (!FormationEligibility.CanUse(world, command.IssuerId, command.OfficerIds, formation, treasures) ||
-            naval is not null && !FormationEligibility.CanUse(world, command.IssuerId, command.OfficerIds, naval, treasures))
+        int? selectedCommander = LeadershipMaintenance.SelectUnitCommander(world, command.OfficerIds, governance);
+        var commander = selectedCommander is int commanderId ? world.Officers[commanderId] : null;
+        if (purpose == UnitPurpose.Combat && world.Simulation.NewGame.MixedTroopsEnabled &&
+            formation.TravelMode == TravelMode.Land && commander?.FormationProficiencies is null &&
+            !rules.CanSelectFormation(world.Forces[command.IssuerId], formation.Id)) return CommandRejection.FormationUnavailable;
+        if (!FormationEligibility.CanUse(world, command.IssuerId, command.OfficerIds, formation, treasures,
+                commander, personalFormation: purpose == UnitPurpose.Combat) ||
+            naval is not null && !FormationEligibility.CanUse(world, command.IssuerId, command.OfficerIds, naval, treasures) ||
+            command.SiegeEquipmentId is int siegeIdForEligibility &&
+            !FormationEligibility.CanUse(world, command.IssuerId, command.OfficerIds,
+                rules.Formations[rules.SiegeEquipment[siegeIdForEligibility].FormationId], treasures))
             return CommandRejection.MissingFormationTactic;
         if (naval is not null && (command.Soldiers > naval.SoldierCapacity || command.OfficerIds.Length > naval.OfficerCapacity)) return CommandRejection.InvalidTask;
-        if (!ValidOrder(world, command.IssuerId, command.Order, formation, rules, navalId, command.Soldiers)) return CommandRejection.InvalidTask;
+        if (!ValidOrder(world, command.IssuerId, command.Order, formation, rules, navalId, command.Soldiers, command.SiegeEquipmentId)) return CommandRejection.InvalidTask;
         if (!command.ConfirmAttack && MilitaryDiplomacy.Warning(world, command.IssuerId, command.Order, rules) != AttackWarning.None)
             return CommandRejection.AttackConfirmationRequired;
         var account = ResourceAccounts.Resolve(world, command.IssuerId, home.CorpsId);
@@ -229,7 +347,8 @@ internal static class MilitaryMovement
             !travel.Map.FindRoute(start.Value, via, travel.Shape, travel.Mode, occupancy).Reachable))
             return CommandRejection.NoDestination;
         if (world.Simulation.NextUnitId > int.MaxValue - (long)(plan?.Count ?? 0)) return CommandRejection.ResourceOverflow;
-        prepared = new(formation, navalId, start.Value, account, deploymentCost);
+        prepared = new(formation, navalId, start.Value, account, deploymentCost,
+            needed.ToImmutableDictionary(pair => pair.Key, pair => (uint)pair.Value, StringComparer.Ordinal));
         return CommandRejection.None;
     }
 
@@ -238,7 +357,7 @@ internal static class MilitaryMovement
         if (rules is null) return CommandRejection.UnsupportedCommand;
         if (!world.Units.TryGetValue(command.UnitId, out var unit) || unit.IsEmbedded || unit.IsPersonnel || unit.Soldiers == 0 || unit.OwnerId != command.IssuerId ||
             unit.FormationId is not int id || !rules.Formations.TryGetValue(id, out var formation)) return CommandRejection.InvalidTask;
-        if (!unit.CanReceiveOrders || !ValidOrder(world, unit.OwnerId, command.Order, formation, rules, unit.NavalFormationId, unit.Soldiers)) return CommandRejection.InvalidTask;
+        if (!unit.CanReceiveOrders || !ValidOrder(world, unit.OwnerId, command.Order, formation, rules, unit.NavalFormationId, unit.Soldiers, unit.SiegeEquipmentId)) return CommandRejection.InvalidTask;
         if (command.Order.Kind == MilitaryOrderKind.Construct) return CommandRejection.InvalidTask;
         var policies = command.Policies ?? unit.Policies;
         var travel = rules.Travel(unit);
@@ -290,12 +409,18 @@ internal static class MilitaryMovement
         if (policies != unit.Policies) events.Add(new UnitPoliciesChangedEvent(world.Clock, unit.Id, policies));
     }
 
-    internal static bool ValidOrder(IWorldQuery world, int owner, MilitaryOrder? order, FormationRule formation, MilitaryRulebook rules, int? navalFormationId = null, uint soldiers = 1)
+    internal static bool ValidOrder(IWorldQuery world, int owner, MilitaryOrder? order, FormationRule formation, MilitaryRulebook rules, int? navalFormationId = null, uint soldiers = 1, int? siegeEquipmentId = null)
     {
         if (order is null || !order.IsValid || !rules.AllowsOrder(formation.Id, order)) return false;
         if (order.Kind == MilitaryOrderKind.Construct) return true;
-        if (order.IsAttack) return MilitaryCombat.ValidTarget(world, owner, order, formation, rules) ||
-            navalFormationId is int naval && MilitaryCombat.ValidTarget(world, owner, order, rules.Formations[naval], rules);
+        if (order.IsAttack)
+        {
+            if (siegeEquipmentId is int equipment && !rules.SiegeEquipment.ContainsKey(equipment)) return false;
+            var attackFormation = order.SettlementId is not null && siegeEquipmentId is int siege
+                ? rules.Formations[rules.SiegeEquipment[siege].FormationId] : formation;
+            return MilitaryCombat.ValidTarget(world, owner, order, attackFormation, rules) ||
+                navalFormationId is int naval && MilitaryCombat.ValidTarget(world, owner, order, rules.Formations[naval], rules);
+        }
         var travel = rules.Travel(formation.Id, navalFormationId, soldiers);
         if (order.Kind == MilitaryOrderKind.Move)
             return order.SettlementId is null && order.Position is WorldPosition p &&
@@ -326,7 +451,7 @@ internal static class MilitaryMovement
             if (unit.EffectiveOrder is not { } order || unit.Condition == UnitCondition.Confused) continue;
             if (order.Kind == MilitaryOrderKind.Construct) continue;
             var formation = rules.Formations[unit.FormationId!.Value];
-            if (!ValidOrder(world, unit.OwnerId, order, formation, rules, unit.NavalFormationId, unit.Soldiers))
+            if (!ValidOrder(world, unit.OwnerId, order, formation, rules, unit.NavalFormationId, unit.Soldiers, unit.SiegeEquipmentId))
             {
                 // Forced returns are projections over the stored mission, not replacements for it.
                 if (!unit.HasForcedReturn) MilitaryOrders.ResolveOrder(world, unit, rules, events);
@@ -378,6 +503,13 @@ internal static class MilitaryMovement
                 u.EffectiveOrderClass == UnitOrderClass.Military)).ToArray() : [];
         var affected = new[] { sourceCorps, previousCorps }.Concat(followers.Select(u => u.CorpsId ?? root)).Distinct().ToArray();
         if (!CanAbsorb(world, unit, home, returnHome, transfer, followers.Select(u => u.Id).ToHashSet(), affected))
+        {
+            UnitOrderChanges.Report(world, unit.Id, unit.Order, "absorption-blocked", events);
+            return;
+        }
+        var force = world.Forces[unit.OwnerId];
+        if (!ArmamentInventory.CanReturnWithReserve(force.ArmamentInventory ?? ImmutableDictionary<string, uint>.Empty,
+                force.ArmamentReserve ?? ImmutableDictionary<string, ulong>.Empty, unit.Detachments.Values))
         {
             UnitOrderChanges.Report(world, unit.Id, unit.Order, "absorption-blocked", events);
             return;

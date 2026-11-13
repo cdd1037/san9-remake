@@ -45,7 +45,7 @@ internal static class MilitaryNavigation
             return NavigationArrivalForecast.Advance(travel, unit.Position, MilitaryCombat.TargetArea(world, order, rules), NavigationArrival.Range,
                 world.MovementOccupancy(rules, unit.OwnerId, unit.Policies, movingUnit, null, unit), budget, work, unit.Lookahead,
                 range: position => MilitaryCombat.ApproachRange(world, unit, order, rules, position), rectangularReach: true,
-                maximumRange: Math.Max(Range(formation), Range(naval)),
+                maximumRange: Math.Max(Range(rules.AttackFormation(unit, againstSettlement: order.SettlementId is not null)), Range(naval)),
                 lookaheadCells: order.UnitId is null ? 25 : 6, randomSeed: seed, continueApproach: true, mobility: rules.Formation(unit).MovementBudget / 5,
                 requireTargetClearance: formation.Attack?.RequiresWaterContact == true || naval?.Attack?.RequiresWaterContact == true);
         var target = order.Construction is { } construction

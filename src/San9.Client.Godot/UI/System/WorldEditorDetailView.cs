@@ -159,7 +159,7 @@ public partial class WorldEditorDetailView : FixedPage
         var personalities=fields.Where(f=>f.Label.StartsWith("性格 · ",StringComparison.Ordinal)).ToArray();
         for(int i=0;i<personalities.Length;i++) Choice(personalities[i],new(502+i*56,305),new(56,28),personalities[i].Label[5..]);
         Plate("兵法",new(129,367,56,28));
-        string[] categories=["步兵","骑兵","弓骑","弩兵","水军","攻城","智略","谋略","策略"];
+        string[] categories=["步兵","骑兵","弓骑","弓弩","水军","攻城","智略","谋略","策略"];
         string[] styles=["infantry","cavalry","mounted-bow","crossbow","naval","siege","knowledge","plot","strategy"];
         var tactics=Draft.OfficerTacticFields(CurrentId);
         for(int row=0;row<categories.Length;row++)

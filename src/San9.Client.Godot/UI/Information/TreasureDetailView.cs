@@ -74,6 +74,8 @@ public partial class TreasureDetailView : FixedPage, IInformationPage
         Label("能力", new(380,304,64,24), centered: true); Label(_data.Ability, new(452,304,80,24), centered: true);
         if (_data.TacticGroup is not null)
             Label(_data.Tactic, new(538,304,65,24), centered: true);
+        if (_data.EquipmentStatus.Length > 0)
+            Label($"装备状态：{_data.EquipmentStatus}", new(380,365,220,24));
         QueueRedraw();
     }
     public override void _Input(InputEvent input)

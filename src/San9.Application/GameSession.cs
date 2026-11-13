@@ -50,6 +50,28 @@ public sealed partial class GameSession
 
     public string InitialDate { get; }
     internal MilitaryRulebook? MilitaryRules => _definition.MilitaryRules;
+    public IReadOnlyList<ResearchProjectDefinition> ResearchProjects =>
+        MilitaryRules?.ResearchProjects.Values.Where(p => !MilitaryRules.IsLegacyFormationResearch(p.Id) &&
+            ResearchModuleRules.IsAvailable(MilitaryRules, _definition.Rules.Equipment, Snapshot.Simulation.NewGame, p.Id))
+            .OrderBy(p => p.Id, StringComparer.Ordinal).ToArray() ?? [];
+    public string ResearchProjectName(string id) => ResearchDisplay.Name(MilitaryRules, id);
+    public IReadOnlyList<EquipmentDefinition> EquipmentRecipes => _definition.Rules.Equipment.Items.Values
+        .Where(item => item.ResearchProjectId is not null).OrderBy(item => item.Id, StringComparer.Ordinal).ToArray();
+    public IReadOnlyList<EquipmentDefinition> PurchasableEquipment => _definition.Rules.Equipment.Items.Values
+        .Where(item => item.PurchaseCost is not null).OrderBy(item => item.Id, StringComparer.Ordinal).ToArray();
+    public IReadOnlyDictionary<string, EquipmentDefinition> EquipmentDefinitions => _definition.Rules.Equipment.Items;
+    public IReadOnlyDictionary<string, ArmamentDefinition> ArmamentDefinitions =>
+        MilitaryRules?.Armaments ?? ImmutableDictionary<string, ArmamentDefinition>.Empty;
+
+    public WorldSnapshot PreviewEditor(WorldEditOperation operation)
+    {
+        var candidate = _simulation.Fork();
+        if (operation.Kind == WorldEditorKind.Equipment && operation.Edits.IsEmpty && operation.EquipmentEdits is { } equipment)
+            candidate.EditEquipment(equipment);
+        else if (operation.EquipmentEdits is null) candidate.EditWorld(operation.Kind, operation.Edits);
+        else throw new ArgumentException("Invalid editor preview.");
+        return candidate.Snapshot;
+    }
     public IReadOnlyList<DomainEvent> InitialEvents => _initialEvents;
     public IReadOnlyList<SessionRecord> Records => _readOnlyRecords;
     public IReadOnlyList<ChronicleEntry> Chronicle => _readOnlyChronicle;

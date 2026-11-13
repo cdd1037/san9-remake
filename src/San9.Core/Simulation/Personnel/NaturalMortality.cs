@@ -19,7 +19,7 @@ public static class NaturalMortality
         foreach (int id in world.Officers.Keys.Order().ToArray())
         {
             var person = world.Officers[id];
-            if (person.Status is OfficerStatus.Dead or OfficerStatus.Special || person.BirthYear == 0 ||
+            if (person.Status is OfficerStatus.Dead or OfficerStatus.Special || person.ManualAppearance is not null || person.BirthYear == 0 ||
                 person.OwnerId is int owner && (world.Forces[owner].IsBarbarian || world.Forces[owner].LeaderId == id &&
                     world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player))) continue;
             if (world.NextRandom("personnel-natural-death") % 100 >= (ulong)Chance(world.Clock.Year, person)) continue;

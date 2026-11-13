@@ -34,7 +34,7 @@ public sealed class ConstructionContentCompilerTests
             Assert.Equal(rule.Id == 16 ? 20 : (int?)null, rule.RequiredTacticId);
             Assert.Equal(rule.Id >= 6 ? 19 : (int?)null, rule.CostReductionTacticId);
             Assert.Equal(rule.Id >= 6 ? rule.Id == 16 ? 20 : 19 : (int?)null, rule.ConstructionGrowthTacticId);
-            Assert.Equal(rule.Id < 10 ? new OrdinaryAttack(10, false) { ElevationBonusPerLevel = 5, MaximumElevationBonus = 10 } : null, rule.Attack);
+            Assert.Equal(rule.Id < 10 ? new OrdinaryAttack(10, false) { IsRangedAttack = true, ElevationBonusPerLevel = 5, MaximumElevationBonus = 10 } : null, rule.Attack);
             Assert.Equal(rule.Id == 1, rule.IsHarbor);
             Assert.Equal(rule.Id >= 10, rule.IsWork);
             Assert.Equal(rule.Id == 16 ? new FacilityReprisal(6, 1000, 10, 10, 10, 5) : null, rule.Reprisal);

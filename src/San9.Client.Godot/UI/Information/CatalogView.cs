@@ -15,6 +15,9 @@ public partial class CatalogView : FixedPage, IInformationPage, IModalInputRoute
     public TextureService Service { get; init; } = null!;
     public Func<int, bool>? PortraitDeceased { get; init; }
     public Func<int, string?>? Portrait { get; init; }
+    /// <summary>Optional project-owned icon for the selected row; missing textures are hidden.</summary>
+    public Func<int, Texture2D?>? ItemIcon { get; init; }
+    public Action<CanvasItem, Rect2, int>? PortraitPlaceholder { get; init; }
     public TextureScope Textures { get; init; } = null!;
     public Action<CanvasItem, Rect2>? WindowPainter { get; init; }
     public int MinimumBodyWidth { get; init; }
@@ -27,6 +30,9 @@ public partial class CatalogView : FixedPage, IInformationPage, IModalInputRoute
     public Action? Closed { get; init; }
     public Action? Confirmed { get; init; }
     public Action? ShowMap { get; init; }
+    public Action? Search { get; init; }
+    public string SearchTitle { get; init; } = "搜索";
+    public bool SearchEnabled { get; init; } = true;
     public bool TabStripFollowsPage { get; init; }
     public int? InitialCurrentId { get; init; }
     public CatalogTableState TableState { get; init; } = new();
@@ -47,6 +53,7 @@ public partial class CatalogView : FixedPage, IInformationPage, IModalInputRoute
     private Control _grid = null!;
     private SkinnedScrollBar _scroll = null!;
     private AsyncPortrait? _portrait;
+    private TextureRect? _itemIcon;
     private Rect2 _body;
     private Vector2 _tableOrigin;
     private int _page => _state.Page;
@@ -87,6 +94,12 @@ public partial class CatalogView : FixedPage, IInformationPage, IModalInputRoute
             var tab = new CatalogSkinButton { Textures = Textures, Kind = CatalogButtonKind.Tab, Title = Pages[i].Title,
                 Position = _body.Position + new Vector2(86 + i % 7 * 62, 75 + i / 7 * 32), Size = new(58, 26) };
             tab.Pressed += () => ChangePage(page); AddChild(tab); _tabs.Add(tab);
+        }
+        if (Search is not null)
+        {
+            var search = new CatalogBulkButton { Title = SearchTitle, Textures = Textures, Disabled = !SearchEnabled,
+                Position = _body.Position + new Vector2(160, 75), Size = new(112, 32) };
+            search.Pressed += Search; AddChild(search);
         }
         var close = new InformationActionButton
         {
@@ -134,6 +147,13 @@ public partial class CatalogView : FixedPage, IInformationPage, IModalInputRoute
                 IsDeceased = () => _state.Current is { } current && (PortraitDeceased?.Invoke(current.Id) ?? false), Size = PortraitSize,
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, MouseFilter = MouseFilterEnum.Ignore };
             AddChild(_portrait);
+        }
+        else if (ItemIcon is not null)
+        {
+            Textures.Request([PortraitFrameRole]);
+            _itemIcon = new TextureRect { Size = PortraitSize, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, MouseFilter = MouseFilterEnum.Ignore };
+            AddChild(_itemIcon);
         }
         AddChild(new GameMessageBar { Textures = Textures, Text = HintText });
         ChangePage(_page, rows);
@@ -216,7 +236,7 @@ public partial class CatalogView : FixedPage, IInformationPage, IModalInputRoute
             ClearRowPress();
             foreach (var child in GetChildren()) { RemoveChild(child); child.QueueFree(); }
             _grid = null!; _tabs.Clear(); _headers.Clear(); _cells.Clear(); _checks.Clear();
-            _portrait = null; _help = null; _boundRows = null;
+            _portrait = null; _itemIcon = null; _help = null; _boundRows = null;
             BuildSurface(rows);
             return;
         }
@@ -263,6 +283,17 @@ public partial class CatalogView : FixedPage, IInformationPage, IModalInputRoute
                 _portrait.Position = new(_tableOrigin.X - PortraitSize.X - 12, frameTop + 12);
             }
             _portrait.Role = _portrait.Visible ? Portrait!(_state.Current!.Id) : null;
+        }
+        if (_itemIcon is not null)
+        {
+            int visibleRow = _state.CurrentIndex - _state.Offset;
+            _itemIcon.Texture = _state.Current is { } iconRow ? ItemIcon!(iconRow.Id) : null;
+            _itemIcon.Visible = _itemIcon.Texture is not null && visibleRow >= 0 && visibleRow < _visibleRows;
+            if (_itemIcon.Visible)
+            {
+                float frameTop = Math.Min(_tableOrigin.Y + 28 + visibleRow * 24, 704 - PortraitSize.Y - 24);
+                _itemIcon.Position = new(_tableOrigin.X - PortraitSize.X - 12, frameTop + 12);
+            }
         }
         if (_state.Current is { } row) CurrentChanged?.Invoke(row.Id);
         if (Selection is not null)
@@ -502,7 +533,14 @@ public partial class CatalogView : FixedPage, IInformationPage, IModalInputRoute
             if (pressed || currentRow || selected)
                 DrawRow(_tableOrigin + new Vector2(SelectionWidth,28+r*24), width-SelectionWidth, pressed ? 2 : currentRow ? 1 : 3);
         }
-        if(_portrait is { Visible: true }) DrawTextureRect(Textures.Get(PortraitFrameRole, this), new(_portrait.Position - new Vector2(12,12), PortraitSize + new Vector2(24,24)), false);
+        if (_portrait is { Visible: true })
+        {
+            DrawTextureRect(Textures.Get(PortraitFrameRole, this), new(_portrait.Position - new Vector2(12, 12), PortraitSize + new Vector2(24, 24)), false);
+            if (_state.Current is { } selectedRow && (_portrait.Role is not string role || !Service.Roles.ContainsKey(role)))
+                PortraitPlaceholder?.Invoke(this, new(_portrait.Position, PortraitSize), selectedRow.Id);
+        }
+        if (_itemIcon is { Visible: true })
+            DrawTextureRect(Textures.Get(PortraitFrameRole, this), new(_itemIcon.Position - new Vector2(12, 12), PortraitSize + new Vector2(24, 24)), false);
     }
     private void DrawRow(Vector2 point, int width, int frame)
     {

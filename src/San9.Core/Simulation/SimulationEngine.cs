@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using San9.Core.Domain;
 
 namespace San9.Core.Simulation;
@@ -23,7 +24,7 @@ public sealed partial class SimulationEngine
         _preparationRevision = -1;
     }
 
-    private WorldMutation BeginMutation() => _world.BeginMutation(_rules.Abilities, _rules.Economy, Companion);
+    private WorldMutation BeginMutation() => _world.BeginMutation(_rules.Abilities, _rules.Economy, Companion, _rules.Equipment);
 
     /// <summary>Branches the current runtime for an isolated operation, sharing immutable records and compiled rules.</summary>
     public SimulationEngine Fork() => new(_world.Fork(), _rules, new(_rules), Companion);
@@ -81,12 +82,24 @@ public sealed partial class SimulationEngine
             { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]),
                 Military = military, Terminal = terminal, Politics = politics ?? PoliticalRulebook.Empty }) { }
 
-    private static WorldState ValidateContent(WorldState world, TreasureRulebook treasures, GovernanceRulebook? governance)
+    private static WorldState ValidateContent(WorldState world, TreasureRulebook treasures, GovernanceRulebook? governance, EquipmentRulebook equipment)
     {
         var snapshot = world.CreateSnapshot();
         if (snapshot.Treasures.Any(t => t.Discovery != TreasureDiscovery.Disabled && !treasures.Items.ContainsKey(t.Id)) ||
             treasures.Items.Values.Any(t => t.FavoredOwnerIds.Any(id => !snapshot.Officers.Any(o => o.Id == id))) ||
-            snapshot.Officers.Any(p => p.OfficeId is int id && (governance is null || !governance.Offices.ContainsKey(id))))
+            snapshot.Officers.Any(p => p.OfficeId is int id && (governance is null || !governance.Offices.ContainsKey(id))) ||
+            !EquipmentRules.ValidInventory(snapshot.Equipment, equipment.Items) ||
+            snapshot.Forces.Any(force => force.EquipmentProduction is { } progress &&
+                (!snapshot.EquipmentInitialized || force.IsDormant || force.IsEliminated ||
+                 !equipment.Items.TryGetValue(progress.DefinitionId, out var item) || item.ResearchProjectId is null ||
+                 !force.CompletedResearch.Contains(item.ResearchProjectId) || progress.DaysRemaining > item.ProductionDays ||
+                 !snapshot.Settlements.Any(place => place.Id == progress.SettlementId && place.OwnerId == force.Id &&
+                     !place.IsDormant && !place.IsDestroyed && place.CanHostPersons))) ||
+            snapshot.EquipmentInitialized && (
+                snapshot.Treasures.Where(t => t.Discovery != TreasureDiscovery.Disabled).Any(t =>
+                    !snapshot.Equipment.Any(e => e.LegacyTreasureId == t.Id && e.OfficerId == (t.Discovered ? t.HolderId : null))) ||
+                snapshot.Equipment.Where(e => e.LegacyTreasureId is not null).Any(e =>
+                    !snapshot.Treasures.Any(t => t.Id == e.LegacyTreasureId && e.OfficerId == (t.Discovered ? t.HolderId : null)))))
             throw new ArgumentException("Unknown ability source definition.");
         return world;
     }
@@ -97,7 +110,13 @@ public sealed partial class SimulationEngine
         ArgumentNullException.ThrowIfNull(rules);
         ArgumentNullException.ThrowIfNull(rules.OfficerGrowth);
         rules.OfficerGrowth.Validate();
-        ValidateContent(world, rules.Treasures, rules.Governance);
+        ValidateContent(world, rules.Treasures, rules.Governance, rules.Equipment);
+        if (world.CreateSnapshot().Equipment.Any(item => item.SearchPlaceId is int place && !rules.Personnel.Places.ContainsKey(place)))
+            throw new ArgumentException("Unknown equipment search place.");
+        var giftEvents = rules.Personnel.SearchEvents.Values.OfType<EquipmentGiftSearchEventDefinition>().ToArray();
+        if (world.CreateSnapshot().Equipment.Any(item => item.EventGiftKey is string key && !giftEvents.Any(gift =>
+                gift.EquipmentInstanceId == item.Id && gift.EquipmentDefinitionId == item.DefinitionId && gift.ConsumptionKey.Value == key)))
+            throw new ArgumentException("Unknown equipment gift event reference.");
         rules.Terminal?.Validate(world.CreateSnapshot().Settlements.Where(s => s.Kind == SettlementKind.City).Select(s => s.Id).ToHashSet());
         _world = world;
         _rules = rules;
@@ -108,7 +127,7 @@ public sealed partial class SimulationEngine
         if (rules.Personnel.TacticCourses.Any(c => !world.CreateSnapshot().Settlements.Any(s => s.Id == c.Key && s.Kind == SettlementKind.City) ||
             rules.Military is null || !rules.Military.Tactics.TryGetValue(c.Value, out var tactic) || tactic.Category is not (>= 0 and <= 8)))
             throw new ArgumentException("Invalid tactic study course.");
-        var initial = world.BeginMutation(rules.Abilities, rules.Economy);
+        var initial = world.BeginMutation(rules.Abilities, rules.Economy, equipment: rules.Equipment);
         if (initial.AllSettlements.Values.Any(s => s.EnabledTacticIds.Any(id => rules.Military is null || !rules.Military.Tactics.ContainsKey(id))))
             throw new ArgumentException("Unknown settlement tactic reference.");
         initial.RebuildForceTrust();
@@ -126,7 +145,7 @@ public sealed partial class SimulationEngine
         if (world.Simulation.PendingDailyTask is { } pending)
         {
             var task = world.Simulation.Tasks.Single(t => t.Id == pending.RemainingTaskIds[0]);
-            var mutation = world.BeginMutation(rules.Abilities, rules.Economy);
+            var mutation = world.BeginMutation(rules.Abilities, rules.Economy, equipment: rules.Equipment);
             if (pending.RemainingTaskIds.Any(id => rules.FindTask(world.Simulation.Tasks.Single(t => t.Id == id).Kind)!.Phase != pending.Phase) ||
                 rules.FindTask(task.Kind)!.DecisionRecipient(mutation, task) != pending.RespondingForceId)
                 throw new ArgumentException("Invalid task continuation phase or respondent.");
@@ -268,6 +287,7 @@ public sealed partial class SimulationEngine
         GameClock? arrival = null;
         long? journeyDays = null;
         int? governor = null;
+        ImmutableArray<ArmamentResupplyLine> armamentResupply = [];
         var result = Evaluate(context, command, commit: false, events =>
         {
             var task = events.OfType<TaskStartedEvent>().FirstOrDefault()?.Task;
@@ -275,8 +295,9 @@ public sealed partial class SimulationEngine
             journeyDays = task is null ? null : PersonnelJourneyTiming.InitialDays(task);
             governor = events.OfType<CorpsCreatedEvent>().FirstOrDefault()?.LeaderId ??
                 events.OfType<CorpsChangedEvent>().FirstOrDefault()?.LeaderId;
+            armamentResupply = events.OfType<UnitArmamentsResuppliedEvent>().FirstOrDefault()?.Lines ?? [];
         });
-        return new(result.Submission.Rejection, arrival, governor) { JourneyDays = journeyDays };
+        return new(result.Submission.Rejection, arrival, governor) { JourneyDays = journeyDays, ArmamentResupply = armamentResupply };
     }
 
     public AllianceFormationCandidates GetAllianceCandidates()
@@ -424,7 +445,8 @@ public sealed partial class SimulationEngine
         {
             OfferedSoldiers = d is CivicSearchEventDefinition { Activity: CivicSearchKind.Volunteers } volunteers
                 ? CommunitySearch.VolunteerSoldiers(world, task, volunteers) : 0,
-            OfferedMoney = d is CivicSearchEventDefinition civic ? civic.BaseMoneyReward : 0
+            OfferedMoney = d is CivicSearchEventDefinition civic ? civic.BaseMoneyReward : 0,
+            EquipmentDefinitionId = d is EquipmentGiftSearchEventDefinition gift ? gift.EquipmentDefinitionId : null
         };
     }
 
@@ -554,6 +576,46 @@ public sealed partial class SimulationEngine
                     break;
                 case WaitCommand:
                     break;
+                case StartFormationTeachingCommand teaching:
+                    var teachingRejection = FormationTeaching.Start(mutation, teaching, _rules.Military, events);
+                    if (teachingRejection != CommandRejection.None) return Reject(teachingRejection);
+                    break;
+                case StartResearchCommand research:
+                    var researchRejection = MilitaryResearch.Start(mutation, research, _rules, events);
+                    if (researchRejection != CommandRejection.None) return Reject(researchRejection);
+                    break;
+                case ConfigureEquipmentCommand equipment:
+                    var equipmentRejection = EquipmentCommands.Configure(mutation, equipment, _rules.Equipment, events);
+                    if (equipmentRejection != CommandRejection.None) return Reject(equipmentRejection);
+                    break;
+                case TransferEquipmentCommand transfer:
+                    var transferRejection = EquipmentCommands.Transfer(mutation, transfer, _rules.Equipment, events);
+                    if (transferRejection != CommandRejection.None) return Reject(transferRejection);
+                    break;
+                case StartEquipmentProductionCommand production:
+                    var productionRejection = EquipmentProduction.Start(mutation, production, _rules.Equipment, events);
+                    if (productionRejection != CommandRejection.None) return Reject(productionRejection);
+                    break;
+                case PurchaseEquipmentCommand purchase:
+                    var purchaseRejection = EquipmentProduction.Purchase(mutation, purchase, _rules.Equipment, events);
+                    if (purchaseRejection != CommandRejection.None) return Reject(purchaseRejection);
+                    break;
+                case PurchaseArmamentCommand armamentPurchase:
+                    var armamentPurchaseRejection = ArmamentPurchase.Execute(mutation, armamentPurchase, _rules.Military, events);
+                    if (armamentPurchaseRejection != CommandRejection.None) return Reject(armamentPurchaseRejection);
+                    break;
+                case StartArmamentProductionCommand armamentProduction:
+                    var armamentProductionRejection = ArmamentProduction.Start(mutation, armamentProduction, _rules.Military, events);
+                    if (armamentProductionRejection != CommandRejection.None) return Reject(armamentProductionRejection);
+                    break;
+                case ResupplyUnitArmamentsCommand resupply:
+                    var resupplyRejection = ArmamentResupply.Execute(mutation, resupply, _rules.Military, events);
+                    if (resupplyRejection != CommandRejection.None) return Reject(resupplyRejection);
+                    break;
+                case ConfigureUnitArmamentCommand configureArmament:
+                    var configureArmamentRejection = ArmamentResupply.Configure(mutation, configureArmament, _rules.Military, events);
+                    if (configureArmamentRejection != CommandRejection.None) return Reject(configureArmamentRejection);
+                    break;
                 case BurnCommand burn:
                     var burnRejection = BurnStrategies.Start(mutation, context, burn, _rules, events);
                     if (burnRejection != CommandRejection.None) return Reject(burnRejection);
@@ -636,6 +698,10 @@ public sealed partial class SimulationEngine
                     var officesRejection = PersonnelOffices.Apply(mutation, offices, _rules.Governance, events);
                     if (officesRejection != CommandRejection.None) return Reject(officesRejection);
                     break;
+                case SetPersonalPeerageCommand personalPeerage:
+                    var personalPeerageRejection = PersonalPeerageCommands.Apply(mutation, personalPeerage, _rules, events);
+                    if (personalPeerageRejection != CommandRejection.None) return Reject(personalPeerageRejection);
+                    break;
                 case RewardOfficerCommand reward:
                     var rewardRejection = PersonnelRewards.Apply(mutation, reward, events);
                     if (rewardRejection != CommandRejection.None) return Reject(rewardRejection);
@@ -676,6 +742,9 @@ public sealed partial class SimulationEngine
                         return Reject(CommandRejection.NotActiveController);
                     development = DomesticDevelopmentHandler.Apply(mutation, develop.Development, _rules.Economy, _rules.Military, events);
                     if (!development.Value.Accepted) return Reject(CommandRejection.DevelopmentFailed, development);
+                    if (development.Value.Increment > 0)
+                        foreach (int officer in develop.Development.OfficerIds.Order())
+                            OfficerServiceMerit.Credit(mutation, officer, command.IssuerId, 1, "development", events);
                     events.Add(new DevelopmentCompletedEvent(mutation.Clock, develop.Development,
                         development.Value.Increment, development.Value.Cost) { Bonus = development.Value.Bonus });
                     break;
@@ -727,6 +796,7 @@ public sealed partial class SimulationEngine
         // The projection depends only on base abilities, injuries, offices and treasure holdings.
         // Orders, action flags and loyalty changes do not invalidate it. Keep only the latest view.
         bool same = _abilitySnapshot is { } previous && previous.Officers.Count == snapshot.Officers.Count &&
+            previous.EquipmentInitialized == snapshot.EquipmentInitialized && previous.Equipment.SequenceEqual(snapshot.Equipment) &&
             previous.Treasures.SequenceEqual(snapshot.Treasures);
         if (same && !ReferenceEquals(_abilitySnapshot!.Officers, snapshot.Officers))
             for (int i = 0; i < snapshot.Officers.Count; i++)
@@ -738,7 +808,8 @@ public sealed partial class SimulationEngine
                 same = false;
                 break;
             }
-        if (!same) _abilityProjection = _rules.Abilities.EvaluateMany(snapshot.Officers, snapshot.Treasures);
+        if (!same) _abilityProjection = _rules.Abilities.EvaluateMany(snapshot.Officers, snapshot.Treasures,
+            snapshot.EquipmentInitialized ? snapshot.Equipment : null);
         _abilitySnapshot = snapshot;
         return _abilityProjection!;
     }

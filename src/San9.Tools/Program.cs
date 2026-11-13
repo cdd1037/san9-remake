@@ -13,7 +13,7 @@ Console.InputEncoding = new UTF8Encoding(false);
 
 try
 {
-    if(args.Length==0)throw new ArgumentException("Commands: prepare-content --game-dir PATH --output PATH [--ffmpeg PATH] [--audio true|false] [--movies true|false]; import-audio --game-dir PATH --output PATH [--group bgm|effects|all]; import-movies --game-dir PATH --output PATH [--group events|scenarios|startup|all]; upgrade-portrait-anchors --texture-package PATH | --portrait-pack PATH; import-content --game-dir PATH --output PATH [--rebuild opening|worlds]; verify-content --content-root PATH; import-textures --game-dir PATH --output PATH [--rebuild all|cursors|skin|map|map/formation-appearance|portraits|library/ARCHIVE]; import-client --game-dir PATH --scenario FILENAME --texture-package PATH --output PATH [--message-reports true|false]; verify-textures --texture-package PATH; verify-client --content-package PATH; import-text --game-dir PATH --output PATH; render-map --content-package PATH --output PATH");
+    if(args.Length==0)throw new ArgumentException("Commands: prepare-content --game-dir PATH --output PATH [--ffmpeg PATH] [--audio true|false] [--movies true|false]; import-audio --game-dir PATH --output PATH [--group bgm|effects|all]; import-movies --game-dir PATH --output PATH [--group events|scenarios|startup|all]; upgrade-portrait-anchors --texture-package PATH | --portrait-pack PATH; upgrade-legacy-content --source PATH --output PATH --show-officer-ages true|false; upgrade-legacy-textures --source PATH --output PATH; import-content --game-dir PATH --output PATH [--rebuild opening|worlds]; verify-content --content-root PATH; import-textures --game-dir PATH --output PATH [--rebuild all|cursors|skin|map|map/formation-appearance|portraits|library/ARCHIVE]; import-client --game-dir PATH --scenario FILENAME --texture-package PATH --output PATH [--message-reports true|false]; verify-textures --texture-package PATH; verify-client --content-package PATH; import-text --game-dir PATH --output PATH; render-map --content-package PATH --output PATH");
     Dictionary<string,string> options=[];
     for(int i=1;i<args.Length;i+=2)
         if(i+1>=args.Length||!args[i].StartsWith("--",StringComparison.Ordinal)||!options.TryAdd(args[i],args[i+1]))throw new ArgumentException("Invalid or duplicate option.");
@@ -22,6 +22,8 @@ try
         "prepare-content" => ["--game-dir", "--output", "--ffmpeg", "--audio", "--movies"],
         "import-audio" or "import-movies" => ["--game-dir", "--output", "--group"],
         "upgrade-portrait-anchors" => ["--texture-package", "--portrait-pack"],
+        "upgrade-legacy-textures" => ["--source", "--output"],
+        "upgrade-legacy-content" => ["--source", "--output", "--show-officer-ages"],
         "import-content" or "import-textures" => ["--game-dir", "--output", "--rebuild"],
         "verify-content" => ["--content-root"],
         "verify-textures" => ["--texture-package"],
@@ -67,6 +69,17 @@ try
             _ => throw new ArgumentException("Movie group must be events, scenarios, startup or all.")
         };
         await MovieLibraryImporter.ImportAsync(Required("--game-dir"), Required("--output"), group, Console.WriteLine);
+    }
+    else if (args[0] == "upgrade-legacy-content")
+    {
+        bool show = Required("--show-officer-ages") switch { "true" => true, "false" => false, _ => throw new ArgumentException("--show-officer-ages must be true or false.") };
+        await San9.Tools.LegacyContentUpgrade.RunAsync(Required("--source"), Required("--output"), show);
+        Console.WriteLine("Upgraded and verified legacy content package.");
+    }
+    else if (args[0] == "upgrade-legacy-textures")
+    {
+        await LegacyTextureSkinUpgrade.UpgradeAsync(Required("--source"), Required("--output"));
+        Console.WriteLine("Upgraded and verified legacy texture package.");
     }
     else if (args[0] == "upgrade-portrait-anchors")
     {

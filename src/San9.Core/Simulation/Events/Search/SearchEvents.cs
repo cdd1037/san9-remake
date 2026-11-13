@@ -13,7 +13,7 @@ public sealed record BeastSearchResolvedEvent(GameClock Clock, string EventId, i
 internal static class SearchEvents
 {
     internal static bool Prepare(WorldMutation world, PersistentTask task, SimulationRules simulationRules, List<DomainEvent> events,
-        out SearchEncounter? encounter)
+        out SearchEncounter? encounter, bool onlyEquipmentGifts = false)
     {
         encounter = null;
         var rules = simulationRules.Personnel;
@@ -21,6 +21,7 @@ internal static class SearchEvents
         foreach (var candidate in EventSelection.Order(rules.SearchEvents.Values.Select(e => new EventCandidate(e.Id, EventTrigger.Search, e.Priority)),
             EventTrigger.Search))
         {
+            if (onlyEquipmentGifts && rules.SearchEvents[candidate.Id] is not EquipmentGiftSearchEventDefinition) continue;
             if (rules.SearchEvents[candidate.Id] is CommunitySearchEventDefinition community && CommunitySearch.Prepare(world, task, rules, community))
             {
                 encounter = new CommunitySearchEncounter(community.Id);

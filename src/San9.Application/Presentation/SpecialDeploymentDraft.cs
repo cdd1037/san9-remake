@@ -70,7 +70,7 @@ public sealed class SpecialDeploymentDraft
         return sites;
     }
     private bool HasTactic(int tactic, IEnumerable<int> members) => TacticAvailability.HasForMembers(tactic,
-        View.World.Officers.Where(o => members.Contains(o.Id)), Force, View.World.Treasures, _treasures);
+        View.World.Officers.Where(o => members.Contains(o.Id)), Force, View.World.Treasures, _treasures, View.EquippedItems);
     public int FacilityCost(int id) => Rules.Facilities[id].Cost(Rules.Facilities[id].CostReductionTacticId is int tactic
         ? Members.Count(member => HasTactic(tactic, [member])) : 0);
     public IEnumerable<FacilityRule> AvailableFacilities() => Members.IsEmpty ? [] : Rules.Facilities.Values

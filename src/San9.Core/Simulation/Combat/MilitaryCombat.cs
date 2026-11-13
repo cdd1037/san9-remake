@@ -28,7 +28,10 @@ internal static class MilitaryCombat
         unit.FormationId is not null && unit.Soldiers > 0 && unit.Morale > 0 && unit.DepartureDaysRemaining == 0 &&
         unit.Condition is not (UnitCondition.Confused or UnitCondition.Routed);
 
-    internal static uint NormalDamage(WorldMutation world, BattleSource source, BattleSource target, MilitaryRulebook military)
+    internal static uint NormalDamage(WorldMutation world, BattleSource source, BattleSource target, MilitaryRulebook military) =>
+        NormalDamageComponents(world, source, target, military).Total;
+
+    private static uint NormalDamageBase(WorldMutation world, BattleSource source, BattleSource target, MilitaryRulebook military)
     {
         CombatStrength StrengthOf(BattleSource actor, BattleSource opponent) =>
             (actor.IsSettlement ? GarrisonStrength(world, world.Settlements[actor.Id]) : Strength(world, world.Units[actor.Id]))
@@ -40,10 +43,40 @@ internal static class MilitaryCombat
         if (!source.IsSettlement && target.IsSettlement)
             attackProfile = attackProfile with { AgainstGarrison = CompanionBattleRules.SiegeCoefficient(world,
                 world.Units[source.Id], attackProfile.AgainstGarrison, military) };
-        return CombatMath.TroopDamage(StrengthOf(source, target), StrengthOf(target, source), attackProfile, Profile(target),
+        uint baseDamage = CombatMath.TroopDamage(StrengthOf(source, target), StrengthOf(target, source), attackProfile, Profile(target),
             target.IsSettlement, target.IsSettlement ? world.Settlements[target.Id].Durability : 0,
             source.IsSettlement && military.FacilityAttack(world.Settlements[source.Id]).UsesRockfallPower,
             world.Companion.IncreaseDurabilityDefense);
+        return baseDamage;
+    }
+
+    private static (uint Total, uint? Ranged) NormalDamageComponents(WorldMutation world, BattleSource source,
+        BattleSource target, MilitaryRulebook military)
+    {
+        uint amount = NormalDamageBase(world, source, target, military);
+        if (source.IsSettlement)
+        {
+            bool rangedAttack = military.FacilityAttack(world.Settlements[source.Id]).Attack?.IsRangedAttack == true;
+            uint adjusted = MixedTroopCombat.Adjust(world, source, target, amount, military, rangedSource: rangedAttack);
+            adjusted = EquipmentCombat.Adjust(world, source, target, adjusted, ranged: rangedAttack);
+            return (adjusted, rangedAttack ? adjusted : null);
+        }
+        if (!world.Units.TryGetValue(source.Id, out var unit)) return (amount, null);
+        if (unit.Detachments.IsEmpty || military.Map.IsWater(unit.Position))
+            return (EquipmentCombat.Adjust(world, source, target, amount,
+                ranged: military.Formation(unit).Attack?.IsRangedAttack == true), null);
+        ulong melee = 0, ranged = 0;
+        foreach (var (officerId, contribution) in DetachmentAllocation.Resize(unit.Detachments, amount))
+        {
+            bool isRanged = military.TroopTypes[contribution.TroopTypeId].IsRangedAttack;
+            uint adjusted = MixedTroopCombat.Adjust(world, source, target, contribution.Soldiers, military, officerId, tactic: false);
+            adjusted = EquipmentCombat.Adjust(world, source, target, adjusted, officerId, ranged: isRanged);
+            if (isRanged) ranged += adjusted;
+            else melee += adjusted;
+        }
+        ulong total = melee + ranged;
+        if (total > uint.MaxValue) return (uint.MaxValue, (uint)((System.Numerics.BigInteger)ranged * uint.MaxValue / total));
+        return ((uint)total, (uint)ranged);
     }
 
     internal static bool ValidTarget(IWorldQuery world, int owner, MilitaryOrder order, FormationRule formation, MilitaryRulebook rules)
@@ -67,7 +100,7 @@ internal static class MilitaryCombat
         MilitaryRulebook rules, WorldPosition? position = null)
     {
         var actualPosition = position ?? source.Position;
-        var attack = rules.Formation(source, actualPosition).Attack;
+        var attack = rules.AttackFormation(source, actualPosition, settlementId is not null).Attack;
         return rules.AttackRange(attack, Area(source, rules, actualPosition), target, settlementId is not null,
             attack?.RequiresWaterContact == true ? point => world.BlocksWaterContact(rules, point, settlementId) : null);
     }
@@ -84,12 +117,13 @@ internal static class MilitaryCombat
 
     internal static int WallDamage(WorldMutation world, UnitState unit, SettlementState target, MilitaryRulebook rules)
     {
-        var attack = rules.Formation(unit).Attack;
+        var attackFormation = rules.AttackFormation(unit);
+        var attack = attackFormation.Attack;
         if (attack?.DamagesWalls != true || unit.Condition is not (UnitCondition.Normal or UnitCondition.HighSpirits)) return 0;
         bool close = Area(unit, rules).IntersectsExpanded(new BattleSource(target.Id, true).Area(world, rules), MapCoordinates.UnitsPerCell);
         if (!close && !attack.RangedSiege) return 0;
         int damage = CombatMath.DurabilityDamage(unit.Soldiers, Strength(world, unit).Leadership,
-            CompanionBattleRules.SiegeCoefficient(world, unit, rules.CombatFormation(unit)!.AgainstWalls, rules), target.Durability);
+            CompanionBattleRules.SiegeCoefficient(world, unit, attackFormation.Combat!.AgainstWalls, rules), target.Durability);
         return close ? damage : Math.Min(damage, Math.Max(0, target.Durability - 1));
     }
 
@@ -97,7 +131,7 @@ internal static class MilitaryCombat
 
     internal static int ApproachRange(IWorldQuery world, UnitState source, MilitaryOrder target, MilitaryRulebook rules, WorldPosition position)
     {
-        var formation = rules.Formation(source, position);
+        var formation = rules.AttackFormation(source, position, target.SettlementId is not null);
         if (formation.Attack?.RequiresWaterContact == true) return UnitRange(world, source, target, rules, position);
         if (formation.Attack?.RangedSiege != true || rules.Map.IsWater(position)) return 1;
         int reach = UnitRange(world, source, target, rules, position);
@@ -132,7 +166,7 @@ internal static class MilitaryCombat
             world.MaintainLeadership(events);
             if (world.Simulation.TerminalReason is not null) break;
             if (!world.Units.TryGetValue(id, out var attacker) || !CanInitiate(attacker) || attacker.EffectiveOrder is not { IsAttack: true } order) continue;
-            var formation = military.Formation(attacker);
+            var formation = military.AttackFormation(attacker, againstSettlement: order.SettlementId is not null);
             if (!ValidTarget(world, attacker.OwnerId, order, formation, military))
             {
                 if (attacker.ContactTarget is not null)
@@ -163,6 +197,7 @@ internal static class MilitaryCombat
     internal static bool BeginExchange(WorldMutation world, BattleSource source, BattleSource target,
         SimulationRules rules, List<DomainEvent> events, GameClock xunStarted, Func<CombatDayContinuation> captureDay)
     {
+        world.BeginEquipmentExchange(source, target);
         var military = rules.Military!;
         int? previousOwner = target.IsSettlement ? world.Settlements[target.Id].OwnerId : null;
         var affected = new[] { source.IsSettlement ? world.Settlements[source.Id].OwnerId : source.Owner(world),
@@ -172,8 +207,10 @@ internal static class MilitaryCombat
         bool attacksWork = target.IsSettlement && MilitaryDiplomacy.Work(world, target.Id, military);
         bool counter = !attacksWork && CanReply(world, target, source, military);
         // The pair is captured before any casualty, condition change, duel or succession.
-        var damage = attacksWork ? default : new CombatExchangeDamage(NormalDamage(world, source, target, military),
-            counter ? NormalDamage(world, target, source, military) : 0);
+        var outgoing = attacksWork ? default : NormalDamageComponents(world, source, target, military);
+        var incoming = attacksWork || !counter ? default : NormalDamageComponents(world, target, source, military);
+        var damage = new CombatExchangeDamage(outgoing.Total, incoming.Total)
+            { OutgoingRanged = outgoing.Ranged, IncomingRanged = incoming.Ranged };
         var siegeUnit = source.IsSettlement ? target : source;
         var siegeTarget = source.IsSettlement ? source : target;
         if (siegeTarget.IsSettlement && (!source.IsSettlement || counter))
@@ -286,6 +323,7 @@ internal static class MilitaryCombat
     internal static void ResumeDuel(WorldMutation world, SimulationRules rules, List<DomainEvent> events, int successorId)
     {
         var pending = world.Simulation.PendingDuel!;
+        world.BeginEquipmentExchange(new(pending.AttackingUnitId, false), new(pending.DefendingUnitId, false));
         var progress = DuelAftermath.Advance(world, pending.Aftermath, rules, events, successorId);
         if (progress is not null)
         {
@@ -355,8 +393,10 @@ internal static class MilitaryCombat
         CombatExchangeDamage? damage, MilitaryRulebook military, List<DomainEvent> events, bool isTacticExchange = true)
     {
         if (damage is not { } pair) return;
-        ApplyDamage(world, source, target, pair.Outgoing, military, events, isTacticExchange: isTacticExchange, continuesSiege: pair.OutgoingContinuesSiege);
-        ApplyDamage(world, target, source, pair.Incoming, military, events, isTacticExchange: isTacticExchange, continuesSiege: pair.IncomingContinuesSiege);
+        ApplyDamage(world, source, target, pair.Outgoing, military, events, isTacticExchange: isTacticExchange,
+            continuesSiege: pair.OutgoingContinuesSiege, rangedDamage: pair.OutgoingRanged);
+        ApplyDamage(world, target, source, pair.Incoming, military, events, isTacticExchange: isTacticExchange,
+            continuesSiege: pair.IncomingContinuesSiege, rangedDamage: pair.IncomingRanged);
     }
 
     private static bool SurvivesOrdinary(WorldMutation world, BattleSource source, BattleSource target, uint damage)
@@ -369,7 +409,7 @@ internal static class MilitaryCombat
 
     internal static void ApplyDamage(WorldMutation world, BattleSource source, BattleSource target, uint damage,
         MilitaryRulebook military, List<DomainEvent> events, int? tacticId = null, uint? calculatedLoss = null,
-        bool isTacticExchange = false, bool continuesSiege = false)
+        bool isTacticExchange = false, bool continuesSiege = false, uint? rangedDamage = null)
     {
         if (!source.IsPresent(world) || !target.IsPresent(world)) return;
         if (target.IsSettlement)
@@ -377,7 +417,8 @@ internal static class MilitaryCombat
                 events, attackerIsSettlement: source.IsSettlement, tacticId: tacticId,
                 calculatedSoldierLoss: calculatedLoss, isTacticExchange: isTacticExchange, continuesSiege: continuesSiege);
         else DamageUnit(world, world.Units[target.Id], damage, military.CombatFormation(world.Units[target.Id])!, source.Id, events,
-            source.IsSettlement, tacticId, calculatedLoss, isTacticExchange, continuesSiege);
+            source.IsSettlement, tacticId, calculatedLoss, isTacticExchange, continuesSiege,
+            tacticId is int id && military.Tactics.TryGetValue(id, out var tactic) && tactic.IsRangedAttack, rangedDamage);
     }
 
     private static bool Defeated(UnitState unit) => unit.Soldiers == 0 || unit.Morale == 0;
@@ -390,6 +431,11 @@ internal static class MilitaryCombat
         damage = FinalDamage(world, new(attacker, attackerIsSettlement), settlement.OwnerId, damage, settlement.Soldiers);
         var loss = CombatMath.Loss(settlement.Soldiers, damage, profile.WoundedPercent, settlement.Wounded,
             MilitaryRulebook.WoundedCapacity, world.Companion.ReduceBattleWounded ? 12 : 10);
+        if (walls > 0 || loss.RemainingSoldiers < settlement.Soldiers)
+        {
+            world.RecordEquipmentUse(new BattleSource(attacker, attackerIsSettlement), EquipmentUse.Attack);
+            world.RecordEquipmentUse(new BattleSource(settlement.Id, true), EquipmentUse.Defense);
+        }
         int morale = 0;
         var damaged = settlement with
         {
@@ -412,19 +458,33 @@ internal static class MilitaryCombat
         });
     }
     internal static void DamageUnit(WorldMutation world, UnitState unit, uint damage, CombatProfile profile, int attacker, List<DomainEvent> events,
-        bool attackerIsSettlement = false, int? tacticId = null, uint? calculatedSoldierLoss = null, bool isTacticExchange = false, bool continuesSiege = false)
+        bool attackerIsSettlement = false, int? tacticId = null, uint? calculatedSoldierLoss = null, bool isTacticExchange = false, bool continuesSiege = false,
+        bool ranged = false, uint? rangedDamage = null)
     {
+        uint originalDamage = damage;
         damage = FinalDamage(world, new(attacker, attackerIsSettlement), unit.OwnerId, damage, unit.Soldiers);
+        if (rangedDamage is uint component)
+            rangedDamage = originalDamage == 0 ? 0 : (uint)((ulong)damage * component / originalDamage);
         int morale = 0;
-        ApplyUnitLoss(world, unit, damage, morale, profile, new(attacker, attackerIsSettlement), events, tacticId, calculatedSoldierLoss, isTacticExchange, continuesSiege);
+        ApplyUnitLoss(world, unit, damage, morale, profile, new(attacker, attackerIsSettlement), events, tacticId, calculatedSoldierLoss, isTacticExchange, continuesSiege, ranged, rangedDamage);
     }
     internal static void ApplyUnitLoss(WorldMutation world, UnitState unit, uint damage, int morale, CombatProfile profile,
-        BattleSource source, List<DomainEvent> events, int? tacticId = null, uint? calculatedSoldierLoss = null, bool isTacticExchange = false, bool continuesSiege = false)
+        BattleSource source, List<DomainEvent> events, int? tacticId = null, uint? calculatedSoldierLoss = null, bool isTacticExchange = false, bool continuesSiege = false,
+        bool ranged = false, uint? rangedDamage = null)
     {
         damage = Math.Min(damage, unit.Soldiers);
+        if (damage > 0 || morale > 0)
+        {
+            world.RecordEquipmentUse(source, EquipmentUse.Attack);
+            world.RecordEquipmentUse(new BattleSource(unit.Id, false), EquipmentUse.Defense);
+        }
         var loss = CombatMath.Loss(unit.Soldiers, damage, profile.WoundedPercent, unit.Wounded,
             MilitaryRulebook.WoundedCapacity, world.Companion.ReduceBattleWounded ? 13 : 10);
-        world.Replace(unit with { Soldiers = loss.RemainingSoldiers, Wounded = unit.Wounded + loss.AddedWounded, Morale = unit.Morale - morale });
+        uint meleeLoss = rangedDamage is uint rangedPart ? damage - Math.Min(damage, rangedPart) : ranged ? 0 : damage;
+        var detachments = unit.Detachments.IsEmpty || meleeLoss == 0 ? unit.Detachments : DetachmentAllocation.ApplyMeleeLoss(unit, meleeLoss);
+        if (!detachments.IsEmpty && damage > meleeLoss)
+            detachments = DetachmentAllocation.ResizeForCombatLoss(detachments, loss.RemainingSoldiers);
+        world.Replace(unit with { Soldiers = loss.RemainingSoldiers, Wounded = unit.Wounded + loss.AddedWounded, Morale = unit.Morale - morale, Detachments = detachments });
         events.Add(new BattleDamageEvent(world.Clock, source.Id, unit.Id, null, damage, loss.AddedWounded, loss.Dead, 0, morale, source.IsSettlement)
         { TacticId = tacticId, IsTacticExchange = isTacticExchange, ContinuesSiege = continuesSiege, CalculatedSoldierLoss = calculatedSoldierLoss, Source = BattleObjectContext.Capture(world, source), Target = BattleObjectContext.Capture(unit) });
     }

@@ -80,6 +80,19 @@ public static class CorpsControl
         bool permitted = command switch
         {
             WaitCommand => true,
+            StartResearchCommand research => ControlsPlace(research.SettlementId),
+            StartFormationTeachingCommand teaching => ControlsPlace(teaching.SettlementId),
+            StartEquipmentProductionCommand production => ControlsPlace(production.SettlementId),
+            PurchaseEquipmentCommand purchase => ControlsPlace(purchase.SettlementId),
+            PurchaseArmamentCommand armamentPurchase => ControlsPlace(armamentPurchase.SettlementId),
+            StartArmamentProductionCommand armamentProduction => ControlsPlace(armamentProduction.SettlementId),
+            ResupplyUnitArmamentsCommand resupply => ControlsUnit(resupply.UnitId),
+            ConfigureUnitArmamentCommand armament => ControlsUnit(armament.UnitId),
+            ConfigureEquipmentCommand equipment => world.Officers.FirstOrDefault(p => p.Id == equipment.OfficerId)?.UnitId is int assignedUnit
+                ? ControlsUnit(assignedUnit) : OwnPerson(equipment.OfficerId),
+            TransferEquipmentCommand transfer => (transfer.OfficerId is null || OwnPerson(transfer.OfficerId.Value)) &&
+                (world.Equipment.FirstOrDefault(e => e.Id == transfer.EquipmentId)?.OfficerId is not int previous ||
+                 (world.Officers.FirstOrDefault(p => p.Id == previous)?.UnitId is int previousUnit ? ControlsUnit(previousUnit) : OwnPerson(previous))),
             ExecutePrisonerCommand execute => world.Officers.FirstOrDefault(p => p.Id == execute.OfficerId)?.UnitId is int detention
                 ? ControlsUnit(detention) : OwnPerson(execute.OfficerId),
             SelectTacticCommand tactic => world.Officers.FirstOrDefault(p => p.Id == tactic.OfficerId)?.UnitId is int unit

@@ -3,7 +3,7 @@ using San9.Core.Domain;
 
 namespace San9.Application.Presentation;
 
-public enum OfficerDetailPage { Status, Tactics }
+public enum OfficerDetailPage { Status, Tactics, Formations }
 public sealed class OfficerDetailState
 {
     public const int VisibleRows = 18;
@@ -51,16 +51,30 @@ public sealed class OfficerDetailState
 
 public sealed record OfficerDetailData(string Name, string Biography, string PortraitRole, OfficerAbilities RadarAbilities,
     string[] AbilityValues, InformationField[][] Fields, OfficerTacticGroup[] Tactics, int[] Treasures)
-{ public bool IsDeceased { get; init; } }
+{
+    public bool IsDeceased { get; init; }
+    public bool FormationRulesEnabled { get; init; }
+    public OfficerFormation[] Formations { get; init; } = [];
+}
+public sealed record OfficerFormation(string Name, int? Proficiency)
+{
+    public int PracticeDays { get; init; }
+}
 public sealed record OfficerTacticGroup(string Name, int Proficiency, OfficerTactic[] Tactics);
 public sealed record OfficerTactic(string Name, bool Available);
 
 public static class OfficerDetails
 {
+    public static string PeerageName(PersonalPeerage? peerage) => peerage is null ? "无" : peerage.Title ?? peerage.Grade switch
+    {
+        PersonalPeerageGrade.ImperialMarquis => "关内侯", PersonalPeerageGrade.VillageMarquis => "亭侯",
+        PersonalPeerageGrade.DistrictMarquis => "乡侯", PersonalPeerageGrade.CountyMarquis => "县侯",
+        PersonalPeerageGrade.Duke => "公", PersonalPeerageGrade.King => "王", _ => throw new InvalidDataException("Unknown personal peerage.")
+    };
     private static readonly string[][] FieldIds =
     [
         ["force", "corps", "home", "location", "service", "status"],
-        ["office", "capacity", "salary", "loyalty"],
+        ["office", "capacity", "salary", "loyalty", "personal-peerage"],
         ["gender", "personality", "affinity", "parent", "age", "health"],
         ["order", "target-person", "target-place", "arrival", "formation", "equipped-tactic"]
     ];
@@ -69,6 +83,7 @@ public static class OfficerDetails
         var officer = view.Officers.Single(o => o.Id == id);
         var person = view.World.Officers.Single(o => o.Id == id);
         var values = new Dictionary<string, InformationField>();
+        values["personal-peerage"] = new("爵位", PeerageName(person.PersonalPeerage));
         var tactics = new List<OfficerTacticGroup>();
         var pages = OfficerCatalog.Pages(view, texts);
         for (int page = 0; page < pages.Count; page++)
@@ -93,6 +108,18 @@ public static class OfficerDetails
         var abilityValues = Base(person.BaseAbilities).Select((value, i) => current[i] == value ? $"{value}" : $"{value}{current[i] - value:+0;-0}").ToArray();
         return new(name, officer.BiographyKey is string bio ? texts.ResolveRich(bio) : "", $"information-person-{id}",
             officer.Abilities, abilityValues, FieldIds.Select(column => column.Select(key => values[key]).ToArray()).ToArray(),
-            tactics.ToArray(), view.World.Treasures.Where(t => t.Discovered && t.HolderId == id).Select(t => t.Id).ToArray()) { IsDeceased = person.Status == OfficerStatus.Dead };
+            tactics.ToArray(), view.World.Treasures.Where(t => t.Discovered && t.HolderId == id).Select(t => t.Id).ToArray())
+        {
+            IsDeceased = person.Status == OfficerStatus.Dead,
+            FormationRulesEnabled = view.World.Simulation.NewGame.FormationKnowledgeEnabled,
+            Formations = view.World.Simulation.NewGame.FormationKnowledgeEnabled && view.MilitaryRules is { } military
+                ? view.Information.Formations.Where(formation => military.Formations.TryGetValue(formation.Id, out var rule) &&
+                    rule.TravelMode == TravelMode.Land && !military.IsFixedFormation(rule.Id) &&
+                    rule.Id != military.UnformedFormationId && !military.SiegeEquipment.Values.Any(e => e.FormationId == rule.Id))
+                    .OrderBy(formation => formation.Id).Select(formation => new OfficerFormation(formation.Name,
+                        person.FormationProficiencies?.TryGetValue(formation.Id, out int value) == true ? value : null)
+                        { PracticeDays = person.FormationPractice?.GetValueOrDefault(formation.Id) ?? 0 }).ToArray()
+                : []
+        };
     }
 }

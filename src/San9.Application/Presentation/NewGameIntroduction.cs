@@ -40,7 +40,7 @@ public static class NewGameIntroduction
         Relations("friends", 60, 100);
         values["force"] = ProgressMessageProducer.Force(id);
         Add("economy");
-        var outlook = EconomicOutlook.Read(world, view.Information.Offices.ToDictionary(o => o.Id, o => o.Salary), id, view.Companion);
+        var outlook = EconomicOutlook.Read(world, view.Information.Offices.ToDictionary(o => o.Id, o => o.Salary), id, view.Companion, peerages: view.PersonalPeeragePolicy(id));
         if (!outlook.Money.Sufficient || !outlook.Food.Sufficient) Add("shortage");
         values["count"] = new(view.Settlements.Count(s => s.OwnerId == id && s.Kind == SettlementKind.City));
         Add("ambition");

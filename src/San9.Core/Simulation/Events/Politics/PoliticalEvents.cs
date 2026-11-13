@@ -114,7 +114,11 @@ internal static class PoliticalEvents
         PeerageChangeKind kind, int baseTrustBonus, List<DomainEvent> events, IReadOnlySet<int>? loyaltyRecipients = null)
     {
         var force = world.Forces[forceId];
-        world.Replace(force with { RankId = rankId, CountryTitleId = titleId, BaseTrust = (int)Math.Min(1000L, (long)force.BaseTrust + baseTrustBonus) });
+        string? regime = force.PersonalPeerageRegimeId;
+        if (titleId != force.CountryTitleId && titleId is int newTitle &&
+            rules.Politics.Titles.TryGetValue(newTitle, out var title) && title.PersonalPeerageRegimeId is string newRegime)
+            regime = newRegime;
+        world.Replace(force with { RankId = rankId, CountryTitleId = titleId, PersonalPeerageRegimeId = regime, BaseTrust = (int)Math.Min(1000L, (long)force.BaseTrust + baseTrustBonus) });
         foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId && p.Status != OfficerStatus.Ruler &&
             (loyaltyRecipients is null || loyaltyRecipients.Contains(p.Id))).OrderBy(p => p.Id).ToArray())
             RecruitmentRules.SetLoyalty(world, person.Id, forceId,

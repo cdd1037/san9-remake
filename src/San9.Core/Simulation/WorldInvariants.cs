@@ -13,10 +13,29 @@ internal static class WorldInvariants
         _ = new GameClock(state.Clock.Year, state.Clock.Month, state.Clock.Day);
         ValidateParticipation(state);
         ValidateSimulation(state);
+        var lessons = state.AllOfficers.Values.Where(p => p.FormationTeaching is not null).ToArray();
+        if (lessons.Any(p => p.FormationTeaching is { } t && (!state.AllOfficers.ContainsKey(t.TeacherId) ||
+                !state.AllForces.ContainsKey(t.ForceId) || !state.AllSettlements.ContainsKey(t.SettlementId))) ||
+            lessons.SelectMany(p => new[] { p.Id, p.FormationTeaching!.TeacherId }).GroupBy(id => id).Any(g => g.Count() > 1))
+            throw new ArgumentException("Invalid formation teaching references.");
         var titles = state.AllForces.Values.Where(f => f.CountryTitleId is not null).Select(f => f.CountryTitleId!.Value).ToArray();
         if (titles.Any(id => id < 0) || titles.Distinct().Count() != titles.Length) throw new ArgumentException("Invalid country title ownership.");
         foreach (var force in state.AllForces.Values)
         {
+            if (force.ArmamentMigrationCredit is < 0 || force.ArmamentInventory is { } stock &&
+                stock.Any(pair => string.IsNullOrWhiteSpace(pair.Key) || pair.Value == 0) ||
+                force.ArmamentReserve is { } reserve && reserve.Any(pair => string.IsNullOrWhiteSpace(pair.Key) || pair.Value == 0))
+                throw new ArgumentException("Invalid armament inventory.");
+            if (force.ArmamentEscrowSuccessorId is int successor &&
+                (!force.IsEliminated || successor == force.Id ||
+                 !state.AllForces.TryGetValue(successor, out var beneficiary) || beneficiary.IsEliminated || beneficiary.IsDormant ||
+                 (force.ArmamentInventory is null || force.ArmamentInventory.IsEmpty) &&
+                 (force.ArmamentReserve is null || force.ArmamentReserve.IsEmpty) && (force.ArmamentMigrationCredit ?? 0) == 0))
+                throw new ArgumentException("Invalid armament escrow successor.");
+            if (force.ArmamentProduction is { } armamentProduction &&
+                (string.IsNullOrWhiteSpace(armamentProduction.DefinitionId) || armamentProduction.SettlementId < 0 ||
+                 armamentProduction.Batches == 0 || armamentProduction.DaysRemaining <= 0))
+                throw new ArgumentException("Invalid armament production.");
             if (!force.IsEliminated && state.AllCorps.Values.Count(c => c.OwnerId == force.Id && c.IsRoot) != 1)
                 throw new ArgumentException("Each surviving force must have exactly one root corps.");
             if (force.Origin is { } origin)
@@ -40,6 +59,14 @@ internal static class WorldInvariants
             if (force.FormationGrants.IsDefault || force.FormationGrants.Any(g => g is null || g.FormationId < 0 || !Enum.IsDefined(g.Condition)) ||
                 force.FormationGrants.Select(g => g.FormationId).Distinct().Count() != force.FormationGrants.Length)
                 throw new ArgumentException("Invalid force formation grants.");
+            if (force.CompletedResearch.IsDefault || force.CompletedResearch.Any(string.IsNullOrWhiteSpace) ||
+                !force.CompletedResearch.SequenceEqual(force.CompletedResearch.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)) ||
+                force.ActiveResearch is { } research && (string.IsNullOrWhiteSpace(research.ProjectId) || research.SettlementId < 0 ||
+                    research.DaysRemaining <= 0 || force.CompletedResearch.Contains(research.ProjectId)))
+                throw new ArgumentException("Invalid force research.");
+            if (force.EquipmentProduction is { } production && (string.IsNullOrWhiteSpace(production.DefinitionId) ||
+                production.SettlementId < 0 || production.DaysRemaining <= 0))
+                throw new ArgumentException("Invalid equipment production.");
             if (force.Id < 0 || force.Trust is < 0 or > 1000 || force.BaseTrust is < 0 or > 1000 || force.ProvidedTactics.IsDefault || force.ProvidedTactics.Any(t => t < 0) || force.ProvidedTactics.Distinct().Count() != force.ProvidedTactics.Length) throw new ArgumentException("Invalid force.");
         }
         foreach (var settlement in state.AllSettlements.Values)
@@ -77,7 +104,11 @@ internal static class WorldInvariants
         }
         foreach (var officer in state.AllOfficers.Values)
         {
-            if (!officer.IsValid() || officer.ForceLoyalties.Keys.Any(id => !state.AllForces.ContainsKey(id)) ||
+            if (!officer.IsValid() || officer.ManualAppearance is { } scheduled &&
+                    (!state.AllSettlements.ContainsKey(scheduled.SettlementId) || scheduled.ForceId is int scheduledForce && !state.AllForces.ContainsKey(scheduledForce)) ||
+                officer.ForceLoyalties.Keys.Any(id => !state.AllForces.ContainsKey(id)) ||
+                officer.BattleMerit?.Keys.Any(id => !state.AllForces.ContainsKey(id)) == true ||
+                officer.ServiceMerit?.Keys.Any(id => !state.AllForces.ContainsKey(id)) == true ||
                 officer.SettlementId is int location && !state.AllSettlements.ContainsKey(location) ||
                 officer.OwnerId is int owner && !state.AllForces.ContainsKey(owner) ||
                 officer.UnitId is int unitId && (!state.Units.TryGetValue(unitId, out var unit) ||
@@ -111,6 +142,8 @@ internal static class WorldInvariants
                 !leader.IsServing && !(c.IsRoot && leader.Status == San9.Core.Domain.OfficerStatus.Captive &&
                     state.AllForces[c.OwnerId].LeaderId == leader.Id) : !c.IsRoot || state.AllForces[c.OwnerId].LeaderId is not null)) ||
             state.AllTreasures.Values.Any(t => !t.IsValid || t.HolderId is int holder && !state.AllOfficers.ContainsKey(holder)) ||
+            state.AllEquipment.Values.Any(e => !e.IsValid || e.OfficerId is int officer && !state.AllOfficers.ContainsKey(officer) ||
+                e.InventoryForceId is int owner && (!state.AllForces.TryGetValue(owner, out var equipmentOwner) || equipmentOwner.IsEliminated)) ||
             state.AllRelations.Values.Any(r => r.FirstId >= r.SecondId || r.Value is < 0 or > 100 || !state.AllForces.ContainsKey(r.FirstId) || !state.AllForces.ContainsKey(r.SecondId)))
             throw new ArgumentException("Invalid information state relationships.");
     }

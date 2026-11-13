@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -6,6 +7,30 @@ namespace San9.Core.Tests;
 
 public sealed class MilitaryEngagementTests
 {
+    [Theory]
+    [InlineData(1000, 90, true, 1)]
+    [InlineData(0, 90, true, 0)]
+    [InlineData(1000, 0, true, 0)]
+    [InlineData(1000, 90, false, 0)]
+    public void FormationPracticeRequiresAnEffectiveUnit(uint soldiers, int morale, bool learningEnabled, int expected)
+    {
+        var (world, military) = Create();
+        var m = world.BeginMutation();
+        m.SetSimulation(m.Simulation with { Boundary = SimulationBoundary.Stable, NewGame = m.Simulation.NewGame with { FormationLearningEnabled = learningEnabled } });
+        m.Replace(m.Officers[11] with { UnitId = 1, SettlementId = null,
+            FormationProficiencies = ImmutableSortedDictionary<int, int>.Empty.Add(1, 0) });
+        m.Replace(m.Units[1] with { Soldiers = soldiers, Morale = morale, CommanderId = 11, OrderClass = UnitOrderClass.Military,
+            Order = Attack(2), MemberPositions = FormationTestData.Members(ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Middle)) });
+        if (soldiers > 0)
+        {
+            world.Commit(m);
+            m = WorldState.Restore(world.CreateSnapshot()).BeginMutation();
+        }
+        Assert.True(MilitaryEngagements.Engaged(m, m.Units[1], military));
+        BattleLearning.Daily(m, military, []);
+        Assert.Equal(expected, m.Officers[11].FormationProficiencies![1]);
+    }
+
     private static MilitaryOrder Attack(int id) => new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = id };
     private static (WorldState World, MilitaryRulebook Military) Create(int buildingWidth = 1, int scale = 1, bool defendingMember = false)
     {

@@ -58,6 +58,7 @@ internal static class PersonnelDefection
             var followers = new HashSet<int> { target.Id };
             foreach (var person in people.Where(p => p.Id != target.Id && !world.IsTraveling(p.Id)))
                 if (Follows(world, person, task.ForceId)) followers.Add(person.Id);
+            MilitaryResearch.CancelAt(world, source.Id, events);
             world.Replace(source with { OwnerId = task.ForceId, CorpsId = corps });
             foreach (var unit in world.Units.Values.Where(u => u.OwnerId == owner && u.ServicePlaceId == source.Id && u.IsEmbedded).ToArray())
                 world.Replace(unit with { OwnerId = task.ForceId, CorpsId = corps });

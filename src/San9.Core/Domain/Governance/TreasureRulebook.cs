@@ -17,8 +17,9 @@ public sealed class TreasureRulebook
 {
     public static TreasureRulebook Empty { get; } = new([]);
 
-    public TreasureRulebook(IEnumerable<TreasureRule> items)
+    public TreasureRulebook(IEnumerable<TreasureRule> items, EquipmentRulebook? equipment = null)
     {
+        Equipment = equipment ?? EquipmentRulebook.Empty;
         Items = items.ToImmutableDictionary(i => i.Id);
         if (Items.Values.Any(i => i.Id < 0 || i.TacticId < 0 || !Enum.IsDefined(i.RetentionGroup) || !i.AbilityBonuses.IsNonnegative || i.LoyaltyBonus < 0 ||
             i.FavoredOwnerIds.IsDefault || i.FavoredOwnerIds.Any(id => id < 0) || i.FavoredOwnerIds.Distinct().Count() != i.FavoredOwnerIds.Length))
@@ -26,6 +27,7 @@ public sealed class TreasureRulebook
     }
 
     public ImmutableDictionary<int, TreasureRule> Items { get; }
+    public EquipmentRulebook Equipment { get; }
 
     public static OfficerAbilities MaximumBonuses(IEnumerable<OfficerAbilities> bonuses)
     {

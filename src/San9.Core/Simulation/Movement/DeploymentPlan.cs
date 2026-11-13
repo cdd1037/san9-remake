@@ -13,6 +13,7 @@ public sealed class DeploymentPlan
     private readonly HashSet<int> officers = [];
     private readonly Dictionary<int, long> soldiers = [];
     private readonly Dictionary<ResourceAccount, long> money = [];
+    private readonly Dictionary<string, ulong> armaments = new(StringComparer.Ordinal);
     private readonly List<MapOccupancy> positions = [];
     private int committed;
     private bool invalidated;
@@ -39,6 +40,7 @@ public sealed class DeploymentPlan
         return ResourceAccounts.Balance(world, account, ResourceKind.Money) - ReservedMoney(account);
     }
     internal long ReservedMoney(ResourceAccount account) => money.GetValueOrDefault(account);
+    internal ulong ReservedArmament(string id) => armaments.GetValueOrDefault(id);
 
     public CommandRejection TryPrepare(DeployUnitCommand command, out PreparedDeployment? prepared)
     {
@@ -47,7 +49,7 @@ public sealed class DeploymentPlan
         var rejection = engine.CheckDeploymentEnvelope(context, command);
         if (rejection != CommandRejection.None) return rejection;
         if (issuer is int owner && owner != command.IssuerId) return CommandRejection.NotActiveController;
-        rejection = MilitaryMovement.PrepareDeployment(world, command, rules.Military, rules.Treasures,
+        rejection = MilitaryMovement.PrepareDeployment(world, command, rules.Military, rules.Governance, rules.Treasures,
             UnitPurpose.Combat, 0, 0, out var data, this);
         if (rejection != CommandRejection.None) return rejection;
         issuer = command.IssuerId;
@@ -55,6 +57,8 @@ public sealed class DeploymentPlan
         foreach (int officer in command.OfficerIds) officers.Add(officer);
         soldiers[command.SettlementId] = soldiers.GetValueOrDefault(command.SettlementId) + command.Soldiers;
         money[data!.Account] = ReservedMoney(data.Account) + data.Cost;
+        foreach (var (id, count) in data.ArmamentConsumption)
+            armaments[id] = ReservedArmament(id) + count;
         var travel = rules.Military!.Travel(command.FormationId, data.NavalId, command.Soldiers);
         positions.Add(new(data.Start, travel.Map.ShapeAt(data.Start, travel.Shape))
             { Hard = false, Avoidance = NavigationAvoidance.Friendly });

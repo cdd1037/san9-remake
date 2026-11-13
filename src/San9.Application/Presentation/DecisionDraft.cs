@@ -269,6 +269,27 @@ public sealed class DecisionDraft
     public static DecisionDraft? Read(GameSession session, TextCatalog texts, CommandPresentation presentation)
     {
         if (session.GetPendingResponse() is not { } response) return null;
+        if (response.Prompt is ResponsePrompt<CommunitySearchPrompt> { Value.EquipmentDefinitionId: not null } &&
+            !presentation.Decisions.Events.ContainsKey("equipment-gift"))
+        {
+            const string prefix = "remake.equipment-gift.";
+            var messages = new Dictionary<string, MessageDefinition>(texts.Messages, StringComparer.Ordinal)
+            {
+                [prefix + "intro"] = new([new MessageLiteral("当地有人愿献上 "), new MessageValue(new("binding", "string.0")), new MessageLiteral("。")]),
+                [prefix + "prompt"] = new([new MessageLiteral("是否接受此物？")]),
+                [prefix + "accept"] = new([new MessageLiteral("已获得 "), new MessageValue(new("binding", "string.0")), new MessageLiteral("。")]),
+                [prefix + "decline"] = new([new MessageLiteral("已婉拒赠物。")])
+            };
+            texts = texts with { Messages = messages };
+            DecisionMessageDefinition Message(string suffix) => new(prefix + suffix, new() { ["string.0"] = "subject" });
+            var definitions = new Dictionary<string, DecisionPresentationDefinition>(presentation.Decisions.Events, StringComparer.Ordinal)
+            {
+                ["equipment-gift"] = new(DecisionWindowKind.Confirmation, Message("prompt"), [Message("intro")],
+                    new() { ["Accept"] = [Message("accept")], ["Decline"] = [Message("decline")] },
+                    new() { ["Accept"] = "接受", ["Decline"] = "拒绝" })
+            };
+            presentation = presentation with { Decisions = presentation.Decisions with { Events = definitions } };
+        }
         string role = ""; int force = -1; int? person = null; DiplomaticDecisionData? diplomacy = null;
         var world = session.Snapshot;
         Dictionary<string, MessageBinding> values = [];
@@ -331,22 +352,23 @@ public sealed class DecisionDraft
         }
         else if (response.Prompt is ResponsePrompt<CommunitySearchPrompt> { Value: var community })
         {
-            Context(community.EventId, community.ForceId, community.OfficerId, community.PlaceId);
+            Context(community.EquipmentDefinitionId is null ? community.EventId : "equipment-gift", community.ForceId, community.OfficerId, community.PlaceId);
             foreach (var choice in community.Options) Option(choice.Choice.ToString(), (id, seq, _, _) => new RespondDailyTaskCommand(id, force, seq, community.TaskId, community.Step,
                 choice.Choice is not (CommunitySearchChoice.Decline or CommunitySearchChoice.Execute))
             { CommunitySearch = choice.Choice }, cost: choice.Cost);
             values["cost"] = new(community.Options.FirstOrDefault(o => o.Cost > 0)?.Cost ?? 0);
-            string subject = community.EventId switch
+            string subject = community.EquipmentDefinitionId is string equipment ? session.EquipmentDefinitions[equipment].Name : community.EventId switch
             {
                 "disaster-relief" => presentation.Decisions.Subjects["disaster." + community.Season],
                 "monument" or "homecoming-sacrifice" => presentation.Decisions.Subjects[community.EventId + "." + community.PlaceId],
-                "training-site" => presentation.Decisions.Subjects["tactic-category." + community.TacticCategory],
+                "training-site" => community.TacticCategory == 3 && presentation.Decisions.Subjects["tactic-category.3"] == "弩兵"
+                    ? "弓弩" : presentation.Decisions.Subjects["tactic-category." + community.TacticCategory],
                 "bribe" => presentation.Decisions.Subjects["civic-person." + Random.Shared.Next(2)],
                 _ => ""
             };
             values["subject"] = new(0, subject); values["soldiers"] = new(community.OfferedSoldiers);
-            if (community.EventId == "training-site") values["training-image"] = new(0, community.TacticCategory == 4 ? "decision-training-water" : "decision-training-land");
-            if (community.EventId == "bribe") values["amount"] = new(community.OfferedMoney);
+            if (community.EquipmentDefinitionId is null && community.EventId == "training-site") values["training-image"] = new(0, community.TacticCategory == 4 ? "decision-training-water" : "decision-training-land");
+            if (community.EquipmentDefinitionId is null && community.EventId == "bribe") values["amount"] = new(community.OfferedMoney);
             if (community.RequiredTreasureId is int treasure) values["treasure"] = MessageBinding.Reference(MessageEntityKind.Treasure, treasure);
         }
         else if (response.Prompt is ResponsePrompt<SearchConflictPrompt> { Value: var conflict })

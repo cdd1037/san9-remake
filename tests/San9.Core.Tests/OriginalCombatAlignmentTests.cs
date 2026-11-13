@@ -60,6 +60,24 @@ public sealed class OriginalCombatAlignmentTests
         Assert.Empty(m.Simulation.RandomStreams);
     }
 
+    [Fact]
+    public void StarvationReducesIssuedArmamentsAlongsideSoldiers()
+    {
+        var m = World(0).BeginMutation(); var rules = Rules(); List<DomainEvent> events = [];
+        m.Replace(m.Units[1] with { Detachments = ImmutableDictionary<int, DetachmentState>.Empty.Add(11,
+            new DetachmentState(0, 1, 500) { Weapon = new("spear", 500, 500, 0), Armor = new("armor", 250, 500, 0) }) });
+        MilitaryDailyCycle.Apply(m, [new(new(ResourceOwnerKind.Corps, 1), true)], rules, events);
+        var detachment = m.Units[1].Detachments[11];
+        Assert.Equal(495u, detachment.Soldiers);
+        Assert.Equal(495u, detachment.Weapon!.RemainingSets);
+        Assert.Equal(247u, detachment.Armor!.RemainingSets);
+        MilitaryDailyCycle.Apply(m, [new(new(ResourceOwnerKind.Corps, 1), true)], rules, events);
+        detachment = m.Units[1].Detachments[11];
+        Assert.Equal(490u, detachment.Soldiers);
+        Assert.Equal(490u, detachment.Weapon!.RemainingSets);
+        Assert.Equal(245u, detachment.Armor!.RemainingSets);
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]

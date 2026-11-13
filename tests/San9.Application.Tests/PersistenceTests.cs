@@ -293,7 +293,8 @@ public sealed class PersistenceTests : IDisposable
 
     private sealed class FixtureRules : SimulationRules
     {
-        internal FixtureRules() { Treasures = new([new(1, default, 5)]); }
+        internal FixtureRules() { Treasures = new([new(1, default, 5)]); var info = Fixture().Information;
+            Equipment = new(LegacyEquipmentMigration.Convert(info.Treasures, info.TreasureStates).Definitions); }
         internal int InitialUpdates { get; private set; }
         internal bool Fail { get; set; }
         internal Action? DuringDailyUpdate { get; set; }
@@ -712,7 +713,8 @@ public sealed class PersistenceTests : IDisposable
 
     private sealed class TerminalRules : SimulationRules
     {
-        internal TerminalRules() { Treasures = new([new(1, default, 5)]); }
+        internal TerminalRules() { Treasures = new([new(1, default, 5)]); var info = Fixture().Information;
+            Equipment = new(LegacyEquipmentMigration.Convert(info.Treasures, info.TreasureStates).Definitions); }
         internal override void ApplyStage(ResolutionStage stage, WorldMutation world, List<DomainEvent> events)
         {
             if (stage == ResolutionStage.TerminalCheck)

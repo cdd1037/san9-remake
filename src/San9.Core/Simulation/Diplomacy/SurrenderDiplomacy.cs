@@ -89,6 +89,7 @@ internal static class SurrenderDiplomacy
         {
             SurrenderMerge.Apply(world, task, target, rules, events);
             DiplomacySettlement.Grow(world, task.OfficerId, events);
+            OfficerServiceMerit.Credit(world, task.OfficerId, task.ForceId, 3, "surrender-accepted", events);
         }
         else ForceRelations.Set(world, task.ForceId, target,
             DiplomacyMath.SurrenderRejectedRelation(MilitaryDiplomacy.Relation(world, task.ForceId, target)), null, events);

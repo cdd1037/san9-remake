@@ -6,6 +6,21 @@ namespace San9.Core.Tests;
 
 public sealed class CommunitySearchTests
 {
+    [Fact]
+    public void EquipmentGiftDefinitionRequiresPlaceInstanceAndSuccessConsumption()
+    {
+        var gift = new EquipmentGiftSearchEventDefinition(1, 100, "gift-item", new("gift.1"))
+        {
+            Id = "gift", Consumption = EventConsumption.OnSuccess,
+            ChanceAbility = CommunityAbility.Politics, ChanceDivisor = null
+        };
+        gift.Validate(new HashSet<int> { 1 });
+        Assert.Throws<ArgumentException>(() => (gift with { PlaceId = 2 }).Validate(new HashSet<int> { 1 }));
+        Assert.Throws<ArgumentException>(() => (gift with { EquipmentInstanceId = -1 }).Validate(new HashSet<int> { 1 }));
+        Assert.Throws<ArgumentException>(() => (gift with { ConsumptionKey = new("") }).Validate(new HashSet<int> { 1 }));
+        Assert.Throws<ArgumentException>(() => (gift with { Consumption = EventConsumption.None }).Validate(new HashSet<int> { 1 }));
+    }
+
     internal static CommunitySearchEventDefinition Definition(string kind) => (kind switch
     {
         "relief" => (CommunitySearchEventDefinition)new CivicSearchEventDefinition(CivicSearchKind.DisasterRelief)
@@ -19,6 +34,7 @@ public sealed class CommunitySearchTests
         "sacrifice" => new CommemorationSearchEventDefinition([new(1, 50, CommunityAbility.War, [10, 11], new("sacrifice.1"))], 1000, 1, 2)
             { Consumption = EventConsumption.OnSuccess, MinimumMoneyExclusive = 3500, MaximumTrustExclusive = 1000 },
         "training" => new TrainingSiteSearchEventDefinition([new(1, 2)], 500, 10000, 600, 4) { MinimumMoneyExclusive = 2500 },
+        "gift" => new EquipmentGiftSearchEventDefinition(1, 100, "gift-item", new("gift.1")) { Consumption = EventConsumption.OnSuccess },
         _ => throw new ArgumentException()
     }) with { Id = kind, ChanceAbility = CommunityAbility.Politics, ChanceDivisor = kind == "sacrifice" ? null : 1 };
     private static (WorldMutation World, PersistentTask Task, SimulationRules Rules, CommunitySearchEncounter Encounter) Create(string kind)
@@ -29,14 +45,66 @@ public sealed class CommunitySearchTests
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(60, 30, 80, 70), false)],
             treasures: [new(50, 2, TreasureDiscovery.Discovered, null)],
+            equipment: [new EquipmentInstance(100, "gift-item", null, null, false) { IsLost = true, EventGiftKey = "gift.1" }],
             corps: [new(7, 1, 2, new(5000, 5000)) { ControlMode = CorpsControlMode.Direct }, new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 0)) { IsRoot = true }],
-            controls: [new("player", 1, ControllerKind.Player)]).BeginMutation(new OfficerAbilityRules(new([new(50, default, 0)]), new([])));
+            controls: [new("player", 1, ControllerKind.Player)]).BeginMutation(new OfficerAbilityRules(new([new(50, default, 0)]), new([])),
+                equipment: new EquipmentRulebook([new("gift-item", EquipmentSlot.Treasure, EquipmentRarity.Rare, default, default) { Name = "礼物" }]));
         ulong seed = TestSeeds.StateForRoll(0);
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", seed)] });
         var task = new PersistentTask(Guid.NewGuid(), "personnel-search", "player", 1, 2, 1, world.Clock, world.Clock, 0, 0) { Journey = new(1, null, 0) };
         var d = Definition(kind); var rules = new SimulationRules { Personnel = new([new(1, new(0, 0))], searchEvents: [d]) };
         Assert.True(CommunitySearch.Prepare(world, task, rules.Personnel, d));
         return (world, task, rules, new(kind));
+    }
+
+    [Theory]
+    [InlineData(CommunitySearchChoice.Accept)]
+    [InlineData(CommunitySearchChoice.Decline)]
+    public void EquipmentGiftTransfersAndConsumesOnlyWhenAccepted(CommunitySearchChoice choice)
+    {
+        var (world, task, rules, encounter) = Create("gift");
+        List<DomainEvent> events = [];
+        CommunitySearch.Resolve(world, task, rules, encounter, choice, events);
+        var item = world.AllEquipment[100];
+        Assert.Equal(choice == CommunitySearchChoice.Accept ? 100L : (long?)null,
+            Assert.Single(events.OfType<CommunitySearchResolvedEvent>()).EquipmentId);
+        Assert.Equal(choice == CommunitySearchChoice.Accept ? 1 : (int?)null, item.OfficerId);
+        Assert.Equal(choice == CommunitySearchChoice.Decline, item.IsLost);
+        Assert.Equal(choice == CommunitySearchChoice.Accept, world.Simulation.ConsumedEventKeys.Contains(new("gift.1")));
+        Assert.Equal(choice == CommunitySearchChoice.Decline, CommunitySearch.CanResolve(world, task, rules, encounter));
+    }
+
+    [Fact]
+    public void EquipmentGiftRejectsAnItemAlreadyClaimedOrAvailableThroughOrdinarySearch()
+    {
+        var (world, task, rules, encounter) = Create("gift");
+        var original = world.AllEquipment[100];
+        world.SetEquipment(original with { SearchPlaceId = 1, EventGiftKey = null });
+        Assert.False(CommunitySearch.CanResolve(world, task, rules, encounter));
+        world.SetEquipment(EquipmentRules.MoveToOfficer(original, 2));
+        Assert.False(CommunitySearch.CanResolve(world, task, rules, encounter));
+        List<DomainEvent> events = [];
+        Assert.Throws<InvalidOperationException>(() => CommunitySearch.Resolve(world, task, rules, encounter, CommunitySearchChoice.Accept, events));
+        Assert.Empty(events);
+        Assert.Equal(2, world.AllEquipment[100].OfficerId);
+        Assert.Empty(world.Simulation.ConsumedEventKeys);
+        world.SetEquipment(EquipmentRules.MoveToOfficer(original, 2) with { OfficerId = null, IsLost = true });
+        Assert.False(CommunitySearch.CanResolve(world, task, rules, encounter));
+    }
+
+    [Fact]
+    public void AutomaticForceCanTriggerAndAcceptAnEquipmentGift()
+    {
+        var (world, task, rules, _) = Create("gift");
+        world.SetSimulation(world.Simulation with { Controls = [new("ai", 1, ControllerKind.Automatic)] });
+        List<DomainEvent> events = [];
+        Assert.True(SearchEvents.Prepare(world, task, rules, events, out var encounter, onlyEquipmentGifts: true));
+        Assert.IsType<CommunitySearchEncounter>(encounter);
+        var journey = task.Journey! with { Route = new(new(0, 0), new(0, 0), false) };
+        var pending = task with { ControllerId = "ai", SearchEncounter = encounter, Journey = journey };
+        new PersonnelMissionRule(rules, PersonnelMissions.SearchKind).Resolve(world, pending, null, events);
+        Assert.Equal(1, world.AllEquipment[100].OfficerId);
+        Assert.Contains(new PersistentEventKey("gift.1"), world.Simulation.ConsumedEventKeys);
     }
     public static IEnumerable<object[]> Outcomes()
     {

@@ -97,7 +97,7 @@ public partial class InformationPanel : ModalView
         _textures = Service.CreateScope();
         if (State.IsMenu) _textures.RequestPrefixes("information-menu-");
         else if (State.Category is InformationCategory.Records or InformationCategory.Chronicle) _textures.RequestPrefixes("progress-record-", "detail-", "catalog-scroll-", "message-", "text-icon-");
-        else if (State.IsDetail) _textures.RequestPrefixes("detail-", "formation-", "roster-", "catalog-scroll-", "message-");
+        else if (State.IsDetail) _textures.RequestPrefixes("detail-", "formation-", "roster-", "catalog-", "information-", "scroll-", "message-", "dialog-");
         else if (State.IsMap) _textures.RequestPrefixes("overview-terrain", "information-", "catalog-help", "message-");
         else _textures.RequestPrefixes("information-", "catalog-", "roster-", "scroll-", "button-scroll-", "message-", "text-icon-");
         _page = State.IsMenu

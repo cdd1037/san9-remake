@@ -72,9 +72,12 @@ internal static class EconomicCycle
             int? corpsId = PersonnelLocations.Corps(world, person);
             var account = ResourceAccounts.Resolve(world, person.OwnerId!.Value, corpsId);
             int salary = Salary(person);
-            bool paid = ResourceAccounts.Balance(world, account, ResourceKind.Money) >= salary;
+            var force = world.Forces[person.OwnerId!.Value];
+            int peerageSalary = world.Simulation.NewGame.PersonalPeerageEnabled == false ? 0 : rules.PeeragePolicy(force, world.Clock.Year).Salary(person.PersonalPeerage);
+            bool paid = ResourceAccounts.Balance(world, account, ResourceKind.Money) >= (long)salary + peerageSalary;
             ResourceAccounts.Change(world, account, ResourceKind.Money, -salary, "salary", person.Id, events, true);
-            var force = world.Forces[person.OwnerId.Value];
+            if (peerageSalary > 0)
+                ResourceAccounts.Change(world, account, ResourceKind.Money, -peerageSalary, "peerage-salary", person.Id, events, true);
             int distance = force.LeaderId is int ruler ? PersonnelRulebook.AffinityDistance(person, world.Officers[ruler]) : 50;
             int chance = EconomyMath.SalaryLoyaltyChance(paid, force.Trust, distance, person.Righteousness);
             int roll = (int)(world.NextRandom("personnel-salary-loyalty") % 100);
@@ -84,6 +87,13 @@ internal static class EconomicCycle
             world.Replace(person.WithLoyalty(force.Id, loyalty));
             events.Add(new OfficerLoyaltyChangedEvent(world.Clock, person.Id, force.Id, person.Loyalty, loyalty,
                 paid ? "paid-salary" : "unpaid-salary"));
+        }
+        foreach (var ruler in world.Officers.Values.Where(p => world.Simulation.NewGame.PersonalPeerageEnabled != false && p.Status == OfficerStatus.Ruler && p.OwnerId is not null && p.PersonalPeerage is not null).OrderBy(p => p.Id))
+        {
+            int salary = rules.PeeragePolicy(world.Forces[ruler.OwnerId!.Value], world.Clock.Year).Salary(ruler.PersonalPeerage);
+            if (salary == 0) continue;
+            var account = ResourceAccounts.Resolve(world, ruler.OwnerId!.Value, PersonnelLocations.Corps(world, ruler));
+            ResourceAccounts.Change(world, account, ResourceKind.Money, -salary, "peerage-salary", ruler.Id, events, true);
         }
     }
 

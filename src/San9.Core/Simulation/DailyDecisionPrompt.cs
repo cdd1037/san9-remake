@@ -36,7 +36,8 @@ public sealed partial class SimulationEngine
                 offers.Add(new(CompensationKind.Prisoner, 0, exchange, null));
         }
         int account = world.Corps.Values.Single(c => c.OwnerId == responding && c.IsRoot).Id;
-        var outlook = EconomicOutlook.Read(Snapshot, _rules.Economy.Salaries.ToDictionary(s => s.OfficeId, s => s.Amount), responding, Companion, account);
+        var outlook = EconomicOutlook.Read(Snapshot, _rules.Economy.Salaries.ToDictionary(s => s.OfficeId, s => s.Amount), responding, Companion, account,
+            _rules.Economy.PeeragePolicy(world.Forces[responding], world.Clock.Year));
         return new(task.Id, task.ResolutionStep, task.Kind, task.ForceId, responding,
             task.AttackRequest?.Offer ?? task.PrisonerReturn?.Offer, offers.ToImmutable(),
             Math.Max(0, outlook.Money.Balance - outlook.Money.Expenditure),
@@ -46,5 +47,9 @@ public sealed partial class SimulationEngine
     }
 
     public EconomicOutlook GetAccountOutlook(int forceId, int accountId) => EconomicOutlook.Read(Snapshot,
-        _rules.Economy.Salaries.ToDictionary(s => s.OfficeId, s => s.Amount), forceId, Companion, accountId);
+        _rules.Economy.Salaries.ToDictionary(s => s.OfficeId, s => s.Amount), forceId, Companion, accountId,
+        _rules.Economy.PeeragePolicy(Snapshot.Forces.Single(f => f.Id == forceId), Snapshot.Clock.Year));
+
+    public PersonalPeeragePolicy GetPersonalPeeragePolicy(int forceId) =>
+        _rules.Economy.PeeragePolicy(Snapshot.Forces.Single(f => f.Id == forceId), Snapshot.Clock.Year);
 }

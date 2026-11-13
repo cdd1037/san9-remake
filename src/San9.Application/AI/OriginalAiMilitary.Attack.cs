@@ -263,7 +263,7 @@ internal sealed partial class OriginalAiMilitary
         if (site is null) return;
         var facilities = site.FacilityIds.Select(id => rules.Facilities[id]).Where(f => f.Buildable &&
             f.ConstructionCost <= Corps.Treasury.Money && (f.RequiredTacticId is not int required ||
-                TacticAvailability.HasForMembers(required, people, Force, World.Treasures, Treasures))).ToArray();
+                TacticAvailability.HasForMembers(required, people, Force, World.Treasures, Treasures, World.EquipmentInitialized ? World.Equipment : null))).ToArray();
         FacilityRule[] shape = [];
         if (group == OriginalAiGroup.ReducedActivity && random.Percent(33))
         {

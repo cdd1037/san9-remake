@@ -36,6 +36,8 @@ public abstract record CommunitySearchEventDefinition : SearchEventDefinition
                 d.MinimumForceSoldiersExclusive >= 0 && d.MaximumProficiencyExclusive is > 0 and <= 1000 && d.LeadershipRewardDivisor > 0 &&
                 d.Sites.All(s => s is not null && places.Contains(s.PlaceId) && s.Category is >= 0 and <= 8) &&
                 d.Sites.Select(s => s.PlaceId).Distinct().Count() == d.Sites.Length,
+            EquipmentGiftSearchEventDefinition d => Consumption == EventConsumption.OnSuccess && places.Contains(d.PlaceId) &&
+                d.EquipmentInstanceId >= 0 && !string.IsNullOrWhiteSpace(d.EquipmentDefinitionId) && !string.IsNullOrWhiteSpace(d.ConsumptionKey.Value),
             _ => false
         };
         if (!valid) throw new ArgumentException("Invalid community search parameters.");
@@ -68,3 +70,9 @@ public sealed record TrainingSiteSearchEventDefinition([property: JsonRequired] 
     [property: JsonRequired] uint Cost, [property: JsonRequired] int MinimumForceSoldiersExclusive,
     [property: JsonRequired] int MaximumProficiencyExclusive,
     [property: JsonRequired] int LeadershipRewardDivisor) : CommunitySearchEventDefinition;
+
+/// <summary>Project-authored gift of one explicitly identified equipment instance.</summary>
+public sealed record EquipmentGiftSearchEventDefinition([property: JsonRequired] int PlaceId,
+    [property: JsonRequired] long EquipmentInstanceId,
+    [property: JsonRequired] string EquipmentDefinitionId,
+    [property: JsonRequired] PersistentEventKey ConsumptionKey) : CommunitySearchEventDefinition;

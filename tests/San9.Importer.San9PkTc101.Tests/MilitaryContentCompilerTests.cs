@@ -46,13 +46,15 @@ public sealed class MilitaryContentCompilerTests
         tactics[31] = tactics[31] with { AffectsFacilitiesCode = 1 };
         tactics[33] = tactics[33] with { CompatibleArrayTypeMaskHigh = 1 << 5 };
         var definition = MilitaryContentCompiler.Compile(squares, terrains, formations, places, [], buildings, tactics, places.ToDictionary(p => p.Id, _ => System.Collections.Immutable.ImmutableArray<int>.Empty));
+        Assert.Equal(7, definition.Armaments!.Value.Length);
+        Assert.Contains(definition.Armaments.Value, item => item.Name == "铁矛");
         Assert.Equal(27, definition.UnformedFormationId);
         Assert.Equal(20, definition.BasicNavalFormationId);
         Assert.Equal(new FormationVision(15, 360), definition.Formations.Single(f => f.Id == 0).Vision);
         Assert.Equal(new FormationVision(5, 45), definition.Formations.Single(f => f.Id == 1).Vision);
         Assert.Null(definition.Formations.Single(f => f.Id == 27).Vision);
         Assert.Equal(new SoldierVisionBonus(50000, 10), definition.VisionSizeBands[^1]);
-        Assert.Equal(Enumerable.Range(0, 12).Concat(Enumerable.Range(20, 4)), definition.Formations.Where(f => f.IsCommon).Select(f => f.Id));
+        Assert.Equal(Enumerable.Range(0, 12).Concat(Enumerable.Range(20, 4)), definition.Formations.Where(f => f.IsCommon && !f.MixedTroopsOnly).Select(f => f.Id));
         Assert.Equal(8, definition.CityInfluence!.RadiusCells);
         Assert.Equal(5, definition.Geography.FootprintScale);
         Assert.Equal(10, definition.CityInfluence.LandTacticBonus);
@@ -84,7 +86,8 @@ public sealed class MilitaryContentCompilerTests
         Assert.Equal(TacticEffect.CounterConfusion, definition.Tactics.Single(t => t.Id == 22).Effect);
         Assert.True(definition.Tactics.Single(t => t.Id == 22).Selectable);
         Assert.Equal(Enumerable.Range(0, 17), definition.Terrains.Select(t => t.Id));
-        Assert.Equal(Enumerable.Range(0, 28), definition.Formations.Select(f => f.Id));
+        Assert.Equal(Enumerable.Range(0, 32), definition.Formations.Select(f => f.Id));
+        Assert.Equal(Enumerable.Range(28, 4), definition.Formations.Where(f => f.MixedTroopsOnly).Select(f => f.Id));
         Assert.All(definition.Formations.Where(f => f.Id is 13 or 14 or 24 or 25 or 27), f => Assert.Null(f.Tactics));
         Assert.All(definition.Formations.Where(f => f.Tactics is not null), f =>
         {
@@ -102,8 +105,8 @@ public sealed class MilitaryContentCompilerTests
         Assert.Equal(new MapCell(3, 0), Assert.Single(definition.BlockedCells));
         Assert.Equal(2, definition.TerrainIds[3]);
         Assert.Equal(15, definition.TerrainIds[4]);
-        Assert.All(definition.Formations.Where(f => f.Id >= 3), f => Assert.Equal(60, f.MovementBudget));
-        foreach (var formation in definition.Formations)
+        Assert.All(definition.Formations.Where(f => f.Id is >= 3 and < 28), f => Assert.Equal(60, f.MovementBudget));
+        foreach (var formation in definition.Formations.Where(f => f.Id < 28))
         {
             var source = formations.Single(f => f.Id == formation.Id);
             Assert.Equal(source.Mobility * 5, formation.MovementBudget);
@@ -128,6 +131,9 @@ public sealed class MilitaryContentCompilerTests
                 : [new(1, BattleRank.Front), new(0, BattleRank.Middle), new(1, BattleRank.Middle), new(2, BattleRank.Middle), new(1, BattleRank.Rear)], formation.Positions);
         }
         var rules = new MilitaryRulebook(definition);
+        Assert.Equal(0, rules.DetachmentEquipmentCost([new(0, 1, 1001), new(1, 2, 1000)]));
+        Assert.Equal(61, new MilitaryRulebook(definition with { Armaments = null })
+            .DetachmentEquipmentCost([new(0, 1, 1001), new(1, 2, 1000)]));
         Assert.Equal(new[] { 0, 1, 2, 3, 4, 5, 33, 34 }, definition.Tactics.Where(t => t.CanRescuePrisoners).Select(t => t.Id));
         Assert.Equal(new[] { 6, 7, 8, 9, 10, 11, 31, 32 }, definition.Tactics.Where(t => t.SnipingProficiencyCategory == 3).Select(t => t.Id));
         Assert.All(definition.Tactics.Where(t => t.SnipingProficiencyCategory is not null), t => Assert.Equal(3, t.SnipingProficiencyCategory));

@@ -131,6 +131,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         WorldState owner,
         OfficerAbilityRules abilityRules,
         EconomyRulebook economy,
+        EquipmentRulebook equipmentRules,
         long expectedRevision,
         GameClock clock,
         SimulationState simulation,
@@ -141,6 +142,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         ImmutableArray<int> unitOrder,
         ImmutableDictionary<int, CorpsState> corps,
         ImmutableDictionary<int, TreasureState> treasures,
+        ImmutableDictionary<long, EquipmentInstance> equipment,
         ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> relations,
         ActiveWorldRecords activeRecords, CompanionSettings companion)
     {
@@ -152,6 +154,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         _abilityRules = abilityRules;
         OfficerGrowth = abilityRules.Growth.Resolve(companion);
         _economy = economy;
+        _equipmentRules = equipmentRules;
         _expectedRevision = expectedRevision;
         Clock = clock;
         Simulation = simulation;
@@ -162,6 +165,7 @@ internal sealed partial class WorldMutation : IWorldQuery
         UnitOrder = unitOrder;
         AllCorps = corps;
         AllTreasures = treasures;
+        AllEquipment = equipment;
         AllRelations = relations;
         Forces = activeRecords.Forces;
         Settlements = activeRecords.Settlements;
@@ -184,6 +188,8 @@ internal sealed partial class WorldMutation : IWorldQuery
         Units = OrderedUnits.ToImmutableArray(),
         Corps = AllCorps.Values.OrderBy(x => x.Id).ToImmutableArray(),
         Treasures = AllTreasures.Values.OrderBy(x => x.Id).ToImmutableArray(),
+        Equipment = AllEquipment.Values.OrderBy(x => x.Id).ToImmutableArray(),
+        EquipmentInitialized = _owner.EquipmentInitialized,
         Relations = AllRelations.Values.OrderBy(x => x.FirstId).ThenBy(x => x.SecondId).ToImmutableArray(),
         DefaultLoyalty = DefaultLoyalty,
         Revision = _expectedRevision,
@@ -199,6 +205,81 @@ internal sealed partial class WorldMutation : IWorldQuery
     internal IEnumerable<UnitState> OrderedUnits => UnitOrder.Select(id => Units[id]);
     internal ImmutableDictionary<int, CorpsState> AllCorps { get; private set; }
     internal ImmutableDictionary<int, TreasureState> AllTreasures { get; private set; }
+    internal ImmutableDictionary<long, EquipmentInstance> AllEquipment { get; private set; }
+    internal bool EquipmentInitialized => _owner.EquipmentInitialized;
+    private readonly EquipmentRulebook _equipmentRules;
+    internal IEnumerable<EquipmentCombatEffects> EquipmentCombatEffects(int officerId) => AllEquipment.Values
+        .Where(item => item.Equipped && item.OfficerId == officerId)
+        .Select(item => _equipmentRules.Items[item.DefinitionId].CombatEffects)
+        .OfType<EquipmentCombatEffects>();
+    private ImmutableDictionary<int, OfficerAbilities>? _equipmentBonuses;
+    private string? _equipmentExchange;
+    internal void BeginEquipmentExchange(BattleSource source, BattleSource target) =>
+        _equipmentExchange = $"{Clock.DayNumber}:{(source.IsSettlement ? 's' : 'u')}{source.Id}:{(target.IsSettlement ? 's' : 'u')}{target.Id}";
+
+    internal void RecordEquipmentUse(BattleSource source, EquipmentUse use)
+    {
+        if (!_owner.EquipmentInitialized || _equipmentExchange is null || !source.IsPresent(this)) return;
+        var owner = source.IsSettlement ? Settlements[source.Id].OwnerId : Units[source.Id].OwnerId;
+        var people = source.IsSettlement ? ServingSettlementMembers(source.Id) : ServingUnitMembers(source.Id);
+        var ids = people.Where(person => person.OwnerId == owner && !IsTraveling(person.Id) &&
+            (source.IsSettlement || Units[source.Id].Detachments.IsEmpty ||
+             Units[source.Id].Detachments.TryGetValue(person.Id, out var detachment) && detachment.Soldiers > 0))
+            .Select(person => person.Id).ToHashSet();
+        RecordEquipmentUse(ids, use);
+    }
+
+    internal void RecordEquipmentUse(IEnumerable<int> officers, EquipmentUse use)
+    {
+        if (!_owner.EquipmentInitialized || _equipmentExchange is null || Simulation.NewGame.EquipmentDevelopmentEnabled == false) return;
+        var ids = officers.ToHashSet();
+        string dayPrefix = $"{Clock.DayNumber}:";
+        foreach (var item in AllEquipment.Values.Where(item => item.Equipped && item.OfficerId is int id && ids.Contains(id) &&
+                     item.LastExperienceExchange != _equipmentExchange && item.ExperienceExchanges?.Contains(_equipmentExchange) != true)
+                     .OrderBy(item => item.Id).ToArray())
+        {
+            var updated = EquipmentRules.RecordUse(item, _equipmentRules.Items[item.DefinitionId], use);
+            if (updated != item)
+            {
+                var exchanges = (item.ExperienceExchanges ?? ImmutableSortedSet<string>.Empty)
+                    .Where(value => value.StartsWith(dayPrefix, StringComparison.Ordinal)).ToImmutableSortedSet(StringComparer.Ordinal);
+                if (item.LastExperienceExchange?.StartsWith(dayPrefix, StringComparison.Ordinal) == true)
+                    exchanges = exchanges.Add(item.LastExperienceExchange);
+                SetEquipment(updated with { LastExperienceExchange = _equipmentExchange, ExperienceExchanges = exchanges.Add(_equipmentExchange) });
+            }
+        }
+    }
+    internal void SetEquipment(EquipmentInstance item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        EnsureOpen();
+        var previous = AllEquipment.GetValueOrDefault(item.Id);
+        if (previous == item) return;
+        bool sealChanged = _economy.ImperialSealId is int seal &&
+            (previous?.LegacyTreasureId == seal || item.LegacyTreasureId == seal) &&
+            (previous?.Equipped != item.Equipped || previous?.OfficerId != item.OfficerId);
+        int? previousSealOwner = sealChanged ? ForceTrust.SealOwner(this, _economy) : null;
+        _equipmentBonuses = null;
+        foreach (var effects in _treasureEffects.Values)
+        {
+            if (previous?.OfficerId is int oldHolder) effects.Remove(oldHolder);
+            if (item.OfficerId is int holder) effects.Remove(holder);
+        }
+        LeadershipChanged(firstOfficer: previous?.OfficerId, secondOfficer: item.OfficerId);
+        AllEquipment = AllEquipment.SetItem(item.Id, item);
+        if (sealChanged) RefreshForceTrust(previousSealOwner, ForceTrust.SealOwner(this, _economy));
+    }
+    internal void ConvertPendingArmament(EquipmentInstance pending, int forceId)
+    {
+        if (pending.PendingArmamentCredit is not int credit || !AllEquipment.ContainsKey(pending.Id) ||
+            !AllForces.TryGetValue(forceId, out var owner) || owner.IsEliminated)
+            throw new InvalidOperationException("Invalid pending armament conversion.");
+        Replace(owner with { ArmamentMigrationCredit = checked((owner.ArmamentMigrationCredit ?? 0) + credit) });
+        AllEquipment = AllEquipment.Remove(pending.Id);
+        _equipmentBonuses = null;
+        if (pending.OfficerId is int officer)
+            foreach (var effects in _treasureEffects.Values) effects.Remove(officer);
+    }
     internal ImmutableDictionary<(int FirstId, int SecondId), ForceRelation> AllRelations { get; private set; }
 
     // Complete registries own state. These derived indices expose only participating objects to rules.
@@ -225,7 +306,9 @@ internal sealed partial class WorldMutation : IWorldQuery
     }
 
     internal OfficerGrowthRules OfficerGrowth { get; }
-    internal OfficerAbilities Abilities(OfficerState person) => _abilityRules.EvaluateWithTreasureBonus(person, TreasureEffects(person.Id, _abilityRules.Treasures).Bonuses);
+    internal OfficerAbilities Abilities(OfficerState person) => _abilityRules.EvaluateWithTreasureBonus(person, _owner.EquipmentInitialized
+        ? (_equipmentBonuses ??= EquipmentRules.BonusesByOfficer(AllEquipment.Values, _equipmentRules.Items)).GetValueOrDefault(person.Id)
+        : TreasureEffects(person.Id, _abilityRules.Treasures).Bonuses);
     internal ImmutableDictionary<int, OfficerAbilities> AbilitiesFor(IEnumerable<OfficerState> people) =>
         people.ToImmutableDictionary(p => p.Id, Abilities);
     private readonly OfficerAbilityRules _abilityRules;
@@ -374,7 +457,47 @@ internal sealed partial class WorldMutation : IWorldQuery
             previous.BaseAbilities.Leadership != value.BaseAbilities.Leadership) LeadershipChanged(previous.SettlementId, value.SettlementId, value.Id);
         AllOfficers = Replace(AllOfficers, value.Id, value);
         UpdateMember(previous, value);
+        if (previous.UnitId is int oldUnitId && (value.UnitId != oldUnitId || !value.IsServing) &&
+            Units.TryGetValue(oldUnitId, out var oldUnit) && oldUnit.Detachments.ContainsKey(value.Id))
+        {
+            var oldForce = AllForces[oldUnit.OwnerId];
+            var returned = oldForce.ArmamentInventory ?? ImmutableDictionary<string, uint>.Empty;
+            var reserve = oldForce.ArmamentReserve ?? ImmutableDictionary<string, ulong>.Empty;
+            foreach (var issue in new[] { oldUnit.Detachments[value.Id].Weapon, oldUnit.Detachments[value.Id].Armor })
+                if (issue is not null) (returned, reserve) = ArmamentInventory.ReturnWithReserve(returned, reserve, issue);
+            if (oldUnit.Detachments[value.Id].Weapon is not null || oldUnit.Detachments[value.Id].Armor is not null)
+                Replace(oldForce with { ArmamentInventory = returned.IsEmpty ? null : returned, ArmamentReserve = reserve.IsEmpty ? null : reserve });
+            var remaining = oldUnit.Detachments.Remove(value.Id);
+            Replace(oldUnit with { Detachments = DetachmentAllocation.Resize(remaining, oldUnit.Soldiers) });
+        }
         Officers = value.IsDormant ? Officers.Remove(value.Id) : Officers.SetItem(value.Id, value);
+        if (value.IsServing && value.OwnerId is int servingForce)
+        {
+            foreach (var pending in AllEquipment.Values.Where(item => item.OfficerId == value.Id && item.PendingArmamentCredit is not null)
+                         .OrderBy(item => item.Id).ToArray())
+            {
+                ConvertPendingArmament(pending, servingForce);
+            }
+        }
+        if (previous.IsServing && !value.IsServing)
+            foreach (var equipment in AllEquipment.Values.Where(item => item.OfficerId == value.Id && item.Equipped).ToArray())
+                SetEquipment(equipment with { Equipped = false });
+        if (!previous.IsServing && value.IsServing && EquipmentInitialized)
+        {
+            foreach (var issued in AllEquipment.Values.Where(item => item.OfficerId == value.Id && item.EquipOnService == true)
+                         .OrderBy(item => item.Id).ToArray())
+            {
+                var pendingItem = issued with { EquipOnService = null };
+                SetEquipment(pendingItem);
+                var definition = _equipmentRules.Items[pendingItem.DefinitionId];
+                if (!EquipmentRules.MeetsRequirements(definition, value.BaseAbilities) ||
+                    AllEquipment.Values.Any(e => e.OfficerId == value.Id && e.Equipped && _equipmentRules.Items[e.DefinitionId].Slot == definition.Slot)) continue;
+                var equipped = EquipmentRules.Equip(AllEquipment.Values, _equipmentRules.Items, value.Id, pendingItem.Id);
+                if (equipped is null) continue;
+                foreach (var changed in equipped.Value)
+                    if (changed != AllEquipment[changed.Id]) SetEquipment(changed);
+            }
+        }
         if (previous.IsDormant != value.IsDormant) InvalidateParticipationQueries();
         if (courtChanged)
         {
@@ -406,6 +529,11 @@ internal sealed partial class WorldMutation : IWorldQuery
     private void StoreUnit(UnitState value)
     {
         var previous = Units[value.Id];
+        if (!value.Detachments.IsEmpty && previous.Soldiers != value.Soldiers &&
+            ReferenceEquals(previous.Detachments, value.Detachments))
+            value = value with { Detachments = value.Soldiers < previous.Soldiers
+                ? DetachmentAllocation.ResizeForCombatLoss(value.Detachments, value.Soldiers)
+                : DetachmentAllocation.Resize(value.Detachments, value.Soldiers) };
         if (previous.OwnerId != value.OwnerId || previous.CorpsId != value.CorpsId || previous.ServicePlaceId != value.ServicePlaceId ||
             previous.IsEmbedded != value.IsEmbedded || TransportDestination(previous) != TransportDestination(value))
             GovernanceConsistent = false;
@@ -482,8 +610,27 @@ internal sealed partial class WorldMutation : IWorldQuery
         int? previousSealOwner = sealChanged ? ForceTrust.SealOwner(this, _economy) : null;
         if (previous.HolderId != value.HolderId || previous.Discovery != value.Discovery) LeadershipChanged(firstOfficer: previous.HolderId, secondOfficer: value.HolderId);
         AllTreasures = Replace(AllTreasures, value.Id, value); _activeTreasures = null;
+        SynchronizeTreasureEquipment(value);
         UpdateHolding(previous, value);
         if (sealChanged) RefreshForceTrust(previousSealOwner, ForceTrust.SealOwner(this, _economy));
+    }
+
+    private void SynchronizeTreasureEquipment(TreasureState treasure)
+    {
+        if (!_owner.EquipmentInitialized) return;
+        var definition = _equipmentRules.Items.Values.SingleOrDefault(item => item.LegacyTreasureId == treasure.Id);
+        if (definition is null) return;
+        var instance = AllEquipment.Values.SingleOrDefault(item => item.LegacyTreasureId == treasure.Id);
+        int? holder = treasure.Discovered ? treasure.HolderId : null;
+        if (instance is null)
+        {
+            if (treasure.Discovery == TreasureDiscovery.Disabled) return;
+            long id = checked(AllEquipment.Keys.DefaultIfEmpty(-1).Max() + 1);
+            SetEquipment(new EquipmentInstance(id, definition.Id, holder, null, false) { LegacyTreasureId = treasure.Id });
+            return;
+        }
+        if (instance.OfficerId != holder || instance.InventoryForceId is not null && (holder is not null || !treasure.Discovered))
+            SetEquipment(instance with { OfficerId = holder, InventoryForceId = null, Equipped = false, EquipOnService = null });
     }
     internal void Replace(ForceRelation value)
     {

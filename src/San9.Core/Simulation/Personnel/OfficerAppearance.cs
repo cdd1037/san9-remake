@@ -16,6 +16,9 @@ internal static class OfficerAppearance
 
     internal static void AdvanceYear(WorldMutation world, PersonnelRulebook places, List<DomainEvent> events)
     {
+        foreach (var person in world.Officers.Values.Where(p => p.ManualAppearance is { } plan && plan.Year <= world.Clock.Year)
+                     .OrderBy(p => p.Id).ToArray())
+            AppearManually(world, person, events);
         if (!world.Simulation.AnnualAppearancesEnabled) return;
         foreach (var person in Due(world))
         {
@@ -59,8 +62,40 @@ internal static class OfficerAppearance
     }
 
     private static OfficerState[] Due(WorldMutation world) => world.Officers.Values
-        .Where(p => p.Status == OfficerStatus.NotAppeared && p.AppearanceYear <= world.Clock.Year)
+        .Where(p => p.Status == OfficerStatus.NotAppeared && p.ManualAppearance is null && p.AppearanceYear <= world.Clock.Year)
         .OrderBy(p => p.Id).ToArray();
+
+    internal static void AppearManually(WorldMutation world, OfficerState person, List<DomainEvent> events)
+    {
+        var plan = person.ManualAppearance ?? throw new ArgumentException("Missing manual appearance plan.");
+        bool Available(SettlementState place) => !place.IsDormant && !place.IsDestroyed && place.CanHostPersons && place.Durability > 0;
+        bool forceActive = plan.ForceId is int requested && world.Forces.TryGetValue(requested, out var force) &&
+            !force.IsDormant && !force.IsEliminated && force.LeaderId is not null;
+        if (plan.KeepPendingIfForceUnavailable && plan.ForceId is not null && !forceActive) return;
+        var selected = world.Settlements.GetValueOrDefault(plan.SettlementId);
+        SettlementState? location = selected is not null && Available(selected) ? selected : null;
+        if (forceActive && (location is null || location.OwnerId != plan.ForceId))
+            location = world.Settlements.Values.Where(p => Available(p) && p.OwnerId == plan.ForceId &&
+                    (!plan.KeepPendingIfForceUnavailable || p.Kind == SettlementKind.City))
+                .OrderBy(p => plan.KeepPendingIfForceUnavailable
+                    ? world.Officers.Values.Count(o => o.IsServing && o.SettlementId == p.Id) : 0)
+                .ThenBy(p => p.Id).FirstOrDefault();
+        if (plan.KeepPendingIfForceUnavailable && plan.ForceId is not null && location is null) return;
+        location ??= world.Settlements.Values.Where(Available).OrderBy(p => p.Id).FirstOrDefault();
+        if (location is null) return; // Keep the plan for a later year if no habitable location exists.
+        int? owner = forceActive && location.OwnerId == plan.ForceId ? plan.ForceId : null;
+        var next = person with { ManualAppearance = null, Status = owner is null ? OfficerStatus.Free : OfficerStatus.Serving,
+            OwnerId = owner, SettlementId = location.Id, RegionId = null, UnitId = null, OfficeId = null,
+            IsCommander = false, Acted = false, Injury = 0, BirthYear = world.Clock.Year - plan.Age,
+            StatusStartYear = owner is null ? null : world.Clock.Year };
+        world.Replace(next);
+        if (owner is int forceId && world.Forces[forceId].LeaderId is int leader)
+        {
+            int loyalty = 75 + (50 - PersonnelRulebook.AffinityDistance(next, world.Officers[leader])) / 2;
+            RecruitmentRules.SetLoyalty(world, person.Id, forceId, loyalty, "manual-officer-appeared", events);
+        }
+        events.Add(new OfficerAppearedEvent(world.Clock, person.Id, next.Status, null, owner, location.Id, null));
+    }
 
     private static int? Home(WorldMutation world, OfficerState person) => person.UnitId is int id && world.Units.TryGetValue(id, out var unit)
         ? unit.ServicePlaceId : person.SettlementId;

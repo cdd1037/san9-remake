@@ -8,6 +8,92 @@ namespace San9.Application.Tests;
 
 public sealed class DeploymentDraftTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MilitaryMenuOffersArmamentsOnlyWhenMixedRulesAreEnabled(bool mixed)
+    {
+        var view = View(world => world with
+        {
+            Simulation = world.Simulation with { NewGame = world.Simulation.NewGame with { MixedTroopsEnabled = mixed } }
+        }, configure: definition => definition with { Military = definition.Military! with
+            { Armaments = [new("spear", "铁矛", ArmamentSlot.Weapon, [], 5, 0, 100, null) { ProductionCostPerThousand = 50, ProductionDays = 30 }] } });
+        var military = MapCommandMenu.Settlement(view, 1).Single(group => group.Id == "military");
+        Assert.Equal(mixed, military.Children.Any(entry => entry.Id == "research" && entry.Enabled));
+        Assert.Equal(mixed, military.Children.Any(entry => entry.Id == "equipment-production" && entry.Enabled));
+        Assert.Equal(mixed, military.Children.Any(entry => entry.Id == "equipment-purchase" && entry.Enabled));
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void MixedFormationUsesCommanderKnowledgeNotDeputyOrResearch(bool commanderKnows, bool deputyKnows)
+    {
+        var view = View(world => world with
+        {
+            Simulation = world.Simulation with { NewGame = world.Simulation.NewGame with { MixedTroopsEnabled = true } },
+            Officers = world.Officers.Select(person => person.Id switch
+            {
+                1 => person with { FormationProficiencies = commanderKnows
+                    ? ImmutableSortedDictionary<int, int>.Empty.Add(900, 100).Add(901, 200)
+                    : ImmutableSortedDictionary<int, int>.Empty.Add(900, 100) },
+                2 => person with { FormationProficiencies = deputyKnows
+                    ? ImmutableSortedDictionary<int, int>.Empty.Add(900, 100).Add(901, 900)
+                    : ImmutableSortedDictionary<int, int>.Empty.Add(900, 100) },
+                _ => person
+            }).ToArray()
+        }, configure: definition => definition with
+        {
+            Military = definition.Military! with
+            {
+                Formations = definition.Military.Formations.Add(definition.Military.Formations.Single(f => f.Id == 100) with
+                    { Id = 901, IsCommon = false, MixedTroopsOnly = true, ResearchProjectId = "formation-test" }),
+                ResearchProjects = [new("formation-test", 100, 30, [])]
+            },
+            Information = definition.Information with
+            {
+                Formations = [.. definition.Information.Formations, new(901, "新阵形")
+                    { Presentation = definition.Information.Formations.Single(f => f.Id == 100).Presentation }]
+            }
+        });
+        var draft = new DeploymentDraft(view, 1);
+        Assert.True(draft.SetMembers([1, 2]));
+        Assert.Equal(1, draft.CommanderId);
+        Assert.Equal(commanderKnows, draft.Formations(false).Any(f => f.Id == 901));
+        Assert.Equal(commanderKnows, draft.SetFormation(901, false));
+    }
+
+    [Theory]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, true)]
+    [InlineData(false, true, false)]
+    public void ResearchedFormationRequiresMixedRulesAndCompletedProject(bool mixed, bool completed, bool available)
+    {
+        var view = View(world => world with
+        {
+            Simulation = world.Simulation with { NewGame = world.Simulation.NewGame with { MixedTroopsEnabled = mixed } },
+            Forces = world.Forces.Select(f => f.Id == 1 ? f with
+                { CompletedResearch = completed ? ["formation-test"] : [] } : f).ToArray()
+        }, configure: definition => definition with
+        {
+            Military = definition.Military! with
+            {
+                Formations = definition.Military.Formations.Add(definition.Military.Formations.Single(f => f.Id == 100) with
+                    { Id = 901, MixedTroopsOnly = true, ResearchProjectId = "formation-test" }),
+                ResearchProjects = [new("formation-test", 100, 30, [])]
+            },
+            Information = definition.Information with
+            {
+                Formations = [.. definition.Information.Formations, new(901, "新阵形")
+                    { Presentation = definition.Information.Formations.Single(f => f.Id == 100).Presentation }]
+            }
+        });
+        var draft = new DeploymentDraft(view, 1);
+        Assert.True(draft.SetMembers([1]));
+        Assert.Equal(available, draft.Formations(false).Any(f => f.Id == 901));
+        Assert.Equal(available, draft.SetFormation(901, false));
+    }
+
     [Fact]
     public void UnitAttackAndMarchSplitCandidatesAndPreserveExistingIntentions()
     {

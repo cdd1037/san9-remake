@@ -171,10 +171,10 @@ public sealed class WorldMessageContext
                 "person.personality" => new(p.Personality), "person.righteousness" => new(p.Righteousness),
                 "person.ambition" => new(p.Ambition), "person.injury" => new(p.Injury),
                 "person.loyalty" => new(Math.Min(100, p.Loyalty)),
-                "person.war" => new(_abilities.Evaluate(p, _world.Treasures).War),
-                "person.intelligence" => new(_abilities.Evaluate(p, _world.Treasures).Intelligence),
-                "person.leadership" => new(_abilities.Evaluate(p, _world.Treasures).Leadership),
-                "person.politics" => new(_abilities.Evaluate(p, _world.Treasures).Politics),
+                "person.war" => new(_abilities.Evaluate(p, _world.Treasures, _world.EquipmentInitialized ? _world.Equipment : null).War),
+                "person.intelligence" => new(_abilities.Evaluate(p, _world.Treasures, _world.EquipmentInitialized ? _world.Equipment : null).Intelligence),
+                "person.leadership" => new(_abilities.Evaluate(p, _world.Treasures, _world.EquipmentInitialized ? _world.Equipment : null).Leadership),
+                "person.politics" => new(_abilities.Evaluate(p, _world.Treasures, _world.EquipmentInitialized ? _world.Equipment : null).Politics),
                 "person.is-stationed" => Flag(p.SettlementId is not null || p.UnitId is int id && _units[id].IsEmbedded),
                 "person.is-on-military-duty" => Flag(p.UnitId is int militaryUnit && _units[militaryUnit].EffectiveOrderClass == UnitOrderClass.Military),
                 _ => throw Unsupported(name)
@@ -264,7 +264,7 @@ public sealed class WorldMessageContext
     private string TacticCategory(int id)
     {
         string[] names =
-            ["步兵", "骑兵", "弓骑", "弩兵", "水军", "攻城", "智略", "谋略", "策略"];
+            ["步兵", "骑兵", "弓骑", "弓弩", "水军", "攻城", "智略", "谋略", "策略"];
         int? category = _definition.Military?.Tactics.Single(t => t.Id == id).Category;
         return category is int index && (uint)index < names.Length ? names[index] :
             throw new InvalidDataException($"Tactic {id} has no named category.");

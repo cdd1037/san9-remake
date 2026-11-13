@@ -80,7 +80,7 @@ public partial class DeploymentView : FixedPage
         if (_window is not null) { RemoveChild(_window); _window.QueueFree(); }
         _window = new CommandWindow { Texts = Texts, Textures = Textures, Position = new(136, 100), Size = new(752, 568),
             Title = "出征", ShowBehindParent = true, Closed = Closed, Accepted = Proceed, CanAccept = Draft.CanProceed,
-            Help = () => Notice("选择执行武将后，可选择阵形、船和士兵。\n拖拽武将牌交换阵位，点击兵法名称或双击武将选择兵法。\n阵形名称右侧的兵法菜单可选择按当前阵形或指定类别，选中后立即配置全队。\n选阵后自动配置由优化伴侣开关控制；灰色兵法不适配当前陆阵。\n执行进入选目标；中止会放弃本次设置。") };
+            Help = () => Notice("选择执行武将后，可选择阵形、船和士兵。\n拖拽武将牌交换阵位，点击兵法名称或双击武将选择兵法。\n阵形名称右侧的兵法菜单可选择按当前阵形或指定类别，选中后立即配置全队。\n选阵后自动配置由优化伴侣开关控制；灰色兵法不适配当前阵形、兵种或等级。\n执行进入选目标；中止会放弃本次设置。") };
         AddChild(_window);
         var (facility, facilityWidth) = CommandPanelArt.SourcePlate("执行设施　" + Draft.View.Settlements.Single(s => s.Id == Draft.Home.Id).ResolveName(Texts));
         _facilityWidth = facilityWidth;
@@ -91,6 +91,11 @@ public partial class DeploymentView : FixedPage
         Button("阵形", "edit", new(136, FormationRowY, 104, 40), () => SelectFormation(false), selected && Draft.Formations(false).Count > 1);
         AddTacticControls(selected);
         Button("船", "edit", new(136, ShipRowY, 104, 40), () => SelectFormation(true), selected && Draft.Formations(true).Count > 1);
+        if (Draft.View.World.Simulation.NewGame.MixedTroopsEnabled)
+            Button("兵种", "edit", new(296, ShipRowY, 72, 40), () => OpenChild(new DeploymentDetachmentsView
+            {
+                Draft = Draft, Texts = Texts, Textures = Textures, Service = Service, Closed = CloseChild
+            }), selected && Draft.Detachments.Count == Draft.Members.Length);
         Button("士兵", "edit", new(136, SoldiersRowY, 104, 40), SelectSoldiers, selected && Draft.MaximumSoldiers > 0);
         Label("大将", new(136, 188, 96, 32)); Field(Person(Draft.CommanderId), new(240, 188, 80, 32));
         Field(Formation(Draft.FormationId), new(240, FormationRowY, 48, 32)); Field(Formation(Draft.NavalFormationId), new(240, ShipRowY, 48, 32));
@@ -224,19 +229,44 @@ public partial class DeploymentView : FixedPage
     {
         var category = naval ? InformationCategory.Ships : InformationCategory.Formations;
         var candidates = Draft.Formations(naval).Select(f => f.Id).ToHashSet();
+        bool showProficiency = !naval && Draft.View.World.Simulation.NewGame.FormationKnowledgeEnabled && Draft.CommanderId is not null;
+        var commander = Draft.CommanderId is int commanderId ? Draft.View.World.Officers.Single(o => o.Id == commanderId) : null;
+        var pages = ForceCapabilityCatalog.Pages(category);
+        if (showProficiency)
+            pages = pages.Select(page => page with { Columns = [.. page.Columns, new("formation-proficiency", "熟练", 6, CatalogAlignment.Right)] }).ToArray();
         var view = new CatalogView
         {
             Title = naval ? "选择船" : "选择阵形",
-            HintText = naval ? "请选择船。" : "请选择阵形。",
+            HintText = naval ? "请选择船。" : Draft.View.World.Simulation.NewGame.FormationKnowledgeEnabled
+                ? "请选择主将掌握的阵形；武将熟练度影响各自分队。" : "请选择阵形。",
             CloseTitle = "中止",
-            Pages = ForceCapabilityCatalog.Pages(category),
+            Pages = pages,
             Textures = Textures,
             Service = Service,
             PortraitSize = new(120, 120),
             PortraitFrameRole = "catalog-formation-frame",
             Portrait = id => $"catalog-formation-{id}",
+            PortraitPlaceholder = (canvas, rect, id) =>
+            {
+                var presentation = Draft.View.Information.Formations.FirstOrDefault(f => f.Id == id)?.Presentation;
+                if (presentation is null || presentation.Columns <= 0 || presentation.Rows <= 0) return;
+                var cell = rect.Size / new Vector2(presentation.Columns, presentation.Rows);
+                canvas.DrawRect(rect, new Color("22292b"));
+                foreach (var slot in presentation.Slots)
+                {
+                    var position = rect.Position + cell * new Vector2(slot.Column, slot.Row);
+                    canvas.DrawRect(new Rect2(position + new Vector2(2, 2), cell - new Vector2(4, 4)), new Color("8a3030"));
+                }
+                for (int x = 1; x < presentation.Columns; x++)
+                    canvas.DrawLine(rect.Position + new Vector2(x * cell.X, 0), rect.Position + new Vector2(x * cell.X, rect.Size.Y), new Color("82918b"));
+                for (int y = 1; y < presentation.Rows; y++)
+                    canvas.DrawLine(rect.Position + new Vector2(0, y * cell.Y), rect.Position + new Vector2(rect.Size.X, y * cell.Y), new Color("82918b"));
+            },
             InitialCurrentId = naval ? Draft.NavalFormationId : Draft.FormationId,
-            ReadRows = page => ForceCapabilityCatalog.Read(Session, Texts, category, Draft.Force.Id, page).Rows.Where(r => candidates.Contains(r.Key.Id)).Select(r => new CatalogRow(r.Key.Id, r.Cells.ToArray())).ToArray(),
+            ReadRows = page => ForceCapabilityCatalog.Read(Session, Texts, category, Draft.Force.Id, page, personalFormations: showProficiency).Rows
+                .Where(r => candidates.Contains(r.Key.Id)).Select(r => new CatalogRow(r.Key.Id, showProficiency
+                    ? [.. r.Cells, commander?.FormationProficiencies?.TryGetValue(r.Key.Id, out int value) == true ? (CatalogCell)value : CatalogCell.Unavailable]
+                    : r.Cells.ToArray())).ToArray(),
             Activated = id => { if (Draft.SetFormation(id, naval)) CloseChild(); },
             Closed = CloseChild
         };
@@ -244,12 +274,11 @@ public partial class DeploymentView : FixedPage
     }
     private void SelectTactic(int person)
     {
-        var tactics = Draft.AvailableTactics(person).Select(t => t.Id).ToHashSet();
-        if (tactics.Count == 0) { Notice("没学得兵法。 "); return; }
+        var tactics = Draft.SelectableTactics(person).Select(t => t.Id).ToHashSet();
         OpenChild(new CatalogView
         {
             Title = "选择兵法",
-            HintText = "选择武将使用的兵法。",
+            HintText = "仅显示武将掌握且当前兵种和等级可使用的兵法。",
             CloseTitle = "中止",
             Pages = ForceCapabilityCatalog.Pages(InformationCategory.Tactics),
             Textures = Textures,

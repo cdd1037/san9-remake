@@ -7,6 +7,22 @@ namespace San9.Application.Tests;
 
 public sealed partial class OriginalAiMilitaryTests
 {
+    [Fact]
+    public void IndependentFormationLearningMakesAiUseCommandersKnownFormationWithoutMixedTroops()
+    {
+        var basis = Fixture(2);
+        var formation = basis.Military!.Formations.Single(f => f.Id == 400) with { Id = 401, MixedTroopsOnly = true };
+        var content = basis with { Military = basis.Military with { Formations = basis.Military.Formations.Add(formation) } };
+        var harness = new Harness(content, w => w with
+        {
+            Simulation = w.Simulation with { NewGame = w.Simulation.NewGame with { FormationLearningEnabled = true } },
+            Officers = w.Officers.Select(p => p with { FormationProficiencies =
+                ImmutableSortedDictionary<int, int>.Empty.Add(401, 100) }).ToArray()
+        });
+        Assert.Equal(1, harness.Run(OriginalAiWork.Attack, 1).Submitted);
+        Assert.Equal(401, Assert.IsType<DeployUnitCommand>(Assert.Single(harness.Commands)).FormationId);
+    }
+
     [Theory]
     [InlineData(OriginalAiWork.Attack, true)]
     [InlineData(OriginalAiWork.Deploy, true)]

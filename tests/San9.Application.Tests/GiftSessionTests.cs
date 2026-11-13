@@ -10,6 +10,117 @@ namespace San9.Application.Tests;
 public sealed class GiftSessionTests
 {
     [Fact]
+    public void EquipmentScreenExplainsIncompatibleWeaponsAndDoesNotMoveInventory()
+    {
+        var basis = Content();
+        var main = new EquipmentDefinition("spear", EquipmentSlot.MainHand, EquipmentRarity.Ordinary, default, default)
+            { Name = "枪", CompatibleWeapons = ["shield"] };
+        var shield = new EquipmentDefinition("shield", EquipmentSlot.OffHand, EquipmentRarity.Ordinary, default, default) { Name = "盾" };
+        var bow = new EquipmentDefinition("bow", EquipmentSlot.OffHand, EquipmentRarity.Ordinary, default, default) { Name = "弓" };
+        var content = basis with { Information = basis.Information with { Equipment = [main, shield, bow] } };
+        var initial = GameSession.Start(content, 42).Capture();
+        var session = GameSession.Restore(content, initial with { World = initial.World with
+        {
+            Equipment = [.. initial.World.Equipment, new EquipmentInstance(500, "spear", 11, null, true),
+                new EquipmentInstance(501, "bow", null, 1, false)]
+        } });
+        var texts = new San9.Content.Text.TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion,
+            new Dictionary<string, string> { ["treasure"] = "名马" });
+        var offered = Assert.Single(San9.Application.Presentation.OfficerEquipment.Read(session, texts, 11)
+            .Slots.Single(slot => slot.Slot == EquipmentSlot.OffHand).Items);
+        Assert.False(offered.CanEquip);
+        Assert.Contains("主武器「枪」不兼容", offered.UnavailableReason);
+        Assert.False(session.Execute(new("player"), new ConfigureEquipmentCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, 11, EquipmentSlot.OffHand, offered.Id)).Submission.Accepted);
+        var unchanged = session.Snapshot.Equipment.Single(item => item.Id == offered.Id);
+        Assert.Equal(1, unchanged.InventoryForceId);
+        Assert.Null(unchanged.OfficerId);
+    }
+
+    [Fact]
+    public void OfficerEquipmentShowsNineSlotsInventoryAndAppliesSelection()
+    {
+        var basis = Content();
+        var named = new EquipmentDefinition("named-spear", EquipmentSlot.MainHand, EquipmentRarity.Rare, new(2, 0, 0, 0), default) { Name = "名枪" };
+        var content = basis with { Information = basis.Information with { Equipment = basis.Information.Equipment.Add(named) } };
+        var session = GameSession.Start(content, 42);
+        var saved = session.Capture();
+        session = GameSession.Restore(content, saved with { World = saved.World with
+        { Equipment = [.. saved.World.Equipment, new EquipmentInstance(500, "named-spear", null, 1, false)] } });
+        var texts = new San9.Content.Text.TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion,
+            new Dictionary<string, string> { ["treasure"] = "名马" });
+        var data = San9.Application.Presentation.OfficerEquipment.Read(session, texts, 11);
+        Assert.True(data.CanManage);
+        Assert.Equal(9, data.Slots.Length);
+        Assert.Equal("名马", Assert.Single(data.Slots.Single(s => s.Slot == EquipmentSlot.Mount).Items).Name);
+        var spear = Assert.Single(data.Slots.Single(s => s.Slot == EquipmentSlot.MainHand).Items);
+        Assert.True(spear.InInventory);
+        Assert.True(spear.CanEquip);
+        Assert.True(session.Execute(new("player"), new ConfigureEquipmentCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, 11, EquipmentSlot.MainHand, spear.Id)).Submission.Accepted);
+        Assert.Equal(52, session.View.Officers.Single(o => o.Id == 11).Abilities.War);
+        Assert.True(Assert.Single(San9.Application.Presentation.OfficerEquipment.Read(session, texts, 11)
+            .Slots.Single(s => s.Slot == EquipmentSlot.MainHand).Items).Equipped);
+        Assert.False(San9.Application.Presentation.OfficerEquipment.Read(session, texts, 21).CanManage);
+    }
+
+    [Fact]
+    public void LegacySaveMigratesTreasureOnlyOnceAndPreservesUnequippedState()
+    {
+        var content = Content();
+        var session = GameSession.Start(content, 42);
+        var initial = Assert.Single(session.Snapshot.Equipment);
+        Assert.Equal(9, initial.LegacyTreasureId);
+        Assert.True(initial.Equipped);
+        var old = session.Capture();
+        old = old with { World = old.World with { Equipment = [], EquipmentInitialized = false } };
+        var migrated = GameSession.Restore(content, old);
+        Assert.True(migrated.Snapshot.EquipmentInitialized);
+        Assert.True(Assert.Single(migrated.Snapshot.Equipment).Equipped);
+        var command = new ConfigureEquipmentCommand(Guid.NewGuid(), 1, migrated.Snapshot.Simulation.NextSequence, 11, EquipmentSlot.Mount, null);
+        Assert.True(migrated.Execute(new("player"), command).Submission.Accepted);
+        var restored = SaveService.Decode(SaveService.Encode(migrated), content);
+        Assert.False(Assert.Single(restored.Snapshot.Equipment).Equipped);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ExistingBookEquipmentKeepsIdentityAndEquippedStateAcrossSave(bool equipped)
+    {
+        var basis = Content();
+        var book = basis.Information.Treasures[0] with { Category = 2 };
+        var legacy = new EquipmentDefinition("legacy-treasure:9", EquipmentSlot.Treasure,
+            EquipmentRarity.Precious, book.AbilityBonuses, default) { LegacyTreasureId = 9 };
+        var content = basis with { Information = basis.Information with { Treasures = [book], Equipment = [legacy] } };
+        var session = GameSession.Start(content, 42);
+        var saved = session.Capture();
+        var oldShape = saved with { World = saved.World with
+        {
+            Equipment = [Assert.Single(saved.World.Equipment) with { Equipped = equipped }]
+        } };
+        var restored = GameSession.Restore(content, oldShape);
+        var texts = new San9.Content.Text.TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion,
+            new Dictionary<string, string> { ["treasure"] = "兵书" });
+        var item = Assert.Single(San9.Application.Presentation.OfficerEquipment.Read(restored, texts, 11)
+            .Slots.Single(slot => slot.Slot == EquipmentSlot.Book).Items);
+        Assert.Equal(9, item.Id);
+        Assert.Equal(equipped, item.Equipped);
+        var loaded = SaveService.Decode(SaveService.Encode(restored), content);
+        Assert.Equal(equipped, Assert.Single(loaded.Snapshot.Equipment).Equipped);
+    }
+
+    [Fact]
+    public void PreviousBasicEquipmentCatalogGainsHiddenWeaponRecipe()
+    {
+        var basis = Content();
+        var oldCatalog = EquipmentPreset.Basic().Where(item => item.Id != "basic-dart").ToImmutableArray();
+        var content = basis with { Information = basis.Information with { Equipment = oldCatalog } };
+        var session = GameSession.Start(content, 42);
+        Assert.Contains(session.EquipmentRecipes, item => item.Id == "basic-dart" && item.Slot == EquipmentSlot.HiddenWeapon);
+    }
+
+    [Fact]
     public void AuthoredDiplomacyPreferencesAreValidatedMappedAndCanChangeWhenLoading()
     {
         var content = Content();
@@ -65,7 +176,13 @@ public sealed class GiftSessionTests
         uint before = kind == GiftKind.Food ? session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Food : session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money;
         Assert.True(session.Execute(new("player"), new GiftCommand(Guid.NewGuid(), 1, 0, 12, 2, offer)).Submission.Accepted);
         Assert.Single(session.Snapshot.Simulation.Tasks);
-        if (kind == GiftKind.Treasure) Assert.Equal(12, session.Snapshot.Treasures[0].HolderId);
+        if (kind == GiftKind.Treasure)
+        {
+            Assert.Equal(12, session.Snapshot.Treasures[0].HolderId);
+            var equipment = Assert.Single(session.Snapshot.Equipment);
+            Assert.Equal(12, equipment.OfficerId);
+            Assert.False(equipment.Equipped);
+        }
         else Assert.Equal(before - amount, kind == GiftKind.Food ? session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Food : session.Snapshot.Corps.Where(c => c.IsRoot).OrderBy(c => c.OwnerId).ElementAt(0).Treasury.Money);
         // Fix the success roll: this case verifies payment and restoration, not acceptance probability.
         var outbound = session.Capture();
@@ -80,12 +197,17 @@ public sealed class GiftSessionTests
         StateAssert.Equal(session.Capture(), restored.Capture());
         var gift = Assert.Single(result.Events.OfType<GiftResolvedEvent>());
         Assert.True(gift.Accepted);
+        Assert.Equal(1, session.Snapshot.Officers.Single(p => p.Id == 12).ServiceMeritFor(1));
         Assert.Equal(amount, gift.Received);
         Assert.Equal(0u, gift.Spent);
         Assert.Equal(0u, gift.Refunded);
         Assert.Equal(60, Assert.Single(session.Snapshot.Relations).Value);
         Assert.All(session.Snapshot.Simulation.Tasks, t => Assert.NotNull(t.Journey!.ReturnLeg));
-        if (kind == GiftKind.Treasure) Assert.Equal(21, session.Snapshot.Treasures[0].HolderId);
+        if (kind == GiftKind.Treasure)
+        {
+            Assert.Equal(21, session.Snapshot.Treasures[0].HolderId);
+            Assert.Equal(21, Assert.Single(session.Snapshot.Equipment).OfficerId);
+        }
         var returning = SaveService.Decode(SaveService.Encode(session), content);
         var next = session.AdvanceXun();
         EventAssert.Equal(next.Events, returning.AdvanceXun().Events);
@@ -138,6 +260,7 @@ public sealed class GiftSessionTests
         StateAssert.Equal(session.Capture(), restored.Capture());
         var gift = Assert.Single(result.Events.OfType<GiftResolvedEvent>());
         Assert.Equal(accept, gift.Accepted);
+        Assert.Equal(accept ? 1 : 0, session.Snapshot.Officers.Single(p => p.Id == 22).ServiceMeritFor(2));
         Assert.Equal(accept ? amount : 0, gift.Received);
         Assert.Equal(accept ? 0 : amount, gift.Refunded);
         Assert.Equal(0u, gift.Spent);

@@ -177,12 +177,24 @@ public sealed class ScenarioCompositionTests : IDisposable
     }
 
     [Fact]
+    public void OptionalAppearanceEvidenceSurvivesScenarioComposition()
+    {
+        var scenario = Scenario() with { AppearanceEvidence = [new(1200, 1200, null, "source", 189)] };
+        var shared = Shared(scenario);
+        var document = Describe(shared, scenario);
+        var restored = document.Compile(shared.Definitions, shared.Officers.Officers, shared.Geography);
+        Assert.Equal(scenario.AppearanceEvidence, restored.AppearanceEvidence);
+    }
+
+    [Fact]
     public async Task SharedFilesRoundTripThroughBothLoadersWithoutCopyingCatalogsIntoScenarios()
     {
-        var baseline = Scenario();
+        var baseline = Scenario() with { PersonalPeerageRegimes = [new("han", [new(180, 220,
+            ImmutableDictionary<PersonalPeerageGrade, ImmutableArray<int>>.Empty, [])])] };
         var shared = Shared(baseline);
         var person = baseline.Officers[0];
-        var second = baseline with { ScenarioId = "late", Year = 220, Officers = [person with
+        var second = baseline with { ScenarioId = "late", Year = 220, PersonalPeerageRegimes = [new("wei", [new(220, 280,
+            ImmutableDictionary<PersonalPeerageGrade, ImmutableArray<int>>.Empty, [])])], Officers = [person with
         {
             State = person.State with { BaseAbilities = new(80, 55, 50, 70), LearnedTactics = ImmutableSortedSet.Create(1, 2) }
         }] };

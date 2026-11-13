@@ -28,7 +28,7 @@ public static class ConstructionOfficerCatalog
         var holdings = draft.View.World.Treasures.ToLookup(t => t.HolderId);
         var treasures = draft.View.Rules.Treasures;
         var availability = draft.Candidates.ToDictionary(id => id,
-            id => TacticAvailability.ForOfficer(people[id], draft.Force, holdings[id], treasures));
+            id => TacticAvailability.ForOfficer(people[id], draft.Force, holdings[id], treasures, draft.View.EquippedItems));
         TacticSource Sources(int id, TacticEffect effect) => draft.Rules.Tactics.Values.Where(t => t.Effect == effect)
             .Aggregate(TacticSource.None, (result, tactic) => result | availability[id].GetValueOrDefault(tactic.Id));
         // Original candidate priority: construction contributes two, stone formation one.

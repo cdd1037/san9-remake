@@ -159,6 +159,7 @@ public partial class SessionUiHost : Node
             IntroduceNewGame = _pendingKind == SessionReplacementKind.Startup,
             ResumeStrategy = _pendingKind == SessionReplacementKind.ControlChange,
             CommandPresentation = Content.Presentation, ContentRoot = Content.ContentRoot,
+            AppearanceScenario = Definition,
             SaveStore = SaveStore,
             StrategyReady = SavePendingCheckpoint,
             SaveSummary = note => SaveSlotSummaryFactory.Create(Session, Definition, Content.Text, Content.Skin.Roles, note),

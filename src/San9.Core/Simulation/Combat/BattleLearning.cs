@@ -6,6 +6,7 @@ internal static class BattleLearning
 {
     internal static void DefeatedUnit(WorldMutation world, BattleSource winner, List<DomainEvent> events)
     {
+        OfficerBattleMerit.Credit(world, winner, 1, "unit-defeated", events);
         int? commander = winner.IsSettlement ? LeadershipMaintenance.Commander(world, winner.Id)?.Id : world.Units[winner.Id].CommanderId;
         if (commander is int officer)
             OfficerAbilityGrowth.TryIncrease(world, officer, OfficerAbility.Leadership, "military-defeat-growth", events);
@@ -14,6 +15,7 @@ internal static class BattleLearning
     internal static void CapturedSettlement(WorldMutation world, BattleSource winner, MilitaryRulebook military, List<DomainEvent> events)
     {
         if (winner.IsSettlement) return;
+        OfficerBattleMerit.Credit(world, winner, 3, "settlement-captured", events);
         var unit = world.Units[winner.Id];
         var members = world.ServingUnitMembers(unit.Id).OrderBy(p => p.Id).ToArray();
         if (members.Length == 0) return;
@@ -43,7 +45,30 @@ internal static class BattleLearning
 
     internal static void Daily(WorldMutation world, MilitaryRulebook? military, List<DomainEvent> events)
     {
-        if (military is null || world.Companion.DisableDailyCombatProficiencyGain) return;
+        if (military is null) return;
+        if (world.Simulation.NewGame.FormationTrainingEnabled)
+            foreach (var unit in world.Units.Values.OrderBy(u => u.Id).ToArray())
+            {
+                if (unit.Soldiers == 0 || unit.Morale == 0 || unit.FormationId is not int formationId || world.Simulation.NewGame.MixedTroopsEnabled && unit.Detachments.IsEmpty ||
+                    military.Map.IsWater(unit.Position) || unit.Condition is not (UnitCondition.Normal or UnitCondition.HighSpirits) ||
+                    unit.EffectiveOrderClass != UnitOrderClass.Military || !MilitaryEngagements.Engaged(world, unit, military)) continue;
+                foreach (var officer in world.ServingUnitMembers(unit.Id).OrderBy(p => p.Id).ToArray())
+                {
+                    if (!unit.Detachments.IsEmpty && (!unit.Detachments.TryGetValue(officer.Id, out var detachment) || detachment.Soldiers == 0)) continue;
+                    if (officer.FormationProficiencies?.TryGetValue(formationId, out int current) == true)
+                    {
+                        if (current < FormationKnowledge.MaximumProficiency)
+                            world.Replace(officer with { FormationProficiencies = officer.FormationProficiencies.SetItem(formationId, current + 1) });
+                    }
+                    else if (officer.Id != unit.CommanderId && unit.CommanderId is int commander &&
+                        world.Officers.TryGetValue(commander, out var leader) && FormationKnowledge.Knows(leader, formationId))
+                    {
+                        var next = FormationKnowledge.Practice(officer, formationId);
+                        if (!ReferenceEquals(next, officer)) world.Replace(next);
+                    }
+                }
+            }
+        if (world.Companion.DisableDailyCombatProficiencyGain) return;
         foreach (var unit in world.Units.Values.OrderBy(u => u.Id))
         {
             if (unit.FormationId is not int id || !military.Formation(unit).GainsDailyCombatProficiency ||

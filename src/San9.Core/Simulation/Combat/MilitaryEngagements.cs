@@ -104,7 +104,7 @@ internal static class MilitaryEngagements
     private static BattleSource? FindTarget(IWorldQuery world, UnitState unit, MilitaryRulebook military)
     {
         if (!MilitaryCombat.CanInitiate(unit) || unit.EffectiveOrder is not { IsAttack: true } order ||
-            !MilitaryCombat.ValidTarget(world, unit.OwnerId, order, military.Formation(unit), military) ||
+            !MilitaryCombat.ValidTarget(world, unit.OwnerId, order, military.AttackFormation(unit, againstSettlement: order.SettlementId is not null), military) ||
             !MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, order, military),
                 MilitaryCombat.UnitRange(world, unit, order, military))) return null;
         return new(order.UnitId ?? order.SettlementId!.Value, order.UnitId is null);

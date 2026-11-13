@@ -18,6 +18,11 @@ public partial class OpeningSettingsView : ModalView
     private Label _hint = null!;
     public bool Advanced { get; private set; } = true;
     public bool Fictional { get; private set; }
+    public bool MixedTroopsEnabled { get; private set; }
+    public bool NaturalDeathsEnabled { get; private set; } = true;
+    public bool EquipmentDevelopmentEnabled { get; private set; } = true;
+    public bool FormationLearningEnabled { get; private set; } = true;
+    public bool PersonalPeerageEnabled { get; private set; } = true;
     private int[] _values = new int[6];
     private readonly List<Label> _summary = [];
     private readonly GameTextPresenter _text = new();
@@ -45,6 +50,21 @@ public partial class OpeningSettingsView : ModalView
         Label("模式", new(100, 240), new(360, 24), OpeningSettingsTextStyles.Field);
         Choice("Historical", "史实", new(80, 259), () => Fictional = false, () => !Fictional);
         Choice("Fictional", "虚拟", new(200, 259), () => Fictional = true, () => Fictional);
+        Label("兵种与研究", new(550, 156), new(360, 24), OpeningSettingsTextStyles.Field);
+        Choice("MixedTroopsOff", "关闭", new(530, 175), () => MixedTroopsEnabled = false, () => !MixedTroopsEnabled);
+        Choice("MixedTroopsOn", "开启", new(650, 175), () => MixedTroopsEnabled = true, () => MixedTroopsEnabled);
+        Label("寿命", new(550, 224), new(360, 24), OpeningSettingsTextStyles.Field);
+        Choice("NaturalDeathsOff", "关闭", new(530, 243), () => NaturalDeathsEnabled = false, () => !NaturalDeathsEnabled);
+        Choice("NaturalDeathsOn", "开启", new(650, 243), () => NaturalDeathsEnabled = true, () => NaturalDeathsEnabled);
+        Label("装备成长制造", new(550, 292), new(360, 24), OpeningSettingsTextStyles.Field);
+        Choice("EquipmentDevelopmentOff", "关闭", new(530, 311), () => EquipmentDevelopmentEnabled = false, () => !EquipmentDevelopmentEnabled);
+        Choice("EquipmentDevelopmentOn", "开启", new(650, 311), () => EquipmentDevelopmentEnabled = true, () => EquipmentDevelopmentEnabled);
+        Label("阵形学习", new(550, 360), new(360, 24), OpeningSettingsTextStyles.Field);
+        Choice("FormationLearningOff", "关闭", new(530, 379), () => FormationLearningEnabled = false, () => !FormationLearningEnabled);
+        Choice("FormationLearningOn", "开启", new(650, 379), () => FormationLearningEnabled = true, () => FormationLearningEnabled);
+        Label("个人爵位", new(550, 428), new(360, 24), OpeningSettingsTextStyles.Field);
+        Choice("PersonalPeerageOff", "关闭", new(530, 447), () => PersonalPeerageEnabled = false, () => !PersonalPeerageEnabled);
+        Choice("PersonalPeerageOn", "开启", new(650, 447), () => PersonalPeerageEnabled = true, () => PersonalPeerageEnabled);
         Button(Art.Combat, "Combat", "电脑的战力设定", EditCombat, textStyle: OpeningSettingsTextStyles.Combat);
         for (int i = 0; i < OpeningCombatSettingsDialog.Fields.Length; i++)
         {
@@ -71,6 +91,9 @@ public partial class OpeningSettingsView : ModalView
             {
                 Difficulty = Advanced ? GameDifficulty.Advanced : GameDifficulty.Beginner,
                 Mode = Fictional ? GameMode.Fictional : GameMode.Historical,
+                MixedTroopsEnabled = MixedTroopsEnabled,
+                NaturalDeathsEnabled = NaturalDeathsEnabled, EquipmentDevelopmentEnabled = EquipmentDevelopmentEnabled,
+                FormationLearningEnabled = FormationLearningEnabled, PersonalPeerageEnabled = PersonalPeerageEnabled,
                 MoneyBonus = MoneyBonus, FoodBonus = FoodBonus, DomesticBonus = DomesticBonus,
                 SoldierBonus = SoldierBonus, MoraleBonus = MoraleBonus
             }, DamageBonusPercent);

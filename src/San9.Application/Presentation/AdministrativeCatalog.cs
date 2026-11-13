@@ -204,7 +204,7 @@ public sealed class AdministrativeCatalog(StrategySnapshot view, TextCatalog tex
             case "money-cost": case "food-cost": case "money-forecast": case "food-forecast": case "money-sufficient": case "food-sufficient": case "money-income": case "food-income":
                 if (!_outlooks.TryGetValue((owner, corps?.Id), out var outlook))
                 {
-                    outlook = EconomicOutlook.Read(view.World, view.Information.Offices.ToDictionary(o => o.Id,o => o.Salary), owner, view.Companion, corps?.Id);
+                    outlook = EconomicOutlook.Read(view.World, view.Information.Offices.ToDictionary(o => o.Id,o => o.Salary), owner, view.Companion, corps?.Id, view.PersonalPeeragePolicy(owner));
                     _outlooks.Add((owner, corps?.Id), outlook);
                 }
                 var resource = field.StartsWith("money", StringComparison.Ordinal) ? outlook.Money : outlook.Food;

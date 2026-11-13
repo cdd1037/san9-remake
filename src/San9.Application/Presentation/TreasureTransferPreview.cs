@@ -21,11 +21,13 @@ public sealed record TreasureTransferPreview(int RulerId, int? TargetId, IReadOn
         var rules = view.Rules.Abilities;
         // Preview a transfer over immutable holdings; use the same ability rules as submission.
         var holdings = view.World.Treasures.Select(t => t.Id == item.Id ? t with { HolderId = grant ? target : ruler } : t).ToArray();
+        var equipment = view.World.Equipment.Select(e => e.LegacyTreasureId == item.Id
+            ? e with { OfficerId = grant ? target : ruler, Equipped = false } : e).ToArray();
         AttributeChange[] Abilities(int id)
         {
             var person = view.World.Officers.Single(p => p.Id == id);
-            var before = rules.Evaluate(person, view.World.Treasures);
-            var after = rules.Evaluate(person, holdings);
+            var before = rules.Evaluate(person, view.World.Treasures, view.World.EquipmentInitialized ? view.World.Equipment : null);
+            var after = rules.Evaluate(person, holdings, view.World.EquipmentInitialized ? equipment : null);
             var bonus = definition.AbilityBonuses;
             return new[] { ("统率",before.Leadership,after.Leadership,bonus.Leadership), ("武力",before.War,after.War,bonus.War),
                 ("智力",before.Intelligence,after.Intelligence,bonus.Intelligence), ("政治",before.Politics,after.Politics,bonus.Politics) }

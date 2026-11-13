@@ -84,6 +84,7 @@ public static class TexturePackageImporter
 
     internal static async Task<bool> SourcesMatchAsync(string root, IEnumerable<TextureSourceStamp> stamps, CancellationToken token = default)
     {
+        if (!stamps.Any()) return false;
         foreach (var stamp in stamps)
         {
             token.ThrowIfCancellationRequested();

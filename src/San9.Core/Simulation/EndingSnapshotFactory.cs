@@ -19,11 +19,11 @@ public static class EndingSnapshotFactory
         var members = world.Officers.Where(o => !o.IsDormant && o.OwnerId == winningForceId && o.IsServing).OrderBy(o => o.Id).ToArray();
         if (force.LeaderId is not int rulerId || !members.Any(o => o.Id == rulerId))
             throw new ArgumentException("The winning force must have a serving ruler.", nameof(world));
-        var currentAbilities = abilities.EvaluateMany(members, world.Treasures);
+        var currentAbilities = abilities.EvaluateMany(members, world.Treasures, world.EquipmentInitialized ? world.Equipment : null);
         var holdingsByOfficer = world.Treasures.ToLookup(t => t.HolderId);
         var officers = members.Select(o => new EndingOfficer(o.Id, currentAbilities[o.Id], o.Affinity, o.BloodlineId,
             o.TacticProficiencies[4], o.TacticProficiencies[6],
-            TacticAvailability.ForOfficer(o, force, holdingsByOfficer[o.Id], treasures).Count)).ToImmutableArray();
+            TacticAvailability.ForOfficer(o, force, holdingsByOfficer[o.Id], treasures, world.EquipmentInitialized ? world.Equipment : null).Count)).ToImmutableArray();
         var treasuries = world.Corps.Where(c => c.OwnerId == winningForceId).Select(c => c.Treasury!).ToArray();
         var holdings = world.Settlements.Where(s => !s.IsDormant && s.OwnerId == winningForceId && !s.IsDestroyed);
         var units = world.Units.Where(u => u.OwnerId == winningForceId);

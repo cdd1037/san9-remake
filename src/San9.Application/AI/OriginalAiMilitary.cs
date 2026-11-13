@@ -216,11 +216,23 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
             .FirstOrDefault(f => f.Id == rules.BasicNavalFormationId && rules.ValidFormationPair(choice.Id, f.Id));
         return (choice.Id, naval?.Id);
     }
-    private FormationRule[] AvailableFormations(OfficerState[] people, bool naval, long money) => rules.Formations.Values
+    private FormationRule[] AvailableFormations(OfficerState[] people, bool naval, long money)
+    {
+        var commander = Governance.SelectCommander(people, Abilities);
+        return rules.Formations.Values
         .Where(f => f.TravelMode == (naval ? TravelMode.Water : TravelMode.Land) && f.Id != rules.UnformedFormationId &&
-            rules.CanSelectFormation(Force, f.Id) && f.DeploymentCost <= money && f.OfficerCapacity >= people.Length &&
-            (f.RequiredTacticId is not int required || TacticAvailability.HasForMembers(required, people, Force, World.Treasures, Treasures)))
+            (!naval && World.Simulation.NewGame.FormationKnowledgeEnabled ? !rules.IsFixedFormation(f.Id) : rules.CanSelectFormation(Force, f.Id)) &&
+            (!f.MixedTroopsOnly || World.Simulation.NewGame.FormationKnowledgeEnabled) &&
+            (!World.Simulation.NewGame.MixedTroopsEnabled || !rules.SiegeEquipment.Values.Any(item => item.FormationId == f.Id)) &&
+            (!World.Simulation.NewGame.FormationKnowledgeEnabled ||
+                (!naval && commander?.FormationProficiencies is not null
+                    ? FormationKnowledge.Knows(commander, f.Id)
+                    : rules.CanSelectFormation(Force, f.Id) && (f.ResearchProjectId is null || Force.CompletedResearch.Contains(f.ResearchProjectId)))) &&
+            f.DeploymentCost <= money && f.OfficerCapacity >= people.Length &&
+            (World.Simulation.NewGame.FormationKnowledgeEnabled && !naval && commander?.FormationProficiencies is not null ||
+                f.RequiredTacticId is not int required || TacticAvailability.HasForMembers(required, people, Force, World.Treasures, Treasures, World.EquipmentInitialized ? World.Equipment : null)))
         .OrderBy(f => f.Id).ToArray();
+    }
     private UnitPolicies Policies(bool fallback = false) => fallback ? new(false, false, false, true) :
         Force.IsBarbarian ? new(true, true, true, false) : new(false, false, true, true);
     internal static uint MinimumAttack(SettlementState source) => source.Kind == SettlementKind.City ? 10000u : 5000u;

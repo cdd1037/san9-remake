@@ -14,6 +14,21 @@ public sealed record ForceOrigin(
 
 public sealed record ForceState(int Id, int Trust)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public System.Collections.Immutable.ImmutableDictionary<string, uint>? ArmamentInventory { get; init; }
+    /// <summary>Returned sets temporarily held beyond the ordinary inventory's per-item capacity.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public System.Collections.Immutable.ImmutableDictionary<string, ulong>? ArmamentReserve { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? ArmamentMigrationCredit { get; init; }
+    /// <summary>Successor entitled to assets retained when an immediate transfer exceeded capacity.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? ArmamentEscrowSuccessorId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ArmamentProductionProgress? ArmamentProduction { get; init; }
+    public System.Collections.Immutable.ImmutableArray<string> CompletedResearch { get; init; } = [];
+    public ResearchProgress? ActiveResearch { get; init; }
+    public EquipmentProductionProgress? EquipmentProduction { get; init; }
     [JsonRequired] public int ColorCode { get; init; }
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.FormationGrant> FormationGrants { get; init; } = [];
     [JsonRequired] public bool IsDormant { get; init; }
@@ -27,6 +42,7 @@ public sealed record ForceState(int Id, int Trust)
     public int? LeaderId { get; init; }
     [JsonRequired] public int? AdviserId { get; init; }
     public int? RankId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? PersonalPeerageRegimeId { get; init; }
     [JsonRequired] public int? CountryTitleId { get; init; }
 }
 

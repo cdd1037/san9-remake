@@ -201,7 +201,7 @@ public sealed class CityIndependenceTests
         var world = Due(state);
         world.Replace(world.Officers[12].WithLoyalty(1, 0));
         Assert.Equal(CommandRejection.None, PersonnelMissions.StartMove(world, new("player"),
-            new(Guid.NewGuid(), 1, 0, [12], 2), Rules(false).Personnel, null, []));
+            new(Guid.NewGuid(), 1, 0, [12], 2), Rules(false).Personnel, null, Rules(false).Governance, []));
         world.SetSimulation(world.Simulation with { NextSequence = 1 });
         var task = Assert.Single(world.Simulation.Tasks);
         List<DomainEvent> events = [];

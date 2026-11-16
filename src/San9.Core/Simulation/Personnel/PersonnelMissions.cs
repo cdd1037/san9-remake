@@ -184,17 +184,27 @@ internal static class PersonnelMissions
         => rules.CanSearch(world.AllSettlements, forceId, destinationId);
 
     internal static CommandRejection StartMove(WorldMutation world, CommandContext context, MoveOfficersCommand command,
-        PersonnelRulebook rules, MilitaryRulebook? military, List<DomainEvent> events)
+        PersonnelRulebook rules, MilitaryRulebook? military, GovernanceRulebook governance, List<DomainEvent> events)
     {
         var rejection = ValidateMove(world, command, rules, military);
         if (rejection != CommandRejection.None) return rejection;
         var ids = command.OfficerIds.Order().ToArray();
+        var previousCorps = ids.Select(id => PersonnelLocations.Corps(world, world.Officers[id])).OfType<int>().Distinct().Order().ToArray();
         for (int index = 0; index < ids.Length; index++)
         {
             int id = ids[index];
             Guid taskId = index == 0 ? command.CommandId : world.AllocateTaskId();
             Add(world, context, command, taskId, id, world.Officers[id].SettlementId!.Value,
                 new(command.DestinationId, null, null), MoveKind, rules, events);
+            var person = world.Officers[id];
+            bool changesCorps = PersonnelLocations.Corps(world, person) != world.Settlements[command.DestinationId].CorpsId;
+            world.Replace(person with { SettlementId = command.DestinationId, IsCommander = false,
+                Status = changesCorps && person.Status == OfficerStatus.Governor ? OfficerStatus.Serving : person.Status });
+        }
+        foreach (int corpsId in previousCorps)
+        {
+            var repair = GovernanceMaintenance.RepairCorps(world, corpsId, governance, events);
+            if (repair != CommandRejection.None) return repair;
         }
         return CommandRejection.None;
     }
@@ -238,7 +248,6 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
 {
     private readonly PersonnelRulebook rules = simulationRules.Personnel;
     private readonly EconomyRulebook economy = simulationRules.Economy;
-    private readonly GovernanceRulebook governance = simulationRules.Governance;
     private readonly TreasureRulebook treasures = simulationRules.Treasures;
     internal override bool SupportsResolutionStep(int step) => step == 0 || kind == PersonnelMissions.SearchKind && step is 1 or 2;
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is { ReturnLeg: null, Route: { } route, UnitStrategy: null, Burn: null, Seize: null, Gossip: null } journey && DurationDays(task) >= 0 &&
@@ -404,9 +413,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
         if (kind == PersonnelMissions.MoveKind)
             return journey.TargetOfficerId is null && journey.SuccessRoll is null &&
                 world.Settlements.TryGetValue(journey.DestinationPlaceId, out var destination) && destination.OwnerId == task.ForceId &&
-                destination.CanHostPersons && destination.Durability > 0 &&
-                !world.Corps.Values.Any(c => c.LeaderId == task.OfficerId && c.IsRoot && destination.CorpsId != c.Id) &&
-                GovernanceMaintenance.CanRemove(world, task.OfficerId);
+                destination.CanHostPersons && destination.Durability > 0;
         return journey.SuccessRoll is >= 0 and < 100 && journey.TargetOfficerId is int targetId &&
             world.Forces[task.ForceId].LeaderId is not null && world.Officers.TryGetValue(targetId, out var target) &&
             PersonnelMissions.Recruitable(world, task.ForceId, target) &&
@@ -418,15 +425,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
         var journey = task.Journey!;
         if (kind == PersonnelMissions.MoveKind)
         {
-            int? oldCorpsId = PersonnelLocations.Corps(world, world.Officers[task.OfficerId]);
             PersonnelTransitions.Move(world, task, events, rules, true);
-            if (oldCorpsId is int corpsId && world.Settlements[journey.DestinationPlaceId].CorpsId != corpsId)
-            {
-                var person = world.Officers[task.OfficerId];
-                if (person.Status == OfficerStatus.Governor) world.Replace(person with { Status = OfficerStatus.Serving });
-                if (GovernanceMaintenance.RepairCorps(world, corpsId, governance, events) != CommandRejection.None)
-                    throw new InvalidOperationException("Validated corps transfer failed.");
-            }
             return;
         }
         var target = world.Officers[journey.TargetOfficerId!.Value];

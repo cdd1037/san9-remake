@@ -661,7 +661,7 @@ public sealed partial class SimulationEngine
                     if (recruitRejection != CommandRejection.None) return Reject(recruitRejection);
                     break;
                 case MoveOfficersCommand move:
-                    var moveRejection = PersonnelMissions.StartMove(mutation, context, move, _rules.Personnel, _rules.Military, events);
+                    var moveRejection = PersonnelMissions.StartMove(mutation, context, move, _rules.Personnel, _rules.Military, _rules.Governance, events);
                     if (moveRejection != CommandRejection.None) return Reject(moveRejection);
                     break;
                 case FoodTradeCommand trade:

@@ -591,6 +591,10 @@ public sealed class PersonnelMissionTests
         world.Commit(change);
         engine = Engine(world);
         Assert.True(engine.Execute(new("player"), new MoveOfficersCommand(Guid.NewGuid(), 1, 0, [13, 11], 2)).Submission.Accepted);
+        Assert.All(engine.Snapshot.Officers.Where(p => p.Id is 11 or 13), p => Assert.Equal(2, p.SettlementId));
+        Assert.False(engine.Execute(new("player"), new MoveOfficersCommand(Guid.NewGuid(), 1,
+            engine.Snapshot.Simulation.NextSequence, [11], 3)).Submission.Accepted);
+        StateAssert.Equal(engine.Snapshot, Engine(WorldState.Restore(engine.Snapshot)).Snapshot);
         Assert.Equal(2, engine.Snapshot.Simulation.Tasks.Count());
         Assert.Single(engine.Snapshot.Simulation.Tasks.Select(t => t.Sequence).Distinct());
         Assert.Equal(new[] { 1, 3 }, engine.Snapshot.Simulation.Tasks.Select(t => t.OriginSettlementId));

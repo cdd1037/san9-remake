@@ -133,7 +133,7 @@ internal static class PersonnelTransitions
         if (destination.OwnerId != person.OwnerId || !destination.CanHostPersons) throw new InvalidOperationException("Invalid move destination.");
         CancelMissions(world, personId, "person-location-changed", events, places, afterDailyCommands, preservePersonTargets: true);
         world.Replace(person with { SettlementId = destinationId, RegionId = null, Acted = true, IsCommander = false });
-        events.Add(new OfficerMovedEvent(world.Clock, personId, person.SettlementId!.Value, destinationId,
+        events.Add(new OfficerMovedEvent(world.Clock, personId, task.OriginSettlementId, destinationId,
             new(task.ForceId, world.Forces[task.ForceId].LeaderId, task.Sequence, true, PersonnelLocations.Corps(world, person))));
     }
 

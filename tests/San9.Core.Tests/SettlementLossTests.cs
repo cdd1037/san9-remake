@@ -169,7 +169,7 @@ public sealed class SettlementLossTests
         if (facility) world.Replace(world.Settlements[10] with { Kind = SettlementKind.Facility });
         Assert.Equal(CommandRejection.None, search
             ? PersonnelMissions.StartSearch(world, new("system"), new(Guid.NewGuid(), 1, 0, [103], 11), Rules().Personnel, null, [])
-            : PersonnelMissions.StartMove(world, new("system"), new(Guid.NewGuid(), 1, 0, [103], 11), Rules().Personnel, null, []));
+            : PersonnelMissions.StartMove(world, new("system"), new(Guid.NewGuid(), 1, 0, [103], 11), Rules().Personnel, null, Rules().Governance, []));
         world.SetSimulation(world.Simulation with { NextSequence = 1 });
         WorldInvariants.Validate(world);
         var before = Assert.Single(world.Simulation.Tasks);
@@ -298,7 +298,7 @@ public sealed class SettlementLossTests
                 new(new(12, 2), new(2, 2), false));
         else
             Assert.Equal(CommandRejection.None, PersonnelMissions.StartMove(world, new("system"),
-                new(Guid.NewGuid(), 1, 0, [103], 11), Rules().Personnel, null, []));
+                new(Guid.NewGuid(), 1, 0, [103], 11), Rules().Personnel, null, Rules().Governance, []));
         world.SetSimulation(world.Simulation with { NextSequence = 1 });
         world.Replace(world.Settlements[10] with { Soldiers = 100 });
         world.Replace(world.Settlements[11] with { Soldiers = 0 });

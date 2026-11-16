@@ -491,6 +491,43 @@ public sealed class PersonnelCommandTests
         Assert.False(draft.CanExecute);
         Assert.Throws<InvalidOperationException>(() => draft.CreateCommand(Guid.NewGuid(),1));
     }
+    [Theory]
+    [InlineData("summon", 2, 30, 1)]
+    [InlineData("move", 3, 1, 30)]
+    public void TransferChangesServicePlaceImmediatelyButRemainsInTransitAfterSave(string kind, int officer, int origin, int destination)
+    {
+        var definition = Definition();
+        var session = GameSession.Start(definition, 17);
+        var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion, definition.Officers.Select(o => o.NameKey)
+            .Concat(definition.Settlements.Select(s => s.NameKey)).Distinct().ToDictionary(key => key, key => key));
+        var before = new AdministrativeCatalog(session.View, texts);
+        long sourceCount = before.Cell(InformationCategory.Cities, origin, "serving").Number!.Value;
+        long destinationCount = before.Cell(InformationCategory.Cities, destination, "serving").Number!.Value;
+        var draft = new PersonnelDraft(session, 1, kind);
+        if (kind == "move") Assert.True(draft.SetTarget(destination));
+        Assert.True(draft.SetMembers([officer]));
+        var result = session.Execute(new("player"), draft.CreateCommand(Guid.NewGuid(), session.Snapshot.Simulation.NextSequence));
+        Assert.True(result.Submission.Accepted);
+        Assert.Empty(result.Events.OfType<OfficerMovedEvent>());
+        var restored = San9.Application.Persistence.SaveService.Decode(San9.Application.Persistence.SaveService.Encode(session), definition);
+        StateAssert.Equal(session.Capture(), restored.Capture());
+        foreach (var current in new[] { session, restored })
+        {
+            var person = current.View.Officers.Single(p => p.Id == officer);
+            Assert.Equal(destination, person.ServicePlaceId);
+            Assert.Equal(origin, person.Journey!.OriginSettlementId);
+            Assert.Equal(destination, person.Journey.DestinationPlaceId);
+            Assert.False(person.IsAvailable);
+            var table = OfficerCatalog.Read(current.View, texts, 1, null, destination);
+            var row = Assert.Single(table.Rows, r => r.Key.Id == officer);
+            Assert.Equal("移动中", row.Cells[Array.IndexOf(table.Columns, "所在")].Text);
+            var catalog = new AdministrativeCatalog(current.View, texts);
+            Assert.Equal(sourceCount - 1, catalog.Cell(InformationCategory.Cities, origin, "serving").Number);
+            Assert.Equal(destinationCount + 1, catalog.Cell(InformationCategory.Cities, destination, "serving").Number);
+            Assert.NotEqual(officer, catalog.Commander(destination)?.Id);
+        }
+    }
+
     [Fact]
     public void ManualSearchAndDefaultRecruitAdviceNeverChangeTheTaskRoll()
     {

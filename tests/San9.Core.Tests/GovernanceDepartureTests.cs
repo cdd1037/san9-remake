@@ -37,9 +37,8 @@ public sealed class GovernanceDepartureTests
         Assert.True(engine.Execute(new("player"), command).Submission.Accepted);
         if (move)
         {
-            Assert.Equal(11, engine.Snapshot.Settlements.Single(s => s.Id == 2).CorpsId);
-            engine.EndControl(new("player"));
-            engine.AdvanceXun();
+            Assert.Equal(1, engine.Snapshot.Officers.Single(p => p.Id == 2).SettlementId);
+            Assert.Single(engine.Snapshot.Simulation.Tasks);
         }
         if (successor)
         {

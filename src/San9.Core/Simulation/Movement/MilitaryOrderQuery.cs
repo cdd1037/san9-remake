@@ -7,6 +7,8 @@ public sealed class MilitaryOrderQuery(WorldSnapshot snapshot, MilitaryRulebook 
 {
     private readonly WorldQuery world = new(snapshot);
 
+    public AttackWarning AttackWarnings(int forceId, MilitaryOrder order) => MilitaryDiplomacy.Warning(world, forceId, order, rules);
+
     public bool CanAssign(int unitId, MilitaryOrder order) => world.Units.TryGetValue(unitId, out var unit) &&
         !unit.IsEmbedded && !unit.IsPersonnel && unit.Soldiers > 0 && unit.FormationId is int formation &&
         rules.Formations.TryGetValue(formation, out var definition) && order.Kind != MilitaryOrderKind.Construct &&

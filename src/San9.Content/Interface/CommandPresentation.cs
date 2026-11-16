@@ -168,9 +168,11 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
         if (Military.Count > 0)
         {
             string[] roles = ["sortie", "reinforce", "build", "transport", "transport-redirect", "attack", "march", "retreat", "adjust"];
-            string[] values = ["commander", "recipient", "target", "unit"];
-            if (roles.Except(Military.Keys).Any() || Military.Values.Any(m =>
-                m.Speaker != "commander" || m.Illustration is not null || m.Bindings.Values.Except(values).Any()))
+            string[] confirmations = ["confirm-friendly", "confirm-alliance", "confirm-request"];
+            string[] values = ["commander", "recipient", "target", "unit", "force", "target-force", "alliance-target-ruler"];
+            if (roles.Concat(confirmations).Except(Military.Keys).Any() || Military.Any(pair =>
+                pair.Value.Speaker != (confirmations.Contains(pair.Key) ? null : "commander") ||
+                pair.Value.Illustration is not null || pair.Value.Bindings.Values.Except(values).Any()))
                 throw new InvalidDataException("Invalid military command presentation.");
             new DecisionPresentations([], []) { Shared = Military }.Validate(texts, Sounds, personIds);
         }

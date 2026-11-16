@@ -23,6 +23,9 @@ internal static class MilitaryPresentationCompiler
         Add("march", 5845, "building.0");
         Add("retreat", 5851, "building.0");
         Add("adjust", 5879, "unit.0", "unit");
+        messages.Add("confirm-friendly", new("messages.6121", new() { ["force.0"] = "target-force" }));
+        messages.Add("confirm-alliance", new("messages.6069", new() { ["person.0"] = "alliance-target-ruler", ["force.0"] = "force" }));
+        messages.Add("confirm-request", new("messages.6070", new() { ["force.0"] = "target-force" }));
         return messages;
     }
 }

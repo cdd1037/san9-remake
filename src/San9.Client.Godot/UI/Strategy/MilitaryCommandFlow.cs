@@ -11,6 +11,7 @@ public partial class MilitaryCommandFlow : Node
 {
     public MapWorld World { get; init; } = null!;
     public GameSession Session { get; init; } = null!;
+    public San9.Content.Interface.CommandPresentation Content { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;
@@ -24,12 +25,14 @@ public partial class MilitaryCommandFlow : Node
     public bool IsActive => Source is not null;
     public MilitaryCommandStage Stage => Source is null ? MilitaryCommandStage.None :
         Targets is null ? MilitaryCommandStage.Preparation :
-        _policy is not null || _catalog is not null ? MilitaryCommandStage.TargetModal : MilitaryCommandStage.Targets;
+        _policy is not null || _catalog is not null || _confirmation is not null ? MilitaryCommandStage.TargetModal : MilitaryCommandStage.Targets;
     private MapTargetInputLease? _input;
     private DeploymentView? _preparation;
     private SpecialDeploymentView? _specialPreparation;
     private MilitaryPolicyView? _policy;
     private CatalogView? _catalog;
+    private GameDialog? _confirmation;
+    private bool _attackConfirmed;
 
     public override void _Process(double delta)
     {
@@ -122,13 +125,45 @@ public partial class MilitaryCommandFlow : Node
     }
     private void PickMilitaryTarget(MilitaryTarget selected)
     {
-        if (Targets is not { } targets) return;
+        if (Targets is not { } targets || _confirmation is not null) return;
         if (targets.Selected == selected)
         {
-            if (targets.BeginPolicies()) ShowPolicies();
+            if (targets.BeginPolicies()) ConfirmAttack();
         }
         else targets.Select(selected);
         if (targets.Error is { } error) Notice?.Invoke(error);
+    }
+
+    private void ConfirmAttack()
+    {
+        var targets = Targets!;
+        CloseTargetList();
+        _attackConfirmed = false;
+        var warnings = targets.AttackWarnings;
+        var prompts = warnings == AttackWarning.None ? Array.Empty<ProducedMessage>() :
+            MilitaryCommandPresentation.Confirmations(targets.View, targets.AttackingForceId, targets.TargetForceId!.Value,
+                warnings, Session.Messages(Texts), Content).ToArray();
+        Next(0);
+        void Next(int index)
+        {
+            CloseConfirmation();
+            if (index == prompts.Length)
+            {
+                _attackConfirmed = warnings != AttackWarning.None;
+                ShowPolicies(); Changed?.Invoke(); return;
+            }
+            var dialog = new GameDialog { Textures = Textures, Size = new(1024, 768) };
+            dialog.SetRichMessage(prompts[index].BbCode);
+            dialog.Confirmed += () => Next(index + 1);
+            dialog.Dismissed += () => { CloseConfirmation(); targets.ReturnToTargets(); Changed?.Invoke(); };
+            _confirmation = dialog; AddChild(dialog); Changed?.Invoke();
+        }
+    }
+
+    private void CloseConfirmation()
+    {
+        if (_confirmation is not { } dialog) return;
+        _confirmation = null; RemoveChild(dialog); dialog.QueueFree();
     }
 
     private void ShowPolicies()
@@ -139,12 +174,12 @@ public partial class MilitaryCommandFlow : Node
         AddChild(_policy);
     }
 
-    private CommandRejection SubmitCommand(bool confirmAttack)
+    private CommandRejection SubmitCommand()
     {
         if (Targets is not { } targets || targets.View.World.Revision != Session.Snapshot.Revision)
             return CommandRejection.NotStable;
         var before = targets.View;
-        var command = targets.CreateCommand(Guid.NewGuid(), Session.Snapshot.Simulation.NextSequence, confirmAttack);
+        var command = targets.CreateCommand(Guid.NewGuid(), Session.Snapshot.Simulation.NextSequence, _attackConfirmed);
         var result = Session.Execute(new("player"), command);
         if (result.Submission.Accepted)
         {
@@ -163,6 +198,7 @@ public partial class MilitaryCommandFlow : Node
 
     public void EndTargetSelection()
     {
+        CloseConfirmation(); _attackConfirmed = false;
         ClosePolicies();
         CloseTargetList();
         ReleaseTargets();
@@ -218,7 +254,7 @@ public partial class MilitaryCommandFlow : Node
 
     public override void _UnhandledKeyInput(InputEvent input)
     {
-        if (Targets is not null && _catalog is null && _policy is null &&
+        if (Targets is not null && _catalog is null && _policy is null && _confirmation is null &&
             input is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
         { GetViewport().SetInputAsHandled(); EndTargetSelection(); }
     }
@@ -233,6 +269,6 @@ public partial class MilitaryCommandFlow : Node
         Changed = null; Notice = null; Submitted = null;
         ReleaseTargets();
         Source = null;
-        _preparation = null; _specialPreparation = null; _policy = null; _catalog = null;
+        _preparation = null; _specialPreparation = null; _policy = null; _catalog = null; _confirmation = null;
     }
 }

@@ -8,6 +8,7 @@ public sealed record EventPresentationDefinition(Dictionary<string, DecisionMess
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<string, int> People { get; init; } = [];
     public static readonly string[] RequiredRoles = [
+        "war-declaration", "war-announcement", "war-record", "war-trust", "war-trust-record", "war-loyalty", "war-loyalty-record",
         "request-fulfilled", "request-fulfilled-trust", "request-expired", "request-expired-trust",
         "request-expired-trust-record", "request-expired-loyalty", "request-expired-loyalty-record",
         "founder-declaration", "force-founded", "city-independent", "officer-departed",

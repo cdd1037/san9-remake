@@ -125,6 +125,13 @@ public abstract class MilitaryTargets
         return true;
     }
 
+    public AttackWarning AttackWarnings => Selected is { } target
+        ? new MilitaryOrderQuery(View.World, Rules).AttackWarnings(OwnerId, OrderFor(target)) : AttackWarning.None;
+    public int AttackingForceId => OwnerId;
+    public int? TargetForceId => Selected is not { } target ? null : target.IsUnit
+        ? View.World.Units.Single(u => u.Id == target.Id).OwnerId
+        : View.World.Settlements.Single(s => s.Id == target.Id).OwnerId;
+
     public bool BeginPolicies()
     {
         if (Selected is null || !Reachable || !CanProceed) return false;

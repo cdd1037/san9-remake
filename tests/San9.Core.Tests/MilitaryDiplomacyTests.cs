@@ -91,9 +91,31 @@ public sealed class MilitaryDiplomacyTests
         Assert.Equal(loyalty, m.Officers[11].Loyalty);
         Assert.Equal(loyalty, m.Officers[12].Loyalty);
         Assert.Equal(after, m.Relations[(1, 2)].Value);
+        if (relation >= 40)
+        {
+            var declaration = Assert.Single(events.OfType<WarDeclaredEvent>());
+            Assert.True(declaration.DeclaredWar);
+            Assert.Equal(100 - trust, declaration.TrustLoss);
+            Assert.Equal(loyalty < 100, declaration.LoyaltyDecreased);
+        }
+        else Assert.Empty(events.OfType<WarDeclaredEvent>());
         int count = events.Count;
         MilitaryDiplomacy.BeginAdvance(m, rules, events);
         Assert.Equal(count, events.Count);
+    }
+
+    [Fact]
+    public void DeclarationReportsOnlyItsOwnActualLossesBeforeAlliancePenalty()
+    {
+        var m = World(80, alliance: true).BeginMutation();
+        m.Replace(m.Forces[1] with { BaseTrust = 7 });
+        foreach (var person in m.Officers.Values.Where(p => p.OwnerId == 1).ToArray())
+            m.Replace(person.WithLoyalty(1, 0));
+        List<DomainEvent> events = [];
+        MilitaryDiplomacy.BeginAdvance(m, new SimulationRules { Military = Military() }, events);
+        var fact = Assert.Single(events.OfType<WarDeclaredEvent>());
+        Assert.True(fact.DeclaredWar); Assert.True(fact.BetrayedAlliance);
+        Assert.Equal(7, fact.TrustLoss); Assert.False(fact.LoyaltyDecreased);
     }
 
     [Fact]

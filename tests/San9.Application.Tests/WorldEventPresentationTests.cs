@@ -16,12 +16,42 @@ public sealed class WorldEventPresentationTests
         var session = GameSession.Start(MissionScenario.Create(), 42);
         var messages = EventPresentationDefinition.RequiredRoles.ToDictionary(role => role, role => new MessageDefinition([new MessageLiteral(role)]));
         var definitions = messages.Keys.ToDictionary(role => role, role => new DecisionMessageDefinition(role, [],
-            role is "founder-declaration" or "successor-declaration" or "consolidation-offer" or "alliance-formed-declaration" ? "actor" :
+            role is "war-declaration" or "founder-declaration" or "successor-declaration" or "consolidation-offer" or "alliance-formed-declaration" ? "actor" :
             role is "consolidation-reply" or "visit-greeting" or "visit-departure" or "women-teaching" ? "other" : null,
             role is "force-founded" or "city-independent" ? "founded" : null,
             role is "ruler-death" or "officer-death" or "captive-death" or "free-officer-death" ? "actor" : null));
         return (session, MissionScenario.Texts(session.View) with { Messages = messages }, CommandPresentation.Empty with
         { Events = new(definitions) { People = new() { ["emperor-first"] = 1, ["emperor-second"] = 21, ["messenger"] = 3, ["recommender"] = 2 } } });
+    }
+
+    [Theory]
+    [InlineData(1, true, 10, true)]
+    [InlineData(1, true, 0, false)]
+    [InlineData(1, true, 0, true)]
+    [InlineData(2, true, 20, true)]
+    [InlineData(1, false, 0, false)]
+    public void DeclarationUsesOccurrenceLossesAndPlayerDialogueGate(int attacker, bool declared, int loss, bool loyalty)
+    {
+        var (session, texts, content) = Fixture();
+        var before = session.View;
+        var fact = new WarDeclaredEvent(before.World.Clock, attacker, attacker == 1 ? 2 : 1, false)
+            { DeclaredWar = declared, TrustLoss = loss, LoyaltyDecreased = loyalty };
+        var output = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, [fact]);
+        List<string> messages = [], records = [];
+        if (declared)
+        {
+            if (attacker == 1) messages.Add("war-declaration");
+            messages.Add("war-announcement"); records.Add("war-record");
+            if (attacker == 1 && loss > 0) { messages.Add("war-trust"); records.Add("war-trust-record"); }
+            if (attacker == 1 && loyalty) { messages.Add("war-loyalty"); records.Add("war-loyalty-record"); }
+        }
+        Assert.Equal(messages, output.Messages.Select(m => m.Message.Key));
+        Assert.Equal(records, output.Records.Select(r => r.Message.Key));
+        Assert.All(output.Messages, m => Assert.Null(m.MapSpeech));
+        if (declared && attacker == 1)
+            Assert.Equal(before.World.Forces.Single(f => f.Id == attacker).LeaderId, output.Messages[0].SpeakerId);
+        var replay = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, [fact], presentedFeedback: output.FeedbackIds);
+        Assert.Empty(replay.Messages); Assert.Empty(replay.Records);
     }
 
     [Theory]
@@ -300,6 +330,49 @@ public sealed class WorldEventPresentationTests
 
         Assert.Equal(new[] { "alliance-member-left", "alliance-member-ended" }, output.Messages
             .Select(m => m.Message.Key).Where(key => key.StartsWith("alliance-member-", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task DeclarationAndConfirmationBindingsEvaluateAgainstTheOptionalRealClientPackage()
+    {
+        if (Environment.GetEnvironmentVariable("SAN9_PRESENTATION_CONTENT") is not { Length: > 0 } root) return;
+        var manifest = await ScenarioContentFiles.ReadManifestAsync(root);
+        string resourceRoot = ScenarioContentFiles.ResolveResourceRoot(root, manifest.ResourceRoot);
+        // Exercise the affected bindings independently of player overrides and unrelated presentation contracts.
+        using var authored = System.Text.Json.JsonDocument.Parse(await File.ReadAllTextAsync(
+            PackageFiles.Resolve(resourceRoot, manifest.Presentation), System.Text.Encoding.UTF8));
+        var presentation = CommandPresentation.Empty with
+        {
+            Military = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, DecisionMessageDefinition>>(
+                authored.RootElement.GetProperty("military").GetRawText(), PackageFiles.JsonOptions)!,
+            Events = System.Text.Json.JsonSerializer.Deserialize<EventPresentationDefinition>(
+                authored.RootElement.GetProperty("events").GetRawText(), PackageFiles.JsonOptions)!
+        };
+        var library = await MessageLibraryFiles.LoadAsync(PackageFiles.Resolve(resourceRoot, manifest.SharedMessages!));
+        int actor = 1, defender = 2, target = 3;
+        var session = GameSession.Start(MissionScenario.Create(), 42);
+        var texts = MissionScenario.Texts(session.View) with { Messages = library };
+        foreach (bool leader in new[] { true, false })
+        {
+            var world = session.Snapshot with { Simulation = session.Snapshot.Simulation with
+                { Alliance = new(target, leader ? actor : defender, [actor, defender], 12) } };
+            var view = session.View.ForWorld(world);
+            var context = session.Messages(texts, world);
+            var prompts = MilitaryCommandPresentation.Confirmations(view, actor, defender,
+                AttackWarning.FriendlyRelations | AttackWarning.AllianceBetrayal | AttackWarning.AttackRequestBreach,
+                context, presentation);
+            Assert.Equal(3, prompts.Count);
+            Assert.Contains("信赖", prompts[0].BbCode);
+            Assert.Contains(leader ? "解散" : "脱离", prompts[1].BbCode);
+            Assert.Contains("约定", prompts[2].BbCode);
+            var fact = new WarDeclaredEvent(world.Clock, actor, defender, false)
+                { DeclaredWar = true, TrustLoss = 10, LoyaltyDecreased = true };
+            var output = ExecutionPublication.Read(view, view, context, texts, presentation, [fact]);
+            Assert.Equal(4, output.Messages.Count); Assert.Equal(3, output.Records.Count);
+            Assert.Equal(world.Forces.Single(f => f.Id == actor).LeaderId, output.Messages[0].SpeakerId);
+            Assert.Contains("宣战", output.Messages[1].Message.BbCode);
+            Assert.Contains("宣战", output.Records[0].Message.BbCode);
+        }
     }
 
     [Fact]

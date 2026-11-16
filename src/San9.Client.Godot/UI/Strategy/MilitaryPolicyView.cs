@@ -14,7 +14,7 @@ public partial class MilitaryPolicyView : FixedPage
     public MilitaryTargets Selection { get; init; } = null!;
     public TextCatalog Texts { get; init; } = null!;
     public TextureScope Textures { get; init; } = null!;
-    public Func<bool, CommandRejection> Submit { get; init; } = null!;
+    public Func<CommandRejection> Submit { get; init; } = null!;
     public Action Closed { get; init; } = null!;
     private readonly GameTextPresenter _text = new();
     private bool IsConstruction => Selection is SpecialDeploymentTargets { IsConstruction: true };
@@ -27,7 +27,6 @@ public partial class MilitaryPolicyView : FixedPage
     private CommandArrivalField _arrival = null!;
     private GameMessageBar _message = null!;
     private float _facilityWidth;
-    private bool _confirmAttack;
 
     public override void _Ready()
     {
@@ -118,7 +117,7 @@ public partial class MilitaryPolicyView : FixedPage
                 var button = new CommandChoiceButton { Title = title, Textures = Textures,
                     Position = Origin + new Vector2(x, y), Size = new(80, 32), ToggleMode = true,
                     ButtonGroup = choices, ButtonPressed = current == value };
-                button.Pressed += () => { batch.SetPolicy(policyField, value); _confirmAttack = false; RefreshArrival(); };
+                button.Pressed += () => { batch.SetPolicy(policyField, value); RefreshArrival(); };
                 AddChild(button);
             }
             return;
@@ -160,10 +159,9 @@ public partial class MilitaryPolicyView : FixedPage
     {
         if (!Selection.Reachable)
         { _message.SetMessage(Selection.Error ?? "存在无法到达目标的部队，整组尚未下令。", true); return; }
-        var rejection = Submit(_confirmAttack);
+        var rejection = Submit();
         if (rejection == CommandRejection.None) return;
-        _confirmAttack = rejection == CommandRejection.AttackConfirmationRequired;
-        _message.SetMessage(_confirmAttack ? "攻击该目标将影响外交关系。再次点击执行确认命令。" : rejection == CommandRejection.NotStable && Selection is UnitGroupCommandTargets
+        _message.SetMessage(rejection == CommandRejection.NotStable && Selection is UnitGroupCommandTargets
             ? "局势已变化，整组尚未下令。请中止后重新选择部队。" : "命令条件已变化，请返回重新选择。", true);
     }
     private void ShowGroupSummary()

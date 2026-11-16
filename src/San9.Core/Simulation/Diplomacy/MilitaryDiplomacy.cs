@@ -4,7 +4,12 @@ namespace San9.Core.Simulation;
 
 [Flags]
 public enum AttackWarning { None = 0, FriendlyRelations = 1, AllianceBetrayal = 2, AttackRequestBreach = 4 }
-public sealed record WarDeclaredEvent(GameClock Clock, int AttackerForceId, int DefenderForceId, bool BetrayedAlliance) : DomainEvent;
+public sealed record WarDeclaredEvent(GameClock Clock, int AttackerForceId, int DefenderForceId, bool BetrayedAlliance) : DomainEvent
+{
+    public bool DeclaredWar { get; init; }
+    public int TrustLoss { get; init; }
+    public bool LoyaltyDecreased { get; init; }
+}
 
 public static class MilitaryDiplomacy
 {
@@ -51,7 +56,7 @@ public static class MilitaryDiplomacy
         _ => null
     };
 
-    internal static AttackWarning Warning(WorldMutation world, int force, MilitaryOrder? order, MilitaryRulebook? rules)
+    internal static AttackWarning Warning(IWorldQuery world, int force, MilitaryOrder? order, MilitaryRulebook? rules)
     {
         if (rules is null || order?.IsAttack != true || TargetOwner(world, order) is not int other || !CanFight(world, force, other) ||
             order.SettlementId is int place && Work(world, place, rules)) return AttackWarning.None;
@@ -71,7 +76,9 @@ public static class MilitaryDiplomacy
             int value = Relation(world, unit.OwnerId, other);
             bool betrayal = world.Simulation.Alliance?.Protects(unit.OwnerId, other) == true;
             if (value >= 40) ForceRelations.Set(world, unit.OwnerId, other, 35, null, events);
-            if (value >= 60) Penalize(world, unit.OwnerId, value >= 80 ? 20 : 10, value >= 80 ? 1 : 2, false, events);
+            var penalty = value >= 60
+                ? Penalize(world, unit.OwnerId, value >= 80 ? 20 : 10, value >= 80 ? 1 : 2, false, events)
+                : (TrustLoss: 0, LoyaltyDecreased: false);
             if (betrayal)
             {
                 var alliance = world.Simulation.Alliance!;
@@ -84,17 +91,24 @@ public static class MilitaryDiplomacy
                 AllianceDiplomacy.Betray(world, unit.OwnerId, events);
             }
             bool brokenRequest = AttackRequests.BreakPair(world, unit.OwnerId, other, events);
-            if (value >= 40 || betrayal || brokenRequest) events.Add(new WarDeclaredEvent(world.Clock, unit.OwnerId, other, betrayal));
+            if (value >= 40 || betrayal || brokenRequest) events.Add(new WarDeclaredEvent(world.Clock, unit.OwnerId, other, betrayal)
+            { DeclaredWar = value >= 40, TrustLoss = penalty.TrustLoss, LoyaltyDecreased = penalty.LoyaltyDecreased });
         }
     }
 
-    private static void Penalize(WorldMutation world, int forceId, int trustLoss, int divisor, bool excludeRuler, List<DomainEvent> events)
+    private static (int TrustLoss, bool LoyaltyDecreased) Penalize(WorldMutation world, int forceId, int trustLoss, int divisor, bool excludeRuler, List<DomainEvent> events)
     {
         var force = world.Forces[forceId];
+        bool loyaltyDecreased = false;
         world.Replace(force with { BaseTrust = Math.Max(0, force.BaseTrust - trustLoss) });
         foreach (var person in world.Officers.Values.Where(p => p.OwnerId == forceId && p.IsServing &&
             (!excludeRuler || p.Status != OfficerStatus.Ruler)).OrderBy(p => p.Id).ToArray())
-            RecruitmentRules.SetLoyalty(world, person.Id, forceId, Math.Max(0, person.Loyalty - person.Righteousness / divisor), "forced-attack", events);
+        {
+            int loyalty = Math.Max(0, person.Loyalty - person.Righteousness / divisor);
+            loyaltyDecreased |= loyalty < person.Loyalty;
+            RecruitmentRules.SetLoyalty(world, person.Id, forceId, loyalty, "forced-attack", events);
+        }
+        return (Math.Min(force.BaseTrust, trustLoss), loyaltyDecreased);
     }
 
     internal static void CombatOpened(WorldMutation world, int attacker, int? defender, bool work, List<DomainEvent> events)

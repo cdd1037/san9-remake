@@ -15,7 +15,7 @@ public partial class StrategyHud
 
     private void BuildTargetControls()
     {
-        _flow = new() { World = World, Preferences = Preferences, Session = Session, Texts = Texts, Service = Textures, Textures = _textures };
+        _flow = new() { World = World, Preferences = Preferences, Session = Session, Texts = Texts, Content = CommandPresentation, Service = Textures, Textures = _textures };
         _flow.Changed += RefreshMilitaryCommand;
         _flow.Notice += message => { _notice.SetNotice(message); _notice.Show(); };
         _flow.Submitted += PresentMilitaryCommand;

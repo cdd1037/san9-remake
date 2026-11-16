@@ -8,6 +8,31 @@ namespace San9.Application.Presentation;
 /// <summary>Projects accepted player orders; neither message choices nor repainting consume simulation RNG.</summary>
 public static class MilitaryCommandPresentation
 {
+    public static IReadOnlyList<ProducedMessage> Confirmations(StrategySnapshot view, int forceId, int targetForceId,
+        AttackWarning warnings, WorldMessageContext context, CommandPresentation content)
+    {
+        Dictionary<string, MessageBinding> values = new()
+        {
+            ["force"] = MessageBinding.Reference(MessageEntityKind.Force, forceId),
+            ["target-force"] = MessageBinding.Reference(MessageEntityKind.Force, targetForceId)
+        };
+        if (warnings.HasFlag(AttackWarning.AllianceBetrayal))
+        {
+            int target = view.World.Simulation.Alliance!.TargetForceId;
+            values["alliance-target-ruler"] = MessageBinding.Reference(MessageEntityKind.Person,
+                view.World.Forces.Single(f => f.Id == target).LeaderId!.Value);
+        }
+        List<ProducedMessage> result = [];
+        foreach (var (warning, role) in new[] { (AttackWarning.FriendlyRelations, "confirm-friendly"),
+            (AttackWarning.AllianceBetrayal, "confirm-alliance"), (AttackWarning.AttackRequestBreach, "confirm-request") })
+        {
+            if (!warnings.HasFlag(warning)) continue;
+            var definition = content.Military[role];
+            result.Add(context.Produce(definition.Key, definition.Bindings.ToDictionary(b => b.Key, b => values[b.Value]), _ => 0));
+        }
+        return result;
+    }
+
     public static IReadOnlyList<CommandMessage> Create(StrategySnapshot before, StrategySnapshot after,
         WorldMessageContext context, CommandPresentation content, GameCommand command,
         IReadOnlyList<DomainEvent> events, Func<int, int> random)

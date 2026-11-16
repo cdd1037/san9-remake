@@ -41,6 +41,28 @@ public sealed class MilitaryCommandPresentationTests
         return (CommandPresentation.Empty with { Military = messages, Sounds = new() { ["order"] = "order.wav" } }, texts);
     }
 
+    [Theory]
+    [InlineData(AttackWarning.None)]
+    [InlineData(AttackWarning.FriendlyRelations)]
+    [InlineData(AttackWarning.AllianceBetrayal | AttackWarning.AttackRequestBreach | AttackWarning.FriendlyRelations)]
+    public void AttackConfirmationsAreOrderedAndDoNotSubmitOrMutateTheWorld(AttackWarning warnings)
+    {
+        var session = GameSession.Start(MissionScenario.Create(), 42);
+        var world = session.Snapshot with { Simulation = session.Snapshot.Simulation with { Alliance = new(3, 1, [1, 2], 12) } };
+        var view = session.View.ForWorld(world);
+        string[] roles = ["confirm-friendly", "confirm-alliance", "confirm-request"];
+        var texts = MissionScenario.Texts(view) with
+            { Messages = roles.ToDictionary(r => r, r => new MessageDefinition([new MessageLiteral(r)])) };
+        var content = CommandPresentation.Empty with
+            { Military = roles.ToDictionary(r => r, r => new DecisionMessageDefinition(r, [])) };
+        var messages = MilitaryCommandPresentation.Confirmations(view, 1, 2, warnings, session.Messages(texts, world), content);
+        var expected = warnings == AttackWarning.None ? Array.Empty<string>() : warnings == AttackWarning.FriendlyRelations
+            ? ["confirm-friendly"] : roles;
+        Assert.Equal(expected, messages.Select(m => m.Key));
+        Assert.Same(world, view.World);
+        StateAssert.Equal(GameSession.Start(MissionScenario.Create(), 42).Snapshot, session.Snapshot);
+    }
+
     [Fact]
     public void AcceptedDeploymentUsesCommittedCommanderAndLeavesWorldUnchangedDuringPresentation()
     {

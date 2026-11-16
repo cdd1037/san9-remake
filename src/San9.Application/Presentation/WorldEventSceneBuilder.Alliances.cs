@@ -35,8 +35,22 @@ internal sealed partial class WorldEventSceneBuilder
                 Message("alliance-formed-image"); Message("alliance-formed-declaration"); Message("alliance-formed-trust"); Message("alliance-formed-result", record: true); break;
             case AllianceFormationFailedEvent failed when before.World.Simulation.PendingEvent is not AllianceEventSession:
                 clock = failed.Clock; Force("target-force", failed.TargetForceId); Message("alliance-formation-failed", record: true); break;
-            case WarDeclaredEvent { BetrayedAlliance: true } betrayal:
+            case WarDeclaredEvent betrayal:
                 clock = betrayal.Clock;
+                Force("force", betrayal.AttackerForceId); Force("defender", betrayal.DefenderForceId);
+                int ruler = before.World.Forces.Single(f => f.Id == betrayal.AttackerForceId).LeaderId!.Value;
+                Person("actor", ruler); location = PersonLocation(ruler);
+                if (betrayal.DeclaredWar)
+                {
+                    if (Player(betrayal.AttackerForceId)) Message("war-declaration");
+                    Message("war-announcement"); Record("war-record");
+                    if (Player(betrayal.AttackerForceId))
+                    {
+                        if (betrayal.TrustLoss > 0) { Message("war-trust"); Record("war-trust-record"); }
+                        if (betrayal.LoyaltyDecreased) { Message("war-loyalty"); Record("war-loyalty-record"); }
+                    }
+                }
+                if (!betrayal.BetrayedAlliance) break;
                 var betrayedAlliance = AllianceAtOccurrence()
                     ?? throw new InvalidDataException("Alliance betrayal has no preceding alliance context.");
                 Force("target-force", betrayedAlliance.TargetForceId); Force("force", betrayal.AttackerForceId);

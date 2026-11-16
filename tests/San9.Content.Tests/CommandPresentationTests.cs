@@ -60,7 +60,11 @@ public sealed class CommandPresentationTests
                 new() { ["person.0"] = "commander" }, "commander", "order")),
             Sounds = new() { ["order"] = "order.wav" }
         };
+        foreach (string role in new[] { "confirm-friendly", "confirm-alliance", "confirm-request" })
+            content.Military.Add(role, new("order", new() { ["person.0"] = "alliance-target-ruler" }));
         content.Validate(texts, [], []);
+        Assert.Throws<InvalidDataException>(() => (content with
+            { Military = content.Military.Where(m => m.Key != "confirm-friendly").ToDictionary() }).Validate(texts, [], []));
         Assert.Throws<InvalidDataException>(() => (content with { Sounds = [] }).Validate(texts, [], []));
         Assert.Throws<InvalidDataException>(() => (content with
             { Military = content.Military.Where(m => m.Key != "adjust").ToDictionary() }).Validate(texts, [], []));

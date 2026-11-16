@@ -192,6 +192,7 @@ internal static class BattlePresentationCompiler
         {
             Duel = DuelPresentationCompiler.Compile(Asset, Int, Sound, Dynamic),
             ReinforcementEffect = Native(13),
+            ActivationEffect = Native(16),
             ConditionEffects = new[] { (UnitCondition.Disguised,7),(UnitCondition.NoFormation,8),
                 (UnitCondition.Confused,9),(UnitCondition.Routed,10),(UnitCondition.HighSpirits,15) }
                 .ToDictionary(p => p.Item1, p => Native(p.Item2)),

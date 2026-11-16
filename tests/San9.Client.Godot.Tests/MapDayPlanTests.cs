@@ -584,7 +584,8 @@ public sealed class MapDayPlanTests
         { Messages = roles.ToDictionary(r => r, r => new San9.Content.Text.MessageDefinition([new San9.Content.Text.MessageLiteral(r)])) };
         var messages = roles.ToDictionary(r => r, r => new San9.Content.Interface.DecisionMessageDefinition(r, []));
         var content = new San9.Content.Interface.CommandPresentation([], null)
-        { Battle = new(messages, new() { [99] = new(messages, new("support-effect", 2, 200), null) { Support = true, EffectAtSource = true } }, "hit", "block") };
+        { Battle = new(messages, new() { [99] = new(messages, new("support-effect", 2, 200), null) { Support = true, EffectAtSource = true } }, "hit", "block")
+            { ActivationEffect = new("support-effect", 2, 200, Sound: "preparation") } };
         var source = new BattleObjectContext(1, true, 5, null, null, 1, true);
         var support = new TacticActivatedEvent(hit.Clock, 1, true, 2, true, 99, [new(7, 99)], false, 10)
         { Occurrence = new(source, source with { Id = 2, ServicePlaceId = 2 }, null, null, UnitCondition.Normal, null, null, null, false) };
@@ -599,6 +600,13 @@ public sealed class MapDayPlanTests
         Assert.Empty(dialogueDay.PendingDialogues);
         Assert.Empty(dialogueDay.ReadyRecords);
         dialogueDay.Advance(blocking);
+        var opening = Assert.Single(dialogueBattle.MapEffects);
+        Assert.True(dialogueDay.IsMapEffectPresented(opening.Id));
+        Assert.Empty(dialogueDay.PendingDialogues);
+        dialogueDay.Advance(.2);
+        Assert.Empty(dialogueDay.PendingDialogues);
+        Assert.False(dialogueDay.IsAttackPresented(dialogueMap.Attacks[1]));
+        dialogueDay.Advance(.2);
         Assert.Single(dialogueDay.PendingDialogues);
         Assert.False(dialogueDay.IsAttackPresented(dialogueMap.Attacks[1]));
         dialogueDay.Advance(100);
@@ -608,6 +616,14 @@ public sealed class MapDayPlanTests
         Assert.True(dialogueDay.IsAttackPresented(dialogueMap.Attacks[1]));
         dialogueDay.Advance(100);
         Assert.True(dialogueDay.IsComplete);
+        var hiddenOpening = new TurnDayPresentation(session.View, session.View, withDialogue, dialogueMap, battle: dialogueBattle)
+        { Viewport = () => new(-100000, -100000, 1, 1), MapEffectAssets = dialogueDay.MapEffectAssets };
+        hiddenOpening.Advance(100);
+        Assert.False(hiddenOpening.IsMapEffectPresented(opening.Id));
+        Assert.Single(hiddenOpening.PendingDialogues);
+        hiddenOpening.CompleteDialogue(hiddenOpening.PendingDialogues[0].Id);
+        hiddenOpening.Advance(100);
+        Assert.True(hiddenOpening.IsComplete);
         StateAssert.Equal(hash, session.Snapshot);
     }
 }

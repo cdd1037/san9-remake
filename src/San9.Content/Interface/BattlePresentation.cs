@@ -205,6 +205,8 @@ public sealed record BattlePresentationDefinition(Dictionary<string, DecisionMes
     [System.Text.Json.Serialization.JsonRequired]
     public BattleSprite? ReinforcementEffect { get; init; }
     [System.Text.Json.Serialization.JsonRequired]
+    public BattleSprite? ActivationEffect { get; init; }
+    [System.Text.Json.Serialization.JsonRequired]
     public BattleMapNumberDefinition? MapNumbers { get; init; }
     public BattleSprite[] SnipingEffect { get; init; } = [];
     public Dictionary<string, Dictionary<int, BattleSprite[]>> BuildingEffects { get; init; } = [];
@@ -340,6 +342,7 @@ public sealed record BattlePresentationDefinition(Dictionary<string, DecisionMes
             foreach (var effect in zoom.DoubleEffect) Sprite(effect);
         }
         Sprite(ReinforcementEffect);
+        Sprite(ActivationEffect);
         foreach (var sprite in BuildingEffects.Values.SelectMany(types => types.Values).SelectMany(s => s)) Sprite(sprite);
         foreach (var sprite in SnipingEffect) Sprite(sprite);
         if (Scene.Terrains.Length == 0 || Scene.Terrains.Any(t => t.MinimumElevation > t.MaximumElevation ||

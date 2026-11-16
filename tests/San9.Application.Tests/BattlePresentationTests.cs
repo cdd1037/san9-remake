@@ -11,6 +11,29 @@ namespace San9.Application.Tests;
 public sealed class BattlePresentationTests
 {
     [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public void ActivationOpensOnceAtTheSourceBeforeDialogueRegardlessOfSceneOption(bool martial, bool scenes)
+    {
+        var (session, texts, content, occurrence) = Fixture(martial);
+        var sprite = new BattleSprite("activation", 4, 100, Sound: "preparation");
+        content = content with { Battle = content.Battle! with { ActivationEffect = sprite } };
+        var fact = new TacticActivatedEvent(session.Snapshot.Clock, 10, false, 20, false, 99,
+            [new(3, 99), new(23, 99)], false, 10) { Occurrence = occurrence };
+        var plan = BattlePresentationPlan.Create(session.View, session.View, [fact], session.Messages(texts), texts,
+            content, tacticScenesEnabled: scenes);
+        var opening = Assert.Single(plan.MapEffects);
+        Assert.Equal(occurrence.Source, opening.Target);
+        Assert.Same(sprite, opening.Sprite);
+        Assert.True(opening.BeforeDialogues);
+        Assert.Null(opening.AfterDialogueId);
+        Assert.Null(plan.MapBatches[0].AfterDialogueId);
+        Assert.Equal(plan.Messages[0].Time, opening.Start);
+    }
+
+    [Theory]
     [InlineData(UnitStrategyKind.Disorder, true, 68)]
     [InlineData(UnitStrategyKind.Disorder, false, 70)]
     [InlineData(UnitStrategyKind.Inspire, true, 90)]

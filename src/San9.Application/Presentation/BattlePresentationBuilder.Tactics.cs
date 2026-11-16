@@ -227,6 +227,10 @@ internal sealed partial class BattlePresentationBuilder
         }
         if (fact is TacticActivatedEvent active)
         {
+            // The source marker opens the activation before speeches, independently of the scene option.
+            if (battle.ActivationEffect is { } activationEffect)
+                _mapEffects.Add(new(Identity("activation-effect"), _cursor, source, activationEffect)
+                { BeforeDialogues = true, AfterDialogueId = DialogueBefore(_cursor) });
             void BindParticipant(TacticParticipant participant)
             {
                 values["actor"] = ProgressMessageProducer.Person(participant.OfficerId);

@@ -114,7 +114,12 @@ public sealed class TurnDayPresentation(StrategySnapshot before, StrategySnapsho
     private readonly HashSet<string> _completedDialogues = [];
     public bool IsDialogueComplete(string? id) => id is null || _completedDialogues.Contains(id);
     public double DuelDialogueElapsed { get; private set; }
-    public IReadOnlyList<BattleMessageCue> PendingDialogues => _dialogues.Read(Elapsed + 1e-9, LastReadyFact, _completedDialogues);
+    public IReadOnlyList<BattleMessageCue> PendingDialogues => _dialogues.Read(Elapsed + 1e-9, LastReadyFact, _completedDialogues)
+        .Where(c => OpeningComplete(c.FactIndex)).ToArray();
+    private bool OpeningComplete(int factIndex) => Battle is null || Battle.MapEffects
+        .Where(c => c.BeforeDialogues && c.FactIndex == factIndex).All(c =>
+            _mapEffectStarts.TryGetValue(c.Id, out var state) &&
+            (!state.Admitted || VisualElapsed >= state.Start + c.Sprite.Columns * c.Sprite.FrameMilliseconds / 1000.0 - 1e-9));
     // Match DuelSceneCue.Sample's exact boundary: reading must not hold the previous
     // stage just before the dialogue and hide its speech for the entire reading span.
     public IReadOnlyList<BattleMessageCue> PendingDuelDialogues => _duelDialogues.Read(Elapsed, LastReadyFact, _completedDialogues);

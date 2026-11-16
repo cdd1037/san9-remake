@@ -69,6 +69,7 @@ public sealed record BattleMapChangeCue(double Time, int FactIndex, int? Removed
 }
 public sealed record BattleMapEffectCue(string Id, double Start, BattleObjectContext Target, BattleSprite Sprite)
 {
+    public bool BeforeDialogues { get; init; }
     public int FactIndex { get; init; }
     public string? AfterDialogueId { get; init; }
 }

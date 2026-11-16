@@ -166,7 +166,8 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             for (int i = firstPrelude; i < _preludes.Count; i++)
                 _preludes[i] = _preludes[i] with { FactIndex = _index, AfterDialogueId = DialogueBefore(_preludes[i].Start) };
             for (int i = firstEffect; i < _mapEffects.Count; i++)
-                _mapEffects[i] = _mapEffects[i] with { FactIndex = _index, AfterDialogueId = DialogueBefore(_mapEffects[i].Start) };
+                _mapEffects[i] = _mapEffects[i] with { FactIndex = _index,
+                    AfterDialogueId = _mapEffects[i].BeforeDialogues ? _mapEffects[i].AfterDialogueId : DialogueBefore(_mapEffects[i].Start) };
             for (int i = firstNumber; i < _mapNumbers.Count; i++)
                 _mapNumbers[i] = _mapNumbers[i] with { FactIndex = _index, AfterDialogueId = DialogueBefore(_mapNumbers[i].Start) };
             for (int i = firstDuel; i < _duels.Count; i++) _duels[i] = _duels[i] with { FactIndex = _index };
@@ -187,10 +188,13 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             if (!_batchOpen && newMapEffects.Length > 0)
             {
                 double time = newMapEffects.Min();
-                _batches.Add(new(time, _index, _index, DialogueBefore(time)));
+                var opening = _mapEffects.Skip(firstEffect).FirstOrDefault(c => c.BeforeDialogues && c.Start == time);
+                _batches.Add(new(time, _index, _index, opening is null ? DialogueBefore(time) : opening.AfterDialogueId));
                 _batchOpen = true;
             }
             if (_batchOpen) _batches[^1] = _batches[^1] with { LastFactIndex = _index };
+            // Later attacks must wait for this activation's dialogues, not join its opening batch.
+            if (_mapEffects.Skip(firstEffect).Any(c => c.BeforeDialogues)) _batchOpen = false;
         }
         double finalCue = LastBlockingCueTime();
         return new BattlePresentationPlan(_messages, _records, _visuals, _stateValues, _mapEffects, _mapNumbers, content.Battle?.MapNumbers, _presented,

@@ -68,7 +68,6 @@ public partial class AppointmentCommandFlow : CommandWorkflow
         if (result.CompletedCommands > 0 && (draft.Kind is "rank" or "reward" or "exile" or "bestow" or "confiscate" || execution is not null))
         {
             var publication=ExecutionPublication.Read(draft.View,Session.View,beforeMessages,Texts,CommandPresentation,result.Events,executionMap:false);
-            foreach(var record in publication.Records) PresentMapRecord(record);
             var sequence = execution is not null ? publication.Messages
                 : draft.Kind == "rank" ? OfficePresentation.Create(draft.View,beforeMessages,CommandPresentation.Offices!,result.Events.OfType<OfficeAssignedEvent>(),Random.Shared.Next)
                 : draft.Kind == "reward" ? RewardPresentation.Create(draft.View, beforeMessages, CommandPresentation.Reward!,
@@ -76,11 +75,13 @@ public partial class AppointmentCommandFlow : CommandWorkflow
                 : draft.Kind == "exile" ? ExilePresentation.Create(draft.View, beforeMessages, CommandPresentation.Exile!, result.Events, Random.Shared.Next)
                 : TreasureTransferPresentation.Create(draft.View,beforeMessages,CommandPresentation.TreasureTransfer!,
                     result.Events.OfType<TreasureTransferredEvent>().Single(),result.Events.OfType<OfficerLoyaltyChangedEvent>(),Random.Shared.Next);
-            OpenNarration(execution is not null ? sequence : sequence.Concat(publication.Messages).ToArray(),draft.View,
-                () => {
-                    if (result.Rejection != CommandRejection.None)
-                    { Notice(AppointmentPresentation.Result(draft, Texts, result)); }
-                });
+            void Complete()
+            {
+                if (result.Rejection != CommandRejection.None)
+                    Notice(AppointmentPresentation.Result(draft, Texts, result));
+            }
+            if (execution is not null) PresentExecution(publication, draft.View, Complete);
+            else OpenNarration(sequence, draft.View, () => PresentExecution(publication, draft.View, Complete));
             return;
         }
         Notice(AppointmentPresentation.Result(draft, Texts, result));

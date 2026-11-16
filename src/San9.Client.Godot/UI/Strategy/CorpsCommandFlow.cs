@@ -39,9 +39,8 @@ public partial class CorpsCommandFlow : CommandWorkflow
             Session.Messages(Texts,view.Draft.View.World),Session.Messages(Texts));
         var publication = ExecutionPublication.Read(view.Draft.View, Session.View, Session.Messages(Texts, view.Draft.View.World),
             Texts, CommandPresentation, result.Events, executionMap: false);
-        foreach (var record in publication.Records) PresentMapRecord(record);
         Close();
         Services.ClearMapSelection();
-        OpenNarration(messages.Concat(publication.Messages).ToArray(), view.Draft.View);
+        OpenNarration(messages, view.Draft.View, () => PresentExecution(publication, view.Draft.View));
     }
 }

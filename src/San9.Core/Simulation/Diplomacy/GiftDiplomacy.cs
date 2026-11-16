@@ -156,30 +156,32 @@ internal static class GiftDiplomacy
         var gift = task.Gift!;
         uint received = 0;
         uint refunded = 0;
+        List<DomainEvent> consequences = [];
         if (accepted)
         {
             if (gift.Offer.Kind == GiftKind.Treasure)
             {
                 var item = world.Treasures[gift.Offer.TreasureId!.Value];
-                PersonnelTreasures.Transfer(world, item, world.Forces[gift.TargetForceId].LeaderId!.Value, task.ForceId, "gift-accepted", events);
+                PersonnelTreasures.Transfer(world, item, world.Forces[gift.TargetForceId].LeaderId!.Value, task.ForceId, "gift-accepted", consequences);
             }
             else
             {
                 received = Math.Min(gift.Offer.Amount, ResourceAccounts.Receivable(world, Account(world, gift.TargetForceId), Resource(gift.Offer)));
-                ResourceAccounts.Change(world, Account(world, gift.TargetForceId), Resource(gift.Offer), gift.Offer.Amount, "gift-accepted", task.ForceId, events);
+                ResourceAccounts.Change(world, Account(world, gift.TargetForceId), Resource(gift.Offer), gift.Offer.Amount, "gift-accepted", task.ForceId, consequences);
             }
             int relation = MilitaryDiplomacy.Relation(world, task.ForceId, gift.TargetForceId);
-            ForceRelations.Change(world, task.ForceId, gift.TargetForceId, Math.Max(60 - relation, 20), rules.Military, events);
+            ForceRelations.Change(world, task.ForceId, gift.TargetForceId, Math.Max(60 - relation, 20), rules.Military, consequences);
             var actor = world.Officers[task.OfficerId];
-            OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Politics, "diplomacy-politics-growth", events);
+            OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Politics, "diplomacy-politics-growth", consequences);
         }
         else
         {
-            refunded = Refund(world, task, "gift-refused", events);
-            ForceRelations.Change(world, task.ForceId, gift.TargetForceId, -5, rules.Military, events);
+            refunded = Refund(world, task, "gift-refused", consequences);
+            ForceRelations.Change(world, task.ForceId, gift.TargetForceId, -5, rules.Military, consequences);
         }
         events.Add(new GiftResolvedEvent(world.Clock, task.Id, task.OfficerId, gift.TargetForceId, gift.Offer, accepted,
             received, refunded, gift.Offer.Amount - received - refunded));
+        events.AddRange(consequences);
         PersonnelReturns.Start(world, task, rules.Personnel, events, world.CurrentDateCountdownConsumed);
     }
 }

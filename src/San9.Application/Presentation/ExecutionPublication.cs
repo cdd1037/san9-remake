@@ -13,8 +13,7 @@ public static class ExecutionPublication
         IReadOnlyList<DomainEvent> events, IReadOnlySet<Guid>? alreadyPresented = null, IReadOnlySet<string>? presentedFeedback = null, bool executionMap = true,
         int startIndex = 0, int? endIndex = null)
     {
-        List<CommandMessage> messages = [];
-        List<MapMessageRecord> records = [];
+        List<ExecutionOutputStep> steps = [];
         HashSet<string> published = [];
         var identities = new PresentationIdentity(before, after);
         var occurrenceBefore = before;
@@ -29,6 +28,8 @@ public static class ExecutionPublication
                 occurrenceBefore = identities.View;
                 occurrenceContext = context.ForWorld(occurrenceBefore.World);
             }
+            List<CommandMessage> messages = [];
+            List<MapMessageRecord> records = [];
             foreach (var batch in OccurrenceFeedback.Read(before, occurrenceBefore, after, context, occurrenceContext,
                 texts, content, events, index, alreadyPresented, executionMap))
             {
@@ -39,7 +40,8 @@ public static class ExecutionPublication
                     if (presentedFeedback?.Contains(batch.RecordId(i)) != true)
                     { records.Add(batch.Output.Records[i]); published.Add(batch.RecordId(i)); }
             }
+            if (messages.Count + records.Count > 0) steps.Add(new(messages.ToArray(), records.ToArray()));
         }
-        return new(messages, records) { FeedbackIds = published.ToFrozenSet() };
+        return new(steps) { FeedbackIds = published.ToFrozenSet() };
     }
 }

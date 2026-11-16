@@ -52,8 +52,8 @@ internal static class PersonnelJourneyPresentation
             values["command-name"] = new(0, OfficerCommands.JourneyOrder(interrupted.MissionKind, interrupted.Strategy));
             var task = before.World.Simulation.Tasks.FirstOrDefault(t => t.Id == interrupted.TaskId);
             int? joined = task?.Kind == "personnel-recruit" ? task.Journey?.TargetOfficerId : null;
-            bool alreadyJoined = joined is int target && events.OfType<RecruitmentResolvedEvent>().Any(e =>
-                e.Success && e.TargetOfficerId == target && e.Occurrence.ForceId == interrupted.ForceId);
+            bool alreadyJoined = joined is int target && events.Take(index).OfType<RecruitmentResolvedEvent>().Any(e =>
+                e.Clock == interrupted.Clock && e.Success && e.TargetOfficerId == target && e.Occurrence.ForceId == interrupted.ForceId);
             if (alreadyJoined)
             {
                 string text = CommandText.Resolve(texts, "result.recruit-target-joined",

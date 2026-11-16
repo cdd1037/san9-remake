@@ -77,8 +77,7 @@ public partial class SessionPresentationFlow : Node
             _strategyEntrance.Read(Turn.StrategyEntrance, Texts, CommandPresentation, IntroduceNewGame) is { } output)
         {
             FocusIncomingPlayer();
-            foreach (var record in output.Records) PresentMapRecord(record);
-            OpenNarration(PresentExecutionMessages(output.Messages), Session.View);
+            PresentExecution(output, Session.View);
         }
     }
     private WorkflowWindows? _windows;
@@ -108,8 +107,7 @@ public partial class SessionPresentationFlow : Node
             var output = ExecutionPublication.Read(before, feedback.After, Session.Messages(Texts, before.World), Texts,
                 CommandPresentation, feedback.Events, _diplomacyNarrated, Turn.LastPresentedFeedback,
                 startIndex: feedback.StartIndex, endIndex: feedback.EndIndex);
-            foreach (var record in output.Records) PresentMapRecord(record);
-            OpenNarration(PresentExecutionMessages(output.Messages),before);
+            PresentExecution(output, before);
             _executionPublication = Turn.Publication;
         }
     }
@@ -209,6 +207,11 @@ public partial class SessionPresentationFlow : Node
 
     private CommandNarration? _narration;
     private readonly Queue<(IReadOnlyList<CommandMessage> Messages, StrategySnapshot View, Action? Completed, string? Sound)> _pendingNarrations = new();
+
+    private void PresentExecution(ExecutionOutput output, StrategySnapshot view) =>
+        ExecutionOutputPlayback.Present(output,
+            (messages, completed) => OpenNarration(PresentExecutionMessages(messages), view, completed),
+            record => PresentMapRecord(record));
 
     public void OpenNarration(IReadOnlyList<CommandMessage> messages, StrategySnapshot view, Action? completed = null, string? initialSound = null)
     {

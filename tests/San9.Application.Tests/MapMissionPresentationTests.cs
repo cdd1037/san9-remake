@@ -74,7 +74,8 @@ public sealed class MapMissionPresentationTests
         var plan = BattlePresentationPlan.Create(before, before, facts, session.Messages(texts,before.World), texts, content);
         Assert.Equal(record, Assert.Single(plan.Records).Record);
         Assert.Equal(messages.Messages.Select(m => m.MapSpeech!.Id), plan.Messages.Select(c => c.Id));
-        Assert.All(plan.Messages, c => Assert.Equal(plan.Records[0].Time, c.Time));
+        Assert.True(plan.Messages[0].Time < plan.Records[0].Time);
+        Assert.Equal(plan.Messages[1].Time + response.DelaySeconds, plan.Records[0].Time);
         Assert.Equal(new double[] { 0, 1 }, plan.Messages.Select(c => c.Message.MapSpeech!.DelaySeconds));
         Assert.Equal(plan.Records[0].Time, plan.Duration);
         var unpublished = ExecutionPublication.Read(before, before, session.Messages(texts,before.World), texts, content, facts,

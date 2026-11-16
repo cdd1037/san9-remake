@@ -40,6 +40,9 @@ public abstract partial class CommandWorkflow : Node
     protected void OpenNarration(IReadOnlyList<CommandMessage> messages, StrategySnapshot view, Action? completed = null) =>
         Services.Narrate(messages, view, completed);
     protected bool PresentMapRecord(MapMessageRecord record) => Services.Record(record);
+    protected void PresentExecution(ExecutionOutput output, StrategySnapshot view, Action? completed = null) =>
+        ExecutionOutputPlayback.Present(output, (messages, finished) => OpenNarration(messages, view, finished),
+            record => PresentMapRecord(record), completed);
     public abstract void Close();
     public override void _ExitTree()
     {

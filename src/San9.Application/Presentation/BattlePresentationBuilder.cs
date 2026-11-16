@@ -116,6 +116,9 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             {
                 case DuelStartedEvent duel: PresentDuel(duel); break;
                 case OfficerDiedEvent { Cause: OfficerDeathCause.Duel } death: PresentDuelDeath(death); break;
+                case OfficerDiedEvent:
+                    PublishFeedback(_cursor, FeedbackKind.Execution, FeedbackKind.Casualty, FeedbackKind.WorldEvent, FeedbackKind.Report);
+                    break;
                 case BattleDamageEvent damage: PresentDamage(damage); break;
                 case BattleContactStartedEvent or UnitWaypointReachedEvent or UnitPolicyRespondedEvent: PresentMapNotification(); break;
                 case BattleConditionChangedEvent condition: PresentCondition(condition); break;
@@ -278,6 +281,12 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
     private void PresentMission(DomainEvent fact)
     {
         _cursor = MapTime(_cursor);
+        var messages = FeedbackMessages(FeedbackKind.Mission, FeedbackKind.Strategy).ToArray();
+        var records = FeedbackRecords(FeedbackKind.Mission, FeedbackKind.Strategy, FeedbackKind.Progress).ToArray();
+        double announcement = _cursor;
+        // Map reactions carry the authored lead-in from the actor's action to its outcome.
+        _cursor += messages.Select(m => m.Message.MapSpeech?.DelaySeconds ?? 0).DefaultIfEmpty(0).Max();
+        _impact = _cursor;
         if (fact is UnitStrategyResolvedEvent strategy)
         {
             int morale = strategy.Audience.Morale - strategy.PreviousMorale;
@@ -286,8 +295,6 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
         }
         else if (fact is BurnResolvedEvent { DurabilityLoss: > 0 } burned)
             _stateValues.Add(new(_cursor, burned.TargetSettlementId, true, 0, 0, -burned.DurabilityLoss));
-        var messages = FeedbackMessages(FeedbackKind.Mission, FeedbackKind.Strategy).ToArray();
-        var records = FeedbackRecords(FeedbackKind.Mission, FeedbackKind.Strategy, FeedbackKind.Progress).ToArray();
         if (fact is UnitStrategyResolvedEvent { Strategy: UnitStrategyKind.Reinforce, Success: true } reinforcement &&
             content.Battle?.ReinforcementEffect is { } reinforcementEffect)
         {
@@ -316,7 +323,7 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             {
                 MapSpeech = message.MapSpeech is { } speech ? speech with { Id = id } : null
             };
-            AddMessageCue(new(id, _cursor, fixedMessage,
+            AddMessageCue(new(id, announcement, fixedMessage,
                 fixedMessage.MapSpeech is null ? BattleMessageChannel.Dialogue : BattleMessageChannel.MapSpeech));
         }
         foreach (var record in records)

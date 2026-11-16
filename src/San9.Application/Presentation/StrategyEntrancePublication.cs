@@ -39,11 +39,10 @@ public sealed class StrategyEntrancePublication
             ? ExecutionPublication.Read(session.InitialView, view, session.Messages(texts, session.InitialView.World),
                 texts, content, session.InitialEvents, executionMap: false)
             : new ExecutionOutput([], []);
-        messages.AddRange(initial.Messages);
         // Commit publication ownership only after every projection succeeds, so failure can be retried.
         entrancePresented = entrance;
         contextPresented = contextIdentity;
         if (introduce && content.Progress is not null) introducedForces.Add(view.PlayerForceId!.Value);
-        return initial with { Messages = messages };
+        return new ExecutionOutput([new(messages, []), .. initial.Steps]) { FeedbackIds = initial.FeedbackIds };
     }
 }

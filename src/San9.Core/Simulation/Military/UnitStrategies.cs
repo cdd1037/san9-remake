@@ -171,6 +171,7 @@ internal static class UnitStrategies
             ResolveReinforcement(world, task, rules, events, target, threshold, roll, success);
             return;
         }
+        List<DomainEvent> consequences = [];
         if (success)
         {
             int days;
@@ -205,24 +206,25 @@ internal static class UnitStrategies
             }
             var next = MilitaryConditions.Apply(target, condition, days) with { Morale = morale };
             days = next.ConditionDaysRemaining;
-            if (condition == UnitCondition.Disguised) FacilityConstruction.Cancel(world, target.Id, events);
+            if (condition == UnitCondition.Disguised) FacilityConstruction.Cancel(world, target.Id, consequences);
             world.Replace(next);
             if (condition == UnitCondition.Disguised && target.EngagementTargetId is not null)
-                events.Add(new UnitEngagementChangedEvent(world.Clock, target.Id, null, "false-report"));
-            events.Add(new BattleConditionChangedEvent(world.Clock, target.Id, false, condition, days)
+                consequences.Add(new UnitEngagementChangedEvent(world.Clock, target.Id, null, "false-report"));
+            consequences.Add(new BattleConditionChangedEvent(world.Clock, target.Id, false, condition, days)
             { SourceForceId = task.ForceId, Target = BattleObjectContext.Capture(target), PreviousCondition = target.Condition });
-            BattleLearning.Passive(world, members, TacticEffect.CounterConfusion, rules.Military!, events);
+            BattleLearning.Passive(world, members, TacticEffect.CounterConfusion, rules.Military!, consequences);
             var actor = world.Officers[task.OfficerId];
-            OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Intelligence, "strategy-intelligence-growth", events);
+            OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Intelligence, "strategy-intelligence-growth", consequences);
         }
         else if (mission.Strategy == UnitStrategyKind.Inspire)
             world.Replace(target with { Morale = Math.Max(1, target.Morale - 1 - (int)(world.NextRandom("strategy-inspire-failure-morale") % 5)) });
         else ForceRelations.Change(world, task.ForceId, target.OwnerId,
-            -1 - (int)(world.NextRandom("strategy-hostile-failure-relations") % 3), null, events);
-        OfficerTacticGrowth.Increase(world, task.OfficerId, 7, 2, events);
-        OfficerTacticGrowth.Increase(world, task.OfficerId, 8, 2, events);
+            -1 - (int)(world.NextRandom("strategy-hostile-failure-relations") % 3), null, consequences);
+        OfficerTacticGrowth.Increase(world, task.OfficerId, 7, 2, consequences);
+        OfficerTacticGrowth.Increase(world, task.OfficerId, 8, 2, consequences);
         events.Add(new UnitStrategyResolvedEvent(world.Clock, task.OfficerId, target.Id, mission.Strategy, threshold, roll, success, occurrence)
         { Audience = StrategyAudience.Capture(world, task.ForceId, world.Units[target.Id]), PreviousMorale = target.Morale });
+        events.AddRange(consequences);
         PersonnelReturns.Start(world, task, rules.Personnel, events, true);
     }
 
@@ -231,6 +233,7 @@ internal static class UnitStrategies
     {
         var actor = world.Officers[task.OfficerId];
         var occurrence = CaptureTarget(world, target, rules);
+        List<DomainEvent> consequences = [];
         uint requested = success ? 3000u : StrategyMath.FailedReinforcement(world.Abilities(actor).Leadership);
         uint capacity = UnitSoldierCapacity.Read(world, target, rules.Governance, rules.Military!);
         var troops = task.Reinforcements!;
@@ -243,17 +246,18 @@ internal static class UnitStrategies
         world.Replace(target with { Soldiers = target.Soldiers + delivered, Morale = morale, Condition = condition,
             ConditionDaysRemaining = days, HighSpiritsMoralePenaltyPending = penalty });
         ResourceAccounts.Report(world, new(ResourceOwnerKind.Unit, target.Id), ResourceKind.Soldiers,
-            Kind, task.OriginSettlementId, delivered, delivered, events);
+            Kind, task.OriginSettlementId, delivered, delivered, consequences);
         if (success && condition != target.Condition)
-            events.Add(new BattleConditionChangedEvent(world.Clock, target.Id, false, condition, 0)
+            consequences.Add(new BattleConditionChangedEvent(world.Clock, target.Id, false, condition, 0)
             { SourceForceId = task.ForceId, Target = BattleObjectContext.Capture(target) });
         if (success)
-            OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Leadership, "strategy-leadership-growth", events);
-        OfficerTacticGrowth.Increase(world, actor.Id, 7, 2, events);
-        OfficerTacticGrowth.Increase(world, actor.Id, 8, 2, events);
+            OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Leadership, "strategy-leadership-growth", consequences);
+        OfficerTacticGrowth.Increase(world, actor.Id, 7, 2, consequences);
+        OfficerTacticGrowth.Increase(world, actor.Id, 8, 2, consequences);
         events.Add(new UnitStrategyResolvedEvent(world.Clock, actor.Id, target.Id, UnitStrategyKind.Reinforce,
             threshold, roll, success, occurrence) { RequestedSoldiers = requested, DeliveredSoldiers = delivered,
                 Audience = StrategyAudience.Capture(world, task.ForceId, world.Units[target.Id]), PreviousMorale = target.Morale });
+        events.AddRange(consequences);
         var returning = task with { Reinforcements = delivered == troops.Soldiers && troops.Wounded == 0 ? null : troops with
         {
             Soldiers = troops.Soldiers - delivered,

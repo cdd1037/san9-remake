@@ -45,6 +45,8 @@ internal static class OfficerDeath
         // Preserve the service place before task, unit and force cleanup removes its references.
         treasureDropRegionId = PersonnelLocations.ServicePlace(world, previous) ?? previous.RegionId;
         if (previous.Status == OfficerStatus.Dead) return false;
+        events.Add(new OfficerDiedEvent(world.Clock, officerId, cause, previous.Status, previous.OwnerId,
+            previous.SettlementId, previous.RegionId, previous.UnitId));
         PersonnelTransitions.CancelMissions(world, officerId, "person-died", events, places, afterDailyCommands);
         foreach (var force in world.Forces.Values.Where(f => f.AdviserId == officerId).ToArray())
             world.Replace(force with { AdviserId = null });
@@ -56,8 +58,6 @@ internal static class OfficerDeath
             EquippedTacticId = null, TacticCooldown = 0, RewardedThisXun = false,
             HasRecruitmentPoliticsBonus = false
         });
-        events.Add(new OfficerDiedEvent(world.Clock, officerId, cause, previous.Status, previous.OwnerId,
-            previous.SettlementId, previous.RegionId, previous.UnitId));
         if (previous.OwnerId is int owner && world.Forces[owner].LeaderId == officerId)
             AllianceDiplomacy.RulerDied(world, owner, events);
         return true;

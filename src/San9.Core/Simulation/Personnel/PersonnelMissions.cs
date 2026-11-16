@@ -443,6 +443,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
         int threshold = historicalSuccess ? 100 : RecruitmentRules.Threshold(world, task.OfficerId, target.Id, simulationRules);
         int roll = journey.SuccessRoll!.Value;
         bool success = roll < threshold;
+        events.Add(new RecruitmentResolvedEvent(world.Clock, task.OfficerId, target.Id, threshold, roll, success) { Occurrence = occurrence });
         if (success)
         {
             bool transferredObject = PersonnelDefection.Recruit(world, task, simulationRules, events);
@@ -450,7 +451,6 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
             PersonnelMissions.GrowPolitics(world, task.OfficerId, events);
         }
         else RecruitmentRules.Failure(world, task.ForceId, target.Id, threshold, events);
-        events.Add(new RecruitmentResolvedEvent(world.Clock, task.OfficerId, target.Id, threshold, roll, success) { Occurrence = occurrence });
         PersonnelReturns.Start(world, task, rules, events, true, arrived: true);
     }
 

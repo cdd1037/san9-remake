@@ -41,6 +41,7 @@ internal static class PrisonerRelease
         var destinations = home is null ? PersonnelRelocation.Destinations(world, origin, places) : [];
         if (home is null && destinations.Length == 0) return CommandRejection.NoDestination;
         var control = home is null ? null : world.Simulation.Controls.FirstOrDefault(c => c.ForceId == person.OwnerId);
+        List<DomainEvent> consequences = [];
         string reason = departure switch
         {
             PrisonerDepartureKind.Released => "prisoner-released",
@@ -49,14 +50,14 @@ internal static class PrisonerRelease
             PrisonerDepartureKind.Displaced => "prisoner-displaced",
             _ => throw new ArgumentOutOfRangeException(nameof(departure))
         };
-        PersonnelTransitions.CancelMissions(world, personId, reason, events, places, world.CurrentDateCountdownConsumed);
+        PersonnelTransitions.CancelMissions(world, personId, reason, consequences, places, world.CurrentDateCountdownConsumed);
         if (departure == PrisonerDepartureKind.Released && releasingCaptor is int captor)
             RecruitmentRules.SetLoyalty(world, personId, captor,
-                Math.Clamp(person.LoyaltyTo(captor) + person.Righteousness / 5, 0, 255), "prisoner-released", events);
+                Math.Clamp(person.LoyaltyTo(captor) + person.Righteousness / 5, 0, 255), "prisoner-released", consequences);
         int destinationId = home?.Id ?? destinations[world.NextRandom("personnel-exile-placement") % (ulong)destinations.Length];
         if (home is null)
         {
-            PersonnelTransitions.DiscoverDetached(world, personId, destinationId, events);
+            PersonnelTransitions.DiscoverDetached(world, personId, destinationId, consequences);
         }
         else
         {
@@ -66,7 +67,7 @@ internal static class PrisonerRelease
             var context = new PersonnelReturnContext(control?.ControllerId ?? "system", person.OwnerId.Value, sequence);
             var route = new PersonnelRoute(position, PersonnelLocations.Position(world, places, home.Id), false);
             PersonnelReturns.Schedule(world, context, personId, origin, home.Id,
-                route.Days, world.CurrentDateCountdownConsumed, events, route, originPosition is not null);
+                route.Days, world.CurrentDateCountdownConsumed, consequences, route, originPosition is not null);
         }
         events.Add(departure switch
         {
@@ -83,6 +84,7 @@ internal static class PrisonerRelease
                 new PrisonerRecoveredEvent(world.Clock, personId, person.OwnerId!.Value, destinationId),
             _ => throw new InvalidOperationException("Invalid prisoner departure context.")
         });
+        events.AddRange(consequences);
         return CommandRejection.None;
     }
 }

@@ -215,7 +215,7 @@ public sealed class AllianceFormationTests
         Assert.Equal(AllianceFormationFailure.InsufficientMembers, Assert.Single(last.Events.OfType<AllianceFormationFailedEvent>()).Reason);
         Assert.Null(last.Snapshot.Simulation.Alliance);
         Assert.Null(last.Snapshot.Simulation.PendingEvent);
-        Assert.Equal(new ForceRelationChangedEvent(new(191, 1, 1), 1, 5, 80, 79),
+        Assert.Equal(new ForceRelationChangedEvent(new(191, 1, 1), 1, 5, 80, 79, false),
             Assert.Single(last.Events.OfType<ForceRelationChangedEvent>()));
         Assert.All(last.Snapshot.Forces, f => Assert.Equal(50, f.BaseTrust));
         Assert.Equal(SimulationBoundary.Stable, last.Snapshot.Simulation.Boundary);

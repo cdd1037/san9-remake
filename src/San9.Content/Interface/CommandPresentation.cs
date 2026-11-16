@@ -112,7 +112,7 @@ public sealed record CommandPresentation(Dictionary<string, string> Sounds, Patr
                 ProgressPresentationDefinition.ContextRoles.Except(progress.Context.Keys).Any() ||
                 ProgressPresentationDefinition.IntroductionRoles.Except(progress.Introduction.Keys).Any())
                 throw new InvalidDataException("Incomplete progress presentation.");
-            string[] roles = ["actor", "ruler", "other", "force", "enemy-force", "place", "other-place", "previous-place", "city", "unit", "treasure", "corps", "ability", "amount", "current", "tactic", "injury", "food", "count", "second-force", "alliance-target", "alliance-leader"];
+            string[] roles = ["actor", "ruler", "other", "force", "enemy-force", "place", "other-place", "previous-place", "city", "unit", "treasure", "corps", "ability", "amount", "current", "tactic", "injury", "food", "count", "second-force", "relation", "alliance-target", "alliance-leader"];
             var messages = progress.Records.Values.Concat(progress.Context.Values).Concat(progress.MapSpeeches.Values).Concat(progress.Feedback.Values).Concat(progress.Introduction.Values).Append(progress.OrderPrompt);
             if (messages.Any(m => m.Bindings.Values.Except(roles).Any() || m.Speaker is { } speaker && !roles.Contains(speaker)))
                 throw new InvalidDataException("Unknown progress presentation role.");

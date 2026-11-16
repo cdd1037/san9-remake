@@ -34,6 +34,7 @@ public sealed class ForceRelationCycleTests
             Assert.Equal(after, ForceRelations.Get(world, 101, 205).Value);
             Assert.Equal(after, ForceRelations.Get(world, 205, 101).Value);
             Assert.Equal(before == after ? 0 : 1, events.OfType<ForceRelationChangedEvent>().Count());
+            Assert.All(events.OfType<ForceRelationChangedEvent>(), e => Assert.False(e.Notify));
             Assert.Equal(random, world.Simulation.RandomStreams);
         }
     }

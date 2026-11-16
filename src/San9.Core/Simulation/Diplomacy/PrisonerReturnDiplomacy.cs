@@ -110,24 +110,26 @@ internal static class PrisonerReturnDiplomacy
 
     internal static void Finish(WorldMutation world, PersistentTask task, bool accepted, SimulationRules rules, List<DomainEvent> events)
     {
+        List<DomainEvent> consequences = [];
         var mission = task.PrisonerReturn!;
         var offer = mission.Offer!;
         uint received = 0;
         if (accepted)
         {
             // All destinations and ownership were revalidated before entering the effect path.
-            DiplomacySettlement.Recover(world, task, mission.PrisonerId, rules, events);
-            (received, _) = DiplomacySettlement.Pay(world, task, mission.TargetForceId, offer, rules, "prisoner-compensation", events);
+            DiplomacySettlement.Recover(world, task, mission.PrisonerId, rules, consequences);
+            (received, _) = DiplomacySettlement.Pay(world, task, mission.TargetForceId, offer, rules, "prisoner-compensation", consequences);
             if (offer.Kind == CompensationKind.Free)
             {
                 var force = world.Forces[mission.TargetForceId];
                 world.Replace(force with { BaseTrust = Math.Min(1000, force.BaseTrust + 2) });
             }
-            DiplomacySettlement.Grow(world, task.OfficerId, events);
+            DiplomacySettlement.Grow(world, task.OfficerId, consequences);
         }
-        else ForceRelations.Change(world, task.ForceId, mission.TargetForceId, -5, null, events);
+        else ForceRelations.Change(world, task.ForceId, mission.TargetForceId, -5, null, consequences, notify: true);
         events.Add(new PrisonerReturnResolvedEvent(world.Clock, task.Id, mission.PrisonerId, offer, accepted,
             received, accepted ? offer.Money - received : 0));
+        events.AddRange(consequences);
         PersonnelReturns.Start(world, task, rules.Personnel, events, world.CurrentDateCountdownConsumed);
 
     }

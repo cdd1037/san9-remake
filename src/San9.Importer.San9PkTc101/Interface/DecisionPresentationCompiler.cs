@@ -180,9 +180,11 @@ internal static class DecisionPresentationCompiler
                  M(proposal, "actor", inputs: [("person.0", "actor"), ("person.1", "host"), ("person.2", "requester-ruler")])],
                 [("accept", "允诺"), ("decline", "拒绝")],
                 ("accept", [M(accepted, "host", inputs: [("person.0", "host"), ("person.1", "actor"), ("force.0", "target-force"), ("force.1", "requester-force")]),
-                    role == "gift" ? shared["gift-actor-accepted"] : M(6631, "actor", inputs: [("person.0", "actor"), ("person.1", "host")])]),
+                    role == "gift" ? shared["gift-actor-accepted"] : M(6631, "actor", inputs: [("person.0", "actor"), ("person.1", "host")]),
+                    M(role == "gift" ? 6594 : 6640, sound: good, inputs: [("force.0", "requester-force"), ("force.1", "target-force")])]),
                 ("decline", [M(refused, "host", inputs: [("person.0", "host"), ("person.1", "actor"), ("force.0", "target-force"), ("force.1", "requester-force")]),
-                    role == "gift" ? shared["gift-actor-refused"] : M(6635, "actor", inputs: [("person.0", "actor"), ("person.1", "host")])]));
+                    role == "gift" ? shared["gift-actor-refused"] : M(6635, "actor", inputs: [("person.0", "actor"), ("person.1", "host")]),
+                    M(role == "gift" ? 6595 : 6641, sound: bad, inputs: [("force.0", "requester-force"), ("force.1", "target-force")])]));
         }
         shared["alliance-formation-image"] = M(9391, image: "decision-alliance", inputs: [("force.0", "leader-force")]);
         shared["alliance-leader-declaration"] = M(9392, "other", inputs: [("force.0", "target-force")]);

@@ -55,7 +55,7 @@ public sealed record RecruitmentOccurrence(int ForceId, OfficerStatus PreviousSt
 public sealed record PersonAffiliationChangedEvent(GameClock Clock, int OfficerId, int? PreviousForceId, int? ForceId, int PlaceId) : DomainEvent;
 public sealed record OfficerMovedEvent(GameClock Clock, int OfficerId, int OriginId, int DestinationId,
     PersonnelArrivalOccurrence Arrival) : DomainEvent;
-public sealed record ForceRelationChangedEvent(GameClock Clock, int FirstId, int SecondId, int Previous, int Current) : DomainEvent;
+public sealed record ForceRelationChangedEvent(GameClock Clock, int FirstId, int SecondId, int Previous, int Current, [property: System.Text.Json.Serialization.JsonRequired] bool Notify) : DomainEvent;
 public sealed record OfficerAbilityGrownEvent(GameClock Clock, int OfficerId, string Ability, int Previous, int Current) : DomainEvent
 {
     [System.Text.Json.Serialization.JsonRequired]

@@ -83,16 +83,18 @@ internal static class SurrenderDiplomacy
 
     internal static void Finish(WorldMutation world, PersistentTask task, bool accept, SimulationRules rules, List<DomainEvent> events)
     {
+        List<DomainEvent> consequences = [];
         int target = task.Surrender!.TargetForceId;
         int threshold = Threshold(world, task.ForceId, task.OfficerId, target, rules);
         if (accept)
         {
-            SurrenderMerge.Apply(world, task, target, rules, events);
-            DiplomacySettlement.Grow(world, task.OfficerId, events);
+            SurrenderMerge.Apply(world, task, target, rules, consequences);
+            DiplomacySettlement.Grow(world, task.OfficerId, consequences);
         }
         else ForceRelations.Set(world, task.ForceId, target,
-            DiplomacyMath.SurrenderRejectedRelation(MilitaryDiplomacy.Relation(world, task.ForceId, target)), null, events);
+            DiplomacyMath.SurrenderRejectedRelation(MilitaryDiplomacy.Relation(world, task.ForceId, target)), null, consequences, notify: true);
         events.Add(new SurrenderResolvedEvent(world.Clock, task.Id, task.ForceId, target, accept, threshold, task.Journey!.SuccessRoll!.Value));
+        events.AddRange(consequences);
         PersonnelReturns.Start(world, task, rules.Personnel, events, world.CurrentDateCountdownConsumed);
         ResolutionPipeline.CheckConquest(world, events);
     }

@@ -100,6 +100,13 @@ public sealed class GiftPeaceSessionTests
             ["diplomacy-units-returned"] = new("diplomacy-units-returned", forces),
             ["diplomacy-corps-cleared"] = new("diplomacy-corps-cleared", forces), ["ability-grown"] = new("growth", [], "actor")
         } };
+        var relationPresentation = DiplomacyFeedbackTests.Presentation(view);
+        foreach (var pair in relationPresentation.Texts.Messages) texts.Messages[pair.Key] = pair.Value;
+        foreach (string role in ProgressPresentationDefinition.RelationRoles)
+        {
+            progress.Records[role] = relationPresentation.Content.Progress!.Records[role];
+            progress.Feedback[role] = relationPresentation.Content.Progress.Feedback[role];
+        }
         return (texts, CommandPresentation.Empty with { Progress = progress, Decisions = new(new()
         {
             ["gift"] = new(DecisionWindowKind.Diplomacy, new("prompt", []), [], [], new() { ["accept"] = "accept", ["decline"] = "decline" })

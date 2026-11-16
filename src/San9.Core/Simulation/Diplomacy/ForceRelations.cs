@@ -30,23 +30,23 @@ internal static class ForceRelations
             ? relation : new(Math.Min(first, second), Math.Max(first, second), 0);
     }
 
-    internal static void Set(WorldMutation world, int first, int second, int value, MilitaryRulebook? military, List<DomainEvent> events)
+    internal static void Set(WorldMutation world, int first, int second, int value, MilitaryRulebook? military, List<DomainEvent> events, bool notify = false)
     {
         _ = DiplomacyMath.RelationBand(value);
-        Update(world, first, second, value, military, events);
+        Update(world, first, second, value, military, events, notify);
     }
 
-    internal static void Change(WorldMutation world, int first, int second, int delta, MilitaryRulebook? military, List<DomainEvent> events) =>
-        Update(world, first, second, (long)Get(world, first, second).Value + delta, military, events);
+    internal static void Change(WorldMutation world, int first, int second, int delta, MilitaryRulebook? military, List<DomainEvent> events, bool notify = false) =>
+        Update(world, first, second, (long)Get(world, first, second).Value + delta, military, events, notify);
 
-    private static void Update(WorldMutation world, int first, int second, long requestedValue, MilitaryRulebook? military, List<DomainEvent> events)
+    private static void Update(WorldMutation world, int first, int second, long requestedValue, MilitaryRulebook? military, List<DomainEvent> events, bool notify)
     {
         var previous = Get(world, first, second);
         int value = (int)Math.Clamp(requestedValue, 0, 100);
         if (previous.Value != value)
         {
             world.SetRelation(previous with { Value = value });
-            events.Add(new ForceRelationChangedEvent(world.Clock, previous.FirstId, previous.SecondId, previous.Value, value));
+            events.Add(new ForceRelationChangedEvent(world.Clock, previous.FirstId, previous.SecondId, previous.Value, value, notify));
         }
         if (requestedValue > previous.Value && !MilitaryDiplomacy.AutomaticEnemy(world, first, second))
             DiplomaticConflicts.End(world, first, second, military, events);

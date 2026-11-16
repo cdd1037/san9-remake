@@ -11,6 +11,15 @@ public sealed class DecisionPresentationCompilerTests
             0, 6000, 0, 0, 0, 0, 0, biography, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             [], 0, 0, [], 0)).ToArray();
         var decisions = DecisionPresentationCompiler.Compile(people);
+        foreach (var (role, accepted, refused) in new[] { ("gift", 6594, 6595), ("surrender", 6640, 6641) })
+            foreach (var (choice, key) in new[] { ("accept", accepted), ("decline", refused) })
+            {
+                var summary = Assert.Single(decisions.Events[role].Results[choice], m => m.Speaker is null);
+                Assert.Equal($"messages.{key}", summary.Key);
+                Assert.Equal("requester-force", summary.Bindings["force.0"]);
+                Assert.Equal("target-force", summary.Bindings["force.1"]);
+                Assert.Equal(choice == "accept" ? "decision-success" : "decision-failure", summary.Sound);
+            }
         Assert.Equal("盗贼", decisions.Subjects["bandits.14"]);
         Assert.Equal("海贼", decisions.Subjects["bandits.13"]);
         var succession = decisions.Shared["ending-succession-year"];
@@ -22,6 +31,14 @@ public sealed class DecisionPresentationCompilerTests
         Assert.Equal("messages.6123", decisions.Shared["gift-corps-confirmation"].Key);
         Assert.Equal("conflict-corps-leader", decisions.Shared["gift-corps-confirmation"].Bindings["person.0"]);
         var progress = ExecutionPresentationCompiler.Compile();
+        foreach (var (role, record, prompt) in new[] { ("improved",10037,7440), ("worsened",10038,7441),
+            ("improved-band",10044,7237), ("worsened-band",9928,7238) })
+        {
+            Assert.Equal($"messages.{record}", progress.Records["relation-" + role].Key);
+            Assert.Equal($"messages.{prompt}", progress.Feedback["relation-" + role].Key);
+            if (role.EndsWith("-band", StringComparison.Ordinal))
+                Assert.Equal("relation", progress.Records["relation-" + role].Bindings["string.0"]);
+        }
         foreach (string role in new[] { "enemy-city", "enemy-place", "reinforce-from", "reinforce-to" })
             Assert.Equal("enemy-force", progress.Context[role].Bindings["force.0"]);
         foreach (var (role, key) in new[] { ("diplomacy-units-returned", "messages.7447"), ("diplomacy-corps-cleared", "messages.7448") })

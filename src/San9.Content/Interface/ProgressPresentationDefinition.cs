@@ -16,12 +16,13 @@ public sealed record ProgressPresentationDefinition(Dictionary<string, DecisionM
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<string, DecisionMessageDefinition> Feedback { get; init; } = [];
     public const string ReturnUnavailableRole = "policy-return-unavailable";
+    public static readonly string[] RelationRoles = ["relation-improved", "relation-worsened", "relation-improved-band", "relation-worsened-band"];
     public static readonly string[] PostActionRoles = ["policy-post-action-no-target", "policy-post-action-attack-ordered",
         "policy-post-action-avoid-despite-orders", "policy-post-action-return-ordered", "policy-post-action-attack-despite-orders"];
     public static readonly string[] FeedbackRoles = ["ability-grown", "tactic-learned", "injury-worsened", "place-commander-changed",
         "unit-commander-changed", "corps-leader-changed", "corps-reorganized", "appearance-introduction", "appearance-greeting", "appearance-result",
         "treasury-captured", "prisoner-escape-speech", "prisoner-escape-result", "battle-capture-speech", "battle-capture-dialogue",
-        "diplomacy-units-returned", "diplomacy-corps-cleared", ReturnUnavailableRole, .. PostActionRoles];
+        "diplomacy-units-returned", "diplomacy-corps-cleared", .. RelationRoles, ReturnUnavailableRole, .. PostActionRoles];
     public static readonly string[] MapSpeechRoles = ["policy-construction-aborted", "policy-transport-aborted", "policy-return-target-changed",
         "policy-enter-captured-place", "policy-return-after-action", "policy-attack-unit-after-action", "policy-attack-place-after-action", "unit-defeat", "waypoint-reached", "contact-attack", "contact-defense",
         "contact-attack-strong", "contact-attack-weak", "contact-defense-strong", "contact-defense-weak", "contact-building",
@@ -34,7 +35,7 @@ public sealed record ProgressPresentationDefinition(Dictionary<string, DecisionM
         "unit-commander-changed", "corps-leader-changed", "corps-reorganized", "high-spirits-expired", "morale-lost", "unit-morale-collapsed",
         "battle-wounded-captured", "battle-wounded-lost", "battle-victory-morale",
         "treasury-captured", "treasury-lost", "battle-captured", "battle-persons-lost", "battle-persons-retreated",
-        "diplomacy-units-returned", "diplomacy-corps-cleared",
+        "diplomacy-units-returned", "diplomacy-corps-cleared", .. RelationRoles,
         "policy-construction-aborted", "policy-transport-aborted", "policy-return-target-changed", "policy-enter-captured-place", "policy-return-after-action",
         "policy-attack-unit-after-action", "policy-attack-place-after-action", "unit-lost", "unit-defeated", "unit-lost-other", "territory-changed-other", "facility-destroyed-other", "settlement-won", "settlement-lost",
         "unit-contact", "settlement-contact", "waypoint-reached",

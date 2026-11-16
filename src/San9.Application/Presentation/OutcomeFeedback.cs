@@ -19,6 +19,7 @@ internal static class OutcomeFeedback
             UnitCommanderChangedEvent e => e.Clock, CorpsLeaderChangedEvent e => e.Clock, CorpsDissolvedEvent e => e.Clock,
             HighSpiritsExpiredEvent e => e.Clock, OfficerAppearedEvent e => e.Clock, TreasuryCapturedEvent e => e.Clock,
             PrisonerEscapedEvent e => e.Clock, BattlePersonnelResolvedEvent e => e.Clock, DiplomaticConflictsEndedEvent e => e.Clock,
+            ForceRelationChangedEvent e => e.Clock,
             _ => before.World.Clock
         };
         List<CommandMessage> messages = [];
@@ -66,6 +67,17 @@ internal static class OutcomeFeedback
         void Channel(string role) { if (executionMap) Report(role, sound: content.Feedback[role].Sound); else Prompt(role); }
         switch (fact)
         {
+            case ForceRelationChangedEvent { Notify: true } relation when
+                relation.Current != relation.Previous && (Player(relation.FirstId) || Player(relation.SecondId)):
+                Force("force", relation.FirstId); Force("second-force", relation.SecondId);
+                color = Player(relation.FirstId) ? relation.FirstId : relation.SecondId;
+                var band = DiplomacyMath.RelationBand(relation.Current);
+                bool changedBand = band != DiplomacyMath.RelationBand(relation.Previous);
+                values["relation"] = new(0, CommandText.Resolve(texts, "relation." + band.ToString().ToLowerInvariant()));
+                string relationRole = "relation-" + (relation.Current > relation.Previous ? "improved" : "worsened") +
+                    (changedBand ? "-band" : "");
+                if (executionMap) Report(relationRole); else Prompt(relationRole);
+                break;
             case DiplomaticConflictsEndedEvent peace when Player(peace.FirstForceId) || Player(peace.SecondForceId):
                 Force("force", peace.FirstForceId); Force("second-force", peace.SecondForceId);
                 color = Player(peace.FirstForceId) ? peace.FirstForceId : peace.SecondForceId;

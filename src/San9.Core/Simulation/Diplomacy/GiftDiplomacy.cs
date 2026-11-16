@@ -170,14 +170,14 @@ internal static class GiftDiplomacy
                 ResourceAccounts.Change(world, Account(world, gift.TargetForceId), Resource(gift.Offer), gift.Offer.Amount, "gift-accepted", task.ForceId, consequences);
             }
             int relation = MilitaryDiplomacy.Relation(world, task.ForceId, gift.TargetForceId);
-            ForceRelations.Change(world, task.ForceId, gift.TargetForceId, Math.Max(60 - relation, 20), rules.Military, consequences);
+            ForceRelations.Change(world, task.ForceId, gift.TargetForceId, Math.Max(60 - relation, 20), rules.Military, consequences, notify: true);
             var actor = world.Officers[task.OfficerId];
             OfficerAbilityGrowth.TryIncrease(world, actor.Id, OfficerAbility.Politics, "diplomacy-politics-growth", consequences);
         }
         else
         {
             refunded = Refund(world, task, "gift-refused", consequences);
-            ForceRelations.Change(world, task.ForceId, gift.TargetForceId, -5, rules.Military, consequences);
+            ForceRelations.Change(world, task.ForceId, gift.TargetForceId, -5, rules.Military, consequences, notify: true);
         }
         events.Add(new GiftResolvedEvent(world.Clock, task.Id, task.OfficerId, gift.TargetForceId, gift.Offer, accepted,
             received, refunded, gift.Offer.Amount - received - refunded));

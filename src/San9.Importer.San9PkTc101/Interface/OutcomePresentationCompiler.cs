@@ -27,6 +27,18 @@ internal static class OutcomePresentationCompiler
             (string, string)[] bindings = [("force.0", "force"), ("force.1", "second-force")];
             Record(role, source, bindings); Prompt(role, source, bindings: bindings);
         }
+        foreach (var (role, record, prompt, sound) in new[]
+        {
+            ("relation-improved", 10037, 7440, "decision-increase"),
+            ("relation-worsened", 10038, 7441, "decision-decrease"),
+            ("relation-improved-band", 10044, 7237, "decision-increase"),
+            ("relation-worsened-band", 9928, 7238, "decision-decrease")
+        })
+        {
+            (string, string)[] bindings = [("force.0", "force"), ("force.1", "second-force")];
+            if (role.EndsWith("-band", StringComparison.Ordinal)) bindings = [.. bindings, ("string.0", "relation")];
+            Record(role, record, bindings); Prompt(role, prompt, sound: sound, bindings: bindings);
+        }
         Record("high-spirits-expired", 10006, ("person.0", "actor"));
         Record("morale-lost", 9957, ("unit.0", "unit"), ("number.0", "current"));
         Record("unit-morale-collapsed", 9983, ("unit.0", "unit"));

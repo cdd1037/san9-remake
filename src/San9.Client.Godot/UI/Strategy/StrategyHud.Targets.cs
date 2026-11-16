@@ -47,7 +47,13 @@ public partial class StrategyHud
         var after = Session.View;
         var sequence = MilitaryCommandPresentation.Create(before, after, Session.Messages(Texts),
             CommandPresentation, command, events, Random.Shared.Next);
-        _presentation.OpenNarration(sequence, after);
+        _presentation.OpenNarration(sequence, after, completed: command is OrderUnitCommand or OrderUnitsCommand
+            ? () =>
+            {
+                _commandReturn = null;
+                ClearCommandSelection();
+            }
+            : null);
     }
 
     private IEnumerable<(string Asset, Vector2 Position)> VisibleFrames()

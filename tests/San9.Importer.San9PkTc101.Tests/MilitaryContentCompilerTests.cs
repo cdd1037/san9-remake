@@ -69,10 +69,7 @@ public sealed class MilitaryContentCompilerTests
         var geographicRules = new MilitaryRulebook(geography);
         Assert.Equal(50, geographicRules.RegionAt(MapCoordinates.Center(new(1, 0))));
         Assert.Throws<ArgumentException>(() => new MilitaryRulebook(geography with { RegionIds = [0] }));
-        Assert.Equal(12, definition.Formations.Single(f => f.Id == 21).RequiredTacticId);
-        Assert.Equal(12, definition.Formations.Single(f => f.Id == 26).RequiredTacticId);
-        Assert.Equal(15, definition.Formations.Single(f => f.Id == 8).RequiredTacticId);
-        Assert.Null(definition.Formations.Single(f => f.Id == 20).RequiredTacticId);
+        Assert.Equal(new[] { 21, 26 }, definition.Tactics.Single(t => t.Id == 12).CompatibleFormations);
         Assert.Equal(TacticEffect.CounterTrap, definition.Tactics.Single(t => t.Id == 21).Effect);
         Assert.All(definition.Tactics, t => Assert.Equal(t.Id is >= 0 and <= 5 ? (int?)5 : null, t.ContactRange));
         Assert.Equal(new FacilityAttackModifier(true, 0), definition.Tactics.Single(t => t.Id == 39).FacilityAttack);
@@ -103,6 +100,18 @@ public sealed class MilitaryContentCompilerTests
         foreach (var formation in definition.Formations)
         {
             var source = formations.Single(f => f.Id == formation.Id);
+            int? requiredTactic = source.Id switch
+            {
+                8 => 15,
+                9 => 16,
+                10 => 17,
+                11 => 18,
+                21 => 12,
+                22 => 13,
+                23 => 14,
+                _ => null
+            };
+            Assert.Equal(requiredTactic, formation.RequiredTacticId);
             Assert.Equal(source.Mobility * 5, formation.MovementBudget);
             Assert.Equal(source.Id == 1, formation.DoublesCapture);
             Assert.Equal(source.Id == 1, formation.PreventsTacticRescue);

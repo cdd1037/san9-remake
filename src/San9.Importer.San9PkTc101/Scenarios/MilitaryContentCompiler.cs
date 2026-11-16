@@ -65,8 +65,13 @@ public static class MilitaryContentCompiler
                         { AutomaticOpportunityChance = Mode(f.Id) == TravelMode.Water ? 10 : null },
                     ConfusionResistanceChance = f.Id == 7 ? 50 : 0,
                     BypassesPassiveCounters = f.Id is 12 or 13 or 14 or 24 or 25,
-                    RequiredTacticId = tactics.Where(t => t.Id is >= 12 and <= 18 && t.SupportsArrayType(f.Id))
-                        .Select(t => (int?)t.Id).SingleOrDefault(),
+                    // Formation prerequisites are defined independently of tactic compatibility.
+                    RequiredTacticId = f.Id switch
+                    {
+                        >= 8 and <= 11 => f.Id + 7,
+                        >= 21 and <= 23 => f.Id - 9,
+                        _ => null
+                    },
                     AutomaticTacticLearningId = f.Id is >= 21 and <= 23 ? f.Id - 9 : null,
                     CaptureTacticLearningId = f.Id is >= 8 and <= 11 ? f.Id + 7 : null,
                     MartialTacticVulnerabilities = f.Id == 11 ? [0] : [],

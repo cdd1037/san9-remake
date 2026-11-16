@@ -8,6 +8,58 @@ namespace San9.Application.Tests;
 public sealed partial class OriginalAiMilitaryTests
 {
     [Theory]
+    [InlineData(OriginalAiWork.Attack, false)]
+    [InlineData(OriginalAiWork.Deploy, false)]
+    [InlineData(OriginalAiWork.FulfillRequest, false)]
+    [InlineData(OriginalAiWork.Attack, true)]
+    [InlineData(OriginalAiWork.Deploy, true)]
+    [InlineData(OriginalAiWork.FulfillRequest, true)]
+    public void BarbarianSortieUsesDeclaredShipRequirementIndependentlyOfTacticCompatibility(
+        OriginalAiWork work, bool requiresTechnology)
+    {
+        var content = WithNavalFormations(Fixture(4), false);
+        content = content with
+        {
+            Forces = content.Forces.Select(f => f.Id == 1 ? f with
+            {
+                IsBarbarian = true,
+                FormationGrants = [new(400, FormationGrantCondition.Barbarian), new(801, FormationGrantCondition.Barbarian)]
+            } : f).ToArray(),
+            Military = content.Military! with
+            {
+                Formations = content.Military.Formations.Select(f => f.Id is 400 or 801 ? f with
+                {
+                    IsCommon = false,
+                    RequiredTacticId = f.Id == 801 && requiresTechnology ? 8000 : null
+                } : f).ToImmutableArray(),
+                Tactics = [new(8000, 4, TacticEffect.FormationTechnology, 0, 0, 0, false, false, [801])]
+            }
+        };
+        content = WithFormationRequest(content, work);
+        var h = new Harness(content, world =>
+        {
+            world = WithFormationRequest(world, work);
+            world = world with
+            {
+                Forces = world.Forces.Select(f => f.Id == 1 ? f with { IsBarbarian = true } : f).ToImmutableArray()
+            };
+            return work == OriginalAiWork.Deploy ? EnemyArmy(world) : world;
+        });
+        Assert.All(h.Engine.Snapshot.Officers, p => Assert.DoesNotContain(8000, p.LearnedTactics));
+        var report = h.Run(work, 1);
+        Assert.Equal(requiresTechnology ? 0 : 1, report.Submitted);
+        if (requiresTechnology)
+        {
+            Assert.Empty(h.Commands);
+            Assert.Equal(1, report.EmptyPlans);
+            return;
+        }
+        var command = Assert.IsType<DeployUnitCommand>(Assert.Single(h.Commands));
+        Assert.Equal(801, command.NavalFormationId);
+        Assert.Equal(801, h.Engine.Snapshot.Units.Single(u => u.OwnerId == 1).NavalFormationId);
+    }
+
+    [Theory]
     [InlineData(OriginalAiWork.Attack, true)]
     [InlineData(OriginalAiWork.Deploy, true)]
     [InlineData(OriginalAiWork.FulfillRequest, true)]

@@ -14,7 +14,7 @@ public sealed record ContentOverride<T>(T Value);
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ScenarioDefinitions
 {
-    public const int CurrentSchemaVersion = 11;
+    public const int CurrentSchemaVersion = 12;
     [JsonRequired] public int SchemaVersion { get; init; } = CurrentSchemaVersion;
     [JsonRequired] public long NextFormationId { get; init; }
     [JsonRequired] public long NextTacticId { get; init; }

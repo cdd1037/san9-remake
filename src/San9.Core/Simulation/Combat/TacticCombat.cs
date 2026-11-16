@@ -300,7 +300,8 @@ internal static class TacticCombat
         return available.Select(t => t.Effect == TacticEffect.TrapSelection ? military.TrapAt(position) : t)
             .OfType<TacticRule>().OrderByDescending(t => t.Power).ThenBy(t => t.Id).FirstOrDefault(t => (t.Effect == TacticEffect.Martial || IntelligenceTactics.IsOffensive(t.Effect)) &&
             military.SupportsTactic(t, formation, world.Companion) && (target.UnitId is not null || t.AffectsFacilities) &&
-            t.Category is not null && (military.TacticContactRange(t, formation, world.Companion) is not int range || target.UnitId is not null &&
+            t.Category is not null && (!t.RequiresWaterTarget || target.UnitId is not null && military.Map.IsWater(position)) &&
+            (military.TacticContactRange(t, formation, world.Companion) is not int range || target.UnitId is not null &&
                 MilitaryCombat.Area(unit, military).IntersectsExpanded(MilitaryCombat.TargetArea(world, target, military), range)));
     }
 

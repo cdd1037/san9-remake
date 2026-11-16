@@ -146,7 +146,8 @@ public static class MilitaryContentCompiler
         }, t.Power, t.MinimumInterval, t.TrainingRequirement, t.Id is <= 11 or >= 21 and <= 30,
             t.AffectsFacilities, Enumerable.Range(0, San9ScenarioFormationArchive.RecordCount)
                 .Where(t.SupportsArrayType).ToImmutableArray())
-            { EffectRadius = t.Id is 26 or 29 or 30 ? 3 : 0, ContactRange = t.Id is >= 0 and <= 5 ? 5 : null,
+            { EffectRadius = t.Id is 26 or 29 or 30 ? 3 : 0, ContactRange = t.Id is >= 0 and <= 5 or 33 or 34 ? 5 : null,
+                RequiresWaterTarget = t.Id is 33 or 34,
                 CanRescuePrisoners = t.Id is >= 0 and <= 5 or 33 or 34,
                 SnipingProficiencyCategory = t.Id is >= 6 and <= 11 or 31 or 32 ? 3 : null,
                 FacilityAttack = t.Id switch { 39 => new(true, 0), 40 => new(false, 5), _ => null } }).ToImmutableArray();

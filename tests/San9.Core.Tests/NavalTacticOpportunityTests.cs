@@ -57,6 +57,53 @@ public sealed class NavalTacticOpportunityTests
              new("military-tactic-member", TestSeeds.StateForRoll(0))] });
 
     [Theory]
+    [InlineData(false, false, false, false, 6100)]
+    [InlineData(true, false, false, false, 5000)]
+    [InlineData(true, true, false, false, 6100)]
+    [InlineData(false, false, true, false, 5100)]
+    [InlineData(true, false, true, false, 5000)]
+    [InlineData(true, true, true, false, 5100)]
+    [InlineData(false, false, false, true, null)]
+    [InlineData(true, false, false, true, 5000)]
+    [InlineData(false, false, true, true, 5100)]
+    public void NavalMeleeRequiresCurrentWaterTargetAndContactAcrossEntryPoints(
+        bool targetWater, bool distant, bool fallback, bool chain, int? expected)
+    {
+        var definition = Definition();
+        definition = definition with
+        {
+            TerrainIds = definition.TerrainIds.SetItem(distant ? 3 : 2, targetWater ? 1 : 0),
+            Tactics = definition.Tactics.Select(t => t.Id == 5000
+                ? t with { RequiresWaterTarget = true, ContactRange = 5 } : t).ToImmutableArray()
+                .Add(new(5100, 4, TacticEffect.Martial, 2, 9, 0, false, true, [200])),
+            CompanionTactics = new([], new(100, 5000, 5100, 5), null),
+        };
+        var m = World(secondMember: chain).BeginMutation(companion: new() { EnableNavalTacticFallback = fallback });
+        if (distant) m.Replace(m.Units[2] with { Position = new(16, 2) });
+        if (chain) m.Replace(m.Officers[11] with { EquippedTacticId = 6000 });
+        Rolls(m, chain ? 10 : 0);
+        List<DomainEvent> events = [];
+        TacticCombat.TryUnit(m, 1, Target, new() { Military = new(definition) }, events);
+        var activations = events.OfType<TacticActivatedEvent>().ToArray();
+        if (chain)
+        {
+            Assert.Equal(6000, activations[0].TacticId);
+            activations = activations.Skip(1).ToArray();
+            Assert.All(activations, e => Assert.True(e.IsChain));
+            Assert.Equal(expected is null ? 0 : 9, m.Officers[12].TacticCooldown);
+        }
+        Assert.Equal(expected is int id ? [id] : Array.Empty<int>(), activations.Select(e => e.TacticId));
+    }
+
+    [Fact]
+    public void WaterTargetRestrictionMustBeExplicitInContent()
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(Definition().Tactics[0]))!.AsObject();
+        Assert.True(json.Remove(nameof(TacticRule.RequiresWaterTarget)));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<TacticRule>(json.ToJsonString()));
+    }
+
+    [Theory]
     [InlineData(9, 14, 5000, false)]
     [InlineData(10, 14, 6100, false)]
     [InlineData(10, 15, null, false)]

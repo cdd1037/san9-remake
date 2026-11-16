@@ -50,6 +50,7 @@ public partial class TacticEditorPage : SharedCatalogEditorPage
         Toggle(flags, "可作用于设施", t.AffectsFacilities, v => Edit(id, x => x with { AffectsFacilities = v }));
         if (t.Effect == TacticEffect.Martial)
         {
+            Toggle(flags, "仅限水域部队目标", t.RequiresWaterTarget, v => Edit(id, x => x with { RequiresWaterTarget = v }));
             Toggle(flags, "可解救俘虏", t.CanRescuePrisoners, v => Edit(id, x => x with { CanRescuePrisoners = v }));
             Toggle(flags, "限制近距发动", t.ContactRange is not null, v => { Edit(id, x => x with { ContactRange = v ? 5 : null }); Rebuild(); });
             if (t.ContactRange is int range) Number(basics, "近距范围", range, 1, int.MaxValue, v => Edit(id, x => x with { ContactRange = (int)v }));

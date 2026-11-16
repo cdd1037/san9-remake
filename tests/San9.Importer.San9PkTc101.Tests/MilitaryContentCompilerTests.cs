@@ -71,7 +71,8 @@ public sealed class MilitaryContentCompilerTests
         Assert.Throws<ArgumentException>(() => new MilitaryRulebook(geography with { RegionIds = [0] }));
         Assert.Equal(new[] { 21, 26 }, definition.Tactics.Single(t => t.Id == 12).CompatibleFormations);
         Assert.Equal(TacticEffect.CounterTrap, definition.Tactics.Single(t => t.Id == 21).Effect);
-        Assert.All(definition.Tactics, t => Assert.Equal(t.Id is >= 0 and <= 5 ? (int?)5 : null, t.ContactRange));
+        Assert.All(definition.Tactics, t => Assert.Equal(t.Id is >= 0 and <= 5 or 33 or 34 ? (int?)5 : null, t.ContactRange));
+        Assert.All(definition.Tactics, t => Assert.Equal(t.Id is 33 or 34, t.RequiresWaterTarget));
         Assert.Equal(new FacilityAttackModifier(true, 0), definition.Tactics.Single(t => t.Id == 39).FacilityAttack);
         Assert.Equal(new FacilityAttackModifier(false, 5), definition.Tactics.Single(t => t.Id == 40).FacilityAttack);
         Assert.All(definition.Tactics.Where(t => t.Id < 39), t => Assert.Null(t.FacilityAttack));

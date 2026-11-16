@@ -13,7 +13,11 @@ $toolsRoot = Join-Path $repoRoot 'local/generated/release-tools'
 $templateRoot = Join-Path $toolsRoot 'templates/current'
 $editorRoot = Join-Path $toolsRoot "editors/4.7.2/$Platform"
 $releaseEndpoint = if ($TemplateReleaseId) { "$TemplateReleaseId" } else { 'latest' }
-$templateRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/cdd1037/godot-template/releases/$releaseEndpoint"
+$releaseHeaders = @{}
+if ($env:GH_TOKEN) {
+    $releaseHeaders.Authorization = "Bearer $env:GH_TOKEN"
+}
+$templateRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/cdd1037/godot-template/releases/$releaseEndpoint" -Headers $releaseHeaders
 Write-Host "Export templates: $($templateRelease.tag_name) ($($templateRelease.html_url))"
 $editorUrl = 'https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable'
 $targets = @{

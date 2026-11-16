@@ -58,9 +58,11 @@ jobs:
 
       - name: Resolve latest upstream export templates
         id: templates
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/cdd1037/godot-template/releases/latest'
+          $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/cdd1037/godot-template/releases/latest' -Headers @{ Authorization = "Bearer $env:GH_TOKEN" }
           Write-Host "Export templates: $($release.tag_name) ($($release.html_url))"
           "release-id=$($release.id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
@@ -113,6 +115,8 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Download editor, resolved upstream templates and font
         id: tools
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $godotPath = ./tools/setup-release.ps1 -Platform $env:EXPORT_PLATFORM -TemplateReleaseId $env:TEMPLATE_RELEASE_ID
           "godot-path=$godotPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8

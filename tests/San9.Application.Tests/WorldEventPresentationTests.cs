@@ -25,6 +25,46 @@ public sealed class WorldEventPresentationTests
     }
 
     [Theory]
+    [InlineData(1, 2, true, true)]
+    [InlineData(2, 1, true, true)]
+    [InlineData(2, 3, true, true)]
+    [InlineData(1, 2, false, true)]
+    [InlineData(2, 1, false, true)]
+    [InlineData(2, 3, false, true)]
+    [InlineData(1, 2, true, false)]
+    [InlineData(1, 2, false, false)]
+    public void AttackRequestResultsUseCommittedChangesAndParticipantVisibility(int requested, int requester, bool fulfilled, bool changed)
+    {
+        var (session, texts, content) = Fixture();
+        var before = session.View;
+        var fact = new AttackRequestEndedEvent(before.World.Clock, new(requested, requester, 3, 3, 1),
+            fulfilled ? AttackRequestEndReason.Fulfilled : AttackRequestEndReason.Expired, fulfilled ? null : requested)
+        { TrustChange = changed ? fulfilled ? 10 : -20 : 0, LoyaltyDecreased = !fulfilled && changed };
+        // The final snapshot deliberately has no corresponding delta: presentation must use the individual fact.
+        var output = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, [fact]);
+        List<string> expected = [], records = [];
+        if (requested == 1 || requester == 1)
+        {
+            expected.Add(fulfilled ? "request-fulfilled" : "request-expired");
+            if (fulfilled) records.Add("request-fulfilled");
+            if (changed && (!fulfilled || requested == 1))
+            {
+                expected.Add(fulfilled ? "request-fulfilled-trust" : "request-expired-trust");
+                records.Add(fulfilled ? "request-fulfilled-trust" : "request-expired-trust-record");
+            }
+            if (!fulfilled && changed && requested == 1)
+            {
+                expected.Add("request-expired-loyalty"); records.Add("request-expired-loyalty-record");
+            }
+        }
+        Assert.Equal(expected, output.Messages.Select(m => m.Message.Key));
+        Assert.Equal(records, output.Records.Select(r => r.Message.Key));
+        Assert.All(output.Messages, m => { Assert.Null(m.Diplomacy); Assert.Null(m.FocusLocation); });
+        var repeated = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, [fact], presentedFeedback: output.FeedbackIds);
+        Assert.Empty(repeated.Messages); Assert.Empty(repeated.Records);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void FoodExhaustionRetainsNarrationAndGradedRecordsWithoutReportingUnpaidLossesOnAFullySuppliedDay(bool starved)
@@ -277,7 +317,10 @@ public sealed class WorldEventPresentationTests
         int place = before.World.Settlements.First(p => p.OwnerId == force && !p.IsDormant).Id;
         int rank = before.Information.Ranks.First().Id;
         var content = package.Presentation.Events!;
-        DomainEvent[] facts = [new ForcesConsolidatedEvent(clock,force,otherForce,0,0,0,0),new ForceEliminatedEvent(clock,otherForce,false),
+        DomainEvent[] facts = [
+            new AttackRequestEndedEvent(clock, new(force, otherForce, place, otherForce, 1), AttackRequestEndReason.Fulfilled, null) { TrustChange = 10 },
+            new AttackRequestEndedEvent(clock, new(force, otherForce, place, otherForce, 1), AttackRequestEndReason.Expired, force) { TrustChange = -20, LoyaltyDecreased = true },
+            new ForcesConsolidatedEvent(clock,force,otherForce,0,0,0,0),new ForceEliminatedEvent(clock,otherForce,false),
             new ForceLeaderChangedEvent(clock,force,ruler,actor),new OfficerDiedEvent(clock,actor,OfficerDeathCause.Natural,OfficerStatus.Serving,force,place,null,null),
             new EmperorDeathEvent(clock,content.People["emperor-first"],null,null),
             new RedCliffsEvent(clock,force,otherForce,[],[],0,10,10),new GuanduEvent(clock,force,otherForce,actor,other,[],[],0,0,10,10),

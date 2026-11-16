@@ -38,7 +38,7 @@ internal sealed partial class WorldEventSceneBuilder
     {
         var fact = events[index];
         if (!(PresentForces(fact) || PresentHistory(fact) || PresentCourt(fact) ||
-            PresentExploration(fact) || PresentAlliances(fact) || PresentFoodSupply(fact))) return new([], []);
+            PresentExploration(fact) || PresentAlliances(fact) || PresentAttackRequests(fact) || PresentFoodSupply(fact))) return new([], []);
         return new(messages, records);
     }
 

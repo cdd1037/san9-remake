@@ -10,7 +10,11 @@ public enum AttackRequestEndReason
 }
 public sealed record AttackRequestEstablishedEvent(GameClock Clock, AttackRequestState Request) : DomainEvent;
 public sealed record AttackRequestEndedEvent(GameClock Clock, AttackRequestState Request,
-    AttackRequestEndReason Reason, int? LiableForceId) : DomainEvent;
+    AttackRequestEndReason Reason, int? LiableForceId) : DomainEvent
+{
+    public int TrustChange { get; init; }
+    public bool LoyaltyDecreased { get; init; }
+}
 public sealed record AllianceRequestConflict(AttackRequestState Request, int? LiableForceId);
 
 internal static class AttackRequests
@@ -65,11 +69,16 @@ internal static class AttackRequests
         ForceRelations.Set(world, request.RequestedForceId, request.RequesterForceId,
             Math.Max(0, MilitaryDiplomacy.Relation(world, request.RequestedForceId, request.RequesterForceId) - 20), null, events);
         var force = world.Forces[liable];
+        bool loyaltyDecreased = false;
         world.Replace(force with { BaseTrust = Math.Max(0, force.BaseTrust - 20) });
         foreach (var person in world.Officers.Values.Where(p => p.OwnerId == liable && p.IsServing && p.Status != OfficerStatus.Ruler)
             .OrderBy(p => p.Id).ToArray())
-            RecruitmentRules.SetLoyalty(world, person.Id, liable, Math.Max(0, person.Loyalty - person.Righteousness), "attack-request-broken", events);
-        End(world, request, reason, liable, events);
+        {
+            int loyalty = Math.Max(0, person.Loyalty - person.Righteousness);
+            loyaltyDecreased |= loyalty < person.Loyalty;
+            RecruitmentRules.SetLoyalty(world, person.Id, liable, loyalty, "attack-request-broken", events);
+        }
+        End(world, request, reason, liable, events, world.Forces[liable].BaseTrust - force.BaseTrust, loyaltyDecreased);
     }
 
     internal static bool Fulfill(WorldMutation world, int force, int target, List<DomainEvent> events)
@@ -78,7 +87,7 @@ internal static class AttackRequests
         if (request is null || !Valid(world, request)) return false;
         var state = world.Forces[force];
         world.Replace(state with { BaseTrust = Math.Min(1000, state.BaseTrust + 10) });
-        End(world, request, AttackRequestEndReason.Fulfilled, null, events);
+        End(world, request, AttackRequestEndReason.Fulfilled, null, events, world.Forces[force].BaseTrust - state.BaseTrust);
         return true;
     }
 
@@ -115,10 +124,12 @@ internal static class AttackRequests
         }
     }
 
-    private static void End(WorldMutation world, AttackRequestState request, AttackRequestEndReason reason, int? liable, List<DomainEvent> events)
+    private static void End(WorldMutation world, AttackRequestState request, AttackRequestEndReason reason, int? liable, List<DomainEvent> events,
+        int trustChange = 0, bool loyaltyDecreased = false)
     {
         world.SetSimulation(world.Simulation with { AttackRequests = world.Simulation.AttackRequests.Remove(request) });
-        events.Add(new AttackRequestEndedEvent(world.Clock, request, reason, liable));
+        events.Add(new AttackRequestEndedEvent(world.Clock, request, reason, liable)
+        { TrustChange = trustChange, LoyaltyDecreased = loyaltyDecreased });
     }
 
     private static bool Alive(IWorldQuery world, int id) => world.Forces.TryGetValue(id, out var force) && !force.IsEliminated;

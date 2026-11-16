@@ -46,6 +46,13 @@ internal static class EventPresentationCompiler
         void Add(string role, int id, string? speaker = null, string? sound = null, string? image = null,
             params (string Slot, string Role)[] bindings) => messages.Add(role, M(id, speaker, sound, image, bindings));
         const string notice = "decision-announcement", up = "decision-increase", down = "decision-decrease", good = "decision-success";
+        Add("request-fulfilled", 10012, bindings: [("person.0", "actor"), ("person.1", "other")]);
+        Add("request-fulfilled-trust", 10013, bindings: [("person.0", "actor")]);
+        Add("request-expired", 6178, bindings: [("force.0", "force"), ("force.1", "requester")]);
+        Add("request-expired-trust", 9411, sound: down, bindings: [("force.0", "force")]);
+        Add("request-expired-trust-record", 10074, bindings: [("force.0", "force")]);
+        Add("request-expired-loyalty", 9412, sound: down, bindings: [("force.0", "force")]);
+        Add("request-expired-loyalty-record", 10075, bindings: [("force.0", "force")]);
         Add("food-exhausted", 6260, bindings: [("force.0", "force")]);
         Add("food-exhausted-record", 9905, bindings: [("force.0", "force")]);
         Add("starvation-loss", 7113); Add("starvation-loss-record", 10028);

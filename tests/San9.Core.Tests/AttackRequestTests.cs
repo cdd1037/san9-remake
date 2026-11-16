@@ -6,9 +6,9 @@ namespace San9.Core.Tests;
 
 public sealed class AttackRequestTests
 {
-    private static WorldMutation World() => WorldState.Create(new(190, 1, 1), 1,
+    private static WorldMutation World(OfficerState[]? officers = null) => WorldState.Create(new(190, 1, 1), 1,
         Enumerable.Range(1, 4).Select(id => new ForceState(id, 100) { BaseTrust = 100 }),
-        Enumerable.Range(1, 4).Select(id => new SettlementState(id * 10, id, 0, 100, 100, 100, 0, 0, 0, 0, 0)), [],
+        Enumerable.Range(1, 4).Select(id => new SettlementState(id * 10, id, 0, 100, 100, 100, 0, 0, 0, 0, 0)), officers ?? [],
         relations: [new(1, 2, 70), new(1, 3, 70), new(2, 3, 70)], corps: [.. Enumerable.Range(1, 4).Select(id => new San9.Core.Domain.CorpsState(id, id, null, new(0, 0)) { IsRoot = true })]).BeginMutation();
 
     [Fact]
@@ -27,6 +27,7 @@ public sealed class AttackRequestTests
         Assert.Equal(80, world.Forces[2].BaseTrust);
         Assert.Equal(30, MilitaryDiplomacy.Relation(world, 1, 2));
         Assert.Equal(new int?[] { 1, 2 }, events.OfType<AttackRequestEndedEvent>().Select(e => e.LiableForceId));
+        Assert.All(events.OfType<AttackRequestEndedEvent>(), e => Assert.Equal(-20, e.TrustChange));
     }
 
     [Fact]
@@ -54,7 +55,40 @@ public sealed class AttackRequestTests
         Assert.True(AttackRequests.Fulfill(world, 1, 30, events));
         Assert.False(AttackRequests.Fulfill(world, 1, 30, events));
         Assert.Equal(110, world.Forces[1].BaseTrust);
+        Assert.Equal(10, Assert.Single(events.OfType<AttackRequestEndedEvent>()).TrustChange);
         Assert.Equal(2, Assert.Single(world.Simulation.AttackRequests).RequestedForceId);
+    }
+
+    [Fact]
+    public void SaturatedTrustDoesNotReportAnUnappliedRewardOrPenalty()
+    {
+        var world = World();
+        List<DomainEvent> events = [];
+        world.Replace(world.Forces[1] with { BaseTrust = 1000 });
+        AttackRequests.Establish(world, 1, 2, 30, events);
+        AttackRequests.Fulfill(world, 1, 30, events);
+        Assert.Equal(0, Assert.Single(events.OfType<AttackRequestEndedEvent>()).TrustChange);
+        events.Clear();
+        world.Replace(world.Forces[1] with { BaseTrust = 0 });
+        AttackRequests.Establish(world, 1, 2, 30, events);
+        for (int xun = 0; xun < 19; xun++) AttackRequests.UpdateXun(world, events);
+        var ended = Assert.Single(events.OfType<AttackRequestEndedEvent>());
+        Assert.Equal(0, ended.TrustChange); Assert.False(ended.LoyaltyDecreased);
+    }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(80, true)]
+    public void ExpiryReportsOnlyActualLoyaltyLoss(int loyalty, bool decreased)
+    {
+        var person = new OfficerState(1, 1, 10, new(50, 50, 50, 50), false)
+        { Righteousness = 5 };
+        var world = World([person.WithLoyalty(1, loyalty)]);
+        List<DomainEvent> events = [];
+        AttackRequests.Establish(world, 1, 2, 30, events);
+        for (int xun = 0; xun < 19; xun++) AttackRequests.UpdateXun(world, events);
+        Assert.Equal(decreased, Assert.Single(events.OfType<AttackRequestEndedEvent>()).LoyaltyDecreased);
+        Assert.Equal(Math.Max(0, loyalty - 5), world.Officers[1].Loyalty);
     }
 
     [Fact]

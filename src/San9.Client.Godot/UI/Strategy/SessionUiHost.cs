@@ -22,6 +22,8 @@ public partial class SessionUiHost : Node
     public ScenarioInitialState Definition { get; init; } = null!;
     public ClientDataPaths DataPaths { get; init; } = null!;
     public UiPreferencesSession Preferences { get; init; } = new();
+    public Func<UserSettings> ReadSettings { get; init; } = null!;
+    public Action<UserSettings> ApplySettings { get; init; } = null!;
     public SlotSaveStore SaveStore { get; init; } = null!;
     public SceneMusicPlayer Music { get; init; } = null!;
     public GameSession InitialSession { get; init; } = null!;
@@ -39,10 +41,8 @@ public partial class SessionUiHost : Node
     private Node? _sessionUi;
     private GameSession? _pending;
     private SessionReplacementKind _pendingKind;
-    private UserSettingsSession _settings = null!;
     private CompanionSettingsStore _companionStore = null!;
     private CompanionConfiguration _companionSettings = CompanionConfiguration.Default;
-    internal WindowDisplay WindowDisplay { get; init; } = null!;
     private DebugPanel? _debugPanel;
     private bool _bound;
     private AutoSaveQueue _autoSaves = null!;
@@ -58,13 +58,9 @@ public partial class SessionUiHost : Node
         _autoSaveNotice.AddThemeConstantOverride("outline_size", 6);
         _autoSaveNotice.AddThemeColorOverride("font_outline_color", Colors.Black);
         AddChild(_autoSaveNotice);
-        _settings = new(new UserSettingsStore(DataPaths.Settings));
         _companionStore = new(DataPaths.CompanionSettings);
         LoadCompanionSettings();
-        try { _settings.Load(); }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Text.DecoderFallbackException or InvalidDataException) { }
-        Music.SetEnabled(_settings.Current.MusicEnabled);
-        WindowDisplay.Apply(_settings.Current.FullscreenEnabled, _settings.Current.MouseConfined);
+        Music.SetEnabled(ReadSettings().MusicEnabled);
         World.SetEdgeScrollMode(Preferences.Current.EdgeScrollMode);
         World.EdgeScrollModeChanged += RememberEdgeScrollMode;
         Activate(InitialSession, InitialSessionKind);
@@ -150,7 +146,7 @@ public partial class SessionUiHost : Node
         var media = new SceneMoviePlayer
         {
             ContentRoot = Content.ContentRoot, OverlayHost = overlayHost,
-            Music = Music, ReadSettings = () => _settings.Current
+            Music = Music, ReadSettings = ReadSettings
         };
         _sessionUi.AddChild(media);
         Hud = new StrategyHud
@@ -166,7 +162,7 @@ public partial class SessionUiHost : Node
             ControlDelegated = () => Activate(Session, SessionReplacementKind.ControlChange),
             StartNewGame = OpenNewGame,
             Music = Music, OverlayHost = overlayHost, SceneMedia = media,
-            ReadSettings = () => _settings.Current,
+            ReadSettings = ReadSettings,
             Preferences = Preferences,
             ReadFormationAppearance = () => _companionSettings.FormationAppearanceEnabled,
             ApplyCompanionSettings = draft =>
@@ -181,8 +177,7 @@ public partial class SessionUiHost : Node
             },
             ApplySettings = draft =>
             {
-                _settings.Apply(draft);
-                WindowDisplay.Apply(draft.FullscreenEnabled, draft.MouseConfined);
+                ApplySettings(draft);
                 Music.SetEnabled(draft.MusicEnabled);
             },
             BackdropHost = backdropHost, World = World, Selection = Selection, Session = Session, RecordsLog = RecordsLog,
@@ -266,22 +261,9 @@ public partial class SessionUiHost : Node
         }
     }
 
-    public override void _Notification(int what)
-    {
-        // Embedded popup focus changes stay inside the application and must keep confinement.
-        if (what == NotificationApplicationFocusOut) WindowDisplay?.ReleaseMouse();
-    }
-
-    public override void _Input(InputEvent input)
-    {
-        // Window input survives session replacement and remains available over modal pages.
-        if (WindowDisplay.HandleInput(input)) GetViewport().SetInputAsHandled();
-    }
-
     public override void _ExitTree()
     {
         _lifetime.Cancel(); _lifetime.Dispose();
-        WindowDisplay.ReleaseMouse();
         World.EdgeScrollModeChanged -= RememberEdgeScrollMode;
         _pending = null;
         World.IsInputBlocked = null;

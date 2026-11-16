@@ -72,27 +72,30 @@ internal sealed class WindowDisplay : IDisposable
         ReleaseMouse();
     }
 
-    public void Apply(bool fullscreen, bool mouseConfined)
+    public void ApplyFullscreen(bool fullscreen)
     {
         if (!IsDesktop) return;
         var window = _window;
         bool isFullscreen = window.Mode is Window.ModeEnum.Fullscreen or Window.ModeEnum.ExclusiveFullscreen;
+        if (fullscreen == isFullscreen) return;
         if (fullscreen)
         {
-            if (!isFullscreen)
-            {
-                Capture();
-            }
+            Capture();
             // Fullscreen covers the monitor without decorations or a display-mode change.
             window.Mode = Window.ModeEnum.Fullscreen;
         }
-        else if (isFullscreen)
+        else
         {
             window.Mode = Window.ModeEnum.Windowed;
             window.Size = _size;
             window.Position = _position;
             window.Mode = _mode;
         }
-        Input.MouseMode = mouseConfined ? Input.MouseModeEnum.Confined : Input.MouseModeEnum.Visible;
+    }
+
+    public void SetMouseConfined(bool confined)
+    {
+        if (!IsDesktop) return;
+        Input.MouseMode = confined ? Input.MouseModeEnum.Confined : Input.MouseModeEnum.Visible;
     }
 }

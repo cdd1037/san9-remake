@@ -16,6 +16,7 @@ public partial class StartMenuPreview : Node
     public Func<SlotSaveDocument, Task> LoadGame { get; init; } = null!;
     public ClientDataPaths? DataPaths { get; init; }
     public UiPreferencesSession Preferences { get; init; } = new();
+    public UserSettings Settings { get; init; } = UserSettings.Default;
     public bool InitiallyVisible { get; init; } = true;
     private StartMenuView _view = null!;
     private SceneMusicPlayer _music = null!;
@@ -38,13 +39,10 @@ public partial class StartMenuPreview : Node
             token.ThrowIfCancellationRequested();
             opening.Menu.Validate(textures.Assets); opening.Selection.Validate(textures.Assets);
             var service = new TextureService(); service.Initialize(textures, PackageFiles.Resolve(root, catalog.Textures)); AddChild(service);
-            var settings = new UserSettingsSession(new UserSettingsStore(paths.Settings));
-            try { settings.Load(); }
-            catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Text.DecoderFallbackException or InvalidDataException) { }
             var music = new SceneMusicPlayer { ContentRoot = root, Tracks = opening.Audio.Sounds };
             _music = music; _musicRole = opening.Audio.Music;
             AddChild(music);
-            music.SetEnabled(settings.Current.MusicEnabled);
+            music.SetEnabled(Settings.MusicEnabled);
             if (InitiallyVisible) music.SetMapTrack(opening.Audio.Music);
             async Task EnterGame(Func<Task> enter)
             {
@@ -54,7 +52,7 @@ public partial class StartMenuPreview : Node
                 GetParent().AddChild(cue);
                 try
                 {
-                    cue.PlayAndFree(opening.Audio.GameStartSound, settings.Current.SoundEnabled);
+                    cue.PlayAndFree(opening.Audio.GameStartSound, Settings.SoundEnabled);
                     await enter();
                 }
                 catch

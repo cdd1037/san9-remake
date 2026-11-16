@@ -23,6 +23,7 @@ public partial class Main : Node
     private readonly CancellationTokenSource _startup = new();
     private UiPreferencesSession _preferences = new();
     private WindowDisplay? _windowDisplay;
+    private UserSettingsSession _settings = null!;
     private bool _rememberWindow;
 
     public override void _Process(double delta) => RememberWindow();
@@ -71,6 +72,11 @@ public partial class Main : Node
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Text.DecoderFallbackException or InvalidDataException)
             { GD.PushWarning($"界面偏好读取失败，使用默认值：{error.Message}"); }
             _preferences = new(preferences, preferenceStore.Save);
+            _settings = new(new UserSettingsStore(DataPaths.Settings));
+            try { _settings.Load(); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or
+                System.Text.DecoderFallbackException or InvalidDataException)
+            { GD.PushWarning($"用户设置读取失败，已使用默认值：{error.Message}"); }
             _windowDisplay = new(GetWindow());
             var arguments = OS.GetCmdlineArgs().TakeWhile(argument => argument != "--").ToArray();
             _rememberWindow = DisplayServer.GetName() != "headless" && !GetWindow().IsEmbedded() &&
@@ -79,14 +85,7 @@ public partial class Main : Node
             if (_rememberWindow)
             {
                 if (preferences.Window is { } placement) _windowDisplay.Restore(placement);
-                try
-                {
-                    var settings = new UserSettingsStore(DataPaths.Settings).Load();
-                    _windowDisplay.Apply(settings.FullscreenEnabled, false);
-                }
-                catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or
-                    System.Text.DecoderFallbackException or InvalidDataException)
-                { GD.PushWarning($"窗口显示设置读取失败：{error.Message}"); }
+                _windowDisplay.ApplyFullscreen(_settings.Current.FullscreenEnabled);
             }
             if (options.MapEditor)
             {
@@ -153,17 +152,32 @@ public partial class Main : Node
 
     public override void _Input(InputEvent input)
     {
+        if (IsGameActive && _windowDisplay!.HandleInput(input)) GetViewport().SetInputAsHandled();
         if (_switching && _openingMovie is null) GetViewport().SetInputAsHandled();
     }
 
-    private async Task<PreparedScene> PrepareOpening()
+    private bool IsGameActive => !_switching && _scene is not null and not StartMenuPreview;
+
+    public override void _Notification(int what)
     {
-        var opening = new StartMenuPreview { ContentRoot = _options.ContentRoot, DataPaths = DataPaths, Preferences = _preferences, InitiallyVisible = false,
+        if (what == NotificationApplicationFocusOut) _windowDisplay?.ReleaseMouse();
+    }
+
+    private void ApplySettings(UserSettings settings)
+    {
+        _settings.Apply(settings);
+        _windowDisplay!.ApplyFullscreen(settings.FullscreenEnabled);
+        _windowDisplay.SetMouseConfined(IsGameActive && settings.MouseConfined);
+    }
+
+    private async Task<Node> PrepareOpening()
+    {
+        var opening = new StartMenuPreview { ContentRoot = _options.ContentRoot, DataPaths = DataPaths, Preferences = _preferences, Settings = _settings.Current, InitiallyVisible = false,
             BeginGame = (id, players, settings, damage, setup) => StartNewGame(
                 _options with { PackageRoot = null, ScenarioId = id, ComputerDamageBonusPercent = damage }, players, settings, setup),
             LoadGame = document => LoadGame(document, transition: true) };
         GetNode<Control>("%UiRoot").AddChild(opening);
-        try { await opening.Prepared; return new(opening); }
+        try { await opening.Prepared; return opening; }
         catch { if (IsInstanceValid(opening)) opening.Free(); throw; }
     }
 
@@ -178,7 +192,7 @@ public partial class Main : Node
     private async Task<OpeningMoviePlayback?> PrepareOpeningMovie(ClientOptions options)
     {
         var token = _startup.Token;
-        var settings = ReadMovieSettings();
+        var settings = _settings.Current;
         if (!settings.MoviesEnabled) return null;
         string packageRoot = options.PackageRoot ?? PackageFiles.Resolve(options.ContentRoot,
             (await ContentCatalogFiles.LoadAsync(options.ContentRoot, token)).RequireScenario(options.ScenarioId!).Package);
@@ -190,13 +204,6 @@ public partial class Main : Node
         return CreateMovieLayer(root, catalog, role, settings);
     }
 
-    private UserSettings ReadMovieSettings()
-    {
-        try { return new UserSettingsStore(DataPaths.Settings).Load(); }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Text.DecoderFallbackException or InvalidDataException)
-        { GD.PushWarning($"影片设置读取失败，使用默认值：{error.Message}"); return UserSettings.Default; }
-    }
-
     private OpeningMoviePlayback? CreateMovieLayer(string root, MovieCatalog catalog, string role, UserSettings settings)
     {
         if (!settings.MoviesEnabled || !catalog.Movies.TryGetValue(role, out string? path)) return null;
@@ -205,7 +212,7 @@ public partial class Main : Node
 
     private async Task PlayStartupMovies()
     {
-        var settings = ReadMovieSettings();
+        var settings = _settings.Current;
         if (!settings.MoviesEnabled) return;
         var token = _startup.Token;
         var catalog = await MovieCatalogFiles.LoadAsync(_options.ContentRoot, token);
@@ -230,15 +237,15 @@ public partial class Main : Node
         }
     }
 
-    private async Task SwitchScene(Func<Task<PreparedScene>> prepare, bool transition = true, Func<Task<OpeningMoviePlayback?>>? prepareMovie = null)
+    private async Task SwitchScene(Func<Task<Node>> prepare, bool transition = true, Func<Task<OpeningMoviePlayback?>>? prepareMovie = null)
     {
         if (_switching) throw new InvalidOperationException("A scene switch is already in progress.");
         _switching = true;
         var token = _startup.Token;
         var previous = _scene;
         var replacement = new SceneReplacementTransition(ViewFadeDuration, ViewFadeDuration);
-        PreparedScene? prepared = null;
         Node? incoming = null;
+        _windowDisplay!.ReleaseMouse();
         if (previous is not null) previous.ProcessMode = ProcessModeEnum.Disabled;
         async Task Animate(SceneReplacementPhase phase)
         {
@@ -267,8 +274,7 @@ public partial class Main : Node
                 incoming = await ScenePreparation.PrepareAsync(_openingMovie?.Presented ?? Task.CompletedTask,
                     _openingMovie?.Finished ?? Task.CompletedTask, async () =>
                     {
-                        prepared = await prepare();
-                        incoming = prepared.Node;
+                        incoming = await prepare();
                         incoming.ProcessMode = ProcessModeEnum.Disabled;
                         return incoming;
                     }, token);
@@ -279,6 +285,9 @@ public partial class Main : Node
             if (incoming is StartMenuPreview opening) opening.Activate();
             else
             {
+                // UI preparation is complete. The disabled scene root now owns its pause
+                // until the reveal finishes; no presentation-specific switches are needed.
+                incoming.GetNode<Control>("%UiRoot").ProcessMode = ProcessModeEnum.Inherit;
                 incoming.GetNode<CanvasLayer>("UiLayer").Show();
                 var world = incoming.GetNode<MapWorld>("%MapWorld");
                 world.Show(); world.SetProcessInput(true); world.SetProcessUnhandledInput(true);
@@ -310,20 +319,16 @@ public partial class Main : Node
         }
         finally
         {
-            prepared?.Dispose();
             _openingMovie?.Dispose();
             _openingMovie = null;
             if (!token.IsCancellationRequested) _transition.Sample(0);
             _switching = false;
+            if (!token.IsCancellationRequested)
+                _windowDisplay.SetMouseConfined(IsGameActive && _settings.Current.MouseConfined);
         }
     }
 
-    private sealed record PreparedScene(Node Node, IDisposable? PreparationSilence = null) : IDisposable
-    {
-        public void Dispose() => PreparationSilence?.Dispose();
-    }
-
-    private async Task<PreparedScene> PrepareWorld(ClientOptions options, int[]? players = null, San9.Core.Domain.NewGameSettings? settings = null,
+    private async Task<Node> PrepareWorld(ClientOptions options, int[]? players = null, San9.Core.Domain.NewGameSettings? settings = null,
         SlotSaveDocument? save = null, NewGameSetup? setup = null)
     {
         setup ??= NewGameSetup.Empty;
@@ -334,11 +339,12 @@ public partial class Main : Node
         var ui = runtime.GetNode<Control>("%UiRoot");
         var layer = runtime.GetNode<CanvasLayer>("UiLayer");
         layer.Hide();
+        // Only the map and resource services run during preparation, never the HUD timeline.
+        ui.ProcessMode = ProcessModeEnum.Disabled;
         world.Hide();
         AddChild(runtime);
         world.SetProcessInput(false);
         world.SetProcessUnhandledInput(false);
-        IDisposable? preparationSilence = null;
         try
         {
             San9.Application.GameSession CreateNewSession(San9.Content.Scenarios.ScenarioInitialState definition)
@@ -390,7 +396,7 @@ public partial class Main : Node
                 layer.Show();
                 ui.AddChild(new TextVerification { Content = loaded.Content, Service = textures,
                     Output = Path.GetFullPath(Path.Combine(options.ContentRoot,"../verification/text")) });
-                return new(runtime);
+                return runtime;
             }
             var content = loaded.Content;
             GD.Print($"CLIENT_PREPARE content_ms={loaded.ValidationMs:F2} session_ms={loaded.SessionMs:F2} ui_prepare_ms={startup.Elapsed.TotalMilliseconds - loaded.ValidationMs - loaded.SessionMs:F2}");
@@ -399,13 +405,12 @@ public partial class Main : Node
             var dataPaths = DataPaths;
             var saveStore = new SlotSaveStore(dataPaths.SaveSlots);
             var music = new SceneMusicPlayer { ContentRoot = content.ContentRoot, Tracks = content.Presentation.Sounds };
-            preparationSilence = music.Suspend();
             runtime.AddChild(music);
             runtime.MoveChild(music, 1);
             world.Session = session;
             var sessions = new SessionUiHost
             {
-                WindowDisplay = _windowDisplay!,
+                ReadSettings = () => _settings.Current, ApplySettings = ApplySettings,
                 World = world, Textures = textures, Content = content, Definition = initial,
                 DataPaths = dataPaths, SaveStore = saveStore, Music = music, InitialSession = session,
                 Preferences = _preferences,
@@ -414,10 +419,6 @@ public partial class Main : Node
                 LoadGame = document => LoadGame(document, transition: false)
             };
             ui.AddChild(sessions);
-            // Session settings can change the window mode. Let the viewport and HUD
-            // anchors update before requesting the first map frame at their final size.
-            await NextFrame(GetTree(), token);
-            token.ThrowIfCancellationRequested();
             var initialPlace = session.View.PlayerRulerServicePlace;
             var initialCell = options.ResolveMapCenter(content.Map.Width, content.Map.Height, initialPlace is null ? null : new(initialPlace.X, initialPlace.Y));
             var center = MapGeometry.Center(initialCell.X, initialCell.Y, content.Map.Height);
@@ -440,12 +441,11 @@ public partial class Main : Node
                 });
             if (options.RequiresWorldVerification)
                 ui.AddChild(new ClientVerification { World = world, Selection = sessions.Selection, Hud = sessions.Hud, Options = options });
-            return new(runtime, preparationSilence);
+            return runtime;
         }
         catch
         {
             if (IsInstanceValid(runtime)) runtime.Free();
-            preparationSilence?.Dispose();
             throw;
         }
     }

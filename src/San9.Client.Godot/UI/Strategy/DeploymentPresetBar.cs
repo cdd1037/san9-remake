@@ -27,9 +27,12 @@ public partial class DeploymentPresetBar : Control
         var background = new Panel { Size = Size, MouseFilter = MouseFilterEnum.Ignore };
         background.AddThemeStyleboxOverride("panel", Surface("111e2d", "566273")); AddChild(background);
         Text(this, "快捷编队", new(0, 0, Size.X, 24), 14, Gold);
+        const int saveHeight = 28;
+        float saveTop = Size.Y - 4 - saveHeight;
         _scroll = new ScrollContainer
         {
-            Position = new(4, 28), Size = Size - new Vector2(8, 32), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
+            Position = new(4, 28), Size = new(Size.X - 8, saveTop - 6 - 28),
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
         };
         AddChild(_scroll);
         var rows = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -38,12 +41,14 @@ public partial class DeploymentPresetBar : Control
             .Select(p => (Preset: p, Check: Draft.CheckPreset(p)))
             .OrderByDescending(p => p.Check.CanApply);
         foreach (var (preset, check) in presets) AddPreset(rows, preset, check);
-        var save = Slot(rows, 48, false, false);
+        var save = Slot(this, saveHeight, false, false);
+        save.Position = new((Size.X - 64) / 2, saveTop);
+        save.Size = new(64, saveHeight);
         save.Disabled = !Draft.CanProceed;
         save.TooltipText = Draft.CanProceed
             ? "保存当前编队，使用当前兵力。\n名称、兵力偏好及其他管理可在“常用编队”中调整。"
             : "完成武将、阵形和兵力配置后，可保存当前编队。";
-        Text(save, "＋ 保存", new(0, 0, 64, 48), 14, Draft.CanProceed ? Gold : Muted);
+        Text(save, "＋ 保存", new(0, 0, 64, saveHeight), 14, Draft.CanProceed ? Gold : Muted);
         save.Pressed += () => SaveRequested();
         CallDeferred(nameof(RestoreScroll));
     }

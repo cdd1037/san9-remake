@@ -1,4 +1,5 @@
 using Godot;
+using San9.Content.Maps;
 
 namespace San9.Client.Godot;
 
@@ -7,12 +8,13 @@ public partial class MapEditor
     private static readonly string[] ToolNames = ["地貌", "地域", "通行与影响", "建设地表", "桥", "据点布局"];
     private static readonly string[] Seasons = ["spring", "summer", "autumn", "winter"];
     private readonly List<Button> _toolButtons = [];
+    private ConstructionSurface _constructionView = ConstructionSurface.General;
     private VBoxContainer _mapArea = null!;
     private HFlowContainer _viewControls = null!;
     private HBoxContainer _brushControls = null!;
     private SpinBox _brushSize = null!;
     private OptionButton _season = null!;
-    private Button _gridToggle = null!, _regionToggle = null!, _buildingToggle = null!;
+    private Button _gridToggle = null!, _regionToggle = null!, _buildingToggle = null!, _constructionToggle = null!;
     private Label _propertyTitle = null!, _zoomLabel = null!, _mapSize = null!;
 
     private void LayoutViewport()
@@ -132,6 +134,11 @@ public partial class MapEditor
         _gridToggle = ContentEditorControls.Toggle(_viewControls, "网格", false, value => { if (_canvas is not null) _canvas.ShowGrid = value; });
         _regionToggle = ContentEditorControls.Toggle(_viewControls, "地域", false, value => { if (_canvas is not null) _canvas.ShowRegions = value; });
         _buildingToggle = ContentEditorControls.Toggle(_viewControls, "据点", true, value => { if (_canvas is not null) _canvas.ShowBuildings = value; });
+        _constructionToggle = ContentEditorControls.Toggle(_viewControls, "建设", false, visible =>
+        {
+            FinishStroke();
+            if (_canvas is not null) _canvas.ConstructionOverlay = visible ? _constructionView : ConstructionSurface.None;
+        }, tooltip: "按左侧建设地表面板所选类型展示建设资格");
         ContentEditorControls.ActionButton(_viewControls, "全图", () => _canvas?.Fit()).TooltipText = "F";
         ContentEditorControls.ActionButton(_viewControls, "−", () => _canvas?.ZoomBy(1 / 1.2f));
         _zoomLabel = new Label { Text = "80%", CustomMinimumSize = new(48, 32), VerticalAlignment = VerticalAlignment.Center,
@@ -153,7 +160,16 @@ public partial class MapEditor
         FinishStroke();
         _tool = tool;
         _toolButtons[tool].SetPressedNoSignal(true);
+        if (tool == 3) SetConstructionView(_constructionView);
         BuildProperties();
+    }
+
+    private void SetConstructionView(ConstructionSurface surface)
+    {
+        FinishStroke();
+        _constructionView = surface;
+        _constructionToggle.SetPressedNoSignal(true);
+        if (_canvas is not null) _canvas.ConstructionOverlay = surface;
     }
 
     private static HBoxContainer FieldRow(Node parent)

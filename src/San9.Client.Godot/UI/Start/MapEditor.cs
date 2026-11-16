@@ -74,6 +74,7 @@ public partial class MapEditor : ModalView
                 SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsVertical = SizeFlags.ExpandFill,
                 Season = Seasons[_season.Selected], ShowGrid = _gridToggle.ButtonPressed,
                 ShowRegions = _regionToggle.ButtonPressed, ShowBuildings = _buildingToggle.ButtonPressed,
+                ConstructionOverlay = _constructionToggle.ButtonPressed ? _constructionView : ConstructionSurface.None,
                 ZoomChanged = zoom => _zoomLabel.Text = $"{zoom:P0}",
                 BrushRadius = _tool == 5 ? 0 : _radius, SelectedBuilding = _selectedBuilding, Pressed = StartStroke, Dragged = DragStroke,
                 Released = FinishStroke, Hovered = Hover, Failed = message => Status("预览失败：" + message, true) };
@@ -115,12 +116,7 @@ public partial class MapEditor : ModalView
                 };
                 _properties.AddChild(regenerate);
                 break;
-            case 3:
-                foreach (var (surface, title) in new[] { (ConstructionSurface.General, "允许普通设施"),
-                    (ConstructionSurface.Horizontal, "允许横向设施"), (ConstructionSurface.Vertical, "允许纵向设施") })
-                    ContentEditorControls.Toggle(_properties, title, (_construction & surface) != 0,
-                        value => _construction = value ? _construction | surface : _construction & ~surface);
-                break;
+            case 3: ConstructionProperties(); break;
             case 4:
                 ContentEditorControls.Choices(_properties, "桥锚点", ["清除", "方向 0", "方向 1"], _bridge + 1, index => _bridge = index - 1);
                 _properties.AddChild(new Label { Text = "桥锚点与地貌分别编辑，可配合桥面及桥岸地形使用。",
@@ -128,6 +124,27 @@ public partial class MapEditor : ModalView
                 break;
             case 5: BuildingProperties(); break;
         }
+    }
+
+    private void ConstructionProperties()
+    {
+        ContentEditorControls.Caption(_properties, "展示类型");
+        var row = FieldRow(_properties);
+        var group = new ButtonGroup();
+        foreach (var (surface, title) in new[] { (ConstructionSurface.General, "普通"),
+            (ConstructionSurface.Horizontal, "横向"), (ConstructionSurface.Vertical, "纵向") })
+        {
+            var button = new Button { Text = title, ToggleMode = true, ButtonGroup = group,
+                ButtonPressed = surface == _constructionView, CustomMinimumSize = new(48, 32) };
+            CompanionPanelStyle.Toggle(button);
+            button.Pressed += () => SetConstructionView(surface);
+            row.AddChild(button);
+        }
+        ContentEditorControls.Caption(_properties, "涂刷资格");
+        foreach (var (surface, title) in new[] { (ConstructionSurface.General, "允许普通设施"),
+            (ConstructionSurface.Horizontal, "允许横向设施"), (ConstructionSurface.Vertical, "允许纵向设施") })
+            ContentEditorControls.Toggle(_properties, title, (_construction & surface) != 0,
+                value => _construction = value ? _construction | surface : _construction & ~surface);
     }
 
     private void TerrainProperties()

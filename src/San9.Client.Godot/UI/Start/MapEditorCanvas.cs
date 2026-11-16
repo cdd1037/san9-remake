@@ -33,6 +33,7 @@ public partial class MapEditorCanvas : Control
     public bool ShowGrid { get => _grid; set { _grid = value; QueueRedraw(); } }
     public bool ShowRegions { get => _regions; set { _regions = value; QueueRedraw(); } }
     public bool ShowBuildings { get; set; } = true;
+    public ConstructionSurface ConstructionOverlay { get => _constructionOverlay; set { _constructionOverlay = value; QueueRedraw(); } }
     public int BrushRadius { get => _brushRadius; set { _brushRadius = value; QueueRedraw(); } }
     public int? SelectedBuilding { get => _selectedBuilding; set { _selectedBuilding = value; QueueRedraw(); } }
     public bool EditingEnabled { get; set; } = true;
@@ -48,6 +49,7 @@ public partial class MapEditorCanvas : Control
     private MouseButton _panButton;
     private float _zoom = 0.8f;
     private bool _panning, _painting, _framed, _grid, _regions;
+    private ConstructionSurface _constructionOverlay;
     private int _brushRadius;
     private int? _selectedBuilding;
     private MapCell? _hover, _placementTarget;
@@ -297,7 +299,7 @@ public partial class MapEditorCanvas : Control
         DrawSetTransform(frame.Origin, 0, Vector2.One * frame.Zoom);
         foreach (var key in frame.Terrain.Keys)
             if (frame.Terrain.IsAvailable(key)) DrawTexture(frame.Terrain.Get(key), new(key.X * 512, key.Y * 512));
-        if (frame.Regions || ShowGrid && frame.Zoom >= 0.35f)
+        if (frame.Regions || ShowGrid && frame.Zoom >= 0.35f || ConstructionOverlay != ConstructionSurface.None)
         {
             for (int i = 0; i < frame.Source.Map.Squares.Length; i++)
             {
@@ -307,6 +309,9 @@ public partial class MapEditorCanvas : Control
                 var points = Diamond(new(i % frame.Source.Map.Width, i / frame.Source.Map.Width), frame);
                 int region = frame.Source.Map.Squares[i].RegionId;
                 if (frame.Regions && region >= 0) DrawColoredPolygon(points, Color.FromHsv((region * 0.618034f) % 1, 0.65f, 0.9f, 0.25f));
+                if (ConstructionOverlay != ConstructionSurface.None &&
+                    (frame.Source.Map.Authoring!.Cells[i].Construction & ConstructionOverlay) == 0)
+                    DrawColoredPolygon(points, new Color(0, 0, 0, TargetOverlayGeometry.DimOpacity));
                 if (ShowGrid && frame.Zoom >= 0.35f) DrawPolyline([.. points, points[0]], new Color(1, 1, 1, 0.22f), 1 / frame.Zoom);
             }
         }

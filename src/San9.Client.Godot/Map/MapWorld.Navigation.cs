@@ -6,6 +6,7 @@ namespace San9.Client.Godot;
 public partial class MapWorld
 {
     private readonly EdgeScrollController _edgeScroll = new();
+    private readonly KeyboardScrollController _keyboardScroll = new();
     private readonly EdgeScrollCursor _edgeCursor = new();
     private Vector2 _pointer = new(-1, -1);
     public event Action<EdgeScrollMode>? EdgeScrollModeChanged;
@@ -22,8 +23,19 @@ public partial class MapWorld
     private CanvasPoint PointerPoint => new(_pointer.X, _pointer.Y);
     private CanvasPoint ViewportExtent => new(ViewportSize.X, ViewportSize.Y);
 
+    private bool KeyboardInputAvailable => NavigationAvailable && !_mapDrag.IsHeld &&
+        !Input.IsMouseButtonPressed(MouseButton.Middle) && GetViewport().GuiGetFocusOwner() is not (LineEdit or TextEdit) &&
+        !Input.IsKeyPressed(Key.Ctrl) && !Input.IsKeyPressed(Key.Alt) &&
+        !Input.IsKeyPressed(Key.Meta) && !Input.IsKeyPressed(Key.Shift);
+
+    private void OnNavigationFocusChanged(Control control)
+    {
+        if (control is LineEdit or TextEdit) _keyboardScroll.Cancel();
+    }
+
     private void ResetNavigation()
     {
+        _keyboardScroll.Cancel();
         _pointer = new(-1, -1);
         _mapDrag.Cancel();
         _selectionGesture.Cancel(); _selectionRightCancel = false;
@@ -33,6 +45,9 @@ public partial class MapWorld
 
     public override void _Input(InputEvent input)
     {
+        // Releases must reach the gesture even when a GUI control consumes the event later.
+        if (input is InputEventKey { Pressed: false } key) _keyboardScroll.Release(key.PhysicalKeycode);
+        if (!KeyboardInputAvailable) _keyboardScroll.Cancel();
         if (input is InputEventMouseMotion motion) _pointer = motion.Position;
         if (HandleSelectionGesture(input)) return;
         if (input is not InputEventMouseButton button) return;
@@ -70,14 +85,7 @@ public partial class MapWorld
 
     private bool UpdateKeyboardScrolling(double delta)
     {
-        if (!NavigationAvailable || _mapDrag.IsHeld || Input.IsMouseButtonPressed(MouseButton.Middle) ||
-            GetViewport().GuiGetFocusOwner() is LineEdit or TextEdit ||
-            Input.IsKeyPressed(Key.Ctrl) || Input.IsKeyPressed(Key.Alt) ||
-            Input.IsKeyPressed(Key.Meta) || Input.IsKeyPressed(Key.Shift)) return false;
-
-        var direction = new EdgeScrollDirection(
-            (Input.IsPhysicalKeyPressed(Key.D) ? 1 : 0) - (Input.IsPhysicalKeyPressed(Key.A) ? 1 : 0),
-            (Input.IsPhysicalKeyPressed(Key.S) ? 1 : 0) - (Input.IsPhysicalKeyPressed(Key.W) ? 1 : 0));
+        var direction = _keyboardScroll.Direction(KeyboardInputAvailable);
         if (direction.IsNone) return false;
 
         _edgeScroll.CancelGesture();
@@ -89,6 +97,12 @@ public partial class MapWorld
 
     private bool HandleNavigationKey(InputEvent input)
     {
+        if (input is InputEventKey { Pressed: true } movement &&
+            _keyboardScroll.Press(movement.PhysicalKeycode, movement.Echo, KeyboardInputAvailable))
+        {
+            GetViewport().SetInputAsHandled();
+            return true;
+        }
         if (input is not InputEventKey { Keycode: Key.F8, Pressed: true, Echo: false } || !NavigationAvailable) return false;
         _edgeScroll.ToggleMode();
         _edgeCursor.Show(default, false);

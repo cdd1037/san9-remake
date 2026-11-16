@@ -120,6 +120,7 @@ public partial class MapWorld : Node2D
         _camera.Position = Vector2.Zero;
         GetWindow().MouseExited += ResetNavigation;
         GetWindow().FocusExited += ResetNavigation;
+        GetViewport().GuiFocusChanged += OnNavigationFocusChanged;
         GetViewport().SizeChanged += OnViewportResized;
     }
     private void OnViewportResized()
@@ -436,6 +437,7 @@ public partial class MapWorld : Node2D
     {
         GetWindow().MouseExited -= ResetNavigation;
         GetWindow().FocusExited -= ResetNavigation;
+        GetViewport().GuiFocusChanged -= OnNavigationFocusChanged;
         GetViewport().SizeChanged -= OnViewportResized;
         _edgeCursor.Dispose();
         _cancellation.Cancel(); _cancellation.Dispose();

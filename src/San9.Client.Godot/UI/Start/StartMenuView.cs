@@ -75,10 +75,8 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
         close.Name = "Close"; close.MouseEntered += RestorePrompt; close.Pressed += RequestQuit;
         AddEditorButton("OpenSharedDataEditor", "编辑游戏资料", "game-data-editor.svg", new(32, 560), OpenSharedDataEditor);
         AddEditorButton("OpenPortraitEditor", "编辑头像", "portrait-editor.svg", new(120, 560), OpenPortraitEditor);
-        var scenarioEditor = new Button { Name = "OpenScenarioEditor", Text = "剧本编辑", Position = new(216, 582), Size = new(112, 38) };
-        scenarioEditor.Pressed += OpenScenarioEditor; _controls.AddChild(scenarioEditor);
-        var mapEditor = new Button { Name = "OpenMapEditor", Text = "地图编辑", Position = new(344, 582), Size = new(112, 38) };
-        mapEditor.Pressed += OpenMapEditor; _controls.AddChild(mapEditor);
+        AddEditorButton("OpenScenarioEditor", "编辑剧本", "scenario-editor.svg", new(208, 560), OpenScenarioEditor);
+        AddEditorButton("OpenMapEditor", "编辑地图", "map-editor.svg", new(296, 560), OpenMapEditor);
         first?.GrabFocus();
         RestorePrompt();
     }

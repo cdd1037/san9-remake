@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="bronze" x1="8" y1="5" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F5DEAB"/><stop offset=".48" stop-color="#C9A366"/><stop offset="1" stop-color="#876139"/>
+    </linearGradient>
+    <linearGradient id="jade" x1="12" y1="8" x2="48" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#304B4C"/><stop offset="1" stop-color="#12282D"/>
+    </linearGradient>
+  </defs>
+  <path d="M13 5h38l8 8v38l-8 8H13l-8-8V13Z" fill="#091619" opacity=".6" transform="translate(0 2)"/>
+  <path d="M13 5h38l8 8v38l-8 8H13l-8-8V13Z" fill="url(#jade)" stroke="url(#bronze)" stroke-width="2"/>
+  <path d="M15 9h34l6 6v34l-6 6H15l-6-6V15Z" stroke="#C9A366" stroke-opacity=".35"/>
+  <path d="M13 20v-5l2-2h5m24 0h5l2 2v5M13 44v5l2 2h5m24 0h5l2-2v-5" stroke="#E6CA91" stroke-width="1.5" stroke-linecap="square"/>
+  <g stroke="#ECD4A3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m16 20 11-4 11 4 10-4v29l-10 4-11-4-11 4Z" fill="#C9A366" fill-opacity=".12"/>
+    <path d="M27 17v27m11-23v27" stroke-opacity=".4" stroke-width="1.5"/>
+    <path d="m20 31 5-7 5 7m-2 0 4-5 4 5"/>
+    <path d="M21 40c5-7 9 4 13-2s8-1 10-5" stroke="#98B9B1"/>
+  </g>
+  <path d="M46 25c0 3-4 7-4 7s-4-4-4-7a4 4 0 0 1 8 0Z" fill="#B86C50" stroke="#E4BA83" stroke-width="1.3"/>
+  <circle cx="42" cy="25" r="1.3" fill="#F5DEAB"/>
+</svg>

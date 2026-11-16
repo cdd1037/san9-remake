@@ -29,7 +29,7 @@ public partial class MapSoundPlayer : Node2D
     {
         foreach (var (player, gain) in _oneShots) player.VolumeDb = Mathf.LinearToDb((float)gain * TransitionGain);
         _pulses.Begin(day);
-        var retained = voices.Where(v => _streams.Get(v.Role, loop: v.Pulse is null) is not null)
+        var retained = voices.Where(v => v.Pulse is null && _streams.Get(v.Role, loop: true) is not null)
             .Select(v => v.Key).ToHashSet();
         foreach (string key in _voices.Keys.Where(k => !retained.Contains(k)).ToArray())
         {
@@ -37,7 +37,16 @@ public partial class MapSoundPlayer : Node2D
         }
         foreach (var voice in voices)
         {
-            if (_streams.Get(voice.Role, loop: voice.Pulse is null) is not { } stream) continue;
+            if (voice.Pulse is not null)
+            {
+                if (!_pulses.WasEmitted(voice))
+                {
+                    PlayOnce(voice.Role, new((float)voice.X, (float)voice.Y), true, voice.Gain);
+                    _pulses.MarkEmitted(voice);
+                }
+                continue;
+            }
+            if (_streams.Get(voice.Role, loop: true) is not { } stream) continue;
             if (!_voices.TryGetValue(voice.Key, out var player))
             {
                 player = new AudioStreamPlayer2D { MaxDistance = 1000000, Attenuation = 0 };
@@ -45,10 +54,8 @@ public partial class MapSoundPlayer : Node2D
             }
             player.Position = new((float)voice.X, (float)voice.Y);
             player.VolumeDb = Mathf.LinearToDb((float)voice.Gain * TransitionGain);
-            if (_pulses.WasEmitted(voice)) continue;
-            if (voice.Pulse is null && player.Stream == stream && player.Playing) continue;
+            if (player.Stream == stream && player.Playing) continue;
             player.Stop(); player.Stream = stream; player.Play();
-            _pulses.MarkEmitted(voice);
         }
     }
     public void StopOneShots()

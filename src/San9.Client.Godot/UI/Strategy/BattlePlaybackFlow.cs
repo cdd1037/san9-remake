@@ -25,7 +25,8 @@ public partial class BattlePlaybackFlow : Control
     public Func<MapMessageRecord, bool> Record { get; init; } = null!;
     public Func<MapSpeechMessage, bool> Speech { get; init; } = null!;
     private MapSoundPlayer _mapSounds = null!;
-    private readonly MapAudioPlayback _mapAudioPlayback = new(Random.Shared.Next);
+    private MapAudioPlayback _mapAudioPlayback = null!;
+    private readonly MapBuildingAudio _buildingAudio = new();
     private BattlePresentationView _battleView = null!;
     private DayFeedbackDispatcher _feedback = null!;
     public bool IsSceneActive => _battleView.IsSceneActive;
@@ -34,6 +35,7 @@ public partial class BattlePlaybackFlow : Control
     public void RetryResources() => _battleView.RetryResources();
     public override void _Ready()
     {
+        _mapAudioPlayback = new(Random.Shared.Next, role => CommandPresentation.Sounds[role]);
         _feedback = new(Narrate, Record, Speech, role => SceneSounds.Play(role, SoundEnabled()));
         _mapSounds = new() { ContentRoot = ContentRoot, Sounds = CommandPresentation.Sounds };
         AddChild(_mapSounds);
@@ -99,6 +101,21 @@ public partial class BattlePlaybackFlow : Control
         var audio = CommandPresentation.MapAudio!;
         Music.SetMapTrack(Turn.Screen == TurnScreen.Terminal ? null : MapMusic.Select(Turn.Display ?? Session.View, audio, Turn.UsesExecutionMusic));
         var frame = World.Display?.Presented;
+        if (frame is not null && World.IsVisibleReady)
+        {
+            var damage = _buildingAudio.Observe(frame.Region.Scene, audio);
+            if (SoundEnabled() && Turn.IsExecutionPresentation && !NarrationActive() && World.LoadError is null && !_battleView.IsZoomActive)
+            {
+                var mapTransform = GetGlobalTransformWithCanvas().AffineInverse() * World.GetGlobalTransformWithCanvas();
+                var projected = damage.Select(source =>
+                {
+                    var point = mapTransform * new Vector2((float)source.X, (float)source.Y);
+                    return source with { X = point.X, Y = point.Y, Resource = CommandPresentation.Sounds[source.Role] };
+                });
+                foreach (var voice in MapAudioMix.Select(projected, Size.X, Size.Y))
+                    _mapSounds.PlayOnce(voice.Role, new((float)voice.X, (float)voice.Y), true, voice.Gain);
+            }
+        }
         if (!SoundEnabled() || !Turn.IsExecutionPresentation || NarrationActive() || World.LoadError is not null || _battleView.IsZoomActive)
         {
             if (!SoundEnabled() || World.LoadError is not null) _mapSounds.StopOneShots();

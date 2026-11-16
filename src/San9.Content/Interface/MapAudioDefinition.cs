@@ -8,9 +8,12 @@ public sealed record ExecutionMusicDefinition(string Battle, string RankedBattle
 }
 
 public sealed record MapRetirementSounds(string[] Start, int DelayMilliseconds, string? End);
+public sealed record MapIntermittentSound(string[] Sounds, int IntervalMilliseconds, int ChanceDenominator);
 public sealed record MapBodySounds(string[] Movement, string[] Melee, string[] Ranged)
 {
     [System.Text.Json.Serialization.JsonRequired] public MapRetirementSounds? Retirement { get; init; }
+    [System.Text.Json.Serialization.JsonRequired] public string[] BuildingMelee { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired] public MapIntermittentSound? Engagement { get; init; }
 }
 public sealed record MapAudioDefinition(string ExecutionTitleSound, string[] SeasonalMusic,
     string[] RankedSeasonalMusic, int[] RankedMusicRankIds, Dictionary<string, MapBodySounds> Bodies,
@@ -21,21 +24,23 @@ public sealed record MapAudioDefinition(string ExecutionTitleSound, string[] Sea
     [System.Text.Json.Serialization.JsonRequired] public string ConstructionCompleteSound { get; init; } = null!;
     [System.Text.Json.Serialization.JsonRequired] public string[] FacilityArrowSounds { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public string[] RockfallImpactSounds { get; init; } = [];
+    [System.Text.Json.Serialization.JsonRequired] public Dictionary<int, string> BuildingDamageSounds { get; init; } = [];
     public IEnumerable<string> SoundRoles => new[] { ExecutionTitleSound, RecordNotificationSound, ConstructionCompleteSound }.Concat(ConstructionSounds.Values)
-        .Concat(FacilityArrowSounds).Concat(RockfallImpactSounds)
+        .Concat(FacilityArrowSounds).Concat(RockfallImpactSounds).Concat(BuildingDamageSounds.Values)
         .Concat(SeasonalMusic).Concat(RankedSeasonalMusic).Concat(ExecutionMusic.Roles).Concat(BattleAmbience)
-        .Concat(Bodies.Values.SelectMany(b => b.Movement.Concat(b.Melee).Concat(b.Ranged)
+        .Concat(Bodies.Values.SelectMany(b => b.Movement.Concat(b.Melee).Concat(b.Ranged).Concat(b.BuildingMelee).Concat(b.Engagement?.Sounds ?? [])
             .Concat(b.Retirement?.Start ?? []).Concat(b.Retirement?.End is {} end ? new[] { end } : [])));
 
     public void Validate(IReadOnlyDictionary<string, string> sounds)
     {
         if (ExecutionMusic is null || SeasonalMusic is null || RankedSeasonalMusic is null || RankedMusicRankIds is null ||
-            Bodies is null || ConstructionSounds is null || BattleAmbience is null || FacilityArrowSounds is null || RockfallImpactSounds is null ||
+            Bodies is null || ConstructionSounds is null || BuildingDamageSounds is null || BattleAmbience is null || FacilityArrowSounds is null || RockfallImpactSounds is null ||
             SeasonalMusic.Length != 4 || RankedSeasonalMusic.Length != 4 || BattleAmbience.Length == 0 ||
             RankedMusicRankIds.Any(r => r < 0) || RankedMusicRankIds.Distinct().Count() != RankedMusicRankIds.Length ||
-            Bodies.Any(b => string.IsNullOrWhiteSpace(b.Key) || b.Value is null || b.Value.Movement is null || b.Value.Melee is null || b.Value.Ranged is null) ||
+            Bodies.Any(b => string.IsNullOrWhiteSpace(b.Key) || b.Value is null || b.Value.Movement is null || b.Value.Melee is null || b.Value.Ranged is null || b.Value.BuildingMelee is null) ||
+            Bodies.Values.Any(b => b.Engagement is {} e && (e.Sounds is null || e.Sounds.Length == 0 || e.IntervalMilliseconds <= 0 || e.ChanceDenominator <= 0)) ||
             Bodies.Values.Any(b => b.Retirement is {} retirement && (retirement.Start is null || retirement.DelayMilliseconds < 0)) ||
-            ConstructionSounds.Keys.Any(id => id < 0) ||
+            ConstructionSounds.Keys.Concat(BuildingDamageSounds.Keys).Any(id => id < 0) ||
             SoundRoles.Any(r => string.IsNullOrWhiteSpace(r) || !sounds.ContainsKey(r)))
             throw new InvalidDataException("Invalid map audio presentation.");
     }
@@ -43,7 +48,7 @@ public sealed record MapAudioDefinition(string ExecutionTitleSound, string[] Sea
     public void ValidateReferences(MapUnitCatalog units, IEnumerable<int> ranks, IEnumerable<int> facilityTypes)
     {
         if (!Bodies.Keys.ToHashSet().SetEquals(units.Bodies.Select(b => b.Id)) || RankedMusicRankIds.Except(ranks).Any() ||
-            ConstructionSounds.Keys.Except(facilityTypes).Any())
+            ConstructionSounds.Keys.Concat(BuildingDamageSounds.Keys).Except(facilityTypes).Any())
             throw new InvalidDataException("Unknown map audio body, rank or facility reference.");
         if (units.Projectiles.ContainsKey(MapProjectileKind.Arrow) && FacilityArrowSounds.Length == 0 ||
             units.Projectiles.ContainsKey(MapProjectileKind.Rockfall) && RockfallImpactSounds.Length == 0)

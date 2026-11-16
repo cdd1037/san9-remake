@@ -1,4 +1,5 @@
 using San9.Application;
+using System.Collections.Immutable;
 using San9.Application.Presentation;
 using San9.Content.Maps;
 using San9.Content.Scenarios;
@@ -10,6 +11,32 @@ namespace San9.Client.Godot.Tests;
 
 public sealed class MapSceneProjectionTests
 {
+    [Fact]
+    public void BuildingDamageFollowsDisplayedThresholdsAndDoesNotReplayAfterCameraReentry()
+    {
+        var (state, map) = Fixture();
+        var audio = new San9.Content.Interface.MapAudioDefinition("title", [], [], [], [], [], [])
+            { BuildingDamageSounds = new() { [0] = "damage" } };
+        var observer = new MapBuildingAudio();
+        MapScene Scene(int durability, bool destroyed = false)
+        {
+            var view = state.ForWorld(state.World with { Settlements = state.World.Settlements
+                .Select(s => s.Id == 1 ? s with { Durability = durability, IsDestroyed = destroyed } : s).ToImmutableArray() });
+            return new(map, new TerrainRenderer(map, [], []), "spring", view,
+                new Dictionary<string, San9.Content.Images.ImageAsset>(), () => 0);
+        }
+        Assert.Empty(observer.Observe(Scene(100), audio));
+        Assert.Empty(observer.Observe(Scene(80), audio));
+        var damage = Assert.Single(observer.Observe(Scene(59), audio));
+        Assert.Equal("damage", damage.Role);
+        Assert.Empty(MapAudioMix.Select([damage], 1, 1));
+        Assert.Empty(observer.Observe(Scene(59), audio));
+        Assert.Empty(observer.Observe(Scene(100), audio));
+        Assert.Single(observer.Observe(Scene(19), audio));
+        Assert.Empty(observer.Observe(Scene(0, destroyed: true), audio));
+        Assert.Empty(observer.Observe(Scene(100), audio));
+    }
+
     [Fact]
     public void ConstructionFollowsPresentedMembershipWithoutChangingTheCachedBaseline()
     {

@@ -19,7 +19,8 @@ internal sealed partial class MapPlayback
             if (state.UsesImperialAppearance) bodyId = Map.Units.Bodies.Single(b => b.Id == bodyId).ImperialBodyId ?? bodyId;
             var sounds = audio.Bodies[bodyId];
             bool displaced = _motions.TryGetValue(unit.Id, out var motion) && motion.HasDisplacement;
-            var roles = MapUnitAudio.Select(sounds, sampled.Action, displaced, state.IsEngaged);
+            bool buildingTarget = sampled.AttackTargetIsSettlement;
+            var roles = MapUnitAudio.Select(sounds, sampled.Action, displaced, state.IsEngaged, buildingTarget);
             if (roles.Length > 0)
             {
                 long? pulse = null;
@@ -35,7 +36,11 @@ internal sealed partial class MapPlayback
                     { Pulse = pulse, Kind = pulse is null ? MapSoundKind.Movement : MapSoundKind.Action };
             }
             if (state.IsEngaged)
+            {
                 yield return new($"battle-unit:{unit.Id}", audio.BattleAmbience[0], sampled.AnchorX, sampled.AnchorY) { Kind = MapSoundKind.BattleAmbience };
+                if (sounds.Engagement is {} engagement)
+                    yield return new($"engagement:{unit.Id}", engagement.Sounds[0], sampled.AnchorX, sampled.AnchorY) { Intermittent = engagement };
+            }
         }
         foreach (var building in _inputs.Projection.Buildings)
         {

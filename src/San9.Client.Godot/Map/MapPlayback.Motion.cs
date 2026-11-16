@@ -196,7 +196,8 @@ internal sealed partial class MapPlayback
                 foreach (var attack in _attacks.Where(day.IsBodyPresented).GroupBy(a => a.SourceId).Select(g => g.MaxBy(a => a.FactIndex)!))
                     if (_unitPlayback.TryGetValue(attack.SourceId, out var playback))
                         playback.PlayAttack(new($"{day.Before.World.Revision}:{attack.FactIndex}", attack.Action, attack.Direction,
-                            _visualStart + day.AttackVisualStart(attack), day.Plan!.BodyDuration(attack) * 1000, attack.BodyDelayMilliseconds));
+                            _visualStart + day.AttackVisualStart(attack), day.Plan!.BodyDuration(attack) * 1000, attack.BodyDelayMilliseconds)
+                            { TargetIsSettlement = attack.TargetIsSettlement });
         }
         foreach (var (id, playback) in _unitPlayback)
             playback.Advance(time, visualTime, Day is not { Elapsed: 0 }, t => HistoryState(id, t) ?? _unitStates[id],

@@ -6,7 +6,10 @@ namespace San9.Rendering;
 /// <summary>Owns the display positions, waiting queues and timers of one unit's members.</summary>
 public sealed class UnitMotionPlayback
 {
-    public sealed record Attack(string Id, UnitVisualAction Action, int Direction, double Start, double Duration, double Delay);
+    public sealed record Attack(string Id, UnitVisualAction Action, int Direction, double Start, double Duration, double Delay)
+    {
+        public bool TargetIsSettlement { get; init; }
+    }
     public Attack? BodyAttack { get; private set; }
     public Attack? ActiveAttack => BodyAttack is {} attack && _visualTime >= attack.Start + attack.Delay &&
         _visualTime < attack.Start + attack.Duration ? attack : null;

@@ -6,10 +6,49 @@ namespace San9.Client.Godot.Tests;
 public sealed class MapAudioMixTests
 {
     [Fact]
+    public void BuildingMeleeReplacesOnlyTheConfiguredNearAttack()
+    {
+        var sounds = new MapBodySounds(["move"], ["unit"], ["ranged"]) { BuildingMelee = ["building"] };
+        Assert.Equal(["building"], MapUnitAudio.Select(sounds, UnitVisualAction.Melee, false, true, true));
+        Assert.Equal(["unit"], MapUnitAudio.Select(sounds, UnitVisualAction.Melee, false, true, false));
+        Assert.Equal(["ranged"], MapUnitAudio.Select(sounds, UnitVisualAction.Ranged, false, true, true));
+        Assert.Equal(["unit"], MapUnitAudio.Select(sounds with { BuildingMelee = [] }, UnitVisualAction.Melee, false, true, true));
+    }
+
+    [Fact]
+    public void EngagementAccentRollsOnlyAtVisibleIntervalsWithoutRepaintOrMuteRerolls()
+    {
+        var rolls = new Queue<int>([0, 1, 14, 0, 0]);
+        var playback = new MapAudioPlayback(n => { int roll = rolls.Dequeue(); Assert.InRange(roll, 0, n - 1); return roll; }, role => role);
+        playback.BeginDay(new object());
+        MapSoundSource[] source = [new("elephant", "a", 50, 50) { Intermittent = new(["a", "b"], 1000, 15) }];
+        Assert.Empty(playback.Update(source.Select(s => s with { X = -1 }), 100, 100, [], 0));
+        Assert.Equal("b", Assert.Single(playback.Update(source, 100, 100, [], 0)).Role);
+        Assert.Empty(playback.Update(source, 100, 100, [], 0));
+        playback.Clear();
+        Assert.Empty(playback.Update(source, 100, 100, [], 999));
+        Assert.Empty(playback.Update(source, 100, 100, [], 1000));
+        Assert.Single(playback.Update(source, 100, 100, [], 10000));
+        Assert.Empty(rolls);
+    }
+
+    [Fact]
+    public void EngagementAccentsShareAdmissionWithOtherRolesForTheSameResource()
+    {
+        var playback = new MapAudioPlayback(_ => 0, _ => "shared.wav");
+        var sources = Enumerable.Range(0, 3).Select(i => new MapSoundSource($"hit:{i}", "hit", 50, 50)
+            { Resource = "shared.wav" }).Append(new("elephant", "accent", 90, 50)
+            { Intermittent = new(["accent"], 1000, 1) });
+        var voices = playback.Update(sources, 100, 100, []);
+        Assert.Equal(3, voices.Length);
+        Assert.DoesNotContain(voices, voice => voice.Key == "elephant");
+    }
+
+    [Fact]
     public void DailyClockRestartPreservesBattleBedAndResumesMovementGainImmediately()
     {
         int selections = 0;
-        var playback = new MapAudioPlayback(_ => { selections++; return 0; });
+        var playback = new MapAudioPlayback(_ => { selections++; return 0; }, role => role);
         MapSoundSource[] sources =
         [
             new("march", "foot", 50, 50) { Kind = MapSoundKind.Movement },
@@ -33,7 +72,7 @@ public sealed class MapAudioMixTests
     [Fact]
     public void ResourceChangeCannotClaimTheOldLoopsAdmissionPriority()
     {
-        var playback = new MapAudioPlayback(_ => 0);
+        var playback = new MapAudioPlayback(_ => 0, role => role);
         MapSoundSource[] sources =
         [
             new("a", "foot", 500, 100) { Kind = MapSoundKind.Movement },
@@ -59,7 +98,7 @@ public sealed class MapAudioMixTests
     [Fact]
     public void MarchingGainFollowsItsCadenceAndSurvivesVoiceRelease()
     {
-        var playback = new MapAudioPlayback(_ => 0);
+        var playback = new MapAudioPlayback(_ => 0, role => role);
         MapSoundSource[] sources = [new("army", "foot", 500, 100) { Kind = MapSoundKind.Movement }];
         Assert.Equal(1, Assert.Single(playback.Update(sources, 1000, 768, [], 0)).Gain);
         Assert.Equal(1, Assert.Single(playback.Update(sources, 1000, 768, [], 159)).Gain);
@@ -116,7 +155,7 @@ public sealed class MapAudioMixTests
     public void BattleBedIsSelectedOnceAndSuppressesConstructionUntilTheBattleLeavesView()
     {
         int selections = 0;
-        var playback = new MapAudioPlayback(_ => { selections++; return 1; });
+        var playback = new MapAudioPlayback(_ => { selections++; return 1; }, role => role);
         MapSoundSource[] sources = [new("build", "hammer", 50, 50) { Kind = MapSoundKind.Construction },
             new("enemy", "battle", 40, 50) { Kind = MapSoundKind.BattleAmbience },
             new("ally", "battle", 60, 50) { Kind = MapSoundKind.BattleAmbience }];

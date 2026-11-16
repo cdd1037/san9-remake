@@ -54,7 +54,9 @@ internal static class MapAudioCompiler
         var bodies = Enumerable.Range(0, 20).ToDictionary(i => $"unit-body-{i}",
             i => new MapBodySounds(Action(i, 0), Action(i, 1), Action(i, 2))
             {
-                Retirement = new(Action(i, 3), Int(0x615820 + 8 * (i + 60) + 4) * 100, retirementEnd)
+                Retirement = new(Action(i, 3), Int(0x615820 + 8 * (i + 60) + 4) * 100, retirementEnd),
+                BuildingMelee = i == 12 ? [Sound("map-ram-building-impact", 72)] : [],
+                Engagement = i == 10 ? new([Sound("map-elephant-battle-1", 62), Sound("map-elephant-battle-2", 63)], 1000, 15) : null
             });
         string construction = Sound("map-construction", 21), fortification = Sound("map-fortification-construction", 22);
         var definition = new MapAudioDefinition(Sound("execution-title", 11),
@@ -65,6 +67,7 @@ internal static class MapAudioCompiler
             ExecutionMusic = new("execution-battle", "execution-battle-ranked", "execution-march", "execution-march-ranked", "execution-domestic"),
             RecordNotificationSound = Sound("map-record-notification", 2),
             ConstructionCompleteSound = Sound("map-construction-complete", 23),
+            BuildingDamageSounds = ConstructionSounds(Sound("map-settlement-damage", 24), Sound("map-obstacle-damage", 25)),
             FacilityArrowSounds = Enumerable.Range(64, 3).Select(i => Sound($"map-facility-arrow-{i - 64}", i)).ToArray(),
             RockfallImpactSounds = [Sound("map-rockfall-impact", 75), Sound("map-rockfall-dust", 71)]
         };

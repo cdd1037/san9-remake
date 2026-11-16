@@ -8,6 +8,7 @@ public sealed record UnitVisual(int Id, double CellX, double Depth, MapAnimatedS
     public MapVisionOverlay? MovementVision { get; init; }
     public double? AttackMilliseconds { get; init; }
     public string? AttackId { get; init; }
+    public bool AttackTargetIsSettlement { get; init; }
     public UnitVisualAction Action { get; init; }
     public int Direction { get; init; }
     public uint Soldiers { get; init; }
@@ -187,6 +188,7 @@ public static class UnitVisuals
             MovementVision = ResolveMovementVision(state, elevationAt: elevationAt),
             AttackMilliseconds = attackAge,
             AttackId = attackAge is null ? null : playback.BodyAttack!.Id,
+            AttackTargetIsSettlement = attackAge is not null && playback.BodyAttack!.TargetIsSettlement,
             Action = state.Action,
             Direction = state.Direction,
             Soldiers = state.Soldiers,

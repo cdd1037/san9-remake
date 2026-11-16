@@ -104,25 +104,34 @@ public sealed class SiegeContributionTests
         WorldInvariants.Validate(world);
     }
 
-    [Fact]
-    public void ReceivingForceGetsResourcesAndPersonnelWhileTheTriggerGetsItsBattleReward()
+    [Theory]
+    [InlineData(300, 1)]
+    [InlineData(200, 2)]
+    public void CityReceiverGetsResourcesWhileActualAttackerCapturesDefenders(int receiverDamage, int receiver)
     {
         var world = State().BeginMutation();
         world.Replace(world.Officers[31] with { SettlementId = 10 });
         world.Replace(world.Units[201] with { Morale = 60 });
         // No defender city remains: the shared personnel chain cannot escape capture.
         world.Replace(world.Settlements[11] with { Kind = SettlementKind.Facility });
-        Hit(world, 100, 300);
-        Hit(world, 201, 200);
+        Hit(world, 100, (uint)receiverDamage);
+        Hit(world, 201, (uint)(500 - receiverDamage));
         List<DomainEvent> events = [];
         BattleAftermath.ResolveSettlementDefeat(world, 10, new(201, false), Rules(), events);
-        Assert.Equal(1, world.Settlements[10].OwnerId);
-        Assert.Equal(70, world.Units[201].Morale);
+        Assert.Equal(receiver, world.Settlements[10].OwnerId);
+        if (receiver == 1) Assert.Equal(70, world.Units[201].Morale);
         Assert.All(events.OfType<ResourceChangedEvent>().Where(e => e.Reason == "settlement-captured" && e.Actual > 0),
-            e => Assert.Equal(new ResourceAccount(ResourceOwnerKind.Corps, 1), e.Account));
+            e => Assert.Equal(new ResourceAccount(ResourceOwnerKind.Corps, receiver), e.Account));
         Assert.Contains(events.OfType<ResourceChangedEvent>(), e => e.Reason == "settlement-captured" && e.Actual > 0);
         Assert.Equal(OfficerStatus.Captive, world.Officers[31].Status);
-        Assert.Equal(10, world.Officers[31].SettlementId);
+        Assert.Equal(receiver == 2 ? (int?)10 : null, world.Officers[31].SettlementId);
+        Assert.Equal(receiver == 1 ? (int?)201 : null, world.Officers[31].UnitId);
+        var captured = Assert.Single(events.OfType<OfficerCapturedEvent>());
+        Assert.Equal(2, captured.CaptorId);
+        Assert.Equal(201, captured.UnitId);
+        var personnel = Assert.Single(events.OfType<BattlePersonnelResolvedEvent>());
+        Assert.Equal(2, personnel.Captor.ForceId);
+        Assert.Equal(201, personnel.Captor.Id);
         WorldInvariants.Validate(world);
     }
 

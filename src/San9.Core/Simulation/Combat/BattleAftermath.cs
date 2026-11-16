@@ -134,7 +134,8 @@ internal static class BattleAftermath
                 -(long)settlement.Wounded, -(long)settlement.Wounded, events);
         }
         ResolvePeople(world, world.SettlementMembers(id).Where(p => !world.IsTraveling(p.Id)), rules.Military.BuildingArea(definition),
-            null, winner, id, rules, events, defeatedContext, !cleared && settlement.Durability > 0);
+            null, attacker, id, rules, events, defeatedContext,
+            !cleared && settlement.Durability > 0 ? winner : null);
         if (settlement.OwnerId is int owner)
         {
             BattleTreasury.Transfer(world, owner, settlement.CorpsId, BattleTreasury.Weight(settlement), winner, new(id, true),
@@ -158,19 +159,19 @@ internal static class BattleAftermath
     }
 
     private static void ResolvePeople(WorldMutation world, IEnumerable<OfficerState> people,
-        MapOccupancy from, UnitState? defeatedUnit, BattleSource? winner, int? fallbackPlace, SimulationRules rules, List<DomainEvent> events,
-        BattleObjectContext defeated, bool canRecoverInPlace = false)
+        MapOccupancy from, UnitState? defeatedUnit, BattleSource? captureSource, int? fallbackPlace, SimulationRules rules, List<DomainEvent> events,
+        BattleObjectContext defeated, BattleSource? recoveryReceiver = null)
     {
         var military = rules.Military!;
         var participants = people.OrderBy(p => p.Id).ToArray();
-        var captorContext = winner is { } winning ? BattleObjectContext.Capture(world, winning) : null;
+        var captorContext = captureSource is { } winning ? BattleObjectContext.Capture(world, winning) : null;
         int firstFact = events.Count;
         foreach (var original in participants)
         {
             int? excluded = defeatedUnit is null ? fallbackPlace : null;
             int? retreat = BattleRetreat.Destination(world, original, from.Position, excluded, military)?.Id;
             bool hasRetreatCity = BattleRetreat.Destination(world, original, from.Position, excluded, military, citiesOnly: true) is not null;
-            if (original.IsServing && winner is { } captor)
+            if (original.IsServing && captureSource is { } captor)
             {
                 if (defeatedUnit is null && fallbackPlace is int lost && world.Settlements[lost].Kind == SettlementKind.City &&
                     original.OwnerId is int defender && world.Forces[defender].IsBarbarian)
@@ -193,13 +194,13 @@ internal static class BattleAftermath
             {
                 PersonnelTransitions.CancelMissions(world, original.Id, "battle-location-lost", events, rules.Personnel, world.CurrentDateCountdownConsumed);
                 var person = world.Officers[original.Id];
-                if (winner is { } recipient)
+                if (captureSource is not null)
                 {
                     if (person.Status == OfficerStatus.Captive)
                     {
                         bool ruler = person.OwnerId is int force && world.Forces[force].LeaderId == person.Id;
                         int? root = world.Corps.Values.SingleOrDefault(c => c.OwnerId == person.OwnerId && c.IsRoot)?.Id;
-                        if (canRecoverInPlace && person.OwnerId == recipient.Owner(world) &&
+                        if (recoveryReceiver is { } recipient && person.OwnerId == recipient.Owner(world) &&
                             (!ruler || (recipient.Corps(world) ?? root) == root))
                         {
                             world.Replace(person with { Status = ruler ? OfficerStatus.Ruler : OfficerStatus.Serving,

@@ -11,6 +11,8 @@ internal static class OutcomePresentationCompiler
         void Record(string role, int id, params (string Slot, string Role)[] bindings) => content.Records.Add(role, M(id, bindings: bindings));
         void Prompt(string role, int id, string? speaker = null, string? sound = null,
             params (string Slot, string Role)[] bindings) => content.Feedback.Add(role, M(id, speaker, sound, bindings));
+        Prompt("recruit-lost", 7165, sound: "decision-decrease",
+            bindings: [("person.0", "actor"), ("person.1", "ruler"), ("force.0", "force")]);
         (string, string)[] tactic = [("person.0", "actor"), ("tactic.0", "tactic")];
         Record("tactic-learned", 9997, tactic); Record("tactic-learned-other", 9998, tactic);
         Prompt("tactic-learned", 7232, sound: "decision-increase", bindings: tactic);

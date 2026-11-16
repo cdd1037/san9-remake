@@ -19,7 +19,7 @@ public sealed record ProgressPresentationDefinition(Dictionary<string, DecisionM
     public static readonly string[] RelationRoles = ["relation-improved", "relation-worsened", "relation-improved-band", "relation-worsened-band"];
     public static readonly string[] PostActionRoles = ["policy-post-action-no-target", "policy-post-action-attack-ordered",
         "policy-post-action-avoid-despite-orders", "policy-post-action-return-ordered", "policy-post-action-attack-despite-orders"];
-    public static readonly string[] FeedbackRoles = ["ability-grown", "tactic-learned", "injury-worsened", "place-commander-changed",
+    public static readonly string[] FeedbackRoles = ["recruit-lost", "ability-grown", "tactic-learned", "injury-worsened", "place-commander-changed",
         "unit-commander-changed", "corps-leader-changed", "corps-reorganized", "appearance-introduction", "appearance-greeting", "appearance-result",
         "treasury-captured", "prisoner-escape-speech", "prisoner-escape-result", "battle-capture-speech", "battle-capture-dialogue",
         "diplomacy-units-returned", "diplomacy-corps-cleared", .. RelationRoles, ReturnUnavailableRole, .. PostActionRoles];

@@ -99,7 +99,9 @@ internal static class OccurrenceFeedback
         {
             var clock = fact is SearchResolvedEvent search ? search.Clock : ((RecruitmentResolvedEvent)fact).Clock;
             DomainEvent[] related = fact is RecruitmentResolvedEvent recruitment
-                ? new[] { fact }.Concat(events.OfType<PersonnelTerritoryTransferredEvent>().Where(e => e.OfficerId == recruitment.TargetOfficerId)).ToArray()
+                ? new[] { fact }.Concat(events.Skip(index + 1).TakeWhile(e => e is not RecruitmentResolvedEvent)
+                    .OfType<PersonnelTerritoryTransferredEvent>().Where(e => e.OfficerId == recruitment.TargetOfficerId &&
+                        e.Clock == recruitment.Clock && e.ForceId == recruitment.Occurrence.ForceId)).ToArray()
                 : [fact];
             messages.AddRange(PersonnelPresentation.Results(before, context.AtOccurrence(clock), texts, personnel, related, Pick));
         }

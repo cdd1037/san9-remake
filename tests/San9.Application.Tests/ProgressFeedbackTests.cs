@@ -79,6 +79,7 @@ public sealed partial class ProgressFeedbackTests
             MapSpeeches = ProgressPresentationDefinition.MapSpeechRoles.ToDictionary(r => r, r => new DecisionMessageDefinition(r, [], "actor"))
         };
         progress.Feedback.Add("ability-grown", new("growth-prompt", [], Sound: "growth"));
+        progress.Feedback.Add("recruit-lost", new("recruit-lost", [], Sound: "decision-decrease"));
         return (texts, CommandPresentation.Empty with { Progress = progress });
     }
 

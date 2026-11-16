@@ -72,11 +72,12 @@ public static class PersonnelPresentation
         }
         return [Message(content, role, context, texts, values, random)];
     }
-    /// <summary>Only direct player missions narrate; search person encounters already belong to DecisionDraft.</summary>
+    /// <summary>Direct missions narrate; city transfers also notify either affected player. Search encounters belong to DecisionDraft.</summary>
     public static IReadOnlyList<CommandMessage> Results(StrategySnapshot before, WorldMessageContext context, TextCatalog texts,
         PersonnelPresentationDefinition content, IReadOnlyList<DomainEvent> events, Func<int, int> random)
     {
         List<CommandMessage> result = [];
+        bool Player(int? force) => before.World.Simulation.Controls.Any(c => c.ForceId == force && c.Kind == ControllerKind.Player);
         bool Direct(int actor) => before.World.Simulation.Tasks.Any(t => t.OfficerId == actor && t.Kind is "personnel-search" or "personnel-recruit" &&
             before.World.Simulation.Controls.Any(c => c.ForceId == t.ForceId && c.Kind == ControllerKind.Player) &&
             !before.World.Corps.Any(c => c.Id == before.World.Settlements.Single(s => s.Id == t.OriginSettlementId).CorpsId && !CorpsControl.PlayerOperates(c, before.Companion)));
@@ -121,11 +122,24 @@ public static class PersonnelPresentation
                 {
                     values["place"] = Place(before, transfer.PlaceId);
                     result.Add(Message(content, "employ-territory", recruitmentContext, texts, values, random));
-                    if (before.World.Settlements.Single(s => s.Id == transfer.PlaceId).Kind == SettlementKind.City)
-                        result.Add(Message(content, "employ-city", recruitmentContext, texts, values, random));
                 }
                 if (recruit.Success && recruit.Occurrence.TransferredUnit)
                     result.Add(Message(content, "employ-unit", recruitmentContext, texts, values, random));
+            }
+            if (outcome is RecruitmentResolvedEvent { Success: true } transferResult &&
+                (Player(transferResult.Occurrence.ForceId) || Player(transferResult.Occurrence.Target.ForceId)))
+            {
+                foreach (var transfer in events.OfType<PersonnelTerritoryTransferredEvent>().Where(e =>
+                    e.OfficerId == transferResult.TargetOfficerId && before.World.Settlements.Single(s => s.Id == e.PlaceId).Kind == SettlementKind.City))
+                {
+                    Dictionary<string, MessageBinding> values = new()
+                    {
+                        ["place"] = Place(before, transfer.PlaceId),
+                        ["force"] = MessageBinding.Reference(MessageEntityKind.Force, transfer.ForceId),
+                        ["old-force"] = MessageBinding.Reference(MessageEntityKind.Force, transfer.PreviousForceId)
+                    };
+                    result.Add(Message(content, "employ-city", context.AtOccurrence(transferResult.Clock), texts, values, random));
+                }
             }
         }
         return result;

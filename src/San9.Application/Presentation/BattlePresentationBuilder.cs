@@ -136,7 +136,9 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
                     _stateValues.Add(new(MapTime(_cursor), expired.UnitId, false, 0, expired.CurrentMorale - expired.PreviousMorale, 0));
                     PresentOutcome();
                     break;
-                case SecretContactReportedEvent or OfficerAbilityGrownEvent or RecruitmentResolvedEvent or
+                case RecruitmentResolvedEvent:
+                    PresentOutcome(); PresentFeedback(); break;
+                case SecretContactReportedEvent or OfficerAbilityGrownEvent or
                     PersonnelJourneyInterruptedEvent or OfficerMovedEvent or PersonnelReturnedEvent or
                     ReturnCargoDeliveredEvent or ReturnCargoLostEvent: PresentFeedback(); break;
                 case TacticLearnedEvent or OfficerInjuryWorsenedEvent or CommanderChangedEvent or UnitCommanderChangedEvent or

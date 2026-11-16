@@ -10,6 +10,27 @@ namespace San9.Application.Tests;
 
 public sealed class PresentationAlignmentTests
 {
+    [Fact]
+    public async Task RecruitmentLossEvaluatesTheOptionalExportedMessageAndPresentation()
+    {
+        if (Environment.GetEnvironmentVariable("SAN9_PRESENTATION_CONTENT") is not { Length: > 0 } root) return;
+        var manifest = await ScenarioContentFiles.ReadManifestAsync(root);
+        var content = await ScenarioContentFiles.LoadPresentationAsync(root, manifest);
+        string resourceRoot = Path.GetFullPath(Path.Combine(root, manifest.ResourceRoot));
+        var messages = await MessageLibraryFiles.LoadAsync(Path.Combine(resourceRoot, manifest.SharedMessages!));
+        var session = GameSession.Start(MissionScenario.Create(), 42);
+        var texts = MissionScenario.Texts(session.View) with { Messages = messages };
+        DomainEvent[] facts = [new RecruitmentResolvedEvent(session.Snapshot.Clock, 22, 2, 100, 0, true)
+            { Occurrence = new(2, OfficerStatus.Serving, new(1, 1, null), false, false, null) }];
+        var plan = BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content);
+        var prompt = Assert.Single(plan.Messages).Message;
+        Assert.Equal("messages.7165", prompt.Message.Key);
+        Assert.Equal("decision-decrease", prompt.SoundRole);
+        Assert.Contains("actor", prompt.Message.BbCode);
+        Assert.Contains("ruler", prompt.Message.BbCode);
+        Assert.Equal("messages.9921", Assert.Single(plan.Records).Record.Message.Key);
+    }
+
     private static (GameSession Session, TextCatalog Texts, CommandPresentation Content) Fixture()
     {
         var session = GameSession.Start(MissionScenario.Create(), 42);
@@ -74,6 +95,87 @@ public sealed class PresentationAlignmentTests
         Assert.All(plan.Messages, m => Assert.Equal(BattleMessageChannel.Dialogue, m.Channel));
         var remaining = ExecutionPublication.Read(before, before, session.Messages(texts, before.World), texts, content, facts, presentedFeedback: plan.PresentedFeedback);
         Assert.Empty(remaining.Messages); Assert.Empty(remaining.Records);
+    }
+
+    [Theory]
+    [InlineData(true, OfficerStatus.Serving, 2, 1, true)]
+    [InlineData(false, OfficerStatus.Serving, 2, 1, false)]
+    [InlineData(true, OfficerStatus.Captive, 2, 1, false)]
+    [InlineData(true, OfficerStatus.Serving, 1, 2, false)]
+    [InlineData(true, OfficerStatus.Serving, 2, 3, false)]
+    public void RecruitmentLossPromptUsesVictimContextAndPublishesOnce(bool success, OfficerStatus status,
+        int force, int previousForce, bool expected)
+    {
+        var (session, texts, content) = Fixture();
+        var before = session.View;
+        content.Progress!.Feedback["recruit-lost"] = new("recruit-lost-prompt", new()
+        { ["person.0"] = "actor", ["person.1"] = "ruler", ["force.0"] = "force" }, Sound: "decision-decrease");
+        texts.Messages["recruit-lost-prompt"] = new([
+            new MessageValue(new("property", "person.name", Arguments: [new("binding", "person.0")])), new MessageLiteral("/"),
+            new MessageValue(new("property", "person.name", Arguments: [new("binding", "person.1")])), new MessageLiteral("/"),
+            new MessageValue(new("property", "force.name", Arguments: [new("binding", "force.0")]))]);
+        var clock = new GameClock(before.World.Clock.Year, before.World.Clock.Month, 2);
+        DomainEvent[] facts = [new RecruitmentResolvedEvent(clock, 22, 2, 50, success ? 0 : 99, success)
+        { Occurrence = new(force, status, new(previousForce, 1, null), false, false, null) }];
+        var after = new StrategySnapshot(MissionScenario.Create(), before.World with
+        { Officers = before.World.Officers.Select(p => p.Id == 2 ? p with { OwnerId = force } : p).ToImmutableArray(),
+            Forces = before.World.Forces.Select(f => f.Id == previousForce ? f with { LeaderId = 22 } : f).ToImmutableArray() });
+        var context = session.Messages(texts, after.World);
+        var output = ExecutionPublication.Read(before, after, context, texts, content, facts);
+        var plan = BattlePresentationPlan.Create(before, after, facts, context, texts, content);
+        if (expected)
+        {
+            var message = Assert.Single(output.Messages);
+            Assert.Equal("decision-decrease", message.SoundRole);
+            Assert.Null(message.SpeakerId);
+            Assert.Equal(clock, message.Message.Clock);
+            Assert.Equal(before.PlaceCell(1), message.FocusLocation);
+            Assert.StartsWith("actor/ruler/", message.Message.BbCode);
+            var cue = Assert.Single(plan.Messages);
+            Assert.Equal(message, cue.Message);
+            Assert.Equal(BattleMessageChannel.Dialogue, cue.Channel);
+            Assert.Equal(cue.Id, Assert.Single(plan.Records).AfterDialogueId);
+        }
+        else { Assert.Empty(output.Messages); Assert.Empty(plan.Messages); }
+        var remaining = ExecutionPublication.Read(before, after, context, texts, content, facts, presentedFeedback: plan.PresentedFeedback);
+        Assert.Empty(remaining.Messages); Assert.Empty(remaining.Records);
+    }
+
+    [Theory]
+    [InlineData(1, 2, true)]
+    [InlineData(2, 1, true)]
+    [InlineData(2, 3, false)]
+    public void CityTransferredByAutomaticRecruitmentNotifiesAffectedPlayerWithoutTargetReply(int force, int victim, bool expected)
+    {
+        var (session, texts, content) = Fixture();
+        var world = session.Snapshot;
+        var before = new StrategySnapshot(MissionScenario.Create(), world with
+        {
+            Corps = world.Corps.Select(c => c with { IsRoot = false }).ToImmutableArray(),
+            Settlements = world.Settlements.Select(s => s with { CorpsId = s.OwnerId }).ToImmutableArray(),
+            Simulation = world.Simulation with { Tasks = [new(Guid.NewGuid(), "personnel-recruit", "automatic", force, 2, 1, world.Clock, world.Clock, 0, 0)] }
+        });
+        texts.Messages["employ-city"] = new([new MessageLiteral("city-transfer")]);
+        content = content with { Progress = null,
+            Personnel = new(new() { ["employ-city"] = new("employ-city", [], Sound: "transfer", Illustration: "city") }) };
+        var recruitment = new RecruitmentResolvedEvent(world.Clock, 2, 22, 100, 0, true)
+            { Occurrence = new(force, OfficerStatus.Serving, new(victim, 2, null), false, true, null) };
+        var transfer = new PersonnelTerritoryTransferredEvent(world.Clock, 2, victim, force, 22);
+        var later = new GameClock(world.Clock.Year, world.Clock.Month, 2);
+        DomainEvent[] facts = [recruitment, transfer, recruitment with { Clock = later }, transfer with { Clock = later }];
+        var output = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts);
+        if (expected)
+        {
+            Assert.Equal(new[] { world.Clock, later }, output.Messages.Select(m => m.Message.Clock));
+            Assert.All(output.Steps, step =>
+            {
+                var message = Assert.Single(step.Messages);
+                Assert.Equal("employ-city", message.Message.Key);
+                Assert.Equal("city", message.IllustrationRole);
+                Assert.Equal("transfer", message.SoundRole);
+            });
+        }
+        else Assert.Empty(output.Messages);
     }
 
     [Fact]

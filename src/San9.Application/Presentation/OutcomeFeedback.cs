@@ -19,7 +19,7 @@ internal static class OutcomeFeedback
             UnitCommanderChangedEvent e => e.Clock, CorpsLeaderChangedEvent e => e.Clock, CorpsDissolvedEvent e => e.Clock,
             HighSpiritsExpiredEvent e => e.Clock, OfficerAppearedEvent e => e.Clock, TreasuryCapturedEvent e => e.Clock,
             PrisonerEscapedEvent e => e.Clock, BattlePersonnelResolvedEvent e => e.Clock, DiplomaticConflictsEndedEvent e => e.Clock,
-            ForceRelationChangedEvent e => e.Clock,
+            ForceRelationChangedEvent e => e.Clock, RecruitmentResolvedEvent e => e.Clock,
             _ => before.World.Clock
         };
         List<CommandMessage> messages = [];
@@ -67,6 +67,16 @@ internal static class OutcomeFeedback
         void Channel(string role) { if (executionMap) Report(role, sound: content.Feedback[role].Sound); else Prompt(role); }
         switch (fact)
         {
+            case RecruitmentResolvedEvent { Success: true } recruit when
+                recruit.Occurrence.PreviousStatus != OfficerStatus.Captive &&
+                !Player(recruit.Occurrence.ForceId) && Player(recruit.Occurrence.Target.ForceId):
+                At(recruit.Occurrence.Target);
+                Person("actor", recruit.TargetOfficerId);
+                Person("ruler", before.World.Forces.Single(f => f.Id == recruit.Occurrence.Target.ForceId).LeaderId!.Value);
+                Force("force", recruit.Occurrence.ForceId);
+                occurrence = context.ForWorld(PersonnelPresentation.RecruitmentWorld(before.World, recruit)).AtOccurrence(clock);
+                Prompt("recruit-lost");
+                break;
             case ForceRelationChangedEvent { Notify: true } relation when
                 relation.Current != relation.Previous && (Player(relation.FirstId) || Player(relation.SecondId)):
                 Force("force", relation.FirstId); Force("second-force", relation.SecondId);

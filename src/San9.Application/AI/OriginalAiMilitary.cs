@@ -140,9 +140,7 @@ internal sealed partial class OriginalAiMilitary(SimulationEngine engine, Scenar
             attackFormations[home] = pair = CommandersAt(home).FirstOrDefault() is { } commander ? Basic([commander]) : null;
         return pair;
     }
-    private uint Capacity(OfficerState p) => CommanderCapacity.Read(p.Id == Force.LeaderId,
-        content.Information.Ranks.FirstOrDefault(r => r.Id == Force.RankId)?.CommandCapacity,
-        content.Information.Offices.FirstOrDefault(o => o.Id == p.OfficeId)?.CommandCapacity);
+    private uint Capacity(OfficerState p) => CommanderCapacity.Read(Force, p, Governance);
     private int City(int place) => content.RegionCityIds.GetValueOrDefault(place, place);
     private bool Near(int first, int second) => City(first) == City(second) || CityNeighbors.AreNeighbors(City(first), City(second));
     private bool Opponent(int? owner) => owner is int id && (World.Forces.FirstOrDefault(f => f.Id == id)?.IsBarbarian == true

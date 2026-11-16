@@ -27,7 +27,8 @@ internal sealed class ScenarioRules
         Treasures = new TreasureRulebook(definition.Information.Treasures.Select(t => t.ToRule()));
         Governance = new GovernanceRulebook(definition.Information.Offices.Select(o => new GovernorOfficeRule(o.Id, o.CommandCapacity, o.GovernorPriority)
             { AbilityBonuses = o.AbilityBonuses, Salary = o.Salary, RequiredRankId = o.RequiredRankId }),
-            definition.Information.Ranks.ToDictionary(r => r.Id, r => r.Precedence));
+            definition.Information.Ranks.ToDictionary(r => r.Id, r => r.Precedence),
+            definition.Information.Ranks.ToDictionary(r => r.Id, r => r.CommandCapacity));
         Military = definition.Military is { } militaryDefinition ? new MilitaryRulebook(militaryDefinition) : null;
         MilitaryCities = new(definition.MilitaryCityConnections);
         Politics = new PoliticalRulebook(definition.PoliticalEvents,

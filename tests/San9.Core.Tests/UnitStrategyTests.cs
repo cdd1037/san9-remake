@@ -168,7 +168,7 @@ public sealed class UnitStrategyTests
         Personnel = new([new(1, new(2, 2)), new(2, new(997, 12))],
             new Dictionary<int, int> { [1] = 1, [2] = 2 }, reinforcementConnection ? [new(1, 2)] : []),
         Military = new(new(200, 3, Enumerable.Repeat(0, 600).ToImmutableArray(), [new(0, 1, null)],
-            [new(9, 1, 0, 10000, 5, new(1, 1), TravelMode.Land)
+            [new(9, 1, 0, 100000, 5, new(1, 1), TravelMode.Land)
                 { HalvesHostileStrategyChance = defensive, ImmuneToDisorder = immune }],
             [new(1, new(2, 2), new(1, 1)), new(2, new(997, 12), new(1, 1))])
             { RegionIds = Enumerable.Range(0, 600).Select(i => (int?)(splitRegions && i % 200 < 50 ? 1 : 2)).ToImmutableArray(),

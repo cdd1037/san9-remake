@@ -58,12 +58,12 @@ internal static class FacilityCombat
         var source = new BattleSource(settlementId, true);
         if (selected.Effect is TacticEffect.Heal or TacticEffect.Inspire)
         {
-            var targets = TacticSupport.Targets(world, source, selected, military);
+            var targets = TacticSupport.Targets(world, source, selected, rules);
             if (targets.Length == 0) return false;
             var supportActor = TacticActor(world, settlementId, selected);
             if (supportActor is null || !PassesOpportunity(world, profile, military, counter, settlement.Morale)) return false;
             TacticSupport.Resolve(world, source, supportActor, selected, targets,
-                IntelligenceTactics.Defenders(world, MilitaryCombat.TargetOrder(source)), military, events,
+                IntelligenceTactics.Defenders(world, MilitaryCombat.TargetOrder(source)), rules, events,
                 target?.UnitId is int opponent ? new BattleSource(opponent, false) : null, damage);
             if (target?.UnitId is int victim)
                 MilitaryCombat.CompleteLosses(world, source, new(victim, false), rules, events);

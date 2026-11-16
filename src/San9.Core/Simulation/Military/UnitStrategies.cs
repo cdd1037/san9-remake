@@ -52,7 +52,7 @@ internal static class UnitStrategies
         if (strategy == UnitStrategyKind.Reinforce &&
             (world.Settlements[origin].Soldiers < 3000 ||
              Demobilization.City(world, origin, rules.Personnel) is null ||
-             world.Units[targetId].Soldiers >= rules.Military!.Capacity(world.Units[targetId])))
+             world.Units[targetId].Soldiers >= UnitSoldierCapacity.Read(world, world.Units[targetId], rules.Governance, rules.Military!)))
             return CommandRejection.InvalidTask;
         return CommandRejection.None;
     }
@@ -128,12 +128,12 @@ internal static class UnitStrategies
         return strategy != UnitStrategyKind.Disorder || !formation.ImmuneToDisorder;
     }
 
-    internal static bool CanExecute(UnitState target, UnitStrategyKind strategy, MilitaryRulebook military) => strategy switch
+    internal static bool CanExecute(WorldMutation world, UnitState target, UnitStrategyKind strategy, SimulationRules rules) => strategy switch
     {
         UnitStrategyKind.FalseReport => target.Condition is UnitCondition.Normal or UnitCondition.NoFormation,
         UnitStrategyKind.Disorder => target.Condition == UnitCondition.Normal,
         UnitStrategyKind.Inspire => target.Condition != UnitCondition.HighSpirits,
-        UnitStrategyKind.Reinforce => target.Soldiers < military.Capacity(target),
+        UnitStrategyKind.Reinforce => target.Soldiers < UnitSoldierCapacity.Read(world, target, rules.Governance, rules.Military!),
         _ => false
     };
 
@@ -142,7 +142,7 @@ internal static class UnitStrategies
         var target = world.Units[mission.TargetUnitId];
         var members = Members(world, target);
         if (mission.Strategy == UnitStrategyKind.Reinforce)
-            return target.Soldiers >= rules.Military!.Capacity(target)
+            return target.Soldiers >= UnitSoldierCapacity.Read(world, target, rules.Governance, rules.Military!)
                 ? 0 : StrategyMath.ReinforcementThreshold(world.Abilities(world.Officers[actorId]).Leadership);
         int intelligence = world.Abilities(world.Officers[actorId]).Intelligence;
         if (mission.Strategy == UnitStrategyKind.Inspire)
@@ -232,9 +232,9 @@ internal static class UnitStrategies
         var actor = world.Officers[task.OfficerId];
         var occurrence = CaptureTarget(world, target, rules);
         uint requested = success ? 3000u : StrategyMath.FailedReinforcement(world.Abilities(actor).Leadership);
-        uint capacity = rules.Military!.Capacity(target);
+        uint capacity = UnitSoldierCapacity.Read(world, target, rules.Governance, rules.Military!);
         var troops = task.Reinforcements!;
-        uint delivered = Math.Min(troops.Soldiers, Math.Min(requested, capacity - target.Soldiers));
+        uint delivered = Math.Min(troops.Soldiers, Math.Min(requested, UnitSoldierCapacity.Remaining(target.Soldiers, capacity)));
         int morale = ReinforcementTransport.MixMorale(target.Soldiers, target.Morale, delivered, troops.Morale);
         UnitCondition condition = success && target.Condition is not (UnitCondition.Normal or UnitCondition.HighSpirits)
             ? UnitCondition.Normal : target.Condition;
@@ -283,7 +283,7 @@ internal sealed class UnitStrategyRule(SimulationRules rules) : TaskRule
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&
         UnitStrategies.Eligible(world, task.ForceId, task.Journey!.UnitStrategy!.Strategy, task.Journey.UnitStrategy.TargetUnitId, rules) &&
         (world.Clock.DayNumber < task.Due.DayNumber || UnitStrategies.CanExecute(
-            world.Units[task.Journey.UnitStrategy.TargetUnitId], task.Journey.UnitStrategy.Strategy, rules.Military!));
+            world, world.Units[task.Journey.UnitStrategy.TargetUnitId], task.Journey.UnitStrategy.Strategy, rules));
     internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events) =>
         UnitStrategies.Resolve(world, task, rules, events);
 }

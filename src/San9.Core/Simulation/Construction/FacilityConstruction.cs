@@ -65,7 +65,7 @@ internal static class FacilityConstruction
         var deployment = new DeployUnitCommand(command.CommandId, command.IssuerId, command.Sequence, home.Id,
             command.OfficerIds, command.Soldiers, pair.LandFormationId, new(MilitaryOrderKind.Construct, null, null) { Construction = plan })
             { Policies = command.Policies, NavalFormationId = pair.NavalFormationId, Waypoint = command.Waypoint };
-        var rejection = MilitaryMovement.PrepareDeployment(world, deployment, military, rules.Treasures,
+        var rejection = MilitaryMovement.PrepareDeployment(world, deployment, military, rules.Governance, rules.Treasures,
             UnitPurpose.Construction, 0, 0, out var prepared);
         if (rejection != CommandRejection.None) return rejection;
         if (military.Travel(pair.LandFormationId, pair.NavalFormationId, command.Soldiers).AreaAt(prepared!.Start)

@@ -7,6 +7,37 @@ namespace San9.Core.Tests;
 
 public sealed class MilitaryMovementTests
 {
+    [Theory]
+    [InlineData(false, 500u, true)]
+    [InlineData(false, 501u, false)]
+    [InlineData(true, 500u, true)]
+    [InlineData(true, 501u, false)]
+    public void DeploymentEntryPointsEnforceTheSelectedCommandersCapacity(bool transport, uint soldiers, bool accepted)
+    {
+        var world = World();
+        var setup = world.BeginMutation();
+        setup.Replace(setup.Officers[11] with { OfficeId = 5 });
+        world.Commit(setup);
+        var engine = new SimulationEngine(world, new EconomyRulebook([new(5, 0)], []), PersonnelRulebook.Empty, TreasureRulebook.Empty,
+            governance: new([new(5, 500, 0)]), military: Rules());
+        GameCommand command = transport ? Deploy(soldiers: soldiers) : new DeployUnitCommand(Guid.NewGuid(), 1, 0, 1,
+            [11], soldiers, 7, new(MilitaryOrderKind.Move, new(32, 7), null));
+        var before = engine.Snapshot;
+        Assert.Equal(accepted ? CommandRejection.None : CommandRejection.InvalidTask,
+            engine.GetPreparationEligibility(Player, command));
+        if (command is DeployUnitCommand deploy)
+            Assert.Equal(accepted ? CommandRejection.None : CommandRejection.InvalidTask,
+                engine.PrepareDeployments(Player).TryPrepare(deploy, out _));
+        var result = engine.Execute(Player, command);
+        Assert.Equal(accepted, result.Submission.Accepted);
+        if (accepted) Assert.Equal(soldiers, Assert.Single(engine.Snapshot.Units).Soldiers);
+        else
+        {
+            Assert.Empty(result.Events);
+            StateAssert.Equal(before, engine.Snapshot);
+        }
+    }
+
     private static WorldState DeploymentPlanningWorld(uint money)
     {
         var snapshot = Engine(World(), Rules()).Snapshot;

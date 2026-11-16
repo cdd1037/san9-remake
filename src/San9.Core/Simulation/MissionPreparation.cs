@@ -135,10 +135,10 @@ public sealed partial class SimulationEngine
             RecruitOfficersCommand recruit => PersonnelMissions.ValidateRecruit(world, recruit, _rules, out _, out _),
             SearchCommand search => PersonnelMissions.ValidateSearch(world, search, _rules.Personnel, _rules.Military),
             MoveOfficersCommand move => PersonnelMissions.ValidateMove(world, move, _rules.Personnel, _rules.Military),
-            TransportUnitCommand transport => MilitaryMovement.TransportEligibility(world, transport, _rules.Military, _rules.Treasures),
+            TransportUnitCommand transport => MilitaryMovement.TransportEligibility(world, transport, _rules.Military, _rules.Governance, _rules.Treasures),
             ConstructFacilityCommand construct => FacilityConstruction.Eligibility(world, construct, _rules),
             DeployUnitCommand deploy => MilitaryMovement.PrepareDeployment(world, deploy, _rules.Military,
-                _rules.Treasures, UnitPurpose.Combat, 0, 0, out _),
+                _rules.Governance, _rules.Treasures, UnitPurpose.Combat, 0, 0, out _),
             _ => MissionPreparation.Eligibility(world, command, _rules)
         };
     }

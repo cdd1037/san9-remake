@@ -171,7 +171,7 @@ internal static class OriginalAiTurnRunner
                 else if (OriginalAiPersonnel.Handles(work))
                     Report(personnel.Run(work, limit, state, cursor.Quotas));
                 else if (OriginalAiActions.Handles(work))
-                    Report(new OriginalAiActions(engine, definition.Content with { OriginalAi = policy }, definition.MilitaryRules,
+                    Report(new OriginalAiActions(engine, definition.Content with { OriginalAi = policy }, definition.MilitaryRules, definition.Rules.Governance,
                         corps.Id, context, random, Submit).Run(work, limit, state, strategy));
                 else if (OriginalAiMilitary.Handles(work))
                     Report(definition.MilitaryRules is { } military

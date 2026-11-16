@@ -51,9 +51,7 @@ public sealed partial class DeploymentDraft
     public uint CommandCapacity(int officerId)
     {
         var person = View.World.Officers.Single(o => o.Id == officerId);
-        return CommanderCapacity.Read(Force.LeaderId == officerId,
-            View.Information.Ranks.FirstOrDefault(r => r.Id == Force.RankId)?.CommandCapacity,
-            View.Information.Offices.FirstOrDefault(o => o.Id == person.OfficeId)?.CommandCapacity);
+        return CommanderCapacity.Read(Force, person, View.Rules.Governance);
     }
 
     public bool SetMembers(IEnumerable<int> ids)

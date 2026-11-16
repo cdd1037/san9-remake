@@ -155,7 +155,8 @@ internal sealed partial class OriginalAiMilitary
         var equipment = Equipment(people, tactics, building, target, initial, deployment, fallback);
         if (equipment is not { } pair) return null;
         if (!CanReachFrom(source, pair.Land, pair.Naval, order, Policies(fallback))) return null;
-        soldiers = Math.Min(soldiers, rules.Formations[pair.Land].SoldierCapacity);
+        var commander = Governance.SelectCommander(people, Abilities)!;
+        soldiers = Math.Min(Capacity(commander), Math.Min(soldiers, rules.Formations[pair.Land].SoldierCapacity));
         if (pair.Naval is int naval) soldiers = Math.Min(soldiers, rules.Formations[naval].SoldierCapacity);
         uint minimum = fallback ? 1u : deployment ? 8000u : MinimumAttack(source);
         if (soldiers < minimum) return null;

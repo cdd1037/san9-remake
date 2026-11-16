@@ -118,8 +118,8 @@ internal static class MilitaryMovement
     }
 
     internal static CommandRejection TransportEligibility(WorldMutation world, TransportUnitCommand command,
-        MilitaryRulebook? rules, TreasureRulebook treasures) => rules?.TransportFormations is not { } pair
-        ? CommandRejection.UnsupportedCommand : PrepareDeployment(world, TransportDeployment(command, pair), rules, treasures,
+        MilitaryRulebook? rules, GovernanceRulebook governance, TreasureRulebook treasures) => rules?.TransportFormations is not { } pair
+        ? CommandRejection.UnsupportedCommand : PrepareDeployment(world, TransportDeployment(command, pair), rules, governance, treasures,
             UnitPurpose.Transport, command.CargoMoney, command.CargoFood, out _);
 
     private static DeployUnitCommand TransportDeployment(TransportUnitCommand command, FixedUnitFormations pair) =>
@@ -131,7 +131,7 @@ internal static class MilitaryMovement
         GovernanceRulebook governance, TreasureRulebook treasures, List<DomainEvent> events,
         UnitPurpose purpose = UnitPurpose.Combat, uint cargoMoney = 0, uint cargoFood = 0)
     {
-        var rejection = PrepareDeployment(world, command, rules, treasures, purpose, cargoMoney, cargoFood, out var prepared);
+        var rejection = PrepareDeployment(world, command, rules, governance, treasures, purpose, cargoMoney, cargoFood, out var prepared);
         if (rejection != CommandRejection.None) return rejection;
         return ApplyDeployment(world, command, governance, events, prepared!, cargoMoney, cargoFood);
     }
@@ -175,7 +175,7 @@ internal static class MilitaryMovement
         WorldPosition Start, ResourceAccount Account, long Cost);
 
     internal static CommandRejection PrepareDeployment(WorldMutation world, DeployUnitCommand command,
-        MilitaryRulebook? rules, TreasureRulebook treasures, UnitPurpose purpose, uint cargoMoney, uint cargoFood,
+        MilitaryRulebook? rules, GovernanceRulebook governance, TreasureRulebook treasures, UnitPurpose purpose, uint cargoMoney, uint cargoFood,
         out DeploymentPreparation? prepared, DeploymentPlan? plan = null)
     {
         prepared = null;
@@ -204,6 +204,10 @@ internal static class MilitaryMovement
         if (command.OfficerIds.Any(id => plan?.IsOfficerReserved(id) == true ||
             !PersonnelMissions.CanAct(world, command.IssuerId, id) || world.Officers[id].SettlementId != home.Id))
             return CommandRejection.PersonUnavailable;
+        int? commander = LeadershipMaintenance.SelectUnitCommander(world, command.OfficerIds, governance);
+        uint commandCapacity = CommanderCapacity.Read(world.Forces[command.IssuerId],
+            commander is int leader ? world.Officers[leader] : null, governance);
+        if (command.Soldiers > commandCapacity) return CommandRejection.InvalidTask;
         if (command.Tactics is null || command.Positions is null ||
             command.Tactics.Keys.Concat(command.Positions.Keys).Any(id => !command.OfficerIds.Contains(id)) ||
             command.Positions.Values.Any(position => !position.IsValid)) return CommandRejection.InvalidTask;

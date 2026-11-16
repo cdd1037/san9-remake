@@ -267,11 +267,15 @@ public sealed class WarfareAuditAlignmentTests
     [Fact]
     public void HealingRetainsHighSpiritsButCancelsItsFuturePenaltyAndRoundTrips()
     {
-        var m = World(); var rules = Rules(); var heal = rules.Tactics[901]; List<DomainEvent> events = [];
+        var m = World();
+        var military = Rules();
+        var rules = new SimulationRules { Military = military };
+        var heal = military.Tactics[901];
+        List<DomainEvent> events = [];
         m.Replace(m.Units[1] with { Condition = UnitCondition.HighSpirits, ConditionDaysRemaining = 2,
             HighSpiritsMoralePenaltyPending = true });
         Assert.Empty(TacticSupport.Targets(m, new(1, false), heal, rules));
-        m.Replace(m.Units[1] with { Wounded = 10 });
+        m.Replace(m.Units[1] with { Soldiers = 9990, Wounded = 10 });
         int[] targets = TacticSupport.Targets(m, new(1, false), heal, rules);
         Assert.Equal([1], targets);
         TacticSupport.Resolve(m, new(1, false), m.Officers[11], heal, targets, [m.Officers[11]], rules, events);

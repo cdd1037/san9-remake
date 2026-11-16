@@ -279,7 +279,8 @@ internal sealed partial class OriginalAiMilitary
             if (person is null) continue;
             foreach (int destination in targets.OrderBy(id => Near(home, id) ? 0 : 1).ToArray())
             {
-                uint soldiers = (uint)Math.Min(capacity[destination], Math.Min(10000, source.Soldiers));
+                uint soldiers = (uint)Math.Min(capacity[destination], Math.Min(10000, Math.Min(source.Soldiers, Capacity(person))));
+                if (soldiers == 0) continue;
                 bool fallback = source.Kind != SettlementKind.City && soldiers == source.Soldiers;
                 var transit = fallback ? Basic([person], true) : rules.TransportFormations is { } transport
                     ? (transport.LandFormationId, transport.NavalFormationId) : ((int Land, int? Naval)?)null;

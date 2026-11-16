@@ -11,7 +11,7 @@ public sealed partial class IntelligenceTacticTests
     private static SimulationEngine Engine(TacticEffect effect, bool settlement = false, bool counter = false,
         bool bypass = false, int formationResistance = 0, bool area = false, uint wounded = 500, Action<MilitaryRulebook>? captureRules = null,
         int? trap = null, int existingConfusion = 0, int? localCity = 2, int? targetHome = 2,
-        bool unstaffed = false, bool areaSettlement = false)
+        bool unstaffed = false, bool areaSettlement = false, uint sourceSoldiers = 19900, uint? targetSoldiers = null)
     {
         bool support = effect is TacticEffect.Heal or TacticEffect.Inspire;
         int targetOwner = support ? 1 : 2;
@@ -36,11 +36,11 @@ public sealed partial class IntelligenceTacticTests
                 TacticProficiencies = [0, 0, 0, 0, 0, 0, 0, 500, 0] },
             new(21, targetOwner, settlement ? 2 : null, new(70, 0, 70, 70), false) { UnitId = settlement ? null : 1,
                 LearnedTactics = counter ? [9100] : [], EquippedTacticId = counter ? 9100 : null, Injury = effect == TacticEffect.Heal ? 7 : 0 }];
-        List<UnitState> units = [new(0, 1, new(settlement ? 16 : 6, 2), 99900) { FormationId = 100, Morale = effect == TacticEffect.Inspire ? 79 : 100, ServicePlaceId = 1,
+        List<UnitState> units = [new(0, 1, new(settlement ? 16 : 6, 2), sourceSoldiers) { FormationId = 100, CommanderId = 11, Morale = effect == TacticEffect.Inspire ? 79 : 100, ServicePlaceId = 1,
             MemberPositions = San9.Tests.FormationTestData.Members(ImmutableDictionary<int, BattleRank>.Empty.Add(11, BattleRank.Front)) }];
-        if (!settlement) units.Add(new(1, targetOwner, new(7, 2), support ? 99950u : 10000u)
+        if (!settlement) units.Add(new(1, targetOwner, new(7, 2), targetSoldiers ?? (support ? 9950u : 10000u))
         {
-            FormationId = 200,
+            FormationId = 200, CommanderId = 21,
             Morale = effect == TacticEffect.Taunt ? 7 : effect == TacticEffect.Inspire ? 79 : 100,
             ServicePlaceId = targetHome,
             Wounded = effect == TacticEffect.Heal ? wounded : 0,
@@ -218,7 +218,7 @@ public sealed partial class IntelligenceTacticTests
         else Assert.Empty(returned);
         Assert.Equal(-removed.Actual, added.Actual + returned.Sum(e => e.Actual));
         Assert.Equal(0, added.SaturationLoss);
-        Assert.Equal(100000u, engine.Snapshot.Units.Single(u => u.Id == 0).Soldiers);
+        Assert.Equal(20000u, engine.Snapshot.Units.Single(u => u.Id == 0).Soldiers);
         Assert.Equal(0u, engine.Snapshot.Units.Single(u => u.Id == 0).Wounded);
     }
 
@@ -228,6 +228,32 @@ public sealed partial class IntelligenceTacticTests
         var result = Engine(TacticEffect.Taunt).AdvanceXun();
         Assert.Contains(result.Events.OfType<TacticMoraleChangedEvent>(), e => e.Current == 0);
         Assert.Single(result.Events.OfType<UnitTerminatedEvent>());
+    }
+
+    [Fact]
+    public void DefectionAboveCommandCapacityPreservesExistingSoldiers()
+    {
+        const uint soldiers = 25000;
+        var engine = Engine(TacticEffect.Defection, sourceSoldiers: soldiers);
+        var result = engine.AdvanceXun();
+        Assert.Equal(soldiers, engine.Snapshot.Units.Single(u => u.Id == 0).Soldiers);
+        Assert.Contains(result.Events.OfType<TacticDefectionEvent>(), e => e.TargetLoss > 0);
+        Assert.All(result.Events.OfType<TacticDefectionEvent>(), e => Assert.Equal(0u, e.SourceGain));
+        Assert.Contains(result.Events.OfType<ResourceChangedEvent>(),
+            e => e.Reason == "tactic-defection-demobilized" && e.Actual > 0);
+    }
+
+    [Fact]
+    public void HealingAboveCommandCapacityStillTreatsOfficersWithoutAddingSoldiers()
+    {
+        const uint soldiers = 12000;
+        var engine = Engine(TacticEffect.Heal, targetSoldiers: soldiers);
+        var result = engine.AdvanceXun();
+        var healing = Assert.Single(result.Events.OfType<TacticHealingEvent>());
+        Assert.Equal(0u, healing.RecoveredSoldiers);
+        Assert.Contains(21, healing.HealedOfficers);
+        Assert.Equal(soldiers, engine.Snapshot.Units.Single(u => u.Id == 1).Soldiers);
+        Assert.Equal(500u, engine.Snapshot.Units.Single(u => u.Id == 1).Wounded);
     }
 
     [Theory]
@@ -253,7 +279,7 @@ public sealed partial class IntelligenceTacticTests
         Assert.Equal(expected, healing.RecoveredSoldiers);
         Assert.Contains(21, healing.HealedOfficers);
         var unit = engine.Snapshot.Units.Single(u => u.Id == 1);
-        Assert.Equal(99950u + expected, unit.Soldiers);
+        Assert.Equal(9950u + expected, unit.Soldiers);
         Assert.Equal(wounded - expected, unit.Wounded);
         Assert.Equal(UnitCondition.Normal, unit.Condition);
         Assert.Equal(0, unit.ConditionDaysRemaining);

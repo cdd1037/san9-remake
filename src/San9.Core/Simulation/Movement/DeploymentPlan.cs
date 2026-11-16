@@ -47,7 +47,7 @@ public sealed class DeploymentPlan
         var rejection = engine.CheckDeploymentEnvelope(context, command);
         if (rejection != CommandRejection.None) return rejection;
         if (issuer is int owner && owner != command.IssuerId) return CommandRejection.NotActiveController;
-        rejection = MilitaryMovement.PrepareDeployment(world, command, rules.Military, rules.Treasures,
+        rejection = MilitaryMovement.PrepareDeployment(world, command, rules.Military, rules.Governance, rules.Treasures,
             UnitPurpose.Combat, 0, 0, out var data, this);
         if (rejection != CommandRejection.None) return rejection;
         issuer = command.IssuerId;

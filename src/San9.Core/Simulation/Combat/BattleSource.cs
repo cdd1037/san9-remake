@@ -16,8 +16,8 @@ public readonly record struct BattleSource(int Id, bool IsSettlement)
     internal int? Corps(WorldMutation world) => IsSettlement ? world.Settlements[Id].CorpsId : world.Units[Id].CorpsId;
     internal int Morale(WorldMutation world) => IsSettlement ? world.Settlements[Id].Morale : world.Units[Id].Morale;
     internal uint Soldiers(WorldMutation world) => IsSettlement ? world.Settlements[Id].Soldiers : world.Units[Id].Soldiers;
-    internal uint Capacity(WorldMutation world, MilitaryRulebook rules) => IsSettlement ? world.Settlements[Id].SoldierCapacity :
-        rules.Capacity(world.Units[Id]);
+    internal uint Capacity(WorldMutation world, SimulationRules rules) => IsSettlement ? world.Settlements[Id].SoldierCapacity :
+        UnitSoldierCapacity.Read(world, world.Units[Id], rules.Governance, rules.Military!);
     internal MapOccupancy Area(IWorldQuery world, MilitaryRulebook rules) => IsSettlement ?
         rules.SettlementArea(world.Settlements[Id]) : MilitaryCombat.Area(world.Units[Id], rules);
     internal void AddSoldiers(WorldMutation world, uint soldiers)

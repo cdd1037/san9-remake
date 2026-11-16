@@ -42,9 +42,7 @@ public static class UnitDetails
         }).ToArray();
         var commander = view.World.Officers.FirstOrDefault(o => o.Id == unit.CommanderId);
         var owner = view.World.Forces.Single(f => f.Id == unit.OwnerId);
-        uint? capacity = commander is null ? null : CommanderCapacity.Read(owner.LeaderId == commander.Id,
-            view.Information.Ranks.FirstOrDefault(r => r.Id == owner.RankId)?.CommandCapacity,
-            view.Information.Offices.FirstOrDefault(o => o.Id == commander.OfficeId)?.CommandCapacity);
+        uint? capacity = commander is null ? null : CommanderCapacity.Read(owner, commander, view.Rules.Governance);
         return new(id, (unit.CommanderId is int leader ? Person(leader) : force) + "队", UnitCatalog.Condition(view, unit), force,
             view.Settlements.FirstOrDefault(s => s.Id == unit.ServicePlaceId)?.ResolveName(texts) ?? "无",
             capacity is uint max ? $"{unit.Soldiers}/{max}" : unit.Soldiers.ToString(), unit.Wounded.ToString(), unit.Morale.ToString(),

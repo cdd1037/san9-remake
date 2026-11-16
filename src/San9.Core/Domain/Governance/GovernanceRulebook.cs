@@ -14,10 +14,14 @@ public sealed record GovernorOfficeRule(int OfficeId, uint CommandCapacity, int 
 public sealed class GovernanceRulebook
 {
     public const int MaximumCorpsPerForce = 8;
-    public GovernanceRulebook(IEnumerable<GovernorOfficeRule> offices, IReadOnlyDictionary<int, int>? rankPrecedence = null)
+    public GovernanceRulebook(IEnumerable<GovernorOfficeRule> offices, IReadOnlyDictionary<int, int>? rankPrecedence = null,
+        IReadOnlyDictionary<int, uint>? rankCommandCapacities = null)
     {
         Offices = offices.ToImmutableDictionary(o => o.OfficeId);
         RankPrecedence = (rankPrecedence ?? ImmutableDictionary<int, int>.Empty).ToImmutableDictionary();
+        RankCommandCapacities = (rankCommandCapacities ?? ImmutableDictionary<int, uint>.Empty).ToImmutableDictionary();
+        if (RankCommandCapacities.Keys.Any(id => !RankPrecedence.ContainsKey(id)))
+            throw new ArgumentException("Unknown command-capacity rank.");
         if (RankPrecedence.Any(r => r.Key < 0 || r.Value < 0) ||
             RankPrecedence.Values.Distinct().Count() != RankPrecedence.Count)
             throw new ArgumentException("Invalid rank precedence.");
@@ -28,6 +32,7 @@ public sealed class GovernanceRulebook
 
     public ImmutableDictionary<int, GovernorOfficeRule> Offices { get; }
     public ImmutableDictionary<int, int> RankPrecedence { get; }
+    public ImmutableDictionary<int, uint> RankCommandCapacities { get; }
 
     public bool CanAppoint(int? forceRankId, GovernorOfficeRule office) => office.RequiredRankId is not int required ||
         forceRankId is int rank && RankPrecedence.TryGetValue(rank, out int precedence) && precedence >= RankPrecedence[required];

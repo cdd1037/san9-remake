@@ -51,9 +51,7 @@ public sealed class SpecialDeploymentDraft
         Money = view.World.Corps.Single(c => Home.CorpsId is int corps ? c.Id == corps : c.OwnerId == Force.Id && c.IsRoot).Treasury.Money;
         if (Candidates.Length == 1) SetMembers(Candidates);
     }
-    public uint CommandCapacity(int id) => CommanderCapacity.Read(Force.LeaderId == id,
-        View.Information.Ranks.FirstOrDefault(r => r.Id == Force.RankId)?.CommandCapacity,
-        View.Information.Offices.FirstOrDefault(o => o.Id == View.World.Officers.Single(p => p.Id == id).OfficeId)?.CommandCapacity);
+    public uint CommandCapacity(int id) => CommanderCapacity.Read(Force, View.World.Officers.Single(p => p.Id == id), View.Rules.Governance);
     public bool SetMembers(IEnumerable<int> ids)
     {
         var chosen = ids.ToArray();

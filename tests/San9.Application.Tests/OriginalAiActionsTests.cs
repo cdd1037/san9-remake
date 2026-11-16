@@ -75,7 +75,7 @@ public sealed partial class OriginalAiActionsTests
             Engine = GameSession.EngineFactory(content)(WorldState.Restore(change?.Invoke(snapshot) ?? snapshot));
             State = OriginalAiState.Create(content) with { Corps = [new(1, OriginalAiMode.TargetForce, 2, null)], DiplomaticOrder = [2, 1, 3] };
             var context = new CommandContext("player");
-            Actions = new(Engine, content, new(content.Military!), 1, context, new(draw ?? (maximum => maximum - 1)), command =>
+            Actions = new(Engine, content, new(content.Military!), new ScenarioRules(content).Governance, 1, context, new(draw ?? (maximum => maximum - 1)), command =>
             {
                 Commands.Add(command);
                 if (reject) return false;

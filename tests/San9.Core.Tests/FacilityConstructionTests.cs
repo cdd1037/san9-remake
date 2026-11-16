@@ -7,6 +7,25 @@ namespace San9.Core.Tests;
 
 public sealed class FacilityConstructionTests
 {
+    [Theory]
+    [InlineData(20000u, true)]
+    [InlineData(20001u, false)]
+    public void ConstructionEnforcesRulerCapacityBeyondThePreparationView(uint soldiers, bool accepted)
+    {
+        var snapshot = Engine().Snapshot;
+        var world = WorldState.Restore(snapshot with
+            { Settlements = snapshot.Settlements.Select(s => s with { Soldiers = 30000 }).ToArray() });
+        var engine = Engine(world);
+        var before = engine.Snapshot;
+        var command = Command() with { Soldiers = soldiers };
+        Assert.Equal(accepted ? CommandRejection.None : CommandRejection.InvalidTask,
+            engine.GetPreparationEligibility(Player, command));
+        var result = engine.Execute(Player, command);
+        Assert.Equal(accepted, result.Submission.Accepted);
+        if (accepted) Assert.Equal(soldiers, Assert.Single(engine.Snapshot.Units).Soldiers);
+        else StateAssert.Equal(before, engine.Snapshot);
+    }
+
     private static readonly CommandContext Player = new("player");
     private static readonly PersonnelRulebook Geography = new([new(1, new(2, 2)), new(2, new(27, 2)), new(8000, new(17, 2))],
         new Dictionary<int, int> { [1] = 1, [2] = 2, [8000] = 1 });
@@ -114,12 +133,13 @@ public sealed class FacilityConstructionTests
         });
         var geography = new PersonnelRulebook([new(1, home), new(8000, site)],
             new Dictionary<int, int> { [1] = 1, [8000] = 1 });
-        var state = WorldState.Create(new(190, 1, 1), 42, [new(1, 100) { LeaderId = 11 }],
+        var state = WorldState.Create(new(190, 1, 1), 42, [new(1, 100) { LeaderId = 11, RankId = 5 }],
             [new(1, 1, 100000, 600, 600, 100, 0, 0, 100, 0, 100)],
             [new(11, 1, 1, new(100, 100, 100, 100), false) { Status = OfficerStatus.Ruler }],
             controls: [new("player", 1, ControllerKind.Player)],
             corps: [new(1, 1, 11, new(10000, 1000000)) { IsRoot = true }]);
-        var engine = new SimulationEngine(state, EconomyRulebook.Empty, geography, TreasureRulebook.Empty, military: military);
+        var engine = new SimulationEngine(state, EconomyRulebook.Empty, geography, TreasureRulebook.Empty,
+            governance: new([], new Dictionary<int, int> { [5] = 1 }, new Dictionary<int, uint> { [5] = 60000 }), military: military);
         var request = new DeploymentArrivalRequest(1, 0, 1,
             new(MilitaryOrderKind.Construct, null, null) { Construction = new(8000, 9000, site, 11) }, new(), Soldiers: 50000);
         var estimate = new MilitaryArrivalForecast(state.CreateSnapshot(), military, geography.RegionCities,

@@ -7,7 +7,7 @@ namespace San9.Application.AI;
 
 /// <summary>Ordered strategy and diplomacy work; candidates are local, effects use public commands.</summary>
 internal sealed partial class OriginalAiActions(SimulationEngine engine, ScenarioInitialState content,
-    MilitaryRulebook? military, int corpsId, CommandContext context, OriginalAiRandom random,
+    MilitaryRulebook? military, GovernanceRulebook governance, int corpsId, CommandContext context, OriginalAiRandom random,
     Func<GameCommand, bool> submit)
 {
     private int pathQueries;

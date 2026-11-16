@@ -8,17 +8,17 @@ namespace San9.Application.AI;
 public static class MilitaryPlanner
 {
     public static GameCommand Choose(GameSession session, ControlSeat seat, Guid commandId) =>
-        Choose(session.Snapshot, session.Validate, session.MilitaryRules, seat, commandId);
+        Choose(session.Snapshot, session.Validate, session.MilitaryRules, session.View.Rules.Governance, seat, commandId);
 
     internal static GameCommand Choose(WorldSnapshot world,
-        Func<CommandContext, GameCommand, CommandSubmissionResult> validate, MilitaryRulebook? rules,
+        Func<CommandContext, GameCommand, CommandSubmissionResult> validate, MilitaryRulebook? rules, GovernanceRulebook governance,
         ControlSeat seat, Guid commandId, int? corpsId = null, NavigationWorkBudget? navigationWork = null)
     {
         world = AiPlanningWorld.Read(world);
         var wait = new WaitCommand(commandId, seat.ForceId, world.Simulation.NextSequence);
         if (rules is null) return wait;
         var work = navigationWork ?? new NavigationWorkBudget(100000);
-        var attack = ChooseCombat(world, validate, rules, seat, commandId, corpsId, work);
+        var attack = ChooseCombat(world, validate, rules, governance, seat, commandId, corpsId, work);
         if (attack is not WaitCommand) return attack;
         if (work.Exhausted) return wait;
         var own = world.Settlements.Where(s => s.OwnerId == seat.ForceId && s.CanHostPersons && s.Durability > 0)
@@ -45,7 +45,8 @@ public static class MilitaryPlanner
             var formation = rules.Formations[pair.LandFormationId];
             uint capacity = pair.NavalFormationId is int naval
                 ? Math.Min(formation.SoldierCapacity, rules.Formations[naval].SoldierCapacity) : formation.SoldierCapacity;
-            uint count = Math.Min(soldiers, capacity);
+            uint count = Math.Min(CommanderCapacity.Read(world.Forces.Single(f => f.Id == seat.ForceId), actor, governance),
+                Math.Min(soldiers, capacity));
             if (count < 1000) continue;
             var command = new TransportUnitCommand(commandId, seat.ForceId, world.Simulation.NextSequence,
                 candidate.Source.Id, [actor.Id], count, candidate.Target.Id);
@@ -64,7 +65,7 @@ public static class MilitaryPlanner
     }
 
     internal static GameCommand ChooseCombat(WorldSnapshot world,
-        Func<CommandContext, GameCommand, CommandSubmissionResult> validate, MilitaryRulebook? rules,
+        Func<CommandContext, GameCommand, CommandSubmissionResult> validate, MilitaryRulebook? rules, GovernanceRulebook governance,
         ControlSeat seat, Guid commandId, int? corpsId, NavigationWorkBudget work)
     {
         world = AiPlanningWorld.Read(world);
@@ -73,11 +74,11 @@ public static class MilitaryPlanner
         var force = world.Forces.Single(f => f.Id == seat.ForceId);
         var formations = rules.Formations.Values.Where(f => rules.CanSelectFormation(force, f.Id))
             .OrderBy(f => f.DeploymentCost).ThenBy(f => f.Id).ToArray();
-        return ChooseAttack(world, validate, rules, seat, commandId, corpsId, formations, work) ?? wait;
+        return ChooseAttack(world, validate, rules, governance, seat, commandId, corpsId, formations, work) ?? wait;
     }
 
     private static GameCommand? ChooseAttack(WorldSnapshot world, Func<CommandContext, GameCommand, CommandSubmissionResult> validate,
-        MilitaryRulebook rules, ControlSeat seat, Guid commandId, int? corpsId, FormationRule[] formations, NavigationWorkBudget work)
+        MilitaryRulebook rules, GovernanceRulebook governance, ControlSeat seat, Guid commandId, int? corpsId, FormationRule[] formations, NavigationWorkBudget work)
     {
         var delegation = corpsId is int corps ? world.Corps.Single(c => c.Id == corps).Delegation : new GeneralDelegation();
         if (delegation is DomesticDelegation) return null;
@@ -134,7 +135,8 @@ public static class MilitaryPlanner
                     if (work.Exhausted) return null;
                     int? navalId = rules.NavalFormationForDeployment(formation.Id);
                     var command = new DeployUnitCommand(commandId, seat.ForceId, world.Simulation.NextSequence, source.Id,
-                        [people[0].Id], Math.Min(source.Soldiers - 3000, formation.SoldierCapacity), formation.Id,
+                        [people[0].Id], Math.Min(CommanderCapacity.Read(world.Forces.Single(f => f.Id == seat.ForceId), people[0], governance),
+                            Math.Min(source.Soldiers - 3000, formation.SoldierCapacity)), formation.Id,
                         new(MilitaryOrderKind.AttackSettlement, null, target.Id)) { NavalFormationId = navalId };
                     var occupied = MilitaryRouteQuery.Occupancy(world, rules, seat.ForceId, command.Policies, includeUnits: false);
                     if (validate(new(seat.ControllerId), command).Accepted &&

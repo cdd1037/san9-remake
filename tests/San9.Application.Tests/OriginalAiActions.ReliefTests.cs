@@ -9,6 +9,21 @@ namespace San9.Application.Tests;
 public sealed partial class OriginalAiActionsTests
 {
     [Theory]
+    [InlineData(7000u, 1)]
+    [InlineData(7001u, 0)]
+    [InlineData(15000u, 0)]
+    public void ReliefPrefilterRequiresThreeThousandFreeCommandCapacity(uint soldiers, int expected)
+    {
+        var h = new Harness(change: world => world with
+        {
+            Units = world.Units.Select(u => u.Id == 10 ? u with { Soldiers = soldiers } : u).ToArray()
+        });
+        var report = h.Run(OriginalAiWork.Reinforce);
+        Assert.Equal(expected, report.Submitted);
+        Assert.Equal(expected, report.Attempts);
+    }
+
+    [Theory]
     [InlineData(false, 1, 1)]
     [InlineData(true, 1, 1)]
     [InlineData(false, 30, 0)]

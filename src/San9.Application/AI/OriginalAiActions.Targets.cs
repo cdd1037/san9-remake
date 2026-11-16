@@ -45,7 +45,7 @@ internal sealed partial class OriginalAiActions
                 };
                 return World.Units.Where(u => Direct(u) && !u.IsPersonnel && !u.IsEmbedded && u.FormationId is not null &&
                         u.HasEnteredDailyCycle &&
-                        u.Morale >= 25 && ReliefMission(u) && reliefRules.Capacity(u) >= (long)u.Soldiers + 3000)
+                        u.Morale >= 25 && ReliefMission(u) && UnitSoldierCapacity.Remaining(u.Soldiers, UnitSoldierCapacity.Read(World, u, governance, reliefRules)) >= 3000)
                     .OrderBy(u => u.Soldiers).Select(u => new Target(u.Id)).ToArray();
             case OriginalAiWork.Alienate:
                 var targets = World.Officers.Where(p => p.OwnerId == opponent && p.IsVisible && p.IsServing && !p.IsDormant &&

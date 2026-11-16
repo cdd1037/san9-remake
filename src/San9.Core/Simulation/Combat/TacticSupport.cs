@@ -27,7 +27,7 @@ internal static class TacticSupport
                 military.Tactics[tacticId] is var tactic && tactic.Effect is TacticEffect.Inspire or TacticEffect.Heal &&
                 tactic.CompatibleFormations.Contains(formation.Id) && MilitaryTactics.HasTactic(world, source.OwnerId, [p.Id], tacticId, rules.Treasures))
                 .Select(p => new { Officer = p, Tactic = military.Tactics[p.EquippedTacticId!.Value] })
-                .Select(p => new { p.Officer, p.Tactic, Targets = Targets(world, new(source.Id, false), p.Tactic, military) })
+                .Select(p => new { p.Officer, p.Tactic, Targets = Targets(world, new(source.Id, false), p.Tactic, rules) })
                 .Where(p => p.Targets.Length > 0).ToArray();
             if (candidates.Length == 0 || !TacticCombat.Roll(world, "military-tactic-support-opportunity",
                 Math.Min(100, (profile.AutomaticOpportunityChance ?? profile.OpportunityChance) +
@@ -36,16 +36,17 @@ internal static class TacticSupport
             {
                 if (!TacticCombat.Roll(world, "military-tactic-support-member", TacticCombat.AllocationChance(world,
                     military.Rank(source, candidate.Officer.Id), members.Length, false, candidate.Officer, candidate.Tactic))) continue;
-                Resolve(world, new(id, false), candidate.Officer, candidate.Tactic, candidate.Targets, members, military, events);
+                Resolve(world, new(id, false), candidate.Officer, candidate.Tactic, candidate.Targets, members, rules, events);
                 break;
             }
         }
     }
 
     internal static void Resolve(WorldMutation world, BattleSource source, OfficerState actor, TacticRule tactic,
-        int[] targets, OfficerState[] members, MilitaryRulebook military, List<DomainEvent> events,
+        int[] targets, OfficerState[] members, SimulationRules rules, List<DomainEvent> events,
         BattleSource? opponent = null, CombatExchangeDamage? damage = null)
     {
+        var military = rules.Military!;
         world.Replace(world.Officers[actor.Id] with { TacticCooldown = CompanionBattleRules.Cooldown(world, source, tactic) });
         bool inspireGarrison = tactic.Effect == TacticEffect.Inspire && source.IsSettlement;
         var activation = TacticOccurrence.Capture(world, source,
@@ -76,7 +77,7 @@ internal static class TacticSupport
                 var occurrence = TacticOccurrence.Capture(world, source,
                     new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = targetId }, tactic, military);
                 uint recovered = TacticMath.HealSoldiers(proficiency, intelligence, tactic.Power, target.Wounded,
-                    military.Capacity(target) - target.Soldiers);
+                    UnitSoldierCapacity.Remaining(target.Soldiers, UnitSoldierCapacity.Read(world, target, rules.Governance, military)));
                 bool highSpirits = target.Condition == UnitCondition.HighSpirits;
                 bool clear = !highSpirits && (target.Condition != UnitCondition.Normal || target.ConditionDaysRemaining > 0);
                 world.Replace(target with
@@ -99,13 +100,14 @@ internal static class TacticSupport
         TacticCombat.Grow(world, members, [actor.Id], tactic, events);
     }
 
-    internal static int[] Targets(WorldMutation world, BattleSource source, TacticRule tactic, MilitaryRulebook rules)
+    internal static int[] Targets(WorldMutation world, BattleSource source, TacticRule tactic, SimulationRules rules)
     {
+        var military = rules.Military!;
         if (tactic.Effect == TacticEffect.Inspire) return source.Morale(world) < 80 ? [source.Id] : [];
-        var area = source.Area(world, rules);
+        var area = source.Area(world, military);
         return world.Units.Values.Where(u => u.OwnerId == source.Owner(world) && u.FormationId is int formation &&
-            MilitaryCombat.Area(u, rules).DistanceTo(area) <= tactic.EffectRadius &&
-            (u.Wounded > 0 && u.Soldiers < rules.Capacity(u) || u.Condition is UnitCondition.Confused or UnitCondition.Routed ||
+            MilitaryCombat.Area(u, military).DistanceTo(area) <= tactic.EffectRadius &&
+            (u.Wounded > 0 && u.Soldiers < UnitSoldierCapacity.Read(world, u, rules.Governance, military) || u.Condition is UnitCondition.Confused or UnitCondition.Routed ||
                 world.ServingUnitMembers(u.Id).Any(p => p.Injury > 0)))
             .OrderBy(u => u.Id).Select(u => u.Id).ToArray();
     }

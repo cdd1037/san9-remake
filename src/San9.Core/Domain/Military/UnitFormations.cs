@@ -29,7 +29,7 @@ public sealed partial class MilitaryRulebook
         unit.Condition is UnitCondition.NoFormation or UnitCondition.Confused or UnitCondition.Routed
             ? null : Formation(unit) is { Tactics: not null } formation ? formation : null;
 
-    public uint Capacity(UnitState unit) => unit.NavalFormationId is int naval
+    public uint FormationCapacity(UnitState unit) => unit.NavalFormationId is int naval
         ? Math.Min(Formations[unit.FormationId!.Value].SoldierCapacity, Formations[naval].SoldierCapacity)
         : Formations[unit.FormationId!.Value].SoldierCapacity;
 

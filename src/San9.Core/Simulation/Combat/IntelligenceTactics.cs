@@ -145,7 +145,7 @@ internal static class IntelligenceTactics
             case TacticEffect.Defection:
                 var occurrence = TacticOccurrence.Capture(world, source, target, tactic, military, rules.Treasures);
                 uint loss = TacticMath.Defection(proficiency, intelligence, tactic.Power, effect, soldiers, target.UnitId is null);
-                uint accepted = Math.Min(loss, source.Capacity(world, military) - source.Soldiers(world));
+                uint accepted = Math.Min(loss, UnitSoldierCapacity.Remaining(source.Soldiers(world), source.Capacity(world, rules)));
                 int? cityId = target.UnitId is int targetUnit
                     ? military.RegionAt(world.Units[targetUnit].Position) is int region
                         ? Demobilization.City(world, region, rules.Personnel) : null

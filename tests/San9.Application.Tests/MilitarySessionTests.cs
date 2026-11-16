@@ -117,6 +117,8 @@ public sealed partial class MilitarySessionTests
         var definition = basis with
         {
             Settlements = [basis.Settlements[0] with { Soldiers = 20000 }, basis.Settlements[1]],
+            Officers = [basis.Officers[0] with { State = basis.Officers[0].State with { OfficeId = 5 } }],
+            Information = basis.Information with { Offices = [new(5, "office", 15000, 0)] },
             Military = basis.Military! with
             {
                 Formations = [basis.Military.Formations[0] with

@@ -11,6 +11,11 @@ public sealed class DecisionPresentationCompilerTests
             0, 6000, 0, 0, 0, 0, 0, biography, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             [], 0, 0, [], 0)).ToArray();
         var decisions = DecisionPresentationCompiler.Compile(people);
+        Assert.Equal("messages.7998", decisions.Shared["merchant-investment-amount"].Key);
+        Assert.Equal("actor", decisions.Shared["merchant-investment-amount"].Bindings["person.0"]);
+        foreach (string branch in new[] { "success", "failure" })
+            Assert.Equal("messages.6261", decisions.Events["search-recruitment"].Results[branch][0].Key);
+        Assert.Empty(decisions.Events["alliance"].Introduction);
         foreach (var (role, accepted, refused) in new[] { ("gift", 6594, 6595), ("surrender", 6640, 6641) })
             foreach (var (choice, key) in new[] { ("accept", accepted), ("decline", refused) })
             {

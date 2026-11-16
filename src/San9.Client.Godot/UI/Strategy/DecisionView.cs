@@ -151,26 +151,37 @@ public partial class DecisionView : FixedPage
         {
             case DecisionInputKind.Immediate: Answer(option, null, 0); return;
             case DecisionInputKind.Investment:
+                Narrate([Draft.InvestmentIntroduction()], () => InputMoney(option)); return;
             case DecisionInputKind.Money:
-                Replace(new NumberInputDialog
-                {
-                    Textures = Textures,
-                    Subject = "资金",
-                    State = new(option.Minimum, option.Maximum, Draft.AmountDefault(option)),
-                    Confirmed = amount => Answer(option, null, amount),
-                    Closed = option.Input == DecisionInputKind.Investment ? () => Choose(option) : ShowChoices
-                }); return;
+                InputMoney(option); return;
             default: Select(option); return;
         }
     }
+    private void InputMoney(DecisionOption option) => Replace(new NumberInputDialog
+    {
+        Textures = Textures,
+        Subject = "资金",
+        State = new(option.Minimum, option.Maximum, Draft.AmountDefault(option)),
+        Confirmed = amount => Answer(option, null, amount),
+        Closed = option.Input == DecisionInputKind.Investment ? () => InputMoney(option) : ShowChoices
+    });
     private void Select(DecisionOption option)
     {
         var selection = new CatalogSelection(option.Candidates,
             _counteroffer?.Option.Role == option.Role && _counteroffer.SelectedId is int selected ? [selected] : [], 1);
         bool person = option.Input is DecisionInputKind.Person or DecisionInputKind.Prisoner;
         bool treasure = option.Input == DecisionInputKind.Treasure;
+        bool country = option.Input == DecisionInputKind.Country;
+        void Confirm(int selected)
+        {
+            if (Draft.ConfirmSelection(selected) is not { } confirmation) { Answer(option, selected, 0); return; }
+            var dialog = new GameDialog { Textures = Textures }; dialog.SetRichMessage(confirmation.BbCode);
+            dialog.Confirmed += () => Answer(option, selected, 0); dialog.Dismissed += () => Select(option);
+            Replace(dialog); dialog.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        }
         CatalogRow[] Read(int page)
         {
+            if (country) return CountryTitleCatalog.Read(Draft.Before, Texts, option.Candidates);
             if (person)
             {
                 var table = OfficerCatalog.Read(Draft.Before, Texts, page, null, null);
@@ -179,8 +190,7 @@ public partial class DecisionView : FixedPage
             if (treasure)
                 return TreasureCatalog.Read(Draft.Before, Texts).Rows.Where(r => option.Candidates.Contains(r.Key.Id))
                     .Select(r => new CatalogRow(r.Key.Id, r.Cells)).ToArray();
-            return option.Candidates.Select(id => new CatalogRow(id, [new CatalogCell(option.Input==DecisionInputKind.Country ?
-                Texts.Resolve(Draft.Before.Information.CountryTitles.Single(t=>t.Id==id).NameKey) : Draft.Before.Information.Treasures.Single(t=>t.Id==id).Name)])).ToArray();
+            throw new InvalidOperationException($"Unsupported catalog input: {option.Input}.");
         }
         Replace(new CatalogView
         {
@@ -188,18 +198,13 @@ public partial class DecisionView : FixedPage
             Service = Service,
             Title = option.Title,
             HintText = option.Input == DecisionInputKind.Country ? "请选择国号。" : Draft.Prompt.BbCode,
-            Pages = person ? OfficerCatalog.Pages(Draft.Before, Texts) : treasure ? TreasureCatalog.Pages : [new(option.Title, [new("name", option.Title, 12, CatalogAlignment.Left)])],
+            Pages = country ? CountryTitleCatalog.Pages : person ? OfficerCatalog.Pages(Draft.Before, Texts) : treasure ? TreasureCatalog.Pages : [new(option.Title, [new("name", option.Title, 12, CatalogAlignment.Left)])],
             ReadRows = Read,
-            Selection = selection,
+            Selection = country ? null : selection,
+            CloseTitle = "中止",
+            Activated = country ? Confirm : null,
             Portrait = person ? id => $"information-person-{id}" : null,
-            ConfirmSelection = ids =>
-            {
-                int selected = ids.Single();
-                if (Draft.ConfirmSelection(selected) is not { } confirmation) { Answer(option, selected, 0); return; }
-                var dialog = new GameDialog { Textures = Textures }; dialog.SetRichMessage(confirmation.BbCode);
-                dialog.Confirmed += () => Answer(option, selected, 0); dialog.Dismissed += () => Select(option);
-                Replace(dialog); dialog.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-            },
+            ConfirmSelection = ids => Confirm(ids.Single()),
             Closed = () =>
             {
                 if (Draft.Definition.Window == DecisionWindowKind.CountrySelection) Select(option);

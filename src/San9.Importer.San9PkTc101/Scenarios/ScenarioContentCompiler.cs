@@ -124,7 +124,8 @@ public static class ScenarioContentCompiler
                         f.VisionRadius, f.VisionAngleDegrees, $"formation-diagram-{f.Id}", $"formation-available-{f.Id}") }).ToArray(),
             CountryTitles = PoliticalContentCompiler.Titles(countryTitles, persons, officers.Select(o => o.State.Id),
                 id => text.CountryTitle($"country-title.{id}", id),
-                id => System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + id * 4, 4))),
+                id => System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(exe.AsSpan(0x253bb0 + id * 4, 4)))
+                .Select(title => title with { Description = text.CountryTitleDescription(title.Id) }).ToArray(),
             Relations = summaries.SelectMany(a => summaries.Where(b => b.Id > a.Id).Select(b =>
                 new San9.Core.Domain.ForceRelation(a.Id, b.Id, forces[a.Id].DiplomaticRelations[b.Id]))).ToArray()
         };

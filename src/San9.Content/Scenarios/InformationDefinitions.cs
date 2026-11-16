@@ -93,7 +93,7 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
         { var values = ids.ToArray(); if (values.Any(i => i < 0) || values.Distinct().Count() != values.Length) throw new InvalidDataException("Invalid information identities."); }
         if (Relations.Any(r => r.FirstId >= r.SecondId || r.Value is < 0 or > 100 || !scenario.Forces.Any(f => f.Id == r.FirstId) || !scenario.Forces.Any(f => f.Id == r.SecondId)) || Relations.Select(r => (r.FirstId, r.SecondId)).Distinct().Count() != Relations.Length)
             throw new InvalidDataException("Invalid force relations.");
-        if (CountryTitles is null || CountryTitles.Any(t => t is null || t.Rule is null || string.IsNullOrWhiteSpace(t.NameKey) || t.FlagGlyph is < -1 or > 185))
+        if (CountryTitles is null || CountryTitles.Any(t => t is null || t.Rule is null || string.IsNullOrWhiteSpace(t.NameKey) || t.Description is null || t.FlagGlyph is < -1 or > 185))
             throw new InvalidDataException("Invalid country title definition.");
         Unique(CountryTitles.Select(t => t.Id));
         if (Tactics is null || Formations is null || Tactics.Concat<MilitaryCatalogDefinition>(Formations).Any(d => d is null || string.IsNullOrWhiteSpace(d.Name) || d.Description is null))

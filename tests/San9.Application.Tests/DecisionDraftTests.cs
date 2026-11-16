@@ -100,6 +100,13 @@ public sealed class DecisionDraftTests
         var session = SearchSession(MerchantInvestmentSessionTests.Definition(), seed);
         var draft = SearchDraft(session, "merchant-investment", ["invest", "decline", "execute"]);
         var option = draft.Options.Single(o => o.Role == role);
+        if (choice == MerchantInvestmentChoice.Invest)
+        {
+            var beforeInput = session.Snapshot;
+            Assert.Equal("prompt", draft.InvestmentIntroduction().Message.Key);
+            StateAssert.Equal(beforeInput, session.Snapshot);
+            Assert.NotNull(session.GetPendingResponse());
+        }
         var answer = option.CreateCommand(Guid.NewGuid(), session.Snapshot.Simulation.NextSequence,
             null, choice == MerchantInvestmentChoice.Invest ? option.Minimum : 0);
         var result = session.Execute(new(draft.ControllerId), answer);
@@ -141,7 +148,8 @@ public sealed class DecisionDraftTests
                     ["merchant.salt"] = "盐田",
                     ["civic-person.0"] = "商人",
                     ["civic-person.1"] = "官吏"
-                }
+                },
+                Shared = new() { ["merchant-investment-amount"] = new("prompt", []) }
             }
         };
         return DecisionDraft.Read(session, texts, presentation)!;

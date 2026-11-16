@@ -143,6 +143,7 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable, bool 
         return key;
     }
     public string CountryTitle(string key, int id) => Add(key, Text(San9ScenarioCountryTitleArchive.GetNameMessageId(id)));
+    public string CountryTitleDescription(int id) => MessageMarkup.Plain(Text(7741 + id));
     // Rank 8 is the valid lowest rank, but its name resource 1668 is empty.
     // Reuse the source's explicit "none" label (5217) for this semantic state.
     public string RankName(int id) => MessageMarkup.Plain(Text(id == 8 ? 5217 : 1652 + 2 * id));

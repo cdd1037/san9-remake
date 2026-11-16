@@ -8,5 +8,6 @@ public sealed record CountryTitleDefinition(
     [property: JsonRequired] string NameKey,
     [property: JsonRequired] int FlagGlyph)
 {
+    [JsonRequired] public string Description { get; init; } = "";
     [JsonIgnore] public int Id => Rule.Id;
 }

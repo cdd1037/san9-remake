@@ -59,12 +59,11 @@ public partial class EndingView : FixedPage
     private void ShowCountryCatalog(IReadOnlyList<int> candidates) => Replace(new CatalogView
     {
         Textures = Textures, Service = Service, Title = "国号", HintText = "请选择国号。",
-        Pages = [new("国号", [new("name", "国号", 12, CatalogAlignment.Left)])],
-        Selection = new(candidates, [], 1),
-        ReadRows = _ => candidates.Select(id => new CatalogRow(id, [new(Texts.Resolve(Draft.View.Information.CountryTitles.Single(t => t.Id == id).NameKey))])).ToArray(),
-        ConfirmSelection = ids =>
+        Pages = CountryTitleCatalog.Pages,
+        CloseTitle = "中止",
+        ReadRows = _ => CountryTitleCatalog.Read(Draft.View, Texts, candidates),
+        Activated = title =>
         {
-            int title = ids.Single();
             Confirm(Draft.PreviewCountryTitle(title, Definition.ReplacedCountryTitleIds).Message.BbCode, () =>
             {
                 Draft.SelectCountryTitle(title, Definition.ReplacedCountryTitleIds);

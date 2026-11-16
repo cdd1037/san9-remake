@@ -159,6 +159,7 @@ public sealed class DecisionDraft
         Produce(message, Definition.Window == DecisionWindowKind.CountrySelection ? _context.PreviewCountryTitle(ForceId, selected) : _context).Message : null;
     public ProducedMessage? ConfirmCancel() => Definition.CancelConfirmation is { } message ? Produce(message).Message : null;
     public CommandMessage MovieIntroduction() => Produce(_presentation.Shared["shanyang-movie-introduction"]);
+    public CommandMessage InvestmentIntroduction() => Produce(_presentation.Shared["merchant-investment-amount"]);
 
     public IReadOnlyList<CommandMessage> Results(string choice, IReadOnlyList<DomainEvent> events, int? selected, uint amount)
     {

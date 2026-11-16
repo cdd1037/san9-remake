@@ -36,6 +36,7 @@ internal static class DecisionPresentationCompiler
         shared["learned-tactic"] = M(7232, sound: increase);
         shared["study-completed"] = M(6236, "actor", increase);
         shared["merchant-money-return"] = M(7169, sound: increase, inputs: [("force.1", "account"), ("number.0", "balance"), ("number.1", "profit")]);
+        shared["merchant-investment-amount"] = M(7998);
         shared["merchant-food-return"] = M(7171, sound: increase, inputs: [("force.1", "account"), ("number.0", "balance"), ("number.1", "profit")]);
         for (int i = 0; i < 3; i++) shared["training-growth-" + i] = M(7992 + i, sound: increase);
         shared["diplomacy-foreign-arrival"] = M(7112, sound: "decision-announcement", inputs: [("person.0", "requester-ruler"), ("person.1", "actor"), ("person.2", "host")]);
@@ -127,7 +128,7 @@ internal static class DecisionPresentationCompiler
             ("decline", [M(6211, "ruler", inputs: [("person.0", "ruler"), ("person.1", "actor")]), M(6160, "actor")]));
         Add("search-recruitment", DecisionWindowKind.PersonDisposition, M(7449), [M(6340, sound: good, image: "other", inputs: [("person.1", "other")])], [("accept", "登用"), ("decline", "静观")],
             ("success", [M(6261, "actor", inputs: [("person.1", "other"), ("person.2", "ruler")]), M(6302, "other", inputs: [("person.0", "other"), ("person.1", "actor")]), M(6341, sound: increase, inputs: [("person.0", "other")])]),
-            ("failure", [M(6318, "other", inputs: [("person.0", "other"), ("person.1", "actor")]), M(6342, sound: decrease, inputs: [("person.0", "other")])]));
+            ("failure", [M(6261, "actor", inputs: [("person.1", "other"), ("person.2", "ruler")]), M(6318, "other", inputs: [("person.0", "other"), ("person.1", "actor")]), M(6342, sound: decrease, inputs: [("person.0", "other")])]));
         Add("shanyang-gong", DecisionWindowKind.VerticalChoice, M(9360), [], [("accept", "保护"), ("decline", "处斩")],
             ("accept", [M(9361, sound: "decision-announcement"), M(9324, sound: increase)]), ("decline", [M(9363, sound: "execution-result")]));
         shared["shanyang-movie-introduction"] = M(7529);

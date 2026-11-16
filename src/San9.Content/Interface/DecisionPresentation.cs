@@ -30,6 +30,8 @@ public sealed record DecisionPresentations(Dictionary<string, DecisionPresentati
     public void Validate(TextCatalog texts, IReadOnlyDictionary<string, string> sounds, IEnumerable<int> people)
     {
         var ids = people.ToHashSet();
+        if (Events.ContainsKey("merchant-investment") && !Shared.ContainsKey("merchant-investment-amount"))
+            throw new InvalidDataException("Missing investment amount introduction.");
         if (Shared.ContainsKey("ending-unification") &&
             (new[] { "unification-music", "ending-music" }.Except(sounds.Keys).Any() ||
              new[] { "ending-prepare-undersized", "ending-prepare-offices" }.Except(Shared.Keys).Any()))

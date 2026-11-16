@@ -43,6 +43,18 @@ public sealed class San9MessageTableTests
         Assert.Equal(expected, reader.Catalog.Resolve("person-biography"));
     }
 
+    [Fact]
+    public void CountryDescriptionsComeFromTheirDedicatedMessages()
+    {
+        var records = Enumerable.Range(0, 7761).Select(_ => Array.Empty<byte>()).ToArray();
+        records[7741] = "First country description"u8.ToArray();
+        records[7760] = "Last country description"u8.ToArray();
+        using var reader = new ScenarioTextReader(Archive(Table(records)),
+            File.ReadAllBytes(typeof(ScenarioTextReader).Assembly.Location));
+        Assert.Equal("First country description", reader.CountryTitleDescription(0));
+        Assert.Equal("Last country description", reader.CountryTitleDescription(19));
+    }
+
     [Theory]
     [InlineData(0, "Standard title")]
     [InlineData(1, "Standard title")]

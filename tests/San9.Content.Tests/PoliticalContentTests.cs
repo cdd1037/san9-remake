@@ -47,6 +47,9 @@ public sealed class PoliticalContentTests
         var scenario = Scenario(); var copy = scenario.Information.Copy();
         var original = copy.CountryTitles[0]; scenario.Information.CountryTitles[0] = original with { NameKey = "changed" };
         Assert.Equal("title", copy.CountryTitles[0].NameKey);
+        var titleNode = JsonSerializer.SerializeToNode(original, ScenarioContentFiles.DataJsonOptions)!.AsObject();
+        Assert.True(titleNode.Remove("description"));
+        Assert.Throws<JsonException>(() => titleNode.Deserialize<CountryTitleDefinition>(ScenarioContentFiles.DataJsonOptions));
         string json = JsonSerializer.Serialize(original.Rule, ScenarioContentFiles.DataJsonOptions);
         var node = JsonNode.Parse(json)!.AsObject(); Assert.True(node.Remove("manualSelectionAllowed"));
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<CountryTitleRule>(node.ToJsonString(), ScenarioContentFiles.DataJsonOptions));

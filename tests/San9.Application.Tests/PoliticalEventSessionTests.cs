@@ -3,6 +3,9 @@ using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using San9.Application.Persistence;
+using San9.Application.Presentation;
+using San9.Content.Interface;
+using San9.Content.Text;
 using San9.Content.Packages;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
@@ -12,6 +15,55 @@ namespace San9.Application.Tests;
 
 public sealed class PoliticalEventSessionTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void ProclamationAudiencePrecedesTitleChoiceAndIsNotRepeatedAfterConfirmation(bool ended, bool existingTitle)
+    {
+        var scenario = Scenario(ended);
+        if (existingTitle) scenario = scenario with
+        {
+            Forces = scenario.Forces.Select(f => f.Id == 1 ? f with { CountryTitleId = 500 } : f).ToArray()
+        };
+        var session = GameSession.Start(scenario, 17);
+        var definitions = EventPresentationDefinition.RequiredRoles.ToDictionary(role => role,
+            role => new DecisionMessageDefinition(role, []));
+        var texts = new TextCatalog(1, new()) { Messages = definitions.Keys.ToDictionary(role => role,
+            role => new MessageDefinition([new MessageLiteral(role)])) };
+        var presentation = CommandPresentation.Empty with
+        { Events = new(definitions) { People = new() { ["messenger"] = 31 } } };
+        session.AdvanceXun(); session.AdvanceXun();
+        var before = session.View;
+        var result = session.AdvanceXun();
+        var output = ExecutionPublication.Read(before, session.View, session.Messages(texts, before.World), texts, presentation, result.Events);
+        string[] introduction = ended ? ["proclamation-introduction", "proclamation-declaration"] :
+            ["abdication-introduction", "abdication-emperor", "abdication-reply"];
+        string outcome = ended ? "proclamation-result" : "abdication-result";
+        Assert.Equal(introduction, output.Messages.Take(introduction.Length).Select(m => m.Message.Key));
+        if (existingTitle)
+        {
+            Assert.Null(session.GetCountryTitlePrompt());
+            Assert.Equal(outcome, output.Messages[introduction.Length].Message.Key);
+            return;
+        }
+        Assert.NotNull(session.GetCountryTitlePrompt());
+        Assert.Equal(introduction.Length, output.Messages.Count);
+        Assert.Equal(5, session.View.Forces.Single(f => f.Id == 1).RankId);
+        Assert.Null(session.View.Forces.Single(f => f.Id == 1).CountryTitleId);
+        var repeated = ExecutionPublication.Read(before, session.View, session.Messages(texts, before.World), texts, presentation,
+            result.Events, presentedFeedback: output.FeedbackIds);
+        Assert.Empty(repeated.Messages);
+        before = session.View;
+        var committed = session.Execute(new("player"), new ChooseCountryTitleCommand(Guid.NewGuid(), 1,
+            session.Snapshot.Simulation.NextSequence, 500));
+        Assert.True(committed.Submission.Accepted);
+        var completion = ExecutionPublication.Read(before, session.View, session.Messages(texts, before.World), texts, presentation, committed.Events);
+        Assert.Equal(outcome, completion.Messages[0].Message.Key);
+        Assert.DoesNotContain(completion.Messages, m => introduction.Contains(m.Message.Key));
+    }
+
     internal static ScenarioInitialState Scenario(bool ended = false) => new(ScenarioInitialState.CurrentSchemaVersion, "politics", 190, 3, 1, 1,
         [new(1, "force.1", 1, 1000) { BaseTrust = ended ? 1000 : 900, LeaderId = 1, RankId = 5, FlagGlyph = 10 },
          new(2, "force.2", 2, 100) { BaseTrust = 100, LeaderId = 2, RankId = 700, CountryTitleId = 900 }],

@@ -50,26 +50,9 @@ internal static class PersonnelJourneyPresentation
             values["actor"] = ProgressMessageProducer.Person(interrupted.OfficerId);
             values["home"] = ProgressMessageProducer.Place(interrupted.DestinationId);
             values["command-name"] = new(0, OfficerCommands.JourneyOrder(interrupted.MissionKind, interrupted.Strategy));
-            var task = before.World.Simulation.Tasks.FirstOrDefault(t => t.Id == interrupted.TaskId);
-            int? joined = task?.Kind == "personnel-recruit" ? task.Journey?.TargetOfficerId : null;
-            bool alreadyJoined = joined is int target && events.Take(index).OfType<RecruitmentResolvedEvent>().Any(e =>
-                e.Clock == interrupted.Clock && e.Success && e.TargetOfficerId == target && e.Occurrence.ForceId == interrupted.ForceId);
-            if (alreadyJoined)
-            {
-                string text = CommandText.Resolve(texts, "result.recruit-target-joined",
-                    texts.Resolve(before.MessageSpeaker(interrupted.OfficerId).NameKey),
-                    texts.Resolve(before.MessageSpeaker(joined!.Value).NameKey));
-                var message = new ProducedMessage(CommandText.Key("result.recruit-target-joined"), interrupted.Clock, text);
-                messages.Add(new(message, interrupted.OfficerId, null));
-                records.Add(new($"personnel-journey:{before.World.Revision}:{index}", message,
-                    before.PlaceCell(interrupted.DestinationId), MapRecordColors.Resolve(before, before, interrupted.ForceId)));
-            }
-            else
-            {
-                messages.Add(Produce("journey-interrupted"));
-                messages.Add(Produce("journey-withdrawal"));
-                Record("journey-interrupted-record", interrupted.ForceId, interrupted.DestinationId);
-            }
+            messages.Add(Produce("journey-interrupted"));
+            messages.Add(Produce("journey-withdrawal"));
+            Record("journey-interrupted-record", interrupted.ForceId, interrupted.DestinationId);
         }
         else if (Arrival(events[index]) is { } arrival && arrival.Occurrence is { Notify: true, RulerId: int ruler } occurrence &&
             (Direct(occurrence.ForceId, occurrence.SourceCorpsId) ||

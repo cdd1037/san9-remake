@@ -17,16 +17,19 @@ public sealed class PersonnelJourneyPresentationTests
         {
             Messages = roles.ToDictionary(r => r, r => new MessageDefinition(r.StartsWith("journey-arrived", StringComparison.Ordinal)
                 ? [new MessageValue(new("binding", "count")), new MessageLiteral(":"), new MessageValue(new("binding", "return-kind"))]
-                : [new MessageValue(new("binding", "command-name"))]))
+                : r == "journey-interrupted-record"
+                    ? [new MessageValue(new("property", "person.name", Arguments: [new("binding", "actor")])),
+                        new MessageLiteral("放弃"), new MessageValue(new("binding", "command-name")), new MessageLiteral("了。")]
+                    : [new MessageValue(new("binding", "command-name"))]))
         };
         var content = CommandPresentation.Empty with { Personnel = new(roles.ToDictionary(r => r, r => new DecisionMessageDefinition(r,
             r.StartsWith("journey-arrived", StringComparison.Ordinal) ? new() { ["count"] = "count", ["return-kind"] = "return-kind" }
-                : new() { ["command-name"] = "command-name" }, r == "journey-interrupted" ? "actor" : null))) };
+                : new() { ["command-name"] = "command-name", ["actor"] = "actor" }, r == "journey-interrupted" ? "actor" : null))) };
         return (texts, content);
     }
 
     [Fact]
-    public void SuccessfulBatchRecruitmentExplainsWhyOtherEnvoysReturnWithoutFailureDialogue()
+    public void SuccessfulBatchRecruitmentUsesGenericWithdrawalForOtherEnvoys()
     {
         var definition = G01ScenarioTests.Fixture();
         definition = definition with {
@@ -43,11 +46,11 @@ public sealed class PersonnelJourneyPresentationTests
         Assert.Equal(3,fact.OfficerId);
         var (texts,content) = Presentation(session);
         var output = PersonnelJourneyPresentation.Read(before,session.Messages(texts,before.World),texts,content.Personnel!,events,index,_ => 0);
-        var message = Assert.Single(output.Messages);
-        Assert.Equal(CommandText.Key("result.recruit-target-joined"),message.Message.Key);
-        Assert.Equal(3,message.SpeakerId);
-        Assert.Contains("已加入我方",message.Message.BbCode);
-        Assert.Equal(message.Message,Assert.Single(output.Records).Message);
+        Assert.Equal(["journey-interrupted", "journey-withdrawal"], output.Messages.Select(m => m.Message.Key));
+        Assert.Equal(3, output.Messages[0].SpeakerId);
+        var record = Assert.Single(output.Records).Message;
+        Assert.Equal("journey-interrupted-record", record.Key);
+        Assert.EndsWith("放弃登庸了。", record.BbCode);
     }
 
     [Fact]
@@ -70,7 +73,7 @@ public sealed class PersonnelJourneyPresentationTests
         var output = ExecutionPublication.Read(before, session.View, session.Messages(texts, before.World), texts, content, released.Events);
         Assert.Equal(new[] { "journey-interrupted", "journey-withdrawal" }, output.Messages.Select(m => m.Message.Key));
         Assert.Equal(2, output.Messages[0].SpeakerId);
-        Assert.Equal("登庸", Assert.Single(output.Records).Message.BbCode);
+        Assert.EndsWith("放弃登庸了。", Assert.Single(output.Records).Message.BbCode);
         var plan = BattlePresentationPlan.Create(before, session.View, released.Events, session.Messages(texts, before.World), texts, content);
         Assert.All(plan.Messages, m => Assert.Equal(BattleMessageChannel.Dialogue, m.Channel));
         Assert.Equal(output.Messages, plan.Messages.Select(m => m.Message));
@@ -116,7 +119,7 @@ public sealed class PersonnelJourneyPresentationTests
         var output = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, facts);
         Assert.Equal(2, output.Messages.Count);
         string record = Assert.Single(output.Records).Message.BbCode;
-        Assert.Equal("赠与", record);
+        Assert.EndsWith("放弃赠与了。", record);
     }
 
     [Fact]

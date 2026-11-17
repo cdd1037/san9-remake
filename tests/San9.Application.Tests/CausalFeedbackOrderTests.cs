@@ -26,11 +26,12 @@ public sealed class CausalFeedbackOrderTests
         var context = session.Messages(texts, before.World);
         var output = ExecutionPublication.Read(before, session.View, context, texts, content, events);
         Assert.Equal(["employ-meeting", "employ-success", "employ-result-success",
-            CommandText.Key("result.recruit-target-joined")], output.Messages.Select(m => m.Message.Key));
+            "journey-interrupted", "journey-withdrawal"], output.Messages.Select(m => m.Message.Key));
         var plan = BattlePresentationPlan.Create(before, session.View, events, context, texts, content);
         Assert.Equal(output.Messages, plan.Messages.Select(c => c.Message));
         var withdrawal = plan.Messages[^1];
-        Assert.Equal(plan.Messages[2].Id, withdrawal.AfterDialogueId);
+        Assert.Equal(plan.Messages[2].Id, plan.Messages[3].AfterDialogueId);
+        Assert.Equal(plan.Messages[3].Id, withdrawal.AfterDialogueId);
         var growth = Assert.Single(plan.Records, c => c.Record.Message.Key == "ability-grown");
         Assert.True(growth.FactIndex > plan.Messages[2].FactIndex);
         Assert.Equal(withdrawal.Id, growth.AfterDialogueId);

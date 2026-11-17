@@ -114,6 +114,10 @@ internal sealed partial class BattlePresentationBuilder(StrategySnapshot before,
             int firstDuel = _duels.Count;
             switch (events[_index])
             {
+                case WarDeclaredEvent:
+                    // Xun-start diplomacy precedes marching and holds the day until its dialogue completes.
+                    PublishFeedback(0, FeedbackKind.WorldEvent);
+                    break;
                 case DuelStartedEvent duel: PresentDuel(duel); break;
                 case OfficerDiedEvent { Cause: OfficerDeathCause.Duel } death: PresentDuelDeath(death); break;
                 case OfficerDiedEvent:

@@ -124,7 +124,8 @@ public static class OfficerCatalog
                         "salary" => ruler ? new("—", long.MaxValue)
                             : person.IsServing ? office?.Salary ?? 1 : CatalogCell.Unavailable,
                         "service" => ruler ? new("—", long.MaxValue)
-                            : o.IsServing && person.StatusStartYear is int year ? view.Year - year + 1 : CatalogCell.Unavailable,
+                            : o.IsServing && person.StatusStartYear is int year && view.Year >= year
+                                ? view.Year - year + 1 : CatalogCell.Unavailable,
                         "parent" => person.ParentId is null ? "" : Person(person.ParentId),
                         "age" => !view.Information.ShowOfficerAges ? new("**", IsUnavailable: true)
                             : person.BirthYear > 0 ? view.Year - person.BirthYear + 1 : CatalogCell.Unavailable,

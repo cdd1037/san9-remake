@@ -7,6 +7,30 @@ namespace San9.Application.Tests;
 
 public sealed class RankCatalogSortingTests
 {
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData(192, null)]
+    [InlineData(191, null)]
+    [InlineData(190, 1)]
+    [InlineData(180, 11)]
+    public void ServiceYearsRequireAKnownStartYearAtOrBeforeCurrentYear(int? startYear, int? expectedYears)
+    {
+        var (session, texts, definition) = Fixture();
+        var world = session.Snapshot with
+        {
+            Officers = session.Snapshot.Officers.Select(o => o.Id == 2
+                ? o with { StatusStartYear = startYear } : o).ToArray()
+        };
+        var view = new StrategySnapshot(definition, world);
+        var table = OfficerCatalog.Read(view, texts, 3, null, null);
+        var cell = table.Rows.Single(r => r.Key.Id == 2).Cells[Array.IndexOf(table.Columns, "仕官")];
+        CatalogCell expected = expectedYears is int years ? years : CatalogCell.Unavailable;
+
+        Assert.Equal(expected, cell);
+        var detail = OfficerDetails.Read(view, texts, 2);
+        Assert.Equal(expected.Text, detail.Fields.SelectMany(f => f).Single(f => f.Label == "仕官").Value);
+    }
+
     [Fact]
     public void OfficerOfficesSortByRulerPriorityAppointmentAndStatus()
     {

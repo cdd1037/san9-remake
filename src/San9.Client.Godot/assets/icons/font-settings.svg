@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="bronze" x1="8" y1="5" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F5DEAB"/><stop offset=".48" stop-color="#C9A366"/><stop offset="1" stop-color="#876139"/>
+    </linearGradient>
+    <linearGradient id="jade" x1="12" y1="8" x2="48" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#304B4C"/><stop offset="1" stop-color="#12282D"/>
+    </linearGradient>
+  </defs>
+  <path d="M13 5h38l8 8v38l-8 8H13l-8-8V13Z" fill="#091619" opacity=".6" transform="translate(0 2)"/>
+  <path d="M13 5h38l8 8v38l-8 8H13l-8-8V13Z" fill="url(#jade)" stroke="url(#bronze)" stroke-width="2"/>
+  <path d="M15 9h34l6 6v34l-6 6H15l-6-6V15Z" stroke="#C9A366" stroke-opacity=".35"/>
+  <path d="M13 20v-5l2-2h5m24 0h5l2 2v5M13 44v5l2 2h5m24 0h5l2-2v-5" stroke="#E6CA91" stroke-width="1.5" stroke-linecap="square"/>
+  <g stroke="#ECD4A3" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m23 18 2 4M16 25h16m-4 1c-1 8-5 13-12 17m3-17c2 8 6 13 13 17"/>
+    <path d="m35 43 7-22 8 22m-12-8h9"/>
+  </g>
+  <path d="M17 49h30" stroke="#98B9B1" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

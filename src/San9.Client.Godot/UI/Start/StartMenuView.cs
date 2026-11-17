@@ -23,6 +23,7 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
     private PortraitEditor? _portraitEditor;
     private ScenarioEditor? _scenarioEditor;
     private MapEditor? _mapEditor;
+    private FontSettingsView? _fontSettings;
     private TextureScope _textures = null!;
     private StartMenuArtwork _artwork = null!;
     private Label _hint = null!;
@@ -77,9 +78,22 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
         AddEditorButton("OpenPortraitEditor", "编辑头像", "portrait-editor.svg", new(120, 560), OpenPortraitEditor);
         AddEditorButton("OpenScenarioEditor", "编辑剧本", "scenario-editor.svg", new(208, 560), OpenScenarioEditor);
         AddEditorButton("OpenMapEditor", "编辑地图", "map-editor.svg", new(296, 560), OpenMapEditor);
+        AddEditorButton("OpenFontSettings", "字体设置", "font-settings.svg", new(384, 560), OpenFontSettings);
         first?.GrabFocus();
         RestorePrompt();
     }
+    private void OpenFontSettings()
+    {
+        if (_fontSettings is not null) return;
+        _controls.Hide();
+        _fontSettings = new FontSettingsView { Name = "FontSettings", Preferences = Preferences, Closed = () =>
+        {
+            _fontSettings!.QueueFree(); _fontSettings = null; _controls.Show();
+            _controls.GetNode<Button>("OpenFontSettings").GrabFocus();
+        } };
+        AddChild(_fontSettings);
+    }
+
     private void AddEditorButton(string name, string title, string icon, Vector2 position, Action open)
     {
         var button = new Button

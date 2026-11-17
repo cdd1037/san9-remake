@@ -46,6 +46,18 @@ public sealed class UiPreferencesTests : IDisposable
     }
 
     [Fact]
+    public void FontChoiceRoundTripsAndExistingPreferencesUseTheEmbeddedFont()
+    {
+        var store = new UiPreferencesStore(FilePath);
+        store.Save(UiPreferences.Default with { FontFamily = "Example Font" });
+        Assert.Equal("Example Font", store.Load().FontFamily);
+        var json = JsonNode.Parse(File.ReadAllText(FilePath, Encoding.UTF8))!;
+        json["preferences"]!.AsObject().Remove("fontFamily");
+        File.WriteAllText(FilePath, json.ToJsonString(), Encoding.UTF8);
+        Assert.Equal("", store.Load().FontFamily);
+    }
+
+    [Fact]
     public void DesktopPlacementPersistsIndependentlyOfEnvironmentSettings()
     {
         var store = new UiPreferencesStore(FilePath);
@@ -92,6 +104,8 @@ public sealed class UiPreferencesTests : IDisposable
     [InlineData("version", "1")]
     [InlineData("preferences.autoAssignOfficerFlag", "null")]
     [InlineData("preferences", "null")]
+    [InlineData("preferences.fontFamily", "null")]
+    [InlineData("preferences.fontFamily", "\"   \"")]
     [InlineData("preferences.saveLoadPage", "-1")]
     [InlineData("preferences.rosterPage", "\"Unknown\"")]
     [InlineData("preferences.edgeScrollMode", "0")]

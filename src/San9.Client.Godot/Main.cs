@@ -72,6 +72,7 @@ public partial class Main : Node
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Text.DecoderFallbackException or InvalidDataException)
             { GD.PushWarning($"界面偏好读取失败，使用默认值：{error.Message}"); }
             _preferences = new(preferences, preferenceStore.Save);
+            GameFonts.ApplyAtStartup(preferences.FontFamily);
             _settings = new(new UserSettingsStore(DataPaths.Settings));
             try { _settings.Load(); }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or

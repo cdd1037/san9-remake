@@ -36,6 +36,7 @@ public sealed record UiPreferences(int SaveLoadPage, RosterPage RosterPage, Edge
     bool ShowForces, bool ShowFacilities, bool ShowUnits, bool ShowBoundaries, SelectionViewPreferences SelectionViews)
 {
     public WindowPlacement? Window { get; init; }
+    public string FontFamily { get; init; } = "";
     [System.Text.Json.Serialization.JsonRequired] public bool AutoAssignOfficerFlag { get; init; } = true;
     public static UiPreferences Default { get; } = new(0, RosterPage.Facilities, EdgeScrollMode.Hover,
         true, true, true, true, SelectionViewPreferences.Default);
@@ -43,6 +44,8 @@ public sealed record UiPreferences(int SaveLoadPage, RosterPage RosterPage, Edge
     public void Validate()
     {
         Window?.Validate();
+        if (FontFamily is null || (FontFamily.Length > 0 && string.IsNullOrWhiteSpace(FontFamily)))
+            throw new InvalidDataException("Invalid font family.");
         if (SaveLoadPage < 0 || !Enum.IsDefined(RosterPage) || !Enum.IsDefined(EdgeScrollMode) || SelectionViews is null ||
             Enum.GetValues<SelectionViewGroup>().Any(group => !Enum.IsDefined(SelectionViews.Get(group))))
             throw new InvalidDataException("Invalid UI preferences.");

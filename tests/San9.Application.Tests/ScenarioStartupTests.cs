@@ -119,7 +119,6 @@ public sealed class ScenarioStartupTests
         definition = definition with { Forces = definition.Forces.Select(f => f with { IsBarbarian = true }).ToArray() };
         var settings = new NewGameSettings { Difficulty = GameDifficulty.Advanced, Mode = GameMode.Fictional,
             MoneyBonus = 100, SoldierBonus = 10000, DomesticBonus = 100, MoraleBonus = 20 };
-        definition = definition with { FictionalOfficerPlaceIds = [1, 2] };
         var session = GameSession.Start(definition, 123, settings: settings, playerForceIds: [2, 1]);
         Assert.All(session.Snapshot.Forces, f => Assert.False(f.IsBarbarian));
         Assert.Equal(new[] { 1, 2 }, session.Snapshot.Simulation.Controls.Where(c => c.Kind == San9.Core.Simulation.ControllerKind.Player).Select(c => c.ForceId));

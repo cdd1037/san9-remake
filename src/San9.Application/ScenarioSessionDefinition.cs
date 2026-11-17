@@ -27,7 +27,6 @@ internal sealed class ScenarioSessionDefinition
         if (definition.Day is not (1 or 11 or 21)) throw new ArgumentException("Expected a stable xun boundary.");
         Content = definition with
         {
-            FictionalOfficerPlaceIds = definition.FictionalOfficerPlaceIds.ToArray(),
             Information = definition.Information.Copy(), Forces = definition.Forces.ToArray(),
             Officers = definition.Officers.ToArray(), Units = definition.Units.ToArray(),
             Settlements = definition.Settlements.Select(s => s with { Icons = s.Icons.ToArray() }).ToArray(),
@@ -89,8 +88,20 @@ internal sealed class ScenarioSessionDefinition
                 _playerForces.Contains(f.Id) ? playerForceController : ControllerKind.Automatic)), computerDamageBonusPercent, Content.Alliance,
         Content.AttackRequests.Select(r => new AttackRequestState(r.RequestedForceId, r.RequesterForceId, r.TargetSettlementId,
             Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)), Content.AnnualAppearancesEnabled, Content.NaturalDeathsEnabled, Content.FreeOfficerMigrationEnabled, battleDeathsEnabled, Content.OfficeRequestsEnabled, Content.ConsumedEventKeys, Content.ForceConsolidationEnabled, Content.ForceEmergenceEnabled, Content.CityIndependenceEnabled, Content.ImperialCourtEnded, Content.ThreeVisitsStarted, Content.FoodExchangeRate, Content.SettlementDefectionsEnabled, Content.UnitDefectionsEnabled,
-        settings ?? new NewGameSettings { Difficulty = Content.OriginalAi.Advanced ? GameDifficulty.Advanced : GameDifficulty.Beginner }, Content.FictionalOfficerPlaceIds, _playerForces,
+        settings ?? new NewGameSettings { Difficulty = Content.OriginalAi.Advanced ? GameDifficulty.Advanced : GameDifficulty.Beginner }, OfficerStartingPlaces(), _playerForces,
         Definitions.Forces.Select(f => f.Id).ToHashSet(), Definitions.Officers.Select(p => p.Id).ToHashSet(), Content.DefaultLoyalty);
+
+    private int[] OfficerStartingPlaces()
+    {
+        var barbarianForces = Content.Forces.Where(f => f.IsBarbarian).Select(f => f.Id).ToHashSet();
+        var cities = Content.Settlements.Where(s => s.Kind == SettlementKind.City && !s.IsDormant &&
+            (s.OwnerId is not int owner || !barbarianForces.Contains(owner))).Select(s => s.Id).ToHashSet();
+        bool InEligibleCity(int id) => Content.RegionCityIds.TryGetValue(id, out int city) && cities.Contains(city);
+        return Content.Settlements.Where(s => !s.IsDormant && s.CanHostPersons &&
+                (s.Kind == SettlementKind.City ? cities.Contains(s.Id) : InEligibleCity(s.Id))).Select(s => s.Id)
+            .Concat(Content.UnbuiltPlaces.Where(p => InEligibleCity(p.Id)).Select(p => p.Id))
+            .Distinct().Order().ToArray();
+    }
 
     private IEnumerable<ForceState> Forces() => Content.Forces.Select(f => new ForceState(f.Id, f.Trust)
     {

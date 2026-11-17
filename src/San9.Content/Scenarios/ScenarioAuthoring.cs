@@ -355,11 +355,10 @@ public sealed record MilitaryGeographyDefinition
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ScenarioGeography
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
     [JsonRequired] public int SchemaVersion { get; init; } = CurrentSchemaVersion;
     [JsonRequired] public required Dictionary<int, string> RegionNameKeys { get; init; }
     [JsonRequired] public required Dictionary<int, int> RegionCityIds { get; init; }
-    [JsonRequired] public required int[] FictionalOfficerPlaceIds { get; init; }
     [JsonRequired] public required Dictionary<int, string> ProvinceNameKeys { get; init; }
     [JsonRequired] public required Dictionary<int, int> CityProvinceIds { get; init; }
     [JsonRequired] public required ImmutableArray<CityConnection> CityConnections { get; init; }
@@ -370,7 +369,6 @@ public sealed record ScenarioGeography
     {
         RegionNameKeys = value.RegionNameKeys,
         RegionCityIds = value.RegionCityIds,
-        FictionalOfficerPlaceIds = value.FictionalOfficerPlaceIds,
         ProvinceNameKeys = value.ProvinceNameKeys,
         CityProvinceIds = value.CityProvinceIds,
         CityConnections = value.CityConnections,
@@ -490,7 +488,6 @@ public sealed record ScenarioDocument(int SchemaVersion, string ScenarioId, int 
             DomesticPairs = definitions.DomesticPairs,
             ImperialSealId = definitions.ImperialSealId,
             ImperialCourt = definitions.ImperialCourt,
-            FictionalOfficerPlaceIds = geography.FictionalOfficerPlaceIds,
             ProvinceNameKeys = geography.ProvinceNameKeys,
             CityProvinceIds = geography.CityProvinceIds,
             CityConnections = geography.CityConnections,

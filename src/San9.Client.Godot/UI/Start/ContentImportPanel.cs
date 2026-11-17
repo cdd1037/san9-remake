@@ -25,6 +25,7 @@ public partial class ContentImportPanel : Control
     private Label _introduction = null!;
     private Label _status = null!;
     private Label _mediaHint = null!;
+    private Label _encoderHint = null!;
     private RichTextLabel _log = null!;
     private Label _failureDetails = null!;
     private Button _details = null!;
@@ -100,8 +101,12 @@ public partial class ContentImportPanel : Control
         options.AddChild(_audio); options.AddChild(_movies);
         _mediaHint = Text("", 14, ContentEditorStyle.Muted); layout.AddChild(_mediaHint);
         var encoderRow = Row(layout);
-        _encoderPath = PathField("", "自动查找系统中的 FFmpeg，也可手动选择"); encoderRow.AddChild(_encoderPath);
+        _ffmpeg = ImportAvailable ? ContentImportService.FindEncoder() : null;
+        _encoderPath = PathField(_ffmpeg ?? "", "请选择 FFmpeg 可执行文件"); encoderRow.AddChild(_encoderPath);
         _encoder = Action("选择 FFmpeg", SelectEncoder); encoderRow.AddChild(_encoder);
+        _encoderHint = Text(!ImportAvailable ? "开发构建不包含内置转换器。"
+            : _ffmpeg is null ? "未在系统 PATH 中找到 FFmpeg，请手动选择。" : "已自动找到 FFmpeg。", 14, ContentEditorStyle.Muted);
+        layout.AddChild(_encoderHint);
         _audio.Toggled += _ => UpdateMediaOptions();
         _movies.Toggled += _ => UpdateMediaOptions();
 
@@ -202,6 +207,7 @@ public partial class ContentImportPanel : Control
         dialog.FileSelected += path =>
         {
             _ffmpeg = path; _encoderPath.Text = path; _encoderPath.TooltipText = path; dialog.QueueFree();
+            _encoderHint.Text = "已手动选择 FFmpeg。";
         };
         dialog.Canceled += () => dialog.QueueFree();
         AddChild(dialog); dialog.PopupCentered(new(800, 560));

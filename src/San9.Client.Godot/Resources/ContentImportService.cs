@@ -12,6 +12,15 @@ internal static class ContentImportService
         false;
 #endif
 
+    internal static string? FindEncoder()
+    {
+#if SAN9_EXPORT_IMPORTER
+        return San9.Importer.San9PkTc101.Packages.PlayerContentImporter.FindEncoder();
+#else
+        return null;
+#endif
+    }
+
     internal static Task ImportAsync(string source, string output, string? ffmpeg, bool audio, bool movies, bool originalTextEdits,
         Action<ContentImportProgress> progress, CancellationToken token)
     {

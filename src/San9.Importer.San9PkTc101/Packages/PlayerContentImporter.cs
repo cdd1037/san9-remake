@@ -6,6 +6,8 @@ namespace San9.Importer.San9PkTc101.Packages;
 /// <summary>Complete player import, independent of any client or console host.</summary>
 public static class PlayerContentImporter
 {
+    public static string? FindEncoder() => FfmpegEncoder.Find()?.ExecutablePath;
+
     public static async Task ImportAsync(string gameDirectory, string output, Func<CancellationToken, Task> validate,
         string? ffmpeg = null, bool audio = true, bool movies = true,
         Action<ContentImportProgress>? progress = null, CancellationToken token = default, bool originalTextEdits = true)
@@ -68,12 +70,7 @@ public static class PlayerContentImporter
                 throw new FileNotFoundException($"请选择 {name} 可执行文件。", path);
             return path;
         }
-        foreach (string directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-        {
-            string path = Path.Combine(directory.Trim().Trim('"'), name);
-            if (File.Exists(path)) return Path.GetFullPath(path);
-        }
-        throw new FileNotFoundException("未找到 FFmpeg。请先安装 FFmpeg，或在界面中选择 ffmpeg 可执行文件后重试。");
+        return FindEncoder() ?? throw new FileNotFoundException("未找到 FFmpeg。请先安装 FFmpeg，或在界面中选择 ffmpeg 可执行文件后重试。");
     }
 
     private static async Task CheckEncoderAsync(string executable, bool movies, CancellationToken token)

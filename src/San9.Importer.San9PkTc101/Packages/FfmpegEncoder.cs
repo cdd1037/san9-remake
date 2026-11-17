@@ -10,6 +10,8 @@ internal interface IMediaEncoder
 
 internal sealed class FfmpegEncoder(string executable) : IMediaEncoder
 {
+    internal string ExecutablePath => Path.GetFullPath(executable);
+
     internal static readonly string[] AudioOptions = ["-map", "0:a:0", "-vn", "-af", "asetpts=N/SR/TB",
         "-c:a", "libvorbis", "-q:a", "5", "-ar", "44100", "-ac", "2", "-map_metadata", "-1"];
     internal static readonly string[] MovieOptions = ["-map", "0:v:0", "-map", "0:a:0", "-vf",

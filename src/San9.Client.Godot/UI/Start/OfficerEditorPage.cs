@@ -48,7 +48,7 @@ public partial class OfficerEditorPage : SharedCatalogEditorPage
         {
             var candidates = Workspace.Officers.Where(p => allowSelf || p.Id != id)
                 .Select(p => ($"{p.Name}（{p.Id}）", (int?)p.Id)).Prepend(("无" + title, (int?)null)).ToArray();
-            OfficerReferenceField.Add(parent, title, candidates, current, Guard(changed),
+            SearchableReferenceField.Add(parent, title, candidates, current, Guard(changed),
                 allowSelf ? "ChooseBloodline" : "ChooseParent", "按姓名搜索共享目录中的人物。",
                 $"人物 {current}（不在可选人物目录中）");
         }

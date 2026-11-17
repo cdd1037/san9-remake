@@ -128,8 +128,8 @@ public partial class TacticLinkEditor : VBoxContainer
         var candidates = Workspace.Officers.Select(o => (Label: $"{o.Name}（{o.Id}）", Value: (int?)o.Id))
             .Prepend(("请选择武将", (int?)null)).ToArray();
         int? first = null, second = null;
-        OfficerReferenceField.Add(grid, "武将甲", candidates, first, value => first = value, "TacticLinkFirst", "按姓名搜索武将。");
-        OfficerReferenceField.Add(grid, "武将乙", candidates, second, value => second = value, "TacticLinkSecond", "按姓名搜索武将。");
+        SearchableReferenceField.Add(grid, "武将甲", candidates, first, value => first = value, "TacticLinkFirst", "按姓名搜索武将。");
+        SearchableReferenceField.Add(grid, "武将乙", candidates, second, value => second = value, "TacticLinkSecond", "按姓名搜索武将。");
         ContentEditorControls.Caption(grid, "联携加成（百分点）");
         int bonus = 0;
         ContentEditorControls.NumericInput(grid, bonus, 0, 100, value => bonus = (int)value, "NewTacticLinkBonus");

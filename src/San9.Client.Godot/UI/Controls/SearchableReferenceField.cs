@@ -2,11 +2,12 @@ using Godot;
 
 namespace San9.Client.Godot;
 
-/// <summary>A named officer reference with a searchable, single-selection dialog.</summary>
-internal static class OfficerReferenceField
+/// <summary>A named reference with a searchable, single-selection dialog.</summary>
+internal static class SearchableReferenceField
 {
     public static Button Add<T>(Node parent, string title, IReadOnlyList<(string Label, T Value)> candidates,
-        T current, Action<T> changed, string name, string tooltip, string unavailableLabel = "当前人物不可用", bool showCaption = true)
+        T current, Action<T> changed, string name, string tooltip, string unavailableLabel = "当前引用不可用", bool showCaption = true,
+        bool keepFirstVisible = true)
     {
         if (showCaption) ContentEditorControls.Caption(parent, title);
         int selected = candidates.ToList().FindIndex(c => EqualityComparer<T>.Default.Equals(c.Value, current));
@@ -27,7 +28,7 @@ internal static class OfficerReferenceField
             var dialog = new ConfirmationDialog
             { Title = "选择" + title, OkButtonText = "确定", CancelButtonText = "取消", Exclusive = true };
             var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 10); dialog.AddChild(column);
-            var search = new LineEdit { PlaceholderText = "搜索姓名", Name = name + "Search" }; column.AddChild(search);
+            var search = new LineEdit { PlaceholderText = "搜索名称或 ID", Name = name + "Search" }; column.AddChild(search);
             var list = new ItemList
             { CustomMinimumSize = new(540, 350), SizeFlagsVertical = Control.SizeFlags.ExpandFill, Name = name + "Candidates" };
             column.AddChild(list);
@@ -39,7 +40,7 @@ internal static class OfficerReferenceField
                 string query = search.Text.Trim();
                 for (int i = 0; i < candidates.Count; i++)
                 {
-                    if (i != 0 && !candidates[i].Label.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!(keepFirstVisible && i == 0) && !candidates[i].Label.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
                     visible.Add(i); list.AddItem(candidates[i].Label);
                     if (i == selected) { pending = i; list.Select(visible.Count - 1); }
                 }

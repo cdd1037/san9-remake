@@ -184,17 +184,16 @@ public partial class MapEditor : ModalView
     private void RegionProperties()
     {
         int[] ids = _workspace!.Geography.RegionNameKeys.Keys.Order().ToArray();
-        ContentEditorControls.Choices(_properties, "地域", new[] { "无地域" }.Concat(ids.Select(id => $"{_workspace.RegionName(id)} [{id}]")).ToArray(),
-            _region < 0 ? 0 : Array.IndexOf(ids, _region) + 1,
-            index => { _region = index == 0 ? -1 : ids[index - 1]; BuildProperties(); });
+        var regions = ids.Select(id => ($"{_workspace.RegionName(id)} [{id}]", id)).Prepend(("无地域", -1)).ToArray();
+        SearchableReferenceField.Add(_properties, "地域", regions, _region,
+            id => { _region = id; BuildProperties(); }, "MapEditorRegion", "按名称或 ID 搜索地域。");
         ContentEditorControls.Toggle(_properties, "隐藏地域名称", _hideName, value => _hideName = value);
         if (_region < 0) return;
         var cities = _workspace.Scenario.Settlements.Where(s => s.Kind == SettlementKind.City).ToArray();
-        ContentEditorControls.Choices(_properties, "关联都市", cities.Select(s => _workspace.Name(s.NameKey)).ToArray(),
-            Array.FindIndex(cities, s => s.Id == _workspace.Geography.RegionCityIds.GetValueOrDefault(_region, -1)), index =>
-            {
-                _workspace.SetRegionCity(_region, cities[index].Id); Refresh();
-            });
+        SearchableReferenceField.Add(_properties, "关联都市", cities.Select(s => ($"{_workspace.Name(s.NameKey)} [{s.Id}]", s.Id)).ToArray(),
+            _workspace.Geography.RegionCityIds.GetValueOrDefault(_region, -1),
+            id => { _workspace.SetRegionCity(_region, id); Refresh(); }, "MapEditorRegionCity",
+            "按名称或 ID 搜索都市。", "未关联都市", keepFirstVisible: false);
         var point = _workspace.Map.Cells.Select((c, i) => (c, i)).FirstOrDefault(p => p.c.RegionId == _region);
         if (point.c is not null) ContentEditorControls.ActionButton(_properties, "定位地域", () => _canvas!.Focus(new(point.i % _workspace.Map.Width, point.i / _workspace.Map.Width)));
     }
@@ -202,12 +201,14 @@ public partial class MapEditor : ModalView
     private void BuildingProperties()
     {
         var buildings = _workspace!.Buildings;
-        ContentEditorControls.Choices(_properties, "据点", buildings.Select(b => _workspace.Name(_workspace.Scenario.Settlements.Single(s => s.Id == b.Id).NameKey)).ToArray(),
-            Array.FindIndex(buildings, b => b.Id == _selectedBuilding), index =>
-            {
-                _selectedBuilding = buildings[index].Id; _canvas!.SelectedBuilding = _selectedBuilding;
-                _canvas.Focus(new(buildings[index].X, buildings[index].Y)); BuildProperties();
-            });
+        var candidates = buildings.Select(b =>
+            ($"{_workspace.Name(_workspace.Scenario.Settlements.Single(s => s.Id == b.Id).NameKey)} [{b.Id}]", (int?)b.Id)).ToArray();
+        SearchableReferenceField.Add(_properties, "据点", candidates, _selectedBuilding, id =>
+        {
+            var building = buildings.Single(b => b.Id == id);
+            _selectedBuilding = id; _canvas!.SelectedBuilding = id;
+            _canvas.Focus(new(building.X, building.Y)); BuildProperties();
+        }, "MapEditorBuilding", "按名称或 ID 搜索据点。", "请选择据点", keepFirstVisible: false);
         if (_selectedBuilding is not int id) return;
         var selected = buildings.Single(b => b.Id == id); int x = selected.X, y = selected.Y;
         var coordinates = FieldRow(_properties);

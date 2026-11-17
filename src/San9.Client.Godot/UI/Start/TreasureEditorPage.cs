@@ -100,7 +100,7 @@ public partial class TreasureEditorPage : SharedCatalogEditorPage
         }
         var candidates = Workspace.Officers.Where(o => !treasure.FavoredOwnerIds.Contains(o.Id))
             .Select(o => (Label: $"{o.Name} [{o.Id}]", Value: (int?)o.Id)).Prepend(("＋ 添加武将", (int?)null)).ToArray();
-        var addPreference = OfficerReferenceField.Add(favorites, "武将", candidates, (int?)null, Guard<int?>(value =>
+        var addPreference = SearchableReferenceField.Add(favorites, "武将", candidates, (int?)null, Guard<int?>(value =>
         {
             if (value is not int person) return;
             Edit(id, t => t with { FavoredOwnerIds = t.FavoredOwnerIds.Append(person).Distinct().Order().ToImmutableArray() }); Rebuild();

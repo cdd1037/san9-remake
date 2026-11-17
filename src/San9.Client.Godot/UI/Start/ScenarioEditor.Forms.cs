@@ -180,8 +180,9 @@ public partial class ScenarioEditor
     {
         var values = choices.ToList();
         if (selected is int id && values.All(v => v.Id != id)) values.Add((id, $"未知引用 {id}"));
-        ContentEditorControls.Choices(parent, title, new[] { "无" }.Concat(values.Select(v => $"{v.Name} [{v.Id}]")).ToArray(),
-            selected is null ? 0 : values.FindIndex(v => v.Id == selected) + 1,
-            index => changed(index == 0 ? null : values[index - 1].Id));
+        var candidates = values.Select(v => ($"{v.Name} [{v.Id}]", (int?)v.Id))
+            .Prepend(("无", (int?)null)).ToArray();
+        SearchableReferenceField.Add(parent, title, candidates, selected, changed,
+            "ScenarioReference" + title, "按名称或 ID 搜索。", $"未知引用 {selected}");
     }
 }

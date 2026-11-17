@@ -32,7 +32,7 @@ public partial class CreatedOfficerEditor
             var candidates = references.Where(r => allowSelf || r.Created != person.Id)
                 .Select(r => (Label: r.Label, Value: (Created: r.Created, Historical: r.Historical)))
                 .Prepend((Label: allowSelf ? "随亲代／独立家族" : "无亲代", Value: (Created: (Guid?)null, Historical: (int?)null))).ToArray();
-            OfficerReferenceField.Add(parent, title, candidates, (Created: created, Historical: historical), changed,
+            SearchableReferenceField.Add(parent, title, candidates, (Created: created, Historical: historical), changed,
                 allowSelf ? "ChooseBloodline" : "ChooseParent", "按姓名搜索人物库或共享目录中的人物。",
                 historical is int id ? $"历史人物 {id}（共享目录中不可用）" : "人物库引用不可用");
         }

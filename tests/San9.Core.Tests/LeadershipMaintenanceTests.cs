@@ -17,7 +17,7 @@ public sealed class LeadershipMaintenanceTests
                 new(12, 1, 1, new(50, 50, 50, 60), false),
                 new(21, 1, 2, new(50, 50, 50, 80), false) { IsCommander = true },
                 new(22, 1, 2, new(50, 50, 50, 60), false)],
-            treasures: [new(1, null, TreasureDiscovery.Discovered, null)],
+            treasures: [new(1, new RegionTreasurePlacement(1))],
             controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 100000)) { IsRoot = true }]);
         return new(world, new([new(100, 0), new(101, 0)], []), PersonnelRulebook.Empty, Treasures, Governance);
     }
@@ -45,7 +45,7 @@ public sealed class LeadershipMaintenanceTests
     {
         Engine(out var world);
         var mutation = world.BeginMutation(new(Treasures, Governance));
-        mutation.Replace(mutation.Treasures[1] with { HolderId = 12 });
+        mutation.Replace(mutation.Treasures[1] with { Placement = new OfficerTreasurePlacement(12)});
         List<DomainEvent> events = [];
         mutation.MaintainLeadership(events);
         Assert.Equal(12, LeadershipMaintenance.Commander(mutation, 1)!.Id);
@@ -74,7 +74,7 @@ public sealed class LeadershipMaintenanceTests
             var mutation = state.BeginMutation(new(Treasures, Governance));
             mutation.Replace(mutation.Officers[11] with { SettlementId = 2, IsCommander = false });
             mutation.Replace(mutation.Officers[21] with { SettlementId = 1, IsCommander = false });
-            mutation.Replace(mutation.Treasures[1] with { HolderId = 12 });
+            mutation.Replace(mutation.Treasures[1] with { Placement = new OfficerTreasurePlacement(12)});
             mutation.Replace(mutation.Officers[22] with { OfficeId = 100 });
             List<DomainEvent> events = [];
             mutation.MaintainLeadership(events);

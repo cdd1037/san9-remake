@@ -17,7 +17,7 @@ public sealed class SunMarriageTests
          new OfficerState(22, 2, 4, new(50, 50, 50, 50), false) { Status = OfficerStatus.Strategist, TacticCooldown = 7 }.WithLoyalty(2, 95),
          new(23, 2, 4, new(50, 50, 50, 50), false),
          new(31, 3, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-        treasures: [new(7, 22, TreasureDiscovery.Discovered, null)],
+        treasures: [new(7, new OfficerTreasurePlacement(22))],
         controls: [new("first", 1, player ? ControllerKind.Player : ControllerKind.Automatic), new("second", 2, ControllerKind.Automatic)],
         relations: [new(1, 2, 71), new(1, 3, 50), new(2, 3, 50)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }]);
     private static SimulationRules Rules(SunMarriageDefinition? definition = null) => new()

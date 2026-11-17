@@ -141,8 +141,8 @@ public sealed class RuntimeWorldTests
             [new(3, 3, 17, new(), false), new(1, 1, 15, new(), false), new(2, 2, 16, new(), false)],
             [new(3, 3, MapCoordinates.Center(new(1, 1)), 1), new(1, 1, MapCoordinates.Center(new(1, 1)), 1), new(2, 2, MapCoordinates.Center(new(1, 1)), 1)],
             [new(3, 3, 3, new(0, 0)) { IsRoot = true }, new(1, 1, 1, new(0, 0)) { IsRoot = true }, new(2, 2, 2, new(0, 0)) { IsRoot = true }],
-            [new(3, 3, TreasureDiscovery.Discovered, null), new(1, 1, TreasureDiscovery.Discovered, null),
-                new(2, 2, TreasureDiscovery.Discovered, null)],
+            [new(3, new OfficerTreasurePlacement(3)), new(1, new OfficerTreasurePlacement(1)),
+                new(2, new OfficerTreasurePlacement(2))],
             [new(2, 3, 50), new(1, 3, 50), new(1, 2, 50)]);
 
         var snapshot = world.CreateSnapshot();

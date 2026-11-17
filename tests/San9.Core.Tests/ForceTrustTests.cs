@@ -104,7 +104,7 @@ public sealed class ForceTrustTests
          new(2, 2, 20, new(), false) { Status = OfficerStatus.Ruler },
          new(3, null, 10, new(), false) { Status = OfficerStatus.Free },
          new(4, null, 20, new(), false) { Status = OfficerStatus.Free }],
-        treasures: [new(5, 1, TreasureDiscovery.Discovered, null)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(1000, 1000)) { IsRoot = true }]);
+        treasures: [new(5, new OfficerTreasurePlacement(1))], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(1000, 1000)) { IsRoot = true }]);
 
     [Fact]
     public void CityInputsTransferAndDormancyImmediatelyAffectBothOwners()
@@ -132,14 +132,14 @@ public sealed class ForceTrustTests
     }
 
     [Fact]
-    public void SealDiscoveryTransferHolderActivationAndLeaderChangeMaintainTrust()
+    public void SealPlacementTransferHolderActivationAndLeaderChangeMaintainTrust()
     {
         var state = Assets(); InitializeTrust(state, CourtRules);
         var world = state.BeginMutation(economy: CourtRules);
         Assert.Equal(400, world.Forces[1].Trust);
-        world.Replace(world.Treasures[5] with { Discovery = TreasureDiscovery.Buried, HolderId = null });
+        world.Replace(world.Treasures[5] with { Placement = new RegionTreasurePlacement(1) });
         Assert.Equal(300, world.Forces[1].Trust);
-        world.Replace(world.Treasures[5] with { Discovery = TreasureDiscovery.Discovered, HolderId = 2 });
+        world.Replace(world.Treasures[5] with { Placement = new OfficerTreasurePlacement(2) });
         Assert.Equal(300, world.Forces[2].Trust);
         world.Replace(world.Officers[2] with { IsDormant = true });
         Assert.Equal(200, world.Forces[2].Trust);

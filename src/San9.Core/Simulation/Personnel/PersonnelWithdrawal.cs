@@ -6,9 +6,10 @@ public sealed record OfficerWithdrawnEvent(GameClock Clock, int OfficerId, int? 
 
 internal static class PersonnelWithdrawal
 {
-    internal static void Resolve(WorldMutation world, int officerId, SimulationRules rules, List<DomainEvent> events)
+    internal static void Resolve(WorldMutation world, int officerId, int encounterPlaceId, SimulationRules rules, List<DomainEvent> events)
     {
         var previous = world.Officers[officerId];
+        int regionId = PersonnelLocations.ServicePlace(world, previous) ?? previous.RegionId ?? encounterPlaceId;
         PersonnelTransitions.CancelMissions(world, officerId, "person-withdrawn", events, rules.Personnel, true);
         foreach (var force in world.Forces.Values.Where(f => f.AdviserId == officerId).ToArray())
             world.Replace(force with { AdviserId = null });
@@ -17,10 +18,7 @@ internal static class PersonnelWithdrawal
             OwnerId = null, SettlementId = null, RegionId = null, UnitId = null, OfficeId = null,
             IsCommander = false, Acted = true, EquippedTacticId = null, TacticCooldown = 0 });
         foreach (var treasure in world.Treasures.Values.Where(t => t.HolderId == officerId).OrderBy(t => t.Id).ToArray())
-        {
-            world.Replace(treasure with { HolderId = null, Discovery = TreasureDiscovery.Discovered });
-            events.Add(new TreasureDroppedEvent(world.Clock, treasure.Id, officerId));
-        }
+            PersonnelTreasures.Drop(world, treasure, regionId, events);
         if (previous.UnitId is int unit && world.Units.ContainsKey(unit) && !world.Officers.Values.Any(p => p.UnitId == unit && p.IsServing))
             BattleAftermath.TerminateUnit(world, unit, null, rules, events);
         if (previous.OwnerId is int owner)

@@ -34,7 +34,7 @@ public static class TacticAvailability
             foreach (int id in person.LearnedTactics) yield return (id, TacticSource.Learned);
         }
         foreach (var item in holdings)
-            if (item.Discovered && item.HolderId is int holder && memberIds.Contains(holder) &&
+            if (item.HolderId is int holder && memberIds.Contains(holder) &&
                 treasures.Items.TryGetValue(item.Id, out var definition) && definition.TacticId is int id)
                 yield return (id, TacticSource.Treasure);
     }

@@ -498,14 +498,13 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
         int? corpsId = PersonnelLocations.TaskHome(world, task).CorpsId;
         if (Direct(world, task))
         {
-            var items = world.Treasures.Values.Where(t => t.Discovery == TreasureDiscovery.Buried && t.HolderId is null &&
-                t.DiscoveryRegionId == destination && treasures.Items.ContainsKey(t.Id)).OrderBy(t => t.Id).ToArray();
+            var items = world.Treasures.Values.Where(t => t.RegionId == destination).OrderBy(t => t.Id).ToArray();
             long threshold = PersonnelSearchChances.Treasure(politicsScore, items.Length);
             if (items.Length > 0 && task.Journey.SuccessRoll < threshold)
             {
                 var item = items[world.NextRandom("personnel-search-treasure") % (ulong)items.Length];
                 int rulerId = world.Forces[task.ForceId].LeaderId!.Value;
-                world.Replace(item with { Discovery = TreasureDiscovery.Discovered, HolderId = rulerId });
+                world.Replace(item with { Placement = new OfficerTreasurePlacement(rulerId) });
                 PersonnelMissions.GrowPolitics(world, task.OfficerId, events);
                 events.Add(new SearchResolvedEvent(world.Clock, task.OfficerId, destination, null, false)
                     { Result = SearchResultKind.Treasure, TreasureId = item.Id });

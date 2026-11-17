@@ -29,7 +29,7 @@ public sealed class ChainedPlotTests
             .Append(new(21, 2, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler })
             .Append(new(31, 3, 4, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler })
             .Append(new(99, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special }),
-        treasures: [new(7, 11, TreasureDiscovery.Discovered, null), new(8, 17, TreasureDiscovery.Discovered, null)],
+        treasures: [new(7, new OfficerTreasurePlacement(11)), new(8, new OfficerTreasurePlacement(17))],
         controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)],
         consumedEventKeys: started ? [Definition.StartedKey] : [],
         annualAppearancesEnabled: false, naturalDeathsEnabled: false, freeOfficerMigrationEnabled: false,

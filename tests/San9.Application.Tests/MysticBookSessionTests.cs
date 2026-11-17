@@ -31,7 +31,7 @@ public sealed class MysticBookSessionTests
         {
             Corps = [new San9.Core.Domain.CorpsState(1, 1, 1, new(50000, 10000)) { IsRoot = true }],
             Treasures = [new(500, "book", 2, 50, 29)],
-            TreasureStates = [new(500, returning ? 2 : 4, TreasureDiscovery.Discovered, null)]
+            TreasureStates = [new(500, new OfficerTreasurePlacement(returning ? 2 : 4))]
         }
     };
 

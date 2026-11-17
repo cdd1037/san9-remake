@@ -64,17 +64,20 @@ public static class TreasureContentCompiler
         item.CategoryId is 3 or 4 or 6 ? item.AbilityBonus : 0,
         item.CategoryId == 2 ? item.AbilityBonus : 0);
 
-    public static TreasureState[] InitialStates(IEnumerable<San9ScenarioItemRecord> records) => records.Select(item =>
+    public static TreasureState[] InitialStates(IEnumerable<San9ScenarioItemRecord> records, IReadOnlySet<int> livingOfficerIds)
     {
-        if (item.SerializedId >= BuiltInCount && !item.IsInvalid)
-            throw new InvalidDataException("Configured expansion treasure requires expansion text support.");
-        var discovery = item.DiscoveryState switch
+        var states = new List<TreasureState>();
+        foreach (var item in records)
         {
-            San9ScenarioItemDiscoveryState.Invalid => TreasureDiscovery.Disabled,
-            San9ScenarioItemDiscoveryState.NotUnearthed => TreasureDiscovery.Buried,
-            San9ScenarioItemDiscoveryState.Unearthed => TreasureDiscovery.Discovered,
-            _ => throw new InvalidDataException("Invalid treasure discovery state.")
-        };
-        return new TreasureState(item.SerializedId, item.HolderPersonId, discovery, item.DiscoveryLocationId);
-    }).ToArray();
+            if (item.SerializedId >= BuiltInCount && !item.IsInvalid)
+                throw new InvalidDataException("Configured expansion treasure requires expansion text support.");
+            if (!Enum.IsDefined(item.DiscoveryState)) throw new InvalidDataException("Invalid treasure discovery state.");
+            if (item.IsInvalid) continue;
+            if (item.HolderPersonId is int holder && livingOfficerIds.Contains(holder))
+                states.Add(new(item.SerializedId, new OfficerTreasurePlacement(holder)));
+            else if (item.DiscoveryLocationId is int region)
+                states.Add(new(item.SerializedId, new RegionTreasurePlacement(region)));
+        }
+        return states.ToArray();
+    }
 }

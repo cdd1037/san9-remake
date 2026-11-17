@@ -64,7 +64,7 @@ internal sealed partial class MapCommandAvailability(StrategySnapshot view)
             "rumor" => OtherForces().Count() < 2 ? "no-rumor-forces" :
                 OtherForces().Any(f => view.World.Officers.Count(p => p.IsServing && !p.IsDormant && p.OwnerId == f.Id) > 1) ? null : "no-rumor-officers",
             "gift" => !OtherForces().Any() ? "no-target-force" : Treasury().Money >= GiftOffer.MinimumMoney || Treasury().Food >= GiftOffer.MinimumFood ||
-                view.World.Treasures.Any(t => t.Discovered && t.HolderId == Force.LeaderId) ? null : "no-gift-resources",
+                view.World.Treasures.Any(t => t.HolderId == Force.LeaderId) ? null : "no-gift-resources",
             "surrender" => OtherForces().Any(f => !f.IsBarbarian && Hostile(f.Id)) ? null : "no-target-force",
             "return" => view.World.Officers.Any(p => p.Status == OfficerStatus.Captive && p.OwnerId == Owner &&
                 p.SettlementId is int prison && places.TryGetValue(prison, out var location) && location.OwnerId is int captor && captor != Owner)

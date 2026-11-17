@@ -52,7 +52,7 @@ internal static class CommunitySearch
             CivicSearchEventDefinition { Activity: CivicSearchKind.TravelPermit } => Owned(world, task, rules),
             CivicSearchEventDefinition => true,
             CommemorationSearchEventDefinition memorial => Site(task, memorial) is { } site && !world.Simulation.ConsumedEventKeys.Contains(site.ConsumptionKey) &&
-                (site.RequiredTreasureId is not int itemId || world.Treasures.TryGetValue(itemId, out var item) && item.Discovered && item.HolderId == task.OfficerId),
+                (site.RequiredTreasureId is not int itemId || world.Treasures.TryGetValue(itemId, out var item) && item.HolderId == task.OfficerId),
             TrainingSiteSearchEventDefinition training => Site(task, training) is { } site &&
                 world.Officers[task.OfficerId].TacticProficiencies[site.Category] < training.MaximumProficiencyExclusive &&
                 SoldierTotals.Force(world, task.ForceId) > training.MinimumForceSoldiersExclusive,

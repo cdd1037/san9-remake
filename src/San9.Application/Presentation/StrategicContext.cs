@@ -125,9 +125,9 @@ public static class StrategicContext
             (p.SettlementId ?? p.RegionId) is int place && EligiblePlace(place)).OrderBy(p => p.Id).ToArray();
         if (hidden.Length > 0)
         { var person = hidden[Pick(hidden.Length)]; if (Hint("person",(person.SettlementId ?? person.RegionId)!.Value,officer: person.Id)) return Finish(); }
-        var buried = world.Treasures.Where(t => t.Discovery == TreasureDiscovery.Buried && t.DiscoveryRegionId is int place && EligiblePlace(place)).OrderBy(t => t.Id).ToArray();
+        var buried = world.Treasures.Where(t => t.RegionId is int place && EligiblePlace(place)).OrderBy(t => t.Id).ToArray();
         if (buried.Length > 0)
-        { var item = buried[Pick(buried.Length)]; if (Hint("treasure",item.DiscoveryRegionId!.Value,treasure: item.Id)) return Finish(); }
+        { var item = buried[Pick(buried.Length)]; if (Hint("treasure",item.RegionId!.Value,treasure: item.Id)) return Finish(); }
         if (world.Clock.Boundary.Quarter && NaturalMortality.Enabled(world.Simulation, view.Companion))
         {
             var aging = available.Where(p => p.BirthYear > 0 && NaturalMortality.Chance(world.Clock.Year,p) > 0).OrderBy(p => p.Id).ToArray();

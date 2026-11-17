@@ -74,7 +74,7 @@ internal sealed partial class OriginalAiPersonnel(SimulationEngine engine, Scena
     private bool Legal(GameCommand command) => engine.GetPreparationEligibility(context, command) == CommandRejection.None;
     private int Relation(int? other) => other is int id && World.Forces.Any(f => f.Id == id && !f.IsEliminated)
         ? World.Relations.FirstOrDefault(r => r.FirstId == Math.Min(id, Owner) && r.SecondId == Math.Max(id, Owner))?.Value ?? 100 : 100;
-    private IEnumerable<TreasureState> Holdings(int person) => World.Treasures.Where(t => t.Discovered && t.HolderId == person);
+    private IEnumerable<TreasureState> Holdings(int person) => World.Treasures.Where(t => t.HolderId == person);
     private int Threshold(OfficerState target) => Ruler is { } ruler ? engine.GetRecruitmentThreshold(ruler.Id, target.Id) : 0;
     private bool ConfiscatableCaptive(OfficerState person) => Detained(person) && person.LoyaltyTo(Owner) <= 60 &&
         (person.OwnerId is not int origin || !World.Forces.Any(f => f.Id == origin && !f.IsEliminated) || Relation(origin) / 20 <= 0);

@@ -17,7 +17,7 @@ public sealed class OfficerDeathTests
          new(11, 1, 1, new(70, 70, 70, 70), false)
          { Status = OfficerStatus.Strategist, ParentId = 1, BloodlineId = 9000, LearnedTactics = [2],
              TacticCooldown = 3, RewardedThisXun = true }],
-        treasures: [new(8, 11, TreasureDiscovery.Discovered, null), new(7, 11, TreasureDiscovery.Discovered, null)],
+        treasures: [new(8, new OfficerTreasurePlacement(11)), new(7, new OfficerTreasurePlacement(11))],
         controls: [new("enemy", 2, ControllerKind.Player)], relations: [new(1, 2, 50)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 2, new(1000, 1000)) { IsRoot = true }]);
 
     [Theory]
@@ -53,12 +53,9 @@ public sealed class OfficerDeathTests
         Assert.Equal(1, person.ParentId);
         Assert.Equal(9000, person.BloodlineId);
         Assert.Equal(new[] { 2 }, person.LearnedTactics);
-        Assert.All(snapshot.Treasures, item => Assert.Equal(recipient, item.HolderId));
-        Assert.All(snapshot.Treasures, item =>
-        {
-            Assert.Equal(recipient is null ? TreasureDiscovery.Buried : TreasureDiscovery.Discovered, item.Discovery);
-            Assert.Equal(recipient is null ? 1 : (int?)null, item.DiscoveryRegionId);
-        });
+        TreasurePlacement expectedPlacement = recipient is int holder
+            ? new OfficerTreasurePlacement(holder) : new RegionTreasurePlacement(1);
+        Assert.All(snapshot.Treasures, item => Assert.Equal(expectedPlacement, item.Placement));
         Assert.Equal(randomBefore, snapshot.Simulation.RandomStreams);
         Assert.Equal(new OfficerDiedEvent(snapshot.Clock, 11, OfficerDeathCause.ForceEliminated,
             OfficerStatus.Strategist, 1, 1, null, null), Assert.Single(events.OfType<OfficerDiedEvent>()));
@@ -106,13 +103,12 @@ public sealed class OfficerDeathTests
     }
 
     [Theory]
-    [InlineData(false, 1, null, 2, 1)]
-    [InlineData(false, null, 30, 2, 30)]
-    [InlineData(true, 1, null, 2, 1)]
-    [InlineData(true, null, null, 2, 2)]
-    [InlineData(true, null, null, null, null)]
+    [InlineData(false, 1, null, 1)]
+    [InlineData(false, null, 30, 30)]
+    [InlineData(true, 1, null, 1)]
+    [InlineData(true, null, null, null)]
     public void DroppedTreasuresUseServicePlaceCapturedBeforeLocationCleanup(bool deployed, int? servicePlace,
-        int? region, int? previousLocation, int? expectedLocation)
+        int? region, int? expectedLocation)
     {
         var mutation = World().BeginMutation();
         if (deployed)
@@ -123,19 +119,15 @@ public sealed class OfficerDeathTests
             OwnerId = deployed ? 1 : null, SettlementId = deployed ? null : servicePlace,
             RegionId = region, UnitId = deployed ? 20 : null
         });
-        foreach (var item in mutation.Treasures.Values.ToArray())
-            mutation.Replace(item with { DiscoveryRegionId = previousLocation });
         var events = new List<DomainEvent>();
         Assert.True(OfficerDeath.Remove(mutation, 11, OfficerDeathCause.Natural, PersonnelRulebook.Empty, events, false,
             out int? treasureDropRegionId));
         if (deployed) mutation.RemoveUnit(20);
         OfficerDeath.SettleTreasures(mutation, 11, null, treasureDropRegionId, events);
-        Assert.All(mutation.Treasures.Values, item =>
-        {
-            Assert.Null(item.HolderId);
-            Assert.Equal(TreasureDiscovery.Buried, item.Discovery);
-            Assert.Equal(expectedLocation, item.DiscoveryRegionId);
-        });
+        if (expectedLocation is null) Assert.Empty(mutation.Treasures);
+        else Assert.Equal(2, mutation.Treasures.Count);
+        if (expectedLocation is int location)
+            Assert.All(mutation.Treasures.Values, item => Assert.Equal(new RegionTreasurePlacement(location), item.Placement));
         Assert.Equal(2, events.OfType<TreasureDroppedEvent>().Count());
         Assert.Empty(mutation.Simulation.RandomStreams);
     }
@@ -153,7 +145,7 @@ public sealed class OfficerDeathTests
             Officers = baseline.Officers.Select(p => p.Id == 11
                 ? p with { OwnerId = null, Status = OfficerStatus.Free, BirthYear = 90 }
                 : p with { BaseAbilities = new(50, 50, 500, 50) }).ToImmutableArray(),
-            Treasures = [new(7, 11, TreasureDiscovery.Discovered, 2)]
+            Treasures = [new(7, new OfficerTreasurePlacement(11))]
         });
         var mutation = world.BeginMutation();
         mutation.SetClock(new(191, 1, 1));
@@ -163,8 +155,7 @@ public sealed class OfficerDeathTests
         world.Commit(mutation);
         Assert.Single(events.OfType<TreasureDroppedEvent>());
         var dropped = Assert.Single(world.CreateSnapshot().Treasures);
-        Assert.Equal(TreasureDiscovery.Buried, dropped.Discovery);
-        Assert.Equal(1, dropped.DiscoveryRegionId);
+        Assert.Equal(new RegionTreasurePlacement(1), dropped.Placement);
 
         var places = new PersonnelRulebook([new(1, new(0, 0)), new(2, new(300, 0))]);
         var restored = WorldState.Restore(JsonSerializer.Deserialize<WorldSnapshot>(
@@ -176,6 +167,6 @@ public sealed class OfficerDeathTests
         Assert.Equal(SearchResultKind.Treasure, found.Result);
         Assert.Equal(7, found.TreasureId);
         Assert.Equal(1, Assert.Single(engine.Snapshot.Treasures).HolderId);
-        Assert.Equal(TreasureDiscovery.Discovered, Assert.Single(engine.Snapshot.Treasures).Discovery);
+        Assert.IsType<OfficerTreasurePlacement>(Assert.Single(engine.Snapshot.Treasures).Placement);
     }
 }

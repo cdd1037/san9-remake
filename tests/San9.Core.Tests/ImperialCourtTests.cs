@@ -105,7 +105,7 @@ public sealed class ImperialCourtTests
         world.Replace(world.Forces[1] with { AdviserId = 12 });
         // Recreate with a valid authored treasure so the entire death transaction can be validated.
         var state = WorldState.Create(world.Clock, 17, world.Forces.Values, world.Settlements.Values, world.Officers.Values,
-            corps: world.Corps.Values, treasures: [new(7, 12, TreasureDiscovery.Discovered, 1)]);
+            corps: world.Corps.Values, treasures: [new(7, new OfficerTreasurePlacement(12))]);
         var rules = new SimulationRules
         {
             Economy = Rules(Definition(0) with { DeathEvents = [new(12, new(191, 1, 1), world.Clock, 0)] }).Economy,

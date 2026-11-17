@@ -50,7 +50,7 @@ public sealed class GiftSessionTests
             new("envoy", new(12, 1, 1, new(50, 50, 100, 50), false)),
             new("ruler2", new(21, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }),
             new("envoy2", new(22, 2, 2, new(50, 50, 100, 50), false))],
-        Information = new([], [], [new(9, "treasure", 0, 50, null)], [new San9.Core.Domain.CorpsState(1, 1, 11, new(100000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(100000, 100000)) { IsRoot = true }], [new(9, 11, TreasureDiscovery.Discovered, null)])
+        Information = new([], [], [new(9, "treasure", 0, 50, null)], [new San9.Core.Domain.CorpsState(1, 1, 11, new(100000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(100000, 100000)) { IsRoot = true }], [new(9, new OfficerTreasurePlacement(11))])
     };
 
     [Theory]
@@ -111,7 +111,7 @@ public sealed class GiftSessionTests
     {
         var content = Content();
         content = content with { Information = content.Information with
-            { TreasureStates = [new(9, 21, TreasureDiscovery.Discovered, null)] } };
+            { TreasureStates = [new(9, new OfficerTreasurePlacement(21))] } };
         uint amount = kind == GiftKind.Treasure ? 0u : GiftOffer.MinimumAmount(kind);
         var session = GameSession.Start(content, 42);
         session.EndControl(new("player"));

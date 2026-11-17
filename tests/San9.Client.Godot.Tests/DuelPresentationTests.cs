@@ -21,7 +21,7 @@ public sealed class DuelPresentationTests
         {
             Participants = initial.Participants.Select(p => p.Id == 11
                 ? p with { Injury = 5, BaseAbilities = new(80, 50, 50, 50) } : p).ToImmutableArray(),
-            Treasures = [new(8, 11, TreasureDiscovery.Discovered, null)]
+            Treasures = [new(8, new OfficerTreasurePlacement(11))]
         };
         texts.Messages["entry"] = new([new MessageValue(new("property", "person.war",
             Arguments: [new("binding", "person.0")])), new MessageLiteral(":"),
@@ -372,7 +372,7 @@ public sealed class DuelPresentationTests
             {
                 Treasures = [new(7, "treasure.7", 1, 0, null) { AbilityBonuses = new(10, 0, 0, 0) },
                     new(8, "treasure.8", 1, 0, null) { AbilityBonuses = new(15, 0, 0, 0) }],
-                TreasureStates = [new(7, 11, TreasureDiscovery.Discovered, null), new(8, null, TreasureDiscovery.Discovered, null)]
+                TreasureStates = [new(7, new OfficerTreasurePlacement(11))]
             } };
         var session = GameSession.Start(scenario, 42);
         string[] roles = ["entry", "answer", "victory", "introduction", "strong", "finisher", "strong-hit", "finisher-hit", "parry", "won", "lost", "death"];

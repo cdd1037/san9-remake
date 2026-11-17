@@ -15,7 +15,7 @@ public static class TreasureCatalog
     public static InformationTable Read(StrategySnapshot view, TextCatalog texts, int? holderId = null, int? force = null, int? settlement = null)
     {
         var rows = from treasure in view.World.Treasures
-                   where treasure.Discovered && (holderId is null || treasure.HolderId == holderId)
+                   where treasure.HolderId is not null && (holderId is null || treasure.HolderId == holderId)
                    join holder in view.Officers on treasure.HolderId equals holder.Id
                    where (force is null || holder.OwnerId == force) && (settlement is null || holder.SettlementId == settlement)
                    join definition in view.Information.Treasures on treasure.Id equals definition.Id

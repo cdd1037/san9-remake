@@ -21,7 +21,7 @@ public sealed class TreasureMonumentSessionTests
             Corps = [new San9.Core.Domain.CorpsState(1, 1, 1, new(50000, 10000)) { IsRoot = true }],
             Ranks = [new(999, "rank", 10000, 0, 0, 100)],
             Treasures = [new(500, "treasure", 0, 0, null)],
-            TreasureStates = [new(500, 1, TreasureDiscovery.Discovered, null)]
+            TreasureStates = [new(500, new OfficerTreasurePlacement(1))]
         }
     };
 

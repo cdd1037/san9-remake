@@ -36,9 +36,9 @@ internal sealed partial class BattlePresentationBuilder
         var people = before.World.Officers.ToDictionary(p => p.Id);
         foreach (var person in started.Participants) people[person.Id] = person;
         var participantIds = started.Participants.Select(p => p.Id).ToHashSet();
-        // Keep valid treasure references, but discard these participants' obsolete holdings.
-        var treasures = before.World.Treasures.ToDictionary(t => t.Id,
-            t => t.HolderId is int holder && participantIds.Contains(holder) ? t with { HolderId = null } : t);
+        // Replace participant holdings with the occurrence snapshot.
+        var treasures = before.World.Treasures.Where(t => t.HolderId is not int holder || !participantIds.Contains(holder))
+            .ToDictionary(t => t.Id);
         foreach (var treasure in started.Treasures) treasures[treasure.Id] = treasure;
         var occurrenceWorld = before.World with { Treasures = treasures.Values.ToImmutableArray() };
         WorldMessageContext OccurrenceContext() => context.ForWorld(occurrenceWorld with { Officers = people.Values.ToImmutableArray() })

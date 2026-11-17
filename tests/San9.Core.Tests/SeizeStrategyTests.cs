@@ -51,8 +51,8 @@ public sealed class SeizeStrategyTests
          new OfficerState(23, 2, 2, new(10, 10, 10, 10), false),
          .. (captive ? new OfficerState[] { new(31, 1, 2, new(70, 70, 70, 70), false)
             { Status = OfficerStatus.Captive } } : [])],
-        treasures: treasures ? [new(10, 22, TreasureDiscovery.Discovered, null),
-            new(11, 23, TreasureDiscovery.Discovered, null)] : [],
+        treasures: treasures ? [new(10, new OfficerTreasurePlacement(22)),
+            new(11, new OfficerTreasurePlacement(23))] : [],
         relations: [new(1, 2, 50)], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(actorMoney, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 22, new(10000, 10000)) { IsRoot = true }]);
 
     private static PersistentTask Submit(WorldState world, SimulationRules rules, int roll)

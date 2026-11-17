@@ -19,7 +19,7 @@ public sealed class WorldQueryTests
             new(4, 1, 1, new(50, 50, 50, 100), false) { IsDormant = true }],
         [new(10, 1, new(10, 10), 1000), new(20, 1, new(20, 20), 1000)],
         corps: [new(1, 1, null, new(0, 0)) { IsRoot = true }],
-        treasures: [new(10, 1, TreasureDiscovery.Discovered, null), new(11, 2, TreasureDiscovery.Discovered, null)]);
+        treasures: [new(10, new OfficerTreasurePlacement(1)), new(11, new OfficerTreasurePlacement(2))]);
 
     private static PersistentTask Task(int officer, bool traveling) => new(Guid.NewGuid(), "test", "player", 1,
         officer, 1, new(190, 1, 1), new(190, 1, 2), 0, 0)
@@ -109,21 +109,19 @@ public sealed class WorldQueryTests
         Check(1, 80, true, true);
         Check(2, 100, false, false);
         Assert.True(MilitaryTactics.HasTactic(world, 1, [1], 7, Treasures));
-        world.Replace(world.Treasures[10] with { HolderId = 2 });
+        world.Replace(world.Treasures[10] with { Placement = new OfficerTreasurePlacement(2)});
         Check(1, 60, false, false);
         Check(2, 110, true, true);
         Assert.False(MilitaryTactics.HasTactic(world, 1, [1], 7, Treasures));
         Assert.True(MilitaryTactics.HasTactic(world, 1, [2], 7, Treasures));
-        world.Replace(world.Treasures[10] with { Discovery = TreasureDiscovery.Buried, DiscoveryRegionId = 1 });
-        Check(2, 110, true, false);
-        world.Replace(world.Treasures[10] with { Discovery = TreasureDiscovery.Disabled });
+        world.Replace(world.Treasures[10] with { Placement = new RegionTreasurePlacement(1) });
         Check(2, 100, false, false);
-        world.Replace(world.Treasures[10] with { Discovery = TreasureDiscovery.Discovered });
+        world.Replace(world.Treasures[10] with { Placement = new OfficerTreasurePlacement(2) });
         world.Replace(world.Officers[2] with { IsDormant = true });
         Check(2, 90, false, false);
         world.Replace(world.AllOfficers[2] with { IsDormant = false });
         Check(2, 110, true, true);
-        world.Replace(world.Treasures[10] with { HolderId = null });
+        world.RemoveTreasure(10);
         Check(2, 100, false, false);
     }
 }

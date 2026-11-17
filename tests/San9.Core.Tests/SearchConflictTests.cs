@@ -1,3 +1,4 @@
+using System.Text.Json;
 using San9.Tests;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -27,7 +28,7 @@ public sealed class SearchConflictTests
              new(2, 1, 1, new(60, 30, 80, 70), false) { LifespanTier = 5 },
              new(3, null, null, default, false) { Status = OfficerStatus.Special },
              new(4, null, null, default, false) { Status = OfficerStatus.Special }],
-            treasures: [new(50, 3, TreasureDiscovery.Discovered, null)],
+            treasures: [new(50, new OfficerTreasurePlacement(3))],
             corps: [new(7, 1, 2, new(5000, 0)), new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 0)) { IsRoot = true }],
             controls: [new("player", 1, ControllerKind.Player)]).BeginMutation();
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", Seed(0)), new("event-search-conflict", Seed(roll))] });
@@ -207,9 +208,34 @@ public sealed class SearchConflictTests
         List<DomainEvent> events = [];
         SearchConflicts.Resolve(world, task, rules, encounter, SearchConflictChoice.Execute, events);
         Assert.True(world.AllOfficers[3].IsDormant); Assert.False(world.Officers.ContainsKey(3));
-        Assert.Null(world.Forces[1].AdviserId); Assert.Null(world.Treasures[50].HolderId);
+        Assert.Null(world.Forces[1].AdviserId);
+        Assert.Equal(new RegionTreasurePlacement(1), world.Treasures[50].Placement);
         Assert.DoesNotContain(world.Corps.Values, c => c.LeaderId == 3);
         WorldInvariants.Validate(world);
+    }
+
+    [Fact]
+    public void WithdrawnScholarWithoutPersonalLocationLeavesDiscoverableTreasureAfterRestore()
+    {
+        var (world, task, rules, encounter) = Create("scholar");
+        List<DomainEvent> events = [];
+        SearchConflicts.Resolve(world, task, rules, encounter, SearchConflictChoice.Execute, events);
+        Assert.Equal(new RegionTreasurePlacement(1), world.Treasures[50].Placement);
+        Assert.Single(events.OfType<TreasureDroppedEvent>());
+
+        world.Replace(world.Officers[2] with { BaseAbilities = new(50, 50, 500, 50), Injury = 0, Acted = false });
+        world.Replace(world.Settlements[1] with { CorpsId = 1 });
+        world.SetSimulation(world.Simulation with { Boundary = SimulationBoundary.Stable });
+        var restored = WorldState.Restore(JsonSerializer.Deserialize<WorldSnapshot>(
+            CanonicalJson.Text(world.CapturePresentation()), CanonicalJson.Options)!);
+        var engine = new SimulationEngine(restored, EconomyRulebook.Empty, rules.Personnel, new([new(50, default, 0)]));
+        var submitted = engine.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1, 0, [2], 1)).Submission;
+        Assert.Equal(CommandRejection.None, submitted.Rejection);
+        engine.EndControl(new("player"));
+        var found = Assert.Single(engine.AdvanceXun().Events.OfType<SearchResolvedEvent>());
+        Assert.Equal(SearchResultKind.Treasure, found.Result);
+        Assert.Equal(50, found.TreasureId);
+        Assert.Equal(1, Assert.Single(engine.Snapshot.Treasures).HolderId);
     }
 
     [Fact]

@@ -313,7 +313,7 @@ public sealed class PersistenceTests : IDisposable
         {
             Units = [new(1, 1, San9.Core.Domain.MapCoordinates.Center(new(3, 4)), 100)],
             Information = new([], [new(1, "office", 1000, 20)], [new(1, "treasure", 0, 5, null)],
-                [new(1, 1, 1, new(1000, 2000)) { IsRoot = true }, new(2, 2, 4, new(1000, 2000)) { IsRoot = true }], [new(1, 2, TreasureDiscovery.Discovered, null)])
+                [new(1, 1, 1, new(1000, 2000)) { IsRoot = true }, new(2, 2, 4, new(1000, 2000)) { IsRoot = true }], [new(1, new OfficerTreasurePlacement(2))])
                 { Relations = [new(1, 2, 50)] }
         };
     }

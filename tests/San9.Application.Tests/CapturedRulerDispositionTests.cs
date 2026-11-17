@@ -118,7 +118,7 @@ public sealed class CapturedRulerDispositionTests
         var definition = AddThirdForce(Fixture(playerVictim: true)) with { Alliance = new(1, 2, [2, 3], 10),
             ImperialSealId = 100 };
         definition = definition with { Information = definition.Information with {
-            Treasures = [new(100, "seal", 1, 0, null)], TreasureStates = [new(100, 1, TreasureDiscovery.Discovered, null)] } };
+            Treasures = [new(100, "seal", 1, 0, null)], TreasureStates = [new(100, new OfficerTreasurePlacement(1))] } };
         var session = GameSession.Start(definition, 190);
         var result = session.AdvanceXun();
         Assert.Null(session.GetCapturedRulerPrompt());

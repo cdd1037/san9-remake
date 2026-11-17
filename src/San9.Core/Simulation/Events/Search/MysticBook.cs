@@ -21,7 +21,7 @@ internal static class MysticBook
     private static bool Special(WorldMutation world, int id) =>
         world.Officers.TryGetValue(id, out var mystic) && mystic.Status == OfficerStatus.Special;
     private static bool Holds(WorldMutation world, int officerId, int treasureId) =>
-        world.Treasures.TryGetValue(treasureId, out var item) && item.Discovered && item.HolderId == officerId;
+        world.Treasures.TryGetValue(treasureId, out var item) && item.HolderId == officerId;
     private static bool Chance(WorldMutation world, PersistentTask task, int divisor) =>
         world.NextRandom("event-search-eligibility") % 100 < (ulong)(world.Abilities(world.Officers[task.OfficerId]).Leadership / divisor);
 

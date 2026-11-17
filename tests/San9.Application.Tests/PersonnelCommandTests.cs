@@ -652,7 +652,7 @@ public sealed class PersonnelCommandTests
         var definition = Definition();
         definition = definition with { Information = definition.Information with
         { Treasures = [new(99, "宝物", 0, 0, null) { ImageKey = "mod/treasures/search" }],
-            TreasureStates = [new(99, null, TreasureDiscovery.Disabled, null)] } };
+            TreasureStates = [] } };
         var session = GameSession.Start(definition,3, companionSettings: new() { HideRoutineSearchReports = hideRoutineReports });
         session.Execute(new("player"),new SearchCommand(Guid.NewGuid(),1,0,[1],1));
         var texts = new TextCatalog(TextCatalog.CurrentSchemaVersion,[]) { Messages = new() {

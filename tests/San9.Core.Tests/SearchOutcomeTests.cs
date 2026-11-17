@@ -17,7 +17,7 @@ public sealed class SearchOutcomeTests
              new(3, null, null, new(50, 50, 50, 50), false) { Status = person ? OfficerStatus.Undiscovered : OfficerStatus.Dead,
                  RegionId = 30, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, 40) },
              .. secondSearcher ? new OfficerState[] { new(4,1,1,new(50,50,politics,50),false) } : []],
-            treasures: item ? [new(10, null, TreasureDiscovery.Buried, 30)] : [],
+            treasures: item ? [new(10, new RegionTreasurePlacement(30))] : [],
             controls: [new("player", 1, automatic ? ControllerKind.Automatic : ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 10000)) { IsRoot = true }]);
         if (probeGrowth)
         {
@@ -66,7 +66,7 @@ public sealed class SearchOutcomeTests
         var person = engine.Snapshot.Officers.Single(p => p.Id == 3);
         Assert.Equal(OfficerStatus.Free, person.Status);
         Assert.Equal(60, person.LoyaltyTo(1));
-        Assert.Equal(TreasureDiscovery.Buried, Assert.Single(engine.Snapshot.Treasures).Discovery);
+        Assert.IsType<RegionTreasurePlacement>(Assert.Single(engine.Snapshot.Treasures).Placement);
         Assert.DoesNotContain(engine.Snapshot.Simulation.RandomStreams,
             s => s.Name is "personnel-search-recruitment" or "personnel-search-treasure" or "personnel-search-funds");
         Assert.Single(engine.Snapshot.Simulation.Tasks.Where(t => t.Kind == "personnel-return"));

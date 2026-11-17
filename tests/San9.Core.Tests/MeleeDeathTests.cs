@@ -162,7 +162,7 @@ public sealed class MeleeDeathTests
         var (fixture, baseRules, _) = TacticSnipingTests.Create();
         _ = new SimulationEngine(fixture, baseRules);
         var rules = new SimulationRules { Military = baseRules.Military, Treasures = new([new(99, default, 0)]) };
-        var world = WorldState.Restore(fixture.CreateSnapshot() with { Treasures = [new(99, 22, TreasureDiscovery.Discovered, null)] });
+        var world = WorldState.Restore(fixture.CreateSnapshot() with { Treasures = [new(99, new OfficerTreasurePlacement(22))] });
         var setup = world.BeginMutation(rules.Abilities);
         setup.SetSimulation(setup.Simulation with { BattleDeathsEnabled = true });
         setup.Replace(setup.Units[2] with { Soldiers = 1, CommanderId = 22 });

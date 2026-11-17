@@ -23,7 +23,7 @@ public sealed class PrisonerExecutionTests
             {
                 Relations = [new(1, 2, 80)],
                 Treasures = [new(100, "seal", 1, 0, null)],
-                TreasureStates = [new(100, victim, TreasureDiscovery.Discovered, null)]
+                TreasureStates = [new(100, new OfficerTreasurePlacement(victim))]
             }
         };
     }

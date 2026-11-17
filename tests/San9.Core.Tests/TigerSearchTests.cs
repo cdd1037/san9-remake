@@ -130,7 +130,7 @@ public sealed class TigerSearchTests
         var book = new TreasureRulebook([new(50, new(20, 0, 0, 0), 0) { TacticId = 1 }]);
         var state = WorldState.Create(new(190, 2, 1), 1, [new(1, 100)], [new(1, 1, 0, 100, 100, 0, 0, 0, 100, 0, 100)],
             [new(2, 1, 1, new(60, 0, 0, 0), false) { Injury = 3 }],
-            treasures: [new(50, 2, TreasureDiscovery.Discovered, null)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(100, 100)) { IsRoot = true }]);
+            treasures: [new(50, new OfficerTreasurePlacement(2))], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(100, 100)) { IsRoot = true }]);
         var world = state.BeginMutation(new(book, new([])));
         int effective = world.Abilities(world.Officers[2]).War;
         Assert.NotEqual(60, effective); Assert.Equal(Math.Max(20, effective), TigerSearch.BattleChance(world, 2, Definition));

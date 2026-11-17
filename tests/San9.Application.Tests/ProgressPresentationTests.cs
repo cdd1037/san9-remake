@@ -434,7 +434,7 @@ public sealed class ProgressPresentationTests
                 Officers = initial.Officers.Where(p => p.Status != OfficerStatus.Undiscovered || p.Id == 40 && !treasure)
                     .Select(p => p.Id == 40 ? p with { SettlementId = built ? place : null, RegionId = built ? null : place } : p).ToImmutableArray(),
                 Settlements = initial.Settlements.Select(s => s.Id == 2 ? s with { OwnerId = cityOwner } : s).ToImmutableArray(),
-                Treasures = treasure ? [new(50, null, TreasureDiscovery.Buried, place)] : []
+                Treasures = treasure ? [new(50, new RegionTreasurePlacement(place))] : []
             };
             if (built) world = world with
             {

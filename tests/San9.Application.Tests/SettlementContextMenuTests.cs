@@ -146,7 +146,7 @@ public sealed class SettlementContextMenuTests
                 : o.State.Id == 2 ? o with { State = o.State with { OfficeId = 888 } } : o).ToArray(),
             Information = new([new(700, "rank", 10000, 0, 0, 9), new(100, "higher", 20000, 0, 0, 10)],
                 [new(888, "office", 10000, 11) { RequiredRankId = 700, Description = "office-description" }, new(999, "higher-office", 20000, 20) { RequiredRankId = 100 }],
-                [new(77, "book", 1, 0, 902)], basis.Information.Corps, [new(77, 1, TreasureDiscovery.Discovered, null)]) {
+                [new(77, "book", 1, 0, 902)], basis.Information.Corps, [new(77, new OfficerTreasurePlacement(1))]) {
                 Tactics = [new(901, "land-tech"), new(902, "ship-tech"), new(903, "attack") { Description = "attack-description" }, new(904, "trap"), new(907, "wave"), new(908, "rain")],
                 Formations = [new(731, "base"), new(732, "advanced"), new(733, "ship") { Description = "ship-description" }]
             },

@@ -14,7 +14,7 @@ public sealed class PersonnelAppointmentTests
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new OfficerState(11, 1, 1, new(50, oldIntelligence, 50, 50), false) { Status = oldAdviser ? OfficerStatus.Strategist : OfficerStatus.Serving }.WithLoyalty(1, 1),
              new(12, 1, 1, new(50, intelligence, 50, 50), false) { OfficeId = 1 }],
-            treasures: [new(10, 12, TreasureDiscovery.Discovered, null)], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }]);
+            treasures: [new(10, new OfficerTreasurePlacement(12))], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }]);
         return new(world, new([new(1, 0)], []), PersonnelRulebook.Empty, new([new(10, new(0, bonus, 0, 0), 0)]),
             new([new(1, 10000, 0) { AbilityBonuses = new(1, 0, 1, 0) }]));
     }

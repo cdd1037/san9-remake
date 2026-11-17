@@ -21,7 +21,7 @@ public sealed class AppointmentDraftTests
             Information = basis.Information with {
                 Offices = [new(401, "office.a", 20000, 8), new(902, "office.b", 18000, 4)],
                 Treasures = [new(301, "treasure.a", 1, 8, null), new(702, "treasure.b", 1, 5, null)],
-                TreasureStates = [new(301, 1, TreasureDiscovery.Discovered, null), new(702, 2, TreasureDiscovery.Discovered, null)]
+                TreasureStates = [new(301, new OfficerTreasurePlacement(1)), new(702, new OfficerTreasurePlacement(2))]
             }
         };
     }

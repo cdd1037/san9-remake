@@ -20,7 +20,7 @@ internal sealed partial class MapCommandAvailability
         "exile" => Subordinates().Where(Stationed).Concat(view.World.Officers.Where(Captive)),
         _ => []
     };
-    public IEnumerable<TreasureState> AppointmentTreasures(string command) => view.World.Treasures.Where(t => t.Discovered &&
+    public IEnumerable<TreasureState> AppointmentTreasures(string command) => view.World.Treasures.Where(t => t.HolderId is not null &&
         (command == "bestow" ? t.HolderId == Force.LeaderId : command == "confiscate" &&
             view.World.Officers.Any(p => !p.IsDormant && p.Id == t.HolderId && Stationed(p) && (Captive(p) ||
                 p.IsServing && p.OwnerId == Owner && p.Id != Force.LeaderId && p.Status != OfficerStatus.Ruler))));
@@ -50,7 +50,7 @@ internal sealed partial class MapCommandAvailability
                 return stationary.Length > 0 ? null : "no-stationed-officer";
             case "confiscate":
                 var holders = subordinates.Concat(view.World.Officers.Where(Captive))
-                    .Where(p => view.World.Treasures.Any(t => t.Discovered && t.HolderId == p.Id)).ToArray();
+                    .Where(p => view.World.Treasures.Any(t => t.HolderId == p.Id)).ToArray();
                 if (holders.Length == 0) return "no-treasure-holder";
                 return AppointmentTreasures(command).Any() ? null : "no-stationed-treasure-holder";
             case "execute": return AppointmentPeople(command).Any() ? null :

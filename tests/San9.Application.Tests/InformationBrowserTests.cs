@@ -84,7 +84,7 @@ public sealed class InformationBrowserTests
             Officers = [new("ruler", new(1, 5, 15, new(90, 60, 80, 90), false) { Status = OfficerStatus.Ruler, BirthYear = 150, LearnedTactics = [0], TacticProficiencies = [200, 0, 0, 0, 0, 0, 0, 0, 0] }),
                 new("free", new(2, null, null, new(20, 60, 40, 50), false) { Status = OfficerStatus.Free, RegionId = 50 })],
             Information = new([new(0, "rank", 60000, 1000, 5, 0)], [], [new(0, "treasure", 1, 10, 2) { Description = "第一行\n第二行", AbilityBonuses = new(5, 0, 0, 0) }],
-                [new(5, 5, 1, new(100, 200)) { IsRoot = true }], [new(0, 1, TreasureDiscovery.Discovered, 15)])
+                [new(5, 5, 1, new(100, 200)) { IsRoot = true }], [new(0, new OfficerTreasurePlacement(1))])
         };
         scenario = PresentationTacticFixture.WithInfantry(scenario);
         if (adjusted)
@@ -246,7 +246,7 @@ public sealed class InformationBrowserTests
         Assert.Equal("90-1", detail.AbilityValues[1]);
         Assert.Equal(9, detail.Tactics.Length);
         Assert.All(detail.Tactics[0].Tactics, t => Assert.True(t.Available));
-        Assert.Equal(session.View.World.Treasures.Where(t => t.Discovered && t.HolderId == 1).Select(t => t.Id), detail.Treasures);
+        Assert.Equal(session.View.World.Treasures.Where(t => t.HolderId == 1).Select(t => t.Id), detail.Treasures);
         Assert.Equal(before, session.Snapshot.Revision);
     }
     [Fact]

@@ -11,8 +11,8 @@ public sealed class TacticAvailabilityTests
         var force = new ForceState(10, 0) { ProvidedTactics = [9001, 9002] };
         var rules = new TreasureRulebook([new(20, default, 0) { TacticId = 9001 },
             new(21, default, 0) { TacticId = 9003 }, new(22, default, 0) { TacticId = 9003 }]);
-        TreasureState[] holdings = [new(20, 1, TreasureDiscovery.Discovered, null),
-            new(21, 1, TreasureDiscovery.Discovered, null), new(22, 1, TreasureDiscovery.Discovered, null)];
+        TreasureState[] holdings = [new(20, new OfficerTreasurePlacement(1)),
+            new(21, new OfficerTreasurePlacement(1)), new(22, new OfficerTreasurePlacement(1))];
 
         var result = TacticAvailability.ForOfficer(person, force, holdings, rules);
 
@@ -33,8 +33,8 @@ public sealed class TacticAvailabilityTests
         var other = person with { Id = 2, LearnedTactics = [99] };
         var force = new ForceState(10, 0);
         var rules = new TreasureRulebook(Enumerable.Range(20, 4).Select(id => new TreasureRule(id, default, 0) { TacticId = id }));
-        TreasureState[] holdings = [new(20, 1, TreasureDiscovery.Buried, 1), new(21, 1, TreasureDiscovery.Disabled, null),
-            new(22, 2, TreasureDiscovery.Discovered, null), new(23, null, TreasureDiscovery.Discovered, null)];
+        TreasureState[] holdings = [new(20, new RegionTreasurePlacement(1)),
+            new(22, new OfficerTreasurePlacement(2))];
         Assert.Empty(TacticAvailability.ForOfficer(person, force, holdings, rules));
         Assert.False(TacticAvailability.HasForMembers(22, [person], force, holdings, rules));
         Assert.False(TacticAvailability.HasForMembers(99, [person], force, holdings, rules));
@@ -49,10 +49,10 @@ public sealed class TacticAvailabilityTests
         var first = new ForceState(10, 0) { ProvidedTactics = [91] };
         var second = new ForceState(11, 0) { ProvidedTactics = [92] };
         var rules = new TreasureRulebook([new(20, default, 0) { TacticId = 93 }]);
-        var item = new TreasureState(20, 1, TreasureDiscovery.Discovered, null);
+        var item = new TreasureState(20, new OfficerTreasurePlacement(1));
         var before = TacticAvailability.ForOfficer(person, first, [item], rules);
         var moved = person with { OwnerId = 11 };
-        var after = TacticAvailability.ForOfficer(moved, second, [item with { HolderId = 2 }], rules);
+        var after = TacticAvailability.ForOfficer(moved, second, [item with { Placement = new OfficerTreasurePlacement(2)}], rules);
         Assert.Equal([90, 91, 93], before.Keys.Order());
         Assert.Equal([90, 92], after.Keys.Order());
         Assert.Equal([90], TacticAvailability.ForOfficer(moved, first, [], rules).Keys);

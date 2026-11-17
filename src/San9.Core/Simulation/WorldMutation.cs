@@ -474,17 +474,22 @@ internal sealed partial class WorldMutation : IWorldQuery
         GovernanceConsistent = false;
         AllCorps = AllCorps.Add(corps.Id, corps); _activeCorps = null;
     }
-    internal void Replace(TreasureState value)
+    internal void Replace(TreasureState value) => StoreTreasure(AllTreasures[value.Id], value);
+    internal void RemoveTreasure(int id) => StoreTreasure(AllTreasures[id], null);
+
+    private void StoreTreasure(TreasureState previous, TreasureState? value)
     {
-        var previous = AllTreasures[value.Id];
-        bool sealChanged = value.Id == _economy.ImperialSealId &&
-            (previous.HolderId != value.HolderId || previous.Discovery != value.Discovery);
+        if (previous == value) return;
+        bool holderChanged = previous.HolderId != value?.HolderId;
+        bool sealChanged = previous.Id == _economy.ImperialSealId && holderChanged;
         int? previousSealOwner = sealChanged ? ForceTrust.SealOwner(this, _economy) : null;
-        if (previous.HolderId != value.HolderId || previous.Discovery != value.Discovery) LeadershipChanged(firstOfficer: previous.HolderId, secondOfficer: value.HolderId);
-        AllTreasures = Replace(AllTreasures, value.Id, value); _activeTreasures = null;
+        if (holderChanged) LeadershipChanged(firstOfficer: previous.HolderId, secondOfficer: value?.HolderId);
+        AllTreasures = value is null ? AllTreasures.Remove(previous.Id) : Replace(AllTreasures, value.Id, value);
+        _activeTreasures = null;
         UpdateHolding(previous, value);
         if (sealChanged) RefreshForceTrust(previousSealOwner, ForceTrust.SealOwner(this, _economy));
     }
+
     internal void Replace(ForceRelation value)
     {
         var previous = AllRelations[(value.FirstId, value.SecondId)];

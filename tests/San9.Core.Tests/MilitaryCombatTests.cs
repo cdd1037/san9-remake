@@ -621,7 +621,7 @@ public sealed class MilitaryCombatTests
             baseline.Units.Select(u => u with { Soldiers = 1, Position = new(20, 7),
                 Order = new(MilitaryOrderKind.AttackUnit, null, null) { UnitId = 1 } })
                 .Append(new UnitState(1, 2, new(21, 7), 10000) { FormationId = 7, Morale = 90 }),
-            treasures: [new(7, 11, TreasureDiscovery.Discovered, null)], corps: baseline.Corps);
+            treasures: [new(7, new OfficerTreasurePlacement(11))], corps: baseline.Corps);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, PersonnelRulebook.Empty,
             new TreasureRulebook([new(7, default, 0) { EscapeMount = true }]), military: Rules());
         var result = engine.AdvanceXun();
@@ -679,13 +679,13 @@ public sealed class MilitaryCombatTests
         var baseline = World().CreateSnapshot();
         var world = WorldState.Create(baseline.Clock, 42, baseline.Forces.Select(f => f.Id == 2 ? f with { IsBarbarian = true } : f),
             baseline.Settlements, baseline.Officers.Append(new OfficerState(30, 2, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special }),
-            baseline.Units, treasures: [new(7, 30, TreasureDiscovery.Discovered, null)], corps: baseline.Corps);
+            baseline.Units, treasures: [new(7, new OfficerTreasurePlacement(30))], corps: baseline.Corps);
         var engine = new SimulationEngine(world, EconomyRulebook.Empty, PersonnelRulebook.Empty, new TreasureRulebook([new(7, default, 0)]), military: Rules());
         var result = engine.AdvanceXun();
         Assert.Equal(OfficerStatus.Dead, engine.Snapshot.Officers.Single(p => p.Id == 30).Status);
         Assert.Null(Assert.Single(engine.Snapshot.Treasures).HolderId);
-        Assert.Equal(TreasureDiscovery.Buried, Assert.Single(engine.Snapshot.Treasures).Discovery);
-        Assert.Equal(1, Assert.Single(engine.Snapshot.Treasures).DiscoveryRegionId);
+        Assert.IsType<RegionTreasurePlacement>(Assert.Single(engine.Snapshot.Treasures).Placement);
+        Assert.Equal(1, Assert.Single(engine.Snapshot.Treasures).RegionId);
         Assert.Equal(OfficerStatus.Dead, engine.Snapshot.Officers.Single(p => p.Id == 22).Status);
         Assert.Null(engine.Snapshot.Officers.Single(p => p.Id == 22).OwnerId);
         Assert.Null(engine.Snapshot.Officers.Single(p => p.Id == 30).SettlementId);

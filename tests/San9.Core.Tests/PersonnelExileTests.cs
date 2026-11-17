@@ -17,7 +17,7 @@ public sealed class PersonnelExileTests
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new OfficerState(11, 1, 1, new(50, 70, 50, 50), false)
              { Status = OfficerStatus.Strategist, OfficeId = 1, LearnedTactics = [2], RewardedThisXun = true }.WithLoyalty(1, 90).WithLoyalty(2, 177)],
-            treasures: [new(10, 11, TreasureDiscovery.Discovered, null)], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(1000, 1000)) { IsRoot = true }]);
+            treasures: [new(10, new OfficerTreasurePlacement(11))], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(1000, 1000)) { IsRoot = true }]);
         return new(world, Economy, Geography(connected), new([new(10, new(5, 0, 0, 0), 0)]),
             new([new(1, 10000, 0) { AbilityBonuses = new(4, 0, 0, 0) }]));
     }

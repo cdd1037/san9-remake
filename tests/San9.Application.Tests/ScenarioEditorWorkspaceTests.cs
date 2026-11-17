@@ -168,56 +168,55 @@ public sealed class ScenarioEditorWorkspaceTests : IDisposable
             {
                 Treasures = [new(7001, "treasure.weapon", 1, 10, null) { AbilityBonuses = new(5, 0, 0, 0) },
                     new(7002, "treasure.book", 8, 0, null), new(7003, "treasure.disabled", 11, 0, null)],
-                TreasureStates = [new(7001, 1, TreasureDiscovery.Discovered, 1), new(7002, null, TreasureDiscovery.Buried, 701),
-                    new(7003, null, TreasureDiscovery.Disabled, null), new(90000, null, TreasureDiscovery.Disabled, 701)]
+                TreasureStates = [new(7001, new OfficerTreasurePlacement(1)), new(7002, new RegionTreasurePlacement(701))]
             }
         };
     }
 
     [Theory]
-    [InlineData(TreasureDiscovery.Disabled)]
-    [InlineData(TreasureDiscovery.Buried)]
-    [InlineData(TreasureDiscovery.Discovered)]
-    public async Task TreasureStateEditsReachNewGameAndRetainIndependentReferencesAndOtherStates(TreasureDiscovery discovery)
+    [InlineData("none")]
+    [InlineData("officer")]
+    [InlineData("region")]
+    public async Task TreasurePlacementEditsReachNewGameAndPreserveOtherPlacements(string kind)
     {
         await Create(TreasureScenario());
         var workspace = await ScenarioEditorWorkspace.OpenAsync(_root, ScenarioId);
         var untouched = workspace.Document.Information.TreasureStates.Where(t => t.Id != 7001).ToArray();
-        byte[] definitions = await File.ReadAllBytesAsync(Path.Combine(_root, "shared/definitions.json"));
-        var edited = new TreasureState(7001, 6, discovery, 1);
-        Assert.Contains(1, workspace.RegionIds); // Built places are valid treasure regions too.
-        workspace.SetTreasureState(edited);
+        TreasurePlacement? placement = kind switch
+        {
+            "officer" => new OfficerTreasurePlacement(1),
+            "region" => new RegionTreasurePlacement(1),
+            _ => null
+        };
+        workspace.SetTreasurePlacement(7001, placement);
         await workspace.SaveAsync();
         var reopened = await ScenarioEditorWorkspace.OpenAsync(_root, ScenarioId);
-        Assert.Equal(edited, reopened.GetTreasureState(7001));
+        Assert.Equal(placement, reopened.GetTreasurePlacement(7001));
         Assert.Equal(untouched, reopened.Document.Information.TreasureStates.Where(t => t.Id != 7001));
-        Assert.Equal(definitions, await File.ReadAllBytesAsync(Path.Combine(_root, "shared/definitions.json")));
-        var selection = await ScenarioContentFiles.LoadSelectionAsync(Package);
         var full = await ScenarioContentFiles.LoadAsync(Package);
-        Assert.Equal(edited, selection.Scenario.Information.TreasureStates.Single(t => t.Id == 7001));
-        Assert.Equal(edited, GameSession.Start(full.Scenario, 1).Snapshot.Treasures.Single(t => t.Id == 7001));
+        Assert.Equal(placement, GameSession.Start(full.Scenario, 1).Snapshot.Treasures.SingleOrDefault(t => t.Id == 7001)?.Placement);
     }
 
     [Fact]
-    public async Task TreasureEditingClearsReferencesEnablesDefinedItemsAndRejectsInvalidReferencesWithoutChangingDraft()
+    public async Task TreasureEditingReplacesPlacementAndRejectsInvalidReferencesWithoutChangingDraft()
     {
         await Create(TreasureScenario());
         var workspace = await ScenarioEditorWorkspace.OpenAsync(_root, ScenarioId);
-        var cleared = workspace.GetTreasureState(7001) with { HolderId = null, DiscoveryRegionId = null };
-        workspace.SetTreasureState(cleared);
-        workspace.SetTreasureState(workspace.GetTreasureState(7003) with { Discovery = TreasureDiscovery.Buried, DiscoveryRegionId = 701 });
+        workspace.SetTreasurePlacement(7001, null);
+        workspace.SetTreasurePlacement(7003, new OfficerTreasurePlacement(1));
+        workspace.SetTreasurePlacement(7003, new RegionTreasurePlacement(701));
         var draft = workspace.Document;
-        foreach (var invalid in new[] { cleared with { Id = 90000 }, cleared with { HolderId = 999 },
-            cleared with { DiscoveryRegionId = 999 }, cleared with { Discovery = (TreasureDiscovery)99 } })
+        Assert.Throws<InvalidDataException>(() => workspace.SetTreasurePlacement(90000, null));
+        foreach (var invalid in new TreasurePlacement[] { new OfficerTreasurePlacement(999), new OfficerTreasurePlacement(6),
+            new OfficerTreasurePlacement(-1), new RegionTreasurePlacement(999), new RegionTreasurePlacement(-1) })
         {
-            Assert.Throws<InvalidDataException>(() => workspace.SetTreasureState(invalid));
+            Assert.Throws<InvalidDataException>(() => workspace.SetTreasurePlacement(7001, invalid));
             Assert.Same(draft, workspace.Document);
         }
         await workspace.SaveAsync();
         var reopened = await ScenarioEditorWorkspace.OpenAsync(_root, ScenarioId);
-        Assert.Equal(cleared, reopened.GetTreasureState(7001));
-        Assert.Equal(TreasureDiscovery.Buried, reopened.GetTreasureState(7003).Discovery);
-        Assert.Equal(701, reopened.GetTreasureState(7003).DiscoveryRegionId);
+        Assert.Null(reopened.GetTreasurePlacement(7001));
+        Assert.Equal(new RegionTreasurePlacement(701), reopened.GetTreasurePlacement(7003));
     }
 
     [Fact]
@@ -225,17 +224,17 @@ public sealed class ScenarioEditorWorkspaceTests : IDisposable
     {
         await Create(TreasureScenario());
         var workspace = await ScenarioEditorWorkspace.OpenAsync(_root, ScenarioId);
-        var original = workspace.GetTreasureState(7001);
-        workspace.SetTreasureState(original with { HolderId = 2 });
+        var original = workspace.GetTreasurePlacement(7001);
+        workspace.SetTreasurePlacement(7001, new OfficerTreasurePlacement(2));
         var json = JsonNode.Parse(workspace.ExportJson())!;
         var treasure = json["information"]!["treasureStates"]!.AsArray().Single(t => t!["id"]!.GetValue<int>() == 7001)!;
-        Assert.Equal(2, treasure["holderId"]!.GetValue<int>());
-        treasure["discoveryRegionId"] = 701;
+        Assert.Equal(2, treasure["placement"]!["officerId"]!.GetValue<int>());
+        treasure["placement"] = new JsonObject { ["kind"] = "region", ["regionId"] = 701 };
         workspace.ApplyJson(json.ToJsonString());
-        Assert.Equal(701, workspace.GetTreasureState(7001).DiscoveryRegionId);
+        Assert.Equal(new RegionTreasurePlacement(701), workspace.GetTreasurePlacement(7001));
         await workspace.SaveAsync();
         workspace.RestoreOpened();
-        Assert.Equal(original, workspace.GetTreasureState(7001)); Assert.True(workspace.HasChanges);
+        Assert.Equal(original, workspace.GetTreasurePlacement(7001)); Assert.True(workspace.HasChanges);
     }
 
     public void Dispose() { if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true); }

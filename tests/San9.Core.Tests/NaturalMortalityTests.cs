@@ -149,7 +149,7 @@ public sealed class NaturalMortalityTests
     [Fact]
     public void ChildCorpsSucceedsAndInheritsAssetsTreasuresAndLoyaltyAdjustment()
     {
-        var world = World(treasures: [new(7, 1, TreasureDiscovery.Discovered, null)]);
+        var world = World(treasures: [new(7, new OfficerTreasurePlacement(1))]);
         var rules = new SimulationRules { Governance = new([new(5, 10000, 0)]), Treasures = new([new(7, default, 0)]) };
         var mutation = world.BeginMutation(rules.Abilities);
         var rootTreasury100 = ResourceAccounts.Root(mutation, 1).Treasury; mutation.RemoveCorps(ResourceAccounts.Root(mutation, 1).Id); mutation.AddCorps(new(100, 1, 1, rootTreasury100) { IsRoot = true });

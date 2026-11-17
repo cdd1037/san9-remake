@@ -110,7 +110,7 @@ internal static class WorldInvariants
                 (c.LeaderId is int leaderId ? !state.AllOfficers.TryGetValue(leaderId, out var leader) || leader.OwnerId != c.OwnerId ||
                 !leader.IsServing && !(c.IsRoot && leader.Status == San9.Core.Domain.OfficerStatus.Captive &&
                     state.AllForces[c.OwnerId].LeaderId == leader.Id) : !c.IsRoot || state.AllForces[c.OwnerId].LeaderId is not null)) ||
-            state.AllTreasures.Values.Any(t => !t.IsValid || t.HolderId is int holder && !state.AllOfficers.ContainsKey(holder)) ||
+            state.AllTreasures.Values.Any(t => !t.IsValid || t.HolderId is int holder && (!state.AllOfficers.TryGetValue(holder, out var holderState) || holderState.Status == San9.Core.Domain.OfficerStatus.Dead)) ||
             state.AllRelations.Values.Any(r => r.FirstId >= r.SecondId || r.Value is < 0 or > 100 || !state.AllForces.ContainsKey(r.FirstId) || !state.AllForces.ContainsKey(r.SecondId)))
             throw new ArgumentException("Invalid information state relationships.");
     }

@@ -13,7 +13,7 @@ public static class DiplomacyTreasures
         if (sourceRulerId == targetRulerId) throw new ArgumentException("Compensation requires distinct rulers.");
         Dictionary<TreasureRetentionGroup, TreasureRule> retained = [];
         List<TreasureRule> offered = [];
-        foreach (var item in treasures.Where(t => t.Discovered && t.HolderId == sourceRulerId).OrderBy(t => t.Id))
+        foreach (var item in treasures.Where(t => t.HolderId == sourceRulerId).OrderBy(t => t.Id))
         {
             var rule = rules.Items[item.Id];
             if (!rule.AutomaticDiplomacyOfferAllowed) continue;

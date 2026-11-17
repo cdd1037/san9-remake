@@ -10,12 +10,27 @@ public sealed record CorpsState(int Id, int OwnerId, int? LeaderId, [property: J
     [JsonRequired] public bool IsRoot { get; init; }
     [JsonRequired] public CorpsDelegation Delegation { get; init; } = new GeneralDelegation();
 }
-public enum TreasureDiscovery { Disabled, Buried, Discovered }
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
+[JsonDerivedType(typeof(OfficerTreasurePlacement), "officer")]
+[JsonDerivedType(typeof(RegionTreasurePlacement), "region")]
+public abstract record TreasurePlacement;
 
-public sealed record TreasureState(int Id, int? HolderId, TreasureDiscovery Discovery, int? DiscoveryRegionId)
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record OfficerTreasurePlacement([property: JsonRequired] int OfficerId) : TreasurePlacement;
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record RegionTreasurePlacement([property: JsonRequired] int RegionId) : TreasurePlacement;
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record TreasureState(int Id, [property: JsonRequired] TreasurePlacement Placement)
 {
-    [System.Text.Json.Serialization.JsonIgnore] public bool Discovered => Discovery == TreasureDiscovery.Discovered;
-    [System.Text.Json.Serialization.JsonIgnore] public bool IsValid => Id >= 0 && HolderId is not < 0 &&
-        DiscoveryRegionId is not < 0 && Enum.IsDefined(Discovery);
+    [JsonIgnore] public int? HolderId => (Placement as OfficerTreasurePlacement)?.OfficerId;
+    [JsonIgnore] public int? RegionId => (Placement as RegionTreasurePlacement)?.RegionId;
+    [JsonIgnore] public bool IsValid => Id >= 0 && (Placement switch
+    {
+        OfficerTreasurePlacement held => held.OfficerId >= 0,
+        RegionTreasurePlacement buried => buried.RegionId >= 0,
+        _ => false
+    });
 }
 public sealed record ChronicleEntry(int Year, int Month, int Day, int ForceId, string Text);

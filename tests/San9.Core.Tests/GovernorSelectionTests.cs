@@ -41,7 +41,7 @@ public sealed class GovernorSelectionTests
         var injured = Person(1, 100) with { Injury = 5 };
         var equipped = Person(2, 40);
         var abilities = new OfficerAbilityRules(new([new(10, new(0, 0, 0, 20), 0)]), rules)
-            .EvaluateMany([injured, equipped], [new(10, 2, TreasureDiscovery.Discovered, null)]);
+            .EvaluateMany([injured, equipped], [new(10, new OfficerTreasurePlacement(2))]);
         Assert.Equal(2, rules.SelectGovernor([injured, equipped], abilities)!.Id);
         Assert.Equal(3, Select(rules, [Person(9), Person(3)])!.Id);
         Assert.Null(Select(rules, [Person(1) with { Status = OfficerStatus.Captive }]));

@@ -151,10 +151,9 @@ public sealed partial class SharedDataEditorWorkspace
                     geography = San9.Content.Maps.MapGeographyCompiler.Resolve(mapManifest, map, geography, document, definitions, officers, token);
                 }
                 var effectiveDefinitions = document.DefinitionOverrides.Apply(definitions);
-                var missingActiveTreasures = document.Information.TreasureStates.Where(t => t.Discovery != TreasureDiscovery.Disabled &&
-                    !effectiveDefinitions.Information.Treasures.Any(d => d.Id == t.Id)).Select(t => t.Id).ToArray();
+                var missingActiveTreasures = document.Information.TreasureStates.Where(t => !effectiveDefinitions.Information.Treasures.Any(d => d.Id == t.Id)).Select(t => t.Id).ToArray();
                 if (missingActiveTreasures.Length > 0)
-                    throw new InvalidDataException($"宝物 {string.Join('、', missingActiveTreasures)} 的初始状态仍已启用，请先在剧本编辑器中设为未启用。");
+                    throw new InvalidDataException($"宝物 {string.Join('、', missingActiveTreasures)} 仍有剧本安置，请先在剧本编辑器中取消投放。");
                 if (officers.SchemaVersion != OfficerDefaultsCatalog.CurrentSchemaVersion)
                     throw new InvalidDataException("人物默认资料版本不符。");
                 if (deletedOfficers.Count > 0 && officersPath.Equals(OfficerPath, StringComparison.OrdinalIgnoreCase))

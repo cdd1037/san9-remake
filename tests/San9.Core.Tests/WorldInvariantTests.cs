@@ -1,3 +1,4 @@
+using System.Text.Json;
 using San9.Core.Domain;
 using San9.Core.Simulation;
 
@@ -10,7 +11,7 @@ public sealed class WorldInvariantTests
         [new(1, 1, 100, 10, 100, 50, 500, 10, 100, 10, 100)],
         [new(1, 1, 1, new(), false)],
         [new(1, 1, MapCoordinates.Center(new(10, 10)), 100)], [new(1, 1, 1, new(100, 100)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, null, new(100, 100)) { IsRoot = true }],
-        [new(1, 1, TreasureDiscovery.Discovered, null)], [new(1, 2, 50)]);
+        [new(1, new OfficerTreasurePlacement(1))], [new(1, 2, 50)]);
 
     private static WorldState Recreate(WorldSnapshot state) => WorldState.Create(state.Clock, state.Simulation.InitialSeed,
         state.Forces, state.Settlements, state.Officers, state.Units, state.Corps, state.Treasures, state.Relations);
@@ -32,7 +33,7 @@ public sealed class WorldInvariantTests
             2 => state with { Officers = [.. state.Officers, different ? state.Officers[0] with { Acted = true } : state.Officers[0]] },
             3 => state with { Units = [.. state.Units, different ? state.Units[0] with { Position = new(11, 10) } : state.Units[0]] },
             4 => state with { Corps = [.. state.Corps, different ? state.Corps[0] with { Treasury = new(10, 10) } : state.Corps[0]] },
-            5 => state with { Treasures = [.. state.Treasures, different ? state.Treasures[0] with { HolderId = null } : state.Treasures[0]] },
+            5 => state with { Treasures = [.. state.Treasures, different ? state.Treasures[0] with { Placement = new RegionTreasurePlacement(1) } : state.Treasures[0]] },
             _ => state with { Relations = [.. state.Relations, different ? state.Relations[0] with { Value = 51 } : state.Relations[0]] }
         };
         Assert.Throws<ArgumentException>(() => Recreate(state));
@@ -63,7 +64,7 @@ public sealed class WorldInvariantTests
             case 2: mutation.Replace(before.Officers[0] with { OwnerId = 2 }); break;
             case 3: mutation.Replace(before.Units[0] with { OwnerId = 99 }); break;
             case 4: mutation.Replace(before.Corps[0] with { LeaderId = 99 }); break;
-            case 5: mutation.Replace(before.Treasures[0] with { HolderId = 99 }); break;
+            case 5: mutation.Replace(before.Treasures[0] with { Placement = new OfficerTreasurePlacement(99) }); break;
             case 6: mutation.Replace(before.Relations[0] with { Value = 101 }); break;
             case 7: mutation.SetClock(default); break;
         }
@@ -127,5 +128,15 @@ public sealed class WorldInvariantTests
         Assert.Equal(2, after.Corps[0].OwnerId);
         Assert.Equal(1, before.Settlements[0].OwnerId);
         Assert.Equal(1, before.Officers[0].OwnerId);
+    }
+
+    [Theory]
+    [InlineData("{\"kind\":\"officer\",\"officerId\":1,\"regionId\":1}")]
+    [InlineData("{\"kind\":\"region\",\"regionId\":1,\"officerId\":1}")]
+    [InlineData("{\"kind\":\"region\"}")]
+    public void TreasurePlacementRejectsMixedLocationsAndMissingReferences(string placement)
+    {
+        string json = "{\"id\":1,\"placement\":" + placement + "}";
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<TreasureState>(json, CanonicalJson.Options));
     }
 }

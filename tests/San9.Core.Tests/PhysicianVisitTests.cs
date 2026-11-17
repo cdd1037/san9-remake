@@ -20,7 +20,7 @@ public sealed class PhysicianVisitTests
              new(2, 1, 1, new(50, 99, 99, 50), false),
              new(3, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special },
              new(4, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special }],
-            treasures: [new(500, 3, TreasureDiscovery.Discovered, null), new(501, 4, TreasureDiscovery.Discovered, null)],
+            treasures: [new(500, new OfficerTreasurePlacement(3)), new(501, new OfficerTreasurePlacement(4))],
             controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 0)) { IsRoot = true }]).BeginMutation(new(Books, new([])));
         ulong seed = TestSeeds.StateForRoll(roll);
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", seed)] });
@@ -48,8 +48,8 @@ public sealed class PhysicianVisitTests
             case "trust": world.Replace(world.Forces[1] with { BaseTrust = 75 }); break;
             case "dead": world.Replace(world.Officers[3] with { Status = OfficerStatus.Dead }); break;
             case "free": world.Replace(world.Officers[3] with { Status = OfficerStatus.Free }); break;
-            case "holder": world.Replace(world.Treasures[500] with { HolderId = 4 }); break;
-            case "buried": world.Replace(world.Treasures[500] with { HolderId = null, Discovery = TreasureDiscovery.Buried, DiscoveryRegionId = 1 }); break;
+            case "holder": world.Replace(world.Treasures[500] with { Placement = new OfficerTreasurePlacement(4)}); break;
+            case "buried": world.Replace(world.Treasures[500] with { Placement = new RegionTreasurePlacement(1) }); break;
         }
         var before = world.Treasures[500]; var actor = world.Officers[2]; var force = world.Forces[1];
         var random = new StableRandom(world.Simulation.RandomStreams.Single().State);
@@ -60,7 +60,7 @@ public sealed class PhysicianVisitTests
         Assert.Equal(force, world.Forces[1]); Assert.Equal(actor, world.Officers[2]); Assert.Empty(world.Simulation.ConsumedEventKeys);
         if (expected)
         {
-            Assert.Equal(before with { HolderId = 2 }, world.Treasures[500]);
+            Assert.Equal(before with { Placement = new OfficerTreasurePlacement(2)}, world.Treasures[500]);
             Assert.Equal((3, 2), (Assert.Single(events.OfType<TreasureTransferredEvent>()).PreviousHolderId,
                 Assert.Single(events.OfType<TreasureTransferredEvent>()).HolderId));
             Assert.Equal(500, Assert.Single(events.OfType<PhysicianVisitResolvedEvent>()).TreasureId);

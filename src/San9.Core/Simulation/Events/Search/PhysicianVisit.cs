@@ -17,7 +17,7 @@ internal static class PhysicianVisit
         int chance = world.Abilities(world.Officers[task.OfficerId]).Politics / d.PoliticsChanceDivisor;
         if (world.NextRandom("event-search-eligibility") % 100 >= (ulong)chance || force.BaseTrust <= d.MinimumBaseTrustExclusive ||
             !world.Officers.TryGetValue(site.PhysicianOfficerId, out var physician) || physician.Status != OfficerStatus.Special ||
-            !world.Treasures.TryGetValue(site.TreasureId, out var treasure) || !treasure.Discovered || treasure.HolderId != physician.Id)
+            !world.Treasures.TryGetValue(site.TreasureId, out var treasure) || treasure.HolderId != physician.Id)
             return false;
         PersonnelTreasures.Transfer(world, treasure, task.OfficerId, force.Id, "physician-visit", events);
         events.Add(new PhysicianVisitResolvedEvent(world.Clock, d.Id, force.Id, task.OfficerId, physician.Id, site.PlaceId, treasure.Id));

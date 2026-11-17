@@ -115,20 +115,17 @@ internal sealed partial class WorldMutation
         return _holdings.GetValueOrDefault(officerId, ImmutableDictionary<int, TreasureState>.Empty).Values;
     }
 
-    private void UpdateHolding(TreasureState previous, TreasureState current)
+    private void UpdateHolding(TreasureState previous, TreasureState? current)
     {
-        bool effectsChanged = previous.HolderId != current.HolderId || previous.Discovery != current.Discovery;
         if (previous.HolderId is int oldHolder)
         {
-            if (effectsChanged)
-                foreach (var effects in _treasureEffects.Values) effects.Remove(oldHolder);
+            foreach (var effects in _treasureEffects.Values) effects.Remove(oldHolder);
             if (_holdings is not null && _holdings.TryGetValue(oldHolder, out var items))
                 _holdings[oldHolder] = items.Remove(previous.Id);
         }
-        if (current.HolderId is int holder)
+        if (current?.HolderId is int holder)
         {
-            if (effectsChanged)
-                foreach (var effects in _treasureEffects.Values) effects.Remove(holder);
+            foreach (var effects in _treasureEffects.Values) effects.Remove(holder);
             if (_holdings is not null && (!AllOfficers.TryGetValue(holder, out var person) || !person.IsDormant))
                 _holdings[holder] = _holdings.GetValueOrDefault(holder, ImmutableDictionary<int, TreasureState>.Empty).SetItem(current.Id, current);
         }
@@ -148,13 +145,12 @@ internal sealed partial class WorldMutation
             var tactics = ImmutableHashSet.CreateBuilder<int>();
             foreach (var item in HeldTreasures(officerId))
             {
-                if (item.Discovery == TreasureDiscovery.Disabled) continue;
                 var rule = rules.Items[item.Id];
                 var value = rule.AbilityBonuses;
                 bonuses = new(Math.Max(bonuses.War, value.War), Math.Max(bonuses.Intelligence, value.Intelligence),
                     Math.Max(bonuses.Politics, value.Politics), Math.Max(bonuses.Leadership, value.Leadership));
                 mount |= rule.EscapeMount;
-                if (item.Discovered && rule.TacticId is int tactic) tactics.Add(tactic);
+                if (rule.TacticId is int tactic) tactics.Add(tactic);
             }
             result = new(bonuses, mount, tactics.ToImmutable());
             effects.Add(officerId, result);

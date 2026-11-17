@@ -85,7 +85,7 @@ internal static class PrisonerCompensation
             CompensationKind.Money => ResourceAccounts.Root(world, source.Id).Treasury.Money >= offer.Money,
             CompensationKind.Treasure => source.LeaderId is int ruler && recipient.LeaderId is int targetRuler &&
                 world.Officers[ruler].IsServing && world.Officers[targetRuler].IsServing &&
-                world.Treasures.TryGetValue(offer.TreasureId!.Value, out var item) && item.Discovered && item.HolderId == ruler &&
+                world.Treasures.TryGetValue(offer.TreasureId!.Value, out var item) && item.HolderId == ruler &&
                 treasures.Items.ContainsKey(item.Id),
             _ => false
         };

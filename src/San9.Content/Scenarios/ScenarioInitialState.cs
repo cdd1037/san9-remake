@@ -44,7 +44,7 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
 public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int? PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
-    public const int CurrentSchemaVersion = 166;
+    public const int CurrentSchemaVersion = 167;
     [JsonRequired] public San9.Core.Domain.OfficerGrowthRules OfficerGrowth { get; init; } = San9.Core.Domain.OfficerGrowthRules.Default;
     [JsonRequired] public OriginalAiDefinition OriginalAi { get; init; } = OriginalAiDefinition.Default;
     [JsonRequired] public int DefaultLoyalty { get; init; } = 50;

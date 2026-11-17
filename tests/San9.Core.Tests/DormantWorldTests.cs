@@ -68,7 +68,7 @@ public sealed class DormantWorldTests(Xunit.Abstractions.ITestOutputHelper outpu
         [new(1, 50), new ForceState(2, 60) { IsDormant = true }],
         [new SettlementState(2, 2, 100, 10, 100, 50, 500, 10, 100, 10, 100) { IsDormant = true }],
         [new OfficerState(2, 2, 2, new(), false) { IsDormant = true }],
-        corps: [new(2, 2, 2, new(200, 300)) { IsRoot = true }, new San9.Core.Domain.CorpsState(1, 1, null, new(100, 100)) { IsRoot = true }], treasures: [new(2, 2, TreasureDiscovery.Discovered, null)],
+        corps: [new(2, 2, 2, new(200, 300)) { IsRoot = true }, new San9.Core.Domain.CorpsState(1, 1, null, new(100, 100)) { IsRoot = true }], treasures: [new(2, new OfficerTreasurePlacement(2))],
         relations: [new(1, 2, 50)]);
 
     [Fact]

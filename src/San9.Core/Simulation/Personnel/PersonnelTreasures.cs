@@ -17,7 +17,7 @@ internal static class PersonnelTreasures
             return CommandRejection.UnknownTreasure;
         if (!world.Officers.TryGetValue(command.OfficerId, out var recipient)) return CommandRejection.UnknownPerson;
         int? ruler = world.Forces[command.IssuerId].LeaderId;
-        if (ruler is null || !item.Discovered || item.HolderId != ruler) return CommandRejection.TreasureUnavailable;
+        if (ruler is null || item.HolderId != ruler) return CommandRejection.TreasureUnavailable;
         if (!IsOwnOfficer(recipient, command.IssuerId, ruler.Value) || IsTravelling(world, recipient.Id))
             return CommandRejection.PersonUnavailable;
 
@@ -42,7 +42,7 @@ internal static class PersonnelTreasures
         if (!world.Treasures.TryGetValue(command.TreasureId, out var item) || !rules.Items.ContainsKey(command.TreasureId))
             return CommandRejection.UnknownTreasure;
         int? ruler = world.Forces[command.IssuerId].LeaderId;
-        if (ruler is null || !item.Discovered || item.HolderId is not int holder)
+        if (ruler is null || item.HolderId is not int holder)
             return CommandRejection.TreasureUnavailable;
         var person = world.Officers[holder];
         bool detainedHere = person.Status == OfficerStatus.Captive && person.SettlementId is int location &&
@@ -74,11 +74,19 @@ internal static class PersonnelTreasures
     private static bool IsTravelling(WorldMutation world, int officerId) =>
         world.IsTraveling(officerId);
 
+    internal static void Drop(WorldMutation world, TreasureState item, int? regionId, List<DomainEvent> events)
+    {
+        int previousHolderId = item.HolderId!.Value;
+        if (regionId is int region) world.Replace(item with { Placement = new RegionTreasurePlacement(region) });
+        else world.RemoveTreasure(item.Id);
+        events.Add(new TreasureDroppedEvent(world.Clock, item.Id, previousHolderId));
+    }
+
     internal static void Transfer(WorldMutation world, TreasureState item, int recipientId, int forceId, string reason,
         List<DomainEvent> events)
     {
         int previous = item.HolderId!.Value;
-        world.Replace(item with { HolderId = recipientId });
+        world.Replace(item with { Placement = new OfficerTreasurePlacement(recipientId) });
         events.Add(new TreasureTransferredEvent(world.Clock, forceId, item.Id, previous, recipientId, reason));
     }
 }

@@ -20,7 +20,9 @@ public sealed record TreasureTransferPreview(int RulerId, int? TargetId, IReadOn
         var definition = view.Information.Treasures.Single(t => t.Id == item.Id);
         var rules = view.Rules.Abilities;
         // Preview a transfer over immutable holdings; use the same ability rules as submission.
-        var holdings = view.World.Treasures.Select(t => t.Id == item.Id ? t with { HolderId = grant ? target : ruler } : t).ToArray();
+        int? recipient = grant ? target : ruler;
+        var holdings = view.World.Treasures.Where(t => t.Id != item.Id).ToList();
+        if (recipient is int holder) holdings.Add(item with { Placement = new OfficerTreasurePlacement(holder) });
         AttributeChange[] Abilities(int id)
         {
             var person = view.World.Officers.Single(p => p.Id == id);

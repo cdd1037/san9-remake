@@ -17,7 +17,7 @@ public sealed class OfficerAbilityRules(TreasureRulebook treasures, GovernanceRu
 
     public ImmutableDictionary<int, OfficerAbilities> EvaluateMany(IEnumerable<OfficerState> people, IEnumerable<TreasureState> holdings)
     {
-        var bonuses = holdings.Where(t => t.HolderId is not null && t.Discovery != TreasureDiscovery.Disabled)
+        var bonuses = holdings.Where(t => t.HolderId is not null)
             .GroupBy(t => t.HolderId!.Value).ToDictionary(g => g.Key,
                 g => TreasureRulebook.MaximumBonuses(g.Select(t => treasures.Items[t.Id].AbilityBonuses)));
         return people.ToImmutableDictionary(p => p.Id, p => Calculate(p, bonuses.GetValueOrDefault(p.Id)));

@@ -85,7 +85,7 @@ internal static class GiftDiplomacy
     }
 
     internal static bool CanOfferTreasure(WorldMutation world, int forceId, int treasureId, TreasureRulebook rules) =>
-        world.Treasures.TryGetValue(treasureId, out var item) && item.Discovered &&
+        world.Treasures.TryGetValue(treasureId, out var item) && item.HolderId is not null &&
             item.HolderId is int holder && world.Forces.TryGetValue(forceId, out var force) && holder == force.LeaderId &&
             world.Officers[holder].OwnerId == forceId && world.Officers[holder].IsServing &&
             !world.IsBusy(holder) && rules.Items.ContainsKey(item.Id);
@@ -138,7 +138,7 @@ internal static class GiftDiplomacy
 
     internal static bool Valid(WorldMutation world, PersistentTask task, SimulationRules rules) => task.Gift is { } gift &&
         Target(world, task.ForceId, gift.TargetForceId) && (gift.Offer.Kind != GiftKind.Treasure ||
-        world.Treasures.TryGetValue(gift.Offer.TreasureId!.Value, out var item) && item.Discovered && item.HolderId == task.OfficerId &&
+        world.Treasures.TryGetValue(gift.Offer.TreasureId!.Value, out var item) && item.HolderId == task.OfficerId &&
         rules.Treasures.Items.ContainsKey(item.Id));
 
     private static uint Refund(WorldMutation world, PersistentTask task, string reason, List<DomainEvent> events)

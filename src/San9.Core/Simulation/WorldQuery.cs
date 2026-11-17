@@ -59,7 +59,7 @@ internal sealed class WorldQuery : IWorldQuery
 
     public IEnumerable<OfficerState> ServingUnitMembers(int unitId) => members[unitId];
     public bool HasTreasureTactic(int officerId, int tacticId, TreasureRulebook rules) => treasures[officerId].Any(t =>
-        t.Discovery != TreasureDiscovery.Disabled && t.Discovered && rules.Items[t.Id].TacticId == tacticId);
+        rules.Items[t.Id].TacticId == tacticId);
 
     public bool BlocksWaterContact(MilitaryRulebook rules, WorldPosition position, int? target) =>
         OccupancyFor(rules).BlocksContact(position, target);

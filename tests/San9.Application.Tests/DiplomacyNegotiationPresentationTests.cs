@@ -26,7 +26,7 @@ public sealed class DiplomacyNegotiationPresentationTests
             Information = definition.Information with
             {
                 Treasures = [new(9, "treasure", 0, 1, null)],
-                TreasureStates = [new(9, 21, TreasureDiscovery.Discovered, null)]
+                TreasureStates = [new(9, new OfficerTreasurePlacement(21))]
             }
         };
         var session = GameSession.Start(definition, 42);

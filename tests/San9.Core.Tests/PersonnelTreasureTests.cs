@@ -86,8 +86,8 @@ public sealed class PersonnelTreasureTests
              new(2, captive ? null : 1, location, new(50, 50, 50, 50), false)
              { Status = captive ? OfficerStatus.Captive : OfficerStatus.Serving, Injury = 2, OfficeId = 1, ForceLoyalties = ImmutableDictionary<int, int>.Empty.Add(1, loyalty).Add(2, 177) },
              new(3, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-            treasures: [new(10, 1, TreasureDiscovery.Discovered, null), new(11, 1, TreasureDiscovery.Discovered, null),
-                new(12, 2, TreasureDiscovery.Discovered, null)], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 3, new(1000, 1000)) { IsRoot = true }]);
+            treasures: [new(10, new OfficerTreasurePlacement(1)), new(11, new OfficerTreasurePlacement(1)),
+                new(12, new OfficerTreasurePlacement(2))], controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 3, new(1000, 1000)) { IsRoot = true }]);
         var initialized = new SimulationEngine(world, new([new(1, 0)], [], 10), Places, Rules(bonus), Governance);
         // Set the command boundary input after opening salary and injury recovery.
         var state = initialized.CaptureStableState();
@@ -139,7 +139,7 @@ public sealed class PersonnelTreasureTests
     {
         var engine = Engine(loyalty, bonus);
         var state = engine.Snapshot;
-        state = state with { Treasures = state.Treasures.Select(t => t.Id == 10 ? t with { HolderId = 2 } : t).ToArray() };
+        state = state with { Treasures = state.Treasures.Select(t => t.Id == 10 ? t with { Placement = new OfficerTreasurePlacement(2)} : t).ToArray() };
         engine = new(WorldState.Restore(state), new([new(1, 0)], [], 10), Places, Rules(bonus), Governance);
         Assert.True(Confiscate(engine).Submission.Accepted);
         Assert.Equal(expected, engine.Snapshot.Officers.Single(p => p.Id == 2).LoyaltyTo(1));

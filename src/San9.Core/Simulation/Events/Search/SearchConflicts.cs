@@ -143,7 +143,7 @@ internal static class SearchConflicts
                 else
                 {
                     OfficerInjuries.Apply(world, actor with { Injury = d.DefeatInjury, LifespanTier = Math.Min(actor.LifespanTier, scholar.PunishmentLifespanCeiling) }, events);
-                    PersonnelWithdrawal.Resolve(world, site.ScholarOfficerId, rules, events);
+                    PersonnelWithdrawal.Resolve(world, site.ScholarOfficerId, site.PlaceId, rules, events);
                     world.ConsumeEvent(new(d.Id, EventTrigger.Search, d.Priority, EventConsumption.OnSuccess, site.WithdrawalKey),
                         new(d.Id, EventOutcomeKind.Completed, false, EventResult.Succeeded));
                 }

@@ -64,7 +64,7 @@ public sealed partial class OfficerCommandTests
         {
             Officers = world.Officers.Select(p => p.Id == 1 ? p with { EquippedTacticId = tacticId, LearnedTactics = [tacticId] } : p).ToArray(),
             Forces = world.Forces.Select(f => f.Id == 1 ? f with { ProvidedTactics = [tacticId] } : f).ToArray(),
-            Treasures = [new(9000, 1, TreasureDiscovery.Discovered, null)]
+            Treasures = [new(9000, new OfficerTreasurePlacement(1))]
         };
         var view = new StrategySnapshot(content, world);
         Assert.Equal("自定义兵法", OfficerCatalog.Pages(view, texts)[4].Columns.Single(c => c.Id == $"tactic.{tacticId}").Title);

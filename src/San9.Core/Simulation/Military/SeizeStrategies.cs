@@ -40,7 +40,7 @@ internal static class SeizeStrategies
     }
 
     private static TreasureState? ItemCandidate(WorldMutation world, int targetId, TreasureRulebook rules) =>
-        world.Treasures.Values.Where(item => item.Discovered && item.HolderId is int holder &&
+        world.Treasures.Values.Where(item => item.HolderId is int holder &&
                 rules.Items.ContainsKey(item.Id) && world.Officers.TryGetValue(holder, out var person) &&
                 person.SettlementId == targetId)
             .OrderBy(item => rules.Items[item.Id].LoyaltyBonus).ThenBy(item => item.Id).FirstOrDefault();

@@ -77,11 +77,7 @@ internal static class OfficerDeath
             if (recipient is not null)
                 PersonnelTreasures.Transfer(world, treasure, recipient.Id, recipient.OwnerId!.Value, "person-died", events);
             else
-            {
-                world.Replace(treasure with { HolderId = null, Discovery = TreasureDiscovery.Buried,
-                    DiscoveryRegionId = treasureDropRegionId ?? treasure.DiscoveryRegionId });
-                events.Add(new TreasureDroppedEvent(world.Clock, treasure.Id, officerId));
-            }
+                PersonnelTreasures.Drop(world, treasure, treasureDropRegionId, events);
         }
     }
 }

@@ -12,7 +12,7 @@ internal static class ForceTrust
             if (city.Kind == SettlementKind.City && city.OwnerId == force.Id)
                 contribution += ((long)city.Population + city.DraftPopulation) * Math.Max(0, city.PublicOrder - 300) / 1000 / 5000;
         bool seal = rules.ImperialSealId is int item && world.Treasures.TryGetValue(item, out var treasure) &&
-            force.LeaderId is not null && treasure.HolderId == force.LeaderId && treasure.Discovered;
+            force.LeaderId is not null && treasure.HolderId == force.LeaderId && treasure.HolderId is not null;
         return (int)Math.Clamp(force.BaseTrust + contribution + (seal ? 100 : 0) +
             (EmperorOwner(world, rules) == force.Id ? 100 : 0), 0, 1000);
     }
@@ -23,7 +23,7 @@ internal static class ForceTrust
     internal static int? SealOwner(WorldMutation world, EconomyRulebook rules)
     {
         if (rules.ImperialSealId is not int item || !world.Treasures.TryGetValue(item, out var treasure) ||
-            !treasure.Discovered || treasure.HolderId is not int holder) return null;
+            treasure.HolderId is not int holder) return null;
         foreach (var force in world.Forces.Values)
             if (!force.IsEliminated && force.LeaderId == holder) return force.Id;
         return null;

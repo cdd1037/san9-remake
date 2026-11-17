@@ -154,11 +154,10 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
             Treasures.Any(t => string.IsNullOrWhiteSpace(t.Name) || t.Description is null || t.ImageKey is not null && string.IsNullOrWhiteSpace(t.ImageKey) || t.Category is < 0 or > 12 || !Enum.IsDefined(t.RetentionGroup) || !t.AbilityBonuses.IsNonnegative || t.LoyaltyBonus < 0 ||
                 t.FavoredOwnerIds.IsDefault || t.FavoredOwnerIds.Distinct().Count() != t.FavoredOwnerIds.Length ||
                 t.FavoredOwnerIds.Any(id => !scenario.Officers.Any(o => o.State.Id == id))) ||
-            Treasures.Any(t => !TreasureStates.Any(state => state.Id == t.Id)) ||
-            TreasureStates.Any(t => t.Discovery != TreasureDiscovery.Disabled && !Treasures.Any(d => d.Id == t.Id)) ||
+            TreasureStates.Any(t => !Treasures.Any(d => d.Id == t.Id)) ||
             TreasureStates.Any(t => !t.IsValid ||
-                t.DiscoveryRegionId is int region && !scenario.RegionNameKeys.ContainsKey(region) ||
-                t.HolderId is int holder && !scenario.Officers.Any(o => o.State.Id == holder)) ||
+                t.RegionId is int region && !scenario.RegionNameKeys.ContainsKey(region) ||
+                t.HolderId is int holder && !scenario.Officers.Any(o => o.State.Id == holder && o.State.Status != San9.Core.Domain.OfficerStatus.Dead)) ||
             Corps.Any(c => c.Treasury is null || !scenario.Forces.Any(f => f.Id == c.OwnerId) ||
                 (c.LeaderId is int leader ? !scenario.Officers.Any(o => o.State.Id == leader && o.State.OwnerId == c.OwnerId) : !c.IsRoot)))
             throw new InvalidDataException("Invalid information definition or relationship.");

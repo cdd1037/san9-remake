@@ -222,8 +222,8 @@ public sealed class MissionCommandTests
         var content = basis with { Information = basis.Information with
         {
             Treasures = [new(101,"own",0,5,null),new(102,"granted",0,5,null),new(103,"foreign",0,5,null)],
-            TreasureStates = [new(101,1,TreasureDiscovery.Discovered,null),new(102,3,TreasureDiscovery.Discovered,null),
-                new(103,21,TreasureDiscovery.Discovered,null)]
+            TreasureStates = [new(101, new OfficerTreasurePlacement(1)),new(102, new OfficerTreasurePlacement(3)),
+                new(103, new OfficerTreasurePlacement(21))]
         } };
         var session = GameSession.Start(content,42);
         var draft = new MissionDraft(session,1,"gift");

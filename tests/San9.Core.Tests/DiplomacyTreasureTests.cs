@@ -9,7 +9,7 @@ public sealed class DiplomacyTreasureTests
         new(id, new(value, value, value, value), loyalty) { RetentionGroup = group, FavoredOwnerIds = [.. favored] };
 
     private static int[] Select(params TreasureRule[] rules) => DiplomacyTreasures.Candidates(
-        rules.Reverse().Select(r => new TreasureState(r.Id, 100, TreasureDiscovery.Discovered, null)),
+        rules.Reverse().Select(r => new TreasureState(r.Id, new OfficerTreasurePlacement(100))),
         new(rules), 100, 200).ToArray();
 
     [Fact]
@@ -54,10 +54,9 @@ public sealed class DiplomacyTreasureTests
     {
         TreasureRule[] rules = [Item(1, 100) with { AutomaticDiplomacyOfferAllowed = false },
             Item(2, 100), Item(3, 100), Item(4, 100), Item(5, 20), Item(6, 10)];
-        TreasureState[] states = [new(1, 100, TreasureDiscovery.Discovered, null),
-            new(2, 200, TreasureDiscovery.Discovered, null), new(3, null, TreasureDiscovery.Buried, 1),
-            new(4, null, TreasureDiscovery.Disabled, null), new(5, 100, TreasureDiscovery.Discovered, null),
-            new(6, 100, TreasureDiscovery.Discovered, null)];
+        TreasureState[] states = [new(1, new OfficerTreasurePlacement(100)),
+            new(2, new OfficerTreasurePlacement(200)), new(3, new RegionTreasurePlacement(1)), new(5, new OfficerTreasurePlacement(100)),
+            new(6, new OfficerTreasurePlacement(100))];
         Assert.Equal(new[] { 6 }, DiplomacyTreasures.Candidates(states, new(rules), 100, 200));
         Assert.Throws<ArgumentException>(() => DiplomacyTreasures.Candidates(states, new(rules), 100, 100));
         Assert.Throws<ArgumentException>(() => new TreasureRulebook([Item(1, 1) with { RetentionGroup = (TreasureRetentionGroup)99 }]));

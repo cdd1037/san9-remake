@@ -400,10 +400,8 @@ public sealed class FacilityConstructionTests
             [new(1, 1, 20000, 600, 600, 100, 0, 0, 100, 0, 100)],
             [new(11, 1, 1, new(70, 70, 70, 70), false) { LearnedTactics = grant == "member" ? [19, 20] : [] },
                 new(12, 1, 1, new(70, 70, 70, 70), false) { LearnedTactics = grant == "nonmember" ? [19, 20] : [] }],
-            treasures: [new(1, grant == "nonmember" ? 12 : 11,
-                grant == "buried" ? TreasureDiscovery.Buried : TreasureDiscovery.Discovered, null),
-                new(2, grant == "nonmember" ? 12 : 11,
-                    grant == "buried" ? TreasureDiscovery.Buried : TreasureDiscovery.Discovered, null)],
+            treasures: [new(1, grant == "buried" ? new RegionTreasurePlacement(1) : new OfficerTreasurePlacement(grant == "nonmember" ? 12 : 11)),
+                new(2, grant == "buried" ? new RegionTreasurePlacement(1) : new OfficerTreasurePlacement(grant == "nonmember" ? 12 : 11))],
             controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, null, new(10000, 1000000)) { IsRoot = true }]);
         var treasures = new TreasureRulebook([new(1, default, 0) { TacticId = grant is "treasure" or "buried" or "nonmember" ? 19 : null },
             new(2, default, 0) { TacticId = grant is "treasure" or "buried" or "nonmember" ? 20 : null }]);

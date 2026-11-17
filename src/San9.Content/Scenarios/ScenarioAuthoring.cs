@@ -230,8 +230,7 @@ public sealed record InformationCatalog
     };
 
     public InformationDefinitions Compile(ScenarioInformationState state) => new(Ranks.ToArray(), Offices.ToArray(), Treasures.ToArray(), state.Corps,
-        [.. state.TreasureStates, .. Treasures.Where(t => !state.TreasureStates.Any(s => s.Id == t.Id))
-            .Select(t => new TreasureState(t.Id, null, TreasureDiscovery.Disabled, null))])
+        state.TreasureStates.ToArray())
     {
         MapContextExcludedFacilityIds = MapContextExcludedFacilityIds,
         Tactics = Tactics,
@@ -382,7 +381,7 @@ public sealed record ScenarioGeography
 public sealed record ScenarioDocument(int SchemaVersion, string ScenarioId, int Year, int Month, int Day, int? PlayerForceId,
     ForceInitialState[] Forces, SettlementInitialState[] Settlements)
 {
-    public const int CurrentSchemaVersion = 9;
+    public const int CurrentSchemaVersion = 10;
     [JsonRequired] public required GameClock? ThreeVisitsStarted { get; init; }
     [JsonRequired] public required bool UnitDefectionsEnabled { get; init; }
     [JsonRequired] public required bool SettlementDefectionsEnabled { get; init; }

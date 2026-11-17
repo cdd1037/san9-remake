@@ -24,7 +24,7 @@ public sealed class MysticBookTests
              new(2, 1, 1, new(0, 0, 0, 99), false),
              new(3, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special },
              new(4, null, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Special }],
-            treasures: [new(500, 3, TreasureDiscovery.Discovered, null)],
+            treasures: [new(500, new OfficerTreasurePlacement(3))],
             controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(1501, 0)) { IsRoot = true }]).BeginMutation(new(Books, new([])));
         ulong seed = TestSeeds.StateForRoll(roll);
         world.SetSimulation(world.Simulation with { RandomStreams = [new("event-search-eligibility", seed)] });
@@ -52,7 +52,7 @@ public sealed class MysticBookTests
     {
         int threshold = returning ? 16 : 33;
         var (world, task) = Create(variant == "chance" ? threshold : threshold - 1);
-        if (returning) world.Replace(world.Treasures[500] with { HolderId = 2 });
+        if (returning) world.Replace(world.Treasures[500] with { Placement = new OfficerTreasurePlacement(2)});
         switch (variant)
         {
             case "place": task = task with { Journey = new(2, null, 0) }; break;
@@ -60,7 +60,7 @@ public sealed class MysticBookTests
             case "funds": world.Replace(ResourceAccounts.Root(world, 1) with { Treasury = ResourceAccounts.Root(world, 1).Treasury with { Money = 1500 } }); break;
             case "dead": world.Replace(world.Officers[3] with { Status = OfficerStatus.Dead }); break;
             case "free": world.Replace(world.Officers[3] with { Status = OfficerStatus.Free }); break;
-            case "holder": world.Replace(world.Treasures[500] with { HolderId = 4 }); break;
+            case "holder": world.Replace(world.Treasures[500] with { Placement = new OfficerTreasurePlacement(4)}); break;
             case "all-known": world.Replace(world.Officers[2] with { LearnedTactics = Return.RewardTacticIds.ToImmutableSortedSet() }); break;
         }
         var random = new StableRandom(world.Simulation.RandomStreams.Single().State); if (draws) random.NextUInt64();
@@ -94,7 +94,7 @@ public sealed class MysticBookTests
     [Fact]
     public void RefusingReturnLearnsOrderedPermanentTacticsIncludingTheBooksOwnTactic()
     {
-        var (world, task) = Create(); world.Replace(world.Treasures[500] with { HolderId = 2 });
+        var (world, task) = Create(); world.Replace(world.Treasures[500] with { Placement = new OfficerTreasurePlacement(2)});
         foreach (int expected in new[] { 26, 30, 29, 22 })
         {
             Assert.True(MysticBook.CanResolve(world, task, Rules, new MysticBookReturnEncounter(Return.Id)));
@@ -104,7 +104,7 @@ public sealed class MysticBookTests
             Assert.Equal(2, world.Treasures[500].HolderId); Assert.DoesNotContain(events, e => e is ResourceChangedEvent);
         }
         Assert.False(MysticBook.CanResolve(world, task, Rules, new MysticBookReturnEncounter(Return.Id)));
-        world.Replace(world.Treasures[500] with { HolderId = 3 });
+        world.Replace(world.Treasures[500] with { Placement = new OfficerTreasurePlacement(3)});
         Assert.True(world.Officers[2].LearnedTactics.SetEquals(Return.RewardTacticIds));
         Assert.Empty(world.Simulation.ConsumedEventKeys);
     }
@@ -112,7 +112,7 @@ public sealed class MysticBookTests
     [Fact]
     public void ReturningTransfersTheBookWithoutRewardAndReopensTheOffer()
     {
-        var (world, task) = Create(); world.Replace(world.Treasures[500] with { HolderId = 2 }); List<DomainEvent> events = [];
+        var (world, task) = Create(); world.Replace(world.Treasures[500] with { Placement = new OfficerTreasurePlacement(2)}); List<DomainEvent> events = [];
         MysticBook.Resolve(world, task, Rules, new MysticBookReturnEncounter(Return.Id), true, events);
         Assert.Equal(3, world.Treasures[500].HolderId); Assert.Empty(world.Officers[2].LearnedTactics);
         Assert.DoesNotContain(events, e => e is ResourceChangedEvent);
@@ -124,9 +124,9 @@ public sealed class MysticBookTests
     [InlineData(true)]
     public void ChangedHolderCancelsWithoutTransferPaymentOrLearning(bool returning)
     {
-        var (world, task) = Create(); world.Replace(world.Treasures[500] with { HolderId = returning ? 2 : 3 });
+        var (world, task) = Create(); world.Replace(world.Treasures[500] with { Placement = new OfficerTreasurePlacement(returning ? 2 : 3)});
         Assert.True(returning ? MysticBook.Prepare(world, task, Return) : MysticBook.Prepare(world, task, Offer));
-        world.Replace(world.Treasures[500] with { HolderId = 4 }); List<DomainEvent> events = [];
+        world.Replace(world.Treasures[500] with { Placement = new OfficerTreasurePlacement(4)}); List<DomainEvent> events = [];
         Assert.Throws<InvalidOperationException>(() =>
         {
             if (returning) MysticBook.Resolve(world, task, Rules, new MysticBookReturnEncounter(Return.Id), false, events);

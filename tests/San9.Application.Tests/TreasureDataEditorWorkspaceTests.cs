@@ -21,7 +21,7 @@ public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
         {
             Treasures = [new(901, "宝物甲", 1, 5, null) { Description = "原说明", AbilityBonuses = new(3, 0, 0, 0) },
                 new(902, "宝物乙", 8, 0, null)],
-            TreasureStates = [new(901, treasuresOnly ? null : 1, TreasureDiscovery.Discovered, null), new(902, null, TreasureDiscovery.Disabled, null)]
+            TreasureStates = treasuresOnly ? [] : [new(901, new OfficerTreasurePlacement(1))]
         } };
         var entries = source.Forces.Select(f => f.NameKey).Concat(source.Settlements.Select(s => s.NameKey))
             .Concat(source.Officers.Select(o => o.NameKey)).Distinct().ToDictionary(key => key, key => key);
@@ -63,7 +63,7 @@ public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
         var content = await ScenarioContentFiles.LoadAsync(Path.Combine(_root, "a"));
         var session = GameSession.Start(content.Scenario, 1);
         var item = session.Snapshot.Treasures.Single(t => t.Id == 901);
-        Assert.Equal(1, item.HolderId); Assert.Equal(TreasureDiscovery.Discovered, item.Discovery);
+        Assert.Equal(1, item.HolderId); Assert.IsType<OfficerTreasurePlacement>(item.Placement);
         Assert.Equal(edited.AbilityBonuses, new TreasureRulebook(content.Scenario.Information.Treasures.Select(t => t.ToRule())).HeldBonuses(session.Snapshot.Treasures, 1));
         var detail = TreasureDetails.Read(session.View, content.Text, 901);
         Assert.Equal(edited.Name, detail.Name);
@@ -142,7 +142,7 @@ public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
     }
 
     [Fact]
-    public async Task NewAndCopiedTreasuresUseIndependentInitialStateAndCanBeEnabledThroughTheScenarioEditor()
+    public async Task NewAndCopiedTreasureDefinitionsStartUnplacedAndCanBePlacedThroughTheScenarioEditor()
     {
         await Create();
         var workspace = await SharedDataEditorWorkspace.OpenAsync(_root);
@@ -162,16 +162,15 @@ public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
         workspace.RestoreTreasure(copy.Id);
         Assert.Equal(copy, workspace.GetTreasure(copy.Id));
         var content = await ScenarioContentFiles.LoadAsync(Path.Combine(_root, "a"));
-        Assert.Equal(new TreasureState(copy.Id, null, TreasureDiscovery.Disabled, null),
-            content.Scenario.Information.TreasureStates.Single(t => t.Id == copy.Id));
+        Assert.DoesNotContain(content.Scenario.Information.TreasureStates, t => t.Id == copy.Id);
         var selection = await ScenarioContentFiles.LoadSelectionAsync(Path.Combine(_root, "a"));
         Assert.Equal(content.Scenario.Information.TreasureStates, selection.Scenario.Information.TreasureStates);
         Assert.DoesNotContain((await ScenarioContentFiles.LoadAsync(Path.Combine(_root, "private"))).Scenario.Information.Treasures, t => t.Id == copy.Id);
         var scenario = await ScenarioEditorWorkspace.OpenAsync(_root, "a");
-        Assert.Equal(TreasureDiscovery.Disabled, scenario.GetTreasureState(copy.Id).Discovery);
+        Assert.Null(scenario.GetTreasurePlacement(copy.Id));
         Assert.DoesNotContain(scenario.Document.Information.TreasureStates, t => t.Id == copy.Id);
-        var state = new TreasureState(copy.Id, 1, TreasureDiscovery.Discovered, null);
-        scenario.SetTreasureState(state);
+        var state = new TreasureState(copy.Id, new OfficerTreasurePlacement(1));
+        scenario.SetTreasurePlacement(copy.Id, state.Placement);
         await scenario.SaveAsync();
         content = await ScenarioContentFiles.LoadAsync(Path.Combine(_root, "a"));
         var session = GameSession.Start(content.Scenario, 1);
@@ -193,8 +192,7 @@ public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
         var reopened = await SharedDataEditorWorkspace.OpenAsync(_root);
         Assert.DoesNotContain(reopened.Treasures, t => t.Id == 902 || t.Id == created.Id);
         Assert.True((await reopened.CreateTreasureAsync()).Id > created.Id);
-        Assert.Equal(TreasureDiscovery.Disabled, (await ScenarioContentFiles.LoadAsync(Path.Combine(_root, "a")))
-            .Scenario.Information.TreasureStates.Single(t => t.Id == 902).Discovery);
+        Assert.DoesNotContain((await ScenarioContentFiles.LoadAsync(Path.Combine(_root, "a"))).Scenario.Information.TreasureStates, t => t.Id == 902);
     }
 
     [Fact]
@@ -209,7 +207,7 @@ public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
         Assert.Same(draft, workspace.Definitions);
         await workspace.DeleteTreasureAsync(902);
         await EditWorld("a", document => document with { Information = document.Information with
-        { TreasureStates = document.Information.TreasureStates.Select(t => t.Id == 902 ? t with { Discovery = TreasureDiscovery.Discovered, HolderId = 1 } : t).ToArray() } });
+        { TreasureStates = [.. document.Information.TreasureStates, new(902, new OfficerTreasurePlacement(1))] } });
         await Assert.ThrowsAsync<InvalidDataException>(() => workspace.SaveAsync());
         Assert.False(File.Exists(workspace.PlayerDefinitionPath));
         Assert.DoesNotContain(workspace.Treasures, t => t.Id == 902);
@@ -253,16 +251,14 @@ public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
     }
 
     [Fact]
-    public async Task TreasureAllocationReservesPrivateDefinitionsAndDisabledStateIdentities()
+    public async Task TreasureAllocationReservesScenarioPrivateDefinitions()
     {
         await Create();
         var basis = await SharedDataEditorWorkspace.OpenAsync(_root);
         await EditWorld("private", document => document with { DefinitionOverrides = document.DefinitionOverrides with
         { Information = new(basis.Definitions.Information with { Treasures = [.. basis.Treasures, new(5000, "私有宝物", 11, 0, null)] }) } });
-        await EditWorld("a", document => document with { Information = document.Information with
-        { TreasureStates = [.. document.Information.TreasureStates, new(8000, null, TreasureDiscovery.Disabled, null)] } });
         var workspace = await SharedDataEditorWorkspace.OpenAsync(_root);
-        Assert.True((await workspace.CreateTreasureAsync()).Id > 8000);
+        Assert.True((await workspace.CreateTreasureAsync()).Id > 5000);
     }
 
     [Fact]
@@ -288,7 +284,7 @@ public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
         await Create(treasuresOnly: true);
         foreach (string id in new[] { "a", "private" })
             await EditWorld(id, document => document with { Information = document.Information with
-            { TreasureStates = document.Information.TreasureStates.Select(t => t with { Discovery = TreasureDiscovery.Disabled }).ToArray() } });
+            { TreasureStates = [] } });
         var workspace = await SharedDataEditorWorkspace.OpenAsync(_root);
         await workspace.DeleteTreasureAsync(901);
         await workspace.DeleteTreasureAsync(902);

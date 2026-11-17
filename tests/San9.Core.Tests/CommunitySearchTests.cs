@@ -28,7 +28,7 @@ public sealed class CommunitySearchTests
             [new(1, 1, 11000, 100, 100, 0, 0, 0, 100, 0, 100) { CorpsId = 7 }],
             [new(1, 1, 1, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler },
              new(2, 1, 1, new(60, 30, 80, 70), false)],
-            treasures: [new(50, 2, TreasureDiscovery.Discovered, null)],
+            treasures: [new(50, new OfficerTreasurePlacement(2))],
             corps: [new(7, 1, 2, new(5000, 5000)), new San9.Core.Domain.CorpsState(1, 1, 1, new(0, 0)) { IsRoot = true }],
             controls: [new("player", 1, ControllerKind.Player)]).BeginMutation(new OfficerAbilityRules(new([new(50, default, 0)]), new([])));
         ulong seed = TestSeeds.StateForRoll(0);
@@ -108,7 +108,7 @@ public sealed class CommunitySearchTests
         var before = world.Simulation.RandomStreams;
         Assert.True(CommunitySearch.Prepare(world, task, rules.Personnel, Definition("sacrifice")));
         Assert.Equal(before, world.Simulation.RandomStreams);
-        world.Replace(world.Treasures[50] with { HolderId = 1 });
+        world.Replace(world.Treasures[50] with { Placement = new OfficerTreasurePlacement(1)});
         Assert.False(CommunitySearch.CanResolve(world, task, rules, encounter));
     }
     [Fact]

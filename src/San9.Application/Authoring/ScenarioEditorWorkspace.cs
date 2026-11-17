@@ -107,26 +107,24 @@ public sealed class ScenarioEditorWorkspace
     public string Name(string key) => Text.Entries.GetValueOrDefault(key, key);
     public string RegionName(int id) => _shared.Geography.RegionNameKeys.TryGetValue(id, out string? key) ? Name(key) : $"地域 {id}";
 
-    public TreasureState GetTreasureState(int id)
+    public TreasurePlacement? GetTreasurePlacement(int id)
     {
         if (!Definitions.Information.Treasures.Any(t => t.Id == id)) throw new InvalidDataException("找不到宝物定义。");
-        return Document.Information.TreasureStates.SingleOrDefault(t => t.Id == id)
-            ?? new TreasureState(id, null, TreasureDiscovery.Disabled, null);
+        return Document.Information.TreasureStates.SingleOrDefault(t => t.Id == id)?.Placement;
     }
 
-    public void SetTreasureState(TreasureState treasure)
+    public void SetTreasurePlacement(int id, TreasurePlacement? placement)
     {
-        if (!treasure.IsValid || !Definitions.Information.Treasures.Any(t => t.Id == treasure.Id))
-            throw new InvalidDataException("宝物身份或发现状态无效。");
-        if (treasure.HolderId is int holder && !Document.Officers.Any(o => o.Id == holder))
-            throw new InvalidDataException("宝物持有者必须是当前剧本中的武将。");
-        if (treasure.DiscoveryRegionId is int region && !_shared.Geography.RegionNameKeys.ContainsKey(region))
-            throw new InvalidDataException("宝物出土地域必须引用当前地图中的地域。");
-        var states = Document.Information.TreasureStates.ToArray();
-        int index = Array.FindIndex(states, t => t.Id == treasure.Id);
-        if (index < 0) states = [.. states, treasure];
-        else states[index] = treasure;
-        Update(Document with { Information = Document.Information with { TreasureStates = states } });
+        if (!Definitions.Information.Treasures.Any(t => t.Id == id)) throw new InvalidDataException("找不到宝物定义。");
+        var treasure = placement is null ? null : new TreasureState(id, placement);
+        if (treasure is not null && !treasure.IsValid) throw new InvalidDataException("宝物安置无效。");
+        if (treasure?.HolderId is int holder && !Document.Officers.Any(o => o.Id == holder && o.Status != OfficerStatus.Dead))
+            throw new InvalidDataException("宝物持有者必须是当前剧本中存活的武将。");
+        if (treasure?.RegionId is int region && !_shared.Geography.RegionNameKeys.ContainsKey(region))
+            throw new InvalidDataException("宝物埋藏地点必须引用当前地图中的地域。");
+        var states = Document.Information.TreasureStates.Where(t => t.Id != id);
+        if (treasure is not null) states = states.Append(treasure);
+        Update(Document with { Information = Document.Information with { TreasureStates = states.OrderBy(t => t.Id).ToArray() } });
     }
 
     public void Update(ScenarioDocument document)

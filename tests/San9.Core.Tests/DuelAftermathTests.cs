@@ -242,7 +242,7 @@ public sealed class DuelAftermathTests
         var rules = new SimulationRules { Military = Rules(),
             Treasures = new([new(7, default, 0) { EscapeMount = true }]) };
         var world = World([Person(11, 1), Person(21, 2, 100), Person(22, 2, 50)], Seed(),
-            [new(7, 22, TreasureDiscovery.Discovered, null)]).BeginMutation(rules.Abilities);
+            [new(7, new OfficerTreasurePlacement(22))]).BeginMutation(rules.Abilities);
         DuelAftermath.Advance(world, DuelAftermath.Begin(world, SingleLoser()), rules, []);
         Assert.Equal(OfficerStatus.Serving, world.Officers[22].Status);
         Assert.Equal(7, world.Officers[22].Injury);

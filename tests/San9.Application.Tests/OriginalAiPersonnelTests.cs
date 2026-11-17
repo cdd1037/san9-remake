@@ -220,7 +220,7 @@ public sealed partial class OriginalAiPersonnelTests
         {
             Officers = content.Officers.Select(o => o.State.Id == 2 ? o with { State = o.State.WithLoyalty(1, 70) } : o).ToArray(),
             Information = content.Information with { Treasures = items,
-                TreasureStates = items.Select(i => new TreasureState(i.Id, 1, TreasureDiscovery.Discovered, null)).ToArray() }
+                TreasureStates = items.Select(i => new TreasureState(i.Id, new OfficerTreasurePlacement(1))).ToArray() }
         };
         var h = new Harness(content);
         Assert.Equal(1, h.Run(OriginalAiWork.GrantTreasure).Submitted);
@@ -231,7 +231,7 @@ public sealed partial class OriginalAiPersonnelTests
         {
             Officers = content.Officers.Select(o => o.State.Id == 2 ? o with { State = o.State.WithLoyalty(1, 50) } : o).ToArray(),
             Information = content.Information with { Treasures = items.Select(i => i.Id == 901 ? i with { FavoredOwnerIds = [2] } : i).ToArray(),
-                TreasureStates = items.Select(i => new TreasureState(i.Id, 2, TreasureDiscovery.Discovered, null)).ToArray() }
+                TreasureStates = items.Select(i => new TreasureState(i.Id, new OfficerTreasurePlacement(2))).ToArray() }
         };
         h = new Harness(content);
         Assert.Equal(1, h.Run(OriginalAiWork.ConfiscateTreasure).Submitted);
@@ -248,7 +248,7 @@ public sealed partial class OriginalAiPersonnelTests
         {
             Officers = content.Officers.Select(o => o.State.Id is 2 or 3 ? o with { State = o.State.WithLoyalty(1, o.State.Id == 2 ? 70 : 80) } : o).ToArray(),
             Information = content.Information with { Treasures = items,
-                TreasureStates = items.Select((i, index) => new TreasureState(i.Id, index < 5 ? 2 : 1, TreasureDiscovery.Discovered, null)).ToArray() }
+                TreasureStates = items.Select((i, index) => new TreasureState(i.Id, new OfficerTreasurePlacement(index < 5 ? 2 : 1))).ToArray() }
         };
         var h = new Harness(content);
         Assert.Equal(OriginalAiWorkEnd.PreparationFailed, h.Run(OriginalAiWork.GrantTreasure).End);
@@ -272,7 +272,7 @@ public sealed partial class OriginalAiPersonnelTests
                 { OwnerId = unaffiliated ? null : 2, Status = OfficerStatus.Captive, SettlementId = 1 } } : o).ToArray(),
             Information = content.Information with { Relations = [new(1, 2, relation)],
                 Treasures = [new(901, "item.a", 0, 10, null), new(902, "item.b", 0, 20, null)],
-                TreasureStates = [new(901, 5, TreasureDiscovery.Discovered, null), new(902, 5, TreasureDiscovery.Discovered, null)] }
+                TreasureStates = [new(901, new OfficerTreasurePlacement(5)), new(902, new OfficerTreasurePlacement(5))] }
         };
         var h = new Harness(content);
         Assert.Equal(eligible ? 1 : 0, h.Run(OriginalAiWork.ConfiscateTreasure).Submitted);
@@ -403,7 +403,7 @@ public sealed partial class OriginalAiPersonnelTests
             Information = content.Information with
             {
                 Treasures = [new(901, "buried", 0, 10, null)],
-                TreasureStates = [new(901, null, TreasureDiscovery.Buried, 1)]
+                TreasureStates = [new(901, new RegionTreasurePlacement(1))]
             },
             Officers = content.Officers.Append(new OfficerInitialState("free", new(100, null, 1,
                 new(50, 50, 50, 50), false) { Status = OfficerStatus.Free })).ToArray()

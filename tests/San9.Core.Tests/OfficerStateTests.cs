@@ -59,7 +59,7 @@ public sealed class OfficerStateTests
         };
         var rules = new OfficerAbilityRules(new([new(10, new(10, 5, 0, 2), 0)]),
             new([new(1, 10000, 0) { AbilityBonuses = new(0, 3, 7, 4) }]));
-        TreasureState[] holdings = [new(10, 1, TreasureDiscovery.Discovered, null)];
+        TreasureState[] holdings = [new(10, new OfficerTreasurePlacement(1))];
         Assert.True(officer.IsValid());
         Assert.Equal(new OfficerAbilities(79, 64, 56, 48), rules.Evaluate(officer, holdings));
         Assert.Equal(new OfficerAbilities(11, 9, 8, 7), rules.Evaluate(officer with { Injury = 14 }, holdings));

@@ -23,7 +23,7 @@ public sealed class TreasureMonumentTests
          new(3, 1, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Captive },
          new(10, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
         corps: [new(7, 1, 2, new(50000, 0)), new San9.Core.Domain.CorpsState(1, 1, 1, new(money, 0)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 10, new(0, 0)) { IsRoot = true }],
-        treasures: [new(50, 1, TreasureDiscovery.Discovered, null)],
+        treasures: [new(50, new OfficerTreasurePlacement(1))],
         controls: [new("player", 1, ControllerKind.Player), new("ai", 2, ControllerKind.Automatic)]);
     private static PersistentTask Task() => new(Guid.NewGuid(), "personnel-search", "player", 1, 2, 1,
         new(190, 2, 1), new(190, 2, 1), 0, 0)
@@ -48,7 +48,9 @@ public sealed class TreasureMonumentTests
     [InlineData(null, false)]
     public void TreasureUsesHoldersOriginalAffiliationIncludingCaptives(int? holder, bool expected)
     {
-        var m = World(); m.Replace(m.Treasures[50] with { HolderId = holder });
+        var m = World();
+        if (holder is int person) m.Replace(m.Treasures[50] with { Placement = new OfficerTreasurePlacement(person) });
+        else m.RemoveTreasure(50);
         Assert.Equal(expected, TreasureMonument.Eligible(m, Task(), Rules(), Definition));
     }
 
@@ -121,7 +123,7 @@ public sealed class TreasureMonumentTests
         engine.EndControl(new("player")); engine.EndControl(new("ai")); engine.AdvanceXun();
         var prompt = Assert.IsType<TreasureMonumentPrompt>(engine.GetTreasureMonumentPrompt());
         var m = world.BeginMutation();
-        if (transferTreasure) m.Replace(m.Treasures[50] with { HolderId = 10 });
+        if (transferTreasure) m.Replace(m.Treasures[50] with { Placement = new OfficerTreasurePlacement(10)});
         else m.Replace(ResourceAccounts.Root(m, 1) with { Treasury = ResourceAccounts.Root(m, 1).Treasury with { Money = 25000 } });
         world.Commit(m);
         var result = engine.Execute(new("player"), new RespondDailyTaskCommand(Guid.NewGuid(), 1,

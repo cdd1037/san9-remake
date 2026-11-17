@@ -1,3 +1,4 @@
+using San9.Core.Domain;
 using San9.Content.Images;
 using San9.Content.Maps;
 using San9.Content.Scenarios;
@@ -133,7 +134,7 @@ public sealed class ClientContentPackageTests
         var changed = p with { Text = translated }; changed.ValidateLinks();
         var treasurePackage = p with { Scenario = p.Scenario with
         {
-            Information = new([], [], [new(0, "treasure", 0, 0, null) { ImageKey = "ui" }], p.Scenario.Information.Corps, [new(0, null, San9.Core.Domain.TreasureDiscovery.Discovered, 15)])
+            Information = new([], [], [new(0, "treasure", 0, 0, null) { ImageKey = "ui" }], p.Scenario.Information.Corps, [new(0, new RegionTreasurePlacement(15))])
         }, Text = new(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new(text.Entries)), Skin = skin with { Roles = new(skin.Roles) } };
         treasurePackage.Skin.Roles.Add("information-treasure-0", "ui");
         treasurePackage.Text.Entries.Add("treasure", "Treasure");
@@ -153,12 +154,12 @@ public sealed class ClientContentPackageTests
         Assert.Throws<InvalidDataException>(() => (treasurePackage.Scenario with
         {
             Information = treasurePackage.Scenario.Information with
-            { TreasureStates = [new(0, 999, San9.Core.Domain.TreasureDiscovery.Discovered, 15)] }
+            { TreasureStates = [new(0, new OfficerTreasurePlacement(999))] }
         }).Validate());
         Assert.Throws<InvalidDataException>(() => (treasurePackage.Scenario with
         {
             Information = treasurePackage.Scenario.Information with
-            { TreasureStates = [new(0, null, San9.Core.Domain.TreasureDiscovery.Buried, 999)] }
+            { TreasureStates = [new(0, new RegionTreasurePlacement(999))] }
         }).Validate());
         Assert.Same(p.Map, changed.Map); Assert.Same(p.Scenario, changed.Scenario);
         Assert.Equal("中文", changed.Text.Resolve("city")); Assert.Equal("City", text.Entries["city"]);

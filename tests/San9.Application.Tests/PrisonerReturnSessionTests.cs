@@ -119,7 +119,7 @@ public sealed class PrisonerReturnSessionTests
             new("prisoner", new(13, 1, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Captive }),
             new("exchange", new(23, 2, exchange ? 1 : 2, new(50, 50, 50, 50), false)
                 { Status = exchange ? OfficerStatus.Captive : OfficerStatus.Serving })],
-        Information = new([], [], [new(9, "treasure", 0, 1, null)], [new San9.Core.Domain.CorpsState(1, 1, 11, new(100000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(100000, 100000)) { IsRoot = true }], [new(9, 11, TreasureDiscovery.Discovered, null)])
+        Information = new([], [], [new(9, "treasure", 0, 1, null)], [new San9.Core.Domain.CorpsState(1, 1, 11, new(100000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(100000, 100000)) { IsRoot = true }], [new(9, new OfficerTreasurePlacement(11))])
             { Relations = [new(1, 2, relation)] }
     };
 
@@ -186,7 +186,7 @@ public sealed class PrisonerReturnSessionTests
     {
         var content = Content(exchange: true);
         content = content with { Information = content.Information with
-            { TreasureStates = [new(9, 21, TreasureDiscovery.Discovered, null)] } };
+            { TreasureStates = [new(9, new OfficerTreasurePlacement(21))] } };
         var session = GameSession.Start(content, 42);
         session.EndControl(new("player"));
         Assert.True(session.Execute(new("ai:2"), new ReturnPrisonerCommand(Guid.NewGuid(), 2, 0, 22, 1, 23)).Submission.Accepted);

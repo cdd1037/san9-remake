@@ -86,7 +86,7 @@ public static class ScenarioContentCompiler
         var officers = OfficerContentCompiler.Compile(persons, settlements, summaries, text, new San9MessageTable(biographies));
         summaries = summaries.Select(f => f with { AutomaticSchedulingKey = f.Id, AdviserId = officers.Where(o => o.State.OwnerId == f.Id && o.State.Status == San9.Core.Domain.OfficerStatus.Strategist)
             .Select(o => (int?)o.State.Id).SingleOrDefault() }).ToArray();
-        var treasureStates = TreasureContentCompiler.InitialStates(items);
+        var treasureStates = TreasureContentCompiler.InitialStates(items, officers.Where(o => o.State.Status != San9.Core.Domain.OfficerStatus.Dead).Select(o => o.State.Id).ToHashSet());
         var treasureDiplomacy = TreasureContentCompiler.DiplomacyPreferences(exe, persons, officers.Select(o => o.State.Id),
             items.Where(i => i.SerializedId < TreasureContentCompiler.BuiltInCount).Select(i => (int)i.SerializedId));
         var information = new InformationDefinitions(

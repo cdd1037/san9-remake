@@ -145,8 +145,7 @@ public sealed class WorldMessageContext
             int item = name == "has-treasure" ? Id(1, MessageEntityKind.Treasure) : -1;
             if (name == "has-treasure-category" && (args[1].Entity is not null || args[1].Text is not null))
                 throw new InvalidDataException("Treasure category must be a number.");
-            return Flag(_world.Treasures.Any(t => t.HolderId == person.Id && t.Discovery == TreasureDiscovery.Discovered &&
-                (name == "has-treasure" ? t.Id == item : _definition.Information.Treasures.Single(d => d.Id == t.Id).Category == category)));
+            return Flag(_world.Treasures.Any(t => t.HolderId == person.Id && (name == "has-treasure" ? t.Id == item : _definition.Information.Treasures.Single(d => d.Id == t.Id).Category == category)));
         }
         Count(1);
         if (name.StartsWith("person.", StringComparison.Ordinal))
@@ -277,7 +276,7 @@ public sealed class WorldMessageContext
         {
             MessageEntityKind.Person => _people.ContainsKey(entity.Id), MessageEntityKind.Force => _forces.ContainsKey(entity.Id),
             MessageEntityKind.Settlement => _places.ContainsKey(entity.Id), MessageEntityKind.Unit => _units.ContainsKey(entity.Id) || _capturedUnits.ContainsKey(entity.Id),
-            MessageEntityKind.Treasure => _world.Treasures.Any(t => t.Id == entity.Id),
+            MessageEntityKind.Treasure => _definition.Information.Treasures.Any(t => t.Id == entity.Id),
             MessageEntityKind.Office => _definition.Information.Offices.Any(o => o.Id == entity.Id),
             MessageEntityKind.Formation => _definition.Information.Formations.Any(f => f.Id == entity.Id),
             MessageEntityKind.Rank => _definition.Information.Ranks.Any(r => r.Id == entity.Id),

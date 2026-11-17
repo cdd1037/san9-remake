@@ -21,7 +21,7 @@ public sealed class AttackRequestDiplomacyTests
          new OfficerState(21, 2, 2, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler, Righteousness = 5 },
          new OfficerState(22, 2, exchange ? 1 : 2, new(50, 50, 50, 50), false) { Status = exchange ? OfficerStatus.Captive : OfficerStatus.Serving },
          new OfficerState(31, 3, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
-        treasures: [new(9, 11, TreasureDiscovery.Discovered, null)],
+        treasures: [new(9, new OfficerTreasurePlacement(11))],
         controls: [new("first", 1, ControllerKind.Player), new("second", 2, automatic ? ControllerKind.Automatic : ControllerKind.Player),
             new("third", 3, ControllerKind.Automatic)], relations: [new(1, 2, relation), new(1, 3, 0), new(2, 3, 0)], corps: [new San9.Core.Domain.CorpsState(1, 1, 11, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 21, new(10000, 10000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(3, 3, 31, new(10000, 10000)) { IsRoot = true }]);
 

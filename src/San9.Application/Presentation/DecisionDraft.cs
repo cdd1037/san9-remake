@@ -432,7 +432,7 @@ public sealed class DecisionDraft
                 (p.SettlementId is int city ? world.Settlements.Single(s => s.Id == city).OwnerId : p.UnitId is int unit ? world.Units.Single(u => u.Id == unit).OwnerId : null) == requester).Select(p => p.Id).ToArray();
             if (prisoners.Length > 0) Option("prisoner", (id, seq, selected, _) => Reply(id, seq, new(CompensationKind.Prisoner, 0, selected, null)), DecisionInputKind.Prisoner, prisoners);
             int ruler = world.Forces.Single(f => f.Id == requester).LeaderId!.Value;
-            var treasures = world.Treasures.Where(t => t.Discovered && t.HolderId == ruler).Select(t => t.Id).ToArray();
+            var treasures = world.Treasures.Where(t => t.HolderId == ruler).Select(t => t.Id).ToArray();
             if (treasures.Length > 0) Option("treasure", (id, seq, selected, _) => Reply(id, seq, new(CompensationKind.Treasure, 0, null, selected)), DecisionInputKind.Treasure, treasures);
             GameCommand Reply(Guid id, long seq, CompensationOffer value) => new RespondDailyTaskCommand(id, force, seq, task, step, true) { Offer = value };
         }

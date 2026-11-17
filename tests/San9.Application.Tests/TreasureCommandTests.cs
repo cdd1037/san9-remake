@@ -19,7 +19,7 @@ public sealed class TreasureCommandTests
             { Status = OfficerStatus.Ruler }),
             new("recipient", new OfficerState(2, 1, 1, new(50, 50, 50, 50), false).WithLoyalty(1, 98))],
         Information = new([], [], [new(10, "treasure", 1, 8, null) { AbilityBonuses = new(10, 0, 0, 0) }], [new San9.Core.Domain.CorpsState(1, 1, 1, new(1000, 1000)) { IsRoot = true }],
-            [new(10, 1, TreasureDiscovery.Discovered, null)])
+            [new(10, new OfficerTreasurePlacement(1))])
     };
 
     [Fact]
@@ -92,10 +92,10 @@ public sealed class TreasureCommandTests
         var session = GameSession.Start(definition, 190);
         var state = session.Capture();
         var changed = state with { World = state.World with
-        { Treasures = [state.World.Treasures.Single() with { HolderId = 2 }] } };
+        { Treasures = [state.World.Treasures.Single() with { Placement = new OfficerTreasurePlacement(2) }] } };
         Assert.Equal(60, GameSession.Restore(definition, changed).View.Officers.Single(p => p.Id == 2).Abilities.War);
         var initial = definition with { Information = definition.Information with
-        { TreasureStates = [definition.Information.TreasureStates.Single() with { HolderId = 2 }] } };
+        { TreasureStates = [definition.Information.TreasureStates.Single() with { Placement = new OfficerTreasurePlacement(2) }] } };
         initial.Validate();
         Assert.Equal(60, GameSession.Start(initial, 190).View.Officers.Single(p => p.Id == 2).Abilities.War);
     }

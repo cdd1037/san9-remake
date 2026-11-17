@@ -37,7 +37,7 @@ public sealed class TreasureRulebook
     }
 
     public OfficerAbilities HeldBonuses(IEnumerable<TreasureState> treasures, int officerId) =>
-        MaximumBonuses(treasures.Where(t => t.HolderId == officerId && t.Discovery != TreasureDiscovery.Disabled)
+        MaximumBonuses(treasures.Where(t => t.HolderId == officerId)
             .Select(t => Items[t.Id].AbilityBonuses));
 
 }

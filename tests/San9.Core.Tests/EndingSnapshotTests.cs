@@ -25,7 +25,7 @@ public sealed class EndingSnapshotTests
                     Status = id == 400 ? OfficerStatus.Ruler : id == 405 ? OfficerStatus.Captive : OfficerStatus.Serving,
                     TacticProficiencies = [0, 0, 0, 0, 400, 0, 200, 0, 0], LearnedTactics = [5, 6],
                 }).ToArray(),
-            Treasures = [new(901, 405, TreasureDiscovery.Discovered, null), new(902, 401, TreasureDiscovery.Discovered, null)],
+            Treasures = [new(901, new OfficerTreasurePlacement(405)), new(902, new OfficerTreasurePlacement(401))],
         };
     }
 
@@ -86,7 +86,7 @@ public sealed class EndingSnapshotTests
         {
             Forces = world.Forces.Select(f => f.Id == 9 ? f with { IsEliminated = true } : f).ToArray(),
             Settlements = world.Settlements.Select(s => s.Id == 102 ? s with { OwnerId = 8 } : s).ToArray(),
-            Treasures = world.Treasures.Select(t => t.Id == 901 ? t with { HolderId = null } : t).ToArray(),
+            Treasures = world.Treasures.Select(t => t.Id == 901 ? t with { Placement = new RegionTreasurePlacement(101) } : t).ToArray(),
         };
         var current = EndingSnapshotFactory.Create(world, 8, Definition, Abilities, Treasures);
         Assert.True(current.OwnsExpansionGateways);
@@ -106,9 +106,9 @@ public sealed class EndingSnapshotTests
             Forces = original.Forces.Select(f => f.Id == 8 ? f with { ProvidedTactics = [5, 9000] }
                 : f with { IsEliminated = true }).ToArray(),
             Officers = original.Officers.Select(o => o with { LearnedTactics = Enumerable.Range(0, 18).ToImmutableSortedSet() }).ToArray(),
-            Treasures = [new(901, 401, TreasureDiscovery.Discovered, null),
-                new(902, 402, TreasureDiscovery.Discovered, null), new(903, 403, TreasureDiscovery.Discovered, null),
-                new(904, 401, TreasureDiscovery.Discovered, null)]
+            Treasures = [new(901, new OfficerTreasurePlacement(401)),
+                new(902, new OfficerTreasurePlacement(402)), new(903, new OfficerTreasurePlacement(403)),
+                new(904, new OfficerTreasurePlacement(401))]
         };
         var treasures = new TreasureRulebook(Enumerable.Range(901, 4).Select(id =>
             new TreasureRule(id, default, 0) { TacticId = 9001 }));
@@ -119,7 +119,7 @@ public sealed class EndingSnapshotTests
         var court = new EndingOfficeholders(401, 402, 403, 404);
         Assert.All(sixty.Officers.Where(o => o.Id is 401 or 402 or 403), o => Assert.Equal(20, o.LearnedTacticCount));
         Assert.Equal(EndingOutcome.GreatEmpire, EndingResolution.Resolve(sixty, court, EndingPolicy.ContinentalExpansion).Outcome);
-        var removed = world with { Treasures = world.Treasures.Select(t => t.Id == 903 ? t with { HolderId = 400 } : t).ToArray() };
+        var removed = world with { Treasures = world.Treasures.Select(t => t.Id == 903 ? t with { Placement = new OfficerTreasurePlacement(400)} : t).ToArray() };
         var fiftyNine = Project(removed);
         Assert.Equal(19, fiftyNine.Officers.Single(o => o.Id == 403).LearnedTacticCount);
         Assert.Equal(EndingOutcome.CommercialPower, EndingResolution.Resolve(fiftyNine, court, EndingPolicy.ContinentalExpansion).Outcome);

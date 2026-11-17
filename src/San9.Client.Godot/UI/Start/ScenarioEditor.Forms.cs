@@ -147,16 +147,34 @@ public partial class ScenarioEditor
     {
         var workspace = _workspace!;
         var definition = workspace.Definitions.Information.Treasures.Single(t => t.Id == id);
-        var treasure = workspace.GetTreasureState(id);
-        void Change(Func<TreasureState, TreasureState> update) => workspace.SetTreasureState(update(workspace.GetTreasureState(id)));
+        var placement = workspace.GetTreasurePlacement(id);
         var grid = Grid(body, definition.Name);
-        ContentEditorControls.Choices(grid, "发现状态", ["未启用", "未出土", "已出土"], (int)treasure.Discovery,
-            index => Change(t => t with { Discovery = (TreasureDiscovery)index }), "TreasureDiscovery");
-        Reference(grid, "持有武将", treasure.HolderId, OfficerChoices(), value => Change(t => t with { HolderId = value }));
-        Reference(grid, "出土地域", treasure.DiscoveryRegionId, workspace.RegionIds.Select(region => (region, workspace.RegionName(region))),
-            value => Change(t => t with { DiscoveryRegionId = value }));
-        body.AddChild(new Label { Text = "未出土且没有持有者的宝物，可在出土地域通过探索获得。",
-            AutowrapMode = TextServer.AutowrapMode.WordSmart });
+        ContentEditorControls.Caption(grid, "当前安置");
+        grid.AddChild(new Label { Text = placement switch
+        {
+            OfficerTreasurePlacement held => "武将持有 · " + workspace.OfficerName(held.OfficerId),
+            RegionTreasurePlacement buried => "地域埋藏 · " + workspace.RegionName(buried.RegionId),
+            _ => "未投放"
+        } });
+        void Place(TreasurePlacement? value)
+        {
+            workspace.SetTreasurePlacement(id, value);
+            foreach (Node child in body.GetChildren()) { body.RemoveChild(child); child.QueueFree(); }
+            BuildTreasure(body, id);
+        }
+        var actions = ContentEditorControls.ButtonGroup(body, "安置宝物");
+        var officers = workspace.Document.Officers.Where(o => o.Status != OfficerStatus.Dead)
+            .Select(o => ($"{workspace.OfficerName(o.Id)} [{o.Id}]", o.Id)).ToArray();
+        var holder = SearchableReferenceField.Add(actions, "持有武将", officers,
+            (placement as OfficerTreasurePlacement)?.OfficerId ?? -1, person => Place(new OfficerTreasurePlacement(person)),
+            "TreasureHolder", "按姓名或 ID 搜索本剧本存活武将。", "投放到武将", showCaption: false, keepFirstVisible: false);
+        holder.Text = "投放到武将";
+        var regions = workspace.RegionIds.Select(region => ($"{workspace.RegionName(region)} [{region}]", region)).ToArray();
+        var regionButton = SearchableReferenceField.Add(actions, "埋藏地域", regions,
+            (placement as RegionTreasurePlacement)?.RegionId ?? -1, region => Place(new RegionTreasurePlacement(region)),
+            "TreasureRegion", "按名称或 ID 搜索埋藏地域。", "埋藏到地域", showCaption: false, keepFirstVisible: false);
+        regionButton.Text = "埋藏到地域";
+        ContentEditorControls.ActionButton(actions, "取消投放", () => Place(null), "RemoveTreasurePlacement").Disabled = placement is null;
     }
 
     private IEnumerable<(int Id, string Name)> ForceChoices() => _workspace!.Document.Forces.Select(f => (f.Id, _workspace.Name(f.NameKey)));

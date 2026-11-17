@@ -88,6 +88,35 @@ public sealed class TextNormalizationTests
     }
 
     [Fact]
+    public void RepeatedEditorialTermsPreserveChoicesBindingsAndLineBreaks()
+    {
+        var binding = new MessageValue(new("binding", "person.1"));
+        var reference = new MessageReference("messages.40", false);
+        var source = new MessageDefinition([new MessageRandomChoice([
+            [new MessageLiteral("坑\n泂陷阱"), binding],
+            [reference, new MessageLiteral("坑泂陷阱")]
+        ]), new MessageReturn()]);
+
+        var canonical = OriginalTextEditorial.Apply(source, "messages", 6869);
+        var choices = Assert.IsType<MessageRandomChoice>(canonical.Nodes[0]).Choices;
+        Assert.Equal(2, choices.Length);
+        Assert.Equal("坑\n洞陷阱", Assert.IsType<MessageLiteral>(choices[0][0]).BbCode);
+        Assert.Same(binding, choices[0][1]);
+        Assert.Same(reference, choices[1][0]);
+        Assert.Equal("坑洞陷阱", Assert.IsType<MessageLiteral>(choices[1][1]).BbCode);
+        Assert.IsType<MessageReturn>(canonical.Nodes[1]);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void RepeatedEditorialTermsRequireTheReviewedOccurrenceCount(int occurrences)
+    {
+        var source = new MessageDefinition([new MessageLiteral(string.Concat(Enumerable.Repeat("坑泂", occurrences)))]);
+        Assert.Throws<InvalidDataException>(() => OriginalTextEditorial.Apply(source, "messages", 6869));
+    }
+
+    [Fact]
     public void RejectsChangedSourcesAndDoesNotLeakRulesToOtherResources()
     {
         var converter = new OriginalTextConverter();

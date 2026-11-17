@@ -6,7 +6,7 @@ namespace San9.Importer.San9PkTc101.Text;
 /// <summary>Source-specific editorial decisions, before any target script conversion.</summary>
 internal static class OriginalTextEditorial
 {
-    private sealed record Edit(string Expected, string Canonical, bool Whole)
+    private sealed record Edit(string Expected, string Canonical, bool Whole, int Occurrences)
     {
         public Regex? TermPattern { get; } = Whole ? null : SourceTextTerms.Pattern(Expected);
     }
@@ -43,7 +43,8 @@ internal static class OriginalTextEditorial
             {
                 int count = 0;
                 source = MessageTextRuns.Map(source, text => SourceTextTerms.Replace(text, edit.TermPattern!, edit.Canonical, ref count));
-                if (count != 1) throw new InvalidDataException($"Expected one editorial term '{edit.Expected}' in {catalog}.{id}, found {count}.");
+                if (count != edit.Occurrences)
+                    throw new InvalidDataException($"Expected {edit.Occurrences} editorial occurrences of '{edit.Expected}' in {catalog}.{id}, found {count}.");
             }
         }
         return source;
@@ -52,10 +53,10 @@ internal static class OriginalTextEditorial
     private static Dictionary<(string, int), List<Edit>> BuildRules()
     {
         Dictionary<(string, int), List<Edit>> rules = [];
-        void Add(string catalog, int id, string expected, string canonical, bool whole = true)
+        void Add(string catalog, int id, string expected, string canonical, bool whole = true, int occurrences = 1)
         {
             if (!rules.TryGetValue((catalog, id), out var edits)) rules.Add((catalog, id), edits = []);
-            edits.Add(new(expected, canonical, whole));
+            edits.Add(new(expected, canonical, whole, occurrences));
         }
         void Person(int id, string originalSurname, string originalGiven, string originalCourtesy,
             string? surname = null, string? given = null, string? courtesy = null)
@@ -134,6 +135,55 @@ internal static class OriginalTextEditorial
         foreach (int id in new[] { 7122, 7123 }) Add("messages", id, "驃駻", "剽悍", false);
         foreach (int id in new[] { 7032, 7033 }) Add("base-messages", id, "驃駻", "剽悍", false);
         Add("messages", 9603, "張翼德", "張益德", false);
+        Add("messages", 103, "笵疆", "范疆", false);
+        Add("messages", 107, "一昧", "一味", false);
+        Add("messages", 107, "劉襌", "劉禪", false, occurrences: 2);
+        Add("messages", 113, "襌讓", "禪讓", false);
+        Add("messages", 5493, "茍活", "苟活", false);
+        Add("messages", 5870, "挻不過", "挺不過", false);
+        foreach (int id in new[] { 6662, 6666 }) Add("messages", id, "消粍", "消耗", false);
+        Add("messages", 6853, "投諴", "投誠", false);
+        foreach (int id in new[] { 6869, 6870 }) Add("messages", id, "坑泂", "坑洞", false, occurrences: 2);
+        foreach (int id in new[] { 7199, 7203 }) Add("messages", id, "茍且偷生", "苟且偷生", false);
+        foreach (int id in new[] { 7499, 7500, 7501 }) Add("messages", id, "用罊", "用罄", false);
+        Add("messages", 8148, "防範未然", "防患未然", false);
+        Add("messages", 9551, "再接再勵", "再接再厲", false);
+        Add("messages", 9721, "忠諴度", "忠誠度", false);
+        Add("messages", 9728, "部隊旳", "部隊的", false);
+        Add("messages", 9731, "冒然", "貿然", false);
+        Add("messages", 9731, "敵人郤", "敵人卻", false);
+        Add("messages", 9844, "秏損", "耗損", false);
+        Add("messages", 12923, "袞州", "兗州", false);
+        Add("messages", 13007, "茍延殘喘", "苟延殘喘", false);
+        Add("messages", 13184, "冒然", "貿然", false);
+        Add("messages", 13541, "笵疆", "范疆", false);
+        Add("messages", 13633, "劉襌", "劉禪", false);
+        Add("messages", 13638, "一昧", "一味", false);
+        Add("messages", 13638, "劉襌", "劉禪", false, occurrences: 2);
+        Add("messages", 13784, "襌讓", "禪讓", false);
+        Add("messages", 13869, "劉襌", "劉禪", false);
+        foreach (int id in new[] { 13932, 13933, 13958, 13959 }) Add("messages", id, "壼", "壺", false);
+        Add("base-messages", 150, "壼關", "壺關", false);
+        Add("base-messages", 1496, "龍方壼", "龍方壺", false);
+        Add("base-messages", 1498, "金象嵌壼", "金象嵌壺", false);
+        Add("base-messages", 5423, "茍活", "苟活", false);
+        Add("base-messages", 5800, "挻不過", "挺不過", false);
+        foreach (int id in new[] { 6572, 6576 }) Add("base-messages", id, "消粍", "消耗", false);
+        Add("base-messages", 6763, "投諴", "投誠", false);
+        foreach (int id in new[] { 6779, 6780 }) Add("base-messages", id, "坑泂", "坑洞", false, occurrences: 2);
+        foreach (int id in new[] { 7106, 7110 }) Add("base-messages", id, "茍且偷生", "苟且偷生", false);
+        Add("base-messages", 8048, "防範未然", "防患未然", false);
+        Add("base-messages", 9281, "再接再勵", "再接再厲", false);
+        Add("base-messages", 9451, "忠諴度", "忠誠度", false);
+        Add("base-messages", 9458, "部隊旳", "部隊的", false);
+        Add("base-messages", 9461, "冒然", "貿然", false);
+        Add("base-messages", 9461, "敵人郤", "敵人卻", false);
+        Add("base-messages", 9574, "秏損", "耗損", false);
+        foreach (string catalog in new[] { "biographies", "base-biographies" })
+        {
+            Add(catalog, 3, "郤因", "卻因", false);
+            Add(catalog, 551, "閰柔", "閻柔", false);
+        }
         // Explicit biography references found during the name audit; not a global name replacement.
         foreach (var (id, original, canonical) in new[]
         {

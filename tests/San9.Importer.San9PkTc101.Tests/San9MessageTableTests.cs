@@ -79,6 +79,7 @@ public sealed class San9MessageTableTests
         // Biography 159 is a reviewed name reference.
         var records = Enumerable.Range(0, 160).Select(_ => Array.Empty<byte>()).ToArray();
         records[1] = System.Text.Encoding.GetEncoding(950).GetBytes("翼德");
+        records[3] = System.Text.Encoding.GetEncoding(950).GetBytes("郤因");
         records[159] = System.Text.Encoding.GetEncoding(950).GetBytes("糜竺");
         byte[] archive = Archive(Table(records));
         var publication = MessageArchiveCompiler.CompileForPublication(archive, "fixture", "biographies",
@@ -196,6 +197,9 @@ public sealed class San9MessageTableTests
         System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
         var records = Enumerable.Range(0, 215).Select(_ => Array.Empty<byte>()).ToArray();
         records[0] = [1, (byte)'C', 214, 0];
+        records[103] = System.Text.Encoding.GetEncoding(950).GetBytes("笵疆");
+        records[107] = System.Text.Encoding.GetEncoding(950).GetBytes("一昧、劉襌、劉襌");
+        records[113] = System.Text.Encoding.GetEncoding(950).GetBytes("襌讓");
         records[214] = System.Text.Encoding.GetEncoding(950).GetBytes("壼關");
         byte[] archive = Archive(Table(records));
         using var reader = new ScenarioTextReader(archive, File.ReadAllBytes(typeof(ScenarioTextReader).Assembly.Location));

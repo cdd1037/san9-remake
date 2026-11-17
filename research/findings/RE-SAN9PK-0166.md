@@ -80,3 +80,19 @@
 复现：`python research/scripts/audit_font_glyph_occurrences.py private/game-files local/generated/research/unified-text`。精确原文字节、源文／简体、节点路径和偏移写入 `accepted-glyph-occurrences.json`。
 
 2026-09-11的处理记录：当时接受上述四个缺字并移除BabelStone Han回退，主字体沿用GB Lite。本节保留当时的字符出现位置、字节及验证结果；现行姓名、词汇和字体采用规则统一见[文字与翻译规范](../../specs/text-and-translation.md)，不能把历史缺字输出作为最终姓名要求。
+
+## 消息错字筛查（2026-11-17）
+
+**事实**：本轮从当前20剧本的共享消息、帮助、教学与人物列传筛查异常用字及常见形近词。对候选词使用研究侧`ls11_archive.py`独立解包四份原始档案，按CP950编码检索允许原版换行的完整词，记录原词字节、零基记录号、解包偏移和命中次数。全部26,641条源记录参与候选词复查；这是定向筛查，全文语言质量尚未逐条人工审核。
+
+| 档案 | SHA-256 | 本轮记录／校订处数 |
+|---|---|---|
+| M_MsgPK.s9 | `3A8BB191DE1A9F17EA95E9EC6CDD1443D6EF44A524BA6DBB7CE977DF25900B5D` | 33／40 |
+| M_Msg.s9 | `ABF9E52AD3A7215730FA09EEDDB5573195264A1FB31D75DA0625D45EE2375BB5` | 18／21 |
+| M_RtdnPK.s9、M_Rtdn.s9 | `BB39D2EEE3B6CFF81568D2ECE99F7B84AD920EC95F5E5572280DC3690CD9F0A0` | 各2／2 |
+
+**事实**：PK6853含`隊投諴了！`，PK9721含`忠諴度`；对应基础版为6763、9451。`諴`的CP950字节为`EB A3`，`誠`为`B8 DB`；前者经OpenCC转换为`𫍯`。列传551同段先写`閻柔`，后写`閰柔`；列传3写`郤因部下叛變而被擒處死`。基础版5800将多组训练对话存于一条条件记录，需按其独立记录号处理，不能仅按PK消息号减固定偏移定位。
+
+**重制选择**：按[文字规范的消息错字表](../../specs/text-and-translation.md#消息错字校订)修订55条记录中的65处文字，合计59项定点规则；同一记录可有多个词条。包括原有器物名称校订在基础版三条对应记录中的同步。本轮保留`彊矢騎陣`、`仿傚`等异写。`嵕嶺嶙峋`亦保留原文；[教育部字典](https://dict.variants.moe.edu.tw/dictView.jsp?ID=57176&la=0)释`嵕`为数峰并峙的山，[嶙峋词条](https://dict.revised.moe.edu.tw/dictView.jsp?ID=64623&la=0&powerMode=0)有山石重叠耸峭义。依字义和蜀地、南蛮山区的语境，可理解为形容山岭崎岖险峻。置信度：所列原始字节与位置为高；校订属于当前规范用字及上下文一致性选择。
+
+复核材料保存在忽略的`local/generated/research/text-typos/source-corrections.json`，包含四档案哈希、原词字节、记录偏移及次数。使用当前统一入口`dotnet run --project src/San9.Tools -- import-text --game-dir private/game-files --output local/generated/research/text-typos`输出对应消息与审计；按清单核对每项解析状态和转换文字。运行包通过`import-content`原位重编20剧本目录，复用共享纹理、音频和视频；新增规则的实际校验结果以该目录与本轮审计产物为准。

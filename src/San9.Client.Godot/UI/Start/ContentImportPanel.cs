@@ -86,10 +86,13 @@ public partial class ContentImportPanel : Control
             catch (Exception error) { _status.Text = "打开目录失败：" + error.Message; }
         }));
 
+        var options = new HFlowContainer();
+        options.AddThemeConstantOverride("h_separation", 10);
+        options.AddThemeConstantOverride("v_separation", 10);
+        layout.AddChild(options);
         _originalTextEdits = new CheckBox { Text = "应用原版文本修订", ButtonPressed = true,
             TooltipText = "按原版编号校订姓名、表字、官职和用词。转换已改名的Mod时可关闭，关闭后使用通用繁简转换。" };
-        layout.AddChild(_originalTextEdits);
-        var options = Row(layout);
+        options.AddChild(_originalTextEdits);
         _audio = new CheckBox { Text = "转换音频（音乐与音效）", ButtonPressed = true,
             TooltipText = "关闭后不处理音频，保留内容目录中的已有音乐与音效。首次准备请开启。" };
         _movies = new CheckBox { Text = "转换影片", ButtonPressed = true,

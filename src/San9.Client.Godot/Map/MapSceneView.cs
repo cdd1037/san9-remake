@@ -50,6 +50,8 @@ public partial class MapSceneView : Node2D
     private ShaderMaterial _hoverMaterial = null!;
     private ShaderMaterial _outlineMaterial = null!;
     private ShaderMaterial _candidateMaterial = null!;
+    private ShaderMaterial _recommendedMaterial = null!;
+    private ShaderMaterial _recommendedHoverMaterial = null!;
     private ShaderMaterial _unavailableMaterial = null!;
     private readonly ShaderMaterial[] _meshMaterials = new ShaderMaterial[3];
     private readonly ImageTexture[] _meshTextures = new ImageTexture[16];
@@ -109,6 +111,24 @@ public partial class MapSceneView : Node2D
             }
             """ } };
         _hoverMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(round(c.rgb * 255.0 * 0.6875 + vec3(240.0 * 0.3125)) / 255.0, round(c.a * 255.0 * 0.9375) / 255.0); }" } };
+        var recommendationShader = new Shader { Code = """
+            shader_type canvas_item;
+            uniform vec3 overlay_color;
+            uniform float strength;
+            varying float opacity;
+            void vertex() { opacity = COLOR.a; }
+            void fragment() {
+                vec4 source = texture(TEXTURE, UV);
+                // Blend uniformly while preserving the sprite's transparent padding.
+                COLOR = vec4(mix(source.rgb, overlay_color, strength), source.a * opacity);
+            }
+            """ };
+        _recommendedMaterial = new ShaderMaterial { Shader = recommendationShader };
+        _recommendedMaterial.SetShaderParameter("overlay_color", new Vector3(102f, 224f, 184f) / 255f);
+        _recommendedMaterial.SetShaderParameter("strength", 0.16f);
+        _recommendedHoverMaterial = new ShaderMaterial { Shader = recommendationShader };
+        _recommendedHoverMaterial.SetShaderParameter("overlay_color", new Vector3(163f, 255f, 219f) / 255f);
+        _recommendedHoverMaterial.SetShaderParameter("strength", 0.27f);
         _routeMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; render_mode blend_add; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(c.rgb * 0.75, c.a); }" } };
         _candidateMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(round(c.rgb * 255.0 * 0.8125 + vec3(248.0 * 0.1875)) / 255.0, round(c.a * 255.0 * 0.9375) / 255.0); }" } };
         _unavailableMaterial = new ShaderMaterial { Shader = new Shader { Code = "shader_type canvas_item; void fragment() { vec4 c = texture(TEXTURE, UV); COLOR = vec4(round(c.rgb * 255.0 * 0.5625 + vec3(8.0 * 0.4375)) / 255.0, round(c.a * 255.0 * 0.9375) / 255.0); }" } };
@@ -326,6 +346,9 @@ public partial class MapSceneView : Node2D
                 (Targets?.Candidates.ContainsKey(new(targetBuilding.Id, false)) == true ||
                     PersonnelTargets is { Kind: "move" } movementCandidates && movementCandidates.Targets.Contains(targetBuilding.Id)));
             Add(texture, position, blend == MapBlendMode.Additive ? _additiveMaterial :
+                highlightable && candidate && building is {} recommended && CommandTargets?.Recommended.Contains(recommended.Id) == true
+                    ? building == Hovered ? _recommendedHoverMaterial : _recommendedMaterial :
+                highlightable && candidate && building == Hovered ? _hoverMaterial :
                 highlightable && candidate ? _candidateMaterial :
                 highlightable && (CommandTargets is not null && building is not null || building is { IsUnit: false } && PersonnelTargets?.Kind == "move") ? _unavailableMaterial :
                 highlightable && building is not null && building == Hovered ? _hoverMaterial : null, opacity);
@@ -459,6 +482,7 @@ public partial class MapSceneView : Node2D
             _routeMaterial.Shader.Dispose(); _routeMaterial.Dispose(); _hoverMaterial.Shader.Dispose(); _hoverMaterial.Dispose();
             _outlineMaterial.Shader.Dispose(); _outlineMaterial.Dispose();
             _candidateMaterial.Shader.Dispose(); _candidateMaterial.Dispose();
+            _recommendedMaterial.Shader.Dispose(); _recommendedMaterial.Dispose(); _recommendedHoverMaterial.Dispose();
             _unavailableMaterial.Shader.Dispose(); _unavailableMaterial.Dispose();
             DisposePersonnelOverlayMaterials();
             foreach (var texture in _meshTextures) texture.Dispose();

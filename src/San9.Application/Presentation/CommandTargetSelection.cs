@@ -14,11 +14,14 @@ public sealed class CommandTargetSelection
     public CommandMapTargetKind Kind { get; }
     public CommandTargetMarker Marker { get; }
     public ImmutableHashSet<int> Candidates { get; }
+    public ImmutableHashSet<int> Recommended { get; }
     public ImmutableHashSet<CommandMapObject> Objects { get; }
     public ImmutableHashSet<MapCell> ClearCells { get; }
-    public CommandTargetSelection(StrategySnapshot view, CommandMapTargetKind kind, IEnumerable<int> candidates, CommandTargetMarker marker)
+    public CommandTargetSelection(StrategySnapshot view, CommandMapTargetKind kind, IEnumerable<int> candidates, CommandTargetMarker marker,
+        IEnumerable<int>? recommended = null)
     {
         View = view; Kind = kind; Marker = marker; Candidates = candidates.ToImmutableHashSet();
+        Recommended = recommended?.Where(Candidates.Contains).ToImmutableHashSet() ?? [];
         Objects = view.World.Settlements.Where(s => !s.IsDestroyed && !s.IsDormant &&
             kind == CommandMapTargetKind.Settlement && Candidates.Contains(s.Id))
             .Select(s => new CommandMapObject(s.Id,false)).Concat(view.World.Units.Where(u => !u.IsEmbedded && !u.IsPersonnel && u.Soldiers > 0 &&

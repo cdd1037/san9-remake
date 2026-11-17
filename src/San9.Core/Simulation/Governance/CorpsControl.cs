@@ -90,6 +90,7 @@ public static class CorpsControl
             DevelopCommand develop => develop.Development is not null && ControlsPlace(develop.Development.SettlementId),
             RecruitOfficersCommand recruit => !recruit.OfficerIds.IsDefault && recruit.OfficerIds.All(OwnPerson),
             BurnCommand burn => OwnPerson(burn.OfficerId),
+            OfficerStrategyCommand strategies => !strategies.OfficerIds.IsDefaultOrEmpty && strategies.OfficerIds.All(OwnPerson),
             AlienateCommand alienate => OwnPerson(alienate.OfficerId),
             SeizeCommand seize => OwnPerson(seize.OfficerId),
             GossipCommand gossip => OwnPerson(gossip.OfficerId),

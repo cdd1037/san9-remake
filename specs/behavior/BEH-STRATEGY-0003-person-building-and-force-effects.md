@@ -2,14 +2,14 @@
 
 - 状态：已确认
 - 负责人：项目开发者
-- 最后更新：2026-11-02
+- 最后更新：2026-11-17
 - 关联证据：[RE-SAN9PK-0115](../../research/findings/RE-SAN9PK-0115.md)、[RE-SAN9PK-0116](../../research/findings/RE-SAN9PK-0116.md)
 - 关联决策：[DEC-SIM-0001](../decisions/DEC-SIM-0001-determinism-and-saves.md)、[DEC-PROJECT-0002](../decisions/DEC-PROJECT-0002-selective-inheritance.md)
 - 继承方式：关系保留
 
 ## 适用范围
 
-适用于离间、烧夷、夺取与流言对人物、地域建筑、宝物、资金、兵粮、忠诚与势力关系的即时效果。公共提交与随机规则由 `BEH-STRATEGY-0001` 规定。
+适用于离间、烧夷、夺取与流言对人物、地域建筑、宝物、资金、兵粮、忠诚与势力关系的即时效果。公共提交与随机规则由 `BEH-STRATEGY-0001` 规定。离间、烧夷、夺取支持[多人派遣](BEH-STRATEGY-0001-command-advice-and-resolution.md#离间烧夷夺取多人派遣2026-11-17重制便利性)，下文的单名执行者及效果均指每项独立任务。
 
 ## 原作基线
 

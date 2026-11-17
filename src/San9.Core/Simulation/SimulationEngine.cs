@@ -558,6 +558,10 @@ public sealed partial class SimulationEngine
                     var burnRejection = BurnStrategies.Start(mutation, context, burn, _rules, events);
                     if (burnRejection != CommandRejection.None) return Reject(burnRejection);
                     break;
+                case OfficerStrategyCommand officers:
+                    var officersRejection = OfficerStrategies.Start(mutation, context, officers, _rules, events);
+                    if (officersRejection != CommandRejection.None) return Reject(officersRejection);
+                    break;
                 case AlienateCommand alienate:
                     var alienateRejection = AlienateStrategies.Start(mutation, context, alienate, _rules, events);
                     if (alienateRejection != CommandRejection.None) return Reject(alienateRejection);

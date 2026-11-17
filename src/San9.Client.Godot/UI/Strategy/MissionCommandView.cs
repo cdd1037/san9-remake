@@ -20,8 +20,8 @@ public partial class MissionCommandView : CommandPreparationView
     {
         "false-report" or "disorder" => new(248, 168, 528, 432),
         "inspire" or "rescue" => new(276, 164, 472, 440),
-        "alienate" => new(288, 236, 448, 296), "burn" => new(264, 264, 496, 240),
-        "seize" => new(264, 248, 496, 272), "rumor" => new(292, 248, 440, 272),
+        "alienate" => new(164, 192, 696, 384), "burn" => new(164, 216, 696, 336),
+        "seize" => new(164, 200, 696, 368), "rumor" => new(292, 248, 440, 272),
         "gift" => new(304, 220, 416, 328), "request" => new(304, 240, 416, 288),
         "return" => new(264, 236, 496, 296), _ => new(304, 256, 416, 256)
     };
@@ -56,6 +56,7 @@ public partial class MissionCommandView : CommandPreparationView
         int arrivalX = Draft.Kind switch { "alienate" or "gift" or "request" or "surrender" => 256, "rumor" => 280,
             "burn" or "return" or "seize" => 336, _ => (int)bounds.Size.X - 152 };
         int arrivalWidth = Draft.Kind is "alienate" or "burn" or "seize" or "rumor" ? 152 : 136;
+        if (Draft.SupportsMultipleActors) arrivalX = (int)bounds.Size.X - 160;
         Body.AddChild(new CommandArrivalField { Textures = Textures, Position = at + new Vector2(arrivalX,0), Size = new(arrivalWidth,32),
             Text = Draft.Kind is ("gift" or "return") && Draft.TargetId is null ? "" :
                 CommandArrivalField.FormatDays(Texts, Draft.Preview.JourneyDays) });
@@ -144,15 +145,19 @@ public partial class MissionCommandView : CommandPreparationView
         actorButton.Disabled = !Draft.CanSelectActor;
         if (Draft.IsDiplomacy)
             window.BindHint(actorButton, Draft.Actors.IsEmpty ? idle : Texts.Resolve(CommandMenuSkin.OfficerSelectionHintKey));
-        Person(Draft.View,Draft.ActorId,at+new Vector2(104,actorY));
-        SpacedProperties(at+new Vector2(Draft.TargetKind == MissionTargetKind.Unit ? 360 : 312,actorY),
-            Draft.Kind is "false-report" or "disorder" or "rumor" or "return" or "burn" or "seize" ? 80 : 48,
-            Draft.Kind is "burn" or "seize" ? 24 : 8,
-            new OfficerProperty(Draft.IsDiplomacy ? CommandText.Resolve(Texts, "label.politics") : Draft.Kind is "burn" or "seize" ? CommandText.Resolve(Texts, "label.war") : Draft.Kind == "rescue" ? CommandText.Resolve(Texts, "label.leadership") : CommandText.Resolve(Texts, "label.intelligence"),
-            Draft.ActorId is int actor ? (Draft.IsDiplomacy ? Draft.View.Officers.Single(p => p.Id == actor).Abilities.Politics :
-                Draft.Kind is "burn" or "seize" ? Draft.View.Officers.Single(p => p.Id == actor).Abilities.War :
-                Draft.Kind == "rescue" ? Draft.View.Officers.Single(p => p.Id == actor).Abilities.Leadership :
-                Draft.View.Officers.Single(p => p.Id == actor).Abilities.Intelligence).ToString() : "",40));
+        if (Draft.SupportsMultipleActors) BuildActorRoster(at, actorY);
+        else
+        {
+            Person(Draft.View,Draft.ActorId,at+new Vector2(104,actorY));
+            var abilities = Draft.View.Officers.SingleOrDefault(person => person.Id == Draft.ActorId)?.Abilities;
+            int? ability = Draft.ActorPriorityField switch
+            {
+                "politics" => abilities?.Politics, "leadership" => abilities?.Leadership, _ => abilities?.Intelligence
+            };
+            SpacedProperties(at+new Vector2(Draft.TargetKind == MissionTargetKind.Unit ? 360 : 312,actorY),
+                Draft.Kind is "false-report" or "disorder" or "rumor" or "return" ? 80 : 48, 8,
+                new OfficerProperty(CommandText.Resolve(Texts,"label." + Draft.ActorPriorityField),ability?.ToString() ?? "",40));
+        }
         if (Draft.Kind == "inspire")
         {
             Properties(at+new Vector2(360,352),new OfficerProperty(CommandText.Resolve(Texts, "label.inspiration"),Draft.ActorKnowsInspiration is null ? "" : Draft.ActorKnowsInspiration == true ? "○" : "×",32));
@@ -180,7 +185,53 @@ public partial class MissionCommandView : CommandPreparationView
         (leadership ? person.Abilities.Leadership : person.Abilities.Intelligence).ToString() : "";
     private string Relation(int? id) => id is int force ? new AdministrativeCatalog(Draft.View,Texts).Cell(InformationCategory.Forces,force,"relation").Text : "";
     private void Changed() { CloseChild(); SelectionChanged(); }
-    private void SelectActor() => Select(InformationCategory.Officers, Draft.Actors, Draft.ActorId, id => { Draft.SetActor(id); Changed(); });
+    private void BuildActorRoster(Vector2 at, int actorY)
+    {
+        OfficerCardData Card(int id)
+        {
+            var officer = Draft.View.Officers.Single(person => person.Id == id);
+            return new(Texts.Resolve(officer.NameKey), $"catalog-person-{id}", officer.Abilities);
+        }
+        var roster = new OfficerRosterPanel
+        {
+            Service = Service, Textures = Textures, Position = at + new Vector2(104,actorY),
+            VisibleRows = 5, ShowPagination = true, PortraitFollowsPage = false,
+            Columns = [new(CommandText.Resolve(Texts,"label.advice"),80), new(CommandText.Resolve(Texts,"label.officer"),112),
+                new(CommandText.Resolve(Texts,Draft.Kind == "alienate" ? "label.intelligence" : "label.war"),64),
+                new(CommandText.Resolve(Texts,"label.arrival"),96)]
+        };
+        roster.SetEntries(Draft.Members.Select(id =>
+        {
+            var card = Card(id);
+            int ability = Draft.Kind == "alienate" ? card.Abilities.Intelligence : card.Abilities.War;
+            string arrival = Draft.ArrivalDaysForActor(id) is long days ? CommandText.Resolve(Texts,"value.days",days) : "";
+            return new OfficerRosterEntry(card,
+                [MissionDraft.AdviceSymbol(Draft.ActorAdvice(id)?.Opinion ?? AdviserOpinion.Unavailable),card.Name,ability.ToString(),arrival]);
+        }));
+        Body.AddChild(roster);
+        if (Draft.ActorId is int representative && Draft.ActorAdvice(representative) is
+            { Opinion: AdviserOpinion.Favorable or AdviserOpinion.Unfavorable })
+            Label($"{CommandText.Resolve(Texts,"label.advice")}\n○ {Draft.FavorableMemberCount}/{Draft.Members.Length}",
+                at + new Vector2(0,actorY+48),new(104,56));
+    }
+    private void SelectActor()
+    {
+        if (!Draft.SupportsMultipleActors)
+        {
+            Select(InformationCategory.Officers, Draft.Actors, Draft.ActorId, id => { Draft.SetActor(id); Changed(); });
+            return;
+        }
+        ReplaceChild(new CatalogView
+        {
+            Title = CommandText.Resolve(Texts,"select.officer"), HintText = Texts.Resolve(CommandMenuSkin.OfficerSelectionHintKey),
+            CloseTitle = CommandText.Resolve(Texts,"action.cancel"), Service = Service, Textures = Textures,
+            Pages = MissionOfficerCatalog.Pages(Draft,Texts), ReadRows = page => MissionOfficerCatalog.Read(Draft,Texts,page),
+            Portrait = id => $"catalog-person-{id}", InitialCurrentId = Draft.ActorId,
+            Selection = new(Draft.Actors,Draft.Members,Draft.Actors.Length), CanConfirmSelection = Draft.CanSelectMembers,
+            Activated = id => { if (Draft.SetMembers([id])) Changed(); },
+            ConfirmSelection = ids => { if (Draft.SetMembers(ids)) Changed(); }, Closed = CloseChild
+        });
+    }
     private void SelectTarget(bool secondary)
     {
         var kind = secondary ? Draft.SecondaryKind : Draft.TargetKind;
@@ -190,17 +241,27 @@ public partial class MissionCommandView : CommandPreparationView
         if (kind == MissionTargetKind.Officer)
         { Select(InformationCategory.Officers,ids,current,Selected,officerTargets:true); return; }
         if (kind == MissionTargetKind.Force)
-        { SelectAdministrative(Session,Draft.View,InformationCategory.Forces,ids,CommandText.Resolve(Texts, "select.force"),Selected,current:current); return; }
+        {
+            var forces = new AdministrativeCatalog(Draft.View, Texts);
+            var targets = new MissionTargetCatalog(Draft, Texts, AdministrativeCatalog.Pages(InformationCategory.Forces),
+                page => forces.Read(InformationCategory.Forces, page).Rows.Where(row => ids.Contains(row.Key.Id))
+                    .Select(row => new CatalogRow(row.Key.Id, row.Cells.ToArray())).ToArray(), secondary);
+            SelectAdministrative(Session,Draft.View,InformationCategory.Forces,ids,CommandText.Resolve(Texts, "select.force"),Selected,
+                current:current,pages:targets.Pages,readRows:targets.Read);
+            return;
+        }
         if (ids.IsEmpty) { Notice(CommandText.Resolve(Texts, "failure.no-target")); return; }
         var category = kind == MissionTargetKind.Unit ? InformationCategory.Units : InformationCategory.Regions;
         var facilities = kind == MissionTargetKind.Settlement ? new CommandFacilityCatalog(Draft.View,Texts,Draft.Kind,ids,Draft.ArrivalDaysToSettlement) : null;
         var pages = kind == MissionTargetKind.Unit ? UnitCatalog.Pages : facilities!.Pages;
         string title = kind == MissionTargetKind.Unit ? CommandText.Resolve(Texts, "select.unit") : CommandText.Resolve(Texts, "select.facility");
         var query = new InformationQuery(Session,Texts);
-        SelectMapTargets(new(Draft.View,kind == MissionTargetKind.Unit ? CommandMapTargetKind.Unit : CommandMapTargetKind.Settlement,
-            ids,Draft.MapMarker(secondary)),title,pages,
+        var catalog = new MissionTargetCatalog(Draft, Texts, pages,
             page => facilities?.Read(page) ?? query.Read(category,page).Rows.Where(r => ids.Contains(r.Key.Id))
-                .Select(r => new CatalogRow(r.Key.Id,r.Cells.ToArray())).ToArray(),Selected,CloseChild,current);
+                .Select(r => new CatalogRow(r.Key.Id,r.Cells.ToArray())).ToArray(), secondary);
+        SelectMapTargets(new(Draft.View,kind == MissionTargetKind.Unit ? CommandMapTargetKind.Unit : CommandMapTargetKind.Settlement,
+            ids,Draft.MapMarker(secondary), ids.Where(id => Draft.TargetOpinion(id,secondary) == AdviserOpinion.Favorable)),
+            title,catalog.Pages,catalog.Read,Selected,CloseChild,current);
     }
     private void Select(InformationCategory category, IEnumerable<int> candidates, int? current, Action<int> selected, bool officerTargets = false)
     {

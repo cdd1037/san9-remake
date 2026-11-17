@@ -13,6 +13,13 @@ public sealed class MissionDraft
     private readonly Guid commandId = Guid.NewGuid();
     private readonly Lazy<ImmutableHashSet<int>> inspiration;
     private readonly GiftOffer? availableGift;
+    private bool actorEdited;
+    private readonly Dictionary<(int Actor, int Target, int? Second), CommandAdvice> strategyAdvice = [];
+    private readonly Dictionary<(int Target, bool Secondary), AdviserOpinion> targetOpinions = [];
+    public bool HasRecommendations => !IsDiplomacy;
+    public bool SupportsMultipleActors => Kind is "alienate" or "burn" or "seize";
+    public ImmutableArray<int> Members { get; private set; } = [];
+    public int FavorableMemberCount => Members.Count(id => ActorAdvice(id)?.Opinion == AdviserOpinion.Favorable);
     // Eligibility depends on the frozen revision and these inputs; stale drafts never consult this cache.
     private readonly Dictionary<(int Actor, int Target, int? Second, GiftOffer? Gift), CommandRejection> eligibility = [];
     public StrategySnapshot View { get; }
@@ -30,13 +37,13 @@ public sealed class MissionDraft
     private bool CanPrepare => IsCurrent && !session.IsExecuting;
     private bool NeedsSecondary => Kind is "rumor" or "request" or "return";
     public ImmutableArray<int> Actors { get; }
-    public bool CanSelectActor => CanPrepare && Actors.Length > 1;
+    public bool CanSelectActor => CanPrepare && (Actors.Length > 1 || SupportsMultipleActors && Members.IsEmpty && !Actors.IsEmpty);
     public bool CanSelectTarget => CanPrepare && CanChoose(Kind == "return" ? Prisoners : Targets,
         Kind == "return" ? SecondaryId : TargetId);
     public bool CanSelectSecondaryTarget => CanPrepare && CanChoose(SecondaryTargets, SecondaryId);
     private static bool CanChoose(ImmutableArray<int> candidates, int? selected) =>
         candidates.Length > 1 || selected is null && !candidates.IsEmpty;
-    public int? ActorId { get; private set; }
+    public int? ActorId => Members.IsEmpty ? null : Members[0];
     public int? TargetId { get; private set; }
     public int? SecondaryId { get; private set; }
     public bool? ActorKnowsInspiration => ActorId is int id ? KnowsInspiration(id) : null;
@@ -77,7 +84,7 @@ public sealed class MissionDraft
                 "politics" => p.Abilities.Politics, _ => p.Abilities.Intelligence })
             .ThenByDescending(p => Kind == "inspire" && KnowsInspiration(p.Id)).ThenBy(p => p.Id)
             .Select(p => p.Id).ToImmutableArray();
-        ActorId = Actors.IsEmpty ? null : Actors[0];
+        Members = Actors.Take(1).ToImmutableArray();
         if (Kind == "gift")
         {
             var root = View.World.Corps.Single(c => c.OwnerId == View.RequirePlayerForce() && c.IsRoot);
@@ -101,6 +108,72 @@ public sealed class MissionDraft
                 if (secondary.Length == 1) SetTarget(secondary[0], secondary: true);
             }
         }
+        RefreshSelection();
+    }
+
+    private CommandAdvice StrategyAdvice(int actor, int target, int? second)
+    {
+        var key = (actor, target, second);
+        if (!strategyAdvice.TryGetValue(key, out var advice))
+        {
+            advice = EligibilityFor(actor, target, second) == CommandRejection.None
+                ? AdviceFor(actor, target, second)
+                : new(CommandRejection.InvalidTask, null, AdviserOpinion.Unavailable);
+            strategyAdvice.Add(key, advice);
+        }
+        return advice;
+    }
+
+    public CommandAdvice? ActorAdvice(int actor) => CanPrepare && HasRecommendations && Actors.Contains(actor) && TargetsComplete
+        ? StrategyAdvice(actor, TargetId!.Value, SecondaryId) : null;
+
+    public AdviserOpinion TargetOpinion(int target, bool secondary = false)
+    {
+        if (!CanPrepare || !HasRecommendations) return AdviserOpinion.Unavailable;
+        if (targetOpinions.TryGetValue((target, secondary), out var cached)) return cached;
+        if (!(secondary ? SecondaryTargets : Targets).Contains(target) ||
+            View.World.Forces.Single(f => f.Id == View.RequirePlayerForce()).AdviserId is null)
+            return AdviserOpinion.Unavailable;
+        IEnumerable<int> actors = actorEdited ? Members : Actors;
+        int first = secondary ? TargetId!.Value : target;
+        IEnumerable<int?> seconds = Kind != "rumor" ? [null] : secondary ? [target] :
+            SecondaryId is int chosen ? [chosen] : RawSecondary(first).Select(id => (int?)id);
+        bool hasOpinion = false, hasUnknown = false;
+        foreach (int candidate in actors)
+        {
+            foreach (int? second in seconds)
+            {
+                var advice = StrategyAdvice(candidate, first, second);
+                if (advice.Rejection != CommandRejection.None) continue;
+                if (advice.Opinion == AdviserOpinion.Favorable)
+                    return targetOpinions[(target, secondary)] = AdviserOpinion.Favorable;
+                hasOpinion = true;
+                hasUnknown |= advice.Opinion != AdviserOpinion.Unfavorable;
+            }
+        }
+        var result = hasOpinion && !hasUnknown ? AdviserOpinion.Unfavorable : AdviserOpinion.Unavailable;
+        targetOpinions.Add((target, secondary), result);
+        return result;
+    }
+
+    public static int AdvicePriority(AdviserOpinion opinion) => opinion switch
+    {
+        AdviserOpinion.Favorable => 2, AdviserOpinion.Unfavorable => 1, _ => 0
+    };
+    public static string AdviceSymbol(AdviserOpinion opinion) => opinion switch
+    {
+        AdviserOpinion.Favorable => "○", AdviserOpinion.Unfavorable => "×", _ => ""
+    };
+    public IEnumerable<int> RecommendedActors => OrderActors(Actors);
+    private IEnumerable<int> OrderActors(IEnumerable<int> actors) =>
+        actors.OrderByDescending(id => AdvicePriority(ActorAdvice(id)?.Opinion ?? AdviserOpinion.Unavailable));
+
+    private void RefreshSelection()
+    {
+        if (HasRecommendations && !actorEdited && TargetsComplete)
+            Members = RecommendedActors.Take(1).ToImmutableArray();
+        // Keep the selected order frozen for departure presentation after the command commits.
+        Members = OrderActors(Actors.Where(Members.Contains)).ToImmutableArray();
     }
 
     private UnitStrategyKind UnitKind => Kind switch
@@ -114,7 +187,9 @@ public sealed class MissionDraft
     public ImmutableArray<int> Treasures => IsCurrent ? session.GetGiftTreasures(View.RequirePlayerForce()) : [];
     private IEnumerable<int> Candidates(MissionTargetKind type, bool secondary)
     {
-        if (!CanPrepare || ActorId is not int actor || secondary && !NeedsSecondary) return [];
+        if (!CanPrepare || secondary && !NeedsSecondary) return [];
+        int? candidate = ActorId ?? Actors.Select(id => (int?)id).FirstOrDefault();
+        if (candidate is not int actor) return [];
         IEnumerable<int> ids = type switch
         {
             MissionTargetKind.Officer => View.Officers.Select(p => p.Id),
@@ -181,31 +256,54 @@ public sealed class MissionDraft
                 if (!targets.IsEmpty) second = targets[0];
             }
             return NeedsSecondary && second is null ? new(CommandRejection.InvalidTask, null, null) :
-                session.GetMissionPreparation(new("player"), CommandFor(actor, target, second));
+                session.GetMissionPreparation(new("player"), SupportsMultipleActors ? CreateCommand() : CommandFor(actor, target, second));
         }
     }
     public CommandRejection Rejection => CanPrepare && !Complete ? CommandRejection.InvalidTask : Preview.Rejection;
-    private bool TargetsComplete => ActorId is not null && TargetId is not null &&
+    private bool TargetsComplete => TargetId is not null &&
         (!NeedsSecondary || SecondaryId is not null);
-    private bool Complete => TargetsComplete && (Kind != "gift" || Gift is not null);
+    private bool Complete => !Members.IsEmpty && TargetsComplete && (Kind != "gift" || Gift is not null);
     public bool CanExecute => Rejection == CommandRejection.None;
     public bool SetActor(int id)
     {
+        if (SupportsMultipleActors) return SetMembers([id]);
         if (!CanPrepare || !Actors.Contains(id)) return false;
-        ActorId = id;
+        Members = [id];
+        actorEdited = true;
+        targetOpinions.Clear();
         if (TargetId is int target && !Targets.Contains(target)) { TargetId = null; SecondaryId = null; }
         if (SecondaryId is int second && !SecondaryTargets.Contains(second)) SecondaryId = null;
         return true;
     }
+    public bool CanSelectMembers(IReadOnlyCollection<int> ids) => CanPrepare && SupportsMultipleActors &&
+        ids.Distinct().Count() == ids.Count && ids.All(Actors.Contains) &&
+        (TargetId is not int target || ids.All(id => EligibilityFor(id, target, null) == CommandRejection.None));
+
+    public bool SetMembers(IEnumerable<int> ids)
+    {
+        int[] selected = ids.ToArray();
+        if (!CanSelectMembers(selected)) return false;
+        Members = Actors.Where(selected.Contains).ToImmutableArray();
+        actorEdited = true;
+        targetOpinions.Clear();
+        RefreshSelection();
+        return true;
+    }
+
+    public long? ArrivalDaysForActor(int actor) => CanPrepare && Actors.Contains(actor) && TargetId is int target &&
+        (!NeedsSecondary || SecondaryId is not null)
+        ? session.GetMissionPreparation(new("player"), CommandFor(actor, target, SecondaryId)).JourneyDays : null;
     public bool SetTarget(int id, bool secondary = false)
     {
         if (!(secondary ? SecondaryTargets : Targets).Contains(id)) return false;
+        targetOpinions.Clear();
         if (secondary) SecondaryId = id;
         else
         {
             TargetId = id;
             if (Kind != "request" || SecondaryId is int current && !SecondaryTargets.Contains(current)) SecondaryId = null;
         }
+        RefreshSelection();
         return true;
     }
     public bool SetGift(GiftOffer offer)
@@ -246,6 +344,14 @@ public sealed class MissionDraft
     public GameCommand CreateCommand()
     {
         if (!Complete) throw new InvalidOperationException("Incomplete mission.");
+        int force = View.RequirePlayerForce(), target = TargetId!.Value;
+        long sequence = View.World.Simulation.NextSequence;
+        if (SupportsMultipleActors) return Kind switch
+        {
+            "alienate" => new AlienateOfficersCommand(commandId, force, sequence, Members, target),
+            "burn" => new BurnOfficersCommand(commandId, force, sequence, Members, target),
+            _ => new SeizeOfficersCommand(commandId, force, sequence, Members, target)
+        };
         return CommandFor(ActorId!.Value,TargetId!.Value,SecondaryId);
     }
     public long? ArrivalDaysToSettlement(int id)

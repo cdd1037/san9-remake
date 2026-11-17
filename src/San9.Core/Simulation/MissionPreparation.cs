@@ -38,6 +38,7 @@ internal static class MissionPreparation
     {
         return command switch
         {
+            OfficerStrategyCommand c => OfficerStrategies.Eligibility(world, c, rules),
             AlienateCommand c => AlienateStrategies.Eligibility(world,c.IssuerId,c.OfficerId,c.TargetOfficerId,rules),
             BurnCommand c => BurnStrategies.Eligibility(world,c.IssuerId,c.OfficerId,c.TargetSettlementId,rules),
             SeizeCommand c => SeizeStrategies.Eligibility(world,c.IssuerId,c.OfficerId,c.TargetSettlementId,rules),
@@ -56,6 +57,10 @@ internal static class MissionPreparation
     {
         rejection = Eligibility(world, command, rules);
         if (rejection != CommandRejection.None) return null;
+        if (command is OfficerStrategyCommand batch)
+            return batch.OfficerIds.Order().Select(officer => Prepare(world,
+                OfficerStrategies.ForOfficer(batch, officer, batch.CommandId), rules, out _))
+                .MaxBy(plan => plan!.JourneyDays);
         return command switch
         {
             AlienateCommand c => ToOfficer(c.OfficerId, c.TargetOfficerId),

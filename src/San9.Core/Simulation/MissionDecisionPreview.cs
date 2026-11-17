@@ -11,6 +11,13 @@ public sealed partial class SimulationEngine
         if (rejection != CommandRejection.None)
             return new(new(rejection, null, AdviserOpinion.Unavailable), null);
         var world = PreparationWorld();
+        if (command is OfficerStrategyCommand batch)
+        {
+            var advice = batch.OfficerIds.Order().Select(officer => GetMissionDecision(context,
+                OfficerStrategies.ForOfficer(batch, officer, batch.CommandId)).Advice).ToArray();
+            var representative = advice.OrderByDescending(item => item.Opinion == AdviserOpinion.Favorable).First();
+            return new(representative, null);
+        }
         return command switch
         {
             UnitStrategyCommand c => new(GetUnitStrategyAdvice(c.IssuerId, c.OfficerId, c.Strategy, c.TargetUnitId),

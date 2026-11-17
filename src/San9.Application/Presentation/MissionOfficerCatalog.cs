@@ -9,6 +9,7 @@ public static class MissionOfficerCatalog
     {
         "estimate" => new(id,CommandText.Resolve(texts, "label.arrival"),2,CatalogAlignment.Right),
         "inspiration" => new(id,CommandText.Resolve(texts, "label.inspiration"),2,CatalogAlignment.Center),
+        "advice" => new(id,CommandText.Resolve(texts, "label.advice"),4,CatalogAlignment.Center),
         _ => OfficerCatalog.CorePages.SelectMany(p => p.Columns).First(c => c.Id == id)
     };
 
@@ -25,7 +26,9 @@ public static class MissionOfficerCatalog
                 _ => draft.Kind == "inspire" ? ["intelligence","inspiration","status","leadership","war","politics","learned"]
                     : ["intelligence","status","leadership","war","politics","learned"]
             };
-        return [new(CommandText.Resolve(texts, "title." + draft.Kind),[Column("name",texts), .. fields.Select(f => Column(f,texts))]), .. OfficerCatalog.Pages(draft.View, texts)];
+        if (!targets && draft.SupportsMultipleActors) fields = [.. fields, "estimate"];
+        CatalogColumn[] prefix = draft.HasRecommendations ? [Column("advice",texts), Column("name",texts)] : [Column("name",texts)];
+        return [new(CommandText.Resolve(texts, "title." + draft.Kind),[.. prefix, .. fields.Select(f => Column(f,texts))]), .. OfficerCatalog.Pages(draft.View, texts)];
     }
 
     public static CatalogRow[] Read(MissionDraft draft, TextCatalog texts, int page, bool targets = false)
@@ -34,19 +37,26 @@ public static class MissionOfficerCatalog
         if ((uint)page >= pages.Count) throw new ArgumentOutOfRangeException(nameof(page));
         IEnumerable<int> ids = targets ? draft.Kind == "return" ? draft.Prisoners : draft.Targets : draft.Actors;
         if (targets && draft.Kind == "alienate") ids = ids.OrderBy(id => draft.View.Officers.Single(o => o.Id == id).Abilities.Intelligence).ThenBy(id => id);
+        ids = targets ? ids.OrderByDescending(id => MissionDraft.AdvicePriority(draft.TargetOpinion(id))) : draft.RecommendedActors;
         if (page > 0)
         {
             var rows = OfficerCatalog.Read(draft.View,texts,page-1,null,null).Rows.ToDictionary(r => r.Key.Id);
             return ids.Select(id => new CatalogRow(id,rows[id].Cells.ToArray())).ToArray();
         }
         var columns = pages[0].Columns;
-        var fields = columns.Where(c => c.Id is not ("estimate" or "inspiration")).ToDictionary(c => c.Id,
+        var fields = columns.Where(c => c.Id is not ("estimate" or "inspiration" or "advice")).ToDictionary(c => c.Id,
             c => OfficerCatalog.CorePages.Select((p,index) => (Page:index,Column:Array.FindIndex(p.Columns,f => f.Id == c.Id))).First(f => f.Column >= 0));
         var facts = fields.Values.Select(f => f.Page).Distinct().ToDictionary(p => p,
             p => OfficerCatalog.Read(draft.View,texts,p,null,null).Rows.ToDictionary(r => r.Key.Id));
         CatalogCell Cell(int id, string field)
         {
-            if (field == "estimate") return draft.ArrivalDaysToOfficer(id) is long days ? days : CatalogCell.Unavailable;
+            if (field == "advice")
+            {
+                var opinion = targets ? draft.TargetOpinion(id) : draft.ActorAdvice(id)?.Opinion ?? San9.Core.Simulation.AdviserOpinion.Unavailable;
+                return new(MissionDraft.AdviceSymbol(opinion), MissionDraft.AdvicePriority(opinion));
+            }
+            if (field == "estimate") return (targets ? draft.ArrivalDaysToOfficer(id) : draft.ArrivalDaysForActor(id)) is long days
+                ? days : CatalogCell.Unavailable;
             if (field == "inspiration") return new(draft.KnowsInspiration(id) ? "○" : "×", draft.KnowsInspiration(id) ? 1 : 0);
             var f = fields[field]; return facts[f.Page][id].Cells[f.Column];
         }

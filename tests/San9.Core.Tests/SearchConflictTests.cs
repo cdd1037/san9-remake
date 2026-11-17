@@ -76,9 +76,28 @@ public sealed class SearchConflictTests
             Assert.Equal(choice == SearchConflictChoice.Allow ? 10 : (int?)null, result.LearnedTacticId);
             Assert.DoesNotContain(events, e => e is OfficerDiedEvent);
         }
-        if (kind == "mediation") Assert.Equal(result.Result == EventResult.Succeeded ? 900u : 0u, result.Soldiers);
+        if (kind == "mediation")
+        {
+            Assert.Equal(result.Result == EventResult.Succeeded ? 900u : 0u, result.Soldiers);
+            Assert.Equal(result.Result == EventResult.Succeeded ? 23 : 0, world.Settlements[1].Morale);
+        }
         if (choice is SearchConflictChoice.Pay or SearchConflictChoice.Execute or SearchConflictChoice.Allow or SearchConflictChoice.Decline or SearchConflictChoice.Appease)
             Assert.Null(result.Roll);
+    }
+
+    [Theory]
+    [InlineData(SearchConflictChoice.Fight)]
+    [InlineData(SearchConflictChoice.MediatePeace)]
+    public void MediationInEmptyGarrisonInitializesMorale(SearchConflictChoice choice)
+    {
+        var (world, task, rules, encounter) = Create("mediation");
+        var home = world.Settlements[1] with { Soldiers = 0 };
+        world.Replace(home);
+
+        List<DomainEvent> events = [];
+        SearchConflicts.Resolve(world, task, rules, encounter, choice, events);
+
+        Assert.Equal(home with { Soldiers = 900, Morale = 50 }, world.Settlements[1]);
     }
 
     [Theory]
@@ -106,6 +125,7 @@ public sealed class SearchConflictTests
         Assert.Equal(won ? 6000u : 5000u, world.Corps[7].Treasury!.Money);
         Assert.Equal(won ? 1000 : 0, result.MoneyReward);
         Assert.Equal(won ? 1500u : 0u, result.Soldiers); Assert.Equal(won ? EventResult.Succeeded : EventResult.Defeated, result.Result);
+        Assert.Equal(won ? 30 : 0, world.Settlements[1].Morale);
     }
 
     [Theory]

@@ -158,15 +158,35 @@ public sealed class CommunitySearchTests
         world.SetClock(new(190, 4, 1)); Assert.False(CommunitySearch.CanResolve(world, task, rules, encounter));
         world.SetClock(new(190, 7, 1)); Assert.True(CommunitySearch.CanResolve(world, task, rules, encounter));
     }
-    [Fact]
-    public void VolunteerHomeCapacityCapsSoldierReward()
+    [Theory]
+    [InlineData(10, 79)]
+    [InlineData(0, 80)]
+    public void VolunteerHomeCapacityCapsSoldierReward(uint available, int expectedMorale)
     {
         var (world, task, rules, encounter) = Create("volunteers");
-        var home = world.Settlements[1] with { SoldierCapacity = 11010 };
+        var home = world.Settlements[1] with { SoldierCapacity = 11000 + available, Morale = 80 };
         world.Replace(home);
         List<DomainEvent> events = []; CommunitySearch.Resolve(world, task, rules, encounter, CommunitySearchChoice.Accept, events);
-        Assert.Equal(10u, Assert.Single(events.OfType<CommunitySearchResolvedEvent>()).Soldiers);
+        Assert.Equal(available, Assert.Single(events.OfType<CommunitySearchResolvedEvent>()).Soldiers);
         Assert.Equal(home.SoldierCapacity, world.Settlements[1].Soldiers);
+        Assert.Equal(expectedMorale, world.Settlements[1].Morale);
+    }
+
+    [Fact]
+    public void VolunteersInEmptyGarrisonUseCurrentForceTrust()
+    {
+        var (world, task, rules, encounter) = Create("volunteers");
+        var home = world.Settlements[1] with
+        {
+            Soldiers = 0, Morale = 0, Population = 1000000, PublicOrder = 925
+        };
+        world.Replace(home);
+        Assert.Equal(225, world.Forces[1].Trust);
+
+        List<DomainEvent> events = [];
+        CommunitySearch.Resolve(world, task, rules, encounter, CommunitySearchChoice.Accept, events);
+
+        Assert.Equal(home with { Soldiers = 1400, Morale = 55 }, world.Settlements[1]);
     }
 
     [Theory]

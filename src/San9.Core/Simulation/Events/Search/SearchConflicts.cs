@@ -171,7 +171,9 @@ internal static class SearchConflicts
                     var home = PersonnelLocations.TaskHome(world, task);
                     soldiers = (uint)Math.Min(home.SoldierCapacity - home.Soldiers,
                         (long)(favored ? mediation.FavoredSoldierMultiplier : mediation.SoldierMultiplier) * abilities.War);
-                    world.Replace(home with { Soldiers = home.Soldiers + soldiers });
+                    int morale = ReinforcementTransport.MixMorale(home.Soldiers, home.Morale, soldiers,
+                        EconomyMath.RecruitMorale(world.Forces[task.ForceId].Trust));
+                    world.Replace(home with { Soldiers = home.Soldiers + soldiers, Morale = morale });
                 }
                 else if (!refused) OfficerInjuries.Apply(world, actor with { Injury = d.DefeatInjury }, events);
                 break;

@@ -123,7 +123,9 @@ internal static class CommunitySearch
                         {
                             var home = PersonnelLocations.TaskHome(world, task);
                             soldiers = VolunteerSoldiers(world, task, civic);
-                            world.Replace(home with { Soldiers = home.Soldiers + soldiers });
+                            int morale = ReinforcementTransport.MixMorale(home.Soldiers, home.Morale, soldiers,
+                                EconomyMath.RecruitMorale(world.Forces[task.ForceId].Trust));
+                            world.Replace(home with { Soldiers = home.Soldiers + soldiers, Morale = morale });
                         }
                         break;
                     case CivicSearchKind.Bribe:

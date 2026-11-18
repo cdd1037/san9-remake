@@ -30,6 +30,7 @@ public sealed record CreatedOfficer(Guid Id, string Name)
     [JsonRequired] public ImmutableArray<int> Proficiencies { get; init; } = [0, 0, 0, 0, 0, 0, 0, 0, 0];
     [JsonRequired] public ImmutableArray<int> MasteredCategories { get; init; } = [];
     [JsonRequired] public ImmutableSortedSet<int> LearnedTactics { get; init; } = [];
+    public ImmutableSortedSet<int> InitialTreasureIds { get; init; } = [];
 
     public int? AgeAtScenarioStart { get; init; }
     public Guid? BloodlineRootId { get; init; }
@@ -55,7 +56,8 @@ public sealed record CreatedOfficer(Guid Id, string Name)
             ScenarioParentId < 0 || ParentId is not null && ScenarioParentId is not null ||
             Proficiencies.IsDefault || Proficiencies.Length != 9 || Proficiencies.Any(p => p < 0) ||
             MasteredCategories.IsDefault || MasteredCategories.Any(c => c is < 0 or > 8) ||
-            MasteredCategories.Distinct().Count() != MasteredCategories.Length || LearnedTactics is null || LearnedTactics.Any(t => t < 0))
+            MasteredCategories.Distinct().Count() != MasteredCategories.Length || LearnedTactics is null || LearnedTactics.Any(t => t < 0) ||
+            InitialTreasureIds is null || InitialTreasureIds.Any(t => t < 0))
             throw new InvalidDataException($"人物“{FullName}”的资料无效，请检查姓名、年份、属性及关系。");
         if (PortraitKey is not null && string.IsNullOrWhiteSpace(PortraitKey))
             throw new InvalidDataException("头像引用不能为空白。");

@@ -54,6 +54,147 @@ public sealed class NewGameSetupTests
     private static NewGameDraft Draft(params CreatedOfficer[] people) => new(Source(), Text(),
         new Dictionary<string, string> { ["catalog-person-1000"] = "portrait.1" }, CreatedOfficerLibrary.Empty with { Officers = [..people] });
 
+    private static ScenarioInitialState SourceWithTreasures(params int[] ids)
+    {
+        var source = Source();
+        return source with { Information = source.Information with
+            { Treasures = ids.Select(id => new TreasureDefinition(id, $"宝物{id}", 0, 0, null)).ToArray() } };
+    }
+
+    [Theory]
+    [InlineData(37)]
+    [InlineData(1000)]
+    [InlineData(7000)]
+    public void InitialTreasureHolderUsesTheSharedOfficerMappingAfterEachSourceMaximum(int maximum)
+    {
+        var original = SourceWithTreasures(301);
+        var source = original with
+        {
+            Forces = [original.Forces[0] with { LeaderId = maximum }],
+            Officers = [original.Officers[0] with { State = original.Officers[0].State with { Id = maximum } }],
+            Information = original.Information with { Corps = [original.Information.Corps[0] with { LeaderId = maximum }] }
+        };
+        var setup = NewGameSetup.Empty with
+        {
+            Library = CreatedOfficerLibrary.Empty with { Officers = [Second with { ParentId = null, InitialTreasureIds = [301] }, First] },
+            Placements = [new(Second.Id, 2, true)]
+        };
+        int id = NewGameComposer.OfficerIds(source, setup)[Second.Id];
+        Assert.Equal(maximum + 2, id);
+        var result = NewGameComposer.Compose(source, setup).Scenario;
+        Assert.Equal(new OfficerTreasurePlacement(id), Assert.Single(result.Information.TreasureStates).Placement);
+        Assert.Contains(result.Officers, p => p.State.Id == id);
+        Assert.DoesNotContain(result.Officers, p => p.State.Id == maximum + 1);
+        Assert.Empty(source.Information.TreasureStates);
+    }
+
+    [Theory]
+    [InlineData(false, 180, OfficerStatus.Free)]
+    [InlineData(true, 180, OfficerStatus.Serving)]
+    [InlineData(true, 192, OfficerStatus.NotAppeared)]
+    public void ExplicitDeploymentClaimsUnplacedTreasuresAndOverridesOldOfficerOrRegionWithoutChangingSource(
+        bool join, int appearanceYear, OfficerStatus status)
+    {
+        var original = SourceWithTreasures(301, 702, 903, 1004);
+        var source = original with { Information = original.Information with { TreasureStates =
+            [new(301, new RegionTreasurePlacement(1)), new(702, new OfficerTreasurePlacement(1000)), new(1004, new RegionTreasurePlacement(2))] } };
+        var setup = NewGameSetup.Empty with
+        {
+            Library = CreatedOfficerLibrary.Empty with { Officers = [First with { AppearanceYear = appearanceYear, InitialTreasureIds = [301, 702, 903] }] },
+            Placements = [new(First.Id, 2, join)]
+        };
+        var before = source.Information.TreasureStates.ToArray();
+        int id = NewGameComposer.OfficerIds(source, setup)[First.Id];
+        var result = NewGameComposer.Compose(source, setup).Scenario;
+        Assert.Equal(status, result.Officers.Single(p => p.State.Id == id).State.Status);
+        Assert.Equal(4, result.Information.TreasureStates.Length);
+        foreach (int treasureId in new[] { 301, 702, 903 })
+        {
+            var treasure = result.Information.TreasureStates.Single(t => t.Id == treasureId);
+            Assert.Equal(new OfficerTreasurePlacement(id), treasure.Placement);
+            Assert.Null(treasure.RegionId);
+        }
+        Assert.Same(before[2], result.Information.TreasureStates.Single(t => t.Id == 1004));
+        Assert.Same(source.Information.Treasures, result.Information.Treasures);
+        Assert.Equal(before, source.Information.TreasureStates);
+        Assert.Equal(new[] { 301, 702, 903 }, setup.Library.Officers[0].InitialTreasureIds.ToArray());
+        Assert.Equal(result.Information.TreasureStates, NewGameComposer.Compose(source, setup).Scenario.Information.TreasureStates);
+    }
+
+    [Fact]
+    public void RulerClaimsTreasuresButUndeployedParentBloodlineRootAndUnrelatedPersonDoNot()
+    {
+        var source = SourceWithTreasures(301, 702, 903, 1004);
+        var parent = First with { InitialTreasureIds = [301, 702, 9999] };
+        var root = First with { Id = Guid.Parse("30000000-0000-0000-0000-000000000000"), InitialTreasureIds = [301, 903, 9998] };
+        var unrelated = First with { Id = Guid.Parse("40000000-0000-0000-0000-000000000000"), InitialTreasureIds = [301, 1004, 9997] };
+        var ruler = Second with { BloodlineRootId = root.Id, InitialTreasureIds = [301] };
+        var setup = NewGameSetup.Empty with
+        {
+            Library = CreatedOfficerLibrary.Empty with { Officers = [parent, ruler, root, unrelated] },
+            Forces = [new(ruler.Id, 1)]
+        };
+        var ids = NewGameComposer.OfficerIds(source, setup);
+        var result = NewGameComposer.Compose(source, setup).Scenario;
+        Assert.Equal(OfficerStatus.Ruler, result.Officers.Single(p => p.State.Id == ids[ruler.Id]).State.Status);
+        Assert.True(result.Officers.Single(p => p.State.Id == ids[parent.Id]).State.IsDormant);
+        Assert.True(result.Officers.Single(p => p.State.Id == ids[root.Id]).State.IsDormant);
+        Assert.DoesNotContain(result.Officers, p => p.State.Id == ids[unrelated.Id]);
+        Assert.Equal(new TreasureState(301, new OfficerTreasurePlacement(ids[ruler.Id])), Assert.Single(result.Information.TreasureStates));
+        Assert.Empty(source.Information.TreasureStates);
+    }
+
+    [Fact]
+    public void EntirelyUndeployedLibraryDoesNotClaimOrValidateTreasureDefinitions()
+    {
+        var source = SourceWithTreasures(301);
+        var setup = NewGameSetup.Empty with
+        {
+            Library = CreatedOfficerLibrary.Empty with { Officers = [First with { InitialTreasureIds = [301, 9999] }] }
+        };
+        var result = NewGameComposer.Compose(source, setup);
+        Assert.Equal(source.Officers, result.Scenario.Officers);
+        Assert.Empty(result.Scenario.Information.TreasureStates);
+        Assert.Empty(result.Definitions.Officers);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DuplicateInitialTreasureClaimsAreRejectedInsteadOfChoosingAWinner(bool ruler)
+    {
+        var original = SourceWithTreasures(301);
+        var source = original with { Information = original.Information with { TreasureStates = [new(301, new RegionTreasurePlacement(1))] } };
+        var setup = NewGameSetup.Empty with
+        {
+            Library = CreatedOfficerLibrary.Empty with { Officers = [First with { InitialTreasureIds = [301] }, Second with { ParentId = null, InitialTreasureIds = [301] }] },
+            Placements = ruler ? [new(Second.Id, 2, false)] : [new(First.Id, 2, false), new(Second.Id, 2, false)],
+            Forces = ruler ? [new(First.Id, 1)] : []
+        };
+        var error = Assert.Throws<InvalidDataException>(() => NewGameComposer.Compose(source, setup));
+        Assert.Contains("同一件初始宝物", error.Message);
+        Assert.Equal(new RegionTreasurePlacement(1), Assert.Single(source.Information.TreasureStates).Placement);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void InitialTreasureWithoutCurrentScenarioDefinitionRejectsCompositionWithoutChangingSource(bool ruler)
+    {
+        var source = SourceWithTreasures(301);
+        var setup = NewGameSetup.Empty with
+        {
+            Library = CreatedOfficerLibrary.Empty with { Officers = [First with { InitialTreasureIds = [301, 9999] }] },
+            Placements = ruler ? [] : [new(First.Id, 2, true)],
+            Forces = ruler ? [new(First.Id, 1)] : []
+        };
+        var error = Assert.Throws<InvalidDataException>(() => NewGameComposer.Compose(source, setup));
+        Assert.Contains("未定义的宝物", error.Message);
+        Assert.Empty(source.Information.TreasureStates);
+        Assert.Single(source.Officers);
+        Assert.Null(source.Settlements[0].OwnerId);
+    }
+
     [Fact]
     public void AuthoredTraitsRelativeAgeAndExplicitFamilySurviveLibraryAndSaveRoundTrips()
     {

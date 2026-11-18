@@ -46,6 +46,45 @@ public sealed class CreatedOfficerLibraryTests
     }
 
     [Fact]
+    public void InitialTreasuresAreOptionalForExistingLibrariesAndRoundTripAsSortedIdentities()
+    {
+        var person = new CreatedOfficer(Guid.NewGuid(), "人物");
+        Assert.Empty(person.InitialTreasureIds);
+        var library = CreatedOfficerLibrary.Empty with { Officers = [person] };
+        var legacy = JsonNode.Parse(library.Encode())!;
+        Assert.Equal(3, legacy["schemaVersion"]!.GetValue<int>());
+        legacy["officers"]![0]!.AsObject().Remove("initialTreasureIds");
+        var decodedLegacy = Assert.Single(CreatedOfficerLibrary.Decode(legacy.ToJsonString()).Officers);
+        Assert.Equal(person.Id, decodedLegacy.Id);
+        Assert.Empty(decodedLegacy.InitialTreasureIds);
+
+        library = library with { Officers = [person with { InitialTreasureIds = [5000, 0, 42] }] };
+        var encoded = library.Encode();
+        Assert.Equal(new[] { 0, 42, 5000 }, JsonNode.Parse(encoded)!["officers"]![0]!["initialTreasureIds"]!
+            .AsArray().Select(id => id!.GetValue<int>()).ToArray());
+        Assert.Equal(new[] { 0, 42, 5000 }, Assert.Single(CreatedOfficerLibrary.Decode(encoded).Officers).InitialTreasureIds.ToArray());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(-1)]
+    public void InitialTreasureNullAndNegativeIdentitiesAreRejected(int? treasureId)
+    {
+        var person = new CreatedOfficer(Guid.NewGuid(), "人物")
+            { InitialTreasureIds = treasureId is int id ? [id] : null! };
+        Assert.Throws<InvalidDataException>(person.Validate);
+        var library = CreatedOfficerLibrary.Empty with { Officers = [person] };
+        Assert.Throws<InvalidDataException>(() => library.Encode());
+
+        var json = JsonNode.Parse((library with { Officers = [person with { InitialTreasureIds = [] }] }).Encode())!;
+        json["officers"]![0]!["initialTreasureIds"] = treasureId is int value ? new JsonArray(value) : null;
+        if (treasureId is null)
+            Assert.Throws<JsonException>(() => CreatedOfficerLibrary.Decode(json.ToJsonString()));
+        else
+            Assert.Throws<InvalidDataException>(() => CreatedOfficerLibrary.Decode(json.ToJsonString()));
+    }
+
+    [Fact]
     public void ParentCyclesAndDuplicateIdentityAreRejectedWithoutRestrictingDuplicateNames()
     {
         var first = new CreatedOfficer(Guid.NewGuid(), "同名");

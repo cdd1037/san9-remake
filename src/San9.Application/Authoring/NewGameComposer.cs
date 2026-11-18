@@ -127,9 +127,24 @@ public static class NewGameComposer
             officers.Add(new(NameKey(state.Id), state) { CourtesyNameKey = p.CourtesyName.Length > 0 ? $"created.{state.Id}.courtesy" : null,
                 BiographyKey = p.Biography.Length > 0 ? $"created.{state.Id}.biography" : null, FlagGlyph = p.FlagGlyph });
         }
+        // Only explicit deployments and rulers claim treasures, not their family dependencies.
+        var treasures = source.Information.TreasureStates.ToDictionary(t => t.Id);
+        var treasureIds = source.Information.Treasures.Select(t => t.Id).ToHashSet();
+        var claimedTreasures = new HashSet<int>();
+        foreach (var id in placements.Keys.Concat(founders.Keys).Order())
+            foreach (int treasureId in people[id].InitialTreasureIds)
+            {
+                if (!treasureIds.Contains(treasureId))
+                    throw new InvalidDataException($"人物“{people[id].FullName}”包含当前剧本未定义的宝物。");
+                if (!claimedTreasures.Add(treasureId))
+                    throw new InvalidDataException("多个部署人物不能领取同一件初始宝物。");
+                var placement = new OfficerTreasurePlacement(ids[id]);
+                treasures[treasureId] = treasures.TryGetValue(treasureId, out var treasure)
+                    ? treasure with { Placement = placement } : new(treasureId, placement);
+            }
         var result = source with { Forces = forces.ToArray(), Officers = officers.ToArray(),
             Settlements = source.Settlements.Select(s => cities.GetValueOrDefault(s.Id) ?? s).ToArray(),
-            Information = source.Information with { Corps = corps.ToArray(), Relations = relations.ToArray() } };
+            Information = source.Information with { Corps = corps.ToArray(), Relations = relations.ToArray(), TreasureStates = treasures.Values.ToArray() } };
         result.Validate();
         return new(result, new()
         {

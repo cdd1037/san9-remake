@@ -20,7 +20,7 @@ public sealed record MapDefinition(int SchemaVersion, string SourceBuild,
         _ = MapDisplayMetrics.CanvasSize(Width, Height);
         BlockingDefaults.Validate();
         if (Cells.Any(c => c.Terrain < 0 || c.Elevation < 0 || c.TextureVariant < 0 ||
-                c.RegionId < 0 || c.BridgeOrientation is < 0 or > 1 ||
+                !Enum.IsDefined(c.MovementSource) || !Enum.IsDefined(c.InfluenceSource) || c.RegionId < 0 || c.BridgeOrientation is < 0 or > 1 ||
                 ((int)c.Construction & ~7) != 0) ||
             BuildingTypes.Select(t => t.Id).Distinct().Count() != BuildingTypes.Length)
             throw new InvalidDataException("Invalid map cell inputs or building types.");

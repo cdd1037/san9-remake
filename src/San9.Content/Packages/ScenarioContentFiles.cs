@@ -194,17 +194,8 @@ public static class ScenarioContentFiles
     {
         string resourceRoot = ResolveResourceRoot(root, manifest.ResourceRoot);
         Task<T> Read<T>(string relative) => ReadDataAsync<T>(resourceRoot, relative, token);
-        // Four independent branches keep CPU-heavy parsing off the caller thread without
-        // creating one worker for every small message file. Composition follows all branches.
-        var mapTask = Task.Run(async () =>
-        {
-            var mapManifest = await Read<ScenarioMapManifest>(manifest.Map);
-            var definition = await Read<MapDefinition>(mapManifest.Definition);
-            if (definition.SchemaVersion != MapDefinition.CurrentSchemaVersion)
-                throw new InvalidDataException("Unsupported map definition version; reconvert the package.");
-            return new MapInstance(definition, mapManifest.Buildings);
-        }, token);
-        var scenarioTask = Task.Run(() => ScenarioDataFiles.LoadScenarioWithProfilesAsync(resourceRoot, manifest, token), token);
+        // Compose display and domain geography from the same effective map.
+        var scenarioTask = Task.Run(() => ScenarioDataFiles.LoadScenarioWithProfilesAsync(resourceRoot, manifest, token, includeMap: true), token);
         var displayTask = Task.Run(async () =>
         {
             var text = await Read<StaticTextContent>(manifest.Text);
@@ -224,14 +215,14 @@ public static class ScenarioContentFiles
             return ComposeMessages(shared, messages, manifest.MessageOverrides);
         }, token);
         // Observe every branch before returning, including when one fails or is cancelled.
-        await Task.WhenAll(mapTask, scenarioTask, displayTask, messagesTask);
+        await Task.WhenAll(scenarioTask, displayTask, messagesTask);
         var display = await displayTask;
         var text = display.Text;
-        var (scenario, profiles) = await scenarioTask;
+        var (scenario, profiles, map) = await scenarioTask;
         var presentation = display.Presentation;
         if (presentation.Battle is { } battle)
             presentation = presentation with { Battle = battle.BindCatalog(scenario.Information) };
-        return new(ScenarioContent.CurrentSchemaVersion, manifest.Textures, await mapTask, scenario,
+        return new(ScenarioContent.CurrentSchemaVersion, manifest.Textures, map!, scenario,
             OfficerComposition.ProjectText(ScenarioText(text, manifest.Preview) with { Messages = await messagesTask }, profiles), OfficerComposition.ProjectPortraits(display.Illustrations, profiles))
             { Presentation = presentation, ResourceRoot = resourceRoot, Preview = manifest.Preview };
     }

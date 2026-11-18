@@ -65,6 +65,14 @@ public sealed partial class SharedDataEditorWorkspace
         Definitions = Definitions with { Military = military with { LinkRules = links } };
     }
 
+    public void SetFacilityHarbor(int id, bool isHarbor)
+    {
+        var military = Definitions.Military ?? throw new InvalidOperationException("内容库没有军事规则。");
+        var facility = military.Facilities.Single(f => f.Id == id);
+        Definitions = Definitions with { Military = military with
+        { Facilities = military.Facilities.Replace(facility, facility with { IsHarbor = isHarbor }) } };
+    }
+
     public void SetCityInfluence(CityInfluenceRule value)
     {
         value.Validate();

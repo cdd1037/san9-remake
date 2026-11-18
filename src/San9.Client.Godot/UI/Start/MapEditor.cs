@@ -85,7 +85,7 @@ public partial class MapEditor : ModalView
                 Released = FinishStroke, Hovered = Hover, Failed = message => Status("预览失败：" + message, true) };
             _mapArea.AddChild(_canvas);
             Hover(null);
-            BuildProperties(); Refresh(); Status("修改用于当前剧本的新局。保存时统一重建地貌、地域连接与建设位置。");
+            BuildProperties(); Refresh(); Status("地图修改用于引用这张地图的剧本；据点位置仅用于当前剧本。");
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception error) { if (!_lifetime.IsCancellationRequested) { _scenarios.Select(_selectedScenario); Status("读取失败：" + error.Message, true); } }
@@ -98,7 +98,7 @@ public partial class MapEditor : ModalView
         if (_workspace is null) return;
         _canvas!.BrushRadius = _tool == 5 ? 0 : _radius;
         _brushControls.Visible = _tool != 5;
-        _propertyTitle.Text = ToolNames[_tool];
+        _propertyTitle.Text = _tool == 5 ? "本剧本 · 据点布局" : $"地图 · {ToolNames[_tool]}";
         switch (_tool)
         {
             case 0: TerrainProperties(); break;
@@ -279,7 +279,7 @@ public partial class MapEditor : ModalView
                 3 => current with { Construction = _construction },
                 4 => current with { BridgeOrientation = _bridge < 0 ? null : _bridge },
                 _ => current
-            }, _styles);
+            }, _styles, paintBlocking: _tool == 2);
             _last = cell; Refresh();
         }
         catch (Exception error) { _workspace!.CancelStroke(); _last = null; Refresh(); Status("本笔已撤回：" + error.Message, true); }
@@ -348,7 +348,7 @@ public partial class MapEditor : ModalView
         {
             var preview = await Task.Run(() => _workspace.SaveAsync(_resources.Map, _lifetime.Token), _lifetime.Token);
             _lifetime.Token.ThrowIfCancellationRequested(); Published?.Invoke(preview);
-            Status("地图已保存，重新开局后使用当前地图。"); return true;
+            Status("修改已保存，重新开局后生效。"); return true;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { return false; }
         catch (Exception error) { if (!_lifetime.IsCancellationRequested) Status("保存失败：" + error.Message, true); return false; }
@@ -358,8 +358,13 @@ public partial class MapEditor : ModalView
     private void Refresh()
     {
         if (_workspace is null) return;
-        _title.Text = _workspace.HasChanges ? "地图编辑器 *" : "地图编辑器";
-        _title.TooltipText = _workspace.HasChanges ? "有未保存的修改" : "当前修改已保存";
+        bool mapChanged = _workspace.HasMapChanges, layoutChanged = _workspace.HasLayoutChanges;
+        _save.Text = (mapChanged, layoutChanged) switch
+        {
+            (true, true) => "保存地图和布局", (true, false) => "保存地图", (false, true) => "保存本剧本布局", _ => "保存"
+        };
+        _title.Text = mapChanged || layoutChanged ? "地图编辑器 *" : "地图编辑器";
+        _title.TooltipText = mapChanged || layoutChanged ? "有未保存的修改" : "当前修改已保存";
         _mapSize.Text = $"{_workspace.Map.Width} × {_workspace.Map.Height}";
         _undo.Disabled = _busy || !_workspace.CanUndo; _redo.Disabled = _busy || !_workspace.CanRedo;
     }

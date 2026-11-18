@@ -42,6 +42,24 @@ public partial class BasicRulesEditorPage : SharedDataEditorPage
                     "CityInfluenceTacticBonus", "己方都市地利范围内，陆军部队的兵法机会增加此值，原版内容为10个百分点。仍须通过其他资格，不增加水军或设施的机会。");
             }
             else Note(body, "当前内容未声明都市地利规则。");
+            if (!military.Facilities.IsEmpty)
+            {
+                var harbor = ContentEditorControls.Section(body, "设施类型");
+                var facilities = military.Facilities.OrderBy(f => f.Id).ToArray();
+                int id = facilities[0].Id;
+                var choice = new OptionButton();
+                foreach (var facility in facilities)
+                    choice.AddItem(Workspace.FacilityNames.TryGetValue(facility.Id, out var name)
+                        ? $"{name} [{facility.Id}]" : $"设施 {facility.Id}");
+                harbor.AddChild(choice);
+                var flag = new CheckBox { Text = "港口", ButtonPressed = facilities[0].IsHarbor,
+                    TooltipText = "按地图统一半径开放周围水畔，同时参与港口的地域连接及 AI 判断。" };
+                harbor.AddChild(flag);
+                void RefreshHarbor() => flag.SetPressedNoSignal(Workspace.Definitions.Military!.Facilities.Single(f => f.Id == id).IsHarbor);
+                choice.ItemSelected += index => { id = facilities[(int)index].Id; RefreshHarbor(); };
+                flag.Toggled += value => Workspace.SetFacilityHarbor(id, value);
+                _refresh.Add(RefreshHarbor);
+            }
             var links = ContentEditorControls.Section(body, "武将联携关系");
             _links = new TacticLinkEditor { Workspace = Workspace, ReportStatus = ReportStatus };
             links.AddChild(_links);

@@ -61,10 +61,15 @@ public static class ScenarioDataFiles
 
     /// <summary>Publishes complete player documents as one rollback-protected transaction.</summary>
     public static async Task<IReadOnlyDictionary<string, byte[]>> WritePlayerDocumentsAsync(
-        IReadOnlyList<PlayerDocument> documents, CancellationToken token = default)
+        IReadOnlyList<PlayerDocument> documents, CancellationToken token = default,
+        IReadOnlyDictionary<string, byte[]?>? readDependencies = null)
     {
         if (documents.Select(d => Path.GetFullPath(d.Path)).Distinct(StringComparer.OrdinalIgnoreCase).Count() != documents.Count)
             throw new InvalidDataException("Duplicate player document path.");
+        var expected = new Dictionary<string, byte[]?>(StringComparer.OrdinalIgnoreCase);
+        if (readDependencies is not null)
+            foreach (var input in readDependencies) expected.Add(Path.GetFullPath(input.Key), input.Value);
+        foreach (var document in documents) expected[Path.GetFullPath(document.Path)] = document.Expected;
         var prepared = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         var staged = new List<(string Pending, string Target)>();
         var locks = new List<FileStream>();
@@ -72,7 +77,7 @@ public static class ScenarioDataFiles
         try
         {
             // Every writer locks the same target set in a canonical order, across processes.
-            foreach (string path in documents.Select(d => Path.GetFullPath(d.Path)).Order(StringComparer.OrdinalIgnoreCase))
+            foreach (string path in expected.Keys.Order(StringComparer.OrdinalIgnoreCase))
             {
                 token.ThrowIfCancellationRequested();
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -89,10 +94,10 @@ public static class ScenarioDataFiles
                 await File.WriteAllBytesAsync(pending, bytes, token);
                 prepared.Add(document.Path, bytes);
             }
-            foreach (var document in documents)
+            foreach (var (path, bytes) in expected)
             {
-                byte[]? current = await PlayerDefinitionFiles.ReadOptionalAsync(document.Path, token);
-                if (document.Expected is null ? current is not null : current is null || !current.AsSpan().SequenceEqual(document.Expected))
+                byte[]? current = await PlayerDefinitionFiles.ReadOptionalAsync(path, token);
+                if (bytes is null ? current is not null : current is null || !current.AsSpan().SequenceEqual(bytes))
                     throw new InvalidDataException("Player content changed since editing began.");
             }
             token.ThrowIfCancellationRequested();
@@ -115,7 +120,8 @@ public static class ScenarioDataFiles
         var officers = await PackageFiles.ReadAsync<OfficerDefaultsCatalog>(
             usePlayerDefinitions ? PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, manifest.OfficerDefaults))
                 : PackageFiles.Resolve(resourceRoot, manifest.OfficerDefaults), token);
-        var geography = await ReadAsync<ScenarioGeography>(resourceRoot, manifest.Geography, token);
+        string geographyPath = PackageFiles.Resolve(resourceRoot, manifest.Geography);
+        var geography = await PackageFiles.ReadAsync<ScenarioGeography>(usePlayerDefinitions ? PlayerDefinitionFiles.ActivePath(geographyPath) : geographyPath, token);
         var result = new SharedScenarioData(manifest.Definitions, manifest.OfficerDefaults, manifest.Geography, definitions, officers, geography);
         result.Validate();
         return result;
@@ -124,23 +130,28 @@ public static class ScenarioDataFiles
     public static async Task<ScenarioInitialState> LoadScenarioAsync(string resourceRoot, ScenarioContentManifest manifest, CancellationToken token = default)
         => (await LoadScenarioWithProfilesAsync(resourceRoot, manifest, token)).Scenario;
 
-    internal static async Task<(ScenarioInitialState Scenario, OfficerDefaults[] Profiles)> LoadScenarioWithProfilesAsync(
-        string resourceRoot, ScenarioContentManifest manifest, CancellationToken token)
+    internal static async Task<(ScenarioInitialState Scenario, OfficerDefaults[] Profiles, MapInstance? Map)> LoadScenarioWithProfilesAsync(
+        string resourceRoot, ScenarioContentManifest manifest, CancellationToken token, bool includeMap = false)
     {
         var document = await PackageFiles.ReadAsync<ScenarioDocument>(
             PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, manifest.Scenario)), token);
         var shared = await LoadAsync(resourceRoot, manifest, token, usePlayerDefinitions: true);
         var geography = shared.Geography;
-        if (geography.Military is not null)
+        MapInstance? instance = null;
+        if (includeMap || geography.Military is not null)
         {
             var mapManifest = await ReadAsync<ScenarioMapManifest>(resourceRoot, manifest.Map, token);
-            var map = await ReadAsync<MapDefinition>(resourceRoot, mapManifest.Definition, token);
+            var authored = await PackageFiles.ReadAsync<MapDefinition>(PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, mapManifest.Definition)), token);
+            if (authored.SchemaVersion != MapDefinition.CurrentSchemaVersion)
+                throw new InvalidDataException("Unsupported map definition version; reconvert the package.");
+            var map = mapManifest.ApplyLayout(authored, document, shared.Definitions);
+            instance = new(map, mapManifest.Buildings);
             geography = San9.Content.Maps.MapGeographyCompiler.Resolve(mapManifest, map, geography,
                 document, shared.Definitions, shared.Officers, token);
         }
         var scenario = document.Compile(shared.Definitions, shared.Officers.Officers, geography);
         ContentStructure.Validate(scenario);
-        return (scenario, OfficerComposition.Profiles(document.Officers, [.. shared.Officers.Officers, .. document.AdditionalOfficerDefaults]));
+        return (scenario, OfficerComposition.Profiles(document.Officers, [.. shared.Officers.Officers, .. document.AdditionalOfficerDefaults]), instance);
     }
 
     // Selection deliberately skips rule and map payloads, while sharing the exact person composition.

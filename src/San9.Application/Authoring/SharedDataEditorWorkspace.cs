@@ -31,6 +31,7 @@ public sealed partial class SharedDataEditorWorkspace
     public string PlayerDefinitionPath => PlayerDefinitionFiles.PlayerPath(DefinitionPath);
     public bool HasPlayerCopy => _expectedPlayer is not null || _expectedOfficers is not null;
     public TreasureIllustrationWorkspace? Illustrations { get; private set; }
+    public IReadOnlyDictionary<int, string> FacilityNames { get; private set; } = new Dictionary<int, string>();
     public string ReferenceScenarioId { get; }
     public IReadOnlyDictionary<int, string> FormationNames => Catalog.FormationNames;
     public ImmutableArray<FormationRule> Formations => Catalog.Formations;
@@ -108,6 +109,12 @@ public sealed partial class SharedDataEditorWorkspace
             .Equals(officerPath, StringComparison.OrdinalIgnoreCase)).ToArray();
         var workspace = new SharedDataEditorWorkspace(path, reference.Id, definitions, officerPath, officers,
             files.Snapshots(), expectedPlayer, expectedOfficers, scenarios, baseOfficers, baseDefinitions);
+        if (definitions.FacilityNameSuffixKeys.Count > 0)
+        {
+            var text = await files.ReadAsync<StaticTextContent>(PackageFiles.Resolve(selected.Root, selected.Manifest.Text), token);
+            workspace.FacilityNames = definitions.FacilityNameSuffixKeys.Where(p => text.Entries.ContainsKey(p.Value))
+                .ToDictionary(p => p.Key, p => text.Entries[p.Value]);
+        }
         if (treasureIllustrationRoot is not null)
             workspace.Illustrations = await TreasureIllustrationWorkspace.OpenAsync(treasureIllustrationRoot, token);
         return workspace;
@@ -143,11 +150,12 @@ public sealed partial class SharedDataEditorWorkspace
                 var definitions = definitionsPath.Equals(DefinitionPath, StringComparison.OrdinalIgnoreCase) ? draft
                     : await files.ReadAsync<ScenarioDefinitions>(PlayerDefinitionFiles.ActivePath(definitionsPath), token);
                 string geographyPath = PackageFiles.Resolve(entry.Root, entry.Manifest.Geography);
-                var geography = await files.ReadAsync<ScenarioGeography>(geographyPath, token);
+                var geography = await files.ReadAsync<ScenarioGeography>(PlayerDefinitionFiles.ActivePath(geographyPath), token);
                 if (geography.Military is not null)
                 {
                     var mapManifest = await files.ReadAsync<ScenarioMapManifest>(PackageFiles.Resolve(entry.Root, entry.Manifest.Map), token);
-                    var map = await files.ReadAsync<MapDefinition>(PackageFiles.Resolve(entry.Root, mapManifest.Definition), token);
+                    var map = await files.ReadAsync<MapDefinition>(PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(entry.Root, mapManifest.Definition)), token);
+                    map = mapManifest.ApplyLayout(map, document, definitions);
                     geography = San9.Content.Maps.MapGeographyCompiler.Resolve(mapManifest, map, geography, document, definitions, officers, token);
                 }
                 var effectiveDefinitions = document.DefinitionOverrides.Apply(definitions);

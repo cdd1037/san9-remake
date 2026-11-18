@@ -108,8 +108,114 @@ public sealed partial class MilitarySessionTests
             await MapDefinitionFiles.WriteAsync(root, "scenario/map-definition.player.json", workspace.Map with { Cells = changedCells });
             var refreshed = await ScenarioContentFiles.LoadAsync(Path.Combine(root, "scenario"));
             Assert.DoesNotContain(new MapCell(3, 1), refreshed.Scenario.Military!.BlockedCells);
-            var cached = await PackageFiles.ReadAsync<ScenarioGeography>(Path.Combine(root, "scenario", "geography.player.json"));
-            Assert.Contains(new MapCell(3, 1), cached.Military!.BlockedCells);
+            Assert.False(File.Exists(Path.Combine(root, "scenario", "geography.player.json")));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task SharedMapAndRegionEditsReachBothScenariosWhileLayoutAndHarborAccessStayLocal()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "san9-map-shared-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var source = Fixture();
+            source = source with { Military = source.Military! with
+            {
+                Facilities = [new(99, 0, 100, new(1, 1), 0, false, true, true, 500000, null, null, null, []) { IsHarbor = true }],
+                Places = source.Military.Places.Select(p => p with { FacilityTypeId = 99 }).ToImmutableArray()
+            } };
+            var first = await CreateMapEditor(root, source, new([0], [0], 1));
+            var firstRoot = Path.Combine(root, "scenario");
+            var otherRoot = Path.Combine(root, "other");
+            Directory.CreateDirectory(otherRoot);
+            var manifest = await ScenarioContentFiles.ReadManifestAsync(firstRoot);
+            var peer = manifest with { Scenario = "other/scenario.json", Textures = new("../scenario/textures"),
+                Preview = manifest.Preview! with { Id = "other" } };
+            var catalog = await PackageFiles.ReadAsync<ContentCatalog>(Path.Combine(root, "catalog.json"));
+            async Task Write(string path, object value) => await File.WriteAllBytesAsync(path,
+                JsonSerializer.SerializeToUtf8Bytes(value, value.GetType(), ScenarioContentFiles.DataJsonOptions));
+            await Write(Path.Combine(otherRoot, "content.json"), peer);
+            await Write(Path.Combine(otherRoot, "scenario.json"), first.Scenario with { ScenarioId = "other" });
+            await Write(Path.Combine(root, "catalog.json"), catalog with { Scenarios = [.. catalog.Scenarios, new("other", "other")] });
+
+            first = await MapEditorWorkspace.OpenAsync(root, first.Scenario.ScenarioId);
+            var resources = MapEditorResources();
+            var styles = resources.TerrainStyles.ToDictionary(s => s.Id);
+            first.RegenerateBlocking();
+            first.BeginStroke();
+            first.Paint(new(3, 1), new(3, 1), 0, c => c with { Elevation = 2 }, styles);
+            first.EndStroke();
+            first.SetRegionCity(2, 1);
+            await first.SaveAsync(resources);
+            Assert.False(File.Exists(Path.Combine(firstRoot, "content.player.json")));
+            Assert.False(File.Exists(Path.Combine(firstRoot, "scenario.player.json")));
+            string mapPath = Path.Combine(firstRoot, "map-definition.player.json");
+            byte[] sharedBeforeMove = await File.ReadAllBytesAsync(mapPath);
+            first.MoveBuilding(1, new(4, 1));
+            await first.SaveAsync(resources);
+            Assert.Equal(sharedBeforeMove, await File.ReadAllBytesAsync(mapPath));
+            var moved = await ScenarioContentFiles.LoadAsync(firstRoot);
+            var other = await ScenarioContentFiles.LoadAsync(otherRoot);
+            Assert.Equal(2, other.Map.Definition.Cells[11].Elevation);
+            Assert.Equal(1, other.Scenario.RegionCityIds[2]);
+            Assert.Equal(1, moved.Map.Definition.Cells[12].RegionId);
+            Assert.Equal(2, other.Map.Definition.Cells[12].RegionId);
+            Assert.False(moved.Map.Definition.Cells[12].InfluenceBlocked);
+            Assert.True(other.Map.Definition.Cells[12].InfluenceBlocked);
+            Assert.Equal(0, other.Map.Buildings.Single(b => b.Id == 1).X);
+            Assert.Equal(4, moved.Map.Buildings.Single(b => b.Id == 1).X);
+            Assert.Equal(other.Map.Definition.Cells, (await MapEditorWorkspace.OpenAsync(root, "other")).Map.Cells);
+
+            // A shared manual exception still wins inside this scenario's moved harbor radius.
+            first.BeginStroke();
+            first.Paint(new(3, 1), new(3, 1), 0, c => c with { InfluenceBlocked = true }, styles, paintBlocking: true);
+            first.EndStroke();
+            await first.SaveAsync(resources);
+            Assert.True((await ScenarioContentFiles.LoadAsync(firstRoot)).Map.Definition.Cells[11].InfluenceBlocked);
+            sharedBeforeMove = await File.ReadAllBytesAsync(mapPath);
+
+            first.BeginStroke();
+            first.Paint(new(0, 1), new(0, 1), 0, c => c with { RegionId = 2 }, styles);
+            first.EndStroke();
+            var failure = await Assert.ThrowsAsync<InvalidDataException>(() => first.SaveAsync(resources));
+            Assert.Contains("other", failure.Message);
+            Assert.Equal(sharedBeforeMove, await File.ReadAllBytesAsync(mapPath));
+            Assert.True(first.HasChanges);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task EditingLegacyPrivateMapKeepsItsExplicitBinding()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "san9-private-map-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var original = await CreateMapEditor(root);
+            string dir = Path.Combine(root, "scenario");
+            var manifest = await ScenarioContentFiles.ReadManifestAsync(dir);
+            var layout = await PackageFiles.ReadAsync<ScenarioMapManifest>(Path.Combine(root, manifest.Map));
+            const string privateMap = "scenario/map-definition.player.json";
+            var cells = original.Snapshot().Cells;
+            cells[0] = cells[0] with { Elevation = 2 };
+            await MapDefinitionFiles.WriteAsync(root, privateMap, original.Map with { Cells = cells });
+            await File.WriteAllBytesAsync(Path.Combine(dir, "map.player.json"), JsonSerializer.SerializeToUtf8Bytes(
+                layout with { Definition = privateMap }, ScenarioContentFiles.DataJsonOptions));
+            File.Copy(Path.Combine(root, manifest.Geography), Path.Combine(dir, "geography.player.json"));
+            await File.WriteAllBytesAsync(Path.Combine(dir, "content.player.json"), JsonSerializer.SerializeToUtf8Bytes(
+                manifest with { Map = "scenario/map.player.json", Geography = "scenario/geography.player.json" }, PackageFiles.JsonOptions));
+
+            var workspace = await MapEditorWorkspace.OpenAsync(root, original.Scenario.ScenarioId);
+            Assert.Equal(2, workspace.Map.Cells[0].Elevation);
+            workspace.BeginStroke();
+            var resources = MapEditorResources();
+            workspace.Paint(new(1, 0), new(1, 0), 0, c => c with { Elevation = 2 }, resources.TerrainStyles.ToDictionary(s => s.Id));
+            workspace.EndStroke();
+            await workspace.SaveAsync(resources);
+            Assert.Equal(2, (await ScenarioContentFiles.LoadAsync(dir)).Map.Definition.Cells[1].Elevation);
+            Assert.Equal(1, (await PackageFiles.ReadAsync<MapDefinition>(Path.Combine(root, layout.Definition))).Cells[1].Elevation);
+            Assert.Empty(Directory.EnumerateFiles(dir, "*.player.player.json"));
         }
         finally { Directory.Delete(root, true); }
     }
@@ -170,7 +276,6 @@ public sealed partial class MilitarySessionTests
                 }
             };
             var workspace = await CreateMapEditor(root, source, new([0], [0], 1));
-            workspace.RegenerateBlocking();
             workspace.BeginStroke();
             workspace.Paint(new(5, 1), new(5, 1), 0, cell => cell with { MovementBlocked = false },
                 MapEditorResources().TerrainStyles.ToDictionary(s => s.Id));
@@ -190,6 +295,20 @@ public sealed partial class MilitarySessionTests
             workspace.Redo();
             Assert.Equal(moved.Cells, workspace.Map.Cells);
             Assert.Equal(new MapCell(2, 1), workspace.Scenario.Settlements.Single(s => s.Id == 1).Cell);
+            workspace.MoveBuilding(1, new(5, 1));
+            Assert.False(workspace.Map.Cells[14].InfluenceBlocked); // Within both harbor radii.
+            workspace.MoveBuilding(1, new(0, 1));
+            Assert.False(workspace.Map.Cells[14].InfluenceBlocked); // The second harbor still covers this tile.
+
+            var rules = await SharedDataEditorWorkspace.OpenAsync(root);
+            rules.SetFacilityHarbor(99, false);
+            await rules.SaveAsync();
+            var disabled = await ScenarioContentFiles.LoadAsync(Path.Combine(root, "scenario"));
+            Assert.True(disabled.Map.Definition.Cells[14].InfluenceBlocked);
+            Assert.Contains(new MapCell(6, 1), disabled.Scenario.Military!.Geography.BlockedCells);
+            rules.SetFacilityHarbor(99, true);
+            await rules.SaveAsync();
+            Assert.False((await ScenarioContentFiles.LoadAsync(Path.Combine(root, "scenario"))).Map.Definition.Cells[14].InfluenceBlocked);
         }
         finally { Directory.Delete(root, true); }
     }

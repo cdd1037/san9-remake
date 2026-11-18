@@ -3,7 +3,8 @@ namespace San9.Content.Packages;
 /// <summary>One complete player-owned document beside its base definition; no field merging.</summary>
 public static class PlayerDefinitionFiles
 {
-    public static string PlayerPath(string definitionPath) => Path.ChangeExtension(definitionPath, ".player.json");
+    public static string PlayerPath(string definitionPath) =>
+        definitionPath.EndsWith(".player.json", StringComparison.OrdinalIgnoreCase) ? definitionPath : Path.ChangeExtension(definitionPath, ".player.json");
 
     public static string ActivePath(string definitionPath)
     {

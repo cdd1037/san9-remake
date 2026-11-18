@@ -7,7 +7,7 @@ namespace San9.Content.Maps;
 public static class MapBlockingGenerator
 {
     public static MapCellDefinition[] Generate(MapDefinition map, IEnumerable<MapCell> harbors,
-        IEnumerable<int>? selectedIndices = null)
+        IEnumerable<int>? selectedIndices = null, bool resolveLayout = false)
     {
         map.Validate();
         var selected = selectedIndices?.ToHashSet() ?? Enumerable.Range(0, map.Cells.Length).ToHashSet();
@@ -22,16 +22,22 @@ public static class MapBlockingGenerator
         foreach (int index in selected)
         {
             var cell = cells[index];
-            cells[index] = cell with { InfluenceBlocked = blockedTerrains.Contains(cell.Terrain) && !harborAccess.Contains(index) };
+            if (!resolveLayout || cell.InfluenceSource != BlockingSource.Manual)
+                cells[index] = cell with { InfluenceBlocked = blockedTerrains.Contains(cell.Terrain) && !harborAccess.Contains(index),
+                    InfluenceSource = resolveLayout ? cell.InfluenceSource : BlockingSource.TerrainRule };
         }
 
         var affected = selected.SelectMany(index => Neighborhood(index % map.Width, index / map.Width))
             .Where(p => Inside(p.X, p.Y)).Select(p => p.Y * map.Width + p.X).ToHashSet();
+        if (resolveLayout)
+            affected.UnionWith(Enumerable.Range(0, cells.Length).Where(i => cells[i].MovementSource == BlockingSource.TerrainRule));
         foreach (int index in affected)
         {
+            if (resolveLayout && cells[index].MovementSource == BlockingSource.Manual) continue;
             bool blocked = Neighborhood(index % map.Width, index / map.Width)
                 .Any(p => !Inside(p.X, p.Y) || cells[p.Y * map.Width + p.X].InfluenceBlocked);
-            cells[index] = cells[index] with { MovementBlocked = blocked };
+            cells[index] = cells[index] with { MovementBlocked = blocked,
+                MovementSource = resolveLayout ? cells[index].MovementSource : BlockingSource.TerrainRule };
         }
         return cells;
 

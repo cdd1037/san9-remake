@@ -5,6 +5,8 @@ namespace San9.Content.Maps;
 [Flags]
 public enum ConstructionSurface { None = 0, General = 1, Horizontal = 2, Vertical = 4 }
 
+public enum BlockingSource { Stored, TerrainRule, Manual }
+
 /// <summary>Authored cell inputs. Display masks, stamps and topology projections are rebuilt.</summary>
 public sealed record MapCellDefinition(int Terrain, int Elevation, int TextureVariant, int? RegionId)
 {
@@ -12,6 +14,8 @@ public sealed record MapCellDefinition(int Terrain, int Elevation, int TextureVa
     public int? BridgeOrientation { get; init; }
     public bool MovementBlocked { get; init; }
     public bool InfluenceBlocked { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public BlockingSource MovementSource { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public BlockingSource InfluenceSource { get; init; }
     public ConstructionSurface Construction { get; init; }
 }
 

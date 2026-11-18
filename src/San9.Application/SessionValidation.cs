@@ -113,7 +113,13 @@ internal static class SessionValidation
         // so validate its surviving owner rather than requiring the initial corps identity.
         Same(content.Information.Corps.Where(c => c.IsRoot && snapshot.World.Forces.Any(f => f.Id == c.OwnerId && !f.IsEliminated)).Select(c => c.OwnerId).Union(addedForces.Where(id => snapshot.World.Forces.Any(f => f.Id == id && !f.IsEliminated))).Concat(generated.Where(f => !f.IsEliminated).Select(f => f.Id)),
             snapshot.World.Corps.Where(c => c.IsRoot).Select(c => c.OwnerId));
-        Same(content.Information.TreasureStates.Select(t => t.Id), snapshot.World.Treasures.Select(t => t.Id));
+        // Startup composition may place defined treasures absent from the base scenario.
+        // Restore their saved state without replaying authoring choices or dropping base identities.
+        var savedTreasureIds = snapshot.World.Treasures.Select(t => t.Id).ToHashSet();
+        var definedTreasureIds = content.Information.Treasures.Select(t => t.Id).ToHashSet();
+        if (content.Information.TreasureStates.Any(t => !savedTreasureIds.Contains(t.Id)) ||
+            !savedTreasureIds.IsSubsetOf(definedTreasureIds))
+            throw new ArgumentException("Unknown or missing treasure identity.");
         if (content.Information.Relations.Any(initial => !snapshot.World.Relations.Any(current =>
             current.FirstId == initial.FirstId && current.SecondId == initial.SecondId)))
             throw new ArgumentException("Missing initial relation identity.");

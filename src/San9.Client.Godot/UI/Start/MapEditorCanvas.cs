@@ -11,9 +11,10 @@ namespace San9.Client.Godot;
 /// <summary>Versioned editor preview. Terrain pixels, object layers and picking commit together.</summary>
 public partial class MapEditorCanvas : Control
 {
-    private sealed record Prepared(long Revision, string Season, MapPackage Map, MapBuildingPlacement[] Sites, TerrainRenderer Renderer, MapSurface Surface, MapSprite[] Objects,
+    private readonly record struct RegionLabel(int RegionId, Vector2 Anchor);
+    private sealed record Prepared(long Revision, string Season, MapPackage Map, MapBuildingPlacement[] Sites, TerrainRenderer Renderer, MapSurface Surface, MapSprite[] Objects, RegionLabel[] RegionLabels,
         Dictionary<string, PngImage> Common, Dictionary<int, PngImage> Land);
-    private sealed record Frame(Prepared Source, Rect2 Coverage, bool Buildings, bool Regions,
+    private sealed record Frame(Prepared Source, Rect2 Coverage, bool Buildings, bool Boundaries,
         TerrainChunkCache<ImageTexture>.Lease Terrain, TextureScope Objects, MapSprite[] Sprites, MapSprite[] Borders) : IDisposable
     {
         public Vector2 Origin { get; set; }
@@ -32,6 +33,7 @@ public partial class MapEditorCanvas : Control
     public string Season { get; set; } = "spring";
     public bool ShowGrid { get => _grid; set { _grid = value; QueueRedraw(); } }
     public bool ShowRegions { get => _regions; set { _regions = value; QueueRedraw(); } }
+    public bool ShowBoundaries { get; set; } = true;
     public bool ShowBuildings { get; set; } = true;
     public ConstructionSurface ConstructionOverlay { get => _constructionOverlay; set { _constructionOverlay = value; QueueRedraw(); } }
     public int BrushRadius { get => _brushRadius; set { _brushRadius = value; QueueRedraw(); } }
@@ -150,8 +152,10 @@ public partial class MapEditorCanvas : Control
                     display.Seasons.Single(s => s.Id == season).Textures, token).ToDictionary(p => int.Parse(p.Key), p => p.Value);
                 var visuals = BuildingVisuals.Resolve(display, display.Buildings.Select(b =>
                     new BuildingVisualState(b.Id, display.BuildingTypes.Single(t => t.Id == b.FixedType).MaxDurability, 0, 0, 0, 0, -1)).ToArray());
-                return new Prepared(revision, season, display, buildings, new(display, common, land), new(display.Width, display.Height, display.Squares),
-                    visuals.Buildings.SelectMany(b => b.Sprites).Concat(display.Bridges).OrderBy(s => s.Depth).ToArray(), common, land);
+                var surface = new MapSurface(display.Width, display.Height, display.Squares);
+                return new Prepared(revision, season, display, buildings, new(display, common, land), surface,
+                    visuals.Buildings.SelectMany(b => b.Sprites).Concat(display.Bridges).OrderBy(s => s.Depth).ToArray(),
+                    BuildRegionLabels(display, surface), common, land);
             }, token);
         }
         if (_prepared is { } prepared && prepared.Revision == Workspace.Revision && prepared.Season == Season &&
@@ -175,14 +179,32 @@ public partial class MapEditorCanvas : Control
         }
     }
 
+    private static RegionLabel[] BuildRegionLabels(MapPackage map, MapSurface surface)
+    {
+        var regions = map.Squares.Select((square, index) => (square, index))
+            .Where(cell => cell.square.RegionId >= 0).GroupBy(cell => cell.square.RegionId)
+            .OrderByDescending(region => region.Count()).ThenBy(region => region.Key);
+        return regions.Select(region =>
+        {
+            var visible = region.Where(cell => !cell.square.HideRegionName).ToArray();
+            var centers = (visible.Length > 0 ? visible.AsEnumerable() : region).Select(cell =>
+            {
+                var tile = surface[cell.index];
+                return new Vector2((float)tile.CenterX, (float)((tile.TopY + tile.BottomY) / 2));
+            }).ToArray();
+            var center = new Vector2(centers.Average(point => point.X), centers.Average(point => point.Y));
+            return new RegionLabel(region.Key, centers.MinBy(point => point.DistanceSquaredTo(center)));
+        }).ToArray();
+    }
+
     private bool NeedsFrame(Frame? frame, Prepared source) => frame is null ||
         !ReferenceEquals(frame.Source, source) || frame.Origin != _origin || frame.Zoom != _zoom || frame.Size != Size ||
-        frame.Buildings != ShowBuildings || frame.Regions != ShowRegions;
+        frame.Buildings != ShowBuildings || frame.Boundaries != ShowBoundaries;
 
     private bool MoveWithinFrame(Frame? frame, Prepared source, Rect2 bounds)
     {
         if (frame is null || !ReferenceEquals(frame.Source, source) || frame.Buildings != ShowBuildings ||
-            frame.Regions != ShowRegions || !frame.Coverage.Encloses(bounds)) return false;
+            frame.Boundaries != ShowBoundaries || !frame.Coverage.Encloses(bounds)) return false;
         if (ReferenceEquals(frame, _presented) && !FrameReady(frame, bounds)) return false;
         frame.Origin = _origin; frame.Zoom = _zoom; frame.Size = Size;
         return true;
@@ -222,10 +244,10 @@ public partial class MapEditorCanvas : Control
             return coverage.Intersects(new(sprite.X, sprite.Y, asset.Width, asset.Height));
         }
         var sprites = (ShowBuildings ? source.Objects : source.Map.Bridges).Where(Visible).ToArray();
-        var borders = ShowRegions ? source.Map.Boundaries.Where(Visible).ToArray() : [];
+        var borders = ShowBoundaries ? source.Map.Boundaries.Where(Visible).ToArray() : [];
         var scope = _textures.CreateScope(_textures.MapAssets);
         scope.Request(sprites.Concat(borders).Select(s => s.AssetId).Distinct());
-        var next = new Frame(source, coverage, ShowBuildings, ShowRegions, _terrain.Acquire(keys), scope, sprites, borders)
+        var next = new Frame(source, coverage, ShowBuildings, ShowBoundaries, _terrain.Acquire(keys), scope, sprites, borders)
             { Origin = _origin, Zoom = _zoom, Size = Size };
         var prefetch = _terrain.Acquire(Keys(1).Except(keys), prefetch: true);
         // Acquire shared work before releasing the previous view's ownership.
@@ -298,7 +320,7 @@ public partial class MapEditorCanvas : Control
         DrawSetTransform(frame.Origin, 0, Vector2.One * frame.Zoom);
         foreach (var key in frame.Terrain.Keys)
             if (frame.Terrain.IsAvailable(key)) DrawTexture(frame.Terrain.Get(key), new(key.X * 512, key.Y * 512));
-        if (frame.Regions || ShowGrid && frame.Zoom >= 0.35f || ConstructionOverlay != ConstructionSurface.None)
+        if (ShowRegions || ShowGrid && frame.Zoom >= 0.35f || ConstructionOverlay != ConstructionSurface.None)
         {
             for (int i = 0; i < frame.Source.Map.Squares.Length; i++)
             {
@@ -307,7 +329,7 @@ public partial class MapEditorCanvas : Control
                     frame.Origin.Y + surface.BottomY * frame.Zoom < 0 || frame.Origin.Y + surface.TopY * frame.Zoom > Size.Y) continue;
                 var points = Diamond(new(i % frame.Source.Map.Width, i / frame.Source.Map.Width), frame);
                 int region = frame.Source.Map.Squares[i].RegionId;
-                if (frame.Regions && region >= 0) DrawColoredPolygon(points, Color.FromHsv((region * 0.618034f) % 1, 0.65f, 0.9f, 0.25f));
+                if (ShowRegions && region >= 0) DrawColoredPolygon(points, Color.FromHsv((region * 0.618034f) % 1, 0.65f, 0.9f, 0.25f));
                 if (ConstructionOverlay != ConstructionSurface.None &&
                     (frame.Source.Map.Authoring!.Cells[i].Construction & ConstructionOverlay) == 0)
                     DrawColoredPolygon(points, new Color(0, 0, 0, TargetOverlayGeometry.DimOpacity));
@@ -346,6 +368,28 @@ public partial class MapEditorCanvas : Control
             }
         }
         DrawSetTransform(Vector2.Zero);
+        if (ShowRegions) DrawRegionLabels(frame);
+    }
+
+    private void DrawRegionLabels(Frame frame)
+    {
+        const int fontSize = 16;
+        var font = GetThemeDefaultFont();
+        var viewport = new Rect2(Vector2.Zero, Size);
+        List<Rect2> occupied = [];
+        foreach (var label in frame.Source.RegionLabels)
+        {
+            var center = frame.Origin + label.Anchor * frame.Zoom;
+            if (!viewport.HasPoint(center)) continue;
+            string name = Workspace.RegionName(label.RegionId);
+            var size = font.GetStringSize(name, fontSize: fontSize);
+            var bounds = new Rect2(center - size / 2, size).Grow(3);
+            if (occupied.Any(other => other.Intersects(bounds))) continue;
+            occupied.Add(bounds);
+            var baseline = center - size / 2 + new Vector2(0, font.GetAscent(fontSize));
+            DrawStringOutline(font, baseline, name, fontSize: fontSize, size: 4, modulate: Colors.Black);
+            DrawString(font, baseline, name, fontSize: fontSize, modulate: new Color("e6f2ff"));
+        }
     }
 
     public override void _ExitTree()

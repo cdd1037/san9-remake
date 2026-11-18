@@ -14,7 +14,7 @@ public partial class MapEditor
     private HBoxContainer _brushControls = null!;
     private SpinBox _brushSize = null!;
     private OptionButton _season = null!;
-    private Button _gridToggle = null!, _regionToggle = null!, _buildingToggle = null!, _constructionToggle = null!;
+    private Button _gridToggle = null!, _regionToggle = null!, _boundaryToggle = null!, _buildingToggle = null!, _constructionToggle = null!;
     private Label _propertyTitle = null!, _zoomLabel = null!, _mapSize = null!;
 
     private void LayoutViewport()
@@ -125,6 +125,7 @@ public partial class MapEditor
         _viewControls.AddChild(_season);
         _gridToggle = ContentEditorControls.Toggle(_viewControls, "网格", false, value => { if (_canvas is not null) _canvas.ShowGrid = value; });
         _regionToggle = ContentEditorControls.Toggle(_viewControls, "地域", false, value => { if (_canvas is not null) _canvas.ShowRegions = value; });
+        _boundaryToggle = ContentEditorControls.Toggle(_viewControls, "疆线", true, value => { if (_canvas is not null) _canvas.ShowBoundaries = value; });
         _buildingToggle = ContentEditorControls.Toggle(_viewControls, "据点", true, value => { if (_canvas is not null) _canvas.ShowBuildings = value; });
         _constructionToggle = ContentEditorControls.Toggle(_viewControls, "建设", false, visible =>
         {

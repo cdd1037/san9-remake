@@ -19,6 +19,8 @@ public partial class MapEditor : ModalView
     private MapEditorCanvas? _canvas;
     private ScenarioPreviewEntry[] _entries = [];
     private Dictionary<int, TerrainStyle> _styles = [];
+    private Dictionary<int, MapTerrainPalette> _palettes = [];
+    private bool _exactTerrain, _moreTerrain;
     private OptionButton _scenarios = null!;
     private VBoxContainer _properties = null!;
     private Label _status = null!, _position = null!, _title = null!;
@@ -67,6 +69,9 @@ public partial class MapEditor : ModalView
             _canvas?.QueueFree();
             if (_canvas is not null) _mapArea.RemoveChild(_canvas);
             _workspace = workspace; _resources = resources; _styles = resources.Map.TerrainStyles.ToDictionary(s => s.Id);
+            _palettes = _styles.ToDictionary(p => p.Key, p => new MapTerrainPalette(p.Value, resources.SourceBuild));
+            _exactTerrain = _moreTerrain = false;
+            _paintTerrain = _paintHeight = _paintVariant = true;
             _selectedScenario = index; _scenarios.Select(index); _selectedBuilding = workspace.Buildings.FirstOrDefault()?.Id;
             var first = workspace.Map.Cells[0]; _terrain = first.Terrain; _height = first.Elevation; _variant = first.TextureVariant;
             _region = workspace.Geography.RegionNameKeys.Keys.Order().First();
@@ -149,8 +154,12 @@ public partial class MapEditor : ModalView
 
     private void TerrainProperties()
     {
-        int[] ids = _styles.Keys.Order().ToArray();
-        var terrainRow = PaintField("地形", _paintTerrain, value => _paintTerrain = value);
+        ContentEditorControls.Choices(_properties, "笔刷", ["换地形（保留坡形）", "精确涂刷"], _exactTerrain ? 1 : 0,
+            index => { _exactTerrain = index == 1; BuildProperties(); });
+        ContentEditorControls.Toggle(_properties, "更多选项", _moreTerrain, value => { _moreTerrain = value; BuildProperties(); });
+        int[] ids = _palettes.Keys.Where(id => _palettes[id].Heights.Length > 0 &&
+            (_moreTerrain || id == _terrain || _palettes[id].CommonTerrain)).Order().ToArray();
+        var terrainRow = _exactTerrain ? PaintField("地形", _paintTerrain, value => _paintTerrain = value) : FieldRow(_properties);
         terrainRow.AddChild(new Label { Text = TerrainLabel(_terrain), VerticalAlignment = VerticalAlignment.Center });
         var terrains = new HFlowContainer { Name = "MapEditorTerrainChoices" };
         terrains.AddThemeConstantOverride("h_separation", 2);
@@ -167,17 +176,29 @@ public partial class MapEditor : ModalView
             button.CustomMinimumSize = new(44, 24);
             button.Pressed += () =>
             {
-                _terrain = id; var style = _styles[id];
-                _height = Math.Clamp(_height, style.MinimumElevation, style.MaximumElevation);
-                _variant = Math.Clamp(_variant, 0, style.VariantCount - 1); BuildProperties();
+                _terrain = id;
+                var palette = _palettes[id];
+                _height = palette.ClosestHeight(_height);
+                _variant = palette.DefaultVariant(_height);
+                BuildProperties();
             };
         }
-        var current = _styles[_terrain];
+        if (!_exactTerrain)
+        {
+            _properties.AddChild(new Label { Text = "同类地形保留原样。Ctrl+左键取样后可精确续画。", AutowrapMode = TextServer.AutowrapMode.WordSmart });
+            return;
+        }
+        var current = _palettes[_terrain];
         PaintField("高度", _paintHeight, value => _paintHeight = value);
-        NumberChoices(current.Levels.Select(level => level.Elevation).Order(), _height,
-            value => _height = value, "MapEditorHeightChoices");
-        PaintField("变体", _paintVariant, value => _paintVariant = value);
-        NumberChoices(Enumerable.Range(0, current.VariantCount), _variant,
+        NumberChoices(current.Heights.Where(h => _moreTerrain || h == _height || current.CommonHeight(h)), _height,
+            value =>
+            {
+                _height = value;
+                if (!current.VariantsAt(value).Contains(_variant)) _variant = current.DefaultVariant(value);
+                BuildProperties();
+            }, "MapEditorHeightChoices");
+        PaintField("地表样式", _paintVariant, value => _paintVariant = value);
+        NumberChoices(current.VariantsAt(_height).Where(v => _moreTerrain || v == _variant || current.CommonVariant(v)), _variant,
             value => _variant = value, "MapEditorVariantChoices");
     }
 
@@ -250,6 +271,7 @@ public partial class MapEditor : ModalView
         {
             _workspace!.Paint(_last!.Value, cell, _radius, current => _tool switch
             {
+                0 when !_exactTerrain => _palettes[_terrain].ReplaceTerrain(current),
                 0 => current with { Terrain = _paintTerrain ? _terrain : current.Terrain,
                     Elevation = _paintHeight ? _height : current.Elevation, TextureVariant = _paintVariant ? _variant : current.TextureVariant },
                 1 => current with { RegionId = _region < 0 ? null : _region, HideRegionName = _hideName },
@@ -288,7 +310,12 @@ public partial class MapEditor : ModalView
         _region = value.RegionId ?? -1;
         _hideName = value.HideRegionName; _movementBlocked = value.MovementBlocked; _influenceBlocked = value.InfluenceBlocked;
         _construction = value.Construction; _bridge = value.BridgeOrientation ?? -1;
-        BuildProperties(); Status("已吸取当前格属性。");
+        if (_tool == 0)
+        {
+            _exactTerrain = true;
+            _paintTerrain = _paintHeight = _paintVariant = true;
+        }
+        BuildProperties(); Status(_tool == 0 ? "已吸取地貌，下一笔复制地形、高度和样式。" : "已吸取当前格属性。");
     }
 
     private void Hover(MapCell? cell)
@@ -300,7 +327,7 @@ public partial class MapEditor : ModalView
         }
         var value = _workspace.Map.Cells[point.Y * _workspace.Map.Width + point.X];
         string regionName = value.RegionId is int region ? $"{_workspace.RegionName(region)} [{region}]" : "无地域";
-        _position.Text = $"当前格 ({point.X}, {point.Y})  {TerrainLabel(value.Terrain)}\n高度 {value.Elevation}  变体 {value.TextureVariant}\n{regionName}\n" +
+        _position.Text = $"当前格 ({point.X}, {point.Y})  {TerrainLabel(value.Terrain)}\n高度 {value.Elevation}  样式 {value.TextureVariant}\n{regionName}\n" +
             $"部队{(value.MovementBlocked ? "阻断" : "可通行")}  影响{(value.InfluenceBlocked ? "阻断" : "可传播")}";
     }
 

@@ -13,6 +13,31 @@ namespace San9.Application.Tests;
 public sealed partial class MilitarySessionTests
 {
     [Fact]
+    public void TerrainReplacementKeepsSlopesAndExistingStylesAndRespectsThemeChoices()
+    {
+        const string original = "san9pk-tc-1.0.1.0-d20794ae";
+        var levels = Enumerable.Range(0, 8).Select(h => new TerrainLevel(h, Enumerable.Repeat(10006, 48).ToArray())).ToArray();
+        var forest = new MapTerrainPalette(new(0, 0, true, [0, 1, 2], levels), original);
+        var low = new MapCellDefinition(2, 1, 2, 4) { BridgeOrientation = 0 };
+        var high = low with { Elevation = 5 };
+        Assert.Equal(low with { Terrain = 0, TextureVariant = 1 }, forest.ReplaceTerrain(low));
+        Assert.Equal(high with { Terrain = 0, TextureVariant = 1 }, forest.ReplaceTerrain(high));
+        var originalForest = high with { Terrain = 0 };
+        Assert.Equal(originalForest, forest.ReplaceTerrain(originalForest));
+
+        var style = new TerrainStyle(10, 0, false, [0, 1, 2], levels);
+        var water = new MapTerrainPalette(style, original);
+        Assert.Equal(1, water.ReplaceTerrain(high).Elevation);
+        Assert.False(water.CommonVariant(1));
+        Assert.Contains(1, water.VariantsAt(1));
+
+        var custom = new MapTerrainPalette(style with { Levels = [levels[2], levels[6]] }, "custom");
+        Assert.Equal(6, custom.ReplaceTerrain(high).Elevation);
+        Assert.True(custom.CommonVariant(1));
+        Assert.True(custom.CommonHeight(6));
+    }
+
+    [Fact]
     public async Task MapGeographyRetainsConstructionInConfiguredUnbuiltRegions()
     {
         string root = Path.Combine(Path.GetTempPath(), "san9-map-unbuilt-" + Guid.NewGuid().ToString("N"));

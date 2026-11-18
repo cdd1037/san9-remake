@@ -37,6 +37,7 @@ public static class ContentCatalogImporter
         var map = OpeningMapCompiler.Compile(exe, source.Read("G_MMap.s9"), textures.Library);
         var selection = ScenarioSelectionPresentationCompiler.Compile(exe, textures.Library, text, headers, map);
         List<ScenarioCatalogEntry> entries = [];
+        var sites = new SharedMapSites([], []);
         SharedMessageLibrary? sharedMessages = null;
         SharedMapDefinition? sharedMap = null;
         SharedScenarioData? sharedScenario = null;
@@ -61,6 +62,7 @@ public static class ContentCatalogImporter
             }
             var compiled = ClientContentCompiler.Compile(source, $"D_Sce{header.ScenarioId + 1:D3}.S9", textureRoot,
                 textures, PackageFiles.Resolve(output, path), false, token, preview);
+            SharedPlaceImporter.Collect(sites, compiled.Content.Scenario, compiled.Content.Text);
             sharedMessages ??= await MessageLibraryFiles.WriteAsync(output, "shared/messages/library.json", compiled.Content.Text.Messages,
                 PublicationMessageCatalog.Groups, token, publication);
             sharedMap ??= await MapDefinitionFiles.WriteAsync(output, "shared/maps/china/map.json", compiled.Content.Map.Definition, token, publication);
@@ -88,8 +90,10 @@ public static class ContentCatalogImporter
             flags.ValidateReferences(textures.Map.Clips.Select(c => c.Id).ToHashSet());
             await Publish("shared/officer-flags.json", flags);
         }
+        var sharedMapRef = openingOnly ? (await ContentCatalogFiles.LoadAsync(output, token)).SharedMap : SharedPlaceImporter.Reference;
+        if (!openingOnly) await Publish(SharedPlaceImporter.Reference.Locations, sites);
         await Publish("catalog.json", new ContentCatalog(ContentCatalog.CurrentSchemaVersion, "shared/textures", "shared/opening.json", entries.ToArray())
-            { OfficerFlags = "shared/officer-flags.json", Definitions = "shared/definitions.json", OfficerDefaults = "shared/officer-defaults.json" });
+            { SharedMap = sharedMapRef, OfficerFlags = "shared/officer-flags.json", Definitions = "shared/definitions.json", OfficerDefaults = "shared/officer-defaults.json" });
 
         publication.Commit(token);
         progress?.Invoke("Published complete scenario catalog.");

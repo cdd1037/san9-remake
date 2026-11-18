@@ -10,6 +10,7 @@ namespace San9.Application.Authoring;
 /// <summary>One scenario draft, with shared defaults retained as references until composition.</summary>
 public sealed class ScenarioEditorWorkspace
 {
+    private SharedMapSites? _sites;
     private readonly ScenarioContentManifest _manifest;
     private readonly ScenarioDocument _opened;
     private readonly ScenarioPreviewEntry _openedPreview;
@@ -68,11 +69,14 @@ public sealed class ScenarioEditorWorkspace
         string package = PackageFiles.Resolve(contentRoot, catalog.RequireScenario(scenarioId).Package);
         string manifestPath = Path.Combine(package, "content.json");
         var manifest = await ReadActive<ScenarioContentManifest>(manifestPath);
+        if (manifest.Locations is null && inputs[PlayerDefinitionFiles.PlayerPath(manifestPath)] is not null)
+            manifest = manifest with { Locations = (await Read<ScenarioContentManifest>(manifestPath)).Locations };
         if (manifest.SchemaVersion != ScenarioContent.CurrentSchemaVersion || manifest.Preview?.Id != scenarioId)
             throw new InvalidDataException("剧本入口版本或身份无效，请重建内容包。");
         string root = ScenarioContentFiles.ResolveResourceRoot(package, manifest.ResourceRoot);
         string scenarioPath = PackageFiles.Resolve(root, manifest.Scenario);
-        var document = await ReadActive<ScenarioDocument>(scenarioPath);
+        var sites = manifest.Locations is null ? null : await ReadActive<SharedMapSites>(PackageFiles.Resolve(root, manifest.Locations));
+        var document = sites is null ? await ReadActive<ScenarioDocument>(scenarioPath) : sites.Resolve<ScenarioDocument>(await ReadActive<JsonElement>(scenarioPath));
         if (document.ScenarioId != scenarioId) throw new InvalidDataException("剧本身份与目录不一致。");
         var definitions = await ReadActive<ScenarioDefinitions>(PackageFiles.Resolve(root, manifest.Definitions));
         var officers = await ReadActive<OfficerDefaultsCatalog>(PackageFiles.Resolve(root, manifest.OfficerDefaults));
@@ -81,6 +85,7 @@ public sealed class ScenarioEditorWorkspace
         if (geography.Military is not null)
         {
             var mapManifest = await Read<ScenarioMapManifest>(PackageFiles.Resolve(root, manifest.Map));
+            if (sites is not null) mapManifest = mapManifest with { Buildings = sites.Buildings(document.Settlements.Select(s => s.Id)) };
             var map = await ReadActive<MapDefinition>(PackageFiles.Resolve(root, mapManifest.Definition));
             var effectiveMap = mapManifest.ApplyLayout(map, document, definitions);
             geography = San9.Content.Maps.MapGeographyCompiler.Resolve(mapManifest, effectiveMap, geography, document, definitions, officers, token);
@@ -94,7 +99,7 @@ public sealed class ScenarioEditorWorkspace
         document.Compile(definitions, officers.Officers, geography);
         var text = await Read<StaticTextContent>(PackageFiles.Resolve(root, manifest.Text));
         var catalogText = new TextCatalog(text.SchemaVersion, text.Entries) { MessagePeople = text.MessagePeople, MessageTags = text.MessageTags };
-        return new(scenarioPath, manifestPath, manifest, document, shared, catalogText, inputs) { _map = authoredMap };
+        return new(scenarioPath, manifestPath, manifest, document, shared, catalogText, inputs) { _map = authoredMap, _sites = sites };
     }
 
     public string OfficerName(int id)
@@ -130,6 +135,9 @@ public sealed class ScenarioEditorWorkspace
 
     public void Update(ScenarioDocument document)
     {
+        if (_sites is not null && document.UnbuiltPlaces.Any(p => !_sites.Sites.TryGetValue(p.Id, out var site) ||
+            MapCoordinates.Center(site.Cell) != p.Position))
+            throw new InvalidDataException("地点位置由共享地图定义。");
         ContentStructure.Validate(document);
         if (document.SchemaVersion != ScenarioDocument.CurrentSchemaVersion || document.ScenarioId != _opened.ScenarioId)
             throw new InvalidDataException("剧本身份与格式版本不能修改。");
@@ -143,10 +151,10 @@ public sealed class ScenarioEditorWorkspace
 
     public void SetDescription(string title, string description) => Preview = Preview with { Title = title, Description = description };
     public void RestoreOpened() { Document = _opened; Preview = _openedPreview; }
-    public string ExportJson() => JsonSerializer.Serialize(Document, new JsonSerializerOptions(ScenarioContentFiles.DataJsonOptions) { WriteIndented = true });
+    public string ExportJson() => JsonSerializer.Serialize(_sites is null ? (object)Document : SharedMapSites.StateOnly(Document), new JsonSerializerOptions(ScenarioContentFiles.DataJsonOptions) { WriteIndented = true });
     public void ApplyJson(string json)
     {
-        var document = JsonSerializer.Deserialize<ScenarioDocument>(json,
+        var document = _sites is not null ? _sites.Resolve<ScenarioDocument>(JsonSerializer.Deserialize<JsonElement>(json)) : JsonSerializer.Deserialize<ScenarioDocument>(json,
             new JsonSerializerOptions(ScenarioContentFiles.DataJsonOptions) { UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow })
             ?? throw new InvalidDataException("剧本数据不能为空。");
         Validate(document);
@@ -194,7 +202,7 @@ public sealed class ScenarioEditorWorkspace
                     throw new InvalidDataException("内容已被其他操作修改，请重新打开编辑器。当前草稿已保留。");
             }
             var published = await ScenarioDataFiles.WritePlayerDocumentsAsync([
-                new(PlayerScenarioPath, document, _inputs[PlayerScenarioPath]),
+                new(PlayerScenarioPath, _sites is null ? (object)document : SharedMapSites.StateOnly(document), _inputs[PlayerScenarioPath]),
                 new(PlayerManifestPath, _manifest with { Preview = preview }, _inputs[PlayerManifestPath])], token);
             _inputs[PlayerScenarioPath] = published[PlayerScenarioPath];
             _inputs[PlayerManifestPath] = published[PlayerManifestPath];

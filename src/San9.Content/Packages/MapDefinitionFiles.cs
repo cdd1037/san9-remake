@@ -8,13 +8,6 @@ public sealed record ScenarioMapManifest(string Definition, MapBuildingPlacement
 {
     public string? GeographyInputHash { get; init; }
 
-    public ScenarioMapManifest WithPositions(ScenarioDocument scenario)
-    {
-        var settlements = scenario.Settlements.ToDictionary(s => s.Id);
-        return this with { Buildings = Buildings.Select(b => settlements.TryGetValue(b.Id, out var s)
-            ? b with { X = s.X, Y = s.Y } : b).ToArray() };
-    }
-
     public MapDefinition ApplyLayout(MapDefinition map, ScenarioDocument scenario, ScenarioDefinitions definitions)
     {
         var layout = map;
@@ -30,15 +23,20 @@ public sealed record ScenarioMapManifest(string Definition, MapBuildingPlacement
             layout.Cells[index] = layout.Cells[index] with { RegionId = site.Id };
         }
 
-        var shores = map.BlockingDefaults.HarborAccessTerrainIds.ToHashSet();
-        var selected = Enumerable.Range(0, map.Cells.Length).Where(i =>
-            shores.Contains(map.Cells[i].Terrain) || map.Cells[i].InfluenceSource == BlockingSource.TerrainRule).ToArray();
-        if (selected.Length == 0 && !map.Cells.Any(c => c.MovementSource == BlockingSource.TerrainRule)) return layout;
         var types = (scenario.DefinitionOverrides.Apply(definitions).Military?.Facilities ?? [])
             .Where(f => f.IsHarbor).Select(f => f.Id).ToHashSet();
         var ports = scenario.MilitaryPlaces.Where(p => p.FacilityTypeId is int type && types.Contains(type))
             .Select(p => MapCoordinates.Cell(p.Position));
-        return layout with { Cells = MapBlockingGenerator.Generate(layout, ports, selected, resolveLayout: true) };
+        return ResolveBlocking(layout, ports);
+    }
+
+    public static MapDefinition ResolveBlocking(MapDefinition map, IEnumerable<MapCell> ports)
+    {
+        var shores = map.BlockingDefaults.HarborAccessTerrainIds.ToHashSet();
+        var selected = Enumerable.Range(0, map.Cells.Length).Where(i =>
+            shores.Contains(map.Cells[i].Terrain) || map.Cells[i].InfluenceSource == BlockingSource.TerrainRule).ToArray();
+        if (selected.Length == 0 && !map.Cells.Any(c => c.MovementSource == BlockingSource.TerrainRule)) return map;
+        return map with { Cells = MapBlockingGenerator.Generate(map, ports, selected, resolveLayout: true) };
     }
 
 }

@@ -78,7 +78,10 @@ public sealed partial class SharedDataEditorWorkspace
         foreach (var entry in catalog.Scenarios)
         {
             string package = PackageFiles.Resolve(contentRoot, entry.Package);
-            var manifest = await files.ReadAsync<ScenarioContentManifest>(PlayerDefinitionFiles.ActivePath(Path.Combine(package, "content.json")), token);
+            string manifestPath = Path.Combine(package, "content.json"), active = PlayerDefinitionFiles.ActivePath(manifestPath);
+            var manifest = await files.ReadAsync<ScenarioContentManifest>(active, token);
+            if (active != manifestPath && manifest.Locations is null)
+                manifest = manifest with { Locations = (await files.ReadAsync<ScenarioContentManifest>(manifestPath, token)).Locations };
             if (manifest.SchemaVersion != ScenarioContent.CurrentSchemaVersion)
                 throw new InvalidDataException("内容包版本不符，请先重建世界内容。");
             entries.Add(new(entry.Id, ScenarioContentFiles.ResolveResourceRoot(package, manifest.ResourceRoot), manifest));
@@ -142,7 +145,7 @@ public sealed partial class SharedDataEditorWorkspace
             token.ThrowIfCancellationRequested();
             try
             {
-                var document = await files.ReadAsync<ScenarioDocument>(PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(entry.Root, entry.Manifest.Scenario)), token);
+                var document = await files.ReadScenarioAsync(entry.Root, entry.Manifest, token);
                 string officersPath = PackageFiles.Resolve(entry.Root, entry.Manifest.OfficerDefaults);
                 var officers = officersPath.Equals(OfficerPath, StringComparison.OrdinalIgnoreCase) ? OfficerCatalog
                     : await files.ReadAsync<OfficerDefaultsCatalog>(PlayerDefinitionFiles.ActivePath(officersPath), token);
@@ -155,6 +158,11 @@ public sealed partial class SharedDataEditorWorkspace
                 {
                     var mapManifest = await files.ReadAsync<ScenarioMapManifest>(PackageFiles.Resolve(entry.Root, entry.Manifest.Map), token);
                     var map = await files.ReadAsync<MapDefinition>(PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(entry.Root, mapManifest.Definition)), token);
+                    if (entry.Manifest.Locations is { } locationPath)
+                    {
+                        var sites = await files.ReadAsync<SharedMapSites>(PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(entry.Root, locationPath)), token);
+                        mapManifest = mapManifest with { Buildings = sites.Buildings(document.Settlements.Select(s => s.Id)) };
+                    }
                     map = mapManifest.ApplyLayout(map, document, definitions);
                     geography = San9.Content.Maps.MapGeographyCompiler.Resolve(mapManifest, map, geography, document, definitions, officers, token);
                 }
@@ -275,6 +283,14 @@ public sealed partial class SharedDataEditorWorkspace
             ContentStructure.Validate(value);
             entry.Values.Add(typeof(T), value);
             return value;
+        }
+
+        public async Task<ScenarioDocument> ReadScenarioAsync(string root, ScenarioContentManifest manifest, CancellationToken token)
+        {
+            var path = PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(root, manifest.Scenario));
+            if (manifest.Locations is null) return await ReadAsync<ScenarioDocument>(path, token);
+            var sites = await ReadAsync<SharedMapSites>(PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(root, manifest.Locations)), token);
+            return sites.Resolve<ScenarioDocument>(await ReadAsync<JsonElement>(path, token));
         }
 
         public Dictionary<string, byte[]> Snapshots() => _entries.ToDictionary(e => e.Key, e => e.Value.Bytes, StringComparer.OrdinalIgnoreCase);

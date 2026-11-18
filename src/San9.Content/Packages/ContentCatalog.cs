@@ -10,6 +10,7 @@ public sealed record ContentCatalog(int SchemaVersion, string Textures, string O
     ScenarioCatalogEntry[] Scenarios)
 {
     public const int CurrentSchemaVersion = 6;
+    public SharedMapReference? SharedMap { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public string OfficerFlags { get; init; } = null!;
     [System.Text.Json.Serialization.JsonRequired] public string Definitions { get; init; } = null!;
     [System.Text.Json.Serialization.JsonRequired] public string OfficerDefaults { get; init; } = null!;

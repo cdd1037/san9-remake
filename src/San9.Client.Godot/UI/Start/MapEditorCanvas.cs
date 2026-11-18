@@ -11,7 +11,7 @@ namespace San9.Client.Godot;
 /// <summary>Versioned editor preview. Terrain pixels, object layers and picking commit together.</summary>
 public partial class MapEditorCanvas : Control
 {
-    private sealed record Prepared(long Revision, string Season, MapPackage Map, TerrainRenderer Renderer, MapSurface Surface, MapSprite[] Objects,
+    private sealed record Prepared(long Revision, string Season, MapPackage Map, MapBuildingPlacement[] Sites, TerrainRenderer Renderer, MapSurface Surface, MapSprite[] Objects,
         Dictionary<string, PngImage> Common, Dictionary<int, PngImage> Land);
     private sealed record Frame(Prepared Source, Rect2 Coverage, bool Buildings, bool Regions,
         TerrainChunkCache<ImageTexture>.Lease Terrain, TextureScope Objects, MapSprite[] Sprites, MapSprite[] Borders) : IDisposable
@@ -137,21 +137,20 @@ public partial class MapEditorCanvas : Control
         if (_loading is null && (_prepared?.Revision != Workspace.Revision || _prepared.Season != Season) &&
             (_failedRevision != Workspace.Revision || _failedSeason != Season))
         {
-            var map = Workspace.Snapshot(); var buildings = Workspace.Buildings; var scenario = Workspace.PreviewScenario();
+            var map = Workspace.Snapshot(); var buildings = Workspace.Buildings;
             long revision = Workspace.Revision; string season = Season;
             var prior = _prepared; var token = _lifetime.Token; var geography = Workspace.Geography;
             _loading = Task.Run(() =>
             {
-                var display = MapLayoutCompiler.Compile(map, buildings, Resources.Map,
-                    scenario with { RegionCityIds = geography.RegionCityIds });
+                var display = MapLayoutCompiler.Compile(map, buildings.Where(b => b.FixedType >= 0).ToArray(), Resources.Map, null, geography.RegionCityIds);
                 token.ThrowIfCancellationRequested();
                 var common = prior?.Common ?? ClientImageFiles.Load(Workspace.TextureRoot,
                     display.Assets.Where(a => display.Masks.Any(m => m.WeightAsset == a.Id || m.CoverageAsset == a.Id) || a.Id == "cloud-fill"), token);
                 var land = prior?.Season == season ? prior.Land : ClientImageFiles.Load(Workspace.TextureRoot,
                     display.Seasons.Single(s => s.Id == season).Textures, token).ToDictionary(p => int.Parse(p.Key), p => p.Value);
-                var visuals = BuildingVisuals.Resolve(display, scenario.Settlements.Select(s =>
-                    new BuildingVisualState(s.Id, s.Durability, s.Appearance, Math.Max(s.Commerce, s.Cultivation), 0, 0, -1)).ToArray());
-                return new Prepared(revision, season, display, new(display, common, land), new(display.Width, display.Height, display.Squares),
+                var visuals = BuildingVisuals.Resolve(display, display.Buildings.Select(b =>
+                    new BuildingVisualState(b.Id, display.BuildingTypes.Single(t => t.Id == b.FixedType).MaxDurability, 0, 0, 0, 0, -1)).ToArray());
+                return new Prepared(revision, season, display, buildings, new(display, common, land), new(display.Width, display.Height, display.Squares),
                     visuals.Buildings.SelectMany(b => b.Sprites).Concat(display.Bridges).OrderBy(s => s.Depth).ToArray(), common, land);
             }, token);
         }
@@ -317,7 +316,13 @@ public partial class MapEditorCanvas : Control
         }
         foreach (var sprite in frame.Sprites.Concat(frame.Borders))
             if (frame.Objects.TryGetReady(sprite.AssetId, this, out var texture)) DrawTexture(texture, new(sprite.X, sprite.Y));
-        if (SelectedBuilding is int selected && frame.Source.Map.Buildings.FirstOrDefault(b => b.Id == selected) is { } building)
+        if (ShowBuildings)
+            foreach (var site in frame.Source.Sites.Where(s => s.FixedType < 0))
+            {
+                var points = Diamond(new(site.X, site.Y), frame);
+                DrawCircle((points[0] + points[2]) / 2, 3 / frame.Zoom, new Color("c2ae82"));
+            }
+        if (SelectedBuilding is int selected && frame.Source.Sites.FirstOrDefault(b => b.Id == selected) is { } building)
         {
             var points = Diamond(new(building.X, building.Y), frame);
             DrawPolyline([.. points, points[0]], new Color("f6d488"), 3 / frame.Zoom);

@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Text.Json;
 using San9.Content.Interface;
 using San9.Content.Maps;
@@ -9,100 +8,74 @@ using San9.Core.Domain;
 
 namespace San9.Application.Authoring;
 
-/// <summary>Shared map and geography inputs and the selected scenario layout are edited in one transaction.</summary>
+/// <summary>One draft for shared terrain, geography and location definitions.</summary>
 public sealed class MapEditorWorkspace
 {
-    private sealed record Draft(MapDefinition Map, ScenarioDocument Scenario, ScenarioGeography Geography);
+    private sealed record Draft(MapDefinition Map, ScenarioGeography Geography, SharedMapSites Sites);
     private readonly List<Draft> _undo = [], _redo = [];
     private readonly Dictionary<string, byte[]?> _inputs = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private readonly string _catalogRoot;
-    private readonly ScenarioContentManifest _manifest;
-    private readonly ScenarioMapManifest _layout;
+    private readonly string _sitesPath;
     private readonly ScenarioGeography _geographyInput;
     private MapDefinition? _effectiveMap;
     private readonly ScenarioDefinitions _definitions;
-    private readonly OfficerDefaultsCatalog _officers;
-    private readonly string _manifestPath, _scenarioPath, _mapPath, _mapManifestPath, _geographyPath;
-    private readonly string _relativeMap;
+    private readonly string _mapPath, _geographyPath;
     private Draft _draft, _saved;
     private Draft? _stroke;
-    public MapDefinition Map => _effectiveMap ??= ActiveLayout.ApplyLayout(_draft.Map, Scenario, _definitions);
-    private ScenarioMapManifest ActiveLayout => _layout.WithPositions(Scenario);
-    public ScenarioDocument Scenario => _draft.Scenario;
+    public SharedMapSites Sites => _draft.Sites;
+    public MapDefinition Map => _effectiveMap ??= SharedSurface(Sites);
+    private MapDefinition SharedSurface(SharedMapSites sites)
+    {
+        var harborTypes = (_definitions.Military?.Facilities ?? []).Where(f => f.IsHarbor).Select(f => f.Id).ToHashSet();
+        var ports = sites.Sites.Values.Where(s => s.FacilityType is int t && harborTypes.Contains(t)).Select(s => s.Cell);
+        return ScenarioMapManifest.ResolveBlocking(_draft.Map, ports);
+    }
     public ScenarioGeography Geography => _draft.Geography;
     public TextCatalog Text { get; }
     public string TextureRoot { get; }
     public bool CanUndo => _undo.Count > 0;
     public bool CanRedo => _redo.Count > 0;
     public long Revision { get; private set; }
-    public bool HasMapChanges => !_draft.Map.Cells.AsSpan().SequenceEqual(_saved.Map.Cells) ||
+    public bool HasChanges => !Equals(Sites, _saved.Sites) || !_draft.Map.Cells.AsSpan().SequenceEqual(_saved.Map.Cells) ||
         !ReferenceEquals(_draft.Geography, _saved.Geography) && !ContentComparison.Equal(_draft.Geography.RegionCityIds, _saved.Geography.RegionCityIds);
-    public bool HasLayoutChanges => !ReferenceEquals(Scenario, _saved.Scenario) && !ContentComparison.Equal(Scenario, _saved.Scenario);
-    public bool HasChanges => HasMapChanges || HasLayoutChanges;
-    public MapBuildingPlacement[] Buildings => ActiveLayout.Buildings;
+    public MapBuildingPlacement[] Buildings => Sites.Buildings(Sites.Sites.Keys);
+    public string SiteName(int id) => Sites.Sites[id].Name;
+    public Footprint SiteFootprint(int id) => Sites.Sites[id].Footprint;
+    public IEnumerable<int> CityIds => Sites.Sites.Where(p => p.Value.IsCity).Select(p => p.Key);
 
-    private MapEditorWorkspace(string catalogRoot, string package, string root, ScenarioContentManifest manifest,
-        ScenarioMapManifest layout, MapDefinition map, ScenarioDocument scenario, SharedScenarioData shared,
-        ScenarioGeography geographyInput, TextCatalog text, Dictionary<string, byte[]?> inputs)
+    private MapEditorWorkspace(string root, ContentCatalog catalog, SharedMapReference reference, MapDefinition map,
+        SharedMapSites sites, ScenarioGeography geography, ScenarioDefinitions definitions, Dictionary<string, byte[]?> inputs)
     {
-        _catalogRoot = catalogRoot;
-        _manifest = manifest; _layout = layout; _definitions = shared.Definitions; _officers = shared.Officers;
-        _geographyInput = geographyInput;
-        _draft = _saved = new(map, scenario, shared.Geography);
-        Text = text; _inputs = inputs;
-        TextureRoot = Path.GetFullPath(Path.Combine(package, manifest.Textures.Path));
-        string relative = Path.GetRelativePath(root, package).Replace('\\', '/');
-        string prefix = relative == "." ? "" : relative + "/";
-        _relativeMap = prefix + "map.player.json";
-        _manifestPath = PlayerDefinitionFiles.PlayerPath(Path.Combine(package, "content.json"));
-        _scenarioPath = PlayerDefinitionFiles.PlayerPath(PackageFiles.Resolve(root, manifest.Scenario));
-        _mapPath = PlayerDefinitionFiles.PlayerPath(PackageFiles.Resolve(root, layout.Definition));
-        _mapManifestPath = PackageFiles.Resolve(root, _relativeMap);
-        _geographyPath = PlayerDefinitionFiles.PlayerPath(PackageFiles.Resolve(root, manifest.Geography));
+        _catalogRoot = root; _definitions = definitions;
+        _mapPath = PlayerDefinitionFiles.PlayerPath(PackageFiles.Resolve(root, reference.Definition));
+        _sitesPath = PlayerDefinitionFiles.PlayerPath(PackageFiles.Resolve(root, reference.Locations));
+        _geographyPath = PlayerDefinitionFiles.PlayerPath(PackageFiles.Resolve(root, reference.Geography));
+        _draft = _saved = new(map, geography, sites);
+        _geographyInput = geography; _inputs = inputs;
+        TextureRoot = PackageFiles.Resolve(root, catalog.Textures);
+        Text = new(TextCatalog.CurrentSchemaVersion, sites.Labels);
     }
 
-    public static async Task<MapEditorWorkspace> OpenAsync(string contentRoot, string scenarioId, CancellationToken token = default)
+    public static async Task<MapEditorWorkspace> OpenSharedAsync(string contentRoot, CancellationToken token = default)
     {
+        string root = Path.GetFullPath(contentRoot);
+        var catalog = await ContentCatalogFiles.LoadAsync(root, token);
+        var reference = catalog.SharedMap ?? throw new InvalidDataException("内容目录缺少共享地图入口，请重建剧本世界内容。");
         var inputs = new Dictionary<string, byte[]?>(StringComparer.OrdinalIgnoreCase);
-        async Task<T> Read<T>(string path, bool player = false)
+        async Task<T> Read<T>(string relative)
         {
-            if (player)
-            {
-                string candidate = PlayerDefinitionFiles.PlayerPath(path);
-                byte[]? active = await PlayerDefinitionFiles.ReadOptionalAsync(candidate, token);
-                inputs[candidate] = active;
-                if (active is not null) return Parse<T>(active);
-            }
-            byte[] bytes = await File.ReadAllBytesAsync(path, token); inputs[path] = bytes;
+            string path = PackageFiles.Resolve(root, relative), player = PlayerDefinitionFiles.PlayerPath(path);
+            var bytes = await PlayerDefinitionFiles.ReadOptionalAsync(player, token);
+            inputs[player] = bytes;
+            if (bytes is null) inputs[path] = bytes = await File.ReadAllBytesAsync(path, token);
             return Parse<T>(bytes);
         }
-        contentRoot = Path.GetFullPath(contentRoot);
-        var catalog = await Read<ContentCatalog>(Path.Combine(contentRoot, "catalog.json"));
-        ContentCatalogFiles.Validate(contentRoot, catalog);
-        string package = PackageFiles.Resolve(contentRoot, catalog.RequireScenario(scenarioId).Package);
-        var manifest = await Read<ScenarioContentManifest>(Path.Combine(package, "content.json"), true);
-        if (manifest.SchemaVersion != ScenarioContent.CurrentSchemaVersion || manifest.Preview?.Id != scenarioId)
-            throw new InvalidDataException("剧本身份或内容版本无效。");
-        string root = ScenarioContentFiles.ResolveResourceRoot(package, manifest.ResourceRoot);
-        var mapManifest = await Read<ScenarioMapManifest>(PackageFiles.Resolve(root, manifest.Map));
-        var map = await Read<MapDefinition>(PackageFiles.Resolve(root, mapManifest.Definition), true);
-        map.Validate();
-        var scenario = await Read<ScenarioDocument>(PackageFiles.Resolve(root, manifest.Scenario), true);
-        if (scenario.ScenarioId != scenarioId) throw new InvalidDataException("剧本身份与目录不一致。");
-        var definitions = await Read<ScenarioDefinitions>(PackageFiles.Resolve(root, manifest.Definitions), true);
-        var officers = await Read<OfficerDefaultsCatalog>(PackageFiles.Resolve(root, manifest.OfficerDefaults), true);
-        var geographyInput = await Read<ScenarioGeography>(PackageFiles.Resolve(root, manifest.Geography), true);
-        var geography = MapGeographyCompiler.Resolve(mapManifest, mapManifest.ApplyLayout(map, scenario, definitions), geographyInput, scenario, definitions, officers, token);
-        var text = await Read<StaticTextContent>(PackageFiles.Resolve(root, manifest.Text));
-        var shared = new SharedScenarioData(manifest.Definitions, manifest.OfficerDefaults, manifest.Geography, definitions, officers, geography);
-        shared.Validate();
-        var workspace = new MapEditorWorkspace(contentRoot, package, root, manifest, mapManifest, map, scenario,
-            shared, geographyInput, new(text.SchemaVersion, text.Entries) { MessagePeople = text.MessagePeople, MessageTags = text.MessageTags }, inputs);
-        foreach (string target in new[] { workspace._manifestPath, workspace._scenarioPath, workspace._mapPath,
-                     workspace._mapManifestPath, workspace._geographyPath })
-            if (!inputs.ContainsKey(target)) inputs[target] = await PlayerDefinitionFiles.ReadOptionalAsync(target, token);
-        return workspace;
+        var map = await Read<MapDefinition>(reference.Definition);
+        var sites = await Read<SharedMapSites>(reference.Locations);
+        map.Validate(); sites.Validate(map);
+        return new(root, catalog, reference, map, sites, await Read<ScenarioGeography>(reference.Geography),
+            await Read<ScenarioDefinitions>(catalog.Definitions), inputs);
     }
 
     private static T Parse<T>(byte[] bytes)
@@ -116,8 +89,7 @@ public sealed class MapEditorWorkspace
     public string RegionName(int id) => Geography.RegionNameKeys.TryGetValue(id, out string? key) ? Name(key) : $"地域 {id}";
     public string Name(string key) => Text.Entries.GetValueOrDefault(key, key);
     public MapDefinition Snapshot() => Map with { Cells = (MapCellDefinition[])Map.Cells.Clone() };
-    private static bool Equal(Draft a, Draft b) => a.Map.Cells.AsSpan().SequenceEqual(b.Map.Cells) &&
-        (ReferenceEquals(a.Scenario, b.Scenario) || ContentComparison.Equal(a.Scenario, b.Scenario)) &&
+    private static bool Equal(Draft a, Draft b) => Equals(a.Sites, b.Sites) && a.Map.Cells.AsSpan().SequenceEqual(b.Map.Cells) &&
         (ReferenceEquals(a.Geography, b.Geography) || ContentComparison.Equal(a.Geography, b.Geography));
 
     public void BeginStroke()
@@ -239,7 +211,7 @@ public sealed class MapEditorWorkspace
     public void SetRegionCity(int region, int city)
     {
         EndStroke();
-        if (!Geography.RegionNameKeys.ContainsKey(region) || !Scenario.Settlements.Any(s => s.Id == city && s.Kind == SettlementKind.City))
+        if (!Geography.RegionNameKeys.ContainsKey(region) || !CityIds.Contains(city))
             throw new InvalidDataException("地域或关联都市引用无效。");
         if (Geography.RegionCityIds.GetValueOrDefault(region, -1) == city) return;
         Record(_draft);
@@ -252,30 +224,17 @@ public sealed class MapEditorWorkspace
         EndStroke();
         if (target.X < 0 || target.Y < 0 || target.X >= Map.Width || target.Y >= Map.Height)
             throw new InvalidDataException("据点坐标超出地图。");
-        var settlement = Scenario.Settlements.Single(s => s.Id == id);
-        if (settlement.Cell == target) return;
-        var place = Scenario.MilitaryPlaces.Single(p => p.Id == id);
-        var position = MapCoordinates.Center(target);
-        var area = new MapOccupancy(position, place.Footprint);
-        int scale = MapCoordinates.UnitsPerCell;
-        if (area.Left < 0 || area.Top < 0 || area.Right > (long)Map.Width * scale || area.Bottom > (long)Map.Height * scale ||
-            Scenario.MilitaryPlaces.Where(p => p.Id != id).Any(p => area.Overlaps(new(p.Position, p.Footprint))) ||
-            Scenario.UnbuiltPlaces.Any(p => area.Contains(p.Position)))
-            throw new InvalidDataException("据点占地超出地图或与其他地点重叠。");
+        var site = Sites.Sites[id];
+        if (site.Cell == target) return;
+        var next = Sites with { Sites = new(Sites.Sites) { [id] = site with { Cell = target } } };
+        next.Validate(_draft.Map);
+        var cells = (MapCellDefinition[])_draft.Map.Cells.Clone();
+        int index = target.Y * _draft.Map.Width + target.X;
+        cells[index] = cells[index] with { RegionId = id };
         Record(_draft);
-        _draft = _draft with
-        {
-            Scenario = Scenario with
-            {
-                Settlements = Scenario.Settlements.Select(s => s.Id == id ? s with { X = target.X, Y = target.Y } : s).ToArray(),
-                MilitaryPlaces = Scenario.MilitaryPlaces.Select(p => p.Id == id ? p with { Position = position } : p).ToImmutableArray()
-            }
-        };
-        _effectiveMap = null;
-        Revision++;
+        _draft = _draft with { Sites = next, Map = _draft.Map with { Cells = cells } };
+        _effectiveMap = null; Revision++;
     }
-
-    public ScenarioInitialState PreviewScenario() => Scenario.Compile(_definitions, _officers.Officers, Geography);
 
     private void ValidateAnchors(MapDefinition map, ScenarioDocument scenario, MapDefinition? editedBase = null)
     {
@@ -292,7 +251,7 @@ public sealed class MapEditorWorkspace
         }
     }
 
-    private async Task ValidateOtherScenarios(Draft draft, bool mapChanged, bool geographyChanged, MapResources resources,
+    private async Task ValidateOtherScenarios(Draft draft, bool mapChanged, bool geographyChanged, bool sitesChanged, MapResources resources,
         Dictionary<string, byte[]?> dependencies, CancellationToken token)
     {
         async Task<T> Read<T>(string path, bool active = false)
@@ -307,19 +266,26 @@ public sealed class MapEditorWorkspace
             return await PackageFiles.ReadAsync<T>(path, token);
         }
         var catalog = await Read<ContentCatalog>(Path.Combine(_catalogRoot, "catalog.json"));
-        foreach (var entry in catalog.Scenarios.Where(e => e.Id != draft.Scenario.ScenarioId))
+        foreach (var entry in catalog.Scenarios)
         {
             try
             {
                 string package = PackageFiles.Resolve(_catalogRoot, entry.Package);
                 var manifest = await Read<ScenarioContentManifest>(Path.Combine(package, "content.json"), true);
+                if (manifest.Locations is null && dependencies[PlayerDefinitionFiles.PlayerPath(Path.Combine(package, "content.json"))] is not null)
+                    manifest = manifest with { Locations = (await Read<ScenarioContentManifest>(Path.Combine(package, "content.json"))).Locations };
                 string root = ScenarioContentFiles.ResolveResourceRoot(package, manifest.ResourceRoot);
                 string Resolve(string path) => PackageFiles.Resolve(root, path);
                 var layout = await Read<ScenarioMapManifest>(Resolve(manifest.Map));
                 bool sameMap = StringComparer.OrdinalIgnoreCase.Equals(_mapPath, PlayerDefinitionFiles.PlayerPath(Resolve(layout.Definition)));
                 bool sameGeography = StringComparer.OrdinalIgnoreCase.Equals(_geographyPath, PlayerDefinitionFiles.PlayerPath(Resolve(manifest.Geography)));
-                if (!(mapChanged && sameMap || geographyChanged && sameGeography)) continue;
-                var scenario = await Read<ScenarioDocument>(Resolve(manifest.Scenario), true);
+                bool sameSites = manifest.Locations is not null && StringComparer.OrdinalIgnoreCase.Equals(_sitesPath,
+                    PlayerDefinitionFiles.PlayerPath(Resolve(manifest.Locations)));
+                if (!(mapChanged && sameMap || geographyChanged && sameGeography || sitesChanged && sameSites)) continue;
+                var places = sameSites ? draft.Sites : manifest.Locations is null ? null : await Read<SharedMapSites>(Resolve(manifest.Locations), true);
+                var scenario = places is null ? await Read<ScenarioDocument>(Resolve(manifest.Scenario), true) :
+                    places.Resolve<ScenarioDocument>(await Read<JsonElement>(Resolve(manifest.Scenario), true));
+                if (places is not null) layout = layout with { Buildings = places.Buildings(scenario.Settlements.Select(s => s.Id)) };
                 var definitions = await Read<ScenarioDefinitions>(Resolve(manifest.Definitions), true);
                 var officers = await Read<OfficerDefaultsCatalog>(Resolve(manifest.OfficerDefaults), true);
                 var map = sameMap ? draft.Map : await Read<MapDefinition>(Resolve(layout.Definition), true);
@@ -342,23 +308,18 @@ public sealed class MapEditorWorkspace
         }
     }
 
-    public async Task<ScenarioPreviewEntry> SaveAsync(MapResources resources, CancellationToken token = default)
+    public async Task SaveAsync(MapResources resources, CancellationToken token = default)
     {
         EndStroke(); await _saveGate.WaitAsync(token);
         try
         {
             var draft = _draft;
-            var layout = _layout.WithPositions(draft.Scenario);
-            var effective = layout.ApplyLayout(draft.Map, draft.Scenario, _definitions);
-            var geography = await Task.Run(() => MapGeographyCompiler.Compile(effective, draft.Geography,
-                draft.Scenario, _definitions, _officers, token), token);
-            var scenario = draft.Scenario.Compile(_definitions, _officers.Officers, geography);
-            ValidateAnchors(effective, draft.Scenario, draft.Map);
-            var display = MapLayoutCompiler.Compile(effective, layout.Buildings, resources, scenario);
-            MapPackageFiles.Validate(display);
-            scenario.Validate();
-            _ = new ScenarioSessionDefinition(scenario).CreateWorld(0);
-            var preview = _manifest.Preview!;
+            draft.Sites.Validate(draft.Map);
+            foreach (var (id, site) in draft.Sites.Sites)
+                if (draft.Map.Cells[site.Cell.Y * draft.Map.Width + site.Cell.X].RegionId != id)
+                    throw new InvalidDataException($"地点 {id} 的锚点须属于同名地域。");
+            var buildings = draft.Sites.Buildings(draft.Sites.Sites.Keys).Where(b => b.FixedType >= 0).ToArray();
+            MapLayoutCompiler.Compile(Map, buildings, resources, null, draft.Geography.RegionCityIds);
             foreach (var (path, expected) in _inputs)
             {
                 byte[]? current = await PlayerDefinitionFiles.ReadOptionalAsync(path, token);
@@ -372,21 +333,15 @@ public sealed class MapEditorWorkspace
                 documents.Add(new(_mapPath, draft.Map, _inputs[_mapPath]));
             if (geographyChanged)
                 documents.Add(new(_geographyPath, _geographyInput with { RegionCityIds = draft.Geography.RegionCityIds }, _inputs[_geographyPath]));
-            if (!ContentComparison.Equal(draft.Scenario, _saved.Scenario))
-            {
-                documents.Add(new(_mapManifestPath, layout with { GeographyInputHash = null }, _inputs[_mapManifestPath]));
-                documents.Add(new(_scenarioPath, draft.Scenario, _inputs[_scenarioPath]));
-                if (_inputs[_manifestPath] is null || _manifest.Map != _relativeMap)
-                    documents.Add(new(_manifestPath, _manifest with { Map = _relativeMap }, _inputs[_manifestPath]));
-            }
+            bool sitesChanged = !Equals(draft.Sites, _saved.Sites);
+            if (sitesChanged) documents.Add(new(_sitesPath, draft.Sites, _inputs[_sitesPath]));
             var dependencies = _inputs.Where(p => p.Key.EndsWith(".player.json", StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(p => p.Key, p => p.Value, StringComparer.OrdinalIgnoreCase);
-            if (mapChanged || geographyChanged)
-                await ValidateOtherScenarios(draft, mapChanged, geographyChanged, resources, dependencies, token);
+            if (mapChanged || geographyChanged || sitesChanged)
+                await ValidateOtherScenarios(draft, mapChanged, geographyChanged, sitesChanged, resources, dependencies, token);
             var published = await ScenarioDataFiles.WritePlayerDocumentsAsync(documents, token, dependencies);
             foreach (var (path, bytes) in published) _inputs[path] = bytes;
             _saved = draft;
-            return preview;
         }
         finally { _saveGate.Release(); }
     }

@@ -12,6 +12,7 @@ public sealed record ScenarioContentManifest(int SchemaVersion,
     [System.Text.Json.Serialization.JsonRequired] public string Definitions { get; init; } = "definitions.json";
     [System.Text.Json.Serialization.JsonRequired] public string OfficerDefaults { get; init; } = "officer-defaults.json";
     [System.Text.Json.Serialization.JsonRequired] public string Geography { get; init; } = "geography.json";
+    public string? Locations { get; init; }
     public ScenarioPreviewEntry? Preview { get; init; }
     [System.Text.Json.Serialization.JsonRequired] public string ResourceRoot { get; init; } = ".";
     [System.Text.Json.Serialization.JsonRequired] public string Presentation { get; init; } = "presentation.json";
@@ -100,12 +101,19 @@ public static class ScenarioContentFiles
 
     /// <summary>Publishes shared inputs and rebuilt worlds together, preserving map and presentation resources.</summary>
     public static async Task WriteWorldsAsync(string resourceRoot, SharedScenarioData shared,
-        IReadOnlyList<(string Package, ScenarioInitialState Scenario, TextCatalog Text)> worlds, CancellationToken token = default)
+        IReadOnlyList<(string Package, ScenarioInitialState Scenario, TextCatalog Text)> worlds, CancellationToken token = default,
+        SharedMapReference? sharedMap = null, SharedMapSites? sites = null)
     {
         shared.Validate();
         resourceRoot = Path.GetFullPath(resourceRoot);
         using var publication = new ContentPublication();
         List<(string Path, ScenarioContentManifest Manifest)> manifests = [];
+        if (sharedMap is not null)
+        {
+            await publication.StageAsync(PackageFiles.Resolve(resourceRoot, sharedMap.Locations), sites ?? throw new ArgumentNullException(nameof(sites)), DataJsonOptions, token);
+            var catalog = await ContentCatalogFiles.LoadAsync(resourceRoot, token);
+            await publication.StageAsync(Path.Combine(resourceRoot, "catalog.json"), catalog with { SharedMap = sharedMap }, PackageFiles.JsonOptions, token);
+        }
         await ScenarioDataFiles.WriteSharedAsync(resourceRoot, shared, token, publication);
         foreach (var (package, scenario, texts) in worlds)
         {
@@ -122,7 +130,17 @@ public static class ScenarioContentFiles
                 throw new InvalidDataException("Rebuilt scenario uses a different publication root.");
             if (manifest.Preview is { } preview && (preview.Id != scenario.ScenarioId || preview.Year != scenario.Year || preview.Month != scenario.Month))
                 throw new InvalidDataException("Rebuilt world differs from scenario selection metadata.");
-            await publication.StageAsync(PackageFiles.Resolve(resourceRoot, manifest.Scenario), shared.Describe(scenario, texts), DataJsonOptions, token);
+            var state = shared.Describe(scenario, texts);
+            if (sharedMap is null)
+                await publication.StageAsync(PackageFiles.Resolve(resourceRoot, manifest.Scenario), state, DataJsonOptions, token);
+            else
+            {
+                manifest = manifest with { Locations = sharedMap.Locations };
+                await publication.StageAsync(PackageFiles.Resolve(resourceRoot, manifest.Scenario), SharedMapSites.StateOnly(state), DataJsonOptions, token);
+                var mapPath = PackageFiles.Resolve(resourceRoot, manifest.Map);
+                var map = await PackageFiles.ReadAsync<ScenarioMapManifest>(mapPath, token);
+                await publication.StageAsync(mapPath, map with { Buildings = [] }, DataJsonOptions, token);
+            }
             manifests.Add((Path.GetRelativePath(resourceRoot, Path.Combine(root, "content.json")),
                 manifest with { SchemaVersion = ScenarioContent.CurrentSchemaVersion }));
         }
@@ -153,6 +171,11 @@ public static class ScenarioContentFiles
         var manifest = document.Deserialize<ScenarioContentManifest>(PackageFiles.JsonOptions)
             ?? throw new InvalidDataException("Empty scenario manifest.");
         ContentStructure.Validate(manifest);
+        if (usePlayerManifest && manifest.Locations is null && !string.Equals(stream.Name, Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase))
+        {
+            var baseline = await ReadManifestAsync(root, token, usePlayerManifest: false);
+            manifest = manifest with { Locations = baseline.Locations };
+        }
         return manifest;
     }
 
@@ -230,7 +253,7 @@ public static class ScenarioContentFiles
     public static async Task WriteAsync(string root, ScenarioContent content, CancellationToken token = default,
         IReadOnlyDictionary<string, string>? messageGroups = null, string? resourceRoot = null,
         SharedMessageLibrary? sharedMessages = null, IReadOnlyCollection<string>? messageOverrides = null,
-        SharedMapDefinition? sharedMap = null, SharedScenarioData? sharedScenario = null, ContentPublication? publication = null)
+        SharedMapDefinition? sharedMap = null, SharedScenarioData? sharedScenario = null, ContentPublication? publication = null, string? locations = null)
     {
         using var own = publication is null ? new ContentPublication() : null;
         var batch = publication ?? own!;
@@ -273,7 +296,7 @@ public static class ScenarioContentFiles
             ownPrefix + "map.json", ownPrefix + "scenario.json", ownPrefix + "messages/text.json", messageFiles.Keys.ToArray(), ownPrefix + "illustrations.json")
             { Presentation = ownPrefix + "presentation.json", ResourceRoot = relativeRoot, Preview = content.Preview,
                 SharedMessages = sharedMessages?.Path, MessageOverrides = overrides.Order(StringComparer.Ordinal).ToArray(),
-                Definitions = scenarioData.DefinitionsPath, OfficerDefaults = scenarioData.OfficersPath, Geography = scenarioData.GeographyPath };
+                Locations = locations, Definitions = scenarioData.DefinitionsPath, OfficerDefaults = scenarioData.OfficersPath, Geography = scenarioData.GeographyPath };
         string manifestPath = Path.Combine(root, "content.json");
         string[] previousFiles = [];
         if (File.Exists(manifestPath))
@@ -316,7 +339,7 @@ public static class ScenarioContentFiles
             await batch.StageAsync(target, value, options, token);
         }
         if (sharedMap is null) await Stage(mapDefinitionPath, content.Map.Definition, DataJsonOptions);
-        await Stage(manifest.Map, new ScenarioMapManifest(mapDefinitionPath, content.Map.Buildings)
+        await Stage(manifest.Map, new ScenarioMapManifest(mapDefinitionPath, locations is null ? content.Map.Buildings : [])
         {
             GeographyInputHash = scenarioData.Geography.Military is null ? null :
                 San9.Content.Maps.MapGeographyCompiler.InputHash(content.Map.Definition, scenarioData.Geography, scenarioDocument, scenarioData.Definitions)
@@ -327,7 +350,8 @@ public static class ScenarioContentFiles
             await Stage(scenarioData.OfficersPath, scenarioData.Officers, DataJsonOptions);
             await Stage(scenarioData.GeographyPath, scenarioData.Geography, DataJsonOptions);
         }
-        await Stage(manifest.Scenario, scenarioDocument, DataJsonOptions);
+        if (locations is null) await Stage(manifest.Scenario, scenarioDocument, DataJsonOptions);
+        else await Stage(manifest.Scenario, SharedMapSites.StateOnly(scenarioDocument), DataJsonOptions);
         var ownedPeople = OfficerComposition.Profiles(scenarioDocument.Officers,
             [.. scenarioData.Officers.Officers, .. scenarioDocument.AdditionalOfficerDefaults]);
         var ownedKeys = ownedPeople.SelectMany(p => new[] { p.NameKey, p.CourtesyNameKey, p.BiographyKey,

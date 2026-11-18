@@ -42,15 +42,7 @@ public partial class MapEditor
         _title = new Label { Text = "地图编辑器", CustomMinimumSize = new(124, 0), MouseFilter = MouseFilterEnum.Pass };
         _title.AddThemeFontSizeOverride("font_size", 20);
         header.AddChild(_title);
-        _scenarios = new OptionButton { Name = "MapEditorScenarios", SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            CustomMinimumSize = new(160, 34), FitToLongestItem = false, ClipText = true,
-            TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis };
-        header.AddChild(_scenarios);
-        _scenarios.ItemSelected += index =>
-        {
-            _scenarios.Select(_selectedScenario);
-            if (!_busy && index != _selectedScenario) ContinueAfterChanges(() => _ = LoadScenario((int)index));
-        };
+        header.AddChild(new Label { Text = "共享地图", SizeFlagsHorizontal = SizeFlags.ExpandFill });
         _undo = ContentEditorControls.ActionButton(header, "撤销", () => History(false));
         _undo.TooltipText = "Ctrl+Z";
         _redo = ContentEditorControls.ActionButton(header, "重做", () => History(true));

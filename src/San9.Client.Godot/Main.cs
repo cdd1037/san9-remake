@@ -91,7 +91,7 @@ public partial class Main : Node
             if (options.MapEditor)
             {
                 GetWindow().Title = "San9R · 地图编辑器";
-                ui.AddChild(new MapEditor { ContentRoot = options.ContentRoot, ScenarioId = options.ScenarioId,
+                ui.AddChild(new MapEditor { ContentRoot = options.ContentRoot,
                     Closed = () => GetTree().Quit() });
                 return;
             }

@@ -133,14 +133,18 @@ public static class ScenarioDataFiles
     internal static async Task<(ScenarioInitialState Scenario, OfficerDefaults[] Profiles, MapInstance? Map)> LoadScenarioWithProfilesAsync(
         string resourceRoot, ScenarioContentManifest manifest, CancellationToken token, bool includeMap = false)
     {
-        var document = await PackageFiles.ReadAsync<ScenarioDocument>(
-            PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, manifest.Scenario)), token);
+        var sites = manifest.Locations is null ? null : await PackageFiles.ReadAsync<SharedMapSites>(
+            PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, manifest.Locations)), token);
+        string path = PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, manifest.Scenario));
+        var document = sites is null ? await PackageFiles.ReadAsync<ScenarioDocument>(path, token)
+            : sites.Resolve<ScenarioDocument>(await PackageFiles.ReadAsync<JsonElement>(path, token));
         var shared = await LoadAsync(resourceRoot, manifest, token, usePlayerDefinitions: true);
         var geography = shared.Geography;
         MapInstance? instance = null;
         if (includeMap || geography.Military is not null)
         {
             var mapManifest = await ReadAsync<ScenarioMapManifest>(resourceRoot, manifest.Map, token);
+            if (sites is not null) mapManifest = mapManifest with { Buildings = sites.Buildings(document.Settlements.Select(s => s.Id)) };
             var authored = await PackageFiles.ReadAsync<MapDefinition>(PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, mapManifest.Definition)), token);
             if (authored.SchemaVersion != MapDefinition.CurrentSchemaVersion)
                 throw new InvalidDataException("Unsupported map definition version; reconvert the package.");
@@ -161,8 +165,7 @@ public static class ScenarioDataFiles
     internal static async Task<(ScenarioSelectionState Scenario, OfficerDefaults[] Profiles)> LoadSelectionWithProfilesAsync(
         string resourceRoot, ScenarioContentManifest manifest, CancellationToken token)
     {
-        var document = await PackageFiles.ReadAsync<SelectionDocument>(
-            PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, manifest.Scenario)), token);
+        var document = await SharedMapSites.ReadScenarioAsync<SelectionDocument>(resourceRoot, manifest, token, includeMilitary: false);
         var definitions = await PackageFiles.ReadAsync<SelectionDefinitions>(
             PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, manifest.Definitions)), token);
         var officers = await PackageFiles.ReadAsync<OfficerDefaultsCatalog>(

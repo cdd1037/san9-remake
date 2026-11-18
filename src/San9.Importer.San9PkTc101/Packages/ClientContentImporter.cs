@@ -30,7 +30,7 @@ public static class ClientContentImporter
         var scenario = content.Scenario;
         await ScenarioContentFiles.WriteAsync(output, content, token, PublicationMessageCatalog.Groups,
             resourceRoot: shared?.Root ?? output, sharedMessages: shared?.Messages, sharedMap: shared?.Map,
-            sharedScenario: shared?.Scenario, publication: publication);
+            sharedScenario: shared?.Scenario, publication: publication, locations: shared is null ? null : SharedPlaceImporter.Reference.Locations);
         publication.Retire(Path.Combine(output, "message-id-map.json"));
         if (messageReports)
         {

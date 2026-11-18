@@ -32,7 +32,7 @@ public static class MapLayoutCompiler
             bridge(x - 1, y + 1) || bridge(x - 1, y - 3));
 
     public static MapPackage Compile(MapDefinition map, MapBuildingPlacement[] buildings,
-        MapResources resources, ScenarioInitialState scenario)
+        MapResources resources, ScenarioInitialState? scenario, IReadOnlyDictionary<int, int>? regionCities = null)
     {
         var squares = Squares(map);
         var styles = resources.TerrainStyles.ToDictionary(s => s.Id);
@@ -56,18 +56,18 @@ public static class MapLayoutCompiler
             return new MapAnimatedSprite($"water-{(x & 1) + 2 * (y & 1)}", center.X - 32, center.Y - 16, 0, -1);
         }).ToArray();
         var edges = Edges(map.Width, map.Height, squares, size.Height);
-        string season = scenario.Month switch
+        string season = (scenario?.Month ?? 1) switch
         {
             >= 1 and <= 3 => "spring", >= 4 and <= 6 => "summer",
             >= 7 and <= 9 => "autumn", >= 10 and <= 12 => "winter",
             _ => throw new InvalidDataException("Invalid map month.")
         };
-        return new(MapPackage.CurrentSchemaVersion, map.SourceBuild, scenario.ScenarioId, season,
+        return new(MapPackage.CurrentSchemaVersion, map.SourceBuild, scenario?.ScenarioId ?? "shared-map", season,
             map.Width, map.Height, size.Width, size.Height, squares, resources.Seasons, resources.Assets,
             resources.Masks, terrain, bridges, buildings, resources.Compositions,
-            Clouds(map, squares, buildings, resources, scenario), edges.Left, edges.Right, [],
-            new(resources.Clips, water), Boundaries(map.Width, map.Height, squares, scenario.RegionCityIds))
-        { Authoring = map, Units = resources.Units.BindFormations(scenario.Information.Formations),
+            scenario is null ? [] : Clouds(map, squares, buildings, resources, scenario), edges.Left, edges.Right, [],
+            new(resources.Clips, water), Boundaries(map.Width, map.Height, squares, regionCities ?? scenario!.RegionCityIds))
+        { Authoring = map, Units = scenario is null ? resources.Units : resources.Units.BindFormations(scenario.Information.Formations),
             BuildingTypes = map.BuildingTypes, MinimapColors = resources.MinimapColors };
     }
 

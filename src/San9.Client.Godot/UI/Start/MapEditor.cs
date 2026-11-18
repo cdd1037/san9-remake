@@ -10,23 +10,19 @@ namespace San9.Client.Godot;
 public partial class MapEditor : ModalView
 {
     public string ContentRoot { get; init; } = "";
-    public string? ScenarioId { get; init; }
     public Action Closed { get; init; } = null!;
-    public Action<ScenarioPreviewEntry>? Published { get; init; }
     private readonly CancellationTokenSource _lifetime = new();
     private MapEditorWorkspace? _workspace;
     private TexturePackage? _resources;
     private MapEditorCanvas? _canvas;
-    private ScenarioPreviewEntry[] _entries = [];
     private Dictionary<int, TerrainStyle> _styles = [];
     private Dictionary<int, MapTerrainPalette> _palettes = [];
     private bool _exactTerrain, _moreTerrain;
-    private OptionButton _scenarios = null!;
     private VBoxContainer _properties = null!;
     private Label _status = null!, _position = null!, _title = null!;
     private Button _save = null!, _undo = null!, _redo = null!, _close = null!;
     private bool _busy, _previousAutoQuit;
-    private int _selectedScenario, _tool, _terrain, _height = 1, _variant, _radius, _region, _bridge = -1;
+    private int _tool, _terrain, _height = 1, _variant, _radius, _region, _bridge = -1;
     private int? _selectedBuilding;
     private bool _paintTerrain = true, _paintHeight = true, _paintVariant = true, _hideName, _movementBlocked, _influenceBlocked;
     private ConstructionSurface _construction = ConstructionSurface.General;
@@ -43,27 +39,10 @@ public partial class MapEditor : ModalView
 
     private async void LoadCatalog()
     {
-        Busy(true); Status("正在读取剧本目录…");
+        Busy(true); Status("正在读取共享地图…");
         try
         {
-            var catalog = await ContentCatalogFiles.LoadAsync(ContentRoot, _lifetime.Token);
-            _entries = await ContentCatalogFiles.LoadPreviewsAsync(ContentRoot, catalog, _lifetime.Token);
-            foreach (var entry in _entries) _scenarios.AddItem($"{entry.Year}年　{entry.Title}　[{entry.Id}]");
-            int index = ScenarioId is null ? 0 : Array.FindIndex(_entries, e => e.Id == ScenarioId);
-            if (index < 0) throw new InvalidDataException("找不到指定剧本。");
-            await LoadScenario(index);
-        }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (Exception error) { if (!_lifetime.IsCancellationRequested) Status("读取失败：" + error.Message, true); }
-        finally { if (!_lifetime.IsCancellationRequested) Busy(false); }
-    }
-
-    private async Task LoadScenario(int index)
-    {
-        Busy(true); Status("正在读取地图与素材…");
-        try
-        {
-            var workspace = await Task.Run(() => MapEditorWorkspace.OpenAsync(ContentRoot, _entries[index].Id, _lifetime.Token), _lifetime.Token);
+            var workspace = await Task.Run(() => MapEditorWorkspace.OpenSharedAsync(ContentRoot, _lifetime.Token), _lifetime.Token);
             var resources = await Task.Run(() => TexturePackageFiles.LoadAsync(workspace.TextureRoot, _lifetime.Token), _lifetime.Token);
             _lifetime.Token.ThrowIfCancellationRequested();
             _canvas?.QueueFree();
@@ -72,7 +51,7 @@ public partial class MapEditor : ModalView
             _palettes = _styles.ToDictionary(p => p.Key, p => new MapTerrainPalette(p.Value, resources.SourceBuild));
             _exactTerrain = _moreTerrain = false;
             _paintTerrain = _paintHeight = _paintVariant = true;
-            _selectedScenario = index; _scenarios.Select(index); _selectedBuilding = workspace.Buildings.FirstOrDefault()?.Id;
+            _selectedBuilding = workspace.Buildings.FirstOrDefault()?.Id;
             var first = workspace.Map.Cells[0]; _terrain = first.Terrain; _height = first.Elevation; _variant = first.TextureVariant;
             _region = workspace.Geography.RegionNameKeys.Keys.Order().First();
             _canvas = new MapEditorCanvas { Name = "MapEditorCanvas", Workspace = workspace, Resources = resources,
@@ -85,10 +64,10 @@ public partial class MapEditor : ModalView
                 Released = FinishStroke, Hovered = Hover, Failed = message => Status("预览失败：" + message, true) };
             _mapArea.AddChild(_canvas);
             Hover(null);
-            BuildProperties(); Refresh(); Status("地图修改用于引用这张地图的剧本；据点位置仅用于当前剧本。");
+            BuildProperties(); Refresh(); Status("正在编辑共享地图。地点移动后，引用它的所有剧本在新局使用新位置。");
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (Exception error) { if (!_lifetime.IsCancellationRequested) { _scenarios.Select(_selectedScenario); Status("读取失败：" + error.Message, true); } }
+        catch (Exception error) { if (!_lifetime.IsCancellationRequested) { Status("读取失败：" + error.Message, true); } }
         finally { if (!_lifetime.IsCancellationRequested) Busy(false); }
     }
 
@@ -98,7 +77,7 @@ public partial class MapEditor : ModalView
         if (_workspace is null) return;
         _canvas!.BrushRadius = _tool == 5 ? 0 : _radius;
         _brushControls.Visible = _tool != 5;
-        _propertyTitle.Text = _tool == 5 ? "本剧本 · 据点布局" : $"地图 · {ToolNames[_tool]}";
+        _propertyTitle.Text = _tool == 5 ? "共享地图 · 地点位置" : $"地图 · {ToolNames[_tool]}";
         switch (_tool)
         {
             case 0: TerrainProperties(); break;
@@ -210,8 +189,8 @@ public partial class MapEditor : ModalView
             id => { _region = id; BuildProperties(); }, "MapEditorRegion", "按名称或 ID 搜索地域。");
         ContentEditorControls.Toggle(_properties, "隐藏地域名称", _hideName, value => _hideName = value);
         if (_region < 0) return;
-        var cities = _workspace.Scenario.Settlements.Where(s => s.Kind == SettlementKind.City).ToArray();
-        SearchableReferenceField.Add(_properties, "关联都市", cities.Select(s => ($"{_workspace.Name(s.NameKey)} [{s.Id}]", s.Id)).ToArray(),
+        var cities = _workspace.CityIds;
+        SearchableReferenceField.Add(_properties, "关联都市", cities.Select(id => ($"{_workspace.SiteName(id)} [{id}]", id)).ToArray(),
             _workspace.Geography.RegionCityIds.GetValueOrDefault(_region, -1),
             id => { _workspace.SetRegionCity(_region, id); Refresh(); }, "MapEditorRegionCity",
             "按名称或 ID 搜索都市。", "未关联都市", keepFirstVisible: false);
@@ -223,7 +202,7 @@ public partial class MapEditor : ModalView
     {
         var buildings = _workspace!.Buildings;
         var candidates = buildings.Select(b =>
-            ($"{_workspace.Name(_workspace.Scenario.Settlements.Single(s => s.Id == b.Id).NameKey)} [{b.Id}]", (int?)b.Id)).ToArray();
+            ($"{_workspace.SiteName(b.Id)} [{b.Id}]", (int?)b.Id)).ToArray();
         SearchableReferenceField.Add(_properties, "据点", candidates, _selectedBuilding, id =>
         {
             var building = buildings.Single(b => b.Id == id);
@@ -238,7 +217,7 @@ public partial class MapEditor : ModalView
         coordinates.AddChild(new Label { Text = "Y" });
         ContentEditorControls.NumericInput(coordinates, y, 0, _workspace.Map.Height - 1, value => y = (int)value).CustomMinimumSize = new(84, 34);
         ContentEditorControls.ActionButton(_properties, "应用位置", () => MoveBuilding(new(x, y)));
-        var shape = _workspace.Scenario.MilitaryPlaces.Single(p => p.Id == id).Footprint;
+        var shape = _workspace.SiteFootprint(id);
         _properties.AddChild(new Label { Text = $"占地 {shape.Width} × {shape.Height} 精细单位\n从据点所在格拖到目标格后松开，或输入坐标应用位置。",
             AutowrapMode = TextServer.AutowrapMode.WordSmart });
     }
@@ -346,8 +325,8 @@ public partial class MapEditor : ModalView
         FinishStroke(); Busy(true); Status("正在校验地图、重建领域地理并保存…");
         try
         {
-            var preview = await Task.Run(() => _workspace.SaveAsync(_resources.Map, _lifetime.Token), _lifetime.Token);
-            _lifetime.Token.ThrowIfCancellationRequested(); Published?.Invoke(preview);
+            await Task.Run(() => _workspace.SaveAsync(_resources.Map, _lifetime.Token), _lifetime.Token);
+            _lifetime.Token.ThrowIfCancellationRequested();
             Status("修改已保存，重新开局后生效。"); return true;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { return false; }
@@ -358,13 +337,10 @@ public partial class MapEditor : ModalView
     private void Refresh()
     {
         if (_workspace is null) return;
-        bool mapChanged = _workspace.HasMapChanges, layoutChanged = _workspace.HasLayoutChanges;
-        _save.Text = (mapChanged, layoutChanged) switch
-        {
-            (true, true) => "保存地图和布局", (true, false) => "保存地图", (false, true) => "保存本剧本布局", _ => "保存"
-        };
-        _title.Text = mapChanged || layoutChanged ? "地图编辑器 *" : "地图编辑器";
-        _title.TooltipText = mapChanged || layoutChanged ? "有未保存的修改" : "当前修改已保存";
+        bool changed = _workspace.HasChanges;
+        _save.Text = "保存共享地图";
+        _title.Text = changed ? "地图编辑器 *" : "地图编辑器";
+        _title.TooltipText = changed ? "有未保存的修改" : "当前修改已保存";
         _mapSize.Text = $"{_workspace.Map.Width} × {_workspace.Map.Height}";
         _undo.Disabled = _busy || !_workspace.CanUndo; _redo.Disabled = _busy || !_workspace.CanRedo;
     }
@@ -372,7 +348,6 @@ public partial class MapEditor : ModalView
     private void Busy(bool busy)
     {
         _busy = busy; _save.Disabled = busy || _workspace is null; _close.Disabled = busy;
-        _scenarios.Disabled = busy;
         foreach (var button in _toolButtons) button.Disabled = busy;
         _brushSize.Editable = !busy;
         _properties.MouseBehaviorRecursive = _viewControls.MouseBehaviorRecursive =

@@ -113,7 +113,8 @@ internal static class SessionValidation
         // so validate its surviving owner rather than requiring the initial corps identity.
         Same(content.Information.Corps.Where(c => c.IsRoot && snapshot.World.Forces.Any(f => f.Id == c.OwnerId && !f.IsEliminated)).Select(c => c.OwnerId).Union(addedForces.Where(id => snapshot.World.Forces.Any(f => f.Id == id && !f.IsEliminated))).Concat(generated.Where(f => !f.IsEliminated).Select(f => f.Id)),
             snapshot.World.Corps.Where(c => c.IsRoot).Select(c => c.OwnerId));
-        Same(content.Information.TreasureStates.Select(t => t.Id), snapshot.World.Treasures.Select(t => t.Id));
+        if (snapshot.World.Treasures.Any(t => t.RegionId is int region && !content.RegionNameKeys.ContainsKey(region)))
+            throw new ArgumentException("Unknown treasure region.");
         if (content.Information.Relations.Any(initial => !snapshot.World.Relations.Any(current =>
             current.FirstId == initial.FirstId && current.SecondId == initial.SecondId)))
             throw new ArgumentException("Missing initial relation identity.");

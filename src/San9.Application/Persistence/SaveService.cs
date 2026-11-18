@@ -4,7 +4,7 @@ using San9.Core.Simulation;
 
 namespace San9.Application.Persistence;
 
-public enum SaveFailure { InvalidFormat, UnsupportedVersion, InvalidState, IoFailure, NotStable }
+public enum SaveFailure { InvalidFormat, UnsupportedVersion, InvalidState, IoFailure, NotStable, MissingContent }
 public sealed class SaveException(SaveFailure failure, string message, Exception? inner = null) : Exception(message, inner)
 {
     public SaveFailure Failure { get; } = failure;
@@ -63,6 +63,8 @@ public static class SaveService
             session.ReportRulesVersion(envelope.RulesVersion);
             return session;
         }
+        catch (MissingTreasureDefinitionException error)
+        { throw new SaveException(SaveFailure.MissingContent, error.Message, error); }
         catch (Exception error) when (error is ArgumentException or InvalidOperationException or OverflowException or InvalidDataException)
         { throw new SaveException(SaveFailure.InvalidState, "Invalid authoritative session state.", error); }
     }

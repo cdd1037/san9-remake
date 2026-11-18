@@ -81,14 +81,14 @@ public sealed partial class SimulationEngine
             { Economy = economy, Personnel = personnel, Treasures = treasures, Governance = governance ?? new([]),
                 Military = military, Terminal = terminal, Politics = politics ?? PoliticalRulebook.Empty }) { }
 
-    private static WorldState ValidateContent(WorldState world, TreasureRulebook treasures, GovernanceRulebook? governance)
+    private static void ValidateContent(WorldSnapshot snapshot, SimulationRules rules)
     {
-        var snapshot = world.CreateSnapshot();
-        if (snapshot.Treasures.Any(t => !treasures.Items.ContainsKey(t.Id)) ||
-            treasures.Items.Values.Any(t => t.FavoredOwnerIds.Any(id => !snapshot.Officers.Any(o => o.Id == id))) ||
+        var governance = rules.Governance;
+        foreach (var treasure in snapshot.Treasures)
+            if (!rules.Treasures.Items.ContainsKey(treasure.Id)) throw new MissingTreasureDefinitionException(treasure.Id);
+        if (rules.Treasures.Items.Values.Any(t => t.FavoredOwnerIds.Any(id => !snapshot.Officers.Any(o => o.Id == id))) ||
             snapshot.Officers.Any(p => p.OfficeId is int id && (governance is null || !governance.Offices.ContainsKey(id))))
             throw new ArgumentException("Unknown ability source definition.");
-        return world;
     }
 
     public SimulationEngine(WorldState world, SimulationRules rules)
@@ -97,15 +97,16 @@ public sealed partial class SimulationEngine
         ArgumentNullException.ThrowIfNull(rules);
         ArgumentNullException.ThrowIfNull(rules.OfficerGrowth);
         rules.OfficerGrowth.Validate();
-        ValidateContent(world, rules.Treasures, rules.Governance);
-        rules.Terminal?.Validate(world.CreateSnapshot().Settlements.Where(s => s.Kind == SettlementKind.City).Select(s => s.Id).ToHashSet());
+        var snapshot = world.CreateSnapshot();
+        ValidateContent(snapshot, rules);
+        rules.Terminal?.Validate(snapshot.Settlements.Where(s => s.Kind == SettlementKind.City).Select(s => s.Id).ToHashSet());
         _world = world;
         _rules = rules;
-        MilitaryMovement.Validate(world.CreateSnapshot(), rules.Military);
+        MilitaryMovement.Validate(snapshot, rules.Military);
         rules.Economy.Validate();
-        rules.Economy.ImperialCourt.Validate(world.CreateSnapshot().Officers.Select(p => p.Id).ToHashSet());
+        rules.Economy.ImperialCourt.Validate(snapshot.Officers.Select(p => p.Id).ToHashSet());
         _pipeline = new(rules);
-        if (rules.Personnel.TacticCourses.Any(c => !world.CreateSnapshot().Settlements.Any(s => s.Id == c.Key && s.Kind == SettlementKind.City) ||
+        if (rules.Personnel.TacticCourses.Any(c => !snapshot.Settlements.Any(s => s.Id == c.Key && s.Kind == SettlementKind.City) ||
             rules.Military is null || !rules.Military.Tactics.TryGetValue(c.Value, out var tactic) || tactic.Category is not (>= 0 and <= 8)))
             throw new ArgumentException("Invalid tactic study course.");
         var initial = world.BeginMutation(rules.Abilities, rules.Economy);
@@ -133,7 +134,7 @@ public sealed partial class SimulationEngine
         }
         if (world.Simulation.Boundary == SimulationBoundary.New)
         {
-            InitialSnapshot = world.CreateSnapshot();
+            InitialSnapshot = snapshot;
             _world.EnterExecution();
             try
             {

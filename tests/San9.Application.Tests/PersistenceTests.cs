@@ -15,6 +15,41 @@ namespace San9.Application.Tests;
 public sealed class PersistenceTests : IDisposable
 {
     [Fact]
+    public void PlayerLoadKeepsSavedTreasuresWhenInitialPlacementsChange()
+    {
+        var definition = Fixture();
+        var savedTreasure = Assert.Single(definition.Information.TreasureStates);
+        byte[] bytes = SaveService.Encode(GameSession.Start(definition, 190));
+        var changed = definition with
+        {
+            Information = definition.Information with
+            {
+                Treasures = [.. definition.Information.Treasures, new(2, "new treasure", 0, 0, null)],
+                TreasureStates = [new(2, new OfficerTreasurePlacement(3))]
+            }
+        };
+
+        Assert.Equal(2, Assert.Single(GameSession.Start(changed, 190).Snapshot.Treasures).Id);
+        Assert.Equal(savedTreasure, Assert.Single(SaveService.Load(bytes, changed).Snapshot.Treasures));
+        Assert.Equal(savedTreasure, Assert.Single(SaveService.Decode(bytes, changed).Snapshot.Treasures));
+    }
+
+    [Fact]
+    public void PlayerLoadReportsTheMissingDefinitionOfASavedTreasure()
+    {
+        var definition = Fixture();
+        byte[] bytes = SaveService.Encode(GameSession.Start(definition, 190));
+        var changed = definition with
+        {
+            Information = definition.Information with { Treasures = [], TreasureStates = [] }
+        };
+
+        var error = Assert.Throws<SaveException>(() => SaveService.Load(bytes, changed));
+        Assert.Equal(SaveFailure.MissingContent, error.Failure);
+        Assert.Equal(1, Assert.IsType<MissingTreasureDefinitionException>(error.InnerException).TreasureId);
+    }
+
+    [Fact]
     public void UnorderedStateKeysSurviveSaveAndPlayerLoad()
     {
         var definition = Fixture();

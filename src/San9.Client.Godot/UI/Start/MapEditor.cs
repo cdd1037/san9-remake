@@ -187,13 +187,17 @@ public partial class MapEditor : ModalView
         var regions = ids.Select(id => ($"{_workspace.RegionName(id)} [{id}]", id)).Prepend(("无地域", -1)).ToArray();
         SearchableReferenceField.Add(_properties, "地域", regions, _region,
             id => { _region = id; BuildProperties(); }, "MapEditorRegion", "按名称或 ID 搜索地域。");
-        ContentEditorControls.Toggle(_properties, "隐藏地域名称", _hideName, value => _hideName = value);
+        if (_region >= 0)
+        {
+            SearchableReferenceField.Add(_properties, "关联都市", _workspace.CityIds.Select(id => ($"{_workspace.SiteName(id)} [{id}]", id)).ToArray(),
+                _workspace.Geography.RegionCityIds.GetValueOrDefault(_region, -1),
+                id => { _workspace.SetRegionCity(_region, id); Refresh(); }, "MapEditorRegionCity",
+                "按名称或 ID 搜索都市。", "未关联都市", keepFirstVisible: false);
+        }
+        ContentEditorControls.Choices(_properties, "涂刷后显示地域", ["显示", "隐藏"], _hideName ? 1 : 0,
+            index => _hideName = index == 1,
+            tooltip: "仅影响刷过的格子。隐藏后，游戏底栏显示横线，地图辖区不着色、不可点选。");
         if (_region < 0) return;
-        var cities = _workspace.CityIds;
-        SearchableReferenceField.Add(_properties, "关联都市", cities.Select(id => ($"{_workspace.SiteName(id)} [{id}]", id)).ToArray(),
-            _workspace.Geography.RegionCityIds.GetValueOrDefault(_region, -1),
-            id => { _workspace.SetRegionCity(_region, id); Refresh(); }, "MapEditorRegionCity",
-            "按名称或 ID 搜索都市。", "未关联都市", keepFirstVisible: false);
         var point = _workspace.Map.Cells.Select((c, i) => (c, i)).FirstOrDefault(p => p.c.RegionId == _region);
         if (point.c is not null) ContentEditorControls.ActionButton(_properties, "定位地域", () => _canvas!.Focus(new(point.i % _workspace.Map.Width, point.i / _workspace.Map.Width)));
     }

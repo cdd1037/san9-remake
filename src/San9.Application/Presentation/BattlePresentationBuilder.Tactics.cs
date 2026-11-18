@@ -357,7 +357,7 @@ internal sealed partial class BattlePresentationBuilder
             Add(role, definition.Messages[role], _cursor, BattleMessageChannel.MapSpeech, delay: 1);
             // Reports select their own responder, independently of the visible bubble.
             values["responder"] = ProgressMessageProducer.Person((effect == 0 ? occurrence.IntelligenceOfficerId : occurrence.ResistanceOfficerId) ?? Soldier);
-            values["damage"] = new(hit?.CalculatedSoldierLoss ?? hit?.SoldierLoss ?? 0);
+            values["damage"] = new(hit?.SoldierLoss ?? 0);
             string report = effect == 0 ? "failed-report" : effect < 10 ? "reduced-report" : "hit-report";
             if (definition.Messages.TryGetValue(report, out var message))
                 AddRecord(report, message, _cursor, target, target.ForceId);

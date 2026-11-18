@@ -855,11 +855,12 @@ public sealed class BattlePresentationTests
     }
 
     [Theory]
-    [InlineData(0, true, "failed-report")]
-    [InlineData(3, true, "reduced-report")]
-    [InlineData(3, false, null)]
-    [InlineData(10, true, "hit-report")]
-    public void IntelligenceReportsKeepTheirBranchAndNumbersSeparateFromMapEffects(int effect, bool reducedReport, string? expectedReport)
+    [InlineData(0, true, "failed-report", 0u)]
+    [InlineData(3, true, "reduced-report", 300u)]
+    [InlineData(3, false, null, 300u)]
+    [InlineData(10, true, "hit-report", 400u)]
+    [InlineData(10, true, "hit-report", 100u)]
+    public void IntelligenceReportsKeepOutcomeBranchesAndUseActualLossOnFullHit(int effect, bool reducedReport, string? expectedReport, uint soldierLoss)
     {
         var (session, texts, content, occurrence) = Fixture(false);
         var messages = content.Battle!.Tactics[99].Messages;
@@ -877,12 +878,12 @@ public sealed class BattlePresentationTests
             new TacticActivatedEvent(clock, 10, false, 20, false, 99, [new(3, 99)], false, effect) { Occurrence = occurrence },
             new IntelligenceEffectResolvedEvent(clock, new(10, false), 20, false, 99, effect) { ActorId = 3, Occurrence = occurrence }
         ];
-        if (effect > 0) facts.Add(new BattleDamageEvent(clock, 10, 20, null, 300, 0, 300, 0, 0)
+        if (effect > 0) facts.Add(new BattleDamageEvent(clock, 10, 20, null, soldierLoss, 0, soldierLoss, 0, 0)
         { TacticId = 99, Source = occurrence.Source, Target = occurrence.Target, CalculatedSoldierLoss = 200 });
         var plan = BattlePresentationPlan.Create(session.View, session.View, facts, session.Messages(texts), texts, content);
 
         Assert.Equal(effect > 0, plan.Visuals.Any(c => c.IsMapEffect));
-        if (effect > 0) Assert.Equal(-300, Assert.Single(plan.MapNumbers).Amount);
+        if (effect > 0) Assert.Equal(-(long)soldierLoss, Assert.Single(plan.MapNumbers).Amount);
         else Assert.Empty(plan.MapNumbers);
         var reports = plan.Records.Where(c => c.Record.Message.Key.EndsWith("-report", StringComparison.Ordinal)).ToArray();
         if (expectedReport is null) Assert.Empty(reports);
@@ -890,7 +891,7 @@ public sealed class BattlePresentationTests
         {
             var report = Assert.Single(reports);
             Assert.Equal(expectedReport, report.Record.Message.Key);
-            Assert.Equal(effect >= 10 ? "200" : texts.Resolve(session.View.MessageSpeaker(effect == 0 ? 21 : 22).NameKey), report.Record.Message.BbCode);
+            Assert.Equal(effect >= 10 ? soldierLoss.ToString() : texts.Resolve(session.View.MessageSpeaker(effect == 0 ? 21 : 22).NameKey), report.Record.Message.BbCode);
             Assert.Equal(MapCoordinates.Cell(occurrence.Target.Position!.Value), report.Record.Location);
             Assert.Equal(Assert.Single(plan.Messages, c => c.Channel == BattleMessageChannel.Dialogue).Id, report.AfterDialogueId);
         }

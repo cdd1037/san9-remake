@@ -31,7 +31,7 @@ public sealed partial class SharedDataEditorWorkspace
         var source = copyFrom is int original ? GetTreasure(original) : null;
         int id = await AllocateDefinitionIdentityAsync(DefinitionKind.Treasure, token);
         EnsureDefinitionDraft(draft, token);
-        var treasure = source is not null ? source with { Id = id, Name = source.Name + "副本" }
+        var treasure = source is not null ? source with { Id = id, Name = source.Name + "副本", DefaultPlacement = null }
             : new TreasureDefinition(id, "新宝物", 11, 0, null);
         Definitions = draft with
         {

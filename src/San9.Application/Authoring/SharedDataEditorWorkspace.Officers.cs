@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using San9.Core.Domain;
 using San9.Content.Packages;
 using San9.Content.Scenarios;
 
@@ -123,7 +124,11 @@ public sealed partial class SharedDataEditorWorkspace
             foreach (int id in title.Rule.PreferredBloodlineIds) yield return new(id, scope, "血缘偏好", title.Rule.Id, "国号");
         }
         foreach (var treasure in definitions.Information.Treasures)
+        {
+            if (treasure.DefaultPlacement is OfficerTreasurePlacement held)
+                yield return new(held.OfficerId, scope, "默认持有人", treasure.Id, "宝物");
             foreach (int id in treasure.FavoredOwnerIds) yield return new(id, scope, "持有人偏好", treasure.Id, "宝物");
+        }
         if (definitions.SunMarriage is { } marriage) yield return new(marriage.DonorBloodlineId, scope, "婚姻事件来源血缘");
         if (definitions.Military is { } military)
             foreach (var pair in military.LinkRules.Pairs)

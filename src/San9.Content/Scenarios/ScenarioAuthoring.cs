@@ -140,7 +140,7 @@ public sealed record ScenarioDefinitionsOverrides
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ContentOverride<ImperialCourtDefinition>? ImperialCourt { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ContentOverride<InformationCatalog>? Information { get; init; }
+    public ContentOverride<ScenarioInformationCatalog>? Information { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ContentOverride<MilitaryRulesDefinition?>? Military { get; init; }
 
@@ -171,7 +171,7 @@ public sealed record ScenarioDefinitionsOverrides
         DomesticPairs = DomesticPairs is { } changeDomesticPairs ? changeDomesticPairs.Value : defaults.DomesticPairs,
         ImperialSealId = ImperialSealId is { } changeImperialSealId ? changeImperialSealId.Value : defaults.ImperialSealId,
         ImperialCourt = ImperialCourt is { } changeImperialCourt ? changeImperialCourt.Value : defaults.ImperialCourt,
-        Information = Information is { } changeInformation ? changeInformation.Value : defaults.Information,
+        Information = Information is { } changeInformation ? changeInformation.Value.Apply(defaults.Information) : defaults.Information,
         Military = Military is { } changeMilitary ? changeMilitary.Value : defaults.Military,
     };
 
@@ -202,8 +202,32 @@ public sealed record ScenarioDefinitionsOverrides
         DomesticPairs = ContentComparison.Equal(defaults.DomesticPairs, value.DomesticPairs) ? null : new(value.DomesticPairs),
         ImperialSealId = ContentComparison.Equal(defaults.ImperialSealId, value.ImperialSealId) ? null : new(value.ImperialSealId),
         ImperialCourt = ContentComparison.Equal(defaults.ImperialCourt, value.ImperialCourt) ? null : new(value.ImperialCourt),
-        Information = ContentComparison.Equal(defaults.Information, value.Information) ? null : new(value.Information),
+        Information = ScenarioInformationCatalog.Between(defaults.Information, value.Information),
         Military = ContentComparison.Equal(defaults.Military, value.Military) ? null : new(value.Military),
+    };
+}
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record ScenarioInformationCatalog(RankDefinition[] Ranks, OfficeDefinition[] Offices,
+    ImmutableArray<int> MapContextExcludedFacilityIds, TacticCatalogDefinition[] Tactics,
+    FormationCatalogDefinition[] Formations, CountryTitleDefinition[] CountryTitles)
+{
+    // Old scenario overrides included a snapshot of the shared treasure catalog.
+    [JsonIgnore, JsonPropertyName("treasures")] public object? LegacyTreasures => null;
+
+    public static ScenarioInformationCatalog From(InformationCatalog value) => new(value.Ranks, value.Offices,
+        value.MapContextExcludedFacilityIds, value.Tactics, value.Formations, value.CountryTitles);
+
+    internal static ContentOverride<ScenarioInformationCatalog>? Between(InformationCatalog shared, InformationCatalog local)
+    {
+        var catalog = From(local);
+        return ContentComparison.Equal(From(shared), catalog) ? null : new(catalog);
+    }
+
+    public InformationCatalog Apply(InformationCatalog shared) => shared with
+    {
+        Ranks = Ranks, Offices = Offices, MapContextExcludedFacilityIds = MapContextExcludedFacilityIds,
+        Tactics = Tactics, Formations = Formations, CountryTitles = CountryTitles
     };
 }
 

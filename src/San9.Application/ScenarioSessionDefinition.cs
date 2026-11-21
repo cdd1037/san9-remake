@@ -73,7 +73,7 @@ internal sealed class ScenarioSessionDefinition
             DefaultLoyalty = Content.DefaultLoyalty,
             Forces = Forces().ToArray(), Settlements = Settlements().ToArray(),
             Officers = Content.Officers.Select(o => o.CreateState(Content.Year)).ToArray(), Units = Content.Units,
-            Corps = Content.Information.Corps, Relations = Content.Information.Relations, Treasures = Content.Information.TreasureStates
+            Corps = Content.Information.Corps, Relations = Content.Information.Relations, Treasures = InitialTreasures()
         };
         return new StrategySnapshotSource(Content, Rules, Definitions).Project(world);
     }
@@ -82,7 +82,7 @@ internal sealed class ScenarioSessionDefinition
         Forces(),
         BarbarianStartup.CreateSettlements(Forces(), Settlements(), Content.Officers.Select(o => o.State)),
         Content.Officers.Select(o => o.CreateState(Content.Year)), Content.Units, Content.Information.Corps,
-        Content.Information.TreasureStates, Content.Information.Relations,
+        InitialTreasures(), Content.Information.Relations,
         Content.Forces.Where(f => !f.IsDormant).OrderBy(f => _playerForces.Contains(f.Id) ? 0 : 1).ThenBy(f => f.Id)
             .Select(f => new ControlSeat(_playerForces.Contains(f.Id) && playerForceController == ControllerKind.Player ? "player" : $"ai:{f.Id}", f.Id,
                 _playerForces.Contains(f.Id) ? playerForceController : ControllerKind.Automatic)), computerDamageBonusPercent, Content.Alliance,
@@ -90,6 +90,21 @@ internal sealed class ScenarioSessionDefinition
             Content.Settlements.Single(s => s.Id == r.TargetSettlementId).OwnerId!.Value, r.RemainingXun)), Content.AnnualAppearancesEnabled, Content.NaturalDeathsEnabled, Content.FreeOfficerMigrationEnabled, battleDeathsEnabled, Content.OfficeRequestsEnabled, Content.ConsumedEventKeys, Content.ForceConsolidationEnabled, Content.ForceEmergenceEnabled, Content.CityIndependenceEnabled, Content.ImperialCourtEnded, Content.ThreeVisitsStarted, Content.FoodExchangeRate, Content.SettlementDefectionsEnabled, Content.UnitDefectionsEnabled,
         settings ?? new NewGameSettings { Difficulty = Content.OriginalAi.Advanced ? GameDifficulty.Advanced : GameDifficulty.Beginner }, OfficerStartingPlaces(), _playerForces,
         Definitions.Forces.Select(f => f.Id).ToHashSet(), Definitions.Officers.Select(p => p.Id).ToHashSet(), Content.DefaultLoyalty);
+
+    private TreasureState[] InitialTreasures()
+    {
+        var information = Content.Information;
+        var placed = information.TreasureStates.ToDictionary(t => t.Id);
+        var holders = Content.Officers.Where(o => !o.State.IsDormant && o.State.Status != OfficerStatus.Dead)
+            .Select(o => o.State.Id).ToHashSet();
+        foreach (var treasure in information.Treasures)
+        {
+            if (treasure.DefaultPlacement is not { } placement ||
+                placement is OfficerTreasurePlacement held && !holders.Contains(held.OfficerId)) continue;
+            placed.TryAdd(treasure.Id, new(treasure.Id, placement));
+        }
+        return placed.Values.OrderBy(t => t.Id).ToArray();
+    }
 
     private int[] OfficerStartingPlaces()
     {

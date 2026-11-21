@@ -161,12 +161,12 @@ public partial class ScenarioEditor
         var placement = workspace.GetTreasurePlacement(id);
         var grid = Grid(body, definition.Name);
         ContentEditorControls.Caption(grid, "当前安置");
-        grid.AddChild(new Label { Text = placement switch
+        grid.AddChild(new Label { Text = (placement is null && definition.DefaultPlacement is not null ? "共享默认 · " : "") + ((placement ?? definition.DefaultPlacement) switch
         {
             OfficerTreasurePlacement held => "武将持有 · " + workspace.OfficerName(held.OfficerId),
             RegionTreasurePlacement buried => "地域埋藏 · " + workspace.RegionName(buried.RegionId),
             _ => "未投放"
-        } });
+        }) });
         void Place(TreasurePlacement? value)
         {
             workspace.SetTreasurePlacement(id, value);
@@ -185,7 +185,7 @@ public partial class ScenarioEditor
             (placement as RegionTreasurePlacement)?.RegionId ?? -1, region => Place(new RegionTreasurePlacement(region)),
             "TreasureRegion", "按名称或 ID 搜索埋藏地域。", "埋藏到地域", showCaption: false, keepFirstVisible: false);
         regionButton.Text = "埋藏到地域";
-        ContentEditorControls.ActionButton(actions, "取消投放", () => Place(null), "RemoveTreasurePlacement").Disabled = placement is null;
+        ContentEditorControls.ActionButton(actions, "清除剧本安置", () => Place(null), "RemoveTreasurePlacement").Disabled = placement is null;
     }
 
     private IEnumerable<(int Id, string Name)> ForceChoices() => _workspace!.Document.Forces.Select(f => (f.Id, _workspace.Name(f.NameKey)));

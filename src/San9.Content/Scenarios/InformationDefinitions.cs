@@ -26,6 +26,9 @@ public sealed record TreasureDefinition(int Id, [property: JsonRequired] string 
     [JsonRequired] public bool AutomaticDiplomacyOfferAllowed { get; init; } = true;
     [JsonRequired] public ImmutableArray<int> FavoredOwnerIds { get; init; } = [];
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public TreasurePlacement? DefaultPlacement { get; init; }
+
     public TreasureRule ToRule() => new(Id, AbilityBonuses, LoyaltyBonus)
     {
         EscapeMount = EscapeMount, TacticId = TacticId, RetentionGroup = RetentionGroup,
@@ -38,6 +41,8 @@ public sealed record TreasureDefinition(int Id, [property: JsonRequired] string 
             throw new InvalidDataException("宝物身份、名称、说明或种类无效。");
         if (ImageKey is not null && string.IsNullOrWhiteSpace(ImageKey))
             throw new InvalidDataException("宝物插图引用必须为空值或有效资源标识。");
+        if (DefaultPlacement is not null && !new TreasureState(Id, DefaultPlacement).IsValid)
+            throw new InvalidDataException("宝物默认初始安置无效。");
         try { _ = new TreasureRulebook([ToRule()]); }
         catch (ArgumentException error) { throw new InvalidDataException($"宝物 {Id} 的规则参数无效。", error); }
     }
@@ -152,6 +157,8 @@ public sealed record InformationDefinitions(RankDefinition[] Ranks, OfficeDefini
             Offices.Any(o => string.IsNullOrWhiteSpace(o.Name) || o.Description is null || o.Salary < 0 || o.GovernorPriority < 0 ||
                 !Enum.IsDefined(o.AppointmentGroup) || !o.AbilityBonuses.IsNonnegative || o.RequiredRankId is int rank && !Ranks.Any(r => r.Id == rank)) ||
             Treasures.Any(t => string.IsNullOrWhiteSpace(t.Name) || t.Description is null || t.ImageKey is not null && string.IsNullOrWhiteSpace(t.ImageKey) || t.Category is < 0 or > 12 || !Enum.IsDefined(t.RetentionGroup) || !t.AbilityBonuses.IsNonnegative || t.LoyaltyBonus < 0 ||
+                t.DefaultPlacement is OfficerTreasurePlacement { OfficerId: < 0 } ||
+                t.DefaultPlacement is RegionTreasurePlacement buried && !scenario.RegionNameKeys.ContainsKey(buried.RegionId) ||
                 t.FavoredOwnerIds.IsDefault || t.FavoredOwnerIds.Distinct().Count() != t.FavoredOwnerIds.Length ||
                 t.FavoredOwnerIds.Any(id => !scenario.Officers.Any(o => o.State.Id == id))) ||
             TreasureStates.Any(t => !Treasures.Any(d => d.Id == t.Id)) ||

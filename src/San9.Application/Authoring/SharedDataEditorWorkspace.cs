@@ -36,6 +36,22 @@ public sealed partial class SharedDataEditorWorkspace
     public bool HasPlayerCopy => _expectedPlayer is not null || _expectedOfficers is not null || _expectedCreated is not null;
     public TreasureIllustrationWorkspace? Illustrations { get; private set; }
     public IReadOnlyDictionary<int, string> FacilityNames { get; private set; } = new Dictionary<int, string>();
+    private IReadOnlyDictionary<int, string>? _regionNames;
+    public IReadOnlyDictionary<int, string> RegionNames => _regionNames ??= ReadRegionNames();
+
+    private IReadOnlyDictionary<int, string> ReadRegionNames()
+    {
+        var reference = _scenarios.Single(e => e.Id == ReferenceScenarioId);
+        string path = PackageFiles.Resolve(reference.Root, reference.Manifest.Geography);
+        using var stream = File.OpenRead(PlayerDefinitionFiles.ActivePath(path));
+        var geography = JsonSerializer.Deserialize<ScenarioGeography>(stream, ScenarioContentFiles.DataJsonOptions)
+            ?? throw new InvalidDataException("缺少地域资料。");
+        using var textStream = File.OpenRead(PackageFiles.Resolve(reference.Root, reference.Manifest.Text));
+        var text = JsonSerializer.Deserialize<StaticTextContent>(textStream, ScenarioContentFiles.DataJsonOptions)
+            ?? throw new InvalidDataException("缺少地域名称资料。");
+        return geography.RegionNameKeys.ToDictionary(p => p.Key, p => text.Entries.GetValueOrDefault(p.Value, p.Value));
+    }
+
     public string ReferenceScenarioId { get; }
     public IReadOnlyDictionary<int, string> FormationNames => Catalog.FormationNames;
     public ImmutableArray<FormationRule> Formations => Catalog.Formations;
@@ -142,6 +158,9 @@ public sealed partial class SharedDataEditorWorkspace
         if (string.IsNullOrWhiteSpace(OfficerCatalog.ContentSetId)) throw new InvalidDataException("请填写资料集标识。");
         ValidateLocalRules(draft);
         ValidateProfiles(draft, Officers, "共享武将");
+        foreach (var treasure in draft.Information.Treasures)
+            if (treasure.DefaultPlacement is OfficerTreasurePlacement held && !Officers.Any(o => o.Id == held.OfficerId))
+                throw new InvalidDataException($"宝物「{treasure.Name}」的默认持有人 {held.OfficerId} 不在共享武将目录中。");
         foreach (var formation in draft.Military?.Formations ?? [])
             if ((!formation.Positions.IsEmpty || formation.Attack is not null) && formation.Positions.Length != formation.OfficerCapacity)
                 throw new InvalidDataException($"{FormationNames.GetValueOrDefault(formation.Id, formation.Id.ToString())}：武将上限 {formation.OfficerCapacity} 与阵位数 {formation.Positions.Length} 不一致，请在阵位页调整。");

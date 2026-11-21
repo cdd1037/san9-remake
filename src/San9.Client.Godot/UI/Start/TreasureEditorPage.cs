@@ -21,7 +21,7 @@ public partial class TreasureEditorPage : SharedCatalogEditorPage
             EntryName = id => Workspace.GetTreasure(id).Name,
             Create = async (id, token) => (await Workspace.CreateTreasureAsync(id, token)).Id,
             Delete = Workspace.DeleteTreasureAsync, Select = SelectEntry,
-            SuccessMessage = "已更新共享宝物草稿，尚未保存。新宝物可在剧本编辑器中配置初始状态。"
+            SuccessMessage = "已更新共享宝物草稿，尚未保存。"
         };
         sidebar.AddChild(_actions);
     }
@@ -51,6 +51,35 @@ public partial class TreasureEditorPage : SharedCatalogEditorPage
 
     private void Edit(int id, Func<TreasureDefinition, TreasureDefinition> change) => Workspace.SetTreasure(change(Workspace.GetTreasure(id)));
 
+    private void BuildDefaultPlacement(TreasureDefinition treasure)
+    {
+        var group = Options("默认初始安置", "剧本未单独安置此宝物时生效。默认持有人未入局时不投放。");
+        void Place(TreasurePlacement? placement)
+        {
+            Edit(treasure.Id, t => t with { DefaultPlacement = placement });
+            Rebuild();
+        }
+        var holder = treasure.DefaultPlacement as OfficerTreasurePlacement;
+        var region = treasure.DefaultPlacement as RegionTreasurePlacement;
+        SearchableReferenceField.Add(group, "持有武将", Workspace.Officers.Select(o => ($"{o.Name} [{o.Id}]", o.Id)).ToArray(),
+            holder?.OfficerId ?? -1, Guard<int>(id => Place(new OfficerTreasurePlacement(id))),
+            "DefaultTreasureHolder", "按姓名或 ID 选择共享武将。", "选择持有武将", showCaption: false, keepFirstVisible: false);
+        (string, int)[] Regions()
+        {
+            try { return Workspace.RegionNames.Select(p => ($"{p.Value} [{p.Key}]", p.Key)).ToArray(); }
+            catch (Exception error) when (error is IOException or InvalidDataException or System.Text.Json.JsonException or UnauthorizedAccessException)
+            {
+                ReportStatus("读取地域失败：" + error.Message, true);
+                return [];
+            }
+        }
+        var regionLabel = region is null ? "选择埋藏地域" : Regions().FirstOrDefault(p => p.Item2 == region.RegionId).Item1 ?? $"地域 [{region.RegionId}]";
+        SearchableReferenceField.Add(group, "埋藏地域", Regions, region?.RegionId ?? -1, regionLabel,
+            Guard<int>(id => Place(new RegionTreasurePlacement(id))),
+            "DefaultTreasureRegion", "按名称或 ID 选择地域。", showCaption: false, keepFirstVisible: false);
+        ContentEditorControls.ActionButton(group, "不投放", () => Place(null)).Disabled = treasure.DefaultPlacement is null;
+    }
+
     protected override void BuildForm(int id)
     {
         var treasure = Workspace.GetTreasure(id);
@@ -62,6 +91,7 @@ public partial class TreasureEditorPage : SharedCatalogEditorPage
         var descriptionField = ContentEditorControls.TextArea(description, "说明", treasure.Description,
             Guard<string>(value => Edit(id, t => t with { Description = value })), "TreasureDescription");
         descriptionField.CustomMinimumSize = new(0, 128);
+        BuildDefaultPlacement(treasure);
         var basics = Section("基本属性");
         Choice(basics, "种类", ["名马", "武器", "兵书", "政书", "史书", "经书", "论文", "地图", "医书", "奇书", "玉玺", "宝物", "装饰"],
             treasure.Category, value => Edit(id, t => t with { Category = value }));

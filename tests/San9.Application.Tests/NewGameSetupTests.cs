@@ -46,6 +46,31 @@ public sealed class NewGameSetupTests
         Information = new([new(4, "rank.none", 10000, 0, 0, 0) { IsUnranked = true }], [], [],
             [new(70, 12, 1000, new(10000, 100000)) { IsRoot = true }], [])
     };
+    [Fact]
+    public void TreasureDefaultsFollowDeploymentAndRespectScenarioPlacements()
+    {
+        var source = Source();
+        TreasureDefinition Held(int id, int person) => new(id, $"宝物{id}", 11, 0, null)
+            { DefaultPlacement = new OfficerTreasurePlacement(person) };
+        source = source with { Information = source.Information with
+        {
+            Treasures = [Held(1, First.Id), Held(2, Second.Id), Held(3, Second.Id),
+                new(4, "埋藏宝物", 11, 0, null) { DefaultPlacement = new RegionTreasurePlacement(1) }],
+            TreasureStates = [new(3, new RegionTreasurePlacement(2))]
+        } };
+        var empty = GameSession.Start(source, 123).Snapshot.Treasures;
+        Assert.Equal(new[] { 3, 4 }, empty.Select(t => t.Id).Order());
+        var setup = NewGameSetup.Empty with { Placements = [new(Second.Id, 2, true)] };
+        var session = GameSession.Start(source, 123, setup: setup);
+        var placed = session.Snapshot.Treasures.ToDictionary(t => t.Id);
+        Assert.False(placed.ContainsKey(1)); // First is loaded only as Second's dormant parent.
+        Assert.Equal(Second.Id, placed[2].HolderId);
+        Assert.Equal(2, placed[3].RegionId);
+        Assert.Equal(1, placed[4].RegionId);
+        var restored = SaveService.Decode(SaveService.Encode(session), source);
+        Assert.Equal(session.Snapshot.Treasures, restored.Snapshot.Treasures.ToArray());
+    }
+
     private static TextCatalog Text() => new(TextCatalog.CurrentSchemaVersion, new()
     {
         ["scenario.title"] = "测试", ["force.old"] = "旧势力", ["officer.old"] = "旧君主",

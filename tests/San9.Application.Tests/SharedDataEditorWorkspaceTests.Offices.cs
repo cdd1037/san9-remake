@@ -114,7 +114,7 @@ public sealed partial class SharedDataEditorWorkspaceTests
         await CreatePeopleAndTactics();
         var basis = await SharedDataEditorWorkspace.OpenAsync(_root);
         await EditMilitaryWorld("private", d => d with { DefinitionOverrides = d.DefinitionOverrides with
-            { Information = new(basis.Definitions.Information with { Offices = [new(20000, "剧本专属官职", 10000, 0)] }) } });
+            { Information = new(ScenarioInformationCatalog.From(basis.Definitions.Information) with { Offices = [new(20000, "剧本专属官职", 10000, 0)] }) } });
         await EditMilitaryWorld("b", d => d with { Officers = d.Officers.Select(p => p with { OfficeId = 30000 }).ToArray() });
         var workspace = await SharedDataEditorWorkspace.OpenAsync(_root);
         Assert.True((await workspace.CreateOfficeAsync()).Id > 30000);

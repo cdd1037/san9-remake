@@ -31,8 +31,6 @@ public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
         foreach (string id in new[] { "a", "private" })
         {
             var world = source with { ScenarioId = id };
-            if (id == "private") world = world with { Information = source.Information with
-            { Treasures = source.Information.Treasures.Select(t => t.Id == 901 ? t with { Name = "剧本专属" } : t).ToArray() } };
             var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion, new("textures"),
                 new(new(MapDefinition.CurrentSchemaVersion, "fixture", world.Military?.Width ?? 4, world.Military?.Height ?? 4,
                     Enumerable.Repeat(new San9.Content.Maps.MapCellDefinition(0, 0, 0, null),
@@ -40,13 +38,20 @@ public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
             { Preview = new(id, "custom", world.Year, world.Month, "测试剧本", "测试简介", []) };
             await ScenarioContentFiles.WriteAsync(Path.Combine(_root, id), content, resourceRoot: _root, sharedScenario: shared);
         }
+        // Exercise old packages that embedded an entire catalog in the scenario override.
+        string privatePath = Path.Combine(_root, "private", "scenario.json");
+        var legacy = System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(privatePath))!;
+        var oldCatalog = shared.Definitions.Information with
+        { Treasures = [new(901, "剧本旧名称", 11, 0, null), new(5000, "旧私有宝物", 11, 0, null)] };
+        legacy["definitionOverrides"]!["information"] = JsonSerializer.SerializeToNode(new ContentOverride<San9.Content.Scenarios.InformationCatalog>(oldCatalog), ScenarioContentFiles.DataJsonOptions);
+        await Write("private/scenario.json", legacy);
         var catalog = new ContentCatalog(ContentCatalog.CurrentSchemaVersion, "textures", "opening.json", [new("a", "a"), new("private", "private")])
         { OfficerFlags = "flags.json", Definitions = shared.DefinitionsPath, OfficerDefaults = shared.OfficersPath };
         await File.WriteAllTextAsync(Path.Combine(_root, "catalog.json"), JsonSerializer.Serialize(catalog, PackageFiles.JsonOptions));
     }
 
     [Fact]
-    public async Task SharedTreasureEditsReachRulesTextAndViewsWhilePrivateOverridesAndInitialOwnershipPersist()
+    public async Task SharedTreasureEditsReachBothScenarioLoadingPathsAndPreserveInitialOwnership()
     {
         await Create();
         var workspace = await SharedDataEditorWorkspace.OpenAsync(_root);
@@ -56,7 +61,9 @@ public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
         var edited = original with { Name = "自制[宝物]", Description = "第一行\n[第二行]", ImageKey = "mod/treasures/custom", Category = 0,
             AbilityBonuses = new(7, 8, 9, 10), LoyaltyBonus = 17, TacticId = 2, EscapeMount = true,
             RetentionGroup = TreasureRetentionGroup.Intelligence, AutomaticDiplomacyOfferAllowed = false, FavoredOwnerIds = [2] };
-        workspace.SetTreasure(edited); await workspace.SaveAsync();
+        workspace.SetTreasure(edited);
+        workspace.SetTreasure(workspace.GetTreasure(902) with { DefaultPlacement = new OfficerTreasurePlacement(2) });
+        await workspace.SaveAsync();
         Assert.False(workspace.HasChanges);
         var reopened = await SharedDataEditorWorkspace.OpenAsync(_root);
         Assert.True(ContentComparison.Equal(edited, reopened.GetTreasure(901)));
@@ -75,7 +82,13 @@ public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
         Assert.Equal(content.Scenario.Information.Tactics.Single(t => t.Id == 2).Name, detail.Tactic);
         Assert.False(content.Text.Entries.ContainsKey("treasure.901"));
         Assert.False(content.Text.Entries.ContainsKey("treasure.901.description"));
-        Assert.Equal("剧本专属", (await ScenarioContentFiles.LoadAsync(Path.Combine(_root, "private"))).Scenario.Information.Treasures.Single(t => t.Id == 901).Name);
+        var privateContent = await ScenarioContentFiles.LoadAsync(Path.Combine(_root, "private"));
+        Assert.Equal(edited.Name, privateContent.Scenario.Information.Treasures.Single(t => t.Id == 901).Name);
+        var selection = await ScenarioContentFiles.LoadSelectionAsync(Path.Combine(_root, "private"));
+        Assert.True(ContentComparison.Equal(content.Scenario.Information.Treasures, selection.Scenario.Information.Treasures));
+        Assert.True(ContentComparison.Equal(content.Scenario.Information.Treasures, privateContent.Scenario.Information.Treasures));
+        Assert.Equal(2, GameSession.Start(privateContent.Scenario, 1).Snapshot.Treasures.Single(t => t.Id == 902).HolderId);
+        Assert.Equal(2, session.Snapshot.Treasures.Single(t => t.Id == 902).HolderId);
         workspace.RestoreTreasure(901);
         Assert.True(ContentComparison.Equal(original, workspace.GetTreasure(901)));
         Assert.True(workspace.HasChanges);
@@ -165,7 +178,7 @@ public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
         Assert.DoesNotContain(content.Scenario.Information.TreasureStates, t => t.Id == copy.Id);
         var selection = await ScenarioContentFiles.LoadSelectionAsync(Path.Combine(_root, "a"));
         Assert.Equal(content.Scenario.Information.TreasureStates, selection.Scenario.Information.TreasureStates);
-        Assert.DoesNotContain((await ScenarioContentFiles.LoadAsync(Path.Combine(_root, "private"))).Scenario.Information.Treasures, t => t.Id == copy.Id);
+        Assert.Contains((await ScenarioContentFiles.LoadAsync(Path.Combine(_root, "private"))).Scenario.Information.Treasures, t => t.Id == copy.Id);
         var scenario = await ScenarioEditorWorkspace.OpenAsync(_root, "a");
         Assert.Null(scenario.GetTreasurePlacement(copy.Id));
         Assert.DoesNotContain(scenario.Document.Information.TreasureStates, t => t.Id == copy.Id);
@@ -251,12 +264,12 @@ public sealed partial class TreasureDataEditorWorkspaceTests : IDisposable
     }
 
     [Fact]
-    public async Task TreasureAllocationReservesScenarioPrivateDefinitions()
+    public async Task TreasureAllocationReservesScenarioPlacementReferences()
     {
         await Create();
-        var basis = await SharedDataEditorWorkspace.OpenAsync(_root);
-        await EditWorld("private", document => document with { DefinitionOverrides = document.DefinitionOverrides with
-        { Information = new(basis.Definitions.Information with { Treasures = [.. basis.Treasures, new(5000, "私有宝物", 11, 0, null)] }) } });
+        await EditWorld("private", document => document with { Information = document.Information with
+        { TreasureStates = [new(5000, new OfficerTreasurePlacement(1))] } });
+        Assert.DoesNotContain("\"treasures\"", await File.ReadAllTextAsync(Path.Combine(_root, "private", "scenario.json")));
         var workspace = await SharedDataEditorWorkspace.OpenAsync(_root);
         Assert.True((await workspace.CreateTreasureAsync()).Id > 5000);
     }

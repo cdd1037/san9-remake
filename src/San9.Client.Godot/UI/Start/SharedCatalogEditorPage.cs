@@ -107,7 +107,7 @@ public abstract partial class SharedCatalogEditorPage : SharedDataEditorPage
     private void ShowCurrent()
     {
         _building = true; _generation++;
-        foreach (Node child in Form.GetChildren()) { Form.RemoveChild(child); child.QueueFree(); }
+        ContentEditorControls.ClearChildren(Form);
         if (Current is int id) BuildForm(id);
         _building = false; UpdateHeading();
     }

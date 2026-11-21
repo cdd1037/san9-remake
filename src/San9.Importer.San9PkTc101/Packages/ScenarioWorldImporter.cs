@@ -14,7 +14,7 @@ public static class ScenarioWorldImporter
         var source = await San9ImportSource.OpenAsync(gameDirectory, token, originalTextEdits);
         using var operation = ImportOperation.Acquire(output);
         output = Path.GetFullPath(output);
-        var catalog = await ContentCatalogFiles.LoadAsync(output, token);
+        var catalog = await ContentCatalogFiles.LoadBaseAsync(output, token);
         var sources = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (string path in Directory.EnumerateFiles(source.Directory.Root, "D_Sce*.S9"))
         {

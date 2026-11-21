@@ -11,7 +11,7 @@ public static class CommandTextImporter
     {
         var source = await San9ImportSource.OpenAsync(gameDirectory, token, originalTextEdits);
         using var operation = ImportOperation.Acquire(output);
-        var catalog = await ContentCatalogFiles.LoadAsync(output, token);
+        var catalog = await ContentCatalogFiles.LoadBaseAsync(output, token);
         using var reader = new ScenarioTextReader(source.Read("M_MsgPK.s9"), source.Executable, source.OriginalTextEdits);
         reader.ReadCommandText();
         int changed = await ScenarioContentFiles.WriteCommandTextAsync(catalog.Scenarios

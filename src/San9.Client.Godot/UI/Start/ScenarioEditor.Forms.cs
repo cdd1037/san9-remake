@@ -6,24 +6,43 @@ namespace San9.Client.Godot;
 
 public partial class ScenarioEditor
 {
+    private static readonly string[] OfficerStatusNames = ["君主", "太守", "军师", "一般", "俘虏", "在野", "未发现", "未登场", "死亡", "特殊"];
+
     private void BuildOverview()
     {
-        var scroll = new ScrollContainer { Name = "剧本", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
-        _pages.AddChild(scroll); var body = ContentEditorControls.PageBody(scroll);
+        var mapPage = new MarginContainer { Name = "开局地图" };
+        foreach (string edge in new[] { "left", "right", "top", "bottom" }) mapPage.AddThemeConstantOverride("margin_" + edge, 16);
+        _pages.AddChild(mapPage);
+        BuildCityOverview(mapPage);
+
+        var scroll = new ScrollContainer { Name = "剧本设置", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        _pages.AddChild(scroll);
+        var body = ContentEditorControls.PageBody(scroll);
+        var columns = new GridContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        columns.AddThemeConstantOverride("h_separation", 24);
+        columns.AddThemeConstantOverride("v_separation", 16);
+        body.AddChild(columns);
+        void FitColumns() => columns.Columns = columns.Size.X >= 740 ? 2 : 1;
+        columns.Resized += FitColumns;
+        FitColumns();
+        var text = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        var rules = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        columns.AddChild(text); columns.AddChild(rules);
         var workspace = _workspace!;
-        var heading = Grid(body, "剧本信息");
+        var heading = Grid(text, "剧本信息");
         ContentEditorControls.TextField(heading, "标题", workspace.Preview.Title,
             value => workspace.SetDescription(value, workspace.Preview.Description), "ScenarioTitle");
-        ContentEditorControls.TextArea(body, "简介", workspace.Preview.Description,
+        var description = ContentEditorControls.TextArea(text, "简介", workspace.Preview.Description,
             value => workspace.SetDescription(workspace.Preview.Title, value), "ScenarioDescription");
-        var date = Grid(body, "开局日期");
+        description.CustomMinimumSize = new(0, 200);
+        var date = Grid(rules, "开局日期");
         Number(date, "年份", workspace.Document.Year, 1, int.MaxValue, value => workspace.Update(workspace.Document with { Year = (int)value }), "ScenarioYear");
         Number(date, "月份", workspace.Document.Month, 1, 12, value => workspace.Update(workspace.Document with { Month = (int)value }), "ScenarioMonth");
         ContentEditorControls.Choices(date, "旬", ["上旬（1日）", "中旬（11日）", "下旬（21日）"], (workspace.Document.Day - 1) / 10,
             index => workspace.Update(workspace.Document with { Day = index * 10 + 1 }), "ScenarioXun");
         Reference(date, "默认玩家势力", workspace.Document.PlayerForceId, ForceChoices(),
             id => workspace.Update(workspace.Document with { PlayerForceId = id }));
-        var settings = ContentEditorControls.ButtonGroup(body, "初始规则开关");
+        var settings = ContentEditorControls.ButtonGroup(rules, "初始规则");
         void Toggle(string title, bool value, Func<ScenarioDocument, bool, ScenarioDocument> update) =>
             ContentEditorControls.Toggle(settings, title, value, enabled => workspace.Update(update(workspace.Document, enabled)));
         var document = workspace.Document;
@@ -38,59 +57,100 @@ public partial class ScenarioEditor
         Toggle("势力合并", document.ForceConsolidationEnabled, (d, value) => d with { ForceConsolidationEnabled = value });
     }
 
-    private void BuildListPage(string name, Func<IEnumerable<(int Id, string Name)>> entries, Action<VBoxContainer, int> build, bool addOfficers = false, int? selectedId = null)
+    private static (VBoxContainer Side, LineEdit Search, VBoxContainer Form) BuildBrowser(
+        TabContainer parent, string name, int width, bool scrollForm)
     {
-        var split = new HSplitContainer { Name = name, SplitOffsets = [245] }; _pages.AddChild(split);
+        var split = new HSplitContainer { Name = name, SplitOffsets = [width] };
+        parent.AddChild(split);
         var side = ContentEditorControls.Sidebar(split);
-        var search = new LineEdit { Name = name + "搜索", PlaceholderText = "搜索名称或 ID" }; side.AddChild(search);
-        var list = new ItemList { Name = name + "列表", SizeFlagsVertical = SizeFlags.ExpandFill }; side.AddChild(list);
-        var scroll = new ScrollContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
-        split.AddChild(scroll); var form = ContentEditorControls.PageBody(scroll);
-        var visible = new List<int>(); int? selected = selectedId;
-        void Show(int? id)
+        var search = new LineEdit { Name = name + "搜索", PlaceholderText = "搜索名称或 ID" };
+        side.AddChild(search);
+        if (scrollForm)
         {
-            selected = id;
-            foreach (Node child in form.GetChildren()) { form.RemoveChild(child); child.QueueFree(); }
-            if (id is int value) build(form, value);
+            var scroll = new ScrollContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+            split.AddChild(scroll);
+            return (side, search, ContentEditorControls.PageBody(scroll));
         }
-        void Filter()
-        {
-            list.Clear(); visible.Clear();
-            foreach (var entry in entries())
-            {
-                if (!entry.Name.Contains(search.Text, StringComparison.OrdinalIgnoreCase) && !entry.Id.ToString().Contains(search.Text, StringComparison.Ordinal)) continue;
-                visible.Add(entry.Id); list.AddItem($"{entry.Name}　[{entry.Id}]");
-            }
-            int index = selected is int id ? visible.IndexOf(id) : -1;
-            if (index < 0 && visible.Count > 0) index = 0;
-            if (index >= 0) list.Select(index);
-            Show(index >= 0 ? visible[index] : null);
-        }
-        if (addOfficers)
-        {
-            var workspace = _workspace!;
-            var choices = workspace.UnplacedOfficers.Select(p => ($"{p.Name} [{p.Id}]", p.Id)).ToArray();
-            var add = SearchableReferenceField.Add(side, "共享武将", choices, -1, id =>
-            {
-                workspace.AddOfficer(id);
-                BuildPages(_pages.CurrentTab, id);
-            }, "AddSharedOfficer", "按姓名或 ID 搜索尚未安置的共享武将。", "添加共享武将", showCaption: false, keepFirstVisible: false);
-            add.Disabled = choices.Length == 0;
-        }
-        list.ItemSelected += index => Show(visible[(int)index]); search.TextChanged += _ => Filter(); Filter();
+        var form = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        split.AddChild(form);
+        return (side, search, form);
     }
 
-    private void BuildForce(VBoxContainer body, int id)
+    private VBoxContainer BuildListPage(string name, Func<IEnumerable<(int Id, string Name)>> entries,
+        Action<VBoxContainer, int> build, int? selectedId, TabContainer? parent = null, bool scrollForm = true)
+    {
+        var (side, search, form) = BuildBrowser(parent ?? _pages, name, 245, scrollForm);
+        var list = new ItemList { Name = name + "列表", SizeFlagsVertical = SizeFlags.ExpandFill };
+        side.AddChild(list);
+        void Select(int row)
+        {
+            selectedId = row < 0 ? null : list.GetItemMetadata(row).AsInt32();
+            ContentEditorControls.ClearChildren(form);
+            if (selectedId is int id) build(form, id);
+        }
+        void Filter(string query)
+        {
+            list.Clear();
+            int selectedRow = 0;
+            foreach (var (id, label) in entries())
+            {
+                if (!label.Contains(query, StringComparison.OrdinalIgnoreCase) && !id.ToString().Contains(query, StringComparison.Ordinal)) continue;
+                int row = list.AddItem($"{label}　[{id}]");
+                list.SetItemMetadata(row, id);
+                if (id == selectedId) selectedRow = row;
+            }
+            if (list.ItemCount > 0) list.Select(selectedRow);
+            Select(list.ItemCount > 0 ? selectedRow : -1);
+        }
+        list.ItemSelected += row => Select((int)row);
+        search.TextChanged += Filter;
+        Filter("");
+        return side;
+    }
+
+    private void BuildOfficerPage(int? selectedId)
+    {
+        var side = BuildListPage("武将安置", OfficerChoices, BuildOfficer, selectedId);
+        var actions = new HBoxContainer();
+        actions.AddThemeConstantOverride("separation", 8);
+        side.AddChild(actions);
+        var deploy = ContentEditorControls.ActionButton(actions, "批量安置", () => DeploymentDialog(false), "AddSharedOfficer");
+        var withdraw = ContentEditorControls.ActionButton(actions, "撤回安置", () => DeploymentDialog(true));
+        deploy.SizeFlagsHorizontal = withdraw.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+    }
+
+    private int _forceTab;
+
+    private void BuildForce(VBoxContainer host, int id)
     {
         var workspace = _workspace!;
         ForceInitialState Current() => workspace.Document.Forces.Single(f => f.Id == id);
         void Change(Func<ForceInitialState, ForceInitialState> update) => workspace.Update(workspace.Document with
         { Forces = workspace.Document.Forces.Select(f => f.Id == id ? update(f) : f).ToArray() });
-        var force = Current(); var grid = Grid(body, workspace.Name(force.NameKey));
+        var force = Current();
+        _browsedForce = id;
+        var tabs = new TabContainer { Name = "ForceTabs", SizeFlagsVertical = SizeFlags.ExpandFill };
+        host.AddChild(tabs);
+        var settings = new ScrollContainer { Name = "势力资料", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        tabs.AddChild(settings);
+        var roster = new MarginContainer { Name = "据点与武将" };
+        foreach (string edge in new[] { "left", "top", "right", "bottom" }) roster.AddThemeConstantOverride("margin_" + edge, 12);
+        tabs.AddChild(roster);
+        BuildForceRoster(roster, force);
+        tabs.CurrentTab = _forceTab;
+        tabs.TabChanged += tab => _forceTab = (int)tab;
+        var body = ContentEditorControls.PageBody(settings);
+        var grid = Grid(body, workspace.Name(force.NameKey));
+        void FitFields() => grid.Columns = grid.Size.X >= 580 ? 4 : 2;
+        grid.Resized += FitFields;
         Number(grid, "信望", force.Trust, 0, 1000, value => Change(f => f with { Trust = (int)value }));
         Number(grid, "基础信望", force.BaseTrust, 0, 1000, value => Change(f => f with { BaseTrust = (int)value }));
-        Reference(grid, "君主", force.LeaderId, OfficerChoices(), value => Change(f => f with { LeaderId = value }));
-        Reference(grid, "军师", force.AdviserId, OfficerChoices(), value => Change(f => f with { AdviserId = value }));
+        var officers = workspace.Document.Officers.Where(o => o.OwnerId == id && o.Status <= OfficerStatus.Serving && o.IsDormant == force.IsDormant
+            && !workspace.Document.Information.Corps.Any(c => !c.IsRoot && c.LeaderId == o.Id)).Select(o => (o.Id, Name: workspace.OfficerName(o.Id))).ToArray();
+        Reference(grid, "君主", force.LeaderId, officers.Where(o => o.Id != force.AdviserId),
+            value => RunChange(() => workspace.SetForceOffice(id, value, true), id));
+        Reference(grid, "军师", force.AdviserId, officers.Where(o => o.Id != force.LeaderId),
+            value => RunChange(() => workspace.SetForceOffice(id, value, false), id));
         Reference(grid, "爵位", force.RankId, workspace.Definitions.Information.Ranks.Select(r => (r.Id, r.Name)), value => Change(f => f with { RankId = value }));
         Reference(grid, "国号", force.CountryTitleId, workspace.Definitions.Information.CountryTitles.Select(c => (c.Id, workspace.Name(c.NameKey))),
             value => Change(f => f with { CountryTitleId = value }));
@@ -103,6 +163,85 @@ public partial class ScenarioEditor
             Number(treasury, "资金", corps.Treasury.Money, 0, uint.MaxValue, value => ChangeTreasury(t => t with { Money = (uint)value }));
             Number(treasury, "兵粮", corps.Treasury.Food, 0, uint.MaxValue, value => ChangeTreasury(t => t with { Food = (uint)value }));
         }
+        ContentEditorControls.ActionButton(body, "删除势力", () => EditOperation("删除势力", form =>
+        {
+            ContentEditorControls.Caption(form, $"从当前剧本删除「{workspace.Name(force.NameKey)}」？\n所属据点转为无主，在职武将就地转为在野。\n军团及其物资一并移除，相关外交配置随之调整。");
+            return () => workspace.DeleteForce(id);
+        }));
+    }
+
+    private void BuildForceRoster(MarginContainer body, ForceInitialState force)
+    {
+        var workspace = _workspace!;
+        var doc = workspace.Document;
+        var corps = doc.Information.Corps.Where(c => c.OwnerId == force.Id).OrderByDescending(c => c.IsRoot).ThenBy(c => c.Id).ToArray();
+        int? rootId = corps.FirstOrDefault(c => c.IsRoot)?.Id;
+        var places = doc.Settlements.Where(s => s.OwnerId == force.Id).OrderBy(s => s.Kind != SettlementKind.City).ThenBy(s => s.Id).ToArray();
+        var people = doc.Officers.Where(o => o.OwnerId == force.Id && o.Status != OfficerStatus.Dead)
+            .OrderBy(o => o.Status).ThenBy(o => o.Id).ToArray();
+        var placed = people.Where(o => o.Status <= OfficerStatus.Serving && o.UnitId is null && o.SettlementId.HasValue)
+            .ToLookup(o => o.SettlementId!.Value);
+        var section = ContentEditorControls.Section(body, $"{workspace.Name(force.NameKey)} · {places.Length} 处据点 · {people.Length} 名武将");
+        var tree = new Tree { Name = "ForceRoster", HideRoot = true, Columns = 3, ColumnTitlesVisible = true,
+            SelectMode = Tree.SelectModeEnum.Row, SizeFlagsVertical = SizeFlags.ExpandFill };
+        section.AddChild(tree);
+        tree.SetColumnTitle(0, "军团 / 据点 / 武将");
+        tree.SetColumnTitle(1, "兵力");
+        tree.SetColumnTitle(2, "驻将");
+        tree.SetColumnExpandRatio(0, 3);
+        tree.SetColumnTitleAlignment(0, HorizontalAlignment.Left);
+        var root = tree.CreateItem();
+        var destinations = new Dictionary<TreeItem, (string Page, int Id)>();
+        var shown = new HashSet<int>();
+        void AddOfficer(TreeItem parent, ScenarioOfficerState officer)
+        {
+            var item = tree.CreateItem(parent);
+            item.SetText(0, $"{workspace.OfficerName(officer.Id)}　{OfficerStatusNames[(int)officer.Status]}" + (officer.IsDormant ? "（休眠）" : ""));
+            destinations[item] = ("武将安置", officer.Id);
+        }
+        void AddGroup(string label, SettlementInitialState[] members)
+        {
+            var group = tree.CreateItem(root);
+            group.SetText(0, label);
+            group.SetTextAlignment(1, HorizontalAlignment.Center);
+            group.SetTextAlignment(2, HorizontalAlignment.Center);
+            group.SetText(1, members.Sum(s => (long)s.Soldiers).ToString("N0"));
+            group.SetText(2, members.Sum(s => placed[s.Id].Count()).ToString());
+            foreach (var place in members)
+            {
+                var item = tree.CreateItem(group);
+                item.SetText(0, workspace.Name(place.NameKey) + (place.IsDormant ? "（休眠）" : ""));
+                item.SetTextAlignment(1, HorizontalAlignment.Center);
+                item.SetTextAlignment(2, HorizontalAlignment.Center);
+                item.SetText(1, place.Soldiers.ToString("N0"));
+                item.SetText(2, placed[place.Id].Count().ToString());
+                destinations[item] = (place.Kind == SettlementKind.City && !place.IsDormant ? "开局地图" : "据点", place.Id);
+                foreach (var officer in placed[place.Id]) { AddOfficer(item, officer); shown.Add(officer.Id); }
+                item.Collapsed = true;
+            }
+        }
+        foreach (var c in corps)
+            AddGroup(c.IsRoot ? $"直属军团 [{c.Id}]" : $"军团 [{c.Id}]", places.Where(s => (s.CorpsId ?? rootId) == c.Id).ToArray());
+        var unassigned = places.Where(s => !corps.Any(c => c.Id == (s.CorpsId ?? rootId))).ToArray();
+        if (unassigned.Length > 0) AddGroup("待分配军团", unassigned);
+        var other = people.Where(o => !shown.Contains(o.Id)).ToArray();
+        if (other.Length > 0)
+        {
+            var group = tree.CreateItem(root);
+            group.SetText(0, $"其他所属武将（{other.Length}）");
+            foreach (var officer in other) AddOfficer(group, officer);
+            group.Collapsed = true;
+        }
+        tree.ItemSelected += () =>
+        {
+            if (!destinations.TryGetValue(tree.GetSelected(), out var destination)) return;
+            Callable.From(() =>
+            {
+                if (!IsInstanceValid(tree) || !tree.IsInsideTree()) return;
+                if (destination.Page == "开局地图") _selectedCity = destination.Id;
+                BuildPages(_pages.GetNode<Control>(destination.Page).GetIndex(), destination.Id);
+            }).CallDeferred();
+        };
     }
 
     private void BuildSettlement(VBoxContainer body, int id)
@@ -111,8 +250,10 @@ public partial class ScenarioEditor
         void Change(Func<SettlementInitialState, SettlementInitialState> update) => workspace.Update(workspace.Document with
         { Settlements = workspace.Document.Settlements.Select(s => s.Id == id ? update(s) : s).ToArray() });
         var grid = Grid(body, workspace.Name(settlement.NameKey));
-        Reference(grid, "所属势力", settlement.OwnerId, ForceChoices(), value => Change(s => s with { OwnerId = value }));
-        Reference(grid, "所属军团", settlement.CorpsId, workspace.Document.Information.Corps.Select(c => (c.Id, $"{c.Id} · {ForceName(c.OwnerId)}")), value => Change(s => s with { CorpsId = value }));
+        ContentEditorControls.Caption(grid, "所属势力");
+        ContentEditorControls.ActionButton(grid, (settlement.OwnerId is int owner ? ForceName(owner) : "无主") + " · 移交",
+            () => TransferDialog(settlement)).Disabled = settlement.IsDormant;
+        Reference(grid, "所属军团", settlement.CorpsId, workspace.Document.Information.Corps.Where(c => c.OwnerId == settlement.OwnerId).Select(c => (c.Id, $"{c.Id} · {ForceName(c.OwnerId)}")), value => Change(s => s with { CorpsId = value }));
         Number(grid, "兵力", settlement.Soldiers, 0, settlement.SoldierCapacity, value => Change(s => s with { Soldiers = (uint)value }));
         Number(grid, "伤兵", settlement.Wounded, 0, MilitaryRulebook.WoundedCapacity, value => Change(s => s with { Wounded = (uint)value }));
         Number(grid, "士气", settlement.Morale, 0, 100, value => Change(s => s with { Morale = (int)value }));
@@ -134,12 +275,12 @@ public partial class ScenarioEditor
         Reference(grid, "所属势力", officer.OwnerId, ForceChoices(), value =>
         {
             Change(o => o with { OwnerId = value });
-            foreach (Node child in body.GetChildren()) { body.RemoveChild(child); child.QueueFree(); }
+            ContentEditorControls.ClearChildren(body);
             BuildOfficer(body, id);
         });
         Reference(grid, "所在据点", officer.SettlementId, workspace.Document.Settlements.Select(s => (s.Id, workspace.Name(s.NameKey))), value => Change(o => o with { SettlementId = value }));
         Reference(grid, "所在地域", officer.RegionId, RegionChoices(), value => Change(o => o with { RegionId = value }));
-        ContentEditorControls.Choices(grid, "身份", ["君主", "太守", "军师", "一般", "俘虏", "在野", "未发现", "未登场", "死亡", "特殊"], (int)officer.Status,
+        ContentEditorControls.Choices(grid, "身份", OfficerStatusNames, (int)officer.Status,
             index => Change(o => o with { Status = (OfficerStatus)index }));
         Reference(grid, "官职", officer.OfficeId, workspace.Definitions.Information.Offices.Select(o => (o.Id, o.Name)), value => Change(o => o with { OfficeId = value }));
         Number(grid, "伤病", officer.Injury, 0, 14, value => Change(o => o with { Injury = (int)value }));
@@ -170,7 +311,7 @@ public partial class ScenarioEditor
         void Place(TreasurePlacement? value)
         {
             workspace.SetTreasurePlacement(id, value);
-            foreach (Node child in body.GetChildren()) { body.RemoveChild(child); child.QueueFree(); }
+            ContentEditorControls.ClearChildren(body);
             BuildTreasure(body, id);
         }
         var actions = ContentEditorControls.ButtonGroup(body, "安置宝物");

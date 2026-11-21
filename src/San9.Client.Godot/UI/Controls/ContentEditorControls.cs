@@ -5,6 +5,15 @@ namespace San9.Client.Godot;
 /// <summary>Shared editor layout and fields; callers own draft state and callbacks.</summary>
 internal static class ContentEditorControls
 {
+    internal static void ClearChildren(Node parent)
+    {
+        foreach (var child in parent.GetChildren())
+        {
+            parent.RemoveChild(child);
+            child.QueueFree();
+        }
+    }
+
     internal static VBoxContainer Sidebar(HSplitContainer split)
     {
         var panel = new PanelContainer { CustomMinimumSize = new(210, 0) };

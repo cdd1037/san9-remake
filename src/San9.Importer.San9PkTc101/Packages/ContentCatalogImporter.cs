@@ -94,7 +94,7 @@ public static class ContentCatalogImporter
             flags.ValidateReferences(textures.Map.Clips.Select(c => c.Id).ToHashSet());
             await Publish("shared/officer-flags.json", flags);
         }
-        var sharedMapRef = openingOnly ? (await ContentCatalogFiles.LoadAsync(output, token)).SharedMap : SharedPlaceImporter.Reference;
+        var sharedMapRef = openingOnly ? (await ContentCatalogFiles.LoadBaseAsync(output, token)).SharedMap : SharedPlaceImporter.Reference;
         if (!openingOnly) await Publish(SharedPlaceImporter.Reference.Locations, sites);
         await Publish("catalog.json", new ContentCatalog(ContentCatalog.CurrentSchemaVersion, "shared/textures", "shared/opening.json", entries.ToArray())
             { SharedMap = sharedMapRef, OfficerFlags = "shared/officer-flags.json", Definitions = "shared/definitions.json", OfficerDefaults = "shared/officer-defaults.json" });

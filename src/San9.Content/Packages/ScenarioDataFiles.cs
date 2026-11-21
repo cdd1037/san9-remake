@@ -102,12 +102,7 @@ public static class ScenarioDataFiles
                 await File.WriteAllBytesAsync(pending, bytes, token);
                 prepared.Add(document.Path, bytes);
             }
-            foreach (var (path, bytes) in expected)
-            {
-                byte[]? current = await PlayerDefinitionFiles.ReadOptionalAsync(path, token);
-                if (bytes is null ? current is not null : current is null || !current.AsSpan().SequenceEqual(bytes))
-                    throw new InvalidDataException("Player content changed since editing began.");
-            }
+            await CheckInputsAsync(expected, token);
             token.ThrowIfCancellationRequested();
             ContentPublication.PublishFiles(staged);
             return prepared;
@@ -117,6 +112,16 @@ public static class ScenarioDataFiles
             try { foreach (var (pending, _) in staged) File.Delete(pending); }
             finally { foreach (var handle in locks) handle.Dispose(); }
             // Keep lock files: unlinking them would let writers acquire different file objects.
+        }
+    }
+
+    public static async Task CheckInputsAsync(IReadOnlyDictionary<string, byte[]?> inputs, CancellationToken token)
+    {
+        foreach (var (path, expected) in inputs)
+        {
+            var current = await PlayerDefinitionFiles.ReadOptionalAsync(path, token);
+            if (expected is null ? current is not null : current is null || !current.AsSpan().SequenceEqual(expected))
+                throw new InvalidDataException("内容已被其他操作修改，请重新打开编辑器。当前草稿已保留。");
         }
     }
 

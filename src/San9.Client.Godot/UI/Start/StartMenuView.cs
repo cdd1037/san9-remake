@@ -159,9 +159,11 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
     {
         if (_scenarioEditor is not null) return;
         _controls.Hide();
-        _scenarioEditor = new ScenarioEditor { CreatedOfficersPath = DataPaths.CreatedOfficers, Name = "ScenarioEditor", ContentRoot = ContentRoot, Published = preview =>
+        _scenarioEditor = new ScenarioEditor { CreatedOfficersPath = DataPaths.CreatedOfficers, Name = "ScenarioEditor", ContentRoot = ContentRoot,
+            Geography = SelectionDefinition.Map, MapService = Service,
+            CategoryLabels = SelectionDefinition.Categories.ToDictionary(c => c.Id, c => c.Label), Published = entries =>
         {
-            SelectionDefinition = SelectionDefinition with { Entries = SelectionDefinition.Entries.Select(e => e.Id == preview.Id ? preview : e).ToArray() };
+            SelectionDefinition = SelectionDefinition with { Entries = entries };
             _selection?.QueueFree(); _selection = null;
         }, Closed = () =>
         {

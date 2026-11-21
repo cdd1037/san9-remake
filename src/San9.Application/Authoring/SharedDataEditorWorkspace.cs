@@ -30,6 +30,8 @@ public sealed partial class SharedDataEditorWorkspace
     private readonly Dictionary<string, byte[]> _inputs;
     private sealed record ScenarioReference(string Id, string Root, ScenarioContentManifest Manifest);
     private readonly ScenarioReference[] _scenarios;
+    private string _playerScenarioIndex = null!;
+    private byte[]? _openedPlayerScenarios;
     public ScenarioDefinitions Definitions { get; private set; }
     public string DefinitionPath { get; }
     public string PlayerDefinitionPath => PlayerDefinitionFiles.PlayerPath(DefinitionPath);
@@ -92,6 +94,9 @@ public sealed partial class SharedDataEditorWorkspace
         var files = new ContentReadSession();
         var catalog = await files.ReadAsync<ContentCatalog>(Path.Combine(contentRoot, "catalog.json"), token);
         ContentCatalogFiles.Validate(contentRoot, catalog);
+        string playerIndex = ContentCatalogFiles.PlayerScenariosPath(contentRoot);
+        var playerScenarios = await PlayerDefinitionFiles.ReadOptionalAsync(playerIndex, token);
+        catalog = ContentCatalogFiles.WithPlayerScenarios(contentRoot, catalog, playerScenarios);
         var reference = referenceScenarioId is null ? catalog.Scenarios.FirstOrDefault()
             : catalog.Scenarios.SingleOrDefault(s => s.Id == referenceScenarioId);
         if (reference is null) throw new InvalidDataException("找不到共享数据编辑的参考剧本。");
@@ -137,6 +142,7 @@ public sealed partial class SharedDataEditorWorkspace
         var workspace = new SharedDataEditorWorkspace(path, reference.Id, definitions, officerPath, officers,
             files.Snapshots(), expectedPlayer, expectedOfficers, scenarios, baseOfficers, baseDefinitions)
         {
+            _playerScenarioIndex = playerIndex, _openedPlayerScenarios = playerScenarios,
             _createdOfficersPath = createdOfficersPath, _expectedCreated = personal,
             _sharedOfficerIds = sharedOfficers.Officers.Select(p => p.Id).ToHashSet(),
             _sharedNextOfficerId = sharedOfficers.NextOfficerId
@@ -291,6 +297,7 @@ public sealed partial class SharedDataEditorWorkspace
             }
             var dependencies = new Dictionary<string, byte[]?>
             {
+                [_playerScenarioIndex] = _openedPlayerScenarios,
                 [PlayerDefinitionPath] = _expectedPlayer,
                 [PlayerOfficerPath] = _expectedOfficers
             };

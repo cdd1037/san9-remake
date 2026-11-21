@@ -8,8 +8,9 @@ using San9.Core.Domain;
 namespace San9.Application.Authoring;
 
 /// <summary>One scenario draft, with shared defaults retained as references until composition.</summary>
-public sealed class ScenarioEditorWorkspace
+public sealed partial class ScenarioEditorWorkspace
 {
+    private string _contentRoot = null!;
     private SharedMapSites? _sites;
     private readonly ScenarioContentManifest _manifest;
     private readonly ScenarioDocument _opened;
@@ -43,29 +44,31 @@ public sealed class ScenarioEditorWorkspace
     public static async Task<ScenarioEditorWorkspace> OpenAsync(string contentRoot, string scenarioId, CancellationToken token = default, string? createdOfficersPath = null)
     {
         var inputs = new Dictionary<string, byte[]?>(StringComparer.OrdinalIgnoreCase);
-        async Task<T> Read<T>(string path)
+        T Parse<T>(string path, byte[] bytes)
         {
-            byte[] bytes = await File.ReadAllBytesAsync(path, token);
-            inputs[path] = bytes;
             var value = JsonSerializer.Deserialize<T>(bytes, ScenarioContentFiles.DataJsonOptions)
                 ?? throw new InvalidDataException($"内容文件为空：{path}");
             ContentStructure.Validate(value);
             return value;
         }
+        async Task<T> Read<T>(string path)
+        {
+            byte[] bytes = await File.ReadAllBytesAsync(path, token);
+            inputs[path] = bytes;
+            return Parse<T>(path, bytes);
+        }
         async Task<T> ReadActive<T>(string path)
         {
             string player = PlayerDefinitionFiles.PlayerPath(path);
-            byte[]? bytes = await PlayerDefinitionFiles.ReadOptionalAsync(player, token);
+            var bytes = await PlayerDefinitionFiles.ReadOptionalAsync(player, token);
             inputs[player] = bytes;
-            if (bytes is null) return await Read<T>(path);
-            var value = JsonSerializer.Deserialize<T>(bytes, ScenarioContentFiles.DataJsonOptions)
-                ?? throw new InvalidDataException($"玩家内容为空：{player}");
-            ContentStructure.Validate(value);
-            return value;
+            return bytes is null ? await Read<T>(path) : Parse<T>(player, bytes);
         }
         contentRoot = Path.GetFullPath(contentRoot);
         var catalog = await Read<ContentCatalog>(Path.Combine(contentRoot, "catalog.json"));
         ContentCatalogFiles.Validate(contentRoot, catalog);
+        string playerIndex = ContentCatalogFiles.PlayerScenariosPath(contentRoot);
+        catalog = ContentCatalogFiles.WithPlayerScenarios(contentRoot, catalog, await PlayerDefinitionFiles.ReadOptionalAsync(playerIndex, token));
         string package = PackageFiles.Resolve(contentRoot, catalog.RequireScenario(scenarioId).Package);
         string manifestPath = Path.Combine(package, "content.json");
         var manifest = await ReadActive<ScenarioContentManifest>(manifestPath);
@@ -105,7 +108,7 @@ public sealed class ScenarioEditorWorkspace
         document.Compile(definitions, officers.Officers, geography);
         var text = await Read<StaticTextContent>(PackageFiles.Resolve(root, manifest.Text));
         var catalogText = new TextCatalog(text.SchemaVersion, text.Entries) { MessagePeople = text.MessagePeople, MessageTags = text.MessageTags };
-        return new(scenarioPath, manifestPath, manifest, document, shared, catalogText, inputs) { _map = authoredMap, _sites = sites };
+        return new(scenarioPath, manifestPath, manifest, document, shared, catalogText, inputs) { _contentRoot = contentRoot, _map = authoredMap, _sites = sites };
     }
 
     public IEnumerable<OfficerDefaults> UnplacedOfficers => _shared.Officers.Officers
@@ -128,8 +131,19 @@ public sealed class ScenarioEditorWorkspace
         return placement?.Overrides.Apply(defaults).Name ?? defaults.Name;
     }
 
-    public string Name(string key) => Text.Entries.GetValueOrDefault(key, key);
+    public string Name(string key) => Text.Entries.TryGetValue(key, out var name) ? name :
+        _shared.Officers.Officers.Concat(Document.AdditionalOfficerDefaults).FirstOrDefault(o => o.NameKey == key)?.Name ?? key;
     public string RegionName(int id) => _shared.Geography.RegionNameKeys.TryGetValue(id, out string? key) ? Name(key) : $"地域 {id}";
+    public int? SettlementCity(SettlementInitialState place)
+    {
+        if (place.Kind == SettlementKind.City) return place.Id;
+        var geography = _shared.Geography;
+        if (geography.RegionCityIds.TryGetValue(place.Id, out int city)) return city;
+        var map = geography.Military;
+        return map is not null && !map.RegionIds.IsDefaultOrEmpty && (uint)place.X < map.Width && (uint)place.Y < map.Height &&
+            map.RegionIds[place.Y * map.Width + place.X] is int region && geography.RegionCityIds.TryGetValue(region, out city)
+            ? city : null;
+    }
 
     public TreasurePlacement? GetTreasurePlacement(int id)
     {
@@ -169,7 +183,8 @@ public sealed class ScenarioEditorWorkspace
 
     public void SetDescription(string title, string description) => Preview = Preview with { Title = title, Description = description };
     public void RestoreOpened() { Document = _opened; Preview = _openedPreview; }
-    public string ExportJson() => JsonSerializer.Serialize(_sites is null ? (object)Document : SharedMapSites.StateOnly(Document), new JsonSerializerOptions(ScenarioContentFiles.DataJsonOptions) { WriteIndented = true });
+    private object ScenarioData(ScenarioDocument document) => _sites is null ? document : SharedMapSites.StateOnly(document);
+    public string ExportJson() => JsonSerializer.Serialize(ScenarioData(Document), new JsonSerializerOptions(ScenarioContentFiles.DataJsonOptions) { WriteIndented = true });
     public void ApplyJson(string json)
     {
         var document = _sites is not null ? _sites.Resolve<ScenarioDocument>(JsonSerializer.Deserialize<JsonElement>(json)) : JsonSerializer.Deserialize<ScenarioDocument>(json,
@@ -181,6 +196,7 @@ public sealed class ScenarioEditorWorkspace
 
     private void Validate(ScenarioDocument document)
     {
+        if (FindIssue(document) is { } issue) throw new InvalidDataException(issue.Message);
         var geography = _map is { } map ? San9.Content.Maps.MapGeographyCompiler.Resolve(map.Manifest,
             map.Manifest.ApplyLayout(map.Definition, document, _shared.Definitions),
             _shared.Geography, document, _shared.Definitions, _shared.Officers) : _shared.Geography;
@@ -194,6 +210,61 @@ public sealed class ScenarioEditorWorkspace
         _ = new ScenarioSessionDefinition(scenario).CreateWorld(0);
     }
 
+    private ScenarioPreviewEntry PreparePreview(ScenarioDocument document, ScenarioPreviewEntry preview)
+    {
+        if (string.IsNullOrWhiteSpace(preview.Title) || string.IsNullOrWhiteSpace(preview.Description))
+            throw new InvalidDataException("剧本标题和简介不能为空。");
+        MessageStyles.ValidateMarkup(preview.Description);
+        Validate(document);
+        return preview with
+        {
+            Year = document.Year, Month = document.Month,
+            CityColors = document.Settlements.Where(s => s.Kind == SettlementKind.City && !s.IsDormant && s.OwnerId is not null)
+                .ToDictionary(s => s.Id, s => $"color-{document.Forces.Single(f => f.Id == s.OwnerId).ColorCode}")
+        };
+    }
+
+    public async Task<ScenarioPreviewEntry> SaveAsAsync(string title, string description, string categoryId, CancellationToken token = default)
+    {
+        await _saveGate.WaitAsync(token);
+        try
+        {
+            string id = $"custom-{Guid.NewGuid():N}";
+            var document = Document with { ScenarioId = id };
+            var preview = PreparePreview(document, Preview with
+            {
+                Id = id, Title = title.Trim(), Description = description.Trim(), CategoryId = categoryId
+            });
+            var catalog = await ContentCatalogFiles.LoadBaseAsync(_contentRoot, token);
+            string indexPath = ContentCatalogFiles.PlayerScenariosPath(_contentRoot);
+            var indexBytes = await PlayerDefinitionFiles.ReadOptionalAsync(indexPath, token);
+            var combined = ContentCatalogFiles.WithPlayerScenarios(_contentRoot, catalog, indexBytes);
+            if (categoryId != Preview.CategoryId && !(await ContentCatalogFiles.LoadPreviewsAsync(_contentRoot, combined, token))
+                .Any(p => p.CategoryId == categoryId))
+                throw new InvalidDataException("请选择已有剧本分类。");
+
+            string sourcePackage = Path.GetDirectoryName(ManifestPath)!;
+            string resources = ScenarioContentFiles.ResolveResourceRoot(sourcePackage, _manifest.ResourceRoot);
+            string package = Path.Combine(resources, "player-scenarios", id);
+            string relativePackage = Path.GetRelativePath(_contentRoot, package).Replace('\\', '/');
+            _ = PackageFiles.Resolve(_contentRoot, relativePackage);
+            var additions = combined.Scenarios.Skip(catalog.Scenarios.Length).Append(new ScenarioCatalogEntry(id, relativePackage)).ToArray();
+            string worldPath = Path.Combine(package, "scenario.json");
+            var manifest = _manifest with
+            {
+                Preview = preview, Scenario = Path.GetRelativePath(resources, worldPath).Replace('\\', '/'),
+                ResourceRoot = Path.GetRelativePath(package, resources).Replace('\\', '/'),
+                Textures = new(Path.GetRelativePath(package, Path.GetFullPath(Path.Combine(sourcePackage, _manifest.Textures.Path))).Replace('\\', '/'))
+            };
+            await ScenarioDataFiles.WritePlayerDocumentsAsync([
+                new(worldPath, ScenarioData(document), null),
+                new(Path.Combine(package, "content.json"), manifest, null),
+                new(indexPath, additions, indexBytes)], token, _inputs);
+            return preview;
+        }
+        finally { _saveGate.Release(); }
+    }
+
     public async Task SaveAsync(CancellationToken token = default)
     {
         await _saveGate.WaitAsync(token);
@@ -202,25 +273,10 @@ public sealed class ScenarioEditorWorkspace
             if (!HasChanges) return;
             var document = Document;
             var previewAtStart = Preview;
-            var preview = previewAtStart;
-            if (string.IsNullOrWhiteSpace(preview.Title) || string.IsNullOrWhiteSpace(preview.Description))
-                throw new InvalidDataException("剧本标题和简介不能为空。");
-            MessageStyles.ValidateMarkup(preview.Description);
-            Validate(document);
-            preview = preview with
-            {
-                Year = document.Year, Month = document.Month,
-                CityColors = document.Settlements.Where(s => s.Kind == SettlementKind.City && !s.IsDormant && s.OwnerId is not null)
-                    .ToDictionary(s => s.Id, s => $"color-{document.Forces.Single(f => f.Id == s.OwnerId).ColorCode}")
-            };
-            foreach (var (path, expected) in _inputs)
-            {
-                byte[]? current = await PlayerDefinitionFiles.ReadOptionalAsync(path, token);
-                if (expected is null ? current is not null : current is null || !current.AsSpan().SequenceEqual(expected))
-                    throw new InvalidDataException("内容已被其他操作修改，请重新打开编辑器。当前草稿已保留。");
-            }
+            var preview = PreparePreview(document, previewAtStart);
+            await ScenarioDataFiles.CheckInputsAsync(_inputs, token);
             var published = await ScenarioDataFiles.WritePlayerDocumentsAsync([
-                new(PlayerScenarioPath, _sites is null ? (object)document : SharedMapSites.StateOnly(document), _inputs[PlayerScenarioPath]),
+                new(PlayerScenarioPath, ScenarioData(document), _inputs[PlayerScenarioPath]),
                 new(PlayerManifestPath, _manifest with { Preview = preview }, _inputs[PlayerManifestPath])], token);
             _inputs[PlayerScenarioPath] = published[PlayerScenarioPath];
             _inputs[PlayerManifestPath] = published[PlayerManifestPath];

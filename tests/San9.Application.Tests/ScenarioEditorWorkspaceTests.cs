@@ -38,6 +38,121 @@ public sealed class ScenarioEditorWorkspaceTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveAsPublishesDraftAlongsideSourceAndLaterSavesOnlyEditTheCopy()
+    {
+        var fixture = G01ScenarioTests.Fixture();
+        await Create(fixture with { Settlements = [.. fixture.Settlements, new(30, "city.empty", null, 3, 1, 0, 100, 100, 0, [])] });
+        var source = await ScenarioEditorWorkspace.OpenAsync(_root, ScenarioId);
+        source.Update(source.Document with { Year = 211, Settlements = source.Document.Settlements.Select(s =>
+            s.Id == 30 ? s with { OwnerId = 2, CorpsId = source.Document.Information.Corps.Single(c => c.OwnerId == 2 && c.IsRoot).Id } : s).ToArray() });
+        var preview = await source.SaveAsAsync("独立剧本", "开局简介", source.Preview.CategoryId);
+        var catalog = await ContentCatalogFiles.LoadAsync(_root);
+        Assert.Equal(2, catalog.Scenarios.Length);
+        var previews = await ContentCatalogFiles.LoadPreviewsAsync(_root, catalog);
+        Assert.Equal("原剧本", previews.Single(p => p.Id == ScenarioId).Title);
+        Assert.Equal("color-2", previews.Single(p => p.Id == preview.Id).CityColors[30]);
+        var package = PackageFiles.Resolve(_root, catalog.RequireScenario(preview.Id).Package);
+        var selection = await ScenarioContentFiles.LoadSelectionAsync(package);
+        Assert.Equal(211, selection.Scenario.Year);
+        Assert.Equal("独立剧本", selection.Text.Resolve(TextCatalog.ScenarioTitleKey));
+        var copy = await ScenarioEditorWorkspace.OpenAsync(_root, preview.Id);
+        Assert.False(copy.HasChanges);
+        copy.Update(copy.Document with { Year = 212 });
+        await copy.SaveAsync();
+        var originalWorld = (await ScenarioContentFiles.LoadAsync(Package)).Scenario;
+        var copyWorld = (await ScenarioContentFiles.LoadAsync(package)).Scenario;
+        Assert.Equal(190, GameSession.Start(originalWorld, 1).Snapshot.Clock.Year);
+        Assert.Equal(212, GameSession.Start(copyWorld, 1).Snapshot.Clock.Year);
+        Assert.Null(originalWorld.Settlements.Single(s => s.Id == 30).OwnerId);
+        Assert.Equal(2, copyWorld.Settlements.Single(s => s.Id == 30).OwnerId);
+        Assert.False(File.Exists(source.PlayerScenarioPath));
+        Assert.Equal(2, (await SharedDataEditorWorkspace.OpenAsync(_root)).ScenarioCount);
+    }
+
+    [Fact]
+    public async Task SaveAsRejectsInvalidDraftBeforePublishingAnEntry()
+    {
+        await Create();
+        var workspace = await ScenarioEditorWorkspace.OpenAsync(_root, ScenarioId);
+        workspace.Update(workspace.Document with { Day = 4 });
+        await Assert.ThrowsAsync<InvalidDataException>(() => workspace.SaveAsAsync("副本", "简介", workspace.Preview.CategoryId));
+        Assert.Single((await ContentCatalogFiles.LoadAsync(_root)).Scenarios);
+        Assert.True(workspace.HasChanges);
+    }
+
+    [Fact]
+    public async Task AuthoredForceGarrisonAndDiplomacyReachTheIndependentWorld()
+    {
+        var fixture = TreasureScenario();
+        await Create(fixture with { Settlements = [.. fixture.Settlements,
+            new(30, "city.blank", null, 3, 1, 0, 100, 100, 0, []),
+            new(31, "city.transfer", 1, 4, 1, 0, 100, 100, 0, [])] });
+        var shared = await SharedDataEditorWorkspace.OpenAsync(_root);
+        var founder = await shared.CreateOfficerAsync();
+        var first = await shared.CreateOfficerAsync();
+        var second = await shared.CreateOfficerAsync();
+        await shared.SaveAsync();
+        var editor = await ScenarioEditorWorkspace.OpenAsync(_root, ScenarioId);
+        editor.FoundForce(founder.Id, 30);
+        int force = editor.Document.Forces.Single(f => f.LeaderId == founder.Id).Id;
+        editor.DeployOfficers([first.Id, second.Id], 31, true);
+        editor.TransferSettlement(31, force, 1);
+        Assert.All(editor.Document.Officers.Where(o => o.Id == first.Id || o.Id == second.Id), o =>
+        { Assert.Equal(1, o.OwnerId); Assert.Equal(1, o.SettlementId); });
+        editor.SetTreasurePlacement(7001, new OfficerTreasurePlacement(first.Id));
+        var before = editor.Document;
+        Assert.Throws<InvalidDataException>(() => editor.WithdrawOfficers([second.Id, first.Id]));
+        Assert.Same(before, editor.Document);
+        editor.SetTreasurePlacement(7001, null);
+        editor.WithdrawOfficers([first.Id, second.Id]);
+        editor.DeployOfficers([first.Id, second.Id], 31, true);
+        editor.SetForceOffice(force, second.Id, false);
+        editor.SetRelation(force, 2, 84);
+        editor.SetAlliance(new(1, force, [2, force], 18));
+        editor.SetAttackRequest(force, new(force, 2, 1, 6));
+        await editor.SaveAsync();
+        var content = await ScenarioContentFiles.LoadAsync(Package);
+        var world = GameSession.Start(content.Scenario, 12).Snapshot;
+        Assert.Equal(founder.Id, world.Corps.Single(c => c.IsRoot && c.OwnerId == force).LeaderId);
+        Assert.Equal(force, world.Settlements.Single(s => s.Id == 31).OwnerId);
+        Assert.Equal(second.Id, world.Forces.Single(f => f.Id == force).AdviserId);
+        Assert.Equal(84, world.Relations.Single(r => r.FirstId == 2 && r.SecondId == force).Value);
+        Assert.Equal(force, world.Simulation.Alliance!.LeaderForceId);
+        Assert.Equal(1, Assert.Single(world.Simulation.AttackRequests).TargetSettlementId);
+
+        editor.DeleteForce(force);
+        await editor.SaveAsync();
+        var after = GameSession.Start((await ScenarioContentFiles.LoadAsync(Package)).Scenario, 12).Snapshot;
+        Assert.DoesNotContain(after.Forces, f => f.Id == force);
+        Assert.DoesNotContain(after.Corps, c => c.OwnerId == force);
+        Assert.Null(after.Settlements.Single(s => s.Id == 31).OwnerId);
+        var formerRuler = after.Officers.Single(o => o.Id == founder.Id);
+        Assert.Equal(OfficerStatus.Free, formerRuler.Status);
+        Assert.Equal(30, formerRuler.SettlementId);
+        Assert.DoesNotContain(force, formerRuler.ForceLoyalties.Keys);
+        Assert.Null(after.Simulation.Alliance);
+        Assert.Empty(after.Simulation.AttackRequests);
+        Assert.DoesNotContain(after.Relations, r => r.FirstId == force || r.SecondId == force);
+    }
+
+    [Fact]
+    public async Task ValidationIdentifiesTheConflictingRecordAndRejectsPartialTransfers()
+    {
+        await Create();
+        var editor = await ScenarioEditorWorkspace.OpenAsync(_root, ScenarioId);
+        var valid = editor.Document;
+        Assert.Throws<InvalidDataException>(() => editor.TransferSettlement(1, 2, null));
+        Assert.Same(valid, editor.Document);
+        editor.Update(valid with { Settlements = valid.Settlements.Select(s => s.Id == 1 ? s with { CorpsId = 2 } : s).ToArray() });
+        Assert.Equal(("据点", 1), (editor.FindIssue()!.Page, editor.FindIssue()!.ObjectId));
+        Assert.Throws<InvalidDataException>(editor.CheckDraft);
+        editor.RestoreOpened();
+        editor.SetForceOffice(1, 2, true);
+        Assert.Equal(2, editor.Document.Information.Corps.Single(c => c.OwnerId == 1 && c.IsRoot).LeaderId);
+        editor.CheckDraft();
+    }
+
+    [Fact]
     public async Task PlayerScenarioReachesSelectionFullContentAndNewGameWhileSharedDefaultsRemainInherited()
     {
         await Create();

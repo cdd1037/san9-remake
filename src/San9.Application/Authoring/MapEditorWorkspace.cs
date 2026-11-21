@@ -271,6 +271,9 @@ public sealed class MapEditorWorkspace
         if (CreatedOfficersPath is not null)
             dependencies[CreatedOfficersPath] = personal = await PlayerDefinitionFiles.ReadOptionalAsync(CreatedOfficersPath, token);
         var catalog = await Read<ContentCatalog>(Path.Combine(_catalogRoot, "catalog.json"));
+        string playerIndex = ContentCatalogFiles.PlayerScenariosPath(_catalogRoot);
+        dependencies[playerIndex] = await PlayerDefinitionFiles.ReadOptionalAsync(playerIndex, token);
+        catalog = ContentCatalogFiles.WithPlayerScenarios(_catalogRoot, catalog, dependencies[playerIndex]);
         foreach (var entry in catalog.Scenarios)
         {
             try
@@ -326,12 +329,7 @@ public sealed class MapEditorWorkspace
                     throw new InvalidDataException($"地点 {id} 的锚点须属于同名地域。");
             var buildings = draft.Sites.Buildings(draft.Sites.Sites.Keys).Where(b => b.FixedType >= 0).ToArray();
             MapLayoutCompiler.Compile(Map, buildings, resources, null, draft.Geography.RegionCityIds);
-            foreach (var (path, expected) in _inputs)
-            {
-                byte[]? current = await PlayerDefinitionFiles.ReadOptionalAsync(path, token);
-                if (expected is null ? current is not null : current is null || !current.AsSpan().SequenceEqual(expected))
-                    throw new InvalidDataException("内容已被其他操作修改，请重新打开地图编辑器。当前草稿已保留。");
-            }
+            await ScenarioDataFiles.CheckInputsAsync(_inputs, token);
             List<ScenarioDataFiles.PlayerDocument> documents = [];
             bool mapChanged = !draft.Map.Cells.AsSpan().SequenceEqual(_saved.Map.Cells);
             bool geographyChanged = !ContentComparison.Equal(draft.Geography.RegionCityIds, _saved.Geography.RegionCityIds);

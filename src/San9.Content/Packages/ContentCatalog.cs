@@ -38,7 +38,27 @@ public sealed record OpeningContent(StartMenuPresentation Menu, ScenarioSelectio
 
 public static class ContentCatalogFiles
 {
+    public static string PlayerScenariosPath(string root) => Path.Combine(root, "player-scenarios.json");
+
     public static async Task<ContentCatalog> LoadAsync(string root, CancellationToken token = default)
+    {
+        var catalog = await LoadBaseAsync(root, token);
+        var additions = await PlayerDefinitionFiles.ReadOptionalAsync(PlayerScenariosPath(root), token);
+        return WithPlayerScenarios(root, catalog, additions);
+    }
+
+    public static ContentCatalog WithPlayerScenarios(string root, ContentCatalog catalog, byte[]? additions)
+    {
+        if (additions is null) return catalog;
+        var entries = System.Text.Json.JsonSerializer.Deserialize<ScenarioCatalogEntry[]>(additions, PackageFiles.JsonOptions)
+            ?? throw new InvalidDataException("自制剧本目录为空。");
+        ContentStructure.Validate(entries);
+        var combined = catalog with { Scenarios = [.. catalog.Scenarios, .. entries] };
+        Validate(root, combined);
+        return combined;
+    }
+
+    public static async Task<ContentCatalog> LoadBaseAsync(string root, CancellationToken token = default)
     {
         var catalog = await PackageFiles.ReadAsync<ContentCatalog>(Path.Combine(root, "catalog.json"), token);
         Validate(root, catalog);

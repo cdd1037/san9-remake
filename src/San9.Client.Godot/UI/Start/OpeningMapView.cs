@@ -16,13 +16,14 @@ public partial class OpeningMapView : Control
     public Action<int?>? Hovered { get; init; }
     public Action<int>? Activated { get; init; }
     public IReadOnlySet<int> Selected { get; set; } = new HashSet<int>();
+    public bool FocusOnReady { get; init; } = true;
     private int? _hovered;
     private int? _pressed;
     public override void _Ready()
     {
         Size = new(Definition.Width, Definition.Height);
         MouseFilter = Activated is null ? MouseFilterEnum.Ignore : MouseFilterEnum.Stop;
-        if (Activated is not null) { FocusMode = FocusModeEnum.All; GrabFocus(); }
+        if (Activated is not null) { FocusMode = FocusModeEnum.All; if (FocusOnReady) GrabFocus(); }
         MouseExited += () => Hover(null);
     }
     private int? Target(Vector2 point)
@@ -93,6 +94,11 @@ public partial class OpeningMapView : Control
             int frame = target is null ? 3 : _hovered == target ? _pressed == target ? 2 : 1 : 0;
             DrawTextureRectRegion(texture, new(center - new Vector2(width / 2, texture.GetHeight() / 2f), new(width, texture.GetHeight())),
                 new(frame * width, 0, width, texture.GetHeight()));
+            if (selected && SelectionTextures is null)
+            {
+                DrawArc(center, 13, 0, Mathf.Tau, 32, Colors.Black, 4, true);
+                DrawArc(center, 13, 0, Mathf.Tau, 32, Colors.White, 2, true);
+            }
         }
     }
 }

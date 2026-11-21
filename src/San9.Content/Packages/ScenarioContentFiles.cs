@@ -111,7 +111,7 @@ public static class ScenarioContentFiles
         if (sharedMap is not null)
         {
             await publication.StageAsync(PackageFiles.Resolve(resourceRoot, sharedMap.Locations), sites ?? throw new ArgumentNullException(nameof(sites)), DataJsonOptions, token);
-            var catalog = await ContentCatalogFiles.LoadAsync(resourceRoot, token);
+            var catalog = await ContentCatalogFiles.LoadBaseAsync(resourceRoot, token);
             await publication.StageAsync(Path.Combine(resourceRoot, "catalog.json"), catalog with { SharedMap = sharedMap }, PackageFiles.JsonOptions, token);
         }
         await ScenarioDataFiles.WriteSharedAsync(resourceRoot, shared, token, publication);

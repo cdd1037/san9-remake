@@ -67,7 +67,7 @@ public partial class StartMenuPreview : Node
                 BeginGame = (id, players, settings, damage, setup) => EnterGame(() => BeginGame(id, players, settings, damage, setup)),
                 LoadScenario = (id, cancellation) => Task.Run(async () =>
                 {
-                    var entry = catalog.RequireScenario(id);
+                    var entry = (await ContentCatalogFiles.LoadAsync(root, cancellation)).RequireScenario(id);
                     var content = await ScenarioContentFiles.LoadSelectionAsync(PackageFiles.Resolve(root, entry.Package), cancellation, paths.CreatedOfficers);
                     cancellation.ThrowIfCancellationRequested();
                     var source = await ScenarioContentFiles.LoadScenarioAsync(PackageFiles.Resolve(root, entry.Package), cancellation, paths.CreatedOfficers);

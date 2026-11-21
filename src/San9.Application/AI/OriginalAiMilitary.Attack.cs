@@ -202,7 +202,7 @@ internal sealed partial class OriginalAiMilitary
                 rules.TryPlace(s, out var place) && !(place.FacilityTypeId is int type && Policy.RouteObstacleFacilityIds.Contains(type)));
             if (building is null) continue;
             if (ConstructionConflict(building.Id)) return null;
-            if (Target(building))
+            if (building.OwnerId is int owner && OriginalAiStrategy.IsOpponent(World, Owner, owner))
             {
                 regions = encountered.ToImmutable();
                 return building;

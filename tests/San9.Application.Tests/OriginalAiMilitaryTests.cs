@@ -1187,14 +1187,18 @@ public sealed partial class OriginalAiMilitaryTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void AttackRouteConflictUsesConstructionDestinationInsteadOfTransportDestination(bool construction)
+    [InlineData(true, false, 2)]
+    [InlineData(false, false, 2)]
+    [InlineData(false, false, 3)]
+    [InlineData(false, true, 2)]
+    public void AttackRouteChecksConstructionConflictAndPassesUnownedFacilities(bool construction, bool barbarian, int initialTarget)
     {
         var content = WithConstruction(Fixture());
         content = content with
         {
             UnbuiltPlaces = [],
+            Forces = content.Forces.Select(f => f.Id == 1 && barbarian ? f with
+                { IsBarbarian = true, FormationGrants = [new(400, FormationGrantCondition.Barbarian)] } : f).ToArray(),
             Settlements = content.Settlements.Append(content.Settlements[1] with
                 { Id = 3, OwnerId = null, CorpsId = null, X = 5, Soldiers = 0, Morale = 0,
                     MerchantPresenceChance = 0, Kind = SettlementKind.Facility }).ToArray(),
@@ -1204,11 +1208,13 @@ public sealed partial class OriginalAiMilitaryTests
                     .Add(new(3, new(27, 7), new(1, 1)) { FacilityTypeId = 701, Combat = new(1, 1, 1, 1, 10) }),
                 Facilities = content.Military.Facilities.Select(f => f with { IsWork = true }).ToImmutableArray()
                     .Add(content.Military.Facilities[0] with { Id = 701 }),
-                ConstructionSites = [new(3, new(37, 7), [700])]
+                ConstructionSites = [new(3, new(37, 7), [700])],
+                Formations = content.Military.Formations.Select(f => f.Id == 400 ? f with { IsCommon = !barbarian } : f).ToImmutableArray()
             }
         };
         var h = new Harness(content, w => w with
         {
+            Forces = w.Forces.Select(f => f.Id == 1 ? f with { IsBarbarian = barbarian } : f).ToArray(),
             Units = [new(900, 1, new(17, 7), 1000)
             {
                 FormationId = construction ? 600 : 500, CorpsId = 1, ServicePlaceId = 1,
@@ -1220,8 +1226,9 @@ public sealed partial class OriginalAiMilitaryTests
             Simulation = w.Simulation with { NextUnitId = 901 }
         });
 
-        Assert.Equal(construction ? 0 : 1, h.Run(OriginalAiWork.Attack, 1).Submitted);
-        if (!construction) Assert.Equal(3, Assert.IsType<DeployUnitCommand>(Assert.Single(h.Commands)).Order.SettlementId);
+        var report = h.Military.Run(OriginalAiWork.Attack, 1, h.State, new(1, OriginalAiMode.TargetSettlement, null, initialTarget));
+        Assert.Equal(construction ? 0 : 1, report.Submitted);
+        if (!construction) Assert.Equal(initialTarget, Assert.IsType<DeployUnitCommand>(Assert.Single(h.Commands)).Order.SettlementId);
     }
 
     [Fact]

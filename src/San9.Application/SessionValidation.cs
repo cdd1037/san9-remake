@@ -51,7 +51,7 @@ internal static class SessionValidation
             !controls.Select(c => c.ForceId).Order().SequenceEqual(snapshot.World.Forces.Where(f => !f.IsDormant && !f.IsEliminated).Select(f => f.Id).Order()))
             throw new ArgumentException("Scenario date or control configuration mismatch.");
         var content = definition.Content;
-        bool ContextPlace(int? id) => id is null || snapshot.World.Settlements.Any(s => s.Id == id) || content.RegionNameKeys.ContainsKey(id.Value);
+        bool KnownMapPlace(int? id) => id is null || snapshot.World.Settlements.Any(s => s.Id == id) || content.RegionNameKeys.ContainsKey(id.Value);
         if (snapshot.StrategicContexts is null) throw new ArgumentException("Missing strategic contexts.");
         foreach (var (forceId, context) in snapshot.StrategicContexts)
         {
@@ -66,13 +66,13 @@ internal static class SessionValidation
                     !snapshot.World.Forces.Any(f => f.Id == p.ForceId) ||
                     p.Role is ("enemy-city" or "enemy-place" or "reinforce-from" or "reinforce-to") &&
                         (p.EnemyForceId is null || p.EnemyForceId == forceId) ||
-                    !ContextPlace(p.PlaceId) || !ContextPlace(p.CityId) || !ContextPlace(p.OtherPlaceId) ||
+                    !KnownMapPlace(p.PlaceId) || !KnownMapPlace(p.CityId) || !KnownMapPlace(p.OtherPlaceId) ||
                     p.EnemyForceId is int enemy && !snapshot.World.Forces.Any(f => f.Id == enemy) ||
                     p.OtherOfficerId is int other && !snapshot.World.Officers.Any(o => o.Id == other) ||
                     p.TreasureId is int treasure && !snapshot.World.Treasures.Any(t => t.Id == treasure)) ||
                 context.Clues.Any(c => !Enum.IsDefined(c.Kind) || c.Kind == Presentation.StrategicClueKind.Person && c.TreasureId is not null ||
                     c.Kind == Presentation.StrategicClueKind.Treasure && c.OfficerId is not null || c.Clock.DayNumber > snapshot.World.Clock.DayNumber || c.Clock.DayNumber < snapshot.World.Simulation.Started.DayNumber ||
-                    !ContextPlace(c.PlaceId) || c.RegionOnly && (c.OfficerId is not null || c.TreasureId is not null) ||
+                    !KnownMapPlace(c.PlaceId) || c.RegionOnly && (c.OfficerId is not null || c.TreasureId is not null) ||
                     c.OfficerId is int person && !snapshot.World.Officers.Any(o => o.Id == person) ||
                     c.TreasureId is int item && !snapshot.World.Treasures.Any(t => t.Id == item)))
                 throw new ArgumentException("Invalid strategic context publication.");
@@ -114,12 +114,12 @@ internal static class SessionValidation
         // so validate its surviving owner rather than requiring the initial corps identity.
         Same(content.Information.Corps.Where(c => c.IsRoot && snapshot.World.Forces.Any(f => f.Id == c.OwnerId && !f.IsEliminated)).Select(c => c.OwnerId).Union(addedForces.Where(id => snapshot.World.Forces.Any(f => f.Id == id && !f.IsEliminated))).Concat(generated.Where(f => !f.IsEliminated).Select(f => f.Id)),
             snapshot.World.Corps.Where(c => c.IsRoot).Select(c => c.OwnerId));
-        if (snapshot.World.Treasures.Any(t => t.RegionId is int region && !content.RegionNameKeys.ContainsKey(region)))
+        if (snapshot.World.Treasures.Any(t => !KnownMapPlace(t.RegionId)))
             throw new ArgumentException("Unknown treasure region.");
         if (content.Information.Relations.Any(initial => !snapshot.World.Relations.Any(current =>
             current.FirstId == initial.FirstId && current.SecondId == initial.SecondId)))
             throw new ArgumentException("Missing initial relation identity.");
-        if (snapshot.World.Officers.Any(o => o.RegionId is int region && !content.UnbuiltPlaces.Any(p => p.Id == region) ||
+        if (snapshot.World.Officers.Any(o => o.RegionId is int region && !definition.Rules.Personnel.Places.ContainsKey(region) ||
             o.OfficeId is int office && !content.Information.Offices.Any(d => d.Id == office)) ||
             snapshot.World.Forces.Any(f => f.RankId is int rank && !content.Information.Ranks.Any(r => r.Id == rank) ||
                 f.CountryTitleId is int title && !content.Information.CountryTitles.Any(t => t.Id == title)))

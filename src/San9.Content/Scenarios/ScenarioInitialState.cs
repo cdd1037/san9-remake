@@ -155,7 +155,9 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         {
             _ = new San9.Core.Domain.MilitaryCityNetwork(MilitaryCityConnections);
             if (SearchEvents.IsDefault || SearchEvents.Any(e => e is null)) throw new InvalidDataException("Invalid search event collection.");
-            _ = new San9.Core.Domain.PersonnelRulebook(Settlements.Select(s => new San9.Core.Domain.PersonPlace(s.Id, s.Position)).Concat(UnbuiltPlaces), RegionCityIds, CityConnections, CityProvinceIds, searchEvents: SearchEvents);
+            var personnel = new San9.Core.Domain.PersonnelRulebook(Settlements.Select(s => new San9.Core.Domain.PersonPlace(s.Id, s.Position)).Concat(UnbuiltPlaces), RegionCityIds, CityConnections, CityProvinceIds, searchEvents: SearchEvents);
+            if (Officers.Any(o => o.State.RegionId is int region && !personnel.Places.ContainsKey(region)))
+                throw new InvalidDataException("Invalid officer region.");
             var ids = Officers.Select(o => o.State.Id).ToHashSet();
             foreach (var offer in SearchEvents.OfType<San9.Core.Domain.MysticBookOfferSearchEventDefinition>())
                 if (!ids.Contains(offer.MysticOfficerId) || !Information.Treasures.Any(t => t.Id == offer.TreasureId))
@@ -241,7 +243,6 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
         catch (ArgumentException error) { throw new InvalidDataException("Invalid imperial court references.", error); }
         if (DomesticPairs.Any(p => !Officers.Any(o => o.State.Id == p.FirstId) || !Officers.Any(o => o.State.Id == p.SecondId)) ||
             ImperialSealId is int seal && !Information.Treasures.Any(t => t.Id == seal)) throw new InvalidDataException("Invalid economy references.");
-        if (Officers.Any(o => o.State.RegionId is int region && !UnbuiltPlaces.Any(p => p.Id == region))) throw new InvalidDataException("Invalid officer region.");
         if (ConsumedEventKeys.IsDefault || ConsumedEventKeys.Any(k => string.IsNullOrWhiteSpace(k.Value)) ||
             ConsumedEventKeys.Distinct().Count() != ConsumedEventKeys.Length)
             throw new InvalidDataException("Invalid initial consumed event keys.");

@@ -82,7 +82,7 @@ internal static class WorldInvariants
                 officer.OwnerId is int owner && !state.AllForces.ContainsKey(owner) ||
                 officer.UnitId is int unitId && (!state.Units.TryGetValue(unitId, out var unit) ||
                     (officer.Status == San9.Core.Domain.OfficerStatus.Captive ? unit.OwnerId == officer.OwnerId : unit.OwnerId != officer.OwnerId)) ||
-                officer.IsServing && officer.SettlementId is int home && state.AllSettlements[home].OwnerId != officer.OwnerId) throw new ArgumentException("Invalid officer.");
+                officer.IsServing && officer.SettlementId is int home && state.AllSettlements[home].OwnerId != officer.OwnerId) throw new ArgumentException($"Invalid officer {officer.Id}.");
         }
         if (state.AllForces.Values.Any(f => f.AdviserId is int adviser && (!state.AllOfficers.TryGetValue(adviser, out var p) || p.OwnerId != f.Id || p.Status != San9.Core.Domain.OfficerStatus.Strategist)) ||
             state.AllOfficers.Values.Any(p => p.Status == San9.Core.Domain.OfficerStatus.Strategist &&

@@ -15,6 +15,34 @@ namespace San9.Application.Tests;
 public sealed class PersistenceTests : IDisposable
 {
     [Fact]
+    public void PlayerLoadPreservesOfficerRegionAtDormantSettlement()
+    {
+        var initial = Fixture();
+        var definition = initial with
+        {
+            Settlements = [.. initial.Settlements, initial.Settlements[0] with { Id = 7, OwnerId = null, IsDormant = true }],
+            Officers = [.. initial.Officers, new("wanderer", new OfficerState(7, null, null, new(), false)
+                { Status = OfficerStatus.Free, RegionId = 7 })]
+        };
+        var bytes = SaveService.Encode(GameSession.Start(definition, 190));
+        var loaded = SaveService.Load(bytes, definition);
+        var person = loaded.Snapshot.Officers.Single(p => p.Id == 7);
+        Assert.Equal(7, person.RegionId);
+        Assert.Null(person.SettlementId);
+        Assert.DoesNotContain(loaded.View.Settlements, s => s.Id == 7);
+    }
+
+    [Fact]
+    public void PlayerLoadAcceptsTreasureDroppedAtSettlementWithoutRegionName()
+    {
+        var definition = Fixture();
+        var save = SaveService.Capture(GameSession.Start(definition, 190));
+        var world = save.Session.World with { Treasures = [new(1, new RegionTreasurePlacement(1))] };
+        var loaded = SaveService.Load(save with { Session = save.Session with { World = world } }, definition);
+        Assert.Equal(1, Assert.Single(loaded.Snapshot.Treasures).RegionId);
+    }
+
+    [Fact]
     public void PlayerLoadKeepsSavedTreasuresWhenInitialPlacementsChange()
     {
         var definition = Fixture();

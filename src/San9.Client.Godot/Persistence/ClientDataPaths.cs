@@ -10,7 +10,7 @@ public sealed class ClientDataPaths
     public string Profile => Path.Combine(Root, "profile.json");
     public string PortraitPack => Path.Combine(Root, "portrait-packs", "my-portraits");
     public string TreasureIllustrations => Path.Combine(Root, "treasure-illustrations");
-    public string CreatedOfficers => Path.Combine(Root, "created-officers.json");
+    public string CreatedOfficers => Path.Combine(Root, "player-officers.json");
     public string QuickSave => Path.Combine(Root, "saves", "quick.save.json");
     public string SaveSlots => Path.Combine(Root, "saves", "slots");
 

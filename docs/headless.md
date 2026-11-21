@@ -4,7 +4,7 @@
 
 ## 实际能力与所有权
 
-`ScenarioSessionDefinition`从现有Content剧本创建规则身份与世界；`GameSession.Start/Restore`组织新局和恢复。`SaveService`保存完整世界、控制轮次、任务、命名随机、最近128条内政记录、玩家年表和序号水位；不累计完整操作和事件历史。恢复不重复新局准备，先验证身份与引用再构造查询。内容身份及本局新增定义与存档一起校验，不在恢复时重新执行新局初始化。
+`ScenarioSessionDefinition`从现有Content剧本创建规则身份与世界；`GameSession.Start/Restore`组织新局和恢复。`SaveService`保存完整世界、控制轮次、任务、命名随机、最近128条内政记录、玩家年表和序号水位；不累计完整操作和事件历史。恢复不重复新局准备，先验证身份与引用再构造查询。资料集标识、入局人物和新势力引用与存档一起校验，不在恢复时重新执行新局初始化。
 
 `GameSession.Apply`统一命令、结束控制、推进与年表操作，在候选世界上执行并发布当前状态和水位。会话序号从0开始，另有Core命令序号；Core不保存整局已完成命令ID。当前会话内旧序号返回`AlreadyProcessed`，不执行、不返回旧结果，也不验证旧载荷；未来序号拒绝。外部JSONL在文件头核对格式、种子和会话配置，规则版本不同仅警告；本地请求不再重复附加流指纹。拒绝不占用序号。JSONL输入首次失败即停止，接受前缀可保存续跑。
 
@@ -28,7 +28,7 @@ dotnet run --project src/San9.Headless -- run --fixture --log local/generated/ve
 
 录像的`replay`模式、`--record`和`--recording`已移除，使用会返回退出码2；没有旧录像读取或迁移入口。
 
-日志为每行一个JSON对象：首行为`formatVersion/rulesVersion/seed`及会话设置；后续为`id/sequence/controllerId/operation`。例如第0条年表操作：
+日志为每行一个JSON对象：首行为`formatVersion/rulesVersion/contentSetId/seed`及会话设置；后续为`id/sequence/controllerId/operation`。例如第0条年表操作：
 
 ```json
 {"controllerId":"player","id":"00000003-0000-0000-0000-000000000000","operation":{"text":"Headless scripted verification","type":"chronicle-note"},"sequence":0}

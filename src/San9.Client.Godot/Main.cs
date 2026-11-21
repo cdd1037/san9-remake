@@ -91,28 +91,28 @@ public partial class Main : Node
             if (options.MapEditor)
             {
                 GetWindow().Title = "San9R · 地图编辑器";
-                ui.AddChild(new MapEditor { ContentRoot = options.ContentRoot,
+                ui.AddChild(new MapEditor { CreatedOfficersPath = DataPaths.CreatedOfficers, ContentRoot = options.ContentRoot,
                     Closed = () => GetTree().Quit() });
                 return;
             }
             if (options.ScenarioEditor)
             {
                 GetWindow().Title = "San9R · 剧本编辑器";
-                ui.AddChild(new ScenarioEditor { ContentRoot = options.ContentRoot, ScenarioId = options.ScenarioId,
+                ui.AddChild(new ScenarioEditor { CreatedOfficersPath = DataPaths.CreatedOfficers, ContentRoot = options.ContentRoot, ScenarioId = options.ScenarioId,
                     Closed = () => GetTree().Quit() });
                 return;
             }
             if (options.SharedDataEditor)
             {
                 GetWindow().Title = "San9R · 游戏资料编辑器";
-                ui.AddChild(new SharedDataEditor { DataPaths = DataPaths, ContentRoot = options.ContentRoot, ReferenceScenarioId = options.ScenarioId,
+                ui.AddChild(new SharedDataEditor { DataPaths = DataPaths, Preferences = _preferences, ContentRoot = options.ContentRoot, ReferenceScenarioId = options.ScenarioId,
                     Closed = () => GetTree().Quit() });
                 return;
             }
             if (options.OfficerEditor)
             {
-                ui.AddChild(new CreatedOfficerEditor { PortraitPackRoot = DataPaths.PortraitPack, Store = new(DataPaths.CreatedOfficers), ContentRoot = options.ContentRoot,
-                    Preferences = _preferences, Closed = () => GetTree().Quit() });
+                ui.AddChild(new SharedDataEditor { DataPaths = DataPaths, Preferences = _preferences, OpenOfficers = true, ContentRoot = options.ContentRoot,
+                    Closed = () => GetTree().Quit() });
                 return;
             }
             await StartInitialContent();
@@ -360,7 +360,7 @@ public partial class Main : Node
                 (await ContentCatalogFiles.LoadAsync(options.ContentRoot, token)).RequireScenario(options.ScenarioId!).Package);
             var loaded = await Task.Run(async () =>
             {
-                var package = await ClientContentFiles.LoadAsync(packageRoot, token, DataPaths.PortraitPack, DataPaths.TreasureIllustrations);
+                var package = await ClientContentFiles.LoadAsync(packageRoot, token, DataPaths.PortraitPack, DataPaths.TreasureIllustrations, DataPaths.CreatedOfficers);
                 double validationMs = startup.Elapsed.TotalMilliseconds;
                 token.ThrowIfCancellationRequested();
                 if (options.ScenarioId is { } scenarioId && package.Scenario.ScenarioId != scenarioId)

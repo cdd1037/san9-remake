@@ -10,6 +10,7 @@ public sealed partial class GameSession
 {
     private SimulationEngine _simulation;
     private readonly ScenarioSessionDefinition _definition;
+    internal string ContentSetId => _definition.Content.ContentSetId;
     public San9.Content.Scenarios.SessionDefinitions Definitions => _definition.Definitions;
     private readonly StrategySnapshotSource _snapshotSource;
     private StrategySnapshot _view;

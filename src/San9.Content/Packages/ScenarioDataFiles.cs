@@ -8,6 +8,7 @@ namespace San9.Content.Packages;
 public sealed record OfficerDefaultsCatalog(int SchemaVersion, OfficerDefaults[] Officers)
 {
     public const int CurrentSchemaVersion = 4;
+    public string ContentSetId { get; init; } = ScenarioInitialState.OriginalContentSetId;
     // Allocation history is authoring state: deleting an item must not recycle its identity.
     [System.Text.Json.Serialization.JsonRequired]
     public long NextOfficerId { get; init; } = (long)Officers.Select(p => p.Id).DefaultIfEmpty(-1).Max() + 1;
@@ -19,7 +20,7 @@ public sealed record SharedScenarioData(string DefinitionsPath, string OfficersP
 {
     public static SharedScenarioData From(ScenarioInitialState scenario, string definitionsPath, string officersPath, string geographyPath, TextCatalog texts) =>
         new(definitionsPath, officersPath, geographyPath, ScenarioDefinitions.From(scenario),
-            new(OfficerDefaultsCatalog.CurrentSchemaVersion, scenario.Officers.Select(p => OfficerDefaults.From(p, texts)).ToArray()),
+            new(OfficerDefaultsCatalog.CurrentSchemaVersion, scenario.Officers.Select(p => OfficerDefaults.From(p, texts)).ToArray()) { ContentSetId = scenario.ContentSetId },
             ScenarioGeography.From(scenario));
 
     public ScenarioDocument Describe(ScenarioInitialState scenario, TextCatalog texts)
@@ -31,7 +32,7 @@ public sealed record SharedScenarioData(string DefinitionsPath, string OfficersP
         if (!ContentComparison.Equal(Geography, ScenarioGeography.From(scenario)))
             throw new InvalidDataException("Scenario geography differs from its explicitly referenced shared geography.");
         var document = ScenarioDocument.From(scenario, Definitions, Officers.Officers, texts);
-        if (!ContentComparison.Equal(scenario, document.Compile(Definitions, Officers.Officers, Geography)))
+        if (!ContentComparison.Equal(scenario, document.Compile(Definitions, Officers.Officers, Geography) with { ContentSetId = Officers.ContentSetId }))
             throw new InvalidDataException("Authored scenario composition changed the compiled initial state.");
         return document;
     }
@@ -43,7 +44,8 @@ public sealed record SharedScenarioData(string DefinitionsPath, string OfficersP
             Officers.SchemaVersion != OfficerDefaultsCatalog.CurrentSchemaVersion ||
             Geography.SchemaVersion != ScenarioGeography.CurrentSchemaVersion)
             throw new InvalidDataException("Unsupported shared scenario data version; reconvert the package.");
-        OfficerComposition.Compile([], Officers.Officers);
+        if (string.IsNullOrWhiteSpace(Officers.ContentSetId)) throw new InvalidDataException("缺少资料集标识 contentSetId。");
+        OfficerComposition.Index(Officers.Officers);
     }
 
     internal string[] ResolvePaths(string resourceRoot)
@@ -127,11 +129,11 @@ public static class ScenarioDataFiles
         return result;
     }
 
-    public static async Task<ScenarioInitialState> LoadScenarioAsync(string resourceRoot, ScenarioContentManifest manifest, CancellationToken token = default)
-        => (await LoadScenarioWithProfilesAsync(resourceRoot, manifest, token)).Scenario;
+    public static async Task<ScenarioInitialState> LoadScenarioAsync(string resourceRoot, ScenarioContentManifest manifest, CancellationToken token = default, string? createdOfficersPath = null)
+        => (await LoadScenarioWithProfilesAsync(resourceRoot, manifest, token, createdOfficersPath: createdOfficersPath)).Scenario;
 
     internal static async Task<(ScenarioInitialState Scenario, OfficerDefaults[] Profiles, MapInstance? Map)> LoadScenarioWithProfilesAsync(
-        string resourceRoot, ScenarioContentManifest manifest, CancellationToken token, bool includeMap = false)
+        string resourceRoot, ScenarioContentManifest manifest, CancellationToken token, bool includeMap = false, string? createdOfficersPath = null)
     {
         var sites = manifest.Locations is null ? null : await PackageFiles.ReadAsync<SharedMapSites>(
             PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, manifest.Locations)), token);
@@ -139,6 +141,7 @@ public static class ScenarioDataFiles
         var document = sites is null ? await PackageFiles.ReadAsync<ScenarioDocument>(path, token)
             : sites.Resolve<ScenarioDocument>(await PackageFiles.ReadAsync<JsonElement>(path, token));
         var shared = await LoadAsync(resourceRoot, manifest, token, usePlayerDefinitions: true);
+        shared = shared with { Officers = await PlayerOfficerFiles.LoadAsync(shared.Officers, createdOfficersPath, token) };
         var geography = shared.Geography;
         MapInstance? instance = null;
         if (includeMap || geography.Military is not null)
@@ -153,7 +156,7 @@ public static class ScenarioDataFiles
             geography = San9.Content.Maps.MapGeographyCompiler.Resolve(mapManifest, map, geography,
                 document, shared.Definitions, shared.Officers, token);
         }
-        var scenario = document.Compile(shared.Definitions, shared.Officers.Officers, geography);
+        var scenario = document.Compile(shared.Definitions, shared.Officers.Officers, geography) with { ContentSetId = shared.Officers.ContentSetId };
         ContentStructure.Validate(scenario);
         return (scenario, OfficerComposition.Profiles(document.Officers, [.. shared.Officers.Officers, .. document.AdditionalOfficerDefaults]), instance);
     }
@@ -163,13 +166,14 @@ public static class ScenarioDataFiles
         => (await LoadSelectionWithProfilesAsync(resourceRoot, manifest, token)).Scenario;
 
     internal static async Task<(ScenarioSelectionState Scenario, OfficerDefaults[] Profiles)> LoadSelectionWithProfilesAsync(
-        string resourceRoot, ScenarioContentManifest manifest, CancellationToken token)
+        string resourceRoot, ScenarioContentManifest manifest, CancellationToken token, string? createdOfficersPath = null)
     {
         var document = await SharedMapSites.ReadScenarioAsync<SelectionDocument>(resourceRoot, manifest, token, includeMilitary: false);
         var definitions = await PackageFiles.ReadAsync<SelectionDefinitions>(
             PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, manifest.Definitions)), token);
         var officers = await PackageFiles.ReadAsync<OfficerDefaultsCatalog>(
             PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(resourceRoot, manifest.OfficerDefaults)), token);
+        officers = await PlayerOfficerFiles.LoadAsync(officers, createdOfficersPath, token);
         if (document.SchemaVersion != ScenarioDocument.CurrentSchemaVersion || definitions.SchemaVersion != ScenarioDefinitions.CurrentSchemaVersion ||
             officers.SchemaVersion != OfficerDefaultsCatalog.CurrentSchemaVersion)
             throw new InvalidDataException("Unsupported authored scenario data version; reconvert the package.");

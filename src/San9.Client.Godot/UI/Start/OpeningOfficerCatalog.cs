@@ -13,14 +13,14 @@ public static class OpeningOfficerCatalog
         new CatalogPage("君主", OfficerCatalog.CorePages[0].Columns.Take(6).ToArray())
     }.Concat(OfficerCatalog.Pages(source.Information.Tactics, source.Military?.Tactics ?? [], texts).Skip(4)).ToArray();
 
-    public static CatalogCell Cell(CreatedOfficer person, string field)
+    public static CatalogCell Cell(OfficerDefaults person, string field)
     {
         if (field.StartsWith("mastery.", StringComparison.Ordinal))
         {
             bool mastered = person.MasteredCategories.Contains(int.Parse(field.AsSpan(8)));
             return new(mastered ? "☆" : "", mastered ? 1 : 0);
         }
-        if (field.StartsWith("proficiency.", StringComparison.Ordinal)) return person.Proficiencies[int.Parse(field.AsSpan(12))];
+        if (field.StartsWith("proficiency.", StringComparison.Ordinal)) return person.TacticProficiencies[int.Parse(field.AsSpan(12))];
         if (field.StartsWith("tactic.", StringComparison.Ordinal))
         {
             bool learned = person.LearnedTactics.Contains(int.Parse(field.AsSpan(7)));
@@ -28,8 +28,8 @@ public static class OpeningOfficerCatalog
         }
         return field switch
         {
-            "name" => person.FullName, "leadership" => person.Abilities.Leadership, "war" => person.Abilities.War,
-            "intelligence" => person.Abilities.Intelligence, "politics" => person.Abilities.Politics,
+            "name" => person.Name, "leadership" => person.Leadership, "war" => person.War,
+            "intelligence" => person.Intelligence, "politics" => person.Politics,
             "learned" => person.LearnedTactics.Count, _ => throw new ArgumentOutOfRangeException(nameof(field))
         };
     }

@@ -54,16 +54,18 @@ public static class SaveService
             throw new SaveException(SaveFailure.UnsupportedVersion, "Unsupported save version.");
         if (string.IsNullOrWhiteSpace(envelope.RulesVersion))
             throw new SaveException(SaveFailure.InvalidFormat, "Missing save rules version.");
+        if (envelope.Session.ContentSetId != definition.ContentSetId)
+            throw new SaveException(SaveFailure.MissingContent, $"此存档需要资料集 {envelope.Session.ContentSetId}，当前为 {definition.ContentSetId}。");
         try
         {
             if (envelope.Session.Definitions is null) throw new ArgumentException("Missing session definitions.");
-            envelope.Session.Definitions.Validate(definition);
-            var owned = new ScenarioSessionDefinition(definition, envelope.Session.InitialPlayerForceIds, envelope.Session.Definitions);
+            var references = envelope.Session.Definitions.Resolve(definition);
+            var owned = new ScenarioSessionDefinition(definition, envelope.Session.InitialPlayerForceIds, references);
             var session = playerLoad ? GameSession.Load(owned, envelope.Session, factory) : GameSession.Restore(owned, envelope.Session, factory);
             session.ReportRulesVersion(envelope.RulesVersion);
             return session;
         }
-        catch (MissingTreasureDefinitionException error)
+        catch (Exception error) when (error is MissingTreasureDefinitionException or MissingOfficerDefinitionException)
         { throw new SaveException(SaveFailure.MissingContent, error.Message, error); }
         catch (Exception error) when (error is ArgumentException or InvalidOperationException or OverflowException or InvalidDataException)
         { throw new SaveException(SaveFailure.InvalidState, "Invalid authoritative session state.", error); }

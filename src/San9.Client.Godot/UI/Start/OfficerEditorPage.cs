@@ -7,6 +7,8 @@ namespace San9.Client.Godot;
 public partial class OfficerEditorPage : SharedCatalogEditorPage
 {
     public TextureService? PortraitService { get; init; }
+    public Settings.UiPreferencesSession Preferences { get; init; } = new();
+    private CenterContainer? _flagPreview;
     public OfficerFlagCatalog? Flags { get; init; }
     private int _tab;
     protected override bool ScrollForm => false;
@@ -14,7 +16,16 @@ public partial class OfficerEditorPage : SharedCatalogEditorPage
     protected override IEnumerable<(int Id, string Name)> Entries => Workspace.Officers.Select(p => (p.Id, p.Name));
     protected override bool Changed(int id) => Workspace.IsOfficerChanged(id);
     protected override void Restore(int id) => Workspace.RestoreOfficer(id);
-    private void Edit(int id, Func<OfficerDefaults, OfficerDefaults> change) => Workspace.SetOfficer(change(Workspace.GetOfficer(id)));
+    private void Edit(int id, Func<OfficerDefaults, OfficerDefaults> change)
+    {
+        var original = Workspace.GetOfficer(id);
+        var updated = change(original);
+        if (updated.Surname != original.Surname && Preferences.Current.AutoAssignOfficerFlag && Flags is not null)
+            updated = updated with { FlagGlyph = Flags.Resolve(updated.Surname) };
+        Workspace.SetOfficer(updated);
+        if (updated.FlagGlyph != original.FlagGlyph && _flagPreview is not null)
+            OfficerFlagField.Refresh(_flagPreview, PortraitService, Flags, updated.FlagGlyph);
+    }
 
     protected override void BuildForm(int id)
     {
@@ -34,11 +45,13 @@ public partial class OfficerEditorPage : SharedCatalogEditorPage
     {
         var person = Workspace.GetOfficer(id);
         var change = Guard<int>(glyph => { Edit(id, p => p with { FlagGlyph = glyph }); Rebuild(); });
-        OfficerFlagField.Add(parent, PortraitService, Flags, person.FlagGlyph, () =>
+        _flagPreview = OfficerFlagField.Add(parent, PortraitService, Flags, person.FlagGlyph, () =>
         {
             if (Flags is { } flags && PortraitService is { } service)
                 OfficerFlagField.Show(this, service, flags, Workspace.GetOfficer(id).FlagGlyph, change);
         }, () => { if (Flags is { } flags) change(flags.Resolve(Workspace.GetOfficer(id).Surname)); });
+        ContentEditorControls.Toggle(parent, "按姓氏自动关联", Preferences.Current.AutoAssignOfficerFlag,
+            enabled => Preferences.Update(p => p with { AutoAssignOfficerFlag = enabled }), "AutoAssignOfficerFlag");
     }
 
     private void BuildRelationships(Node parent, int id)

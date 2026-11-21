@@ -38,7 +38,7 @@ public partial class ScenarioEditor
         Toggle("势力合并", document.ForceConsolidationEnabled, (d, value) => d with { ForceConsolidationEnabled = value });
     }
 
-    private void BuildListPage(string name, Func<IEnumerable<(int Id, string Name)>> entries, Action<VBoxContainer, int> build)
+    private void BuildListPage(string name, Func<IEnumerable<(int Id, string Name)>> entries, Action<VBoxContainer, int> build, bool addOfficers = false, int? selectedId = null)
     {
         var split = new HSplitContainer { Name = name, SplitOffsets = [245] }; _pages.AddChild(split);
         var side = ContentEditorControls.Sidebar(split);
@@ -46,7 +46,7 @@ public partial class ScenarioEditor
         var list = new ItemList { Name = name + "列表", SizeFlagsVertical = SizeFlags.ExpandFill }; side.AddChild(list);
         var scroll = new ScrollContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
         split.AddChild(scroll); var form = ContentEditorControls.PageBody(scroll);
-        var visible = new List<int>(); int? selected = null;
+        var visible = new List<int>(); int? selected = selectedId;
         void Show(int? id)
         {
             selected = id;
@@ -65,6 +65,17 @@ public partial class ScenarioEditor
             if (index < 0 && visible.Count > 0) index = 0;
             if (index >= 0) list.Select(index);
             Show(index >= 0 ? visible[index] : null);
+        }
+        if (addOfficers)
+        {
+            var workspace = _workspace!;
+            var choices = workspace.UnplacedOfficers.Select(p => ($"{p.Name} [{p.Id}]", p.Id)).ToArray();
+            var add = SearchableReferenceField.Add(side, "共享武将", choices, -1, id =>
+            {
+                workspace.AddOfficer(id);
+                BuildPages(_pages.CurrentTab, id);
+            }, "AddSharedOfficer", "按姓名或 ID 搜索尚未安置的共享武将。", "添加共享武将", showCaption: false, keepFirstVisible: false);
+            add.Disabled = choices.Length == 0;
         }
         list.ItemSelected += index => Show(visible[(int)index]); search.TextChanged += _ => Filter(); Filter();
     }

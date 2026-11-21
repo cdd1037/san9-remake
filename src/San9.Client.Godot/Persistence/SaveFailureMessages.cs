@@ -12,6 +12,7 @@ public static class SaveFailureMessages
         SaveFailure.InvalidFormat or SaveFailure.InvalidState => "存档损坏或状态无效。",
         SaveFailure.MissingContent when error.InnerException is MissingTreasureDefinitionException missing =>
             $"存档所需的宝物定义缺失（ID {missing.TreasureId}）。",
+        SaveFailure.MissingContent => error.Message,
         SaveFailure.IoFailure when error.InnerException is FileNotFoundException or DirectoryNotFoundException => "存档文件已不存在，请重新选择。",
         _ => "无法读写存档文件，请检查磁盘和访问权限。",
     };

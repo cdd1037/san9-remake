@@ -72,7 +72,8 @@ internal sealed class StrategySnapshotSource
             new Dictionary<int, int>(definition.RegionCityIds));
         var people = definition.Officers.ToDictionary(o => o.State.Id, o => new OfficerDisplayDefinition(o.NameKey, o.CourtesyNameKey, o.BiographyKey, o.FlagGlyph));
         foreach (var person in (additions ?? SessionDefinitions.Empty).Officers)
-            people[person.Id] = new(person.NameKey, person.CourtesyNameKey, person.BiographyKey, person.FlagGlyph);
+            people[person.Id] = new(person.NameKey, person.CourtesyName is null ? null : person.CourtesyNameKey ?? $"officer-courtesy.{person.Id}",
+                person.Biography is null ? null : person.BiographyKey ?? $"officer-biography.{person.Id}", person.FlagGlyph);
         _officers = people;
         _sessionForces = (additions ?? SessionDefinitions.Empty).Forces.ToDictionary(f => f.Id);
         _forces = definition.Forces.ToDictionary(force => force.Id);

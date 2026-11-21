@@ -24,7 +24,7 @@ public partial class OpeningSetupDialog : ModalView
     public Action Changed { get; init; } = null!;
     private TextureScope _art = null!, _skin = null!;
     private readonly GameTextPresenter _text = new();
-    private readonly Guid?[] _rulers = new Guid?[NewGameSetup.MaximumCreatedForces];
+    private readonly int?[] _rulers = new int?[NewGameSetup.MaximumCreatedForces];
     private readonly int?[] _cities = new int?[NewGameSetup.MaximumCreatedForces];
     private readonly List<(Label Ruler, Label City, AsyncPortrait Face, StartMenuButton Erase)> _slots = [];
     private StartMenuButton _confirm = null!;
@@ -33,14 +33,12 @@ public partial class OpeningSetupDialog : ModalView
     private OpeningCityPicker? _cityPicker;
     private GameDialog? _message;
     private readonly HashSet<int> _people = [];
-    private Dictionary<Guid, int> _ids = null!;
-    private Dictionary<int, CreatedOfficer> _officers = null!;
+    private Dictionary<int, OfficerDefaults> _officers = null!;
 
     public override void _Ready()
     {
         Size = new(1024, 768); MouseFilter = MouseFilterEnum.Stop;
-        _ids = NewGameComposer.OfficerIds(Draft.Source, Draft.Setup).ToDictionary();
-        _officers = Draft.Setup.Library.Officers.ToDictionary(p => _ids[p.Id]);
+        _officers = Draft.Candidates.ToDictionary(p => p.Id);
         _art = Service.CreateScope(Service.LibraryAssets);
         if (CreateForces) _art.Request(Definition.NewForces.Assets.Concat([Help.Asset, Close.Asset]));
         var skin = Service.Roles.ToDictionary();
@@ -82,8 +80,8 @@ public partial class OpeningSetupDialog : ModalView
     {
         for (int i = 0; i < _slots.Count; i++)
         {
-            var person = _rulers[i] is Guid id ? _officers[_ids[id]] : null;
-            _slots[i].Ruler.Text = person?.FullName ?? "";
+            var person = _rulers[i] is int id ? _officers[id] : null;
+            _slots[i].Ruler.Text = person?.Name ?? "";
             _slots[i].City.Text = _cities[i] is int city ? CityName(city) : "";
             _slots[i].Face.Role = person?.PortraitKey;
             _slots[i].Erase.Disabled = person is null && _cities[i] is null;
@@ -96,7 +94,7 @@ public partial class OpeningSetupDialog : ModalView
     private void ChooseRuler(int slot)
     {
         var people = _officers.Values.Where(p => NewGameComposer.CanDeploy(p, Draft.Source) && !_rulers.Where((_, i) => i != slot).Contains(p.Id)).ToArray();
-        PeopleList("选择武将", people, _rulers[slot] is Guid id ? [_ids[id]] : [], 1, ids =>
+        PeopleList("选择武将", people, _rulers[slot] is int id ? [id] : [], 1, ids =>
         {
             _rulers[slot] = _officers[ids.Single()].Id; CloseList(); RefreshForces();
             if (_cities[slot] is null) ChooseCity(slot);
@@ -132,7 +130,7 @@ public partial class OpeningSetupDialog : ModalView
         _message.Dismissed += () => { CloseMessage(); Deploy(false); };
         AddChild(_message);
     }, () => { CloseCityPicker(); ChoosePeople(); });
-    private void PeopleList(string title, CreatedOfficer[] people, IEnumerable<int> selected, int limit,
+    private void PeopleList(string title, OfficerDefaults[] people, IEnumerable<int> selected, int limit,
         Action<IReadOnlySet<int>> confirmed, Action closed)
     {
         bool single = CreateForces;
@@ -140,10 +138,10 @@ public partial class OpeningSetupDialog : ModalView
         _list = new CatalogView { Title = title, HintText = single ? "选择担任新势力君主的武将。" : "请选择武将后决定。",
             Service = Service, Textures = _skin, CloseTitle = "中止", TitleBounds = OpeningWindowPainter.TitleBounds, TabStripFollowsPage = true, MinimumBodyWidth = 588,
             WindowPainter = (canvas, body) => OpeningWindowPainter.Draw(canvas, _skin, body, pairedActions: !single),
-            Pages = pages, ReadRows = page => people.Select(p => new CatalogRow(_ids[p.Id],
+            Pages = pages, ReadRows = page => people.Select(p => new CatalogRow(p.Id,
                 pages[page].Columns.Select(c => OpeningOfficerCatalog.Cell(p, c.Id)).ToArray())).ToArray(),
             Portrait = id => _officers[id].PortraitKey, InitialCurrentId = selected.Cast<int?>().FirstOrDefault(),
-            Selection = single ? null : new(people.Select(p => _ids[p.Id]), selected, limit), ConfirmSelection = confirmed,
+            Selection = single ? null : new(people.Select(p => p.Id), selected, limit), ConfirmSelection = confirmed,
             Activated = single ? id => confirmed(new HashSet<int> { id }) : null, Closed = closed };
         AddChild(_list);
     }

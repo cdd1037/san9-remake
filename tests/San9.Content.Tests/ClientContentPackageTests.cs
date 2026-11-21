@@ -105,11 +105,12 @@ public sealed class ClientContentPackageTests
         blankPortrait.ValidateLinks();
         Assert.Throws<InvalidDataException>(() => (blankPortrait with { Text = blankPortrait.Text with
             { MessagePeople = new() { [900] = new(null, null, "portrait/42") } } }).ValidateLinks());
-        var additions = new SessionDefinitions { Officers = [new(901, "新", "人物", "", "列传", null)] };
+        var extra = OfficerDefaults.Create(901) with { Name = "新人物", Biography = "列传" };
+        var additions = new SessionDefinitions { OfficerIds = [901] }.Resolve(p.Scenario with { OfficerCatalog = new[] { extra }.ToDictionary(o => o.Id) });
         var augmented = blankPortrait with { Definitions = additions, Text = additions.AddText(blankPortrait.Text) };
         augmented.ValidateLinks();
         Assert.Throws<InvalidDataException>(() => (augmented with { Text = blankPortrait.Text }).ValidateLinks());
-        var missingPortrait = additions with { Officers = [additions.Officers[0] with { PortraitKey = "portrait/42" }] };
+        var missingPortrait = additions.Resolve(p.Scenario with { OfficerCatalog = new[] { extra with { PortraitKey = "portrait/42" } }.ToDictionary(o => o.Id) });
         var roles = new Dictionary<string, string>(augmented.Skin.Roles)
             { ["information-person-901"] = augmented.Skin.Assets[0].Id, ["catalog-person-901"] = augmented.Skin.Assets[0].Id };
         Assert.Throws<InvalidDataException>(() => (augmented with { Definitions = missingPortrait,

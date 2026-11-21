@@ -48,9 +48,10 @@ public partial class WorkflowLifecycleVerification
             string packageRoot = PackageFiles.Resolve(contentRoot, catalog.RequireScenario("19").Package);
             var source = await ScenarioContentFiles.LoadScenarioAsync(packageRoot);
             var display = await ScenarioContentFiles.LoadSelectionAsync(packageRoot);
-            var library = CreatedOfficerLibrary.Empty with { Officers = [new(Guid.NewGuid(), "检查")
-                { BirthYear = source.Year - 20, AppearanceYear = source.Year - 6 }] };
-            pending.SetResult(new(source, display.Text, display.IllustrationRoles, library));
+            int id = source.OfficerCatalog.Keys.Max() + 1;
+            var person = San9.Content.Scenarios.OfficerDefaults.Create(id) with { BirthYear = source.Year - 20 };
+            source = source with { OfficerCatalog = source.OfficerCatalog.Values.Append(person).ToDictionary(p => p.Id) };
+            pending.SetResult(new(source, display.Text, display.IllustrationRoles));
             await WaitForModal(() => !create.Disabled && !deploy.Disabled, service);
             Check(cancel.Disabled && page.Setup.Placements.IsEmpty, "Readiness enabled cancel deployment without any assignments.");
             Check(loads == 1, "Opening controls duplicated the scenario read.");

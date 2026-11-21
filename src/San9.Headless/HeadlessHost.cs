@@ -241,10 +241,10 @@ public sealed class HeadlessHost
         string log = Path.GetFullPath(Required(options, "log"));
         _report.CommandLog = log;
         var header = CommandLogService.ReadHeader(log);
-        try { header.OriginalAi.Validate(definition.Officers.Select(o => o.State.Id).Concat(header.Definitions.Officers.Select(p => p.Id)).ToHashSet(), definition.Military); }
+        try { header.OriginalAi.Validate(definition.Officers.Select(o => o.State.Id).Concat(header.Definitions.OfficerIds).ToHashSet(), definition.Military); }
         catch (InvalidDataException error) { throw new CommandLogException(1, "Invalid original AI policy.", error); }
         header.Definitions.Validate(definition);
-        if ((!header.Definitions.Officers.IsEmpty || !header.Definitions.Forces.IsEmpty) && !options.ContainsKey("load") && !options.ContainsKey("restore"))
+        if ((!header.Definitions.OfficerIds.IsEmpty || !header.Definitions.Forces.IsEmpty) && !options.ContainsKey("load") && !options.ContainsKey("restore"))
             throw new UsageException("Command scripts with added definitions require a starting save via --restore or --load.");
         definition = definition with { OriginalAi = header.OriginalAi };
         _session = options.TryGetValue("load", out string? load) ? SaveService.Load(load, definition) :

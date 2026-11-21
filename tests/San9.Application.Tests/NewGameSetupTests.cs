@@ -21,17 +21,16 @@ public sealed class NewGameSetupTests
             { Ranks = source.Information.Ranks.Select(r => r with { IsUnranked = marked }).ToArray() } };
         var setup = NewGameSetup.Empty with
         {
-            Library = CreatedOfficerLibrary.Empty with { Officers = [First] },
             Forces = [new(First.Id, 1)]
         };
         var composed = NewGameComposer.Compose(source, setup);
         Assert.Equal(expected, composed.Scenario.Forces.Single(f => f.Id != 12).RankId);
     }
 
-    private static readonly CreatedOfficer First = new(Guid.Parse("10000000-0000-0000-0000-000000000000"), "甲")
-        { Surname = "新", FlagGlyph = 42, BirthYear = 160, AppearanceYear = 180, Abilities = new(91, 92, 93, 94), PortraitKey = "portrait.42" };
-    private static readonly CreatedOfficer Second = new(Guid.Parse("20000000-0000-0000-0000-000000000000"), "乙")
-        { Surname = "新", FlagGlyph = 66, BirthYear = 175, AppearanceYear = 189, ParentId = First.Id };
+    private static readonly OfficerDefaults First = OfficerDefaults.Create(1001) with
+        { Name = "新甲", Surname = "新", FlagGlyph = 42, BirthYear = 160, AppearanceYear = 180, War = 91, Intelligence = 92, Politics = 93, Leadership = 94, PortraitKey = "portrait.42" };
+    private static readonly OfficerDefaults Second = OfficerDefaults.Create(1002) with
+        { Name = "新乙", Surname = "新", FlagGlyph = 66, BirthYear = 175, AppearanceYear = 189, ParentId = First.Id, BloodlineId = First.Id };
     private static ScenarioInitialState Source() => new(ScenarioInitialState.CurrentSchemaVersion, "created-start", 190, 1, 1, 12,
         [new(12, "force.old", 5, 100) { LeaderId = 1000 }],
         [new(1, "city.empty", null, 0, 0, 8000, 100, 100, 0, [])
@@ -39,6 +38,7 @@ public sealed class NewGameSetupTests
          new(2, "city.old", 12, 1, 0, 10000, 100, 100, 50, []) { Kind = SettlementKind.City, CorpsId = 70 }],
         new() { [1] = "city.empty", [2] = "city.old" }, new() { [1] = 1, [2] = 2 })
     {
+        OfficerCatalog = new[] { First, Second }.ToDictionary(p => p.Id),
         ForceEmergenceEnabled = false, ForceConsolidationEnabled = false, CityIndependenceEnabled = false,
         OfficeRequestsEnabled = false, NaturalDeathsEnabled = true, FreeOfficerMigrationEnabled = false,
         Officers = [new("officer.old", new(1000, 12, 2, new(50, 50, 50, 50), false)
@@ -51,24 +51,23 @@ public sealed class NewGameSetupTests
         ["scenario.title"] = "测试", ["force.old"] = "旧势力", ["officer.old"] = "旧君主",
         ["city.empty"] = "空城", ["city.old"] = "旧城", ["rank.none"] = "无"
     });
-    private static NewGameDraft Draft(params CreatedOfficer[] people) => new(Source(), Text(),
-        new Dictionary<string, string> { ["catalog-person-1000"] = "portrait.1" }, CreatedOfficerLibrary.Empty with { Officers = [..people] });
+    private static NewGameDraft Draft(params OfficerDefaults[] people) => new(Source() with { OfficerCatalog = people.ToDictionary(p => p.Id) },
+        Text(), new Dictionary<string, string> { ["catalog-person-1000"] = "portrait.1" });
 
     [Fact]
-    public void AuthoredTraitsRelativeAgeAndExplicitFamilySurviveLibraryAndSaveRoundTrips()
+    public void AuthoredTraitsRelativeAgeAndFamilySurviveSaveRoundTrip()
     {
         var person = First with { BirthYear = 0, AgeAtScenarioStart = 30, SuccessionPriority = 42,
             ForceFounderPriority = 37, TacticLinkBonus = 25, DuelAdvantages = DuelAdvantages.DominantAttack,
             PrefersConsolidationLeadership = true, AutomaticSurrenderAllowed = false, HasRecruitmentPoliticsBonus = true,
-            HistoricalBloodlineRootId = 1000 };
-        var library = CreatedOfficerLibrary.Decode((CreatedOfficerLibrary.Empty with { Officers = [person] }).Encode());
-        var draft = Draft(library.Officers[0]);
+            BloodlineId = First.Id };
+        var draft = Draft(person);
         draft.Deploy([person.Id], 2, true);
         var session = GameSession.Start(draft.Source, 123, setup: draft.Setup);
         var restored = SaveService.Decode(SaveService.Encode(session), draft.Source);
         var state = Assert.Single(restored.Snapshot.Officers, p => p.Id != 1000);
         Assert.Equal(160, state.BirthYear);
-        Assert.Equal(9000, state.BloodlineId);
+        Assert.Equal(person.Id, state.BloodlineId);
         Assert.Equal(42, state.SuccessionPriority);
         Assert.Equal(37, state.ForceFounderPriority);
         Assert.Equal(25, state.TacticLinkBonus);
@@ -79,10 +78,10 @@ public sealed class NewGameSetupTests
     }
 
     [Fact]
-    public void ExplicitLibraryFamilyKeepsItsUndeployedRootAndRejectsCycles()
+    public void ExplicitFamilyKeepsItsUndeployedRoot()
     {
-        var root = First with { BloodlineRootId = First.Id };
-        var child = Second with { ParentId = null, BloodlineRootId = root.Id };
+        var root = First with { BloodlineId = First.Id };
+        var child = Second with { ParentId = null, BloodlineId = root.Id };
         var draft = Draft(root, child);
         draft.Deploy([child.Id], 2, true);
         var composed = NewGameComposer.Compose(draft.Source, draft.Setup);
@@ -90,8 +89,6 @@ public sealed class NewGameSetupTests
         Assert.Equal(2, people.Length);
         Assert.Single(people.Select(p => p.State.BloodlineId).Distinct());
         Assert.Single(people, p => p.State.IsDormant);
-        var cyclic = CreatedOfficerLibrary.Empty with { Officers = [root with { BloodlineRootId = child.Id }, child] };
-        Assert.Throws<InvalidDataException>(cyclic.Validate);
     }
 
     [Fact]
@@ -103,10 +100,9 @@ public sealed class NewGameSetupTests
             Officers = [original.Officers[0] with { FlagGlyph = 77, State = original.Officers[0].State with { Surname = "新" } }],
             Information = original.Information with { CountryTitles = [new(new(5000, true, true, false, [], []), "title", 37)] }
         };
-        var draft = new NewGameDraft(source, Text(), new Dictionary<string, string>(),
-            CreatedOfficerLibrary.Empty with { Officers = [First, Second with { FlagGlyph = -1 }] });
+        var draft = new NewGameDraft(source with { OfficerCatalog = new[] { First, Second with { FlagGlyph = -1 } }.ToDictionary(p => p.Id) }, Text(), new Dictionary<string, string>());
         draft.SetForces([new(First.Id, 1)]); draft.Deploy([Second.Id], 1, true);
-        var session = GameSession.Start(source, 123, playerForceIds: [13], setup: draft.Setup);
+        var session = GameSession.Start(draft.Source, 123, playerForceIds: [13], setup: draft.Setup);
         var display = new StrategySnapshotSource(source, new ScenarioRules(source), session.Definitions);
         var force = session.Snapshot.Forces.Single(f => f.Id == 13);
 
@@ -148,13 +144,12 @@ public sealed class NewGameSetupTests
         var draft = Draft(First, Second);
         draft.Deploy([Second.Id], city, join);
         var result = draft.Compose();
-        var ids = NewGameComposer.OfficerIds(draft.Source, draft.Setup);
-        var person = result.Officers.Single(p => p.State.Id == ids[Second.Id]).State;
+        var person = result.Officers.Single(p => p.State.Id == Second.Id).State;
         Assert.Equal(status, person.Status); Assert.Equal(owner, person.OwnerId); Assert.Equal(city, person.SettlementId);
-        Assert.Equal(ids[First.Id], person.ParentId); Assert.True(person.BloodlineId > 9000);
-        Assert.True(result.Officers.Single(p => p.State.Id == ids[First.Id]).State.IsDormant);
+        Assert.Equal(First.Id, person.ParentId); Assert.Equal(First.Id, person.BloodlineId);
+        Assert.True(result.Officers.Single(p => p.State.Id == First.Id).State.IsDormant);
         draft.CancelDeployment([Second.Id]);
-        Assert.DoesNotContain(draft.Compose().Officers, p => p.State.Id == ids[Second.Id]);
+        Assert.DoesNotContain(draft.Compose().Officers, p => p.State.Id == Second.Id);
         Assert.Equal(OfficerStatus.Ruler, draft.Source.Officers[0].State.Status);
         Assert.Null(draft.Source.Settlements[0].OwnerId);
     }
@@ -179,7 +174,7 @@ public sealed class NewGameSetupTests
     {
         var source = Source() with { NaturalDeathsEnabled = false };
         var person = First with { BirthYear = birth, AppearanceYear = appearance, LifespanTier = 0 };
-        var draft = new NewGameDraft(source, Text(), new Dictionary<string, string>(), CreatedOfficerLibrary.Empty with { Officers = [person] });
+        var draft = new NewGameDraft(source with { OfficerCatalog = new[] { person }.ToDictionary(p => p.Id) }, Text(), new Dictionary<string, string>());
         Assert.True(NewGameComposer.CanDeploy(person, source));
         if (ruler) draft.SetForces([new(person.Id, 1)]); else draft.Deploy([person.Id], 2, true);
         var state = draft.Compose().Officers.Single(o => o.State.Id == 1001).State;
@@ -227,7 +222,7 @@ public sealed class NewGameSetupTests
     public void PromotionAndForceRemovalReleaseMembersAndPreserveOtherForceIdentities()
     {
         var source = Source() with { Settlements = [..Source().Settlements, new(3, "city.empty", null, 2, 0, 0, 100, 100, 0, []) { Kind = SettlementKind.City }] };
-        var draft = new NewGameDraft(source, Text(), new Dictionary<string, string>(), CreatedOfficerLibrary.Empty with { Officers = [First, Second] });
+        var draft = new NewGameDraft(source, Text(), new Dictionary<string, string>());
         draft.Deploy([First.Id], 2, true);
         draft.SetForces([new(First.Id, 1), new(Second.Id, 3)]);
         Assert.Empty(draft.Setup.Placements);
@@ -239,16 +234,42 @@ public sealed class NewGameSetupTests
     }
 
     [Fact]
+    public void RefreshKeepsLaterForcesAndPlacementsWhenAnEarlierFounderBecomesIneligible()
+    {
+        var source = Source();
+        var secondFounder = Second with { ParentId = null, BloodlineId = Second.Id };
+        var member = OfficerDefaults.Create(1003);
+        var free = OfficerDefaults.Create(1004);
+        source = source with
+        {
+            Settlements = [..source.Settlements, source.Settlements[0] with { Id = 3 }],
+            OfficerCatalog = new[] { First, secondFounder, member, free }.ToDictionary(p => p.Id)
+        };
+        var previous = new NewGameDraft(source, Text(), new Dictionary<string, string>());
+        previous.SetForces([new(First.Id, 1), new(Second.Id, 3)]);
+        previous.SetPlayerForces([12, 14]);
+        previous.Deploy([member.Id], 1, true);
+        previous.Deploy([free.Id], 1, false);
+
+        var revised = source with { OfficerCatalog = new[] { secondFounder, member, free }.ToDictionary(p => p.Id) };
+        var refreshed = new NewGameDraft(revised, Text(), new Dictionary<string, string>());
+        Assert.Equal([First.Id, member.Id], refreshed.RestoreOpeningChoices(previous));
+        Assert.Equal(new CreatedForce(Second.Id, 3), Assert.Single(refreshed.Setup.Forces));
+        Assert.Equal(new OfficerPlacement(free.Id, 1, false), Assert.Single(refreshed.Setup.Placements));
+        Assert.Equal(new[] { 12, 13 }, refreshed.PlayerForceIds.ToArray());
+    }
+
+    [Fact]
     public void InvalidAssignmentsAreAtomicAndSourceReferencesAreValidated()
     {
         var draft = Draft(First, Second);
         var before = draft.Setup;
         Assert.Throws<InvalidDataException>(() => draft.SetForces([new(First.Id, 2)]));
         Assert.Throws<InvalidDataException>(() => draft.SetForces([new(First.Id, 1), new(Second.Id, 1)]));
-        Assert.Throws<InvalidDataException>(() => draft.Deploy([Guid.NewGuid()], 1, false));
+        Assert.Throws<InvalidDataException>(() => draft.Deploy([99999], 1, false));
         Assert.Throws<InvalidDataException>(() => draft.Deploy([First.Id], 999, false));
         Assert.Same(before, draft.Setup);
-        var invalid = Draft(First with { ScenarioParentId = 999 });
+        var invalid = Draft(First with { ParentId = 999 });
         Assert.Throws<InvalidDataException>(() => invalid.Deploy([First.Id], 1, false));
         var young = Draft(First with { BirthYear = 180, AppearanceYear = 195 });
         Assert.Throws<InvalidDataException>(() => young.SetForces([new(First.Id, 1)]));
@@ -262,8 +283,7 @@ public sealed class NewGameSetupTests
         var original = Source();
         var source = original with { Officers = [original.Officers[0] with
             { FlagGlyph = 42, State = original.Officers[0].State with { Surname = "新" } }] };
-        var draft = new NewGameDraft(source, Text(), new Dictionary<string, string>(),
-            CreatedOfficerLibrary.Empty with { Officers = [First, Second] });
+        var draft = new NewGameDraft(source, Text(), new Dictionary<string, string>());
         draft.SetForces([new(First.Id, 1)]); draft.Deploy([Second.Id], 1, true);
         var session = GameSession.Start(draft.Source, 123, playerForceIds: [13], setup: draft.Setup, settings: new() { Mode = mode });
         Assert.Equal(42, draft.Preview().Forces.Single(f => f.Id == 13).FlagGlyph);
@@ -290,7 +310,7 @@ public sealed class NewGameSetupTests
         Assert.Equal(42, restored.View.Forces.Single(f => f.Id == 13).FlagGlyph);
         Assert.Equal(42, restored.View.Officers.Single(p => p.Id == 1001).FlagGlyph);
         Assert.Equal(66, restored.View.Officers.Single(p => p.Id == 1002).FlagGlyph);
-        Assert.Equal(First.Abilities, restored.Snapshot.Officers.Single(o => o.Id == 1001).BaseAbilities);
+        Assert.Equal(new OfficerAbilities(91, 92, 93, 94), restored.Snapshot.Officers.Single(o => o.Id == 1001).BaseAbilities);
         var header = CommandLogService.CreateHeader(session);
         string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".jsonl");
         try
@@ -305,7 +325,7 @@ public sealed class NewGameSetupTests
         // A player load changes random streams but retains the startup definitions.
         var loaded = SaveService.Load(save, changedContent);
         Assert.Equal(42, loaded.View.Forces.Single(f => f.Id == 13).FlagGlyph);
-        Assert.Equal(First.FullName, loaded.Definitions.Officers[0].Surname + loaded.Definitions.Officers[0].Name);
+        Assert.Equal(First.Name, loaded.Definitions.Officers[0].Name);
         var actual = session.AdvanceXun(); var next = restored.AdvanceXun();
         EventAssert.Equal(actual.Events, next.Events); StateAssert.Equal(session.Capture(), restored.Capture());
     }
@@ -314,7 +334,7 @@ public sealed class NewGameSetupTests
     public void TextCompositionKeepsNamesLiteralAndDoesNotChangeTheBaseCatalog()
     {
         const string biography = "[wave amp=50 freq=5]程家军[/wave]";
-        var draft = Draft(First with { Name = "[甲]", CourtesyName = "[乙]", Biography = biography });
+        var draft = Draft(First with { Name = "新[甲]", CourtesyName = "[乙]", Biography = biography });
         draft.Deploy([First.Id], 1, false);
         var text = draft.Composition.Definitions.AddText(draft.Text);
         var person = draft.Compose().Officers.Last();
@@ -330,23 +350,24 @@ public sealed class NewGameSetupTests
     [Fact]
     public void SaveContainsOnlyParticipatingDefinitionsAndRequiredAncestors()
     {
-        var unrelated = First with { Id = Guid.Parse("30000000-0000-0000-0000-000000000000"), Name = "unrelated-library-person" };
-        var draft = Draft(First, Second, unrelated);
+        var unrelated = Enumerable.Range(20000, 1000).Select(OfficerDefaults.Create).ToArray();
+        var draft = Draft([First, Second, ..unrelated]);
         draft.Deploy([Second.Id], 2, true);
         var session = GameSession.Start(draft.Source, 7, setup: draft.Setup);
         var snapshot = session.Capture();
         Assert.Equal(2, snapshot.Definitions.Officers.Length);
         Assert.Equal(3, snapshot.World.Officers.Count);
-        Assert.DoesNotContain(snapshot.Definitions.Officers, p => p.Name == unrelated.Name);
+        Assert.Equal(new[] { First.Id, Second.Id }, snapshot.Definitions.OfficerIds.ToArray());
         Assert.Contains(snapshot.World.Officers, p => p.Id == 1001 && p.IsDormant);
         using var json = System.Text.Json.JsonDocument.Parse(SaveService.Encode(session));
         var saved = json.RootElement.GetProperty("session");
         Assert.False(saved.TryGetProperty("setup", out _));
-        foreach (var person in saved.GetProperty("definitions").GetProperty("officers").EnumerateArray())
-            Assert.Equal(new[] { "biography", "courtesyName", "flagGlyph", "id", "name", "portraitKey", "surname" },
-                person.EnumerateObject().Select(p => p.Name).Order().ToArray());
-        Assert.DoesNotContain("unrelated-library-person", json.RootElement.GetRawText());
-        Assert.DoesNotContain(First.Id.ToString(), json.RootElement.GetRawText());
+        var references = saved.GetProperty("definitions");
+        Assert.False(references.TryGetProperty("officers", out _));
+        Assert.Equal(new[] { First.Id, Second.Id }, references.GetProperty("officerIds").EnumerateArray().Select(p => p.GetInt32()));
+        var small = Draft(First, Second);
+        small.Deploy([Second.Id], 2, true);
+        Assert.Equal(SaveService.Encode(GameSession.Start(small.Source, 7, setup: small.Setup)), SaveService.Encode(session));
     }
 
     [Fact]
@@ -364,13 +385,16 @@ public sealed class NewGameSetupTests
             Corps = original.World.Corps.Select(c => c.OwnerId == 13 ? c with { Treasury = new(777, 888) } : c).ToArray()
         } };
         var restored = GameSession.Restore(Source(), changed);
-        var savedAgain = SaveService.Decode(SaveService.Encode(restored), Source());
+        var changedProfile = Second with { War = 7, Biography = "更新后的列传" };
+        var revised = Source() with { OfficerCatalog = new[] { First, changedProfile }.ToDictionary(p => p.Id) };
+        var savedAgain = SaveService.Decode(SaveService.Encode(restored), revised);
         StateAssert.Equal(changed, savedAgain.Capture());
         var child = savedAgain.View.Officers.Single(p => p.Id == 1002);
         Assert.Equal(12, child.OwnerId); Assert.Equal(2, child.SettlementId); Assert.Equal(133, child.Abilities.War);
         Assert.Equal(777u, savedAgain.Snapshot.Corps.Single(c => c.OwnerId == 13).Treasury.Money);
         var text = savedAgain.Definitions.AddText(Text());
         Assert.Equal("新乙", text.Resolve(child.NameKey));
+        Assert.Equal("更新后的列传", OfficerDetails.Read(savedAgain.View, text, Second.Id).Biography);
     }
 
     [Fact]
@@ -379,12 +403,16 @@ public sealed class NewGameSetupTests
         var draft = Draft(First); draft.Deploy([First.Id], 2, false);
         var save = SaveService.Capture(GameSession.Start(draft.Source, 7, setup: draft.Setup));
         var collision = save with { Session = save.Session with { Definitions = save.Session.Definitions with
-            { Officers = [save.Session.Definitions.Officers[0] with { Id = 1000 }] } } };
+            { OfficerIds = [1000] } } };
         Assert.Equal(SaveFailure.InvalidState, Assert.Throws<SaveException>(() => SaveService.Load(collision, Source())).Failure);
+        var absent = Source() with { OfficerCatalog = new Dictionary<int, OfficerDefaults>() };
+        var absentError = Assert.Throws<SaveException>(() => SaveService.Load(save, absent));
+        Assert.Equal(SaveFailure.MissingContent, absentError.Failure);
+        Assert.Contains(First.Id.ToString(), absentError.Message);
         var missing = save with { Session = save.Session with { Definitions = SessionDefinitions.Empty } };
         Assert.Equal(SaveFailure.InvalidState, Assert.Throws<SaveException>(() => SaveService.Load(missing, Source())).Failure);
         var json = System.Text.Json.Nodes.JsonNode.Parse(SaveService.Encode(GameSession.Start(draft.Source, 7, setup: draft.Setup)))!;
-        json["session"]!["definitions"]!["officers"]![0]!["abilities"] = new System.Text.Json.Nodes.JsonObject();
+        json["session"]!["definitions"]!["officerIds"]![0] = new System.Text.Json.Nodes.JsonObject();
         Assert.Equal(SaveFailure.InvalidFormat, Assert.Throws<SaveException>(() =>
             SaveService.Decode(System.Text.Encoding.UTF8.GetBytes(json.ToJsonString()), Source())).Failure);
     }

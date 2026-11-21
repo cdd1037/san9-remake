@@ -7,8 +7,9 @@ internal static class SessionValidation
 {
     internal static void Validate(ScenarioSessionDefinition definition, SessionSnapshot snapshot)
     {
+        if (snapshot.ContentSetId != definition.Content.ContentSetId) throw new ArgumentException($"存档需要资料集 {snapshot.ContentSetId}。");
         if (snapshot.Definitions is null) throw new ArgumentException("Missing session definitions.");
-        var addedPeople = snapshot.Definitions.Officers.Select(p => p.Id).ToHashSet();
+        var addedPeople = snapshot.Definitions.OfficerIds.ToHashSet();
         var addedForces = snapshot.Definitions.Forces.Select(f => f.Id).ToHashSet();
         var initialPeople = definition.Content.Officers.Select(p => p.State.Id).Union(addedPeople).ToHashSet();
         var initialForces = definition.Content.Forces.Select(f => f.Id).Union(addedForces).ToHashSet();
@@ -19,7 +20,7 @@ internal static class SessionValidation
             throw new ArgumentException("Invalid deployment preset collection.");
         if (!snapshot.DeploymentPresets.IsEmpty)
         {
-            var presetView = new Presentation.StrategySnapshot(new Presentation.StrategySnapshotSource(definition.Content, definition.Rules, snapshot.Definitions), snapshot.World);
+            var presetView = new Presentation.StrategySnapshot(new Presentation.StrategySnapshotSource(definition.Content, definition.Rules, definition.Definitions), snapshot.World);
             foreach (var preset in snapshot.DeploymentPresets) preset.Validate(presetView);
         }
         if (snapshot.Records.IsDefault || snapshot.Chronicle.IsDefault || snapshot.History is null || snapshot.Records.Length > GameSession.RecentRecordLimit ||

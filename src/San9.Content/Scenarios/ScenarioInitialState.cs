@@ -82,6 +82,9 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     [JsonRequired] public Dictionary<int, int> CityProvinceIds { get; init; } = [];
     [JsonRequired] public San9.Core.Domain.AllianceState? Alliance { get; init; }
     [JsonRequired] public Dictionary<int, string> FacilityNameSuffixKeys { get; init; } = [];
+    public const string OriginalContentSetId = "san9pk-tc101";
+    public string ContentSetId { get; init; } = OriginalContentSetId;
+    [JsonIgnore] public IReadOnlyDictionary<int, OfficerDefaults> OfficerCatalog { get; init; } = new Dictionary<int, OfficerDefaults>();
     [JsonRequired] public San9.Core.Domain.MilitaryDefinition? Military { get; init; }
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityConnection> CityConnections { get; init; } = [];
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.CityConnection> MilitaryCityConnections { get; init; } = [];
@@ -130,7 +133,7 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             if (Units.Any(u => u.FormationId is int id && !rules.ValidFormationPair(id, u.NavalFormationId)))
                 throw new InvalidDataException("Invalid initial unit formation pair.");
             var personIds = Officers.Select(o => o.State.Id).ToHashSet();
-            if (rules.LinkRules.Pairs.Any(p => !personIds.Contains(p.FirstId) || !personIds.Contains(p.SecondId)))
+            if (rules.LinkRules.Pairs.Any(p => (!personIds.Contains(p.FirstId) && !OfficerCatalog.ContainsKey(p.FirstId)) || (!personIds.Contains(p.SecondId) && !OfficerCatalog.ContainsKey(p.SecondId))))
                 throw new InvalidDataException("Unknown tactic relationship person reference.");
             if (rules.RegionIds.OfType<int>().Any(id => !RegionNameKeys.ContainsKey(id)))
                 throw new InvalidDataException("Unknown battlefield region reference.");

@@ -80,6 +80,72 @@ public sealed class ScenarioEditorWorkspaceTests : IDisposable
     }
 
     [Fact]
+    public async Task SharedOfficerFollowsTheContentDirectoryWhileSaveKeepsTheCurrentWorld()
+    {
+        var source = TreasureScenario();
+        await Create(source with { Settlements = [..source.Settlements, new(30, "city.empty", null, 3, 1, 0, 100, 100, 0, [])] });
+        var template = await ScenarioContentFiles.LoadAsync(Package);
+        var shared = await ScenarioDataFiles.LoadAsync(_root, await ScenarioContentFiles.ReadManifestAsync(Package));
+        string secondPackage = Path.Combine(_root, "other");
+        await ScenarioContentFiles.WriteAsync(secondPackage, template with { Scenario = template.Scenario with { ScenarioId = "other" },
+            Preview = template.Preview! with { Id = "other" } }, resourceRoot: _root, sharedScenario: shared);
+        var catalog = await ContentCatalogFiles.LoadAsync(_root);
+        await File.WriteAllTextAsync(Path.Combine(_root, "catalog.json"), JsonSerializer.Serialize(catalog with
+            { Scenarios = [..catalog.Scenarios, new("other", "other")] }, PackageFiles.JsonOptions));
+        var editor = await SharedDataEditorWorkspace.OpenAsync(_root);
+        editor.SetContentSetId("lu-heng");
+        var person = await editor.CreateOfficerAsync();
+        editor.SetOfficer(person with { Surname = "陆", Name = "陆衡", War = 82, Biography = "原列传" });
+        await editor.SaveAsync();
+
+        var other = await ScenarioContentFiles.LoadAsync(secondPackage);
+        var opening = new NewGameDraft(other.Scenario, other.Text, other.IllustrationRoles);
+        Assert.Contains(opening.Candidates, p => p.Id == person.Id);
+        opening.SetForces([new(person.Id, 30)]);
+        var otherSession = GameSession.Start(other.Scenario, 42, setup: opening.Setup);
+        Assert.Contains(otherSession.Snapshot.Officers, p => p.Id == person.Id && p.Status == OfficerStatus.Ruler);
+        var authored = await ScenarioEditorWorkspace.OpenAsync(_root, ScenarioId);
+        authored.AddOfficer(person.Id);
+        Assert.Throws<InvalidDataException>(() => authored.AddOfficer(person.Id));
+        authored.Update(authored.Document with { Officers = authored.Document.Officers.Select(o => o.Id == person.Id
+            ? o with { SettlementId = 1, Status = OfficerStatus.Serving, OwnerId = 1 } : o).ToArray() });
+        authored.SetTreasurePlacement(7001, new OfficerTreasurePlacement(person.Id));
+        await authored.SaveAsync();
+        var content = await ScenarioContentFiles.LoadAsync(Package);
+        var draft = new NewGameDraft(content.Scenario, content.Text, content.IllustrationRoles);
+        Assert.DoesNotContain(draft.Candidates, p => p.Id == person.Id);
+        var session = GameSession.Start(content.Scenario, 73);
+        Assert.Equal(person.Id, session.Snapshot.Treasures.Single(t => t.Id == 7001).HolderId);
+
+        editor = await SharedDataEditorWorkspace.OpenAsync(_root);
+        editor.SetOfficer(editor.GetOfficer(person.Id) with { War = 30, Biography = "新列传" });
+        await editor.SaveAsync();
+        var confiscate = new San9.Core.Simulation.ConfiscateTreasureCommand(Guid.NewGuid(), 1, 0, 7001);
+        Assert.True(session.Execute(new("player"), confiscate).Submission.Accepted);
+        var grant = new San9.Core.Simulation.GrantTreasureCommand(Guid.NewGuid(), 1, 1, 7001, 2);
+        Assert.True(session.Execute(new("player"), grant).Submission.Accepted);
+        var saved = San9.Application.Persistence.SaveService.Encode(session);
+
+        var files = Directory.GetFiles(_root, "*", SearchOption.AllDirectories);
+        var copy = Path.Combine(_root, "portable");
+        foreach (var file in files)
+        {
+            var target = Path.Combine(copy, Path.GetRelativePath(_root, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(file, target);
+        }
+        var portable = await ScenarioContentFiles.LoadAsync(Path.Combine(copy, "scenario"));
+        var restored = San9.Application.Persistence.SaveService.Decode(saved, portable.Scenario);
+        var officer = restored.View.Officers.Single(o => o.Id == person.Id);
+        Assert.Equal("新列传", portable.Text.ResolveRich(officer.BiographyKey!));
+        Assert.Equal(82, restored.Snapshot.Officers.Single(o => o.Id == person.Id).BaseAbilities.War);
+        Assert.Equal(2, restored.Snapshot.Treasures.Single(t => t.Id == 7001).HolderId);
+        var wrongSet = Assert.Throws<San9.Application.Persistence.SaveException>(() =>
+            San9.Application.Persistence.SaveService.Decode(saved, portable.Scenario with { ContentSetId = "another" }));
+        Assert.Equal(San9.Application.Persistence.SaveFailure.MissingContent, wrongSet.Failure);
+    }
+
+    [Fact]
     public async Task InvalidDraftAndUnavailablePublicationLockRetainDraftWithoutPublishingEitherFile()
     {
         await Create();

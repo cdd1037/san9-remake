@@ -131,11 +131,11 @@ public sealed record ClientContentPackage(int SchemaVersion, MapPackage Map, Sce
 public static class ClientContentFiles
 {
     public static async Task<ClientContentPackage> LoadAsync(string root, CancellationToken token = default, string? portraitPackRoot = null,
-        string? treasureIllustrationRoot = null)
+        string? treasureIllustrationRoot = null, string? createdOfficersPath = null)
     {
         var manifest = await ScenarioContentFiles.ReadManifestAsync(root, token);
         string textureRoot = Path.GetFullPath(Path.Combine(root, manifest.Textures.Path));
-        var scenarioTask = ScenarioContentFiles.LoadAsync(root, manifest, token);
+        var scenarioTask = ScenarioContentFiles.LoadAsync(root, manifest, token, createdOfficersPath);
         var texturesTask = Task.Run(() => TexturePackageFiles.LoadAsync(textureRoot, token, portraitPackRoot, treasureIllustrationRoot), token);
         await Task.WhenAll(scenarioTask, texturesTask);
         var instance = await scenarioTask;

@@ -7,6 +7,7 @@ namespace San9.Client.Godot;
 
 public partial class ScenarioEditor : ModalView
 {
+    public string? CreatedOfficersPath { get; init; }
     public string ContentRoot { get; init; } = "";
     public string? ScenarioId { get; init; }
     public Action Closed { get; init; } = null!;
@@ -72,7 +73,7 @@ public partial class ScenarioEditor : ModalView
         Busy(true); Status("正在读取剧本…");
         try
         {
-            var workspace = await Task.Run(() => ScenarioEditorWorkspace.OpenAsync(ContentRoot, _entries[index].Id, _lifetime.Token), _lifetime.Token);
+            var workspace = await Task.Run(() => ScenarioEditorWorkspace.OpenAsync(ContentRoot, _entries[index].Id, _lifetime.Token, CreatedOfficersPath), _lifetime.Token);
             _lifetime.Token.ThrowIfCancellationRequested();
             _workspace = workspace; _selected = index; _scenarios.Select(index); _jsonDirty = false;
             BuildPages(); Status("修改在保存后用于新局。人物所属、据点所属和军团引用须保持一致。");
@@ -93,14 +94,14 @@ public partial class ScenarioEditor : ModalView
         ContinueAfterChanges(() => _ = LoadScenario(index));
     }
 
-    private void BuildPages(int selectedTab = 0)
+    private void BuildPages(int selectedTab = 0, int? newOfficer = null)
     {
         _building = true;
         foreach (Node child in _pages.GetChildren()) { _pages.RemoveChild(child); child.QueueFree(); }
         BuildOverview();
         BuildListPage("势力", () => _workspace!.Document.Forces.Select(f => (f.Id, _workspace.Name(f.NameKey))), BuildForce);
         BuildListPage("据点", () => _workspace!.Document.Settlements.Select(s => (s.Id, _workspace.Name(s.NameKey))), BuildSettlement);
-        BuildListPage("武将安置", () => _workspace!.Document.Officers.Select(o => (o.Id, _workspace.OfficerName(o.Id))), BuildOfficer);
+        BuildListPage("武将安置", () => _workspace!.Document.Officers.Select(o => (o.Id, _workspace.OfficerName(o.Id))), BuildOfficer, addOfficers: true, selectedId: newOfficer);
         BuildListPage("宝物", () => _workspace!.Definitions.Information.Treasures.Select(t => (t.Id, t.Name)), BuildTreasure);
         _dataTab = _pages.GetTabCount();
         var data = new VBoxContainer { Name = "完整初始状态" }; _pages.AddChild(data);

@@ -14,7 +14,7 @@ public sealed partial class SharedDataEditorWorkspaceTests
         var people = JsonSerializer.Deserialize<OfficerDefaultsCatalog>(await File.ReadAllTextAsync(path), ScenarioContentFiles.DataJsonOptions)!;
         await File.WriteAllTextAsync(path, JsonSerializer.Serialize(people with
         { Officers = [.. people.Officers, people.Officers[0] with { Id = 9002, Name = "乙将" }], NextOfficerId = 9003 }, ScenarioContentFiles.DataJsonOptions));
-        foreach (string id in new[] { "a", "b", "private" })
+        foreach (string id in new[] { "a", "private" })
         {
             path = Path.Combine(_root, id, "scenario.json");
             var document = JsonSerializer.Deserialize<ScenarioDocument>(await File.ReadAllTextAsync(path), ScenarioContentFiles.DataJsonOptions)!;
@@ -45,6 +45,9 @@ public sealed partial class SharedDataEditorWorkspaceTests
         var reopened = await SharedDataEditorWorkspace.OpenAsync(_root);
         var scenario = await ScenarioContentFiles.LoadScenarioAsync(Path.Combine(_root, "a"));
         Assert.Equal(Assert.Single(reopened.TacticLinkPairs), Assert.Single(scenario.Military!.LinkRules.Pairs));
+        var withoutPartner = await ScenarioContentFiles.LoadScenarioAsync(Path.Combine(_root, "b"));
+        Assert.DoesNotContain(withoutPartner.Officers, o => o.State.Id == 9002);
+        Assert.Equal(pair.FirstId, Assert.Single(withoutPartner.Military!.LinkRules.Pairs).FirstId);
         var first = scenario.Officers.Single(o => o.State.Id == 9001).State;
         var second = scenario.Officers.Single(o => o.State.Id == 9002).State;
         Assert.Equal((scenario.Military.LinkRules with { Pairs = [] }).Chance(first, second, 2) + 45,

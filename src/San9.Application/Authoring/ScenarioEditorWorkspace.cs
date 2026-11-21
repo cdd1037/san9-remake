@@ -40,7 +40,7 @@ public sealed class ScenarioEditorWorkspace
         Text = text; _inputs = inputs;
     }
 
-    public static async Task<ScenarioEditorWorkspace> OpenAsync(string contentRoot, string scenarioId, CancellationToken token = default)
+    public static async Task<ScenarioEditorWorkspace> OpenAsync(string contentRoot, string scenarioId, CancellationToken token = default, string? createdOfficersPath = null)
     {
         var inputs = new Dictionary<string, byte[]?>(StringComparer.OrdinalIgnoreCase);
         async Task<T> Read<T>(string path)
@@ -80,6 +80,12 @@ public sealed class ScenarioEditorWorkspace
         if (document.ScenarioId != scenarioId) throw new InvalidDataException("剧本身份与目录不一致。");
         var definitions = await ReadActive<ScenarioDefinitions>(PackageFiles.Resolve(root, manifest.Definitions));
         var officers = await ReadActive<OfficerDefaultsCatalog>(PackageFiles.Resolve(root, manifest.OfficerDefaults));
+        if (createdOfficersPath is not null)
+        {
+            var bytes = await PlayerDefinitionFiles.ReadOptionalAsync(createdOfficersPath, token);
+            inputs[createdOfficersPath] = bytes;
+            officers = PlayerOfficerFiles.Merge(officers, bytes);
+        }
         var geography = await ReadActive<ScenarioGeography>(PackageFiles.Resolve(root, manifest.Geography));
         (ScenarioMapManifest Manifest, MapDefinition Definition)? authoredMap = null;
         if (geography.Military is not null)
@@ -100,6 +106,18 @@ public sealed class ScenarioEditorWorkspace
         var text = await Read<StaticTextContent>(PackageFiles.Resolve(root, manifest.Text));
         var catalogText = new TextCatalog(text.SchemaVersion, text.Entries) { MessagePeople = text.MessagePeople, MessageTags = text.MessageTags };
         return new(scenarioPath, manifestPath, manifest, document, shared, catalogText, inputs) { _map = authoredMap, _sites = sites };
+    }
+
+    public IEnumerable<OfficerDefaults> UnplacedOfficers => _shared.Officers.Officers
+        .ExceptBy(Document.Officers.Select(o => o.Id), p => p.Id);
+
+    public void AddOfficer(int id)
+    {
+        if (!UnplacedOfficers.Any(o => o.Id == id)) throw new InvalidDataException($"武将 {id} 不在可安置人物中。");
+        var city = Document.Settlements.FirstOrDefault(s => !s.IsDormant && s.Kind == SettlementKind.City && s.CanHostPersons);
+        var placement = ScenarioOfficerState.Unplaced(id);
+        if (city is not null) placement = placement with { SettlementId = city.Id, Status = OfficerStatus.Free, IsDormant = false };
+        Update(Document with { Officers = [..Document.Officers, placement] });
     }
 
     public string OfficerName(int id)

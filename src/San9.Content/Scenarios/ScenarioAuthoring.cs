@@ -443,6 +443,7 @@ public sealed record ScenarioDocument(int SchemaVersion, string ScenarioId, int 
         ContentStructure.Validate(definitions);
         if ((definitions.Military is null) != (geography.Military is null) || definitions.Military is null && !MilitaryPlaces.IsEmpty)
             throw new InvalidDataException("Military rules, geography and placements must be declared together.");
+        var profiles = OfficerComposition.Index([.. officers, .. AdditionalOfficerDefaults]);
         return new(ScenarioInitialState.CurrentSchemaVersion, ScenarioId, Year, Month, Day, PlayerForceId, Forces, Settlements,
             new(geography.RegionNameKeys), new(geography.RegionCityIds))
         {
@@ -491,7 +492,8 @@ public sealed record ScenarioDocument(int SchemaVersion, string ScenarioId, int 
             CityProvinceIds = geography.CityProvinceIds,
             CityConnections = geography.CityConnections,
             MilitaryCityConnections = geography.MilitaryCityConnections,
-            Officers = OfficerComposition.Compile(Officers, [.. officers, .. AdditionalOfficerDefaults]),
+            Officers = OfficerComposition.CompileIndexed(Officers, profiles),
+            OfficerCatalog = profiles,
             Information = definitions.Information.Compile(Information),
             Military = definitions.Military?.Compile(geography.Military!, MilitaryPlaces),
         };

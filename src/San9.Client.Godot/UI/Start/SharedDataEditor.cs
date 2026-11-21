@@ -8,13 +8,16 @@ namespace San9.Client.Godot;
 /// <summary>Owns the shared draft and the single save transaction for every content subpage.</summary>
 public partial class SharedDataEditor : ModalView
 {
-    public Persistence.ClientDataPaths DataPaths { get; init; } = null!;
+    public Settings.UiPreferencesSession Preferences { get; init; } = new();
+    public Action? SavedChanges { get; init; }
     public TextureService? Service { get; init; }
     private TextureService? _appearanceService;
     private OfficerFlagCatalog? _flags;
+    public bool OpenOfficers { get; init; }
+    public Persistence.ClientDataPaths DataPaths { get; init; } = null!;
     public string ContentRoot { get; init; } = "";
     public string? ReferenceScenarioId { get; init; }
-    public Action Closed { get; init; } = null!;
+    public Action Closed { get; set; } = null!;
     private SharedDataEditorWorkspace? _workspace;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly List<SharedDataEditorPage> _editors = [];
@@ -54,18 +57,19 @@ public partial class SharedDataEditor : ModalView
         try
         {
             _workspace = await Task.Run(() => SharedDataEditorWorkspace.OpenAsync(ContentRoot, ReferenceScenarioId, _lifetime.Token,
-                DataPaths?.TreasureIllustrations), _lifetime.Token);
+                DataPaths.TreasureIllustrations, DataPaths.CreatedOfficers), _lifetime.Token);
             _lifetime.Token.ThrowIfCancellationRequested();
             string? appearanceError = await LoadAppearance();
             AddPage(new BasicRulesEditorPage { Name = "基础规则", Workspace = _workspace, ReportStatus = Status });
             AddPage(new RankEditorPage { Name = "爵位", Workspace = _workspace, ReportStatus = Status });
             AddPage(new OfficeEditorPage { Name = "官职", Workspace = _workspace, ReportStatus = Status });
-            AddPage(new OfficerEditorPage { Name = "武将", Workspace = _workspace, ReportStatus = Status, PortraitService = _appearanceService, Flags = _flags });
+            AddPage(new OfficerEditorPage { Preferences = Preferences, Name = "武将", Workspace = _workspace, ReportStatus = Status, PortraitService = _appearanceService, Flags = _flags });
             AddPage(new FormationEditorPage { Name = "阵形", Workspace = _workspace, ReportStatus = Status });
             AddPage(new TacticEditorPage { Name = "兵法", Workspace = _workspace, ReportStatus = Status });
             AddPage(new TreasureEditorPage { Name = "宝物", Workspace = _workspace, ReportStatus = Status,
                 Service = _appearanceService });
             _pages.TabChanged += index => _editors[(int)index].Activate();
+            if (OpenOfficers) _pages.CurrentTab = _editors.FindIndex(page => page is OfficerEditorPage);
             UpdateTitleTooltip(); _save.Disabled = false;
             Status(appearanceError ?? "", appearanceError is not null);
         }
@@ -83,8 +87,8 @@ public partial class SharedDataEditor : ModalView
             if (_appearanceService is null)
             {
                 string root = PackageFiles.Resolve(ContentRoot, catalog.Textures);
-                var textures = await Task.Run(() => TexturePackageFiles.LoadAsync(root, _lifetime.Token, DataPaths?.PortraitPack,
-                    DataPaths?.TreasureIllustrations), _lifetime.Token);
+                var textures = await Task.Run(() => TexturePackageFiles.LoadAsync(root, _lifetime.Token, DataPaths.PortraitPack,
+                    DataPaths.TreasureIllustrations), _lifetime.Token);
                 _lifetime.Token.ThrowIfCancellationRequested();
                 _appearanceService = new TextureService(); _appearanceService.Initialize(textures, root); AddChild(_appearanceService);
             }
@@ -100,7 +104,7 @@ public partial class SharedDataEditor : ModalView
     private void UpdateTitleTooltip()
     {
         if (_workspace is not { } workspace) return;
-        _title.TooltipText = $"{(workspace.HasPlayerCopy ? "玩家配置" : "基础配置")}\n爵位 {workspace.Ranks.Count} 项 · 官职 {workspace.Offices.Count} 项 · 武将 {workspace.Officers.Count} 项 · 阵形 {workspace.Formations.Length} 项 · 兵法 {workspace.Tactics.Length} 项 · 宝物 {workspace.Treasures.Count} 项\n\n基础：{workspace.DefinitionPath}\n玩家副本：{workspace.PlayerDefinitionPath}\n人物资料：{workspace.PlayerOfficerPath}";
+        _title.TooltipText = $"{(workspace.HasPlayerCopy ? "玩家配置" : "基础配置")}\n爵位 {workspace.Ranks.Count} 项 · 官职 {workspace.Offices.Count} 项 · 武将 {workspace.Officers.Count} 项 · 阵形 {workspace.Formations.Length} 项 · 兵法 {workspace.Tactics.Length} 项 · 宝物 {workspace.Treasures.Count} 项\n\n基础：{workspace.DefinitionPath}\n玩家副本：{workspace.PlayerDefinitionPath}\n已有武将：{workspace.PlayerOfficerPath}\n自建武将：{DataPaths.CreatedOfficers}";
     }
 
     private async Task<bool> Save()
@@ -108,6 +112,7 @@ public partial class SharedDataEditor : ModalView
         if (_workspace is null || _busy) return false;
         for (int i = 0; i < _editors.Count; i++)
             if (!_editors[i].CommitPending()) { _pages.CurrentTab = i; return false; }
+        if (!_workspace.HasChanges) return true;
         _busy = true; _save.Disabled = _close.Disabled = true; _pages.ProcessMode = ProcessModeEnum.Disabled;
         Status("正在保存…");
         try
@@ -116,6 +121,7 @@ public partial class SharedDataEditor : ModalView
             if (_lifetime.IsCancellationRequested) return false;
             if (_workspace.Illustrations is { } illustrations) _appearanceService?.UpdateTreasureIllustrations(illustrations.Catalog);
             foreach (var page in _editors) page.Saved();
+            SavedChanges?.Invoke();
             UpdateTitleTooltip(); Status("已保存，重新开局后生效。"); return true;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { return false; }

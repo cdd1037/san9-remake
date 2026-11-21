@@ -8,9 +8,9 @@ namespace San9.Client.Godot;
 /// <summary>Independent portrait authoring page. Saving never publishes character drafts.</summary>
 public partial class PortraitEditor : ModalView
 {
+    public string? CreatedOfficersPath { get; init; }
     public string ContentRoot { get; init; } = "";
     public string PackRoot { get; init; } = "";
-    public string? CreatedOfficerLibraryPath { get; init; }
     public TextureService Service { get; init; } = null!;
     public Action Closed { get; init; } = null!;
     private PortraitEditorWorkspace? _workspace;

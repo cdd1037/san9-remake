@@ -226,20 +226,7 @@ public partial class SessionUiHost : Node
         catch (Exception error) { Hud.SystemMenu.ShowLoadFailure(error.Message); GD.PushError(error.ToString()); }
     }
 
-    private async Task LoadSlot(SlotSaveDocument document)
-    {
-        if (document.Header.Summary.ScenarioId != Definition.ScenarioId ||
-            San9.Core.Simulation.CanonicalJson.Text(document.Save.Session.Definitions) !=
-            San9.Core.Simulation.CanonicalJson.Text(Session.Definitions))
-        {
-            await LoadGame(document);
-            return;
-        }
-        var token = _lifetime.Token;
-        var loaded = await Task.Run(() => SlotSaveStore.Restore(document, Definition), token);
-        token.ThrowIfCancellationRequested();
-        Callable.From(() => { if (!token.IsCancellationRequested) Activate(loaded, SessionReplacementKind.Load); }).CallDeferred();
-    }
+    private Task LoadSlot(SlotSaveDocument document) => LoadGame(document);
 
     private async void SavePendingCheckpoint()
     {

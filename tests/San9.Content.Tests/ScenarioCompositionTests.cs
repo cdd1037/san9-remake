@@ -38,6 +38,19 @@ public sealed class ScenarioCompositionTests : IDisposable
     private static void Same<T>(T expected, T actual) => Assert.True(JsonElement.DeepEquals(
         JsonSerializer.SerializeToElement(expected, Options), JsonSerializer.SerializeToElement(actual, Options)));
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ExistingOfficerCatalogsCanDiscardTheRetiredDeploymentToggle(bool enabled)
+    {
+        var profile = OfficerDefaults.Create(1001);
+        var json = JsonSerializer.SerializeToNode(profile, Options)!;
+        json["availableForDeployment"] = enabled;
+        var loaded = json.Deserialize<OfficerDefaults>(Options)!;
+        Same(profile, loaded);
+        Assert.False(JsonSerializer.SerializeToElement(loaded, Options).TryGetProperty("availableForDeployment", out _));
+    }
+
     [Fact]
     public async Task SharedPortraitEditsAndClearingReachSelectionAndFullContent()
     {

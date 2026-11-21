@@ -15,6 +15,10 @@ public sealed partial class SharedDataEditorWorkspace
     private Dictionary<int, int> _officeOrderBaseline;
     private ScenarioDefinitions _saved;
     private byte[]? _expectedPlayer, _expectedOfficers;
+    private string? _createdOfficersPath;
+    private byte[]? _expectedCreated;
+    private HashSet<int> _sharedOfficerIds = [];
+    private long _sharedNextOfficerId;
     private readonly HashSet<int> _changedOfficers = [];
     private readonly HashSet<int> _baseOfficerIds;
     private readonly long _baseOfficerIdentityFloor;
@@ -29,7 +33,7 @@ public sealed partial class SharedDataEditorWorkspace
     public ScenarioDefinitions Definitions { get; private set; }
     public string DefinitionPath { get; }
     public string PlayerDefinitionPath => PlayerDefinitionFiles.PlayerPath(DefinitionPath);
-    public bool HasPlayerCopy => _expectedPlayer is not null || _expectedOfficers is not null;
+    public bool HasPlayerCopy => _expectedPlayer is not null || _expectedOfficers is not null || _expectedCreated is not null;
     public TreasureIllustrationWorkspace? Illustrations { get; private set; }
     public IReadOnlyDictionary<int, string> FacilityNames { get; private set; } = new Dictionary<int, string>();
     public string ReferenceScenarioId { get; }
@@ -40,7 +44,8 @@ public sealed partial class SharedDataEditorWorkspace
     public IReadOnlyList<OfficerDefaults> Officers => OfficerCatalog.Officers;
     public ImmutableArray<TacticRule> Tactics => Catalog.Tactics;
     public int ScenarioCount => _scenarios.Length;
-    public bool HasChanges => !ContentComparison.Equal(Definitions, _saved) || _changedOfficers.Count != 0 || OfficerCatalog.NextOfficerId != _savedOfficers.NextOfficerId || Illustrations?.HasChanges == true;
+    public void SetContentSetId(string value) => OfficerCatalog = OfficerCatalog with { ContentSetId = value.Trim() };
+    public bool HasChanges => OfficerCatalog.ContentSetId != _savedOfficers.ContentSetId || !ContentComparison.Equal(Definitions, _saved) || _changedOfficers.Count != 0 || OfficerCatalog.NextOfficerId != _savedOfficers.NextOfficerId || Illustrations?.HasChanges == true;
 
     private SharedDataEditorWorkspace(string path, string reference, ScenarioDefinitions definitions,
         string officerPath, OfficerDefaultsCatalog officers, Dictionary<string, byte[]> inputs, byte[]? expectedPlayer,
@@ -65,7 +70,7 @@ public sealed partial class SharedDataEditorWorkspace
     }
 
     public static async Task<SharedDataEditorWorkspace> OpenAsync(string contentRoot, string? referenceScenarioId = null,
-        CancellationToken token = default, string? treasureIllustrationRoot = null)
+        CancellationToken token = default, string? treasureIllustrationRoot = null, string? createdOfficersPath = null)
     {
         contentRoot = Path.GetFullPath(contentRoot);
         var files = new ContentReadSession();
@@ -107,11 +112,19 @@ public sealed partial class SharedDataEditorWorkspace
         if (officers.NextOfficerId < 0 || baseOfficers.NextOfficerId < 0)
             throw new InvalidDataException("武将身份分配记录无效。请检查人物资料。");
         byte[]? expectedOfficers = activeOfficers == officerPath ? null : files.Snapshots()[activeOfficers];
+        var personal = createdOfficersPath is null ? null : await PlayerDefinitionFiles.ReadOptionalAsync(createdOfficersPath, token);
+        var sharedOfficers = officers;
+        officers = PlayerOfficerFiles.Merge(sharedOfficers, personal);
         var scenarios = entries.Where(e => PackageFiles.Resolve(e.Root, e.Manifest.Definitions)
             .Equals(path, StringComparison.OrdinalIgnoreCase) || PackageFiles.Resolve(e.Root, e.Manifest.OfficerDefaults)
             .Equals(officerPath, StringComparison.OrdinalIgnoreCase)).ToArray();
         var workspace = new SharedDataEditorWorkspace(path, reference.Id, definitions, officerPath, officers,
-            files.Snapshots(), expectedPlayer, expectedOfficers, scenarios, baseOfficers, baseDefinitions);
+            files.Snapshots(), expectedPlayer, expectedOfficers, scenarios, baseOfficers, baseDefinitions)
+        {
+            _createdOfficersPath = createdOfficersPath, _expectedCreated = personal,
+            _sharedOfficerIds = sharedOfficers.Officers.Select(p => p.Id).ToHashSet(),
+            _sharedNextOfficerId = sharedOfficers.NextOfficerId
+        };
         if (definitions.FacilityNameSuffixKeys.Count > 0)
         {
             var text = await files.ReadAsync<StaticTextContent>(PackageFiles.Resolve(selected.Root, selected.Manifest.Text), token);
@@ -126,6 +139,7 @@ public sealed partial class SharedDataEditorWorkspace
     private async Task<ContentReadSession> ValidateDraftAsync(ScenarioDefinitions draft, CancellationToken token)
     {
         ContentStructure.Validate(draft);
+        if (string.IsNullOrWhiteSpace(OfficerCatalog.ContentSetId)) throw new InvalidDataException("请填写资料集标识。");
         ValidateLocalRules(draft);
         ValidateProfiles(draft, Officers, "共享武将");
         foreach (var formation in draft.Military?.Formations ?? [])
@@ -226,8 +240,27 @@ public sealed partial class SharedDataEditorWorkspace
         // validation snapshot are still current before replacing the player copy.
         await EnsureUnchangedAsync(_inputs, token);
         await EnsureUnchangedAsync(validation.Snapshots(), token);
-        List<ScenarioDataFiles.PlayerDocument> documents = [new(PlayerDefinitionPath, Definitions, _expectedPlayer),
-            new(PlayerOfficerPath, OfficerCatalog, _expectedOfficers)];
+        var documents = new List<ScenarioDataFiles.PlayerDocument>();
+        if (_createdOfficersPath is null)
+        {
+            documents.Add(new(PlayerDefinitionPath, Definitions, _expectedPlayer));
+            documents.Add(new(PlayerOfficerPath, OfficerCatalog, _expectedOfficers));
+        }
+        else
+        {
+            if (!ContentComparison.Equal(Definitions, _saved))
+                documents.Add(new(PlayerDefinitionPath, Definitions, _expectedPlayer));
+            if (_changedOfficers.Any(_sharedOfficerIds.Contains) || OfficerCatalog.ContentSetId != _savedOfficers.ContentSetId)
+            {
+                var shared = OfficerCatalog with { Officers = Officers.Where(p => _sharedOfficerIds.Contains(p.Id)).ToArray(), NextOfficerId = _sharedNextOfficerId };
+                documents.Add(new(PlayerOfficerPath, shared, _expectedOfficers));
+            }
+            if (_changedOfficers.Any(id => !_sharedOfficerIds.Contains(id)) || OfficerCatalog.NextOfficerId != _savedOfficers.NextOfficerId)
+            {
+                var personal = OfficerCatalog with { Officers = Officers.Where(p => !_sharedOfficerIds.Contains(p.Id)).ToArray() };
+                documents.Add(new(_createdOfficersPath, personal, _expectedCreated));
+            }
+        }
         var createdImages = new List<string>();
         IReadOnlyDictionary<string, byte[]> published;
         try
@@ -237,7 +270,13 @@ public sealed partial class SharedDataEditorWorkspace
                 illustrations.PrepareImages(createdImages, token);
                 documents.Add(illustrations.Document);
             }
-            published = await ScenarioDataFiles.WritePlayerDocumentsAsync(documents, token);
+            var dependencies = new Dictionary<string, byte[]?>
+            {
+                [PlayerDefinitionPath] = _expectedPlayer,
+                [PlayerOfficerPath] = _expectedOfficers
+            };
+            if (_createdOfficersPath is not null) dependencies[_createdOfficersPath] = _expectedCreated;
+            published = await ScenarioDataFiles.WritePlayerDocumentsAsync(documents, token, dependencies);
         }
         catch
         {
@@ -245,8 +284,9 @@ public sealed partial class SharedDataEditorWorkspace
             throw;
         }
         if (Illustrations is { } savedIllustrations) savedIllustrations.Saved(published[savedIllustrations.ManifestPath]);
-        _expectedPlayer = published[PlayerDefinitionPath]; _expectedOfficers = published[PlayerOfficerPath];
-        _inputs[PlayerDefinitionPath] = _expectedPlayer; _inputs[PlayerOfficerPath] = _expectedOfficers;
+        if (published.TryGetValue(PlayerDefinitionPath, out var definitions)) _inputs[PlayerDefinitionPath] = _expectedPlayer = definitions;
+        if (published.TryGetValue(PlayerOfficerPath, out var officers)) _inputs[PlayerOfficerPath] = _expectedOfficers = officers;
+        if (_createdOfficersPath is not null && published.TryGetValue(_createdOfficersPath, out var personalFile)) _expectedCreated = personalFile;
         _saved = Definitions; _savedOfficers = OfficerCatalog; _changedOfficers.Clear();
     }
 

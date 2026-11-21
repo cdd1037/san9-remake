@@ -25,7 +25,7 @@ public sealed class HeadlessHostTests : IDisposable
     private SessionSnapshot ReadSession(string name) => StrictJson.Deserialize<SaveEnvelope>(File.ReadAllBytes(FilePath(name))).Session;
 
     [Fact]
-    public void CommandScriptRestoresAuthoredWorldFromAnExplicitStartingSave()
+    public async Task CommandScriptRestoresAuthoredWorldFromAnExplicitStartingSave()
     {
         var definition = new ScenarioInitialState(ScenarioInitialState.CurrentSchemaVersion, "authored-start", 190, 1, 1, 1,
             [new(1, "old", 5, 100) { LeaderId = 10 }],
@@ -36,23 +36,28 @@ public sealed class HeadlessHostTests : IDisposable
             Information = new([], [], [], [new(1, 1, 10, new(1000, 10000)) { IsRoot = true }], []),
             ForceEmergenceEnabled = false, ForceConsolidationEnabled = false, CityIndependenceEnabled = false
         };
-        var person = new San9.Content.Authoring.CreatedOfficer(Guid.NewGuid(), "新君主") { BirthYear = 160, AppearanceYear = 180 };
-        var setup = new San9.Content.Authoring.NewGameSetup
-        {
-            Library = San9.Content.Authoring.CreatedOfficerLibrary.Empty with { Officers = [person] }, Forces = [new(person.Id, 2)]
-        };
+        var person = OfficerDefaults.Create(907) with { Name = "新君主", BirthYear = 160, AppearanceYear = 180 };
+        string package = FilePath("package");
+        var content = new ScenarioContent(ScenarioContent.CurrentSchemaVersion, new("unused"),
+            new(new(MapDefinition.CurrentSchemaVersion, "fixture", 2, 1, [], []), []),
+            definition, new(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new() { ["old.ruler"] = "旧君主" }), []);
+        var shared = SharedScenarioData.From(definition, "rules.json", "people.json", "geography.json", content.Text);
+        shared = shared with { Officers = shared.Officers with { Officers = [..shared.Officers.Officers, person], NextOfficerId = 908 } };
+        await ScenarioDataFiles.WriteSharedAsync(package, shared);
+        await ScenarioContentFiles.WriteAsync(package, content, sharedScenario: shared);
+        definition = await ScenarioContentFiles.LoadScenarioAsync(package);
+        var setup = new San9.Content.Authoring.NewGameSetup { Forces = [new(person.Id, 2)] };
         var session = GameSession.Start(definition, 42, playerForceIds: [2], setup: setup);
-        File.WriteAllBytes(FilePath("scenario.json"), CanonicalJson.Encode(definition));
         CommandLogService.Write(FilePath("commands.jsonl"), CommandLogService.CreateHeader(session), []);
         SaveService.Write(FilePath("start.save.json"), session);
-        var missingStart = Run("run", "--scenario", FilePath("scenario.json"), "--log", FilePath("commands.jsonl"),
+        var missingStart = Run("run", "--content-package", package, "--log", FilePath("commands.jsonl"),
             "--report", FilePath("missing-start.json"));
         Assert.Equal(2, missingStart.Code);
-        var result = Run("run", "--scenario", FilePath("scenario.json"), "--restore", FilePath("start.save.json"), "--log", FilePath("commands.jsonl"),
+        var result = Run("run", "--content-package", package, "--restore", FilePath("start.save.json"), "--log", FilePath("commands.jsonl"),
             "--report", FilePath("report.json"), "--save", FilePath("authored.save.json"));
         Assert.True(result.Code == 0, result.Report.ToString());
         var actual = ReadSession("authored.save.json");
-        Assert.Equal(person.Name, Assert.Single(actual.Definitions.Officers).Name);
+        Assert.Equal(person.Id, Assert.Single(actual.Definitions.OfficerIds));
         StateAssert.Equal(session.Capture(), actual);
     }
 

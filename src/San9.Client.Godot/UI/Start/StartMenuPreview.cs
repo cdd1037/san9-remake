@@ -68,12 +68,10 @@ public partial class StartMenuPreview : Node
                 LoadScenario = (id, cancellation) => Task.Run(async () =>
                 {
                     var entry = catalog.RequireScenario(id);
-                    var content = await ScenarioContentFiles.LoadSelectionAsync(PackageFiles.Resolve(root, entry.Package), cancellation);
+                    var content = await ScenarioContentFiles.LoadSelectionAsync(PackageFiles.Resolve(root, entry.Package), cancellation, paths.CreatedOfficers);
                     cancellation.ThrowIfCancellationRequested();
-                    var source = await ScenarioContentFiles.LoadScenarioAsync(PackageFiles.Resolve(root, entry.Package), cancellation);
-                    var library = new CreatedOfficerStore(paths.CreatedOfficers).Load();
-                    library.Validate();
-                    return new NewGameDraft(source, content.Text, content.IllustrationRoles, library);
+                    var source = await ScenarioContentFiles.LoadScenarioAsync(PackageFiles.Resolve(root, entry.Package), cancellation, paths.CreatedOfficers);
+                    return new NewGameDraft(source, content.Text, content.IllustrationRoles);
                 }, cancellation) };
             _view = view;
             AddChild(view);

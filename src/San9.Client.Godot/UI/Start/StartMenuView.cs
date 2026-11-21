@@ -13,12 +13,11 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
     public StartMenuPresentation Definition { get; init; } = null!;
     public ScenarioSelectionPresentation SelectionDefinition { get; set; } = null!;
     public Func<string, CancellationToken, Task<NewGameDraft>> LoadScenario { get; init; } = null!;
+    public Persistence.ClientDataPaths DataPaths { get; init; } = null!;
     public Func<string, int[], San9.Core.Domain.NewGameSettings, int, NewGameSetup, Task> BeginGame { get; init; } = null!;
     public TextureService Service { get; init; } = null!;
-    public Persistence.ClientDataPaths DataPaths { get; init; } = null!;
     public Settings.UiPreferencesSession Preferences { get; init; } = new();
     public string ContentRoot { get; init; } = "";
-    private CreatedOfficerEditor? _officerEditor;
     private SharedDataEditor? _sharedDataEditor;
     private PortraitEditor? _portraitEditor;
     private ScenarioEditor? _scenarioEditor;
@@ -129,25 +128,17 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
         _controls.AddChild(button);
         return button;
     }
-    private void OpenOfficerEditor()
-    {
-        if (_officerEditor is not null) return;
-        _controls.Hide();
-        _officerEditor = new CreatedOfficerEditor { PortraitPackRoot = DataPaths.PortraitPack, Name = "CreatedOfficerEditor", Store = new(DataPaths.CreatedOfficers), ContentRoot = ContentRoot, Service = Service, Preferences = Preferences, Closed = () =>
-        {
-            _officerEditor!.QueueFree(); _officerEditor = null; _controls.Show();
-            _controls.GetNode<StartMenuButton>("create-officer").GrabFocus();
-        } };
-        AddChild(_officerEditor);
-    }
-    private void OpenSharedDataEditor()
+    private void OpenOfficerEditor() => OpenSharedDataEditor(true);
+    private void OpenSharedDataEditor() => OpenSharedDataEditor(false);
+    private void OpenSharedDataEditor(bool officers)
     {
         if (_sharedDataEditor is not null) return;
         _controls.Hide();
-        _sharedDataEditor = new SharedDataEditor { DataPaths = DataPaths, Name = "SharedDataEditor", ContentRoot = ContentRoot, Service = Service, Closed = () =>
+        _sharedDataEditor = new SharedDataEditor { DataPaths = DataPaths, Preferences = Preferences, OpenOfficers = officers, Name = "SharedDataEditor", ContentRoot = ContentRoot, Service = Service, Closed = () =>
         {
             _sharedDataEditor!.QueueFree(); _sharedDataEditor = null; _controls.Show();
-            _controls.GetNode<Button>("OpenSharedDataEditor").GrabFocus();
+            if (officers) _controls.GetNode<StartMenuButton>("create-officer").GrabFocus();
+            else _controls.GetNode<Button>("OpenSharedDataEditor").GrabFocus();
         } };
         AddChild(_sharedDataEditor);
     }
@@ -156,7 +147,7 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
         if (_portraitEditor is not null) return;
         _controls.Hide();
         _portraitEditor = new PortraitEditor { Name = "PortraitEditor", ContentRoot = ContentRoot,
-            PackRoot = DataPaths.PortraitPack, CreatedOfficerLibraryPath = DataPaths.CreatedOfficers,
+            PackRoot = DataPaths.PortraitPack, CreatedOfficersPath = DataPaths.CreatedOfficers,
             Service = Service, Closed = () =>
             {
                 _portraitEditor!.QueueFree(); _portraitEditor = null; _controls.Show();
@@ -168,7 +159,7 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
     {
         if (_scenarioEditor is not null) return;
         _controls.Hide();
-        _scenarioEditor = new ScenarioEditor { Name = "ScenarioEditor", ContentRoot = ContentRoot, Published = preview =>
+        _scenarioEditor = new ScenarioEditor { CreatedOfficersPath = DataPaths.CreatedOfficers, Name = "ScenarioEditor", ContentRoot = ContentRoot, Published = preview =>
         {
             SelectionDefinition = SelectionDefinition with { Entries = SelectionDefinition.Entries.Select(e => e.Id == preview.Id ? preview : e).ToArray() };
             _selection?.QueueFree(); _selection = null;
@@ -183,7 +174,7 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
     {
         if (_mapEditor is not null) return;
         _controls.Hide();
-        _mapEditor = new MapEditor { Name = "MapEditor", ContentRoot = ContentRoot, Closed = () =>
+        _mapEditor = new MapEditor { CreatedOfficersPath = DataPaths.CreatedOfficers, Name = "MapEditor", ContentRoot = ContentRoot, Closed = () =>
         {
             _mapEditor!.QueueFree(); _mapEditor = null; _controls.Show();
             _selection?.QueueFree(); _selection = null;
@@ -205,7 +196,7 @@ public partial class StartMenuView : FixedPage, IModalInputRouter
     {
         if (_forces is not null) return;
         _selection!.Hide();
-        _forces = new ForceSelectionView { Name = "ForceSelection", Definition = SelectionDefinition, Entry = entry,
+        _forces = new ForceSelectionView { DataPaths = DataPaths, Name = "ForceSelection", Preferences = Preferences, ContentRoot = ContentRoot, Definition = SelectionDefinition, Entry = entry,
             LoadScenario = cancellation => LoadScenario(entry.Id, cancellation),
             Service = Service, Help = Definition.Help, Close = Definition.Close, QuitRequested = RequestQuit,
             Confirmed = OpenSettings, Closed = () =>

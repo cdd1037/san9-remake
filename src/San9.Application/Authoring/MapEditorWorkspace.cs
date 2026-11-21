@@ -44,6 +44,8 @@ public sealed class MapEditorWorkspace
     public Footprint SiteFootprint(int id) => Sites.Sites[id].Footprint;
     public IEnumerable<int> CityIds => Sites.Sites.Where(p => p.Value.IsCity).Select(p => p.Key);
 
+    private string? CreatedOfficersPath { get; init; }
+
     private MapEditorWorkspace(string root, ContentCatalog catalog, SharedMapReference reference, MapDefinition map,
         SharedMapSites sites, ScenarioGeography geography, ScenarioDefinitions definitions, Dictionary<string, byte[]?> inputs)
     {
@@ -57,7 +59,7 @@ public sealed class MapEditorWorkspace
         Text = new(TextCatalog.CurrentSchemaVersion, sites.Labels);
     }
 
-    public static async Task<MapEditorWorkspace> OpenSharedAsync(string contentRoot, CancellationToken token = default)
+    public static async Task<MapEditorWorkspace> OpenSharedAsync(string contentRoot, CancellationToken token = default, string? createdOfficersPath = null)
     {
         string root = Path.GetFullPath(contentRoot);
         var catalog = await ContentCatalogFiles.LoadAsync(root, token);
@@ -75,7 +77,7 @@ public sealed class MapEditorWorkspace
         var sites = await Read<SharedMapSites>(reference.Locations);
         map.Validate(); sites.Validate(map);
         return new(root, catalog, reference, map, sites, await Read<ScenarioGeography>(reference.Geography),
-            await Read<ScenarioDefinitions>(catalog.Definitions), inputs);
+            await Read<ScenarioDefinitions>(catalog.Definitions), inputs) { CreatedOfficersPath = createdOfficersPath };
     }
 
     private static T Parse<T>(byte[] bytes)
@@ -265,6 +267,9 @@ public sealed class MapEditorWorkspace
             }
             return await PackageFiles.ReadAsync<T>(path, token);
         }
+        byte[]? personal = null;
+        if (CreatedOfficersPath is not null)
+            dependencies[CreatedOfficersPath] = personal = await PlayerDefinitionFiles.ReadOptionalAsync(CreatedOfficersPath, token);
         var catalog = await Read<ContentCatalog>(Path.Combine(_catalogRoot, "catalog.json"));
         foreach (var entry in catalog.Scenarios)
         {
@@ -288,6 +293,7 @@ public sealed class MapEditorWorkspace
                 if (places is not null) layout = layout with { Buildings = places.Buildings(scenario.Settlements.Select(s => s.Id)) };
                 var definitions = await Read<ScenarioDefinitions>(Resolve(manifest.Definitions), true);
                 var officers = await Read<OfficerDefaultsCatalog>(Resolve(manifest.OfficerDefaults), true);
+                officers = PlayerOfficerFiles.Merge(officers, personal);
                 var map = sameMap ? draft.Map : await Read<MapDefinition>(Resolve(layout.Definition), true);
                 map = layout.ApplyLayout(map, scenario, definitions);
                 var geo = sameGeography ? _geographyInput with { RegionCityIds = draft.Geography.RegionCityIds }

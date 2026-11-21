@@ -33,7 +33,7 @@
 - [BEH-COMPANION-0005：玩家自动探索所在地](BEH-COMPANION-0005-player-local-search.md)
 - [BEH-COMPANION-0006：能力成长与设施、舰船兵法预设](BEH-COMPANION-0006-ability-growth-and-naval-presets.md)
 - [BEH-EDITOR-0001：局内世界编辑器](BEH-EDITOR-0001-world-editors.md)
-- [BEH-EDITOR-0002：独立新武将人物库](BEH-EDITOR-0002-created-officers.md)
+- [BEH-EDITOR-0002：共享武将与开局部署](BEH-EDITOR-0002-created-officers.md)
 - [BEH-PROFILE-0001：跨局玩家进度基础](BEH-PROFILE-0001-player-progress.md)
 
 ## 模拟与存档

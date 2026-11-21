@@ -14,6 +14,9 @@ public sealed record OfficerDefaults(int Id)
     [JsonRequired] public required string NameKey { get; init; }
     [JsonRequired] public required string Name { get; init; }
     [JsonRequired] public string? PortraitKey { get; init; }
+    // Accept the retired editor toggle in existing catalogs without storing or writing it.
+    [JsonInclude, JsonPropertyName("availableForDeployment"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    private bool LegacyDeploymentToggle { get => false; init { } }
     [JsonIgnore] public string GivenName => Name.StartsWith(Surname, StringComparison.Ordinal) ? Name[Surname.Length..] : Name;
     [JsonRequired] public required string? CourtesyName { get; init; }
     [JsonRequired] public required string? Biography { get; init; }
@@ -263,6 +266,14 @@ public sealed record ScenarioOfficerState(int Id)
     [JsonRequired] public required bool RewardedThisXun { get; init; }
     [JsonRequired] public required OfficerDefaultsOverrides Overrides { get; init; }
 
+    public static ScenarioOfficerState Unplaced(int id) => new(id)
+    {
+        OwnerId = null, SettlementId = null, Acted = false, IsDormant = true,
+        UnitId = null, EquippedTacticId = null, TacticCooldown = 0, StatusStartYear = null,
+        Injury = 0, Status = OfficerStatus.Undiscovered, RegionId = null, OfficeId = null, IsCommander = false,
+        ForceLoyalties = ImmutableDictionary<int, int>.Empty, RewardedThisXun = false, Overrides = new()
+    };
+
     public static ScenarioOfficerState From(OfficerInitialState value, OfficerDefaults defaults, TextCatalog texts, int defaultLoyalty) => new(value.State.Id)
     {
         OwnerId = value.State.OwnerId,
@@ -335,7 +346,7 @@ public sealed record ScenarioOfficerState(int Id)
 
 public static class OfficerComposition
 {
-    private static Dictionary<int, OfficerDefaults> Index(OfficerDefaults[] defaults)
+    internal static Dictionary<int, OfficerDefaults> Index(OfficerDefaults[] defaults)
     {
         if (defaults.Any(p => p.Id < 0 || string.IsNullOrWhiteSpace(p.Name) || string.IsNullOrWhiteSpace(p.NameKey)) || defaults.Select(p => p.Id).Distinct().Count() != defaults.Length)
             throw new InvalidDataException("Invalid or duplicate officer default identity.");
@@ -386,8 +397,10 @@ public static class OfficerComposition
     }
 
     public static OfficerInitialState[] Compile(ScenarioOfficerState[] placements, OfficerDefaults[] defaults)
+        => CompileIndexed(placements, Index(defaults));
+
+    internal static OfficerInitialState[] CompileIndexed(ScenarioOfficerState[] placements, IReadOnlyDictionary<int, OfficerDefaults> index)
     {
-        var index = Index(defaults);
         if (placements.Select(p => p.Id).Distinct().Count() != placements.Length)
             throw new InvalidDataException("Duplicate scenario officer identity.");
         return placements.Select(person => person.Compile(index.TryGetValue(person.Id, out var profile)

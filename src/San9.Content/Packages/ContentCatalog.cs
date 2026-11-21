@@ -78,7 +78,7 @@ public static class ContentCatalogFiles
         if (definitions.SchemaVersion != ScenarioDefinitions.CurrentSchemaVersion ||
             officers.SchemaVersion != OfficerDefaultsCatalog.CurrentSchemaVersion)
             throw new InvalidDataException("Unsupported shared authoring data version; reconvert the package.");
-        OfficerComposition.Compile([], officers.Officers);
+        OfficerComposition.Index(officers.Officers);
         return (definitions, officers);
     }
 

@@ -107,9 +107,9 @@ public sealed class PenglaiSessionTests
     public void ReservedCityDeploymentFollowsPlayerSelectionThroughDraftAndSession(bool joinForce)
     {
         var source = Definition();
-        var person = new CreatedOfficer(Guid.Parse("10000000-0000-0000-0000-000000000000"), "甲");
-        var library = CreatedOfficerLibrary.Empty with { Officers = [person] };
-        var draft = new NewGameDraft(source, new(TextCatalog.CurrentSchemaVersion, new()), new Dictionary<string, string>(), library);
+        var person = OfficerDefaults.Create(10000);
+        source = source with { OfficerCatalog = new[] { person }.ToDictionary(p => p.Id) };
+        var draft = new NewGameDraft(source, new(TextCatalog.CurrentSchemaVersion, new()), new Dictionary<string, string>());
         Assert.True(draft.Compose().Settlements.Single(s => s.Id == 3).IsDormant);
         Assert.Throws<InvalidDataException>(() => draft.Deploy([person.Id], 3, joinForce));
 
@@ -117,7 +117,7 @@ public sealed class PenglaiSessionTests
         Assert.False(draft.Compose().Settlements.Single(s => s.Id == 3).IsDormant);
         Assert.False(draft.Compose().Settlements.Single(s => s.Id == 4).IsDormant);
         draft.Deploy([person.Id], 3, joinForce);
-        int id = NewGameComposer.OfficerIds(source, draft.Setup)[person.Id];
+        int id = person.Id;
         var preview = draft.Preview();
         Assert.Contains(preview.Settlements, s => s.Id == 3);
         Assert.Equal(joinForce ? (int?)2 : null, preview.World.Officers.Single(p => p.Id == id).OwnerId);

@@ -32,62 +32,6 @@ internal sealed record OfficerEditorValues
     public required bool HasRecruitmentPoliticsBonus { get; init; }
     public required OfficerTrainingFields Training { get; init; }
 
-    public static OfficerEditorValues From(CreatedOfficer p) => new()
-    {
-        Surname = p.Surname,
-        GivenName = p.Name,
-        CourtesyName = p.CourtesyName,
-        Biography = p.Biography,
-        PortraitKey = p.PortraitKey,
-        FlagGlyph = p.FlagGlyph,
-        Abilities = p.Abilities,
-        IsFemale = p.IsFemale,
-        BirthYear = p.BirthYear,
-        AgeAtScenarioStart = p.AgeAtScenarioStart,
-        AppearanceYear = p.AppearanceYear,
-        LifespanTier = p.LifespanTier,
-        Personality = p.Personality,
-        Righteousness = p.Righteousness,
-        Ambition = p.Ambition,
-        Affinity = p.Affinity,
-        SuccessionPriority = p.SuccessionPriority,
-        ForceFounderPriority = p.ForceFounderPriority,
-        TacticLinkBonus = p.TacticLinkBonus,
-        DuelAdvantages = p.DuelAdvantages,
-        PrefersConsolidationLeadership = p.PrefersConsolidationLeadership,
-        AutomaticSurrenderAllowed = p.AutomaticSurrenderAllowed,
-        HasRecruitmentPoliticsBonus = p.HasRecruitmentPoliticsBonus,
-        Training = new(p.Proficiencies, p.MasteredCategories, p.LearnedTactics),
-    };
-
-    public CreatedOfficer Apply(CreatedOfficer p) => p with
-    {
-        Surname = Surname,
-        Name = GivenName,
-        CourtesyName = CourtesyName,
-        Biography = Biography,
-        PortraitKey = PortraitKey,
-        FlagGlyph = FlagGlyph,
-        Abilities = Abilities,
-        IsFemale = IsFemale,
-        BirthYear = BirthYear,
-        AgeAtScenarioStart = AgeAtScenarioStart,
-        AppearanceYear = AppearanceYear,
-        LifespanTier = LifespanTier,
-        Personality = Personality,
-        Righteousness = Righteousness,
-        Ambition = Ambition,
-        Affinity = Affinity,
-        SuccessionPriority = SuccessionPriority,
-        ForceFounderPriority = ForceFounderPriority,
-        TacticLinkBonus = TacticLinkBonus,
-        DuelAdvantages = DuelAdvantages,
-        PrefersConsolidationLeadership = PrefersConsolidationLeadership,
-        AutomaticSurrenderAllowed = AutomaticSurrenderAllowed,
-        HasRecruitmentPoliticsBonus = HasRecruitmentPoliticsBonus,
-        Proficiencies = Training.Proficiencies, MasteredCategories = Training.MasteredCategories, LearnedTactics = Training.LearnedTactics,
-    };
-
     public static OfficerEditorValues From(OfficerDefaults p) => new()
     {
         Surname = p.Surname,

@@ -153,10 +153,10 @@ public static class ScenarioContentFiles
     }
 
     /// <summary>Reads the authored state needed for force selection without unrelated rules or presentation data.</summary>
-    public static async Task<ScenarioSelectionContent> LoadSelectionAsync(string root, CancellationToken token = default)
+    public static async Task<ScenarioSelectionContent> LoadSelectionAsync(string root, CancellationToken token = default, string? createdOfficersPath = null)
     {
         var manifest = await ReadManifestAsync(root, token);
-        return await ReadSelectionAsync(manifest, ResolveResourceRoot(root, manifest.ResourceRoot), token);
+        return await ReadSelectionAsync(manifest, ResolveResourceRoot(root, manifest.ResourceRoot), token, createdOfficersPath);
     }
 
     public static async Task<ScenarioContentManifest> ReadManifestAsync(string root, CancellationToken token = default, bool usePlayerManifest = true)
@@ -193,9 +193,9 @@ public static class ScenarioContentFiles
         CancellationToken token = default) => ReadDataAsync<CommandPresentation>(
             ResolveResourceRoot(root, manifest.ResourceRoot), manifest.Presentation, token);
 
-    private static async Task<ScenarioSelectionContent> ReadSelectionAsync(ScenarioContentManifest manifest, string resourceRoot, CancellationToken token)
+    private static async Task<ScenarioSelectionContent> ReadSelectionAsync(ScenarioContentManifest manifest, string resourceRoot, CancellationToken token, string? createdOfficersPath)
     {
-        var (scenario, profiles) = await ScenarioDataFiles.LoadSelectionWithProfilesAsync(resourceRoot, manifest, token);
+        var (scenario, profiles) = await ScenarioDataFiles.LoadSelectionWithProfilesAsync(resourceRoot, manifest, token, createdOfficersPath);
         if (scenario.SchemaVersion != ScenarioInitialState.CurrentSchemaVersion)
             throw new InvalidDataException("Unsupported scenario state version; reconvert the package.");
         var text = await ReadDataAsync<StaticTextContent>(resourceRoot, manifest.Text, token);
@@ -213,12 +213,12 @@ public static class ScenarioContentFiles
     public static async Task<ScenarioContent> LoadAsync(string root, CancellationToken token = default) =>
         await LoadAsync(root, await ReadManifestAsync(root, token), token);
 
-    internal static async Task<ScenarioContent> LoadAsync(string root, ScenarioContentManifest manifest, CancellationToken token)
+    internal static async Task<ScenarioContent> LoadAsync(string root, ScenarioContentManifest manifest, CancellationToken token, string? createdOfficersPath = null)
     {
         string resourceRoot = ResolveResourceRoot(root, manifest.ResourceRoot);
         Task<T> Read<T>(string relative) => ReadDataAsync<T>(resourceRoot, relative, token);
         // Compose display and domain geography from the same effective map.
-        var scenarioTask = Task.Run(() => ScenarioDataFiles.LoadScenarioWithProfilesAsync(resourceRoot, manifest, token, includeMap: true), token);
+        var scenarioTask = Task.Run(() => ScenarioDataFiles.LoadScenarioWithProfilesAsync(resourceRoot, manifest, token, includeMap: true, createdOfficersPath: createdOfficersPath), token);
         var displayTask = Task.Run(async () =>
         {
             var text = await Read<StaticTextContent>(manifest.Text);
@@ -387,10 +387,10 @@ public static class ScenarioContentFiles
         own?.Commit(token);
     }
 
-    public static async Task<ScenarioInitialState> LoadScenarioAsync(string root, CancellationToken token = default)
+    public static async Task<ScenarioInitialState> LoadScenarioAsync(string root, CancellationToken token = default, string? createdOfficersPath = null)
     {
         var manifest = await ReadManifestAsync(root, token);
-        return await ScenarioDataFiles.LoadScenarioAsync(ResolveResourceRoot(root, manifest.ResourceRoot), manifest, token);
+        return await ScenarioDataFiles.LoadScenarioAsync(ResolveResourceRoot(root, manifest.ResourceRoot), manifest, token, createdOfficersPath);
     }
 
     public static string ResolveResourceRoot(string scenarioRoot, string relative)

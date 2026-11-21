@@ -16,11 +16,16 @@ public partial class PortraitEditor
         ContentStructure.Validate(officers);
         if (officers.SchemaVersion != OfficerDefaultsCatalog.CurrentSchemaVersion)
             throw new InvalidDataException("人物资料版本不符，请重建内容包。");
+        if (CreatedOfficersPath is not null)
+        {
+            byte[]? bytes;
+            try { bytes = File.ReadAllBytes(CreatedOfficersPath); }
+            catch (FileNotFoundException) { bytes = null; }
+            catch (DirectoryNotFoundException) { bytes = null; }
+            officers = PlayerOfficerFiles.Merge(officers, bytes);
+        }
         foreach (var person in officers.Officers)
             if (person.PortraitKey is { } key) yield return (key, person.Name);
-        if (CreatedOfficerLibraryPath is null) throw new InvalidOperationException("缺少新武将资料路径，不能核对头像使用者。");
-        foreach (var person in new Persistence.CreatedOfficerStore(CreatedOfficerLibraryPath).Load().Officers)
-            if (person.PortraitKey is { } key) yield return (key, person.FullName);
     }
     private void DeletePortrait()
     {

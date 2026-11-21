@@ -7,6 +7,7 @@ namespace San9.Application.Persistence;
 
 public sealed record CommandLogHeader(int FormatVersion, string RulesVersion, ulong Seed)
 {
+    [System.Text.Json.Serialization.JsonRequired] public string ContentSetId { get; init; } = San9.Content.Scenarios.ScenarioInitialState.OriginalContentSetId;
     [System.Text.Json.Serialization.JsonRequired] public San9.Content.Scenarios.SessionDefinitions Definitions { get; init; } = San9.Content.Scenarios.SessionDefinitions.Empty;
     [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.NewGameSettings NewGame { get; init; } = new();
     [System.Text.Json.Serialization.JsonRequired] public San9.Core.Domain.CompanionSettings Companion { get; init; } = San9.Core.Domain.CompanionSettings.Default;
@@ -32,7 +33,7 @@ public static class CommandLogService
     {
         var simulation = session.Snapshot.Simulation;
         return new(SessionProtocol.LogFormatVersion, SessionProtocol.RulesVersion, simulation.InitialSeed)
-            { Definitions = session.Definitions, NewGame = simulation.NewGame, Companion = session.Companion, PlayerForceIds = session.InitialPlayerForceIds, BattleDeathsEnabled = simulation.BattleDeathsEnabled,
+            { ContentSetId = session.ContentSetId, Definitions = session.Definitions, NewGame = simulation.NewGame, Companion = session.Companion, PlayerForceIds = session.InitialPlayerForceIds, BattleDeathsEnabled = simulation.BattleDeathsEnabled,
                 ComputerDamageBonusPercent = simulation.ComputerDamageBonusPercent,
                 PlayerForceController = session.PlayerForceController, OriginalAi = session.OriginalAi.Policy };
     }
@@ -66,7 +67,7 @@ public static class CommandLogService
     {
         using var reader = new StreamReader(path, new UTF8Encoding(false, true));
         var header = ReadHeader(reader);
-        if (header.FormatVersion != SessionProtocol.LogFormatVersion ||
+        if (header.ContentSetId != session.ContentSetId || header.FormatVersion != SessionProtocol.LogFormatVersion ||
             header.ComputerDamageBonusPercent != session.Snapshot.Simulation.ComputerDamageBonusPercent ||
             header.Seed != session.Snapshot.Simulation.InitialSeed || header.BattleDeathsEnabled != session.Snapshot.Simulation.BattleDeathsEnabled ||
             header.PlayerForceController != session.PlayerForceController || header.NewGame != session.Snapshot.Simulation.NewGame ||

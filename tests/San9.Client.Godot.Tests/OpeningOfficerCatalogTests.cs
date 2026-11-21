@@ -1,4 +1,4 @@
-using San9.Content.Authoring;
+using San9.Content.Scenarios;
 
 namespace San9.Client.Godot.Tests;
 
@@ -7,10 +7,10 @@ public sealed class OpeningOfficerCatalogTests
     [Fact]
     public void SummaryAndTacticsPagesKeepLearningMasteryAndProficiencyIndependent()
     {
-        var person = new CreatedOfficer(Guid.NewGuid(), "甲")
+        var person = OfficerDefaults.Create(117) with
         {
-            Surname = "新", Abilities = new(81, 82, 83, 84), LearnedTactics = [23, 27],
-            MasteredCategories = [7], Proficiencies = [10, 20, 30, 40, 50, 60, 70, 80, 90]
+            Name = "新甲", Surname = "新", LearnedTactics = [23, 27],
+            MasteredCategories = [7], TacticProficiencies = [10, 20, 30, 40, 50, 60, 70, 80, 90]
         };
         Assert.Equal("新甲", OpeningOfficerCatalog.Cell(person, "name").Text);
         Assert.Equal(2, OpeningOfficerCatalog.Cell(person, "learned").Number);

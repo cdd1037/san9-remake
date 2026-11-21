@@ -9,6 +9,7 @@ namespace San9.Client.Godot;
 
 public partial class MapEditor : ModalView
 {
+    public string? CreatedOfficersPath { get; init; }
     public string ContentRoot { get; init; } = "";
     public Action Closed { get; init; } = null!;
     private readonly CancellationTokenSource _lifetime = new();
@@ -42,7 +43,7 @@ public partial class MapEditor : ModalView
         Busy(true); Status("正在读取共享地图…");
         try
         {
-            var workspace = await Task.Run(() => MapEditorWorkspace.OpenSharedAsync(ContentRoot, _lifetime.Token), _lifetime.Token);
+            var workspace = await Task.Run(() => MapEditorWorkspace.OpenSharedAsync(ContentRoot, _lifetime.Token, CreatedOfficersPath), _lifetime.Token);
             var resources = await Task.Run(() => TexturePackageFiles.LoadAsync(workspace.TextureRoot, _lifetime.Token), _lifetime.Token);
             _lifetime.Token.ThrowIfCancellationRequested();
             _canvas?.QueueFree();

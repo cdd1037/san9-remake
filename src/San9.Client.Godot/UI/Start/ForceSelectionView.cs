@@ -26,6 +26,9 @@ public partial class ForceSelectionView : ModalView
     public StartMenuSprite Close { get; init; } = null!;
     public Action Closed { get; init; } = null!;
     public Action QuitRequested { get; init; } = null!;
+    public Settings.UiPreferencesSession Preferences { get; init; } = new();
+    public Persistence.ClientDataPaths DataPaths { get; init; } = null!;
+    public string? ContentRoot { get; init; }
     public Action Confirmed { get; init; } = null!;
     public IReadOnlySet<int> Selected => _selected;
     private HashSet<int> _selected = [];
@@ -49,6 +52,11 @@ public partial class ForceSelectionView : ModalView
         _createdCount = Label("势力数 0/8", new(268, 274), new(160, 16), font: 16);
         Button(Definition.Forces.Back, "Back", "返回", Return);
         Button(Definition.Forces.Confirm, "Confirm", "决定", Confirmed).Disabled = true;
+        if (ContentRoot is not null)
+        {
+            var edit = new Button { Name = "EditOpeningOfficers", Text = "编辑武将资料", Position = new(40, 560) };
+            AddChild(edit); edit.Pressed += () => OpenPrepared(OpenOfficerEditor);
+        }
         Button(Help, "Help", "", null);
         Button(Close, "Close", "", QuitRequested);
         Vector2[] slots = [new(536, 152), new(672, 152), new(808, 152), new(640, 304), new(776, 304), new(600, 456), new(736, 456), new(872, 456)];
@@ -129,6 +137,47 @@ public partial class ForceSelectionView : ModalView
         catch (Exception error) { ShowPreparationError(error); }
         finally { _openingMap = false; }
     }
+    private void OpenOfficerEditor(NewGameDraft previous)
+    {
+        var parent = GetParent();
+        bool saved = false;
+        var editor = new SharedDataEditor { DataPaths = DataPaths, ReferenceScenarioId = Entry.Id, Preferences = Preferences, ContentRoot = ContentRoot!, Service = Service, OpenOfficers = true,
+            SavedChanges = () => saved = true };
+        editor.Closed = async () =>
+        {
+            editor.QueueFree();
+            if (saved)
+            {
+                _preparation.Dispose();
+                _preparation = new(LoadScenario); _token = _preparation.Token;
+                _draft = null;
+                try
+                {
+                    _draft = await _preparation.PrepareAsync();
+                    var skipped = _draft.RestoreOpeningChoices(previous);
+                    _selected = _draft.PlayerForceIds.ToHashSet();
+                    RefreshDraft();
+                    if (skipped.Count > 0)
+                    {
+                        var names = skipped.Select(id => previous.Source.OfficerCatalog[id].Name);
+                        _hint.Text = $"已取消无效的开局安排：{string.Join("、", names)}";
+                        _hint.TooltipText = _hint.Text;
+                    }
+                }
+                catch (OperationCanceledException) when (_token.IsCancellationRequested) { return; }
+                catch (Exception error)
+                {
+                    _selected = _draft?.PlayerForceIds.ToHashSet() ?? [];
+                    RefreshDraft();
+                    _hint.Text = $"请重新检查开局选择：{error.Message}";
+                    if (_draft is null) GetNode<StartMenuButton>("Confirm").Disabled = true;
+                }
+            }
+            Show();
+        };
+        Hide(); parent.AddChild(editor);
+    }
+
     private void OpenPreparedMap(ScenarioForceSelection scenario)
     {
         _dialog = new ForceSelectionMapView { Name = "ForceMap", Definition = Definition.Map, Scenario = scenario, Service = Service,
@@ -162,11 +211,11 @@ public partial class ForceSelectionView : ModalView
     {
         if (_draft is null) return;
         GetNode<StartMenuButton>("CancelDeployment").Disabled = Setup.Placements.IsEmpty;
-        GetNode<StartMenuButton>("DeployOfficers").Disabled = !Setup.Library.Officers.Any(p =>
+        GetNode<StartMenuButton>("DeployOfficers").Disabled = !_draft.Candidates.Any(p =>
             NewGameComposer.CanDeploy(p, _draft.Source) && !Setup.Forces.Any(f => f.RulerId == p.Id) &&
             !Setup.Placements.Any(a => a.OfficerId == p.Id));
         GetNode<StartMenuButton>("CreateForces").Disabled = Setup.Forces.IsEmpty &&
-            (!Setup.Library.Officers.Any(p => NewGameComposer.CanDeploy(p, _draft.Source)) ||
+            (!_draft.Candidates.Any(p => NewGameComposer.CanDeploy(p, _draft.Source)) ||
              !_draft.Source.Settlements.Any(s => s.Kind == San9.Core.Domain.SettlementKind.City && s.OwnerId is null && !s.IsDormant && s.CanHostPersons));
         // An empty player selection needs neither force totals nor economic forecasts.
         OpeningForce[] forces = [];
@@ -183,9 +232,10 @@ public partial class ForceSelectionView : ModalView
             _names[i].Text = i < forces.Length ? forces[i].Name : "";
             _portraits[i].Role = i < forces.Length ? forces[i].Portrait : null;
         }
-        string prompt = Setup.Library.Officers.IsEmpty ? "人物库为空，可先在主菜单登录新武将。" :
-            !Setup.Library.Officers.Any(p => NewGameComposer.CanDeploy(p, _draft.Source)) ? "没有15至90岁的新武将，请检查人物出生年。" : "请选择势力。";
+        string prompt = _draft.Candidates.IsEmpty ? "当前剧本没有待部署武将，可在武将资料中添加。" :
+            !_draft.Candidates.Any(p => NewGameComposer.CanDeploy(p, _draft.Source)) ? "没有15至90岁的新武将，请检查人物出生年。" : "请选择势力。";
         _createdCount.Text = $"势力数 {Setup.Forces.Length}/{NewGameSetup.MaximumCreatedForces}";
+        _hint.TooltipText = "";
         _hint.Text = prompt;
     }
     private void CloseMap()

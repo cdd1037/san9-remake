@@ -71,6 +71,36 @@ public sealed partial class SharedDataEditorWorkspaceTests : IDisposable
     }
 
     [Fact]
+    public async Task PersonalOfficersAreSavedSeparatelyAndAvailableAtGameStart()
+    {
+        await CreatePeopleAndTactics();
+        string path = Path.Combine(_root, "user", "player-officers.json");
+        var editor = await SharedDataEditorWorkspace.OpenAsync(_root, createdOfficersPath: path);
+        var person = await editor.CreateOfficerAsync();
+        await editor.SaveAsync();
+        Assert.True(File.Exists(path));
+        Assert.False(File.Exists(editor.PlayerOfficerPath));
+        Assert.False(File.Exists(editor.PlayerDefinitionPath));
+        var package = Path.Combine(_root, "a");
+        var scenario = await ScenarioContentFiles.LoadScenarioAsync(package, createdOfficersPath: path);
+        Assert.Contains(person.Id, scenario.OfficerCatalog.Keys);
+        Assert.DoesNotContain(person.Id, (await ScenarioContentFiles.LoadScenarioAsync(package)).OfficerCatalog.Keys);
+        var reopened = await SharedDataEditorWorkspace.OpenAsync(_root, createdOfficersPath: path);
+        var stale = await SharedDataEditorWorkspace.OpenAsync(_root, createdOfficersPath: path);
+        var original = reopened.GetOfficer(9001);
+        reopened.SetOfficer(original with { War = 80 });
+        await reopened.DeleteOfficerAsync(person.Id);
+        await reopened.SaveAsync();
+        var shared = await PackageFiles.ReadAsync<OfficerDefaultsCatalog>(editor.PlayerOfficerPath);
+        Assert.Equal(80, Assert.Single(shared.Officers).War);
+        stale.SetOfficer(person with { War = 60 });
+        await Assert.ThrowsAsync<InvalidDataException>(() => stale.SaveAsync());
+        var next = await SharedDataEditorWorkspace.OpenAsync(_root, createdOfficersPath: path);
+        Assert.DoesNotContain(next.Officers, p => p.Id == person.Id);
+        Assert.True((await next.CreateOfficerAsync()).Id > person.Id);
+    }
+
+    [Fact]
     public async Task BasicMilitaryRulesPersistAndRespectScenarioOverrides()
     {
         await Create();

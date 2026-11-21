@@ -98,14 +98,14 @@ public partial class TreasureEditorPage : SharedCatalogEditorPage
             var remove = ContentEditorControls.ActionButton(favorites, name + " ×", () => removePreference(person));
             remove.TooltipText = $"将{name}移出偏好名单。";
         }
-        var candidates = Workspace.Officers.Where(o => !treasure.FavoredOwnerIds.Contains(o.Id))
+        (string, int?)[] Candidates() => Workspace.Officers.Where(o => !treasure.FavoredOwnerIds.Contains(o.Id))
             .Select(o => (Label: $"{o.Name} [{o.Id}]", Value: (int?)o.Id)).Prepend(("＋ 添加武将", (int?)null)).ToArray();
-        var addPreference = SearchableReferenceField.Add(favorites, "武将", candidates, (int?)null, Guard<int?>(value =>
+        var addPreference = SearchableReferenceField.Add(favorites, "武将", Candidates, (int?)null, "＋ 添加武将", Guard<int?>(value =>
         {
             if (value is not int person) return;
             Edit(id, t => t with { FavoredOwnerIds = t.FavoredOwnerIds.Append(person).Distinct().Order().ToImmutableArray() }); Rebuild();
         }), "TreasureFavoredOwner", "按姓名或 ID 搜索武将。\n选定后直接加入偏好名单。", showCaption: false);
         addPreference.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
-        addPreference.Disabled = candidates.Length == 1;
+        addPreference.Disabled = !Workspace.Officers.Any(o => !treasure.FavoredOwnerIds.Contains(o.Id));
     }
 }

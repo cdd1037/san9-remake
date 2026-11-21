@@ -30,15 +30,37 @@ public partial class OfficerEditorPage : SharedCatalogEditorPage
     protected override void BuildForm(int id)
     {
         var tabs = new TabContainer { Name = "OfficerPages", SizeFlagsVertical = SizeFlags.ExpandFill };
+        foreach (string title in new[] { "基本资料", "兵法", "特性" })
+            tabs.AddChild(new ScrollContainer { Name = title, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled });
+
+        void ShowPage(int index)
+        {
+            var scroll = (ScrollContainer)tabs.GetTabControl(index);
+            if (scroll.GetChildCount() != 0) return;
+            var body = ContentEditorControls.PageBody(scroll);
+            OfficerEditorValues Read() => OfficerEditorValues.From(Workspace.GetOfficer(id));
+            var edit = Guard<Func<OfficerEditorValues, OfficerEditorValues>>(change => Edit(id, p => change(OfficerEditorValues.From(p)).Apply(p)));
+            switch (index)
+            {
+                case 0:
+                    OfficerEditorForm.BuildBasic(tabs, body, Read, edit, PortraitService,
+                        parent => BuildFlags(parent, id), parent => BuildRelationships(parent, id), Rebuild);
+                    break;
+                case 1:
+                    var tactics = Workspace.Tactics.Where(t => t.IsOfficerTactic)
+                        .Select(t => new OfficerTacticChoice(t.Id, Workspace.GetTacticCatalog(t.Id).Name, t.Category!.Value)).ToArray();
+                    OfficerEditorForm.BuildTraining(body, Read, edit, tactics, Workspace.Definitions.OfficerGrowth.TacticProficiencyCap);
+                    break;
+                case 2:
+                    OfficerEditorForm.BuildTraits(body, Read(), edit);
+                    break;
+            }
+        }
+        _flagPreview = null;
         Form.AddChild(tabs);
-        var tactics = Workspace.Tactics.Where(t => t.IsOfficerTactic)
-            .Select(t => new OfficerTacticChoice(t.Id, Workspace.GetTacticCatalog(t.Id).Name, t.Category!.Value)).ToArray();
-        OfficerEditorForm.Build(this, tabs, () => OfficerEditorValues.From(Workspace.GetOfficer(id)),
-            Guard<Func<OfficerEditorValues, OfficerEditorValues>>(change => Edit(id, p => change(OfficerEditorValues.From(p)).Apply(p))),
-            tactics, PortraitService, parent => BuildFlags(parent, id), parent => BuildRelationships(parent, id), Rebuild,
-            Workspace.Definitions.OfficerGrowth.TacticProficiencyCap);
         tabs.CurrentTab = _tab;
-        tabs.TabChanged += index => _tab = (int)index;
+        ShowPage(_tab);
+        tabs.TabChanged += index => { _tab = (int)index; ShowPage(_tab); };
     }
 
     private void BuildFlags(Node parent, int id)
@@ -59,11 +81,12 @@ public partial class OfficerEditorPage : SharedCatalogEditorPage
         var person = Workspace.GetOfficer(id);
         void Reference(string title, int? current, bool allowSelf, Action<int?> changed)
         {
-            var candidates = Workspace.Officers.Where(p => allowSelf || p.Id != id)
+            (string, int?)[] Candidates() => Workspace.Officers.Where(p => allowSelf || p.Id != id)
                 .Select(p => ($"{p.Name}（{p.Id}）", (int?)p.Id)).Prepend(("无" + title, (int?)null)).ToArray();
-            SearchableReferenceField.Add(parent, title, candidates, current, Guard(changed),
-                allowSelf ? "ChooseBloodline" : "ChooseParent", "按姓名搜索共享目录中的人物。",
-                $"人物 {current}（不在可选人物目录中）");
+            var relative = Workspace.Officers.FirstOrDefault(p => p.Id == current && (allowSelf || p.Id != id));
+            string label = current is null ? "无" + title : relative is null ? $"人物 {current}（不在可选人物目录中）" : $"{relative.Name}（{relative.Id}）";
+            SearchableReferenceField.Add(parent, title, Candidates, current, label, Guard(changed),
+                allowSelf ? "ChooseBloodline" : "ChooseParent", "按姓名搜索共享目录中的人物。");
         }
         Reference("亲代", person.ParentId, false, value => Edit(id, p => p with { ParentId = value }));
         Reference("血缘", person.BloodlineId, true, value => Edit(id, p => p with { BloodlineId = value }));

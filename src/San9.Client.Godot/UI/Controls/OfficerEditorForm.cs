@@ -6,25 +6,19 @@ namespace San9.Client.Godot;
 /// <summary>One layout for catalog and created officers; callbacks own all draft changes.</summary>
 internal static class OfficerEditorForm
 {
-    public static void Build(Node dialogOwner, TabContainer tabs, Func<OfficerEditorValues> read,
-        Action<Func<OfficerEditorValues, OfficerEditorValues>> edit, IReadOnlyList<OfficerTacticChoice> tactics,
-        TextureService? textures, Action<Node> flags, Action<Node> relationships, Action rebuild, int proficiencyCap,
-        Action<LineEdit>? configureSurname = null)
+    private static void Number(Node parent, string label, int value, int min, Action<int> changed, string name = "")
+    {
+        ContentEditorControls.Caption(parent, label);
+        ContentEditorControls.NumericInput(parent, value, min, int.MaxValue, v => changed((int)v), name);
+    }
+
+    public static void BuildBasic(Node dialogOwner, VBoxContainer page, Func<OfficerEditorValues> read,
+        Action<Func<OfficerEditorValues, OfficerEditorValues>> edit, TextureService? textures,
+        Action<Node> flags, Action<Node> relationships, Action rebuild)
     {
         var p = read();
-        VBoxContainer Page(string title)
-        {
-            var scroll = new ScrollContainer { Name = title, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
-            tabs.AddChild(scroll);
-            return ContentEditorControls.PageBody(scroll);
-        }
-        void Number(Node parent, string label, int value, int min, Action<int> changed, string name = "")
-        {
-            ContentEditorControls.Caption(parent, label);
-            ContentEditorControls.NumericInput(parent, value, min, int.MaxValue, v => changed((int)v), name);
-        }
-        var basic = Page("基本资料"); basic.AddThemeConstantOverride("separation", 12);
-        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 18); basic.AddChild(row);
+        page.AddThemeConstantOverride("separation", 12);
+        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 18); page.AddChild(row);
         var avatar = ContentEditorControls.Section(row, "头像");
         avatar.CustomMinimumSize = new(160, 0); avatar.SizeFlagsVertical = Control.SizeFlags.ShrinkBegin;
         var portrait = new PanelContainer();
@@ -50,10 +44,9 @@ internal static class OfficerEditorForm
         var details = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         details.AddThemeConstantOverride("separation", 10); row.AddChild(details);
         var identity = ContentEditorControls.ProfileGrid(details, "身份");
-        var surname = OfficerEditorFields.Names(identity, p.Surname, p.GivenName, p.CourtesyName,
+        OfficerEditorFields.Names(identity, p.Surname, p.GivenName, p.CourtesyName,
             v => edit(x => x with { Surname = v }), v => edit(x => x with { GivenName = v }),
             v => edit(x => x with { CourtesyName = v }));
-        configureSurname?.Invoke(surname);
         ContentEditorControls.Choices(identity, "性别", ["男", "女"], p.IsFemale ? 1 : 0,
             v => edit(x => x with { IsFemale = v == 1 }));
         OfficerEditorFields.Abilities(details, p.Abilities, change => edit(x => x with { Abilities = change(x.Abilities) }), 0,
@@ -75,19 +68,25 @@ internal static class OfficerEditorForm
         Number(life, "登场年", p.AppearanceYear, 1, v => edit(x => x with { AppearanceYear = v }), "AppearanceYear");
         relationships(life);
         Number(life, "寿命档", p.LifespanTier, 0, v => edit(x => x with { LifespanTier = v }));
-        ContentEditorControls.TextArea(basic, "列传", p.Biography, v => edit(x => x with { Biography = v }), "OfficerBiography");
+        ContentEditorControls.TextArea(page, "列传", p.Biography, v => edit(x => x with { Biography = v }), "OfficerBiography");
+    }
 
-        var training = Page("兵法");
-        OfficerEditorFields.Training(training, () => read().Training, v => edit(x => x with { Training = v }), tactics, proficiencyCap);
-        var bonus = ContentEditorControls.ProfileGrid(training, "兵法加成");
+    public static void BuildTraining(VBoxContainer page, Func<OfficerEditorValues> read,
+        Action<Func<OfficerEditorValues, OfficerEditorValues>> edit, IReadOnlyList<OfficerTacticChoice> tactics, int proficiencyCap)
+    {
+        var p = read();
+        OfficerEditorFields.Training(page, () => read().Training, v => edit(x => x with { Training = v }), tactics, proficiencyCap);
+        var bonus = ContentEditorControls.ProfileGrid(page, "兵法加成");
         ContentEditorControls.Caption(bonus, "连携加成");
         ContentEditorControls.NumericInput(bonus, p.TacticLinkBonus, 0, 100, v => edit(x => x with { TacticLinkBonus = (int)v }));
+    }
 
-        var traits = Page("特性");
-        var succession = ContentEditorControls.ProfileGrid(traits, "继承与拥立");
+    public static void BuildTraits(VBoxContainer page, OfficerEditorValues p, Action<Func<OfficerEditorValues, OfficerEditorValues>> edit)
+    {
+        var succession = ContentEditorControls.ProfileGrid(page, "继承与拥立");
         Number(succession, "继承优先级", p.SuccessionPriority, 0, v => edit(x => x with { SuccessionPriority = v }));
         Number(succession, "拥立优先级", p.ForceFounderPriority, 0, v => edit(x => x with { ForceFounderPriority = v }));
-        var options = ContentEditorControls.ButtonGroup(traits, "人物特性");
+        var options = ContentEditorControls.ButtonGroup(page, "人物特性");
         ContentEditorControls.Toggle(options, "优先成为合并势力君主", p.PrefersConsolidationLeadership,
             v => edit(x => x with { PrefersConsolidationLeadership = v }));
         ContentEditorControls.Toggle(options, "允许自动投降", p.AutomaticSurrenderAllowed,

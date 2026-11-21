@@ -7,12 +7,6 @@ namespace San9.Client.Godot;
 
 public partial class FormationEditorPage
 {
-    private VBoxContainer Page(string title)
-    {
-        var scroll = new ScrollContainer { Name = title, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; _tabs.AddChild(scroll);
-        return ContentEditorControls.PageBody(scroll);
-    }
-
     private static GridContainer Section(Node parent, string title, string tooltip = "") =>
         ContentEditorControls.ProfileGrid(parent, title, tooltip: tooltip);
 
@@ -27,10 +21,9 @@ public partial class FormationEditorPage
         ContentEditorControls.Toggle(parent, title, value, Guard(changed));
     }
 
-    private void BuildBasics(FormationRule f)
+    private void BuildBasics(FormationRule f, VBoxContainer page)
     {
         int id = f.Id;
-        var page = Page("基础");
         var catalog = Workspace.GetFormationCatalog(id);
         ContentEditorControls.AddText(page, "描述", catalog.Description, Guard<string>(v => { Workspace.SetFormationCatalog(Workspace.GetFormationCatalog(id) with { Description = v }); RefreshList(); UpdateHeading(); }), true);
         var appearances = Workspace.FormationAppearances;
@@ -60,9 +53,9 @@ public partial class FormationEditorPage
         }
     }
 
-    private void BuildCombat(FormationRule f)
+    private void BuildCombat(FormationRule f, VBoxContainer page)
     {
-        int id = f.Id; var page = Page("战斗");
+        int id = f.Id;
         Toggle(page, "启用战斗系数", f.Combat is not null, v => Edit(id, p => p with { Combat = v ? p.Combat ?? new(10, 10, 10, 10, 50) : null }, true));
         if (f.Combat is { } combat)
         {
@@ -87,9 +80,9 @@ public partial class FormationEditorPage
         }
     }
 
-    private void BuildTactics(FormationRule f)
+    private void BuildTactics(FormationRule f, VBoxContainer page)
     {
-        int id = f.Id; var page = Page("兵法与特性");
+        int id = f.Id;
         Toggle(page, "启用兵法发动配置", f.Tactics is not null, v => Edit(id, p => p with
         { Tactics = v ? p.Tactics ?? new(15, 2, [], []) : null }, true));
         if (f.Tactics is { } tactics)
@@ -126,9 +119,9 @@ public partial class FormationEditorPage
         Toggle(flags, "免疫扰乱", f.ImmuneToDisorder, v => Edit(id, p => p with { ImmuneToDisorder = v }));
     }
 
-    private void BuildAdvanced(FormationRule f)
+    private void BuildAdvanced(FormationRule f, VBoxContainer page)
     {
-        int id = f.Id; var page = Page("阵位与完整数据");
+        int id = f.Id;
         page.AddChild(new Label { Text = "拖动阵位调整位置" });
         _positionEditor = new FormationEditorPreview
         {

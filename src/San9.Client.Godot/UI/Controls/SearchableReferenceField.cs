@@ -9,22 +9,30 @@ internal static class SearchableReferenceField
         T current, Action<T> changed, string name, string tooltip, string unavailableLabel = "当前引用不可用", bool showCaption = true,
         bool keepFirstVisible = true)
     {
+        var label = candidates.FirstOrDefault(c => EqualityComparer<T>.Default.Equals(c.Value, current)).Label;
+        return Add(parent, title, () => candidates, current, label ?? unavailableLabel, changed, name, tooltip, showCaption, keepFirstVisible);
+    }
+
+    public static Button Add<T>(Node parent, string title, Func<IReadOnlyList<(string Label, T Value)>> choices,
+        T current, string currentLabel, Action<T> changed, string name, string tooltip, bool showCaption = true,
+        bool keepFirstVisible = true)
+    {
         if (showCaption) ContentEditorControls.Caption(parent, title);
-        int selected = candidates.ToList().FindIndex(c => EqualityComparer<T>.Default.Equals(c.Value, current));
         var button = new Button
         {
             Name = name, Alignment = HorizontalAlignment.Left,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new(112, 34),
             ClipText = true, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis
         };
-        void UpdateLabel()
+        void UpdateLabel(string label)
         {
-            button.Text = selected >= 0 ? candidates[selected].Label : unavailableLabel;
+            button.Text = label;
             button.TooltipText = button.Text + "\n" + tooltip;
         }
-        UpdateLabel(); parent.AddChild(button);
+        UpdateLabel(currentLabel); parent.AddChild(button);
         button.Pressed += () =>
         {
+            var candidates = choices();
             var dialog = new ConfirmationDialog
             { Title = "选择" + title, OkButtonText = "确定", CancelButtonText = "取消", Exclusive = true };
             var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 10); dialog.AddChild(column);
@@ -42,15 +50,16 @@ internal static class SearchableReferenceField
                 {
                     if (!(keepFirstVisible && i == 0) && !candidates[i].Label.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
                     visible.Add(i); list.AddItem(candidates[i].Label);
-                    if (i == selected) { pending = i; list.Select(visible.Count - 1); }
+                    if (EqualityComparer<T>.Default.Equals(candidates[i].Value, current)) { pending = i; list.Select(visible.Count - 1); }
                 }
                 dialog.GetOkButton().Disabled = pending < 0;
             }
             void Apply()
             {
                 if (pending < 0) return;
-                selected = pending; UpdateLabel(); dialog.QueueFree();
-                changed(candidates[selected].Value);
+                var choice = candidates[pending];
+                current = choice.Value; UpdateLabel(choice.Label); dialog.QueueFree();
+                changed(choice.Value);
             }
             search.TextChanged += _ => Refresh();
             list.ItemSelected += index => { pending = visible[(int)index]; dialog.GetOkButton().Disabled = false; };

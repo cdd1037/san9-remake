@@ -72,7 +72,8 @@ public partial class FormationEditorPage : SharedDataEditorPage
         _tabs = new TabContainer { SizeFlagsVertical = SizeFlags.ExpandFill, Name = "FormationPages" }; body.AddChild(_tabs);
         _tabs.TabChanged += index =>
         {
-            if (_building || !_rawDirty || index == 3) return;
+            if (_building) return;
+            if (!_rawDirty || index == 3) { ShowTab((int)index); return; }
             if (!CommitJson()) { _building = true; _tabs.CurrentTab = 3; _building = false; }
             else ShowCurrent();
         };
@@ -113,9 +114,27 @@ public partial class FormationEditorPage : SharedDataEditorPage
         {
             _title.Text = ""; _changed.Visible = false; _building = false; _actions.Refresh(); return;
         }
+        foreach (string title in new[] { "基础", "战斗", "兵法与特性", "阵位与完整数据" })
+            _tabs.AddChild(new ScrollContainer { Name = title, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled });
+        _tabs.CurrentTab = tab;
+        ShowTab(tab);
+        _building = false; UpdateHeading();
+    }
+
+    private void ShowTab(int index)
+    {
+        if (_current is not int id) return;
+        var scroll = (ScrollContainer)_tabs.GetTabControl(index);
+        if (scroll.GetChildCount() != 0) return;
+        var page = ContentEditorControls.PageBody(scroll);
         var rule = Workspace.GetFormation(id);
-        BuildBasics(rule); BuildCombat(rule); BuildTactics(rule); BuildAdvanced(rule);
-        _tabs.CurrentTab = Math.Min(tab, _tabs.GetTabCount() - 1); _building = false; UpdateHeading();
+        switch (index)
+        {
+            case 0: BuildBasics(rule, page); break;
+            case 1: BuildCombat(rule, page); break;
+            case 2: BuildTactics(rule, page); break;
+            case 3: BuildAdvanced(rule, page); break;
+        }
     }
 
     private void UpdateHeading()

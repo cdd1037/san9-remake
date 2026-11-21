@@ -5,11 +5,7 @@ namespace San9.Core.Tests;
 
 public sealed class TacticStudyInterruptionTests
 {
-    [Theory]
-    [InlineData("death")]
-    [InlineData("capture")]
-    [InlineData("city-lost")]
-    public void InterruptedStudyCannotGrantAndReleasesOccupation(string interruption)
+    private static (WorldState, SimulationRules) CreateWorld()
     {
         var places = new PersonnelRulebook([new(1, new(2, 2)), new(2, new(12, 2)), new(3, new(22, 2))],
             tacticCourses: [new(1, 9000)]);
@@ -25,17 +21,47 @@ public sealed class TacticStudyInterruptionTests
              new(2, 1, 1, new(50, 50, 50, 50), false),
              new(3, 2, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Ruler }],
             controls: [new("player", 1, ControllerKind.Player)], corps: [new San9.Core.Domain.CorpsState(1, 1, 1, new(10000, 100000)) { IsRoot = true }, new San9.Core.Domain.CorpsState(2, 2, 3, new(10000, 100000)) { IsRoot = true }]);
+        return (world, rules);
+    }
+
+    [Fact]
+    public void DelegatingCourseCityPreventsGraduationAndNewOffersEvenWithIntervention()
+    {
+        var (world, rules) = CreateWorld();
+        var engine = new SimulationEngine(world, rules);
+        engine.ConfigureCompanion(new() { AllowDelegatedCorpsOrders = true });
+        for (int i = 0; i < 9; i++) { engine.EndControl(new("player")); engine.AdvanceXun(); }
+        Assert.True(engine.Execute(new("player"), new ChooseTacticStudentCommand(Guid.NewGuid(), 1, 0, 1, 2)).Submission.Accepted);
+
+        var mutation = world.BeginMutation();
+        mutation.AddCorps(new(7, 1, 2, new(0, 0)) { Delegation = new GeneralDelegation() });
+        mutation.Replace(mutation.Settlements[1] with { CorpsId = 7 });
+        world.Commit(mutation);
+
+        for (int i = 0; i < 9; i++) { engine.EndControl(new("player")); engine.AdvanceXun(); }
+        Assert.DoesNotContain(9000, engine.Snapshot.Officers.Single(p => p.Id == 2).LearnedTactics);
+        Assert.DoesNotContain(engine.Snapshot.Simulation.Tasks, t => t.Kind == TacticStudy.Kind);
+        Assert.Null(engine.GetTacticStudyPrompt());
+    }
+
+    [Theory]
+    [InlineData("death")]
+    [InlineData("capture")]
+    [InlineData("city-lost")]
+    public void InterruptedStudyCannotGrantAndReleasesOccupation(string interruption)
+    {
+        var (world, rules) = CreateWorld();
         var engine = new SimulationEngine(world, rules);
         for (int i = 0; i < 9; i++) { engine.EndControl(new("player")); engine.AdvanceXun(); }
         Assert.True(engine.Execute(new("player"), new ChooseTacticStudentCommand(Guid.NewGuid(), 1, 0, 1, 2)).Submission.Accepted);
         var mutation = world.BeginMutation();
         List<DomainEvent> changes = [];
         if (interruption == "death") OfficerDeath.Resolve(mutation, 2, OfficerDeathCause.Natural, rules, changes, afterDailyCommands: false);
-        else if (interruption == "capture") PersonnelTransitions.Capture(mutation, 2, 3, null, places, changes);
+        else if (interruption == "capture") PersonnelTransitions.Capture(mutation, 2, 3, null, rules.Personnel, changes);
         else
         {
             mutation.Replace(mutation.Settlements[1] with { OwnerId = 2 });
-            PersonnelReturns.Repatriate(mutation, 2, 1, PersonnelReturnContext.FromTask(mutation.Simulation.Tasks.Single(), 2), places, changes);
+            PersonnelReturns.Repatriate(mutation, 2, 1, PersonnelReturnContext.FromTask(mutation.Simulation.Tasks.Single(), 2), rules.Personnel, changes);
         }
         world.Commit(mutation);
         Assert.Single(changes.OfType<TaskCancelledEvent>());

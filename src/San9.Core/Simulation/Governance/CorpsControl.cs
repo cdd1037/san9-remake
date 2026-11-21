@@ -7,6 +7,10 @@ public static class CorpsControl
 {
     public static string ControllerId(int corpsId) => $"corps:{corpsId}";
 
+    internal static bool IsPlayerRoot(WorldMutation world, int forceId, int? corpsId) =>
+        world.Simulation.Controls.Any(c => c.ForceId == forceId && c.Kind == ControllerKind.Player) &&
+        (corpsId is null || world.Corps[corpsId.Value].IsRoot);
+
     public static bool PlayerOperates(CorpsState corps, CompanionSettings companion) =>
         corps.IsRoot || companion.AllowDelegatedCorpsOrders;
 

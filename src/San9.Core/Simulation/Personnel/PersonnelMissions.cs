@@ -273,8 +273,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
          journey.TargetOfficerId is >= 0 && journey.SuccessRoll is >= 0 and < 100);
 
     private static bool Direct(WorldMutation world, PersistentTask task) =>
-        world.Simulation.Controls.Any(c => c.ForceId == task.ForceId && c.Kind == ControllerKind.Player) &&
-        (PersonnelLocations.TaskHome(world, task).CorpsId is not int corpsId || CorpsControl.PlayerOperates(world.Corps[corpsId], world.Companion));
+        CorpsControl.IsPlayerRoot(world, task.ForceId, PersonnelLocations.TaskHome(world, task).CorpsId);
 
     internal override int? DecisionRecipient(WorldMutation world, PersistentTask task) =>
         task.SearchEncounter is not null ? task.ForceId : null;

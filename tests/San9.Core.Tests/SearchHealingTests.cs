@@ -92,8 +92,10 @@ public sealed class SearchHealingTests
         Assert.DoesNotContain(events, e => e is SearchHealingResolvedEvent);
     }
 
-    [Fact]
-    public void DelegatedCorpsOfPlayerForceUsesOrdinarySearchOnly()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DelegatedCorpsOfPlayerForceUsesOrdinarySearchOnly(bool allowOrders)
     {
         var world = World();
         var original = new SimulationEngine(world).CaptureStableState();
@@ -102,7 +104,7 @@ public sealed class SearchHealingTests
             Corps = [..original.Corps, new(7, 1, 1, new(1000, 1000)) { Delegation = new GeneralDelegation() }],
             Settlements = original.Settlements.Select(s => s.Id == 1 ? s with { CorpsId = 7 } : s).ToImmutableArray()
         });
-        var mutation = delegated.BeginMutation();
+        var mutation = delegated.BeginMutation(companion: new() { AllowDelegatedCorpsOrders = allowOrders });
         List<DomainEvent> events = [];
         var rule = new PersonnelMissionRule(new() { Personnel = Rules(Definition) }, "personnel-search");
         Assert.NotNull(rule.Resolve(mutation, Task(), null, events));

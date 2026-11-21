@@ -18,8 +18,7 @@ internal static class TacticStudy
     internal static bool PlayerCity(WorldMutation world, int cityId) =>
         world.Settlements.TryGetValue(cityId, out var city) && city.Kind == SettlementKind.City &&
         city.CanHostPersons && !city.IsDestroyed && city.Durability > 0 && city.OwnerId is int owner &&
-        world.Simulation.Controls.Any(c => c.ForceId == owner && c.Kind == ControllerKind.Player) &&
-        (city.CorpsId is not int corps || CorpsControl.PlayerOperates(world.Corps[corps], world.Companion));
+        CorpsControl.IsPlayerRoot(world, owner, city.CorpsId);
 
     internal static ImmutableArray<int> Candidates(WorldMutation world, SimulationRules rules, int cityId)
     {

@@ -39,8 +39,7 @@ internal sealed partial class OriginalAiPersonnel(SimulationEngine engine, Scena
         if (_projectedWorld is null || _projectedWorld.Settlements != world.Settlements ||
             _projectedWorld.Corps != world.Corps)
         {
-            _places = world.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed && s.OwnerId == corps.OwnerId &&
-                (s.CorpsId == corpsId || s.CorpsId is null && corps.IsRoot) &&
+            _places = world.Settlements.Where(s => !s.IsDormant && !s.IsDestroyed && BelongsToCorps(s, corps) &&
                 s.CanHostPersons && s.Durability > 0 && s.Facility?.BuilderUnitId is null).ToImmutableArray();
             _placeIds = _places.Select(s => s.Id).ToHashSet();
             _cityIds = _places.Where(s => s.Kind == SettlementKind.City).Select(s => s.Id).ToHashSet();
@@ -49,6 +48,8 @@ internal sealed partial class OriginalAiPersonnel(SimulationEngine engine, Scena
             _busy = world.Simulation.Tasks.Select(t => t.OfficerId).ToHashSet();
         _projectedWorld = world;
     }
+    private static bool BelongsToCorps(SettlementState place, CorpsState corps) => place.OwnerId == corps.OwnerId &&
+        (place.CorpsId == corps.Id || place.CorpsId is null && corps.IsRoot);
     private CorpsState Corps { get { Refresh(); return _corps; } }
     private int Owner => Corps.OwnerId;
     private ForceState Force { get { Refresh(); return _force; } }
@@ -158,9 +159,7 @@ internal sealed partial class OriginalAiPersonnel(SimulationEngine engine, Scena
                 }
                 break;
             case OriginalAiWork.Search:
-                var undiscoveredPlaces = World.Officers.Where(p => !p.IsDormant && p.Status == OfficerStatus.Undiscovered)
-                    .Select(p => p.SettlementId ?? p.RegionId).OfType<int>().ToHashSet();
-                return Search(limit, engine.GetSearchPlaces(Owner).Where(undiscoveredPlaces.Contains));
+                return Search(limit);
             case OriginalAiWork.RecruitLocal:
             case OriginalAiWork.RecruitEnemy:
                 var ownGroup = state.Forces.Single(f => f.ForceId == Owner).Group;

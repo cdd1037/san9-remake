@@ -8,12 +8,21 @@ internal sealed partial class OriginalAiPersonnel
 {
     private const int MaximumSearchJourneyDays = 255;
 
-    /// <summary>AI search dispatch over destinations supplied by the personnel work.</summary>
-    internal OriginalAiWorkReport Search(int limit, IEnumerable<int> destinationIds)
+    private OriginalAiWorkReport Search(int limit)
     {
         int used = 0, submitted = 0, rejected = 0, empty = 0;
-        var allowed = engine.GetSearchPlaces(Owner).ToHashSet();
-        var targets = destinationIds.Distinct().Where(allowed.Contains).ToList();
+        var corps = Corps;
+        var settlements = World.Settlements.Where(s => !s.IsDestroyed).ToDictionary(s => s.Id);
+        var legalPlaces = engine.GetSearchPlaces(Owner);
+        var district = legalPlaces.Where(id =>
+        {
+            if (settlements.TryGetValue(id, out var built)) return BelongsToCorps(built, corps);
+            return content.RegionCityIds.TryGetValue(id, out int cityId) &&
+                settlements.TryGetValue(cityId, out var city) && !city.IsDormant && BelongsToCorps(city, corps);
+        }).ToHashSet();
+        district.IntersectWith(World.Officers.Where(p => !p.IsDormant && p.Status == OfficerStatus.Undiscovered)
+            .Select(p => p.SettlementId ?? p.RegionId).OfType<int>());
+        var targets = legalPlaces.Where(district.Contains).ToList();
         var actors = Actors(45).Select(p => p.Id).Where(actor => targets.Any(target =>
             engine.GetPersonnelJourney(Owner, actor, target, PersonnelJourneyKind.Search, includeAdvice: false)
                 .DistanceDays is >= 0 and <= MaximumSearchJourneyDays)).ToList();

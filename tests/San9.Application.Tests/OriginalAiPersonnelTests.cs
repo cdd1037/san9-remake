@@ -387,11 +387,42 @@ public sealed partial class OriginalAiPersonnelTests
     {
         var content = Fixture();
         content = content with { Forces = content.Forces.Select(f => f with { AdviserId = null }).ToArray(),
-            Settlements = [.. content.Settlements, content.Settlements[0] with { Id = 3, X = 1537, Y = 1 }] };
+            Settlements = [.. content.Settlements, content.Settlements[0] with { Id = 3, X = 1537, Y = 1 }],
+            Officers = [.. content.Officers, new("far", new(100, null, 3, new(50, 50, 50, 50), false) { Status = OfficerStatus.Undiscovered })] };
         var h = new Harness(content);
         Assert.Equal(256, h.Engine.GetPersonnelJourney(1, 2, 3, PersonnelJourneyKind.Search, includeAdvice: false).DistanceDays);
-        Assert.Equal(1, h.Personnel.Search(1, [3, 1]).Submitted);
-        Assert.Equal(1, Assert.IsType<SearchCommand>(Assert.Single(h.Commands)).DestinationId);
+        Assert.Equal(0, h.Run(OriginalAiWork.Search, 1).Submitted);
+        Assert.Empty(h.Commands);
+    }
+
+    [Theory]
+    [InlineData(true, 1, true)]
+    [InlineData(true, 10, false)]
+    [InlineData(false, 1, true)]
+    [InlineData(false, 10, false)]
+    public void SearchUsesBuiltPlaceCorpsOrUnbuiltRegionsCity(bool built, int governingCorps, bool expected)
+    {
+        var content = Fixture();
+        // The built port and its city belong to different corps, so a fallback to the city is observable.
+        int cityCorps = built ? (governingCorps == 1 ? 10 : 1) : governingCorps;
+        var city = content.Settlements[0] with { Id = 3, CorpsId = cityCorps, X = 3 };
+        var port = city with { Id = 4, CorpsId = governingCorps, Kind = SettlementKind.Facility, X = 4 };
+        var hidden = new OfficerInitialState("hidden", new(100, null, built ? 4 : null, new(50, 50, 50, 50), false)
+            { Status = OfficerStatus.Undiscovered, RegionId = built ? null : 4 });
+        content = content with
+        {
+            Information = content.Information with { Corps = [.. content.Information.Corps, new(10, 1, 2, new(1000, 5000))] },
+            Settlements = built ? [.. content.Settlements, city, port] : [.. content.Settlements, city],
+            RegionCityIds = new(content.RegionCityIds) { [3] = 3, [4] = 3 },
+            RegionNameKeys = new(content.RegionNameKeys) { [3] = "city", [4] = "port-region" },
+            UnbuiltPlaces = built ? [] : [new(4, port.Position)],
+            Officers = [.. content.Officers, hidden]
+        };
+        var h = new Harness(content);
+        Assert.Contains(4, h.Engine.GetSearchPlaces(1));
+        Assert.Equal(expected ? 1 : 0, h.Run(OriginalAiWork.Search).Submitted);
+        if (expected) Assert.Equal(4, Assert.IsType<SearchCommand>(Assert.Single(h.Commands)).DestinationId);
+        else Assert.Empty(h.Commands);
     }
 
     [Fact]

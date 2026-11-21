@@ -253,7 +253,8 @@ public static class ScenarioContentFiles
     public static async Task WriteAsync(string root, ScenarioContent content, CancellationToken token = default,
         IReadOnlyDictionary<string, string>? messageGroups = null, string? resourceRoot = null,
         SharedMessageLibrary? sharedMessages = null, IReadOnlyCollection<string>? messageOverrides = null,
-        SharedMapDefinition? sharedMap = null, SharedScenarioData? sharedScenario = null, ContentPublication? publication = null, string? locations = null)
+        SharedMapDefinition? sharedMap = null, SharedScenarioData? sharedScenario = null, ContentPublication? publication = null, string? locations = null,
+        long minimumNextOfficerId = 0, long minimumNextTreasureId = 0)
     {
         using var own = publication is null ? new ContentPublication() : null;
         var batch = publication ?? own!;
@@ -271,7 +272,7 @@ public static class ScenarioContentFiles
             throw new InvalidDataException("Scenario geography differs from its explicitly referenced shared map.");
         string mapDefinitionPath = sharedMap?.Path ?? ownPrefix + "map-definition.json";
         var scenarioData = sharedScenario ?? SharedScenarioData.From(content.Scenario, ownPrefix + "definitions.json",
-            ownPrefix + "officer-defaults.json", ownPrefix + "geography.json", content.Text);
+            ownPrefix + "officer-defaults.json", ownPrefix + "geography.json", content.Text, minimumNextOfficerId, minimumNextTreasureId);
         var reusablePaths = scenarioData.ResolvePaths(resourceRoot).ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (reusablePaths.Contains(PackageFiles.Resolve(resourceRoot, mapDefinitionPath)))
             throw new InvalidDataException("Map display and scenario inputs must use distinct paths.");

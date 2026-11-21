@@ -9,6 +9,10 @@ namespace San9.Importer.San9PkTc101.Packages;
 
 public static class ContentCatalogImporter
 {
+    internal static SharedScenarioData CreateSharedScenario(San9.Content.Scenarios.ScenarioInitialState baseline, TextCatalog text) =>
+        SharedScenarioData.From(baseline, "shared/definitions.json", "shared/officer-defaults.json", "shared/maps/china/geography.json", text,
+            minimumNextOfficerId: San9ScenarioPersonArchive.RecordCount, minimumNextTreasureId: San9ScenarioItemArchive.RecordCount);
+
     public static async Task ImportAsync(string gameDirectory, string output, Action<string>? progress = null, CancellationToken token = default,
         bool openingOnly = false, bool originalTextEdits = true)
     {
@@ -46,7 +50,7 @@ public static class ContentCatalogImporter
             // TC101 explicitly chooses scenario 0 as its publication baseline. Every
             // other scenario retains its differences; no majority-value inference.
             var (baseline, baselineText) = source.World("D_Sce001.S9", token);
-            sharedScenario = SharedScenarioData.From(baseline, "shared/definitions.json", "shared/officer-defaults.json", "shared/maps/china/geography.json", baselineText);
+            sharedScenario = CreateSharedScenario(baseline, baselineText);
             await ScenarioDataFiles.WriteSharedAsync(output, sharedScenario, token, publication);
         }
         foreach (var preview in selection.Entries)

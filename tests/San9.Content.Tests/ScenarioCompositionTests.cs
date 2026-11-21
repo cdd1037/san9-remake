@@ -39,6 +39,34 @@ public sealed class ScenarioCompositionTests : IDisposable
         JsonSerializer.SerializeToElement(expected, Options), JsonSerializer.SerializeToElement(actual, Options)));
 
     [Theory]
+    [InlineData(699, 800, 800)]
+    [InlineData(1200, 800, 1201)]
+    [InlineData(699, 0, 700)]
+    public async Task PublicationRespectsTheOfficerAllocationFloorWithoutAddingPeople(int officerId, long floor, long expected)
+    {
+        var scenario = Scenario() with { Officers = [Person(officerId)] };
+        await ScenarioContentFiles.WriteAsync(_root, Content(scenario), minimumNextOfficerId: floor);
+        var manifest = await ScenarioContentFiles.ReadManifestAsync(_root);
+        var shared = await ScenarioDataFiles.LoadAsync(_root, manifest);
+        Assert.Equal(expected, shared.Officers.NextOfficerId);
+        Assert.Equal(officerId, Assert.Single(shared.Officers.Officers).Id);
+    }
+
+    [Theory]
+    [InlineData(99, 120, 120)]
+    [InlineData(140, 120, 141)]
+    [InlineData(99, 0, 100)]
+    public async Task TreasureAllocationFloorSurvivesPublicationWithoutPlaceholderTreasures(int id, long floor, long expected)
+    {
+        var source = Scenario();
+        var scenario = source with { Information = source.Information with { Treasures = [new(id, "宝物", 11, 0, null)] } };
+        await ScenarioContentFiles.WriteAsync(_root, Content(scenario), minimumNextTreasureId: floor);
+        var shared = await ScenarioDataFiles.LoadAsync(_root, await ScenarioContentFiles.ReadManifestAsync(_root));
+        Assert.Equal(expected, shared.Definitions.NextTreasureId);
+        Assert.Equal(id, Assert.Single(shared.Definitions.Information.Treasures).Id);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void ExistingOfficerCatalogsCanDiscardTheRetiredDeploymentToggle(bool enabled)

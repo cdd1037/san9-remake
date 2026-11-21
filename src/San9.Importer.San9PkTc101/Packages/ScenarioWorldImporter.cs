@@ -29,8 +29,8 @@ public static class ScenarioWorldImporter
             var (scenario, texts) = source.World(Path.GetFileName(path), token);
             worlds.Add((entry, scenario, texts));
         }
-        var baseline = worlds.Single(w => w.Entry.Id == "0").Scenario;
-        var shared = SharedScenarioData.From(baseline, "shared/definitions.json", "shared/officer-defaults.json", "shared/maps/china/geography.json", worlds.Single(w => w.Entry.Id == "0").Text);
+        var baseline = worlds.Single(w => w.Entry.Id == "0");
+        var shared = ContentCatalogImporter.CreateSharedScenario(baseline.Scenario, baseline.Text);
         var sites = new SharedMapSites([], []);
         foreach (var world in worlds) SharedPlaceImporter.Collect(sites, world.Scenario, world.Text);
         await ScenarioContentFiles.WriteWorldsAsync(output, shared, worlds.Select(w => (w.Entry.Package, w.Scenario, w.Text)).ToArray(), token, SharedPlaceImporter.Reference, sites);

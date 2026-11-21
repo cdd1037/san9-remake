@@ -18,10 +18,16 @@ public sealed record OfficerDefaultsCatalog(int SchemaVersion, OfficerDefaults[]
 public sealed record SharedScenarioData(string DefinitionsPath, string OfficersPath, string GeographyPath,
     ScenarioDefinitions Definitions, OfficerDefaultsCatalog Officers, ScenarioGeography Geography)
 {
-    public static SharedScenarioData From(ScenarioInitialState scenario, string definitionsPath, string officersPath, string geographyPath, TextCatalog texts) =>
-        new(definitionsPath, officersPath, geographyPath, ScenarioDefinitions.From(scenario),
-            new(OfficerDefaultsCatalog.CurrentSchemaVersion, scenario.Officers.Select(p => OfficerDefaults.From(p, texts)).ToArray()) { ContentSetId = scenario.ContentSetId },
-            ScenarioGeography.From(scenario));
+    public static SharedScenarioData From(ScenarioInitialState scenario, string definitionsPath, string officersPath, string geographyPath,
+        TextCatalog texts, long minimumNextOfficerId = 0, long minimumNextTreasureId = 0)
+    {
+        var officers = new OfficerDefaultsCatalog(OfficerDefaultsCatalog.CurrentSchemaVersion,
+            scenario.Officers.Select(p => OfficerDefaults.From(p, texts)).ToArray()) { ContentSetId = scenario.ContentSetId };
+        var definitions = ScenarioDefinitions.From(scenario);
+        return new(definitionsPath, officersPath, geographyPath,
+            definitions with { NextTreasureId = Math.Max(definitions.NextTreasureId, minimumNextTreasureId) },
+            officers with { NextOfficerId = Math.Max(officers.NextOfficerId, minimumNextOfficerId) }, ScenarioGeography.From(scenario));
+    }
 
     public ScenarioDocument Describe(ScenarioInitialState scenario, TextCatalog texts)
     {

@@ -13,6 +13,12 @@ public sealed record BuildingVisualState(int Id, int Durability, int Appearance,
 }
 public sealed record BuildingVisuals(MapBuilding[] Buildings, MapAnimatedSprite[] Animations)
 {
+    public static (int X, int Y) Anchor(MapPackage map, int x, int y)
+    {
+        var surface = MapCellSurface.Create(x, y, map.Height, map.Squares[y * map.Width + x]);
+        return ((int)surface.CenterX, (int)surface.CenterY);
+    }
+
     /// <summary>Cursor-local body layers of the completed facility, without garrison, flag or ground effects.</summary>
     public static MapSprite[] ConstructionPreview(MapPackage map, int type)
     {
@@ -36,7 +42,7 @@ public sealed record BuildingVisuals(MapBuilding[] Buildings, MapAnimatedSprite[
                 throw new InvalidDataException("Invalid runtime building visual state.");
             int id = BuildingAppearance.CompositionId(type, state.Appearance, state.Durability, maximum, state.IsUnderConstruction);
             if (!compositions.TryGetValue(id,out var composition)) throw new InvalidDataException($"Unconfirmed composition {id}.");
-            var center = MapGeometry.Center(b.X,b.Y, map.Height); int x = center.X, y = center.Y-10*(map.Squares[b.Y*map.Width+b.X].Elevation-1);
+            var (x, y) = Anchor(map, b.X, b.Y);
             var sprites = BuildingAppearance.Sprites(composition, type == 0, state.Development, x, y);
             buildings.Add(new(b.Id,b.X,b.Y,type,id,sprites));
             if (state.Soldiers > 0)

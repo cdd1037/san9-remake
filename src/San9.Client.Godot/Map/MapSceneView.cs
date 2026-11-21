@@ -37,8 +37,8 @@ public partial class MapSceneView : Node2D
     public int? PersonnelHoverPlace { get; set; }
     private int? _drawnPersonnelHoverPlace;
     private readonly Dictionary<int, TargetMesh[]> _personnelRegionMeshes = [];
-    public Vector2? ConstructionPointer { get; set; }
-    private Vector2? _drawnConstructionPointer;
+    internal (Vector2 Position, MapCell? Cell)? ConstructionPointer { get; set; }
+    private (Vector2 Position, MapCell? Cell)? _drawnConstructionPointer;
     private TextureScope? _previewAssets;
     private MapSprite[] _previewSprites = [];
     private long _previewRevision;
@@ -427,13 +427,13 @@ public partial class MapSceneView : Node2D
             if (construction.Selected?.Position is { } selected)
             {
                 var cell = San9.Core.Domain.MapCoordinates.Cell(selected);
-                var center = MapGeometry.Center(cell.X,cell.Y, frame.Region.Scene.Map.Height);
-                Preview(new(center.X,center.Y-10*(frame.Region.Scene.Map.Squares[cell.Y*frame.Region.Scene.Map.Width+cell.X].Elevation-1)),96f/256);
+                var anchor = BuildingVisuals.Anchor(frame.Region.Scene.Map, cell.X, cell.Y);
+                Preview(new(anchor.X, anchor.Y), 96f/256);
             }
             if (!construction.EditingPolicies && ConstructionPointer is { } cursor)
             {
-                bool valid = MapGeometry.TrySquare(cursor.X,cursor.Y,out int x,out int y, frame.Region.Scene.Map.Width, frame.Region.Scene.Map.Height) && construction.At(new(x,y)) is not null;
-                Preview(cursor,(valid?192f:96f)/256);
+                bool valid = cursor.Cell is { } cell && construction.At(cell) is not null;
+                Preview(cursor.Position, (valid ? 192f : 96f) / 256);
             }
 
             void Preview(Vector2 position, float opacity)

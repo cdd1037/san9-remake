@@ -17,8 +17,7 @@ public sealed class MapSurfaceTests
         Assert.Equal(13, squares[target].ElevationMask);
         var map = new MapSurface(width, height, squares);
         var surface = map[target];
-        Assert.Equal(target, map.PickCell(surface.CenterX, surface.CenterY));
-        Assert.Equal(target, map.PickCell(surface.CenterX - 8.25, surface.CenterY - 10.25));
-        Assert.Equal(target, map.PickCell(surface.CenterX + 8.25, surface.CenterY - 10.25));
+        foreach (var (dx, dy) in new[] { (0, 0), (-8.25, -10.25), (8.25, -10.25) })
+            Assert.Equal(target, map.PickCell(surface.CenterX + dx, surface.CenterY + dy));
     }
 }

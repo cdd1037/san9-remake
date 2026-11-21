@@ -2,6 +2,7 @@ using Godot;
 using San9.Content.Images;
 using San9.Content.Maps;
 using San9.Rendering;
+using San9.Core.Domain;
 using System.Diagnostics;
 
 namespace San9.Client.Godot;
@@ -12,6 +13,7 @@ public partial class MapWorld : Node2D
     private Camera2D _camera = null!;
     private MapPackage? _map;
     private MapPackage? _sourceMap;
+    private MapSurface? _surface;
     private bool _formationAppearanceEnabled;
     private readonly MapSceneProjectionCache _projections = new();
     private MapViewport _requested = new(0, 0, 1);
@@ -101,8 +103,8 @@ public partial class MapWorld : Node2D
     public Func<MapObjectTarget, bool>? CommandSourceAllowed { get; set; }
     public Func<MapObjectTarget, bool>? ContextAllowed { get; set; }
     public event Action<MapObjectPickRequest, Vector2>? ObjectChoiceRequested;
-    public Action<San9.Core.Domain.MapCell>? WaypointPicked { get; set; }
-    public Action<San9.Core.Domain.MapCell>? SitePicked { get; set; }
+    public Action<MapCell>? WaypointPicked { get; set; }
+    public Action<MapCell>? SitePicked { get; set; }
     public event Action<int, Vector2>? BuildingContextRequested;
     public event Action<int, Vector2>? UnitContextRequested;
     public event Action<Vector2>? EmptyContextRequested;
@@ -133,6 +135,7 @@ public partial class MapWorld : Node2D
     public void LoadMap(MapPackage map, string root, string? season = null, double? animationTime = null)
     {
         _sourceMap = map;
+        _surface = new(map.Width, map.Height, map.Squares);
         _map = _formationAppearanceEnabled ? map with { Units = map.Units.WithFormationAppearance() } : map;
         _packageRoot = root; _fixedAnimationTime = animationTime;
         _requested = _requested.Clamp(map.Squares, map.Width, map.Height);
@@ -181,12 +184,20 @@ public partial class MapWorld : Node2D
             return new LoadedTerrain(shared, new(map, shared, land), season);
         }, token);
     }
+    private (Vector2 Position, MapCell? Cell) ConstructionHit(Vector2 viewportPoint)
+    {
+        var point = ViewportToWorld(viewportPoint);
+        int width = _map!.Width;
+        MapCell? cell = _surface!.PickCell(point.X, point.Y) is int i ? new(i % width, i / width) : null;
+        return (point, cell);
+    }
+
     public override void _Process(double delta)
     {
-        if (_display is not null) _display.ConstructionPointer = SitePicked is not null && NavigationAvailable && IsInputBlocked?.Invoke(_pointer) != true
-            ? ViewportToWorld(_pointer) : null;
         if (_display is not null)
         {
+            _display.ConstructionPointer = SitePicked is not null && NavigationAvailable && IsInputBlocked?.Invoke(_pointer) != true
+                ? ConstructionHit(_pointer) : null;
             _display.PersonnelHoverPlace = null;
             if (_display.PersonnelTargets is { Kind: "search" } search && NavigationAvailable &&
                 GetViewportRect().HasPoint(_pointer) &&
@@ -376,8 +387,7 @@ public partial class MapWorld : Node2D
                     {
                         if (SitePicked is { } sitePick)
                         {
-                            var point = ViewportToWorld(button.Position);
-                            if (MapGeometry.TrySquare(point.X, point.Y, out int x, out int y, _map!.Width, _map.Height)) sitePick(new(x,y));
+                            if (ConstructionHit(button.Position).Cell is { } cell) sitePick(cell);
                         }
                         else if (ObjectsAtViewport(button.Position) is { Count: > 0 } hits)
                             PickObject(button.Position, hits, TargetAllowed, () => TargetPicked == pick, target => pick(target));

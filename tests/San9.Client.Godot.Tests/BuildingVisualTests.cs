@@ -64,6 +64,22 @@ public sealed class BuildingVisualTests
             { Guards=[new(1,2,3)],Flags=[new(4,5)] }).ToArray(),[],[],[],[],new([],[]),[])
         { BuildingTypes=[new(0,1000)] };
 
+    [Theory]
+    [InlineData(19, 77, 82, 16)]
+    [InlineData(20, 78, 83, 17)]
+    [InlineData(39, 78, 83, 17)]
+    [InlineData(40, 79, 84, 17)]
+    [InlineData(50, 79, 84, 17)]
+    [InlineData(59, 79, 84, 17)]
+    [InlineData(60, 80, 85, 18)]
+    [InlineData(101, 80, 85, 18)]
+    public void WallOrientationsAndPortUseTheirDurabilityStages(int durability, int wall14, int wall15, int port)
+    {
+        Assert.Equal(wall14, BuildingAppearance.CompositionId(14, 0, durability, 101));
+        Assert.Equal(wall15, BuildingAppearance.CompositionId(15, 0, durability, 101));
+        Assert.Equal(port, BuildingAppearance.CompositionId(1, 0, durability, 101));
+    }
+
     [Fact]
     public void DevelopmentAndDurabilityResolveFromCurrentStateWithoutChangingCatalog()
     {

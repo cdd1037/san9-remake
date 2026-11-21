@@ -145,7 +145,9 @@ internal sealed class MapBuildingAudio
         List<MapSoundSource> sounds = [];
         foreach (var building in scene.Buildings)
         {
-            var value = (building.FixedType, scene.Settlements[building.Id].Appearance, building.CompositionId);
+            var settlement = scene.Settlements[building.Id];
+            if (settlement.IsUnderConstruction) continue;
+            var value = (building.FixedType, settlement.Appearance, building.CompositionId);
             current.Add(building.Id, value);
             if (!sameMap || !_previous.TryGetValue(building.Id, out var old) || old.Type != value.FixedType ||
                 old.Appearance != value.Appearance || value.CompositionId >= old.Composition ||

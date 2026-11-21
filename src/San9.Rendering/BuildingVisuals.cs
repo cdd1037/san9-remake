@@ -34,7 +34,7 @@ public sealed record BuildingVisuals(MapBuilding[] Buildings, MapAnimatedSprite[
             if (state.IsDestroyed) continue;
             if (state.Color is < 0 or > 50 || state.Glyph is < -1 or > 185 || state.Durability < 0 || maximum <= 0)
                 throw new InvalidDataException("Invalid runtime building visual state.");
-            int id = BuildingAppearance.CompositionId(type,state.Appearance,state.Durability,maximum);
+            int id = BuildingAppearance.CompositionId(type, state.Appearance, state.Durability, maximum, state.IsUnderConstruction);
             if (!compositions.TryGetValue(id,out var composition)) throw new InvalidDataException($"Unconfirmed composition {id}.");
             var center = MapGeometry.Center(b.X,b.Y, map.Height); int x = center.X, y = center.Y-10*(map.Squares[b.Y*map.Width+b.X].Elevation-1);
             var sprites = BuildingAppearance.Sprites(composition, type == 0, state.Development, x, y);

@@ -62,7 +62,7 @@ FIXED_BUILDING_BASE_COMPOSITION = (
     86,
 )
 FOUR_FRAME_FIXED_BUILDING_CODES = frozenset(
-    (0, 2, 3, 4, 5, 7, 9, 12, 13, 16)
+    (0, 2, 3, 4, 5, 7, 9, 12, 13, 14, 15, 16)
 )
 
 
@@ -86,14 +86,8 @@ def fixed_building_damage_frame(
     max_durability = fixed_building.max_durability
     if durability == 0xFFFF or max_durability <= 0:
         return None
-    frame_count = 4 if fixed_building.code in FOUR_FRAME_FIXED_BUILDING_CODES else 3
-    if durability * 100 < max_durability * 20:
-        return 0
-    if frame_count == 4 and durability * 100 < max_durability * 40:
-        return 1
-    if durability * 100 < max_durability * 60:
-        return 1 if frame_count == 3 else 2
-    return 2 if frame_count == 3 else 3
+    thresholds = (20, 40, 60) if fixed_building.code in FOUR_FRAME_FIXED_BUILDING_CODES else (20, 60)
+    return sum(durability >= max_durability * percent // 100 for percent in thresholds)
 
 
 def city_composition_style(city_terrain_code: int | None) -> int:

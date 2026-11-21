@@ -41,17 +41,26 @@ public sealed class MapSceneProjectionTests
     public void ConstructionFollowsPresentedMembershipWithoutChangingTheCachedBaseline()
     {
         var (state, map) = Fixture();
+        map = map with
+        {
+            BuildingTypes = [.. map.BuildingTypes, new(14, 101)],
+            Compositions = [.. map.Compositions, new(76, []), new(80, [])]
+        };
         var baseline = MapSceneProjection.Create(state, map) with { Units = new() { [10] = UnitVisualFixture.State with { Id = 10 } } };
-        var place = state.Settlements.Single(s => s.Id == 2) with { IsUnderConstruction = true, BuilderUnitId = 10 };
+        var place = state.Settlements.Single(s => s.Id == 2) with { FacilityTypeId = 14, IsUnderConstruction = true, BuilderUnitId = 10, Durability = 60 };
         var started = new BattleMapFrame(state, [new(1, 0, null, place)], []);
         var working = baseline.WithFrame(state, map, null, started, state);
         Assert.Equal(MapCoordinates.Center(new(1, 0)), working.Units[10].ConstructionTarget);
         Assert.Null(baseline.Units[10].ConstructionTarget);
+        Assert.Equal(76, working.Buildings.Single(b => b.Id == place.Id).CompositionId);
         foreach (bool destroyed in new[] { false, true })
         {
             var ended = new BattleMapFrame(state, [new(1, 0, null, place),
                 new(1, 1, null, place with { IsUnderConstruction = false, BuilderUnitId = null, IsDestroyed = destroyed })], []);
-            Assert.Null(working.WithFrame(state, map, started, ended, state).Units[10].ConstructionTarget);
+            var finished = working.WithFrame(state, map, started, ended, state);
+            Assert.Null(finished.Units[10].ConstructionTarget);
+            if (destroyed) Assert.DoesNotContain(finished.Buildings, b => b.Id == place.Id);
+            else Assert.Equal(80, finished.Buildings.Single(b => b.Id == place.Id).CompositionId);
         }
     }
 

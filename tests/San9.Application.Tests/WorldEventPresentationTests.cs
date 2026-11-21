@@ -11,6 +11,29 @@ namespace San9.Application.Tests;
 
 public sealed class WorldEventPresentationTests
 {
+    [Theory]
+    [InlineData(1, 2, 1, true)]
+    [InlineData(2, 1, 1, true)]
+    [InlineData(1, 2, 1, false)]
+    [InlineData(2, 3, 2, true)]
+    public void BrokenRequestAnnouncesTheResponsibleForceAndItsPartner(int holder, int partner, int liable, bool loss)
+    {
+        var (session, texts, content) = Fixture();
+        var before = session.View;
+        var fact = new AttackRequestEndedEvent(before.World.Clock, new(holder, partner, 3, 3, 12), AttackRequestEndReason.Broken, liable)
+            { TrustChange = loss ? -20 : 0, LoyaltyDecreased = loss };
+        var output = ExecutionPublication.Read(before, before, session.Messages(texts), texts, content, [fact]);
+        List<string> messages = [], records = [];
+        if (holder == 1 || partner == 1)
+        {
+            messages.Add("request-broken"); records.Add("request-broken-record");
+            if (loss) { messages.Add("request-expired-trust"); records.Add("request-expired-trust-record"); }
+            if (loss && holder == 1) { messages.Add("request-expired-loyalty"); records.Add("request-expired-loyalty-record"); }
+        }
+        Assert.Equal(messages, output.Messages.Select(m => m.Message.Key));
+        Assert.Equal(records, output.Records.Select(r => r.Message.Key));
+    }
+
     private static (GameSession Session, TextCatalog Texts, CommandPresentation Content) Fixture()
     {
         var session = GameSession.Start(MissionScenario.Create(), 42);

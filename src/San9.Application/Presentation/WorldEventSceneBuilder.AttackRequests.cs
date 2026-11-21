@@ -7,7 +7,7 @@ internal sealed partial class WorldEventSceneBuilder
     private bool PresentAttackRequests(DomainEvent fact)
     {
         if (fact is not AttackRequestEndedEvent ended ||
-            ended.Reason is not (AttackRequestEndReason.Fulfilled or AttackRequestEndReason.Expired)) return false;
+            ended.Reason is not (AttackRequestEndReason.Fulfilled or AttackRequestEndReason.Expired or AttackRequestEndReason.Broken)) return false;
         int requested = ended.Request.RequestedForceId, requester = ended.Request.RequesterForceId;
         if (!Player(requested) && !Player(requester)) return true;
         clock = ended.Clock;
@@ -28,8 +28,16 @@ internal sealed partial class WorldEventSceneBuilder
         }
         else
         {
-            Message("request-expired");
-            Force("force", ended.LiableForceId!.Value);
+            int liable = ended.LiableForceId!.Value;
+            if (ended.Reason == AttackRequestEndReason.Broken)
+            {
+                Force("force", liable);
+                Force("partner", liable == requested ? requester : requested);
+                Message("request-broken");
+                Record("request-broken-record");
+            }
+            else Message("request-expired");
+            Force("force", liable);
             if (ended.TrustChange < 0)
             {
                 Message("request-expired-trust");

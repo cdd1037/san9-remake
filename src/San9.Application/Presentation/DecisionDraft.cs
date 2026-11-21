@@ -79,6 +79,16 @@ public sealed class DecisionDraft
         if (Role is "prisoner-return" or "attack-request" && diplomacy?.Offer is { } openingOffer)
             Introduction = [.. Introduction, NegotiationQuote(openingOffer, _context) with { Diplomacy = Meeting }];
         List<ProducedMessage> confirmations = [];
+        if (role == "attack-request" && diplomacy is { Offer: null } request &&
+            Before.World.Simulation.AttackRequests.SingleOrDefault(r => r.RequestedForceId == force) is { } previous &&
+            previous.RequesterForceId != request.RequesterForceId)
+        {
+            const string warning = "confirm.replace-attack-request";
+            string partner = texts.Resolve(Before.Forces.Single(f => f.Id == previous.RequesterForceId).NameKey);
+            string place = Before.Settlements.Single(s => s.Id == previous.TargetSettlementId).ResolveName(texts);
+            confirmations.Add(new(CommandText.Key(warning), Before.World.Clock,
+                MessageMarkup.Escape(CommandText.Resolve(texts, warning, partner, place))));
+        }
         if (diplomacy?.GiftReceipt is { } receipt)
         {
             if (receipt.ReturningUnitIds.Length > 0)

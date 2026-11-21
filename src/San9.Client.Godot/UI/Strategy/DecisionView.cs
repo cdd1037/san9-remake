@@ -91,7 +91,7 @@ public partial class DecisionView : FixedPage
             else _counteroffer = null;
             Replace(new DiplomacyDecisionView { Draft = Draft, Textures = Textures, Service = Service, Texts = Texts,
                 Choose = Choose, Counteroffer = _counteroffer,
-                ConfirmCounteroffer = () => SubmitAnswer(_counteroffer!.Option, _counteroffer.SelectedId, _counteroffer.Amount) });
+                ConfirmCounteroffer = () => ConfirmAcceptance(0, _counteroffer!.Option, _counteroffer.SelectedId, _counteroffer.Amount) });
             return;
         }
         if (Draft.Role == "tactic-study")

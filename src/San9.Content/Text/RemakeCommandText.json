@@ -1,4 +1,5 @@
 {
+  "confirm.replace-attack-request": "改接将违背与{0}攻打{1}的约定，损及关系、信望和忠诚。仍要改接吗？",
   "battle.injury-healthy": "良",
   "battle.injury-light": "轻伤",
   "battle.injury-heavy": "重伤",

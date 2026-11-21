@@ -55,6 +55,8 @@ internal static class EventPresentationCompiler
         Add("war-loyalty-record", 10075, bindings: [("force.0", "force")]);
         Add("request-fulfilled", 10012, bindings: [("person.0", "actor"), ("person.1", "other")]);
         Add("request-fulfilled-trust", 10013, bindings: [("person.0", "actor")]);
+        Add("request-broken", 6487, bindings: [("force.0", "force"), ("force.1", "partner")]);
+        Add("request-broken-record", 10027, bindings: [("force.0", "force"), ("force.1", "partner")]);
         Add("request-expired", 6178, bindings: [("force.0", "force"), ("force.1", "requester")]);
         Add("request-expired-trust", 9411, sound: down, bindings: [("force.0", "force")]);
         Add("request-expired-trust-record", 10074, bindings: [("force.0", "force")]);

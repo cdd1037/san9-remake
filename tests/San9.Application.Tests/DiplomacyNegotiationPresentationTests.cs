@@ -9,6 +9,24 @@ namespace San9.Application.Tests;
 public sealed class DiplomacyNegotiationPresentationTests
 {
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ReceivingAnAttackRequestWarnsOnlyWhenItWouldReplaceAnotherRequest(bool hasOldRequest)
+    {
+        var definition = MissionScenario.Create() with { AttackRequests = hasOldRequest ? [new(1, 3, 2, 19)] : [] };
+        var session = GameSession.Start(definition, 42);
+        session.EndControl(new("player"));
+        Assert.True(session.Execute(new("ai:2"), new RequestAttackCommand(Guid.NewGuid(), 2, 0, 22, 1, 3)).Submission.Accepted);
+        for (int i = 0; i < 4 && session.GetAttackRequestPrompt() is null; i++) session.AdvanceXun();
+        var (texts, presentation) = PrisonerReturnSessionTests.NegotiationText(session.View, "attack-request");
+        texts.Entries[CommandText.Key("confirm.replace-attack-request")] = "Cancel {0} at {1}?";
+        var draft = DecisionDraft.Read(session, texts, presentation)!;
+        if (hasOldRequest)
+            Assert.Equal("Cancel third-ruler at enemy?", Assert.Single(draft.AcceptanceConfirmations).BbCode);
+        else Assert.Empty(draft.AcceptanceConfirmations);
+    }
+
+    [Theory]
     [InlineData("attack-request", true)]
     [InlineData("attack-request", false)]
     [InlineData("prisoner-return", true)]

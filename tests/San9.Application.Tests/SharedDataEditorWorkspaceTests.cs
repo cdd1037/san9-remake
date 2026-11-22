@@ -545,6 +545,20 @@ public sealed partial class SharedDataEditorWorkspaceTests : IDisposable
         Assert.Empty(Directory.GetFiles(_root, "*.pending", SearchOption.AllDirectories));
     }
 
+    [Fact]
+    public async Task SavingUnplacedCatalogAdditionsDoesNotReadGeography()
+    {
+        await CreatePeopleAndTactics();
+        var editor = await SharedDataEditorWorkspace.OpenAsync(_root);
+        var officer = await editor.CreateOfficerAsync();
+        var treasure = await editor.CreateTreasureAsync();
+        await File.WriteAllTextAsync(Path.Combine(_root, "shared/geography.json"), "unavailable");
+        await editor.SaveAsync();
+        var reopened = await SharedDataEditorWorkspace.OpenAsync(_root);
+        Assert.Equal(officer.Name, reopened.GetOfficer(officer.Id).Name);
+        Assert.Equal(treasure.Name, reopened.GetTreasure(treasure.Id).Name);
+    }
+
     [Theory]
     [InlineData("a/scenario.json")]
     [InlineData("shared/geography.json")]

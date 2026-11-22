@@ -176,7 +176,18 @@ public sealed partial class SharedDataEditorWorkspace
         // Each validation owns a fresh read session. Shared geography and person defaults are
         // parsed once for this operation, even when many scenarios reference them.
         var files = new ContentReadSession();
-        if (!RequiresScenarioValidation(draft)) return files;
+        bool checkRules = RulesRequireScenarioValidation(draft);
+        var previousOfficers = _savedOfficers.Officers.ToDictionary(o => o.Id);
+        var affectedOfficers = new HashSet<int>();
+        foreach (var person in Officers.Where(p => _changedOfficers.Contains(p.Id)))
+        {
+            if (string.IsNullOrWhiteSpace(person.Name)) throw new InvalidDataException("武将姓名不能为空。");
+            if (!previousOfficers.TryGetValue(person.Id, out var previous) || !ContentComparison.Equal(previous,
+                person with { Name = previous.Name, Surname = previous.Surname, CourtesyName = previous.CourtesyName, Biography = previous.Biography }))
+                affectedOfficers.Add(person.Id);
+        }
+        var addedTreasures = draft.Information.Treasures.Select(t => t.Id).Except(_saved.Information.Treasures.Select(t => t.Id)).ToHashSet();
+        if (!checkRules && affectedOfficers.Count == 0 && deletedOfficers.Count == 0 && addedTreasures.Count == 0) return files;
         var validation = new ScenarioValidationContext();
         bool validateMessages = CatalogIdentitiesChanged(draft);
         foreach (var entry in _scenarios)
@@ -184,22 +195,33 @@ public sealed partial class SharedDataEditorWorkspace
             token.ThrowIfCancellationRequested();
             try
             {
-                var document = await files.ReadScenarioAsync(entry.Root, entry.Manifest, token);
                 string officersPath = PackageFiles.Resolve(entry.Root, entry.Manifest.OfficerDefaults);
-                var officers = officersPath.Equals(OfficerPath, StringComparison.OrdinalIgnoreCase) ? OfficerCatalog
-                    : await files.ReadAsync<OfficerDefaultsCatalog>(PlayerDefinitionFiles.ActivePath(officersPath), token);
                 string definitionsPath = PackageFiles.Resolve(entry.Root, entry.Manifest.Definitions);
+                bool usesOfficers = officersPath.Equals(OfficerPath, StringComparison.OrdinalIgnoreCase);
+                bool usesRules = definitionsPath.Equals(DefinitionPath, StringComparison.OrdinalIgnoreCase);
+                if (!(usesRules && checkRules || usesOfficers && deletedOfficers.Count > 0))
+                {
+                    if (!(usesOfficers && affectedOfficers.Count > 0 || usesRules && addedTreasures.Count > 0)) continue;
+                    var path = files.ActivePath(PackageFiles.Resolve(entry.Root, entry.Manifest.Scenario));
+                    var references = await files.ReadAsync<ScenarioCatalogReferences>(path, token);
+                    if (!(usesOfficers && (references.Officers.Any(p => affectedOfficers.Contains(p.Id)) ||
+                        references.AdditionalOfficerDefaults.Any(p => affectedOfficers.Contains(p.Id))) ||
+                        usesRules && references.Information.TreasureStates.Any(t => addedTreasures.Contains(t.Id)))) continue;
+                }
+                var document = await files.ReadScenarioAsync(entry.Root, entry.Manifest, token);
+                var officers = usesOfficers ? OfficerCatalog
+                    : await files.ReadAsync<OfficerDefaultsCatalog>(files.ActivePath(officersPath), token);
                 var definitions = definitionsPath.Equals(DefinitionPath, StringComparison.OrdinalIgnoreCase) ? draft
-                    : await files.ReadAsync<ScenarioDefinitions>(PlayerDefinitionFiles.ActivePath(definitionsPath), token);
+                    : await files.ReadAsync<ScenarioDefinitions>(files.ActivePath(definitionsPath), token);
                 string geographyPath = PackageFiles.Resolve(entry.Root, entry.Manifest.Geography);
-                var geography = await files.ReadAsync<ScenarioGeography>(PlayerDefinitionFiles.ActivePath(geographyPath), token);
+                var geography = await files.ReadAsync<ScenarioGeography>(files.ActivePath(geographyPath), token);
                 if (geography.Military is not null)
                 {
                     var mapManifest = await files.ReadAsync<ScenarioMapManifest>(PackageFiles.Resolve(entry.Root, entry.Manifest.Map), token);
-                    var map = await files.ReadAsync<MapDefinition>(PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(entry.Root, mapManifest.Definition)), token);
+                    var map = await files.ReadAsync<MapDefinition>(files.ActivePath(PackageFiles.Resolve(entry.Root, mapManifest.Definition)), token);
                     if (entry.Manifest.Locations is { } locationPath)
                     {
-                        var sites = await files.ReadAsync<SharedMapSites>(PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(entry.Root, locationPath)), token);
+                        var sites = await files.ReadAsync<SharedMapSites>(files.ActivePath(PackageFiles.Resolve(entry.Root, locationPath)), token);
                         mapManifest = mapManifest with { Buildings = sites.Buildings(document.Settlements.Select(s => s.Id)) };
                     }
                     map = mapManifest.ApplyLayout(map, document, definitions);
@@ -236,6 +258,10 @@ public sealed partial class SharedDataEditorWorkspace
         }
         return files;
     }
+
+    private sealed record CatalogId(int Id);
+    private sealed record ScenarioInventory(CatalogId[] TreasureStates);
+    private sealed record ScenarioCatalogReferences(CatalogId[] Officers, CatalogId[] AdditionalOfficerDefaults, ScenarioInventory Information);
 
     private static async Task<Dictionary<string, MessageDefinition>> ReadMessagesAsync(ScenarioReference entry,
         ContentReadSession files, CancellationToken token)
@@ -301,6 +327,7 @@ public sealed partial class SharedDataEditorWorkspace
                 [PlayerDefinitionPath] = _expectedPlayer,
                 [PlayerOfficerPath] = _expectedOfficers
             };
+            foreach (var (path, expected) in validation.PlayerInputs()) dependencies.TryAdd(path, expected);
             if (_createdOfficersPath is not null) dependencies[_createdOfficersPath] = _expectedCreated;
             published = await ScenarioDataFiles.WritePlayerDocumentsAsync(documents, token, dependencies);
         }
@@ -333,6 +360,24 @@ public sealed partial class SharedDataEditorWorkspace
         }
         private readonly Dictionary<string, Entry> _entries = new(StringComparer.OrdinalIgnoreCase);
 
+        private readonly Dictionary<string, string> _activePaths = new(StringComparer.OrdinalIgnoreCase);
+
+        public string ActivePath(string path)
+        {
+            if (!_activePaths.TryGetValue(path, out var active))
+                _activePaths[path] = active = PlayerDefinitionFiles.ActivePath(path);
+            return active;
+        }
+
+        public IEnumerable<KeyValuePair<string, byte[]?>> PlayerInputs()
+        {
+            foreach (var (path, active) in _activePaths)
+            {
+                string player = PlayerDefinitionFiles.PlayerPath(path);
+                yield return new(player, StringComparer.OrdinalIgnoreCase.Equals(active, player) ? _entries[active].Bytes : null);
+            }
+        }
+
         public async Task<T> ReadAsync<T>(string path, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
@@ -353,9 +398,9 @@ public sealed partial class SharedDataEditorWorkspace
 
         public async Task<ScenarioDocument> ReadScenarioAsync(string root, ScenarioContentManifest manifest, CancellationToken token)
         {
-            var path = PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(root, manifest.Scenario));
+            var path = ActivePath(PackageFiles.Resolve(root, manifest.Scenario));
             if (manifest.Locations is null) return await ReadAsync<ScenarioDocument>(path, token);
-            var sites = await ReadAsync<SharedMapSites>(PlayerDefinitionFiles.ActivePath(PackageFiles.Resolve(root, manifest.Locations)), token);
+            var sites = await ReadAsync<SharedMapSites>(ActivePath(PackageFiles.Resolve(root, manifest.Locations)), token);
             return sites.Resolve<ScenarioDocument>(await ReadAsync<JsonElement>(path, token));
         }
 

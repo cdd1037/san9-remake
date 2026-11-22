@@ -7,11 +7,13 @@ namespace San9.Application.Authoring;
 public sealed partial class SharedDataEditorWorkspace
 {
     // These fields have no world/reference dependencies. Every other change takes the scenario path.
-    private bool RequiresScenarioValidation(ScenarioDefinitions draft)
+    private bool RulesRequireScenarioValidation(ScenarioDefinitions draft)
     {
-        if (_changedOfficers.Count != 0 || OfficerCatalog.NextOfficerId != _savedOfficers.NextOfficerId) return true;
+        if (ReferenceEquals(draft, _saved)) return false;
+        var existingTreasures = _saved.Information.Treasures.Select(t => t.Id).ToHashSet();
         ScenarioDefinitions Dependencies(ScenarioDefinitions value) => value with
         {
+            NextTreasureId = _saved.NextTreasureId,
             DefaultLoyalty = _saved.DefaultLoyalty,
             OfficerGrowth = _saved.OfficerGrowth,
             Information = value.Information with
@@ -20,7 +22,8 @@ public sealed partial class SharedDataEditorWorkspace
                 Offices = value.Information.Offices.Select(o => o with { Name = "", Description = "" }).ToArray(),
                 Formations = value.Information.Formations.Select(f => f with { Name = "", Description = "" }).ToArray(),
                 Tactics = value.Information.Tactics.Select(t => t with { Name = "", Description = "" }).ToArray(),
-                Treasures = value.Information.Treasures.Select(t => t with { Name = "", Description = "", ImageKey = null }).ToArray()
+                Treasures = value.Information.Treasures.Where(t => existingTreasures.Contains(t.Id) || t.DefaultPlacement is not null ||
+                    t.TacticId is not null || !t.FavoredOwnerIds.IsEmpty).Select(t => t with { Name = "", Description = "", ImageKey = null }).ToArray()
             },
             Military = value.Military is { } military && _saved.Military is { } saved ? military with
             {
@@ -34,7 +37,6 @@ public sealed partial class SharedDataEditorWorkspace
     }
 
     private bool CatalogIdentitiesChanged(ScenarioDefinitions draft) =>
-        draft.NextTreasureId != _saved.NextTreasureId ||
         !draft.Information.Treasures.Select(t => t.Id).Order().SequenceEqual(_saved.Information.Treasures.Select(t => t.Id).Order()) ||
         !draft.Information.Ranks.Select(r => r.Id).Order().SequenceEqual(_saved.Information.Ranks.Select(r => r.Id).Order()) ||
         !draft.Information.Offices.Select(o => o.Id).Order().SequenceEqual(_saved.Information.Offices.Select(o => o.Id).Order()) ||

@@ -6,6 +6,7 @@ namespace San9.Application.Authoring;
 
 public sealed partial class SharedDataEditorWorkspace
 {
+    private bool _deletedTreasureSinceSave;
     private readonly Dictionary<int, TreasureDefinition> _treasureBaselines;
     public IReadOnlyList<TreasureDefinition> Treasures => Definitions.Information.Treasures;
     public IReadOnlyList<(string Key, string Name)> TreasureImageChoices => _baseDefinitions.Information.Treasures.Concat(Treasures)
@@ -52,6 +53,7 @@ public sealed partial class SharedDataEditorWorkspace
         };
         await ValidateDefinitionDeletionAsync(draft, candidate, "宝物", token);
         _treasureBaselines.Remove(id);
+        _deletedTreasureSinceSave = true;
     }
 
     private static IEnumerable<int> TreasureReferenceIds(ScenarioDefinitions definitions)

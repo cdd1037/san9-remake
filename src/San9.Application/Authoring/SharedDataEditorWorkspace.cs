@@ -176,7 +176,9 @@ public sealed partial class SharedDataEditorWorkspace
         // Each validation owns a fresh read session. Shared geography and person defaults are
         // parsed once for this operation, even when many scenarios reference them.
         var files = new ContentReadSession();
-        bool checkRules = RulesRequireScenarioValidation(draft);
+        bool treasureDeleted = _deletedTreasureSinceSave || (!ReferenceEquals(draft, Definitions) &&
+            Definitions.Information.Treasures.Select(t => t.Id).Except(draft.Information.Treasures.Select(t => t.Id)).Any());
+        bool checkRules = treasureDeleted || RulesRequireScenarioValidation(draft);
         var previousOfficers = _savedOfficers.Officers.ToDictionary(o => o.Id);
         var affectedOfficers = new HashSet<int>();
         foreach (var person in Officers.Where(p => _changedOfficers.Contains(p.Id)))
@@ -189,7 +191,7 @@ public sealed partial class SharedDataEditorWorkspace
         var addedTreasures = draft.Information.Treasures.Select(t => t.Id).Except(_saved.Information.Treasures.Select(t => t.Id)).ToHashSet();
         if (!checkRules && affectedOfficers.Count == 0 && deletedOfficers.Count == 0 && addedTreasures.Count == 0) return files;
         var validation = new ScenarioValidationContext();
-        bool validateMessages = CatalogIdentitiesChanged(draft);
+        bool validateMessages = treasureDeleted || CatalogIdentitiesChanged(draft);
         foreach (var entry in _scenarios)
         {
             token.ThrowIfCancellationRequested();
@@ -340,7 +342,7 @@ public sealed partial class SharedDataEditorWorkspace
         if (published.TryGetValue(PlayerDefinitionPath, out var definitions)) _inputs[PlayerDefinitionPath] = _expectedPlayer = definitions;
         if (published.TryGetValue(PlayerOfficerPath, out var officers)) _inputs[PlayerOfficerPath] = _expectedOfficers = officers;
         if (_createdOfficersPath is not null && published.TryGetValue(_createdOfficersPath, out var personalFile)) _expectedCreated = personalFile;
-        _saved = Definitions; _savedOfficers = OfficerCatalog; _changedOfficers.Clear();
+        _saved = Definitions; _savedOfficers = OfficerCatalog; _changedOfficers.Clear(); _deletedTreasureSinceSave = false;
     }
 
     private static async Task EnsureUnchangedAsync(IReadOnlyDictionary<string, byte[]> inputs, CancellationToken token)

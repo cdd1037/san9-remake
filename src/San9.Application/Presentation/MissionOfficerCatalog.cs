@@ -7,6 +7,7 @@ public static class MissionOfficerCatalog
 {
     private static CatalogColumn Column(string id, TextCatalog texts) => id switch
     {
+        "dispatched" => DispatchCounts.Column(texts),
         "estimate" => new(id,CommandText.Resolve(texts, "label.arrival"),2,CatalogAlignment.Right),
         "inspiration" => new(id,CommandText.Resolve(texts, "label.inspiration"),2,CatalogAlignment.Center),
         "advice" => new(id,CommandText.Resolve(texts, "label.advice"),4,CatalogAlignment.Center),
@@ -16,7 +17,7 @@ public static class MissionOfficerCatalog
     public static IReadOnlyList<CatalogPage> Pages(MissionDraft draft, TextCatalog texts, bool targets = false)
     {
         string[] fields = targets ? draft.Kind == "alienate"
-            ? ["intelligence","loyalty","force","location","status","leadership","war","politics","estimate"]
+            ? ["intelligence","loyalty","force","location","status","leadership","war","politics","estimate","dispatched"]
             : ["leadership","war","intelligence","politics","learned","loyalty","home","location"]
             : draft.ActorPriorityField switch
             {
@@ -44,12 +45,14 @@ public static class MissionOfficerCatalog
             return ids.Select(id => new CatalogRow(id,rows[id].Cells.ToArray())).ToArray();
         }
         var columns = pages[0].Columns;
-        var fields = columns.Where(c => c.Id is not ("estimate" or "inspiration" or "advice")).ToDictionary(c => c.Id,
+        var dispatched = targets && draft.Kind == "alienate" ? DispatchCounts.ByTarget(draft.View, "strategy-alienate") : null;
+        var fields = columns.Where(c => c.Id is not ("estimate" or "inspiration" or "advice" or "dispatched")).ToDictionary(c => c.Id,
             c => OfficerCatalog.CorePages.Select((p,index) => (Page:index,Column:Array.FindIndex(p.Columns,f => f.Id == c.Id))).First(f => f.Column >= 0));
         var facts = fields.Values.Select(f => f.Page).Distinct().ToDictionary(p => p,
             p => OfficerCatalog.Read(draft.View,texts,p,null,null).Rows.ToDictionary(r => r.Key.Id));
         CatalogCell Cell(int id, string field)
         {
+            if (field == "dispatched") return dispatched!.GetValueOrDefault(id);
             if (field == "advice")
             {
                 var opinion = targets ? draft.TargetOpinion(id) : draft.ActorAdvice(id)?.Opinion ?? San9.Core.Simulation.AdviserOpinion.Unavailable;

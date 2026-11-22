@@ -12,6 +12,27 @@ namespace San9.Application.Tests;
 
 public sealed class PersonnelCommandTests
 {
+    [Theory]
+    [InlineData("search", 300)]
+    [InlineData("employ", 100)]
+    public void TargetListCountsDispatchedOfficersAcrossOrigins(string kind, int target)
+    {
+        var definition = Definition();
+        var session = GameSession.Start(definition with { Officers = definition.Officers.Select(p =>
+            p.State.Id == 100 ? p with { State = p.State with { SettlementId = 30 } } : p).ToArray() }, 7);
+        var issuing = new PersonnelDraft(session, 1, kind);
+        Assert.True(issuing.SetTarget(target));
+        Assert.True(issuing.SetMembers([1, 3]));
+        Assert.True(session.Execute(new("player"), issuing.CreateCommand(Guid.NewGuid(), 0)).Submission.Accepted);
+
+        var draft = new PersonnelDraft(session, 30, kind);
+        var texts = CatalogTexts(session.View);
+        var rows = kind == "search" ? PersonnelCatalog.Targets(draft, texts, 0)
+            : PersonnelCatalog.Officers(draft, texts, 0, targets: true);
+        Assert.Equal(2, rows.Single(row => row.Id == target).Cells[^1].Number);
+        Assert.All(rows.Where(row => row.Id != target), row => Assert.Equal(0, row.Cells[^1].Number));
+    }
+
     [Fact]
     public void RecruitmentTablesRecommendOneFavorableActorAndPreserveManualSelectionAcrossTargets()
     {
@@ -394,12 +415,12 @@ public sealed class PersonnelCommandTests
         var rows = PersonnelCatalog.Officers(draft,CatalogTexts(session.View),0,targets:true);
         Assert.Equal(new[] { 102,101,100,103,5,6 }.OrderByDescending(draft.TargetAdvicePriority),rows.Select(r => r.Id));
         Assert.All(rows,row => Assert.Equal(draft.TargetAdviceSymbol(row.Id),row.Cells[0].Text));
-        Assert.Equal(new[] { "建议","武将","身分","忠诚","势力","所在","统率","武力","智力","政治","label.arrival" },
+        Assert.Equal(new[] { "建议","武将","身分","忠诚","势力","所在","统率","武力","智力","政治","label.arrival","派遣" },
             PersonnelCatalog.OfficerPages(draft,CatalogTexts(draft.View),targets:true)[0].Columns.Select(c => c.Title));
         var far = rows.Single(r => r.Id == 100);
         var near = rows.Single(r => r.Id == 103);
-        Assert.True(far.Cells[^1].Number > near.Cells[^1].Number);
-        Assert.Equal(0,near.Cells[^1].Number);
+        Assert.True(far.Cells[^2].Number > near.Cells[^2].Number);
+        Assert.Equal(0,near.Cells[^2].Number);
         Assert.True(far.Cells[3].IsUnavailable);
         Assert.Equal("",far.Cells[4].Text);
         Assert.Equal(82,rows.Single(r => r.Id == 5).Cells[3].Number);

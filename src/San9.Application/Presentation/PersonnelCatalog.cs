@@ -8,7 +8,12 @@ public static class PersonnelCatalog
 {
     private static CatalogColumn OfficerColumn(string field) => OfficerCatalog.CorePages.SelectMany(p => p.Columns).First(c => c.Id == field);
     private static CatalogColumn RegionColumn(string field) => AdministrativeCatalog.Pages(InformationCategory.Regions).SelectMany(p => p.Columns).First(c => c.Id == field);
-    private static CatalogColumn Arrival(TextCatalog texts) => new("estimate", CommandText.Resolve(texts, "label.arrival"), 3, CatalogAlignment.Right);
+    private static CatalogColumn Column(string field, TextCatalog texts, Func<string, CatalogColumn> catalogColumn) => field switch
+    {
+        "estimate" => new(field, CommandText.Resolve(texts, "label.arrival"), 3, CatalogAlignment.Right),
+        "dispatched" => DispatchCounts.Column(texts),
+        _ => catalogColumn(field)
+    };
     private static IEnumerable<int> OrderedOfficers(PersonnelDraft draft, bool targets)
     {
         var people = draft.View.World.Officers.ToDictionary(p => p.Id);
@@ -45,11 +50,12 @@ public static class PersonnelCatalog
                 "move" => ["status", "office", "capacity", "leadership", "war", "intelligence", "politics", "learned"],
                 _ => ["politics", "status", "leadership", "war", "intelligence", "learned"]
             };
+        if (targets && draft.Kind == "employ") fields = [.. fields, "dispatched"];
         CatalogColumn[] prefix = targets && draft.Kind == "employ"
             ? [new("advice", CommandText.Resolve(texts, "label.advice"), 4, CatalogAlignment.Center), OfficerColumn("name")]
             : !targets && draft.Kind is "search" or "employ"
                 ? [new("advice", CommandText.Resolve(texts, "label.advice"), 8, CatalogAlignment.Center), OfficerColumn("name")] : [OfficerColumn("name")];
-        return [new(CommandText.Resolve(texts, "title." + draft.Kind), [.. prefix, .. fields.Select(f => f == "estimate" ? Arrival(texts) : OfficerColumn(f))]), .. OfficerCatalog.Pages(draft.View, texts)];
+        return [new(CommandText.Resolve(texts, "title." + draft.Kind), [.. prefix, .. fields.Select(f => Column(f, texts, OfficerColumn))]), .. OfficerCatalog.Pages(draft.View, texts)];
     }
     public static CatalogRow[] Officers(PersonnelDraft draft, TextCatalog texts, int page, bool targets = false)
     {
@@ -60,13 +66,15 @@ public static class PersonnelCatalog
             return ids.Select(id => new CatalogRow(id, rows[id].Cells.ToArray())).ToArray();
         }
         var columns = OfficerPages(draft, texts, targets)[0].Columns;
-        var fields = columns.Where(c => c.Id is not ("estimate" or "advice")).ToDictionary(c => c.Id,
+        var dispatched = targets && draft.Kind == "employ" ? DispatchCounts.ByTarget(draft.View, "personnel-recruit") : null;
+        var fields = columns.Where(c => c.Id is not ("estimate" or "advice" or "dispatched")).ToDictionary(c => c.Id,
             c => OfficerCatalog.CorePages.Select((catalog, index) => (Page: index, Column: Array.FindIndex(catalog.Columns, field => field.Id == c.Id)))
                 .First(location => location.Column >= 0));
         var facts = fields.Values.Select(location => location.Page).Distinct().ToDictionary(pageIndex => pageIndex,
             pageIndex => OfficerCatalog.Read(draft.View, texts, pageIndex, null, null).Rows.ToDictionary(r => r.Key.Id));
         CatalogCell Cell(int id, string field)
         {
+            if (field == "dispatched") return dispatched!.GetValueOrDefault(id);
             if (field == "advice") return targets
                 ? new(draft.TargetAdviceSymbol(id), draft.TargetAdvicePriority(id))
                 : new(draft.AdviceSymbol(id), draft.AdvicePriority(id));
@@ -83,7 +91,7 @@ public static class PersonnelCatalog
     public static IReadOnlyList<CatalogPage> TargetPages(PersonnelDraft draft, TextCatalog texts)
     {
         bool search = draft.Kind == "search";
-        string[] primary = search ? ["estimate", "province", "city", "force", "facility", "free"]
+        string[] primary = search ? ["estimate", "province", "city", "force", "facility", "free", "dispatched"]
             : ["corps-name", "commander", "soldiers", "serving", "estimate"];
         string[] affiliation = search ? ["province", "city", "force", "corps-name", "commander", "serving", "captives", "free"]
             : ["city", "force", "corps-name", "commander", "serving", "captives", "free"];
@@ -94,7 +102,7 @@ public static class PersonnelCatalog
             var name = new CatalogColumn("name",search ? CommandText.Resolve(texts, "label.region") : CommandText.Resolve(texts, "label.facility"),6,CatalogAlignment.Left);
             CatalogColumn[] prefix = recommendations
                 ? [new("advice",CommandText.Resolve(texts,"label.advice"),4,CatalogAlignment.Center), name] : [name];
-            return new(title,[.. prefix, .. fields.Select(f => f == "estimate" ? Arrival(texts) : RegionColumn(f))]);
+            return new(title,[.. prefix, .. fields.Select(f => Column(f, texts, RegionColumn))]);
         }
         return search ? [Page(CommandText.Resolve(texts, "title." + draft.Kind),primary,recommendations:true),Page(CommandText.Resolve(texts, "page.affiliation"),affiliation),Page(CommandText.Resolve(texts, "page.strength"),strength),Page(CommandText.Resolve(texts, "page.adjacent"),["frontline","adjacent"])]
             : [Page(CommandText.Resolve(texts, "title." + draft.Kind),primary),Page(CommandText.Resolve(texts, "page.affiliation"),affiliation),Page(CommandText.Resolve(texts, "page.strength"),strength)];
@@ -102,10 +110,12 @@ public static class PersonnelCatalog
     public static CatalogRow[] Targets(PersonnelDraft draft, TextCatalog texts, int page)
     {
         var catalog = new AdministrativeCatalog(draft.View,texts);
+        var dispatched = page == 0 && draft.Kind == "search" ? DispatchCounts.ByTarget(draft.View, "personnel-search") : null;
         var columns = TargetPages(draft, texts)[page].Columns;
         CatalogCell Cell(int id, string field)
         {
             if (field == "name") return draft.PlaceName(texts,id);
+            if (field == "dispatched") return dispatched!.GetValueOrDefault(id);
             if (field == "advice") return new(draft.TargetAdviceSymbol(id),draft.TargetAdvicePriority(id));
             if (field == "estimate") return draft.ArrivalDaysTo(id) is int days ? days : CatalogCell.Unavailable;
             var cell = catalog.Cell(InformationCategory.Regions,id,field);

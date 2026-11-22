@@ -24,7 +24,6 @@ public partial class ContentImportPanel : Control
     private Label _title = null!;
     private Label _introduction = null!;
     private Label _status = null!;
-    private Label _mediaHint = null!;
     private Label _encoderHint = null!;
     private RichTextLabel _log = null!;
     private Label _failureDetails = null!;
@@ -37,7 +36,8 @@ public partial class ContentImportPanel : Control
     private Button _encoder = null!;
     private Button _cancel = null!;
     private Button _continue = null!;
-    private CheckBox _audio = null!;
+    private CheckBox _effects = null!;
+    private CheckBox _music = null!;
     private CheckBox _movies = null!;
     private CheckBox _originalTextEdits = null!;
     private ProgressBar _progress = null!;
@@ -94,20 +94,22 @@ public partial class ContentImportPanel : Control
         _originalTextEdits = new CheckBox { Text = "应用原版文本修订", ButtonPressed = true,
             TooltipText = "按原版编号校订姓名、表字、官职和用词。转换已改名的Mod时可关闭，关闭后使用通用繁简转换。" };
         options.AddChild(_originalTextEdits);
-        _audio = new CheckBox { Text = "转换音频（音乐与音效）", ButtonPressed = true,
-            TooltipText = "关闭后不处理音频，保留内容目录中的已有音乐与音效。首次准备请开启。" };
+        _music = new CheckBox { Text = "转换音乐", ButtonPressed = true,
+            TooltipText = "将原版背景音乐转换为可播放格式。" };
+        _effects = new CheckBox { Text = "复制音效", ButtonPressed = true,
+            TooltipText = "直接复制原版音效文件。" };
         _movies = new CheckBox { Text = "转换影片", ButtonPressed = true,
             TooltipText = "关闭后不处理影片，保留已有影片。影片可选安装。" };
-        options.AddChild(_audio); options.AddChild(_movies);
-        _mediaHint = Text("", 14, ContentEditorStyle.Muted); layout.AddChild(_mediaHint);
+        options.AddChild(_effects); options.AddChild(_music); options.AddChild(_movies);
+        var mediaHint = Text("转换音乐或影片需要 FFmpeg。游戏未附带此工具，请从 FFmpeg 官网或其他可信渠道下载。", 14, ContentEditorStyle.Muted); layout.AddChild(mediaHint);
         var encoderRow = Row(layout);
         _ffmpeg = ImportAvailable ? ContentImportService.FindEncoder() : null;
         _encoderPath = PathField(_ffmpeg ?? "", "请选择 FFmpeg 可执行文件"); encoderRow.AddChild(_encoderPath);
         _encoder = Action("选择 FFmpeg", SelectEncoder); encoderRow.AddChild(_encoder);
         _encoderHint = Text(!ImportAvailable ? "开发构建不包含内置转换器。"
-            : _ffmpeg is null ? "未在系统 PATH 中找到 FFmpeg，请手动选择。" : "已自动找到 FFmpeg。", 14, ContentEditorStyle.Muted);
+            : _ffmpeg is null ? "未在系统 PATH 中找到 FFmpeg，可手动选择。" : "已自动找到 FFmpeg。", 14, ContentEditorStyle.Muted);
         layout.AddChild(_encoderHint);
-        _audio.Toggled += _ => UpdateMediaOptions();
+        _music.Toggled += _ => UpdateMediaOptions();
         _movies.Toggled += _ => UpdateMediaOptions();
 
         _status = Text(ImportAvailable ? "选择原版目录，确认转换选项后开始。" : "开发构建不包含内置转换器，请使用 San9.Tools 准备内容。");
@@ -176,12 +178,11 @@ public partial class ContentImportPanel : Control
 
     private void UpdateMediaOptions()
     {
-        bool media = _audio.ButtonPressed || _movies.ButtonPressed;
+        bool media = _music.ButtonPressed || _movies.ButtonPressed;
         _encoder.Disabled = _busy || !ImportAvailable || !media;
         _encoderPath.Modulate = media ? Colors.White : new Color(1, 1, 1, .5f);
-        _mediaHint.Text = !_audio.ButtonPressed
-            ? "不转换音频：需已有完整音乐与音效；首次准备请开启。" + (_movies.ButtonPressed ? "影片转换需要 FFmpeg。" : "本次不需要 FFmpeg。")
-            : "音频转换需要 FFmpeg。已转换且未变化的媒体会自动复用。";
+        _encoderHint.Visible = media || !ImportAvailable;
+        _start.Disabled = _busy || !ImportAvailable || _source is null;
     }
 
     private void SelectSource()
@@ -208,6 +209,7 @@ public partial class ContentImportPanel : Control
         {
             _ffmpeg = path; _encoderPath.Text = path; _encoderPath.TooltipText = path; dialog.QueueFree();
             _encoderHint.Text = "已手动选择 FFmpeg。";
+            UpdateMediaOptions();
         };
         dialog.Canceled += () => dialog.QueueFree();
         AddChild(dialog); dialog.PopupCentered(new(800, 560));
@@ -216,6 +218,28 @@ public partial class ContentImportPanel : Control
     private async Task Import()
     {
         if (_busy || _exiting || !ImportAvailable || _source is null) return;
+        if ((_music.ButtonPressed || _movies.ButtonPressed) && !File.Exists(_ffmpeg))
+        {
+            string selected = _music.ButtonPressed && _movies.ButtonPressed ? "音乐和影片"
+                : _music.ButtonPressed ? "音乐" : "影片";
+            var dialog = new ConfirmationDialog
+            {
+                Title = "未找到 FFmpeg",
+                DialogText = $"转换{selected}需要 FFmpeg。是否跳过{selected}并继续准备其他内容？",
+                OkButtonText = "跳过并继续", CancelButtonText = "返回设置", Exclusive = true
+            };
+            dialog.Confirmed += async () =>
+            {
+                dialog.QueueFree();
+                _music.ButtonPressed = false;
+                _movies.ButtonPressed = false;
+                await Import();
+            };
+            dialog.Canceled += dialog.QueueFree;
+            AddChild(dialog);
+            dialog.PopupCentered();
+            return;
+        }
         _recent.Clear(); _log.Text = ""; _stage = null;
         _continue.Text = "重新加载内容"; SetPrimary(_continue, false); SetPrimary(_start, true);
         _title.Text = "正在准备游戏内容";
@@ -225,7 +249,7 @@ public partial class ContentImportPanel : Control
         _cancellation = cancellation; SetBusy(true);
         try
         {
-            await ContentImportService.ImportAsync(_source, ContentRoot, _ffmpeg, _audio.ButtonPressed, _movies.ButtonPressed, _originalTextEdits.ButtonPressed, _messages.Enqueue, cancellation.Token);
+            await ContentImportService.ImportAsync(_source, ContentRoot, _ffmpeg, _music.ButtonPressed, _effects.ButtonPressed, _movies.ButtonPressed, _originalTextEdits.ButtonPressed, _messages.Enqueue, cancellation.Token);
             if (_exiting) return;
             DrainMessages();
             _title.Text = "游戏内容已准备就绪";
@@ -296,9 +320,9 @@ public partial class ContentImportPanel : Control
     private void SetBusy(bool busy)
     {
         _busy = busy; _select.Disabled = busy || !ImportAvailable;
-        _start.Disabled = busy || !ImportAvailable || _source is null;
         _originalTextEdits.Disabled = busy || !ImportAvailable;
-        _audio.Disabled = busy || !ImportAvailable; _movies.Disabled = busy || !ImportAvailable;
+        _effects.Disabled = busy || !ImportAvailable;
+        _music.Disabled = busy || !ImportAvailable; _movies.Disabled = busy || !ImportAvailable;
         _continue.Disabled = busy; _progress.Visible = busy;
         _cancel.Visible = busy && _cancellation is not null; _cancel.Disabled = !busy;
         if (busy) _status.RemoveThemeColorOverride("font_color");

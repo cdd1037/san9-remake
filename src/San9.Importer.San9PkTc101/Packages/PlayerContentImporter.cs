@@ -9,7 +9,7 @@ public static class PlayerContentImporter
     public static string? FindEncoder() => FfmpegEncoder.Find()?.ExecutablePath;
 
     public static async Task ImportAsync(string gameDirectory, string output, Func<CancellationToken, Task> validate,
-        string? ffmpeg = null, bool audio = true, bool movies = true,
+        string? ffmpeg = null, bool music = true, bool effects = true, bool movies = true,
         Action<ContentImportProgress>? progress = null, CancellationToken token = default, bool originalTextEdits = true)
     {
         ArgumentNullException.ThrowIfNull(validate);
@@ -28,7 +28,7 @@ public static class PlayerContentImporter
 
         Log("检查原版版本：仅支持繁体中文三国志 IX 威力加强版 1.0.1.0 的已登记构建。");
         string? encoder = null;
-        if (audio || movies)
+        if (music || movies)
         {
             encoder = ResolveEncoder(ffmpeg);
             await CheckEncoderAsync(encoder, movies, token);
@@ -39,11 +39,10 @@ public static class PlayerContentImporter
         Stage(ContentImportStage.Textures, "转换纹理与界面资源……");
         await TexturePackageImporter.ImportCoreAsync(source, Path.Combine(output, "shared", "textures"), Log, token, parent: operation);
         Stage(ContentImportStage.Audio, "准备音乐与音效……");
-        if (audio)
-        {
-            await AudioLibraryImporter.ImportCoreAsync(operation, source.Directory.Root, output, AudioLibraryGroup.All, Log, token, ffmpegPath: encoder);
-        }
-        else Log("本次不转换音频，保留已有音乐与音效。");
+        if (music)
+            await AudioLibraryImporter.ImportCoreAsync(operation, source.Directory.Root, output, AudioLibraryGroup.Bgm, Log, token, ffmpegPath: encoder);
+        if (effects)
+            await AudioLibraryImporter.ImportCoreAsync(operation, source.Directory.Root, output, AudioLibraryGroup.Effects, Log, token);
         Stage(ContentImportStage.Scenarios, "转换全部剧本……");
         await ContentCatalogImporter.ImportCoreAsync(operation, source, output, Log, token);
         Stage(ContentImportStage.Movies, "准备影片……");

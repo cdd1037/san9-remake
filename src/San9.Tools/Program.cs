@@ -13,13 +13,13 @@ Console.InputEncoding = new UTF8Encoding(false);
 
 try
 {
-    if(args.Length==0)throw new ArgumentException("Commands: prepare-content --game-dir PATH --output PATH [--ffmpeg PATH] [--audio true|false] [--movies true|false] [--original-text-edits true|false]; import-audio --game-dir PATH --output PATH [--group bgm|effects|all]; import-movies --game-dir PATH --output PATH [--group events|scenarios|startup|all]; upgrade-portrait-anchors --texture-package PATH | --portrait-pack PATH; import-content --game-dir PATH --output PATH [--rebuild opening|worlds|command-text] [--original-text-edits true|false]; verify-content --content-root PATH; verify-startup --content-root PATH [--scenario ID]; import-textures --game-dir PATH --output PATH [--rebuild all|cursors|skin|map|map/formation-appearance|portraits|library/ARCHIVE]; import-client --game-dir PATH --scenario FILENAME --texture-package PATH --output PATH [--message-reports true|false] [--original-text-edits true|false]; verify-textures --texture-package PATH; verify-client --content-package PATH; import-text --game-dir PATH --output PATH [--original-text-edits true|false]; render-map --content-package PATH --output PATH");
+    if(args.Length==0)throw new ArgumentException("Commands: prepare-content --game-dir PATH --output PATH [--ffmpeg PATH] [--music true|false] [--effects true|false] [--movies true|false] [--original-text-edits true|false]; import-audio --game-dir PATH --output PATH [--group bgm|effects|all]; import-movies --game-dir PATH --output PATH [--group events|scenarios|startup|all]; upgrade-portrait-anchors --texture-package PATH | --portrait-pack PATH; import-content --game-dir PATH --output PATH [--rebuild opening|worlds|command-text] [--original-text-edits true|false]; verify-content --content-root PATH; verify-startup --content-root PATH [--scenario ID]; import-textures --game-dir PATH --output PATH [--rebuild all|cursors|skin|map|map/formation-appearance|portraits|library/ARCHIVE]; import-client --game-dir PATH --scenario FILENAME --texture-package PATH --output PATH [--message-reports true|false] [--original-text-edits true|false]; verify-textures --texture-package PATH; verify-client --content-package PATH; import-text --game-dir PATH --output PATH [--original-text-edits true|false]; render-map --content-package PATH --output PATH");
     Dictionary<string,string> options=[];
     for(int i=1;i<args.Length;i+=2)
         if(i+1>=args.Length||!args[i].StartsWith("--",StringComparison.Ordinal)||!options.TryAdd(args[i],args[i+1]))throw new ArgumentException("Invalid or duplicate option.");
     string[] allowed = args[0] switch
     {
-        "prepare-content" => ["--game-dir", "--output", "--ffmpeg", "--audio", "--movies", "--original-text-edits"],
+        "prepare-content" => ["--game-dir", "--output", "--ffmpeg", "--audio", "--music", "--effects", "--movies", "--original-text-edits"],
         "import-audio" or "import-movies" => ["--game-dir", "--output", "--group"],
         "upgrade-portrait-anchors" => ["--texture-package", "--portrait-pack"],
         "import-content" => ["--game-dir", "--output", "--rebuild", "--original-text-edits"],
@@ -50,8 +50,9 @@ try
             "false" => false,
             _ => throw new ArgumentException($"{key} must be true or false.")
         };
+        string audioDefault = Boolean("--audio", "true") ? "true" : "false";
         await PlayerContentPreparation.RunAsync(Required("--game-dir"), Required("--output"),
-            options.GetValueOrDefault("--ffmpeg"), Boolean("--audio", "true"), Boolean("--movies", "true"), originalTextEdits);
+            options.GetValueOrDefault("--ffmpeg"), Boolean("--music", audioDefault), Boolean("--effects", audioDefault), Boolean("--movies", "true"), originalTextEdits);
     }
     else if (args[0] == "import-audio")
     {

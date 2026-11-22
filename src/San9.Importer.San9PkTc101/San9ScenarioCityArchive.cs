@@ -129,11 +129,6 @@ public static class San9ScenarioCityArchive
 
     private static void ValidateRecord(San9ScenarioCityRecord record, int index)
     {
-        if ((record.CityFlags & ~TraderFlag) != 0)
-        {
-            throw new InvalidDataException($"Scenario city record {index} has unknown city flags.");
-        }
-
         if (record.Population > PopulationLimit)
         {
             throw new InvalidDataException($"Scenario city record {index} has an invalid population.");
@@ -144,9 +139,9 @@ public static class San9ScenarioCityArchive
             throw new InvalidDataException($"Scenario city record {index} has invalid military population.");
         }
 
-        if (record.SerializedId != index || record.AuxiliaryId1 != index || record.AuxiliaryId2 != index)
+        if (record.AuxiliaryId1 >= RecordCount || record.AuxiliaryId2 >= RecordCount)
         {
-            throw new InvalidDataException($"Scenario city record {index} has inconsistent identity fields.");
+            throw new InvalidDataException($"Scenario city record {index} has an invalid city resource id.");
         }
 
         if (record.AreaCode >= AreaCount)

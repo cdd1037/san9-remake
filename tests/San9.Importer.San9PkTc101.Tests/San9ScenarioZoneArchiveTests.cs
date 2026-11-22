@@ -13,7 +13,7 @@ public sealed class San9ScenarioZoneArchiveTests
         using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
         {
             writer.Write((uint)1_000);
-            writer.Write((ushort)0);
+            writer.Write(ushort.MaxValue);
             writer.Write((ushort)1);
             writer.Write((ushort)0);
             writer.Write((ushort)0);
@@ -33,7 +33,7 @@ public sealed class San9ScenarioZoneArchiveTests
         Assert.Equal(San9ScenarioZoneArchive.RecordCount, records.Count);
         Assert.Equal(0, record.Id);
         Assert.Equal((uint)1_000, record.Soldiers);
-        Assert.Equal(0, record.SerializedId);
+        Assert.Equal(ushort.MaxValue, record.SerializedId);
         Assert.Equal(1, record.FixedBuildingId);
         Assert.Equal(0, record.NameResourceCode);
         Assert.Equal(0, record.NameReadingResourceCode);

@@ -10,6 +10,7 @@ public enum San9ScenarioItemDiscoveryState : ushort
 }
 
 public sealed record San9ScenarioItemRecord(
+    int Id,
     ushort SerializedId,
     ushort ResourceId1,
     ushort ResourceId2,
@@ -24,6 +25,8 @@ public sealed record San9ScenarioItemRecord(
 {
     public San9ScenarioItemDiscoveryState DiscoveryState =>
         (San9ScenarioItemDiscoveryState)DiscoveryStateCode;
+
+    public bool IsBuiltIn => Id < San9ScenarioItemArchive.BuiltInCount;
 
     public bool IsInvalid => DiscoveryState == San9ScenarioItemDiscoveryState.Invalid;
 
@@ -46,6 +49,7 @@ public sealed record San9ScenarioItemRecord(
 public static class San9ScenarioItemArchive
 {
     public const int RecordCount = 120;
+    public const int BuiltInCount = 100;
     public const int RecordSize = 22;
     public const int TacticCount = 41;
     public const int RuntimePersonCount = 850;
@@ -71,6 +75,7 @@ public static class San9ScenarioItemArchive
         for (int index = 0; index < RecordCount; index++)
         {
             San9ScenarioItemRecord record = new(
+                index,
                 reader.ReadUInt16(),
                 reader.ReadUInt16(),
                 reader.ReadUInt16(),
@@ -83,7 +88,7 @@ public static class San9ScenarioItemArchive
                 reader.ReadUInt16(),
                 reader.ReadUInt16());
 
-            ValidateRecord(record, index);
+            ValidateRecord(record);
             records.Add(record);
         }
 
@@ -95,42 +100,43 @@ public static class San9ScenarioItemArchive
         return new ReadOnlyCollection<San9ScenarioItemRecord>(records);
     }
 
-    private static void ValidateRecord(San9ScenarioItemRecord record, int index)
+    private static void ValidateRecord(San9ScenarioItemRecord record)
     {
-        if (record.SerializedId != index || record.ResourceId1 != index || record.ResourceId2 != index)
+        int resourceCount = record.IsBuiltIn ? BuiltInCount : RecordCount;
+        if (record.ResourceId1 >= resourceCount || record.ResourceId2 >= resourceCount)
         {
-            throw new InvalidDataException($"Scenario item record {index} has inconsistent identity fields.");
+            throw new InvalidDataException($"Scenario item record {record.Id} has an invalid resource id.");
         }
 
         if (record.ImageId >= ImageCount)
         {
-            throw new InvalidDataException($"Scenario item record {index} has an invalid image id.");
+            throw new InvalidDataException($"Scenario item record {record.Id} has an invalid image id.");
         }
 
         if (record.CategoryId >= CategoryCount)
         {
-            throw new InvalidDataException($"Scenario item record {index} has an invalid category id.");
+            throw new InvalidDataException($"Scenario item record {record.Id} has an invalid category id.");
         }
 
         if (record.TacticCode != MissingCode && record.TacticCode >= TacticCount)
         {
-            throw new InvalidDataException($"Scenario item record {index} has an invalid tactic code.");
+            throw new InvalidDataException($"Scenario item record {record.Id} has an invalid tactic code.");
         }
 
         if (record.HolderPersonCode != MissingCode && record.HolderPersonCode >= RuntimePersonCount)
         {
-            throw new InvalidDataException($"Scenario item record {index} has an invalid holder person code.");
+            throw new InvalidDataException($"Scenario item record {record.Id} has an invalid holder person code.");
         }
 
         if (record.DiscoveryStateCode >= DiscoveryStateCount)
         {
-            throw new InvalidDataException($"Scenario item record {index} has an invalid discovery state code.");
+            throw new InvalidDataException($"Scenario item record {record.Id} has an invalid discovery state code.");
         }
 
         if (record.DiscoveryLocationCode != MissingCode &&
             record.DiscoveryLocationCode >= DiscoveryLocationLimit)
         {
-            throw new InvalidDataException($"Scenario item record {index} has an invalid discovery location code.");
+            throw new InvalidDataException($"Scenario item record {record.Id} has an invalid discovery location code.");
         }
     }
 }

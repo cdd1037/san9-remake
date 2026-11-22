@@ -198,23 +198,28 @@ public sealed class San9ScenarioArchiveTests
     }
 
     [Fact]
-    public void ReadKnownItemRecords_RejectsInconsistentIdentity()
+    public void ReadKnownItemRecords_UsesRecordOrderAndPreservesResourceIds()
     {
         using MemoryStream stream = BuildScenarioArchiveWithItems();
         stream.Position = 0x8D142 + San9ScenarioItemArchive.RecordSize;
         using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
         {
-            writer.Write((ushort)99);
+            writer.Write(ushort.MaxValue);
+            writer.Write((ushort)8);
+            writer.Write((ushort)9);
         }
 
         stream.Position = 0;
-        InvalidDataException exception = Assert.Throws<InvalidDataException>(
-            () => San9ScenarioItemArchive.ReadKnownRecords(stream));
-
-        Assert.Contains("record 1", exception.Message, StringComparison.OrdinalIgnoreCase);
+        var record = San9ScenarioItemArchive.ReadKnownRecords(stream)[1];
+        Assert.Equal(1, record.Id);
+        Assert.Equal(ushort.MaxValue, record.SerializedId);
+        Assert.Equal(8, record.ResourceId1);
+        Assert.Equal(9, record.ResourceId2);
     }
 
     [Theory]
+    [InlineData(0x02, 100, "resource")]
+    [InlineData(0x04, 100, "resource")]
     [InlineData(0x06, 100, "image")]
     [InlineData(0x08, 13, "category")]
     [InlineData(0x0E, 41, "tactic")]
@@ -282,6 +287,26 @@ public sealed class San9ScenarioArchiveTests
         Assert.True(record.HasArrowPlatform);
     }
 
+    [Theory]
+    [InlineData(0x100u, false)]
+    [InlineData(0x101u, true)]
+    [InlineData(0xFFFFFFFEu, false)]
+    [InlineData(0xFFFFFFFFu, true)]
+    public void ReadKnownCityRecords_UsesOnlyTraderBit(uint flags, bool hasTrader)
+    {
+        using MemoryStream stream = BuildScenarioArchiveWithCities();
+        stream.Position = 0x8B576;
+        using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
+        {
+            writer.Write(flags);
+        }
+
+        stream.Position = 0;
+        var city = San9ScenarioCityArchive.ReadKnownRecords(stream)[0];
+        Assert.Equal(flags, city.CityFlags);
+        Assert.Equal(hasTrader, city.HasTrader);
+    }
+
     [Fact]
     public void ReadKnownCityRecords_MapsUnownedCityToNullForce()
     {
@@ -311,24 +336,27 @@ public sealed class San9ScenarioArchiveTests
     }
 
     [Fact]
-    public void ReadKnownCityRecords_RejectsInconsistentIdentity()
+    public void ReadKnownCityRecords_PreservesIndependentSerializedAndResourceIds()
     {
         using MemoryStream stream = BuildScenarioArchiveWithCities();
-        stream.Position = 0x8B576 + San9ScenarioCityArchive.RecordSize + 0x12;
+        stream.Position = 0x8B576 + San9ScenarioCityArchive.RecordSize + 0x10;
         using (BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true))
         {
-            writer.Write((ushort)99);
+            writer.Write(ushort.MaxValue);
+            writer.Write((ushort)8);
+            writer.Write((ushort)9);
         }
 
         stream.Position = 0;
-        InvalidDataException exception = Assert.Throws<InvalidDataException>(
-            () => San9ScenarioCityArchive.ReadKnownRecords(stream));
-
-        Assert.Contains("record 1", exception.Message, StringComparison.OrdinalIgnoreCase);
+        var record = San9ScenarioCityArchive.ReadKnownRecords(stream)[1];
+        Assert.Equal(ushort.MaxValue, record.SerializedId);
+        Assert.Equal(8, record.AuxiliaryId1);
+        Assert.Equal(9, record.AuxiliaryId2);
     }
 
     [Theory]
-    [InlineData(0x00, 2, 4, "flags")]
+    [InlineData(0x12, 50, 2, "resource")]
+    [InlineData(0x14, 50, 2, "resource")]
     [InlineData(0x04, 1_000_001, 4, "population")]
     [InlineData(0x08, 500_001, 4, "population")]
     [InlineData(0x0C, 500_001, 4, "population")]

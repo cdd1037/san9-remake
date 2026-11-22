@@ -87,8 +87,9 @@ public static class ScenarioContentCompiler
         summaries = summaries.Select(f => f with { AutomaticSchedulingKey = f.Id, AdviserId = officers.Where(o => o.State.OwnerId == f.Id && o.State.Status == San9.Core.Domain.OfficerStatus.Strategist)
             .Select(o => (int?)o.State.Id).SingleOrDefault() }).ToArray();
         var treasureStates = TreasureContentCompiler.InitialStates(items, officers.Where(o => o.State.Status != San9.Core.Domain.OfficerStatus.Dead).Select(o => o.State.Id).ToHashSet());
+        var builtInItems = items.Where(item => item.IsBuiltIn).ToArray();
         var treasureDiplomacy = TreasureContentCompiler.DiplomacyPreferences(exe, persons, officers.Select(o => o.State.Id),
-            items.Where(i => i.SerializedId < TreasureContentCompiler.BuiltInCount).Select(i => (int)i.SerializedId));
+            builtInItems.Select(i => i.Id));
         var information = new InformationDefinitions(
             RankContentCompiler.Compile(ranks, text.RankName, text.RankDescription),
             offices.Where(o => o.IsAssignable).Select(o => new OfficeDefinition(o.Id, text.Office(o.Id), o.CommandCapacity, o.Salary)
@@ -97,14 +98,14 @@ public static class ScenarioContentCompiler
                   AppointmentGroup = o.CommandCapacity >= 15000 ? OfficeAppointmentGroup.Military : OfficeAppointmentGroup.Civil,
                   FillBeforeOrdinaryOffices = o.Id < 4,
                   RequiredRankId = o.RankGroupId }).ToArray(),
-            items.Where(i => i.SerializedId < TreasureContentCompiler.BuiltInCount).Select(i =>
+            builtInItems.Select(i =>
             {
-                return new TreasureDefinition(i.SerializedId, text.Treasure(i.ResourceId1), i.CategoryId, i.LoyaltyChange, i.TacticId)
+                return new TreasureDefinition(i.Id, text.Treasure(i.ResourceId1), i.CategoryId, i.LoyaltyChange, i.TacticId)
                 { Description = text.TreasureDescription(i.ResourceId2), ImageKey = TreasureContentCompiler.ImageKey(i),
                   AbilityBonuses = TreasureContentCompiler.AbilityBonuses(i), EscapeMount = i.CategoryId == 0,
                   RetentionGroup = TreasureContentCompiler.RetentionGroup(i),
-                  AutomaticDiplomacyOfferAllowed = treasureDiplomacy[i.SerializedId].AutomaticOfferAllowed,
-                  FavoredOwnerIds = treasureDiplomacy[i.SerializedId].FavoredOwnerIds };
+                  AutomaticDiplomacyOfferAllowed = treasureDiplomacy[i.Id].AutomaticOfferAllowed,
+                  FavoredOwnerIds = treasureDiplomacy[i.Id].FavoredOwnerIds };
             }).ToArray(),
             settlements.Where(s => s.CorpsId is not null).Select(s => s.CorpsId!.Value).Distinct().Order().Select(id =>
                 new San9.Core.Domain.CorpsState(id, Root(id)!.Value, forces[id].LeaderId ?? throw new InvalidDataException("Missing corps leader."),

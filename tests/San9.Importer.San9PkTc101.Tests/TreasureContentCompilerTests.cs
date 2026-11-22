@@ -11,7 +11,7 @@ public sealed class TreasureContentCompilerTests
     [InlineData(99, "library/g_still/variant-271/0271")]
     public void TreasureImagesReferenceTheConvertedLibrary(ushort image, string key)
     {
-        var item = new San9ScenarioItemRecord(500, 0, 0, image, 0, 0, 0, ushort.MaxValue, ushort.MaxValue, 0, ushort.MaxValue);
+        var item = new San9ScenarioItemRecord(500, 0, 0, 0, image, 0, 0, 0, ushort.MaxValue, ushort.MaxValue, 0, ushort.MaxValue);
         Assert.Equal(key, TreasureContentCompiler.ImageKey(item));
         Assert.Equal(key, TreasureContentCompiler.ImageKey(item with { SerializedId = 900 }));
     }
@@ -81,7 +81,7 @@ public sealed class TreasureContentCompilerTests
     [InlineData(12, 0, 0, 0, 0)]
     public void SourceCategoriesBecomeExplicitAbilityBonuses(ushort category, int war, int intelligence, int politics, int leadership)
     {
-        var item = new San9ScenarioItemRecord(0, 0, 0, 0, category, 8, 9, ushort.MaxValue, 1, 2, ushort.MaxValue);
+        var item = new San9ScenarioItemRecord(0, 0, 0, 0, 0, category, 8, 9, ushort.MaxValue, 1, 2, ushort.MaxValue);
         Assert.Equal(new OfficerAbilities(war, intelligence, politics, leadership), TreasureContentCompiler.AbilityBonuses(item));
         var expected = war > 0 ? TreasureRetentionGroup.War : intelligence > 0 ? TreasureRetentionGroup.Intelligence :
             politics > 0 ? TreasureRetentionGroup.Politics : leadership > 0 ? TreasureRetentionGroup.Leadership : TreasureRetentionGroup.Other;
@@ -93,7 +93,7 @@ public sealed class TreasureContentCompilerTests
     public void InitialPlacementsPreferLivingHoldersAndOmitUnplacedSourceRecords()
     {
         San9ScenarioItemRecord Item(ushort id, ushort state, ushort holder, ushort region) =>
-            new(id, id, id, 0, 0, 10, 0, ushort.MaxValue, holder, state, region);
+            new(id, ushort.MaxValue, id, id, 0, 0, 10, 0, ushort.MaxValue, holder, state, region);
         var records = new[] { Item(0, 1, ushort.MaxValue, 117), Item(1, 2, 600, 38),
             Item(2, 1, 600, 13), Item(3, 2, 601, 15), Item(4, 2, 601, ushort.MaxValue),
             Item(100, 0, 600, 15) };

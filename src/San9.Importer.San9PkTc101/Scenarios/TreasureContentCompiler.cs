@@ -6,8 +6,6 @@ namespace San9.Importer.San9PkTc101.Scenarios;
 
 public static class TreasureContentCompiler
 {
-    public const int BuiltInCount = 100;
-
     public static string ImageKey(San9ScenarioItemRecord item)
     {
         int image = item.ImageId + 172;
@@ -69,14 +67,14 @@ public static class TreasureContentCompiler
         var states = new List<TreasureState>();
         foreach (var item in records)
         {
-            if (item.SerializedId >= BuiltInCount && !item.IsInvalid)
+            if (!item.IsBuiltIn && !item.IsInvalid)
                 throw new InvalidDataException("Configured expansion treasure requires expansion text support.");
             if (!Enum.IsDefined(item.DiscoveryState)) throw new InvalidDataException("Invalid treasure discovery state.");
             if (item.IsInvalid) continue;
             if (item.HolderPersonId is int holder && livingOfficerIds.Contains(holder))
-                states.Add(new(item.SerializedId, new OfficerTreasurePlacement(holder)));
+                states.Add(new(item.Id, new OfficerTreasurePlacement(holder)));
             else if (item.DiscoveryLocationId is int region)
-                states.Add(new(item.SerializedId, new RegionTreasurePlacement(region)));
+                states.Add(new(item.Id, new RegionTreasurePlacement(region)));
         }
         return states.ToArray();
     }

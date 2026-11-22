@@ -133,11 +133,6 @@ public static class San9ScenarioZoneArchive
 
     private static void ValidateRecord(San9ScenarioZoneRecord record, int index)
     {
-        if (record.SerializedId != index)
-        {
-            throw new InvalidDataException($"Scenario zone record {index} has an inconsistent serialized id.");
-        }
-
         if (record.Soldiers > SoldiersLimit)
         {
             throw new InvalidDataException($"Scenario zone record {index} has invalid soldiers.");

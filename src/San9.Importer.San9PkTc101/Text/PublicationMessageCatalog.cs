@@ -67,8 +67,8 @@ public static class PublicationMessageCatalog
             new[] { San9ScenarioAreaArchive.GetNameMessageId(id), San9ScenarioAreaArchive.GetNameReadingMessageId(id) }));
         Add("country-titles", Enumerable.Range(0, San9ScenarioCountryTitleArchive.RecordCount).SelectMany(id =>
             new[] { San9ScenarioCountryTitleArchive.GetNameMessageId(id), San9ScenarioCountryTitleArchive.GetNameReadingMessageId(id) }));
-        Add("treasures", Enumerable.Range(0, Scenarios.TreasureContentCompiler.BuiltInCount).Select(id => 1392 + 2 * id)
-            .Concat(Enumerable.Range(7641, Scenarios.TreasureContentCompiler.BuiltInCount)));
+        Add("treasures", Enumerable.Range(0, San9ScenarioItemArchive.BuiltInCount).Select(id => 1392 + 2 * id)
+            .Concat(Enumerable.Range(7641, San9ScenarioItemArchive.BuiltInCount)));
         return groups;
     }
 

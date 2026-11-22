@@ -19,7 +19,8 @@ public sealed partial class ScenarioEditorWorkspace
     private readonly Dictionary<string, byte[]?> _inputs;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private (ScenarioMapManifest Manifest, MapDefinition Definition)? _map;
-    private ScenarioDocument _saved;
+    private byte[] _savedDocument;
+    private byte[]? _validatedDocument;
     private ScenarioPreviewEntry _savedPreview;
     public string ScenarioPath { get; }
     public string ManifestPath { get; }
@@ -30,13 +31,16 @@ public sealed partial class ScenarioEditorWorkspace
     public TextCatalog Text { get; }
     public ScenarioDefinitions Definitions => Document.DefinitionOverrides.Apply(_shared.Definitions);
     public IEnumerable<int> RegionIds => _shared.Geography.RegionNameKeys.Keys;
-    public bool HasChanges => !ContentComparison.Equal(Document, _saved) || !ContentComparison.Equal(Preview, _savedPreview);
+    public bool HasChanges => !ContentComparison.Equal(Preview, _savedPreview) || !DocumentBytes(Document).AsSpan().SequenceEqual(_savedDocument);
+
+    private static byte[] DocumentBytes(ScenarioDocument document) =>
+        JsonSerializer.SerializeToUtf8Bytes(document, ScenarioContentFiles.DataJsonOptions);
 
     private ScenarioEditorWorkspace(string scenarioPath, string manifestPath, ScenarioContentManifest manifest,
         ScenarioDocument document, SharedScenarioData shared, TextCatalog text, Dictionary<string, byte[]?> inputs)
     {
         ScenarioPath = scenarioPath; ManifestPath = manifestPath; _manifest = manifest; _shared = shared;
-        Document = _saved = _opened = document;
+        Document = _opened = document; _savedDocument = DocumentBytes(document);
         Preview = _savedPreview = _openedPreview = manifest.Preview!;
         Text = text; _inputs = inputs;
     }
@@ -223,14 +227,15 @@ public sealed partial class ScenarioEditorWorkspace
         if (scenario.Day is not (1 or 11 or 21)) throw new InvalidDataException("开局日期必须位于旬首（1、11或21日）。");
         // Exercise the same domain construction used by new-game startup.
         _ = new ScenarioSessionDefinition(scenario).CreateWorld(0);
+        _validatedDocument = DocumentBytes(document);
     }
 
-    private ScenarioPreviewEntry PreparePreview(ScenarioDocument document, ScenarioPreviewEntry preview)
+    private ScenarioPreviewEntry PreparePreview(ScenarioDocument document, ScenarioPreviewEntry preview, bool validateWorld = true)
     {
         if (string.IsNullOrWhiteSpace(preview.Title) || string.IsNullOrWhiteSpace(preview.Description))
             throw new InvalidDataException("剧本标题和简介不能为空。");
         MessageStyles.ValidateMarkup(preview.Description);
-        Validate(document);
+        if (validateWorld) Validate(document);
         return preview with
         {
             Year = document.Year, Month = document.Month,
@@ -285,17 +290,18 @@ public sealed partial class ScenarioEditorWorkspace
         await _saveGate.WaitAsync(token);
         try
         {
-            if (!HasChanges) return;
             var document = Document;
             var previewAtStart = Preview;
-            var preview = PreparePreview(document, previewAtStart);
-            await ScenarioDataFiles.CheckInputsAsync(_inputs, token);
+            byte[] bytes = DocumentBytes(document);
+            bool worldChanged = !bytes.AsSpan().SequenceEqual(_savedDocument);
+            if (!worldChanged && ContentComparison.Equal(previewAtStart, _savedPreview)) return;
+            var preview = PreparePreview(document, previewAtStart, validateWorld: worldChanged && !bytes.AsSpan().SequenceEqual(_validatedDocument));
             var published = await ScenarioDataFiles.WritePlayerDocumentsAsync([
                 new(PlayerScenarioPath, ScenarioData(document), _inputs[PlayerScenarioPath]),
-                new(PlayerManifestPath, _manifest with { Preview = preview }, _inputs[PlayerManifestPath])], token);
+                new(PlayerManifestPath, _manifest with { Preview = preview }, _inputs[PlayerManifestPath])], token, _inputs);
             _inputs[PlayerScenarioPath] = published[PlayerScenarioPath];
             _inputs[PlayerManifestPath] = published[PlayerManifestPath];
-            _saved = document; _savedPreview = preview;
+            _savedDocument = bytes; _savedPreview = preview;
             // Callers may continue editing while the asynchronous publication is in flight.
             if (ReferenceEquals(Preview, previewAtStart)) Preview = preview;
         }

@@ -307,6 +307,18 @@ public sealed class ScenarioEditorWorkspaceTests : IDisposable
     }
 
     [Fact]
+    public async Task ChangesInsideValidatedDraftAreCheckedAgainAtSave()
+    {
+        await Create();
+        var editor = await ScenarioEditorWorkspace.OpenAsync(_root, ScenarioId);
+        editor.SetForceOffice(1, 2, true);
+        var forces = editor.Document.Forces;
+        forces[0] = forces[0] with { LeaderId = null };
+        await Assert.ThrowsAsync<InvalidDataException>(() => editor.SaveAsync());
+        Assert.False(File.Exists(editor.PlayerScenarioPath));
+    }
+
+    [Fact]
     public async Task ConcurrentEditorAndNewSharedPlayerCopyAreDetectedBeforePublication()
     {
         await Create();

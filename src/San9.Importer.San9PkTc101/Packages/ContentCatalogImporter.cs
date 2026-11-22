@@ -42,6 +42,7 @@ public static class ContentCatalogImporter
         var selection = ScenarioSelectionPresentationCompiler.Compile(exe, textures.Library, text, headers, map);
         List<ScenarioCatalogEntry> entries = [];
         var sites = new SharedMapSites([], []);
+        SharedCommandText? sharedCommands = null;
         SharedMessageLibrary? sharedMessages = null;
         SharedMapDefinition? sharedMap = null;
         SharedScenarioData? sharedScenario = null;
@@ -67,11 +68,16 @@ public static class ContentCatalogImporter
             var compiled = ClientContentCompiler.Compile(source, $"D_Sce{header.ScenarioId + 1:D3}.S9", textureRoot,
                 textures, PackageFiles.Resolve(output, path), false, token, preview);
             SharedPlaceImporter.Collect(sites, compiled.Content.Scenario, compiled.Content.Text);
+            if (sharedCommands is null)
+            {
+                sharedCommands = new(CommandTextImporter.LibraryPath, compiled.Content.Text.Entries.Where(p => SharedCommandText.IsCommandKey(p.Key)).ToDictionary());
+                await sharedCommands.StageAsync(output, publication, token);
+            }
             sharedMessages ??= await MessageLibraryFiles.WriteAsync(output, "shared/messages/library.json", compiled.Content.Text.Messages,
                 PublicationMessageCatalog.Groups, token, publication);
             sharedMap ??= await MapDefinitionFiles.WriteAsync(output, "shared/maps/china/map.json", compiled.Content.Map.Definition, token, publication);
             await ClientContentImporter.StageAsync(PackageFiles.Resolve(output, path), compiled, publication, false, progress, token,
-                new(output, sharedMessages, sharedMap, sharedScenario!));
+                new(output, sharedMessages, sharedMap, sharedScenario!, sharedCommands));
             source.ReleaseScenario($"D_Sce{header.ScenarioId + 1:D3}.S9");
             progress?.Invoke($"Prepared {preview.Id}: {preview.Year}/{preview.Month} ({preview.CategoryId}).");
         }

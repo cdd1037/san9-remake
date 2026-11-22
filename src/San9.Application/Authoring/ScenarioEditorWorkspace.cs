@@ -107,6 +107,8 @@ public sealed partial class ScenarioEditorWorkspace
         shared.Validate();
         document.Compile(definitions, officers.Officers, geography);
         var text = await Read<StaticTextContent>(PackageFiles.Resolve(root, manifest.Text));
+        if (text.SharedCommands is { } commands)
+            text = text.WithCommands(await Read<Dictionary<string, string>>(PackageFiles.Resolve(root, commands)));
         var catalogText = new TextCatalog(text.SchemaVersion, text.Entries) { MessagePeople = text.MessagePeople, MessageTags = text.MessageTags };
         return new(scenarioPath, manifestPath, manifest, document, shared, catalogText, inputs) { _contentRoot = contentRoot, _map = authoredMap, _sites = sites };
     }

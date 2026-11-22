@@ -6,6 +6,8 @@ namespace San9.Importer.San9PkTc101.Packages;
 /// <summary>Rebuilds command-interface roles without compiling worlds, gameplay messages or display resources.</summary>
 public static class CommandTextImporter
 {
+    internal const string LibraryPath = "shared/messages/commands.json";
+
     public static async Task RebuildAsync(string gameDirectory, string output, Action<string>? progress = null,
         CancellationToken token = default, bool originalTextEdits = true)
     {
@@ -15,7 +17,7 @@ public static class CommandTextImporter
         using var reader = new ScenarioTextReader(source.Read("M_MsgPK.s9"), source.Executable, source.OriginalTextEdits);
         reader.ReadCommandText();
         int changed = await ScenarioContentFiles.WriteCommandTextAsync(catalog.Scenarios
-            .Select(entry => PackageFiles.Resolve(output, entry.Package)).ToArray(), reader.Catalog.Entries, token);
+            .Select(entry => PackageFiles.Resolve(output, entry.Package)).ToArray(), reader.Catalog.Entries, token, output, LibraryPath);
         progress?.Invoke($"Updated command text: {changed} files; worlds, gameplay messages and resources preserved.");
     }
 }

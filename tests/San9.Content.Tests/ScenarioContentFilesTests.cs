@@ -48,6 +48,35 @@ public sealed class ScenarioContentFilesTests : IDisposable
         Assert.Empty(Directory.EnumerateFiles(_root, "*.pending", SearchOption.AllDirectories));
     }
 
+    [Fact]
+    public async Task CatalogMigrationAndFreshPackagesShareCommandsAndKeepLocalOverrides()
+    {
+        const string library = "shared/messages/commands.json";
+        var entries = CommandTextFixture.Entries();
+        var shared = new SharedCommandText(library, entries);
+        string key = CommandText.Key("label.dispatched");
+        var content = Fixture();
+        foreach (var pair in entries) content.Text.Entries.Add(pair.Key, pair.Value);
+
+        string first = Path.Combine(_root, "first"), second = Path.Combine(_root, "second");
+        await ScenarioContentFiles.WriteAsync(first, content, resourceRoot: _root);
+        Assert.Equal(2, await ScenarioContentFiles.WriteCommandTextAsync([first], entries, resourceRoot: _root, sharedPath: library));
+        var local = await PackageFiles.ReadAsync<StaticTextContent>(Path.Combine(first, "messages", "text.json"));
+        Assert.Equal(library, local.SharedCommands);
+        Assert.DoesNotContain(local.Entries.Keys, SharedCommandText.IsCommandKey);
+        content.Text.Entries[key] = "本剧本派遣";
+        await ScenarioContentFiles.WriteAsync(second, content, resourceRoot: _root, sharedCommands: shared);
+        string[] packages = [first, second];
+        var localPaths = packages.Select(p => Path.Combine(p, "messages", "text.json")).ToArray();
+        var before = await Task.WhenAll(localPaths.Select(p => File.ReadAllBytesAsync(p)));
+        entries[key] = "新派遣";
+        Assert.Equal(1, await ScenarioContentFiles.WriteCommandTextAsync(packages, entries, resourceRoot: _root, sharedPath: library));
+        Assert.Equal(0, await ScenarioContentFiles.WriteCommandTextAsync(packages, entries, resourceRoot: _root, sharedPath: library));
+        Assert.Equal("新派遣", (await ScenarioContentFiles.LoadSelectionAsync(first)).Text.Resolve(key));
+        Assert.Equal("本剧本派遣", (await ScenarioContentFiles.LoadAsync(second)).Text.Resolve(key));
+        for (int i = 0; i < localPaths.Length; i++) Assert.Equal(before[i], await File.ReadAllBytesAsync(localPaths[i]));
+    }
+
     private string PublishedPath(string name)
     {
         var manifest = JsonSerializer.Deserialize<ScenarioContentManifest>(File.ReadAllText(Path.Combine(_root, "content.json")), PackageFiles.JsonOptions)!;

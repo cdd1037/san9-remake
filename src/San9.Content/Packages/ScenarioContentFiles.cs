@@ -22,6 +22,22 @@ public sealed record ScenarioContentManifest(int SchemaVersion,
 
 public sealed record StaticTextContent(int SchemaVersion, Dictionary<string, string> Entries)
 {
+    public string? SharedCommands { get; init; }
+
+    public StaticTextContent WithCommands(IReadOnlyDictionary<string, string> commands)
+    {
+        SharedCommandText.Validate(commands);
+        var entries = new Dictionary<string, string>(commands);
+        foreach (var (key, value) in Entries)
+        {
+            if (SharedCommandText.IsCommandKey(key) && !commands.ContainsKey(key))
+                throw new InvalidDataException($"Unknown scenario command override: {key}.");
+            entries[key] = value;
+        }
+        CommandText.Validate(new(SchemaVersion, entries));
+        return this with { Entries = entries };
+    }
+
     [System.Text.Json.Serialization.JsonRequired]
     public Dictionary<int, MessagePersonProfile> MessagePeople { get; init; } = [];
     [System.Text.Json.Serialization.JsonRequired] public string[] MessageTags { get; init; } = [];
@@ -71,28 +87,43 @@ public static class ScenarioContentFiles
 
     /// <summary>Replaces only command-interface text in matching-format packages; all other data stays published as-is.</summary>
     public static async Task<int> WriteCommandTextAsync(IReadOnlyList<string> roots,
-        IReadOnlyDictionary<string, string> entries, CancellationToken token = default)
+        IReadOnlyDictionary<string, string> entries, CancellationToken token = default,
+        string? resourceRoot = null, string? sharedPath = null)
     {
-        if (!entries.Keys.ToHashSet(StringComparer.Ordinal).SetEquals(CommandText.Parameters.Keys.Select(CommandText.Key)))
-            throw new InvalidDataException("Command text replacement must contain exactly the current command roles.");
-        CommandText.Validate(new(TextCatalog.CurrentSchemaVersion, new(entries)));
+        if ((resourceRoot is null) != (sharedPath is null)) throw new ArgumentException("Specify both shared path and resource root.");
         using var publication = new ContentPublication();
-        var written = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        var pathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var written = new HashSet<string>(pathComparer);
+        if (resourceRoot is not null) resourceRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(resourceRoot));
         int changed = 0;
+        if (sharedPath is null) SharedCommandText.Validate(entries);
+        else if (await new SharedCommandText(sharedPath, entries).StageAsync(resourceRoot!, publication, token)) changed++;
         foreach (string root in roots)
         {
             token.ThrowIfCancellationRequested();
-            var manifest = await ReadManifestAsync(root, token);
-            string path = PackageFiles.Resolve(ResolveResourceRoot(root, manifest.ResourceRoot), manifest.Text);
+            var manifest = await ReadManifestAsync(root, token, usePlayerManifest: false);
+            string resources = ResolveResourceRoot(root, manifest.ResourceRoot);
+            if (resourceRoot is not null && !pathComparer.Equals(resourceRoot, Path.TrimEndingDirectorySeparator(resources)))
+                throw new InvalidDataException("Scenario uses a different command text resource root.");
+            string path = PackageFiles.Resolve(resources, manifest.Text);
             if (!written.Add(path)) continue;
             var text = await PackageFiles.ReadAsync<StaticTextContent>(path, token);
             if (text.SchemaVersion != TextCatalog.CurrentSchemaVersion)
                 throw new InvalidDataException("Unsupported text version; reconvert the package.");
-            var previous = text.Entries.Where(p => p.Key.StartsWith("ui.commands.", StringComparison.Ordinal)).ToArray();
-            if (previous.Length == entries.Count && previous.All(p => entries.TryGetValue(p.Key, out var value) && p.Value == value)) continue;
-            var replacement = text.Entries.Where(p => !p.Key.StartsWith("ui.commands.", StringComparison.Ordinal))
-                .Concat(entries).ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
-            await publication.StageAsync(path, text with { Entries = replacement }, DataJsonOptions, token);
+            if (text.SharedCommands is not null)
+            {
+                if (text.SharedCommands != sharedPath) throw new InvalidDataException("Unexpected shared command text reference.");
+                _ = text.WithCommands(entries);
+                continue;
+            }
+            var replacement = text.Entries.Where(p => !SharedCommandText.IsCommandKey(p.Key)).ToDictionary();
+            if (sharedPath is null)
+            {
+                if (text.Entries.Count - replacement.Count == entries.Count &&
+                    entries.All(p => text.Entries.TryGetValue(p.Key, out var value) && value == p.Value)) continue;
+                foreach (var (key, value) in entries) replacement.Add(key, value);
+            }
+            await publication.StageAsync(path, text with { Entries = replacement, SharedCommands = sharedPath }, DataJsonOptions, token);
             changed++;
         }
         publication.Commit(token);
@@ -198,9 +229,16 @@ public static class ScenarioContentFiles
         var (scenario, profiles) = await ScenarioDataFiles.LoadSelectionWithProfilesAsync(resourceRoot, manifest, token, createdOfficersPath);
         if (scenario.SchemaVersion != ScenarioInitialState.CurrentSchemaVersion)
             throw new InvalidDataException("Unsupported scenario state version; reconvert the package.");
-        var text = await ReadDataAsync<StaticTextContent>(resourceRoot, manifest.Text, token);
+        var text = await ReadTextAsync(resourceRoot, manifest.Text, token);
         var illustrations = await ReadDataAsync<Dictionary<string, string>>(resourceRoot, manifest.Illustrations, token);
         return new(scenario, OfficerComposition.ProjectText(ScenarioText(text, manifest.Preview), profiles), OfficerComposition.ProjectPortraits(illustrations, profiles));
+    }
+
+    private static async Task<StaticTextContent> ReadTextAsync(string resourceRoot, string path, CancellationToken token)
+    {
+        var text = await ReadDataAsync<StaticTextContent>(resourceRoot, path, token);
+        return text.SharedCommands is { } library
+            ? text.WithCommands(await ReadDataAsync<Dictionary<string, string>>(resourceRoot, library, token)) : text;
     }
 
     private static TextCatalog ScenarioText(StaticTextContent text, ScenarioPreviewEntry? preview)
@@ -221,7 +259,7 @@ public static class ScenarioContentFiles
         var scenarioTask = Task.Run(() => ScenarioDataFiles.LoadScenarioWithProfilesAsync(resourceRoot, manifest, token, includeMap: true, createdOfficersPath: createdOfficersPath), token);
         var displayTask = Task.Run(async () =>
         {
-            var text = await Read<StaticTextContent>(manifest.Text);
+            var text = await ReadTextAsync(resourceRoot, manifest.Text, token);
             var illustrations = await Read<Dictionary<string, string>>(manifest.Illustrations);
             var presentation = await LoadPresentationAsync(root, manifest, token);
             return (Text: text, Illustrations: illustrations, Presentation: presentation);
@@ -254,7 +292,7 @@ public static class ScenarioContentFiles
         IReadOnlyDictionary<string, string>? messageGroups = null, string? resourceRoot = null,
         SharedMessageLibrary? sharedMessages = null, IReadOnlyCollection<string>? messageOverrides = null,
         SharedMapDefinition? sharedMap = null, SharedScenarioData? sharedScenario = null, ContentPublication? publication = null, string? locations = null,
-        long minimumNextOfficerId = 0, long minimumNextTreasureId = 0)
+        long minimumNextOfficerId = 0, long minimumNextTreasureId = 0, SharedCommandText? sharedCommands = null)
     {
         using var own = publication is null ? new ContentPublication() : null;
         var batch = publication ?? own!;
@@ -357,9 +395,16 @@ public static class ScenarioContentFiles
             [.. scenarioData.Officers.Officers, .. scenarioDocument.AdditionalOfficerDefaults]);
         var ownedKeys = ownedPeople.SelectMany(p => new[] { p.NameKey, p.CourtesyNameKey, p.BiographyKey,
             $"officer-surname.{p.Id}", $"officer-given-name.{p.Id}" }.OfType<string>()).ToHashSet(StringComparer.Ordinal);
-        await Stage(manifest.Text, new StaticTextContent(content.Text.SchemaVersion,
-            content.Text.Entries.Where(p => !ownedKeys.Contains(p.Key)).ToDictionary(p => p.Key, p => p.Value))
-            { MessagePeople = content.Text.MessagePeople, MessageTags = content.Text.MessageTags }, DataJsonOptions);
+        var localEntries = content.Text.Entries.Where(p => !ownedKeys.Contains(p.Key)).ToDictionary();
+        if (sharedCommands is not null)
+        {
+            var commands = localEntries.Where(p => SharedCommandText.IsCommandKey(p.Key)).ToDictionary();
+            SharedCommandText.Validate(commands);
+            foreach (var (key, value) in sharedCommands.Entries)
+                if (commands.TryGetValue(key, out var local) && local == value) localEntries.Remove(key);
+        }
+        await Stage(manifest.Text, new StaticTextContent(content.Text.SchemaVersion, localEntries)
+            { SharedCommands = sharedCommands?.Path, MessagePeople = content.Text.MessagePeople, MessageTags = content.Text.MessageTags }, DataJsonOptions);
         foreach (var (path, messages) in messageFiles) await Stage(path, messages, MessageJsonOptions);
         await Stage(manifest.Illustrations, content.IllustrationRoles, DataJsonOptions);
         await Stage(manifest.Presentation, content.Presentation, DataJsonOptions);

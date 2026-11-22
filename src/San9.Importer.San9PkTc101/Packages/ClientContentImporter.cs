@@ -20,7 +20,7 @@ public static class ClientContentImporter
         return compiled.Package with { ContentRoot = output };
     }
 
-    internal sealed record SharedContent(string Root, SharedMessageLibrary Messages, SharedMapDefinition Map, SharedScenarioData Scenario);
+    internal sealed record SharedContent(string Root, SharedMessageLibrary Messages, SharedMapDefinition Map, SharedScenarioData Scenario, SharedCommandText Commands);
 
     internal static async Task StageAsync(string output, CompiledScenario compiled, ContentPublication publication,
         bool messageReports, Action<string>? progress, CancellationToken token, SharedContent? shared = null)
@@ -30,7 +30,7 @@ public static class ClientContentImporter
         var scenario = content.Scenario;
         await ScenarioContentFiles.WriteAsync(output, content, token, PublicationMessageCatalog.Groups,
             resourceRoot: shared?.Root ?? output, sharedMessages: shared?.Messages, sharedMap: shared?.Map,
-            sharedScenario: shared?.Scenario, publication: publication, locations: shared is null ? null : SharedPlaceImporter.Reference.Locations,
+            sharedCommands: shared?.Commands, sharedScenario: shared?.Scenario, publication: publication, locations: shared is null ? null : SharedPlaceImporter.Reference.Locations,
             minimumNextOfficerId: San9ScenarioPersonArchive.RecordCount, minimumNextTreasureId: San9ScenarioItemArchive.RecordCount);
         publication.Retire(Path.Combine(output, "message-id-map.json"));
         if (messageReports)

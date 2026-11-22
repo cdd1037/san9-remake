@@ -167,7 +167,7 @@ public sealed partial class ScenarioEditorWorkspace
         foreach (int id in selected)
         {
             var force = Document.Forces.FirstOrDefault(f => f.LeaderId == id || f.AdviserId == id);
-            if (force is not null) throw new InvalidDataException($"{OfficerName(id)}是{Name(force.NameKey)}的君主或军师。");
+            if (force is not null) throw new InvalidDataException($"{OfficerName(id)}是{Name(force)}的君主或军师。");
             var corps = Document.Information.Corps.FirstOrDefault(c => c.LeaderId == id);
             if (corps is not null) throw new InvalidDataException($"{OfficerName(id)}是军团 {corps.Id} 的军团长。");
             var treasure = Document.Information.TreasureStates.FirstOrDefault(t => t.HolderId == id);

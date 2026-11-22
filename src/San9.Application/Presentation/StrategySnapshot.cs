@@ -112,7 +112,7 @@ internal sealed class StrategySnapshotSource
         }
         var initial = _forces[force.Id];
         int rulerGlyph = force.LeaderId is int current ? _officers[current].FlagGlyph : initial.FlagGlyph;
-        return (rulerName ?? initial.NameKey, force.ColorCode, titleGlyph ?? rulerGlyph);
+        return (initial.DisplayNameKey(rulerName), force.ColorCode, titleGlyph ?? rulerGlyph);
     }
     public SettlementInitialState? Settlement(int id) => _settlements.GetValueOrDefault(id);
     public IReadOnlyList<string> SettlementIcons(int id) => _settlementIcons.GetValueOrDefault(id) ?? [];
@@ -260,7 +260,8 @@ public sealed class StrategySnapshot
             var attack = militaryPlace is null ? null : source.Military!.FacilityAttack(s);
             var cell = s.Facility is { } facility ? MapCoordinates.Cell(facility.Position) :
                 new MapCell(definition!.X, definition.Y);
-            string nameKey = s.Facility is null ? definition!.NameKey : source.RegionNameKeys[s.Id];
+            var (nameKey, suffixKey) = SettlementInitialState.DisplayNameKeys(s.Facility is null ? definition : null, s.Id,
+                s.Facility?.TypeId ?? militaryPlace?.FacilityTypeId, source.RegionNameKeys, source.FacilityNameSuffixKeys);
             int? markerColor = s.Kind == San9.Core.Domain.SettlementKind.City
                 ? s.OwnerId is int owner ? Forces.Single(f => f.Id == owner).ColorCode : 50
                 : null;
@@ -278,7 +279,7 @@ public sealed class StrategySnapshot
                 IsDestroyed = s.IsDestroyed,
                 CorpsId = s.CorpsId,
                 IsFacilityListEntry = !s.IsDestroyed && s.CanHostPersons,
-                NameSuffixKey = s.Facility is {} built ? source.FacilityNameSuffixKeys.GetValueOrDefault(built.TypeId) : null,
+                NameSuffixKey = suffixKey,
                 FacilityTypeId = militaryPlace?.FacilityTypeId,
                 IsWork = facilityRule?.IsWork == true,
                 HasMapContextMenu = facilityRule is null || !source.Information.MapContextExcludedFacilityIds.Contains(facilityRule.Id),

@@ -34,6 +34,15 @@ public sealed class ConstructionSessionTests
         var texts = new San9.Content.Text.TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new()
         { ["city"] = "都市", ["region"] = "白水", ["fort"] = "城塞", ["work"] = "土垒" });
         Assert.Throws<InvalidDataException>(() => (definition with { FacilityNameSuffixKeys = new() { [99999] = "fort" } }).Validate());
+        var preset = definition.Settlements[0] with { Id = 8000, X = 3, NameKey = "custom-fort",
+            Kind = SettlementKind.Facility, UseRegionalFacilityName = true };
+        var initial = definition with { Settlements = [.. definition.Settlements, preset], UnbuiltPlaces = [],
+            Military = definition.Military with { Places = [.. definition.Military.Places,
+                new(8000, preset.Position, new(3, 3)) { FacilityTypeId = 9000 }] } };
+        texts.Entries["custom-fort"] = "白马寨";
+        Assert.Equal("白水城塞", GameSession.Start(initial, 42).View.Settlements.Single(s => s.Id == 8000).ResolveName(texts));
+        var named = initial with { Settlements = [definition.Settlements[0], preset with { UseRegionalFacilityName = false }] };
+        Assert.Equal("白马寨", GameSession.Start(named, 42).View.Settlements.Single(s => s.Id == 8000).ResolveName(texts));
         var session = GameSession.Start(definition, 42);
         definition.FacilityNameSuffixKeys[9000] = "changed-by-author";
         Assert.True(session.Execute(new("player"), new ConstructFacilityCommand(Guid.NewGuid(), 1, 0, 1, [11], 10000,

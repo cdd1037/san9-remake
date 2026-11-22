@@ -94,7 +94,7 @@ public partial class ScenarioEditor
     {
         var workspace = _workspace!;
         var ruler = Pick(body, "君主", workspace.Founders.Select(p => (p.Id, p.Name)));
-        var city = Pick(body, "空白都市", workspace.DeploymentCities.Where(s => s.OwnerId is null).Select(s => (s.Id, workspace.Name(s.NameKey))));
+        var city = Pick(body, "空白都市", workspace.DeploymentCities.Where(s => s.OwnerId is null).Select(s => (s.Id, workspace.Name(s))));
         return () => workspace.FoundForce(ruler(), city());
     });
 
@@ -103,10 +103,10 @@ public partial class ScenarioEditor
         var workspace = _workspace!;
         int? target = place.OwnerId, retreat = null;
         Reference(body, "接收势力（无为无主）", target, workspace.Document.Forces.Where(f => !f.IsDormant)
-            .Select(f => (f.Id, workspace.Name(f.NameKey))), id => target = id);
+            .Select(f => (f.Id, workspace.Name(f))), id => target = id);
         Reference(body, "驻将撤往（无为就地改属，无主时转在野）", null, workspace.Document.Settlements
             .Where(s => s.OwnerId == place.OwnerId && s.Id != place.Id && !s.IsDormant && s.CanHostPersons)
-            .Select(s => (s.Id, workspace.Name(s.NameKey))), id => retreat = id);
+            .Select(s => (s.Id, workspace.Name(s))), id => retreat = id);
         return () => workspace.TransferSettlement(place.Id, target, retreat);
     }, place.Id);
 
@@ -115,7 +115,7 @@ public partial class ScenarioEditor
         var workspace = _workspace!;
         if (withdraw)
         {
-            var places = workspace.Document.Settlements.ToDictionary(s => s.Id, s => workspace.Name(s.NameKey));
+            var places = workspace.Document.Settlements.ToDictionary(s => s.Id, s => workspace.Name(s));
             var forces = ForceChoices().ToDictionary(f => f.Id, f => f.Name);
             string Describe(ScenarioOfficerState p)
             {
@@ -134,11 +134,11 @@ public partial class ScenarioEditor
         if (cityId is int fixedCity)
         {
             var place = workspace.Document.Settlements.Single(s => s.Id == fixedCity);
-            ContentEditorControls.Caption(body, "都市：" + workspace.Name(place.NameKey));
+            ContentEditorControls.Caption(body, "都市：" + workspace.Name(place));
             serve.Disabled = place.OwnerId is null;
             city = () => fixedCity;
         }
-        else city = Pick(body, "都市", workspace.DeploymentCities.Select(s => (s.Id, workspace.Name(s.NameKey))));
+        else city = Pick(body, "都市", workspace.DeploymentCities.Select(s => (s.Id, workspace.Name(s))));
         body.AddChild(serve);
         return () => workspace.DeployOfficers(selected, city(), serve.ButtonPressed);
     });

@@ -4,6 +4,10 @@ namespace San9.Content.Scenarios;
 
 public sealed record ForceInitialState(int Id, string NameKey, int ColorCode, int Trust)
 {
+    public bool UseFixedName { get; init; }
+    [JsonIgnore] public bool FollowsRulerName => !UseFixedName && !IsBarbarian;
+    public string DisplayNameKey(string? rulerNameKey) => FollowsRulerName ? rulerNameKey ?? NameKey : NameKey;
+
     [JsonRequired] public long? AutomaticSchedulingKey { get; init; }
     [JsonRequired] public System.Collections.Immutable.ImmutableArray<San9.Core.Domain.FormationGrant> FormationGrants { get; init; } = [];
     [JsonRequired] public bool IsDormant { get; init; }
@@ -22,6 +26,14 @@ public sealed record SettlementInitialState(int Id, string NameKey, int? OwnerId
     uint Soldiers, int Durability, int MaxDurability, int Morale, string[] Icons)
 {
     [JsonRequired] public bool IsDormant { get; init; }
+    public bool UseRegionalFacilityName { get; init; }
+    public static (string Base, string? Suffix) DisplayNameKeys(SettlementInitialState? definition, int id,
+        int? facilityType, IReadOnlyDictionary<int, string> regions, IReadOnlyDictionary<int, string> suffixes)
+    {
+        if (definition is { UseRegionalFacilityName: false }) return (definition.NameKey, null);
+        return (regions[id], facilityType is int type ? suffixes.GetValueOrDefault(type) : null);
+    }
+
     [JsonRequired] public uint Wounded { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public San9.Core.Domain.MapCell Cell => new(X, Y);
     [System.Text.Json.Serialization.JsonIgnore] public San9.Core.Domain.WorldPosition Position => San9.Core.Domain.MapCoordinates.Center(Cell);
@@ -314,6 +326,8 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
             throw new InvalidDataException("Invalid region city reference.");
         if (FacilityNameSuffixKeys is null || FacilityNameSuffixKeys.Any(p => string.IsNullOrWhiteSpace(p.Value) || Military is null || !Military.Facilities.Any(f => f.Id == p.Key)))
             throw new InvalidDataException("Invalid facility name suffix references.");
+        if (Settlements.Any(s => s.UseRegionalFacilityName && (s.Kind != San9.Core.Domain.SettlementKind.Facility || !RegionNameKeys.ContainsKey(s.Id))))
+            throw new InvalidDataException("Regional facility names require a facility with a named region.");
         if (RegionNameKeys.Any(p => p.Key < 0 || string.IsNullOrWhiteSpace(p.Value))) throw new InvalidDataException("Invalid region names.");
     }
 }

@@ -97,7 +97,7 @@ public partial class ScenarioEditor
         var actions = ContentEditorControls.ButtonGroup(body, "开局联盟");
         ContentEditorControls.ActionButton(actions, "配置联盟", () => EditOperation("配置开局联盟", form =>
         {
-            var candidates = document.Forces.Where(f => !f.IsDormant && !f.IsBarbarian).Select(f => (f.Id, workspace.Name(f.NameKey))).ToArray();
+            var candidates = document.Forces.Where(f => !f.IsDormant && !f.IsBarbarian).Select(f => (f.Id, workspace.Name(f))).ToArray();
             var target = Pick(form, "讨伐目标", candidates, alliance?.TargetForceId);
             var leader = Pick(form, "盟主", candidates, alliance?.LeaderForceId);
             var members = PickMany(form, "参加势力（盟主自动加入）", candidates, alliance?.MemberForceIds);
@@ -118,13 +118,13 @@ public partial class ScenarioEditor
         }, id)).Disabled = alliance is null;
         var request = document.AttackRequests.SingleOrDefault(r => r.RequestedForceId == id);
         ContentEditorControls.Caption(body, request is null ? "本势力未受托攻打据点" :
-            $"{ForceName(request.RequesterForceId)}委托本势力攻打{workspace.Name(document.Settlements.Single(s => s.Id == request.TargetSettlementId).NameKey)}，剩余 {request.RemainingXun} 旬");
+            $"{ForceName(request.RequesterForceId)}委托本势力攻打{workspace.Name(document.Settlements.Single(s => s.Id == request.TargetSettlementId))}，剩余 {request.RemainingXun} 旬");
         var requests = ContentEditorControls.ButtonGroup(body, "攻打委托");
         ContentEditorControls.ActionButton(requests, "配置委托", () => EditOperation("配置攻打委托", form =>
         {
             var requester = Pick(form, "委托势力", ForceChoices().Where(f => f.Id != id), request?.RequesterForceId);
             var target = Pick(form, "目标据点", document.Settlements.Where(s => s.OwnerId is not null && s.OwnerId != id)
-                .Select(s => (s.Id, workspace.Name(s.NameKey))), request?.TargetSettlementId);
+                .Select(s => (s.Id, workspace.Name(s))), request?.TargetSettlementId);
             int duration = request?.RemainingXun ?? 3;
             Number(form, "剩余旬数", duration, 1, int.MaxValue, v => duration = (int)v);
             return () => workspace.SetAttackRequest(id, new(id, requester(), target(), duration));

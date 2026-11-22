@@ -15,9 +15,9 @@ public sealed partial class ScenarioEditorWorkspace
         foreach (var place in document.Settlements)
         {
             if (place.CorpsId is int corps && !document.Information.Corps.Any(c => c.Id == corps && c.OwnerId == place.OwnerId))
-                return new("据点", place.Id, $"{Name(place.NameKey)} [{place.Id}]：所属军团 {corps} 与据点归属不符。");
+                return new("据点", place.Id, $"{Name(place)} [{place.Id}]：所属军团 {corps} 与据点归属不符。");
             if (place.Soldiers == 0 && place.Morale != 0)
-                return new("据点", place.Id, $"{Name(place.NameKey)} [{place.Id}]：兵力为零时士气须为零。");
+                return new("据点", place.Id, $"{Name(place)} [{place.Id}]：兵力为零时士气须为零。");
         }
         foreach (var officer in document.Officers)
         {
@@ -30,9 +30,9 @@ public sealed partial class ScenarioEditorWorkspace
         foreach (var force in document.Forces)
         {
             if (force.LeaderId is int leader && !document.Officers.Any(o => o.Id == leader && o.OwnerId == force.Id))
-                return new("势力", force.Id, $"{Name(force.NameKey)} [{force.Id}]：君主 {leader} 未归属本势力。");
+                return new("势力", force.Id, $"{Name(force)} [{force.Id}]：君主 {leader} 未归属本势力。");
             if (force.AdviserId is int adviser && !document.Officers.Any(o => o.Id == adviser && o.OwnerId == force.Id && o.Status == OfficerStatus.Strategist))
-                return new("势力", force.Id, $"{Name(force.NameKey)} [{force.Id}]：军师 {adviser} 的身份或归属不符。");
+                return new("势力", force.Id, $"{Name(force)} [{force.Id}]：军师 {adviser} 的身份或归属不符。");
         }
         foreach (var request in document.AttackRequests)
         {

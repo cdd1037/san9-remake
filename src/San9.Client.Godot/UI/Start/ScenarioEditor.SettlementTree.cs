@@ -27,7 +27,7 @@ public partial class ScenarioEditor
             var row = tree.CreateItem(parent);
             rows.Add(place.Id, row);
             row.SetMetadata(0, place.Id);
-            string name = workspace.Name(place.NameKey);
+            string name = workspace.Name(place);
             row.SetText(0, name);
             row.SetTooltipText(0, $"{name} [{place.Id}]" + (place.IsDormant ? "（休眠）" : ""));
             row.SetText(1, place.Kind == SettlementKind.City ? "都市" :

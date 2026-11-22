@@ -21,7 +21,9 @@ public sealed class ScenarioForceSelectionTests
         var selection = ScenarioForceSelection.Read(scenario, text, illustrations);
         var first = selection.Forces.Single(f => f.Id == 1);
         Assert.Equal("真实标题", selection.Title);
-        Assert.Equal("甲", first.Name);
+        Assert.Equal("甲君", first.Name);
+        var fixedName = scenario with { Forces = scenario.Forces.Select(f => f with { UseFixedName = true }).ToArray() };
+        Assert.Equal("甲", ScenarioForceSelection.Read(fixedName, text, illustrations).Forces.Single(f => f.Id == 1).Name);
         Assert.Equal("first", first.Portrait);
         Assert.Equal(100, first.Soldiers);
         Assert.Equal(1000, first.Outlook.Money.Balance);

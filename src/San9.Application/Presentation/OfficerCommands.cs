@@ -17,7 +17,7 @@ internal sealed class OfficerCommands(StrategySnapshot view, TextCatalog texts)
     private readonly Dictionary<int, PersistentTask> tasks = view.World.Simulation.Tasks
         .Where(t => t.Journey is not null).ToDictionary(t => t.OfficerId);
     private string Person(int? id) => id is int key && people.TryGetValue(key, out var p) ? texts.Resolve(p.NameKey) : "";
-    private string Force(int id) => forces.TryGetValue(id, out var f) ? Person(f.LeaderId) : "";
+    private string Force(int id) => forces.TryGetValue(id, out var f) ? texts.Resolve(f.NameKey) : "";
     private string Region(int id) => view.RegionNameKeys.TryGetValue(id, out string? key) ? texts.Resolve(key)
         : places.TryGetValue(id, out var p) ? texts.Resolve(p.NameKey) : "";
     private string Place(int id) => places.TryGetValue(id, out var p) ? p.ResolveName(texts) : Region(id);

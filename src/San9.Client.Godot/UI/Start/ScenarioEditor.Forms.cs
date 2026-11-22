@@ -140,7 +140,7 @@ public partial class ScenarioEditor
         tabs.CurrentTab = _forceTab;
         tabs.TabChanged += tab => _forceTab = (int)tab;
         var body = ContentEditorControls.PageBody(settings);
-        var grid = Grid(body, workspace.Name(force.NameKey));
+        var grid = Grid(body, workspace.Name(force));
         void FitFields() => grid.Columns = grid.Size.X >= 580 ? 4 : 2;
         grid.Resized += FitFields;
         Number(grid, "信望", force.Trust, 0, 1000, value => Change(f => f with { Trust = (int)value }));
@@ -165,7 +165,7 @@ public partial class ScenarioEditor
         }
         ContentEditorControls.ActionButton(body, "删除势力", () => EditOperation("删除势力", form =>
         {
-            ContentEditorControls.Caption(form, $"从当前剧本删除「{workspace.Name(force.NameKey)}」？\n所属据点转为无主，在职武将就地转为在野。\n军团及其物资一并移除，相关外交配置随之调整。");
+            ContentEditorControls.Caption(form, $"从当前剧本删除「{workspace.Name(force)}」？\n所属据点转为无主，在职武将就地转为在野。\n军团及其物资一并移除，相关外交配置随之调整。");
             return () => workspace.DeleteForce(id);
         }));
     }
@@ -181,7 +181,7 @@ public partial class ScenarioEditor
             .OrderBy(o => o.Status).ThenBy(o => o.Id).ToArray();
         var placed = people.Where(o => o.Status <= OfficerStatus.Serving && o.UnitId is null && o.SettlementId.HasValue)
             .ToLookup(o => o.SettlementId!.Value);
-        var section = ContentEditorControls.Section(body, $"{workspace.Name(force.NameKey)} · {places.Length} 处据点 · {people.Length} 名武将");
+        var section = ContentEditorControls.Section(body, $"{workspace.Name(force)} · {places.Length} 处据点 · {people.Length} 名武将");
         var tree = new Tree { Name = "ForceRoster", HideRoot = true, Columns = 3, ColumnTitlesVisible = true,
             SelectMode = Tree.SelectModeEnum.Row, SizeFlagsVertical = SizeFlags.ExpandFill };
         section.AddChild(tree);
@@ -210,7 +210,7 @@ public partial class ScenarioEditor
             foreach (var place in members)
             {
                 var item = tree.CreateItem(group);
-                item.SetText(0, workspace.Name(place.NameKey) + (place.IsDormant ? "（休眠）" : ""));
+                item.SetText(0, workspace.Name(place) + (place.IsDormant ? "（休眠）" : ""));
                 item.SetTextAlignment(1, HorizontalAlignment.Center);
                 item.SetTextAlignment(2, HorizontalAlignment.Center);
                 item.SetText(1, place.Soldiers.ToString("N0"));
@@ -249,7 +249,7 @@ public partial class ScenarioEditor
         var workspace = _workspace!; var settlement = workspace.Document.Settlements.Single(s => s.Id == id);
         void Change(Func<SettlementInitialState, SettlementInitialState> update) => workspace.Update(workspace.Document with
         { Settlements = workspace.Document.Settlements.Select(s => s.Id == id ? update(s) : s).ToArray() });
-        var grid = Grid(body, workspace.Name(settlement.NameKey));
+        var grid = Grid(body, workspace.Name(settlement));
         ContentEditorControls.Caption(grid, "所属势力");
         ContentEditorControls.ActionButton(grid, (settlement.OwnerId is int owner ? ForceName(owner) : "无主") + " · 移交",
             () => TransferDialog(settlement)).Disabled = settlement.IsDormant;
@@ -278,7 +278,7 @@ public partial class ScenarioEditor
             ContentEditorControls.ClearChildren(body);
             BuildOfficer(body, id);
         });
-        Reference(grid, "所在据点", officer.SettlementId, workspace.Document.Settlements.Select(s => (s.Id, workspace.Name(s.NameKey))), value => Change(o => o with { SettlementId = value }));
+        Reference(grid, "所在据点", officer.SettlementId, workspace.Document.Settlements.Select(s => (s.Id, workspace.Name(s))), value => Change(o => o with { SettlementId = value }));
         Reference(grid, "所在地域", officer.RegionId, RegionChoices(), value => Change(o => o with { RegionId = value }));
         ContentEditorControls.Choices(grid, "身份", OfficerStatusNames, (int)officer.Status,
             index => Change(o => o with { Status = (OfficerStatus)index }));
@@ -329,10 +329,10 @@ public partial class ScenarioEditor
         ContentEditorControls.ActionButton(actions, "清除剧本安置", () => Place(null), "RemoveTreasurePlacement").Disabled = placement is null;
     }
 
-    private IEnumerable<(int Id, string Name)> ForceChoices() => _workspace!.Document.Forces.Select(f => (f.Id, _workspace.Name(f.NameKey)));
+    private IEnumerable<(int Id, string Name)> ForceChoices() => _workspace!.Document.Forces.Select(f => (f.Id, _workspace.Name(f)));
     private IEnumerable<(int Id, string Name)> OfficerChoices() => _workspace!.Document.Officers.Select(o => (o.Id, _workspace.OfficerName(o.Id)));
     private IEnumerable<(int Id, string Name)> RegionChoices() => _workspace!.Document.UnbuiltPlaces.Select(p => (p.Id, _workspace.RegionName(p.Id)));
-    private string ForceName(int id) => _workspace!.Name(_workspace.Document.Forces.Single(f => f.Id == id).NameKey);
+    private string ForceName(int id) => _workspace!.Name(_workspace.Document.Forces.Single(f => f.Id == id));
 
     private static GridContainer Grid(Node parent, string title)
     {

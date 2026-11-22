@@ -16,7 +16,9 @@ public sealed record ScenarioForceSelection(string Title, int Year, int Month, O
         IReadOnlyDictionary<string, string> illustrations)
     {
         string Text(string key) => text.Resolve(key);
-        string Officer(int? id) => scenario.Officers.FirstOrDefault(o => o.State.Id == id) is { } o ? Text(o.NameKey) : "";
+        var officerNames = scenario.Officers.ToDictionary(o => o.State.Id, o => o.NameKey);
+        string? OfficerKey(int? id) => id is int person ? officerNames.GetValueOrDefault(person) : null;
+        string Officer(int? id) => OfficerKey(id) is { } key ? Text(key) : "";
         var cities = scenario.Settlements.Where(s => s.Kind == SettlementKind.City).ToArray();
         var clock = new GameClock(scenario.Year, scenario.Month, scenario.Day);
         // Reserved groups are selectable too. Project every authored group as available
@@ -35,7 +37,7 @@ public sealed record ScenarioForceSelection(string Title, int Year, int Month, O
         var forces = scenario.Forces.Select(f =>
         {
             var owned = cities.Where(c => c.OwnerId == f.Id).ToArray();
-            return new OpeningForce(f.Id, Text(f.NameKey), Officer(f.AdviserId),
+            return new OpeningForce(f.Id, Text(f.DisplayNameKey(OfficerKey(f.LeaderId))), Officer(f.AdviserId),
                 scenario.Information.Ranks.FirstOrDefault(r => r.Id == f.RankId && !r.IsUnranked) is { } rank ? rank.Name : "",
                 f.Trust, scenario.Officers.Count(o => o.State.OwnerId == f.Id && o.State.IsServing),
                 owned.Sum(c => (long)c.Population + c.DraftPopulation), owned.Sum(c => (long)c.DraftPopulation),

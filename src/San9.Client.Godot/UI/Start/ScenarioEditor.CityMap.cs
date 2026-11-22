@@ -59,7 +59,7 @@ public partial class ScenarioEditor
         var cityHeader = new HBoxContainer();
         details.AddChild(cityHeader);
         var picker = new OptionButton { Name = "OverviewCity", SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        foreach (var city in cities) picker.AddItem(workspace.Name(city.NameKey), city.Id);
+        foreach (var city in cities) picker.AddItem(workspace.Name(city), city.Id);
         cityHeader.AddChild(picker);
         ContentEditorControls.ActionButton(cityHeader, "查看辖区", () =>
             BuildPages(_pages.GetNode<Control>("据点").GetIndex(), cities[picker.Selected].Id), "ViewCityDistrict");

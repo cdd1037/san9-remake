@@ -133,6 +133,19 @@ public sealed partial class ScenarioEditorWorkspace
         return placement?.Overrides.Apply(defaults).Name ?? defaults.Name;
     }
 
+    public string Name(ForceInitialState force) =>
+        force.FollowsRulerName && force.LeaderId is int leader
+            ? OfficerName(leader) : Name(force.NameKey);
+
+    public string Name(SettlementInitialState place)
+    {
+        if (!place.UseRegionalFacilityName) return Name(place.NameKey);
+        var type = Document.MilitaryPlaces.FirstOrDefault(p => p.Id == place.Id)?.FacilityTypeId;
+        var (name, suffix) = SettlementInitialState.DisplayNameKeys(place, place.Id, type,
+            _shared.Geography.RegionNameKeys, Definitions.FacilityNameSuffixKeys);
+        return Name(name) + (suffix is null ? "" : Name(suffix));
+    }
+
     public string Name(string key) => Text.Entries.TryGetValue(key, out var name) ? name :
         _shared.Officers.Officers.Concat(Document.AdditionalOfficerDefaults).FirstOrDefault(o => o.NameKey == key)?.Name ?? key;
     public string RegionName(int id) => _shared.Geography.RegionNameKeys.TryGetValue(id, out string? key) ? Name(key) : $"地域 {id}";

@@ -164,7 +164,6 @@ public sealed class ScenarioTextReader(byte[] messages, byte[] executable, bool 
     public string City(string key, int code) => Add(key, Text(721 + 2 * code));
     public string Region(string key, int code) => Add(key, Text(166 + 2 * code));
     public string? FacilitySuffix(string key, int type) => AddOptional(key, _converter.Convert(TypeSuffix(type)));
-    public string Settlement(string key, int code, int type) => Add(key, Text(166 + 2 * code) + _converter.Convert(TypeSuffix(type)));
     public string Surname(int family)
     {
         if (family >= 700) throw new InvalidDataException("Unsupported generated surname.");

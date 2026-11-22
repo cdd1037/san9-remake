@@ -19,7 +19,9 @@ internal static class SharedPlaceImporter
         foreach (var settlement in scenario.Settlements)
         {
             var facility = military[settlement.Id];
-            Add(settlement.Id, new(text.Resolve(settlement.NameKey), settlement.Cell, facility.Footprint,
+            var (name, suffix) = SettlementInitialState.DisplayNameKeys(settlement, settlement.Id, facility.FacilityTypeId,
+                scenario.RegionNameKeys, scenario.FacilityNameSuffixKeys);
+            Add(settlement.Id, new(text.Resolve(name) + (suffix is null ? "" : text.Resolve(suffix)), settlement.Cell, facility.Footprint,
                 facility.FacilityTypeId, settlement.Kind == SettlementKind.City));
         }
         foreach (var place in scenario.UnbuiltPlaces)

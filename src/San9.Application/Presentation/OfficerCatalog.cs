@@ -38,6 +38,7 @@ public static class OfficerCatalog
         var officers = view.Officers.ToDictionary(o => o.Id);
         var people = view.World.Officers.ToDictionary(o => o.Id);
         var forces = view.World.Forces.ToDictionary(f => f.Id);
+        var forceNames = view.Forces.ToDictionary(f => f.Id, f => f.NameKey);
         var offices = view.Information.Offices.ToDictionary(o => o.Id);
         var ranks = view.Information.Ranks.ToDictionary(r => r.Id);
         var corps = view.World.Corps.ToDictionary(c => c.Id);
@@ -108,7 +109,7 @@ public static class OfficerCatalog
                         "intelligence" => o.Abilities.Intelligence, "politics" => o.Abilities.Politics,
                         "learned" => tactics!.Count, "health" => new(person.Injury == 0 ? "良" : person.Injury <= 4 ? "轻伤" : "重伤", person.Injury),
                         "treasures" => treasures.Length, "status" => new(InformationQuery.Status(o.Status), (int)o.Status),
-                        "force" => Person(owner?.LeaderId), "corps" => Person(o.CorpsId is int currentCorpsId ? corps.GetValueOrDefault(currentCorpsId)?.LeaderId : null),
+                        "force" => owner is not null && forceNames.TryGetValue(owner.Id, out var key) ? texts.Resolve(key) : "", "corps" => Person(o.CorpsId is int currentCorpsId ? corps.GetValueOrDefault(currentCorpsId)?.LeaderId : null),
                         "commander" => Commander(),
                         "home" => Place(o.ServicePlaceId),
                         "location" => Location(),

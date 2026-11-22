@@ -482,7 +482,7 @@ public sealed partial class MilitarySessionTests
         var before = session.Capture();
         var texts = new San9.Content.Text.TextCatalog(San9.Content.Text.TextCatalog.CurrentSchemaVersion, new Dictionary<string, string>
         {
-            ["officer"] = "甲", ["origin"] = "甲城", ["destination"] = "乙城"
+            ["officer"] = "甲", ["force"] = "甲势力", ["origin"] = "甲城", ["destination"] = "乙城"
         });
         using (var searches = new PathSearchDiagnostics())
         {

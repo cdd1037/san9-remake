@@ -219,7 +219,7 @@ public sealed partial class ScenarioEditorWorkspace
         var profiles = OfficerComposition.Profiles(document.Officers, [.. _shared.Officers.Officers, .. document.AdditionalOfficerDefaults]);
         var text = OfficerComposition.ProjectText(Text, profiles);
         text.Validate();
-        foreach (string key in scenario.Forces.Select(f => f.NameKey).Concat(scenario.Settlements.Select(s => s.NameKey))) _ = text.Resolve(key);
+        foreach (string key in scenario.ForceDisplayNameKeys().Concat(scenario.Settlements.Select(s => s.NameKey))) _ = text.Resolve(key);
         if (scenario.Day is not (1 or 11 or 21)) throw new InvalidDataException("开局日期必须位于旬首（1、11或21日）。");
         // Exercise the same domain construction used by new-game startup.
         _ = new ScenarioSessionDefinition(scenario).CreateWorld(0);

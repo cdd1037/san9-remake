@@ -57,6 +57,12 @@ public sealed record ScenarioInitialState(int SchemaVersion, string ScenarioId, 
     ForceInitialState[] Forces, SettlementInitialState[] Settlements, Dictionary<int, string> RegionNameKeys, Dictionary<int, int> RegionCityIds)
 {
     public const int CurrentSchemaVersion = 167;
+
+    public IEnumerable<string> ForceDisplayNameKeys()
+    {
+        var names = Officers.ToDictionary(o => o.State.Id, o => o.NameKey);
+        return Forces.Select(f => f.DisplayNameKey(f.LeaderId is int id ? names.GetValueOrDefault(id) : null));
+    }
     [JsonRequired] public San9.Core.Domain.OfficerGrowthRules OfficerGrowth { get; init; } = San9.Core.Domain.OfficerGrowthRules.Default;
     [JsonRequired] public OriginalAiDefinition OriginalAi { get; init; } = OriginalAiDefinition.Default;
     [JsonRequired] public int DefaultLoyalty { get; init; } = 50;

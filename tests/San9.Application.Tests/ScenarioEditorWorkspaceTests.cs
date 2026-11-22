@@ -136,6 +136,36 @@ public sealed class ScenarioEditorWorkspaceTests : IDisposable
     }
 
     [Fact]
+    public async Task RulerSuccessionAllowsWithdrawingFounderAndReopeningScenario()
+    {
+        var fixture = G01ScenarioTests.Fixture();
+        await Create(fixture with { Settlements = [.. fixture.Settlements, new(30, "city.blank", null, 3, 1, 0, 100, 100, 0, [])] });
+        var shared = await SharedDataEditorWorkspace.OpenAsync(_root);
+        var founder = await shared.CreateOfficerAsync();
+        var successor = await shared.CreateOfficerAsync();
+        await shared.SaveAsync();
+
+        var editor = await ScenarioEditorWorkspace.OpenAsync(_root, ScenarioId);
+        editor.FoundForce(founder.Id, 30);
+        int forceId = editor.Document.Forces.Single(f => f.LeaderId == founder.Id).Id;
+        Assert.Throws<InvalidDataException>(() => editor.SetForceOffice(forceId, null, true));
+        editor.DeployOfficers([successor.Id], 30, true);
+        editor.SetForceOffice(forceId, successor.Id, true);
+        editor.WithdrawOfficers([founder.Id]);
+        await editor.SaveAsync();
+
+        var reopened = await ScenarioEditorWorkspace.OpenAsync(_root, ScenarioId);
+        reopened.CheckDraft();
+        var force = reopened.Document.Forces.Single(f => f.Id == forceId);
+        Assert.Equal(successor.Id, force.LeaderId);
+        Assert.Equal(successor.Name, reopened.Name(force));
+        Assert.DoesNotContain(reopened.Document.Officers, o => o.Id == founder.Id);
+        var content = await ScenarioContentFiles.LoadAsync(Package);
+        var view = GameSession.Start(content.Scenario, 12).View;
+        Assert.Equal(successor.NameKey, view.Forces.Single(f => f.Id == forceId).NameKey);
+    }
+
+    [Fact]
     public async Task ValidationIdentifiesTheConflictingRecordAndRejectsPartialTransfers()
     {
         await Create();

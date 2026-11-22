@@ -29,6 +29,8 @@ public sealed partial class ScenarioEditorWorkspace
         }
         foreach (var force in document.Forces)
         {
+            if (!force.IsDormant && !force.IsBarbarian && force.LeaderId is null)
+                return new("势力", force.Id, $"势力 [{force.Id}]：请选择君主。");
             if (force.LeaderId is int leader && !document.Officers.Any(o => o.Id == leader && o.OwnerId == force.Id))
                 return new("势力", force.Id, $"{Name(force)} [{force.Id}]：君主 {leader} 未归属本势力。");
             if (force.AdviserId is int adviser && !document.Officers.Any(o => o.Id == adviser && o.OwnerId == force.Id && o.Status == OfficerStatus.Strategist))

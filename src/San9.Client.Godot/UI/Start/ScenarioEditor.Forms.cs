@@ -148,7 +148,7 @@ public partial class ScenarioEditor
         var officers = workspace.Document.Officers.Where(o => o.OwnerId == id && o.Status <= OfficerStatus.Serving && o.IsDormant == force.IsDormant
             && !workspace.Document.Information.Corps.Any(c => !c.IsRoot && c.LeaderId == o.Id)).Select(o => (o.Id, Name: workspace.OfficerName(o.Id))).ToArray();
         Reference(grid, "君主", force.LeaderId, officers.Where(o => o.Id != force.AdviserId),
-            value => RunChange(() => workspace.SetForceOffice(id, value, true), id));
+            value => RunChange(() => workspace.SetForceOffice(id, value, true), id), allowNone: force.IsDormant || force.IsBarbarian);
         Reference(grid, "军师", force.AdviserId, officers.Where(o => o.Id != force.LeaderId),
             value => RunChange(() => workspace.SetForceOffice(id, value, false), id));
         Reference(grid, "爵位", force.RankId, workspace.Definitions.Information.Ranks.Select(r => (r.Id, r.Name)), value => Change(f => f with { RankId = value }));
@@ -346,13 +346,13 @@ public partial class ScenarioEditor
         ContentEditorControls.Caption(parent, title); ContentEditorControls.NumericInput(parent, value, min, max, changed, name);
     }
 
-    private static void Reference(Node parent, string title, int? selected, IEnumerable<(int Id, string Name)> choices, Action<int?> changed)
+    private static void Reference(Node parent, string title, int? selected, IEnumerable<(int Id, string Name)> choices, Action<int?> changed, bool allowNone = true)
     {
         var values = choices.ToList();
         if (selected is int id && values.All(v => v.Id != id)) values.Add((id, $"未知引用 {id}"));
-        var candidates = values.Select(v => ($"{v.Name} [{v.Id}]", (int?)v.Id))
-            .Prepend(("无", (int?)null)).ToArray();
-        SearchableReferenceField.Add(parent, title, candidates, selected, changed,
+        var candidates = values.Select(v => ($"{v.Name} [{v.Id}]", (int?)v.Id));
+        if (allowNone) candidates = candidates.Prepend(("无", (int?)null));
+        SearchableReferenceField.Add(parent, title, candidates.ToArray(), selected, changed,
             "ScenarioReference" + title, "按名称或 ID 搜索。", $"未知引用 {selected}");
     }
 }

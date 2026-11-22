@@ -120,11 +120,17 @@ public sealed partial class MilitarySessionTests
         try
         {
             var source = Fixture();
-            source = source with { Military = source.Military! with
+            source = source with
             {
-                Facilities = [new(99, 0, 100, new(1, 1), 0, false, true, true, 500000, null, null, null, []) { IsHarbor = true }],
-                Places = source.Military.Places.Select(p => p with { FacilityTypeId = 99 }).ToImmutableArray()
-            } };
+                Forces = [source.Forces.Single() with { LeaderId = 1 }],
+                Officers = [source.Officers.Single() with { State = source.Officers.Single().State with { Status = OfficerStatus.Ruler } }],
+                Information = source.Information with { Corps = [source.Information.Corps.Single() with { LeaderId = 1 }] },
+                Military = source.Military! with
+                {
+                    Facilities = [new(99, 0, 100, new(1, 1), 0, false, true, true, 500000, null, null, null, []) { IsHarbor = true }],
+                    Places = source.Military.Places.Select(p => p with { FacilityTypeId = 99 }).ToImmutableArray()
+                }
+            };
             var first = await CreateMapEditor(root, source, new([0], [0], 1));
             var firstRoot = Path.Combine(root, "scenario");
             var otherRoot = Path.Combine(root, "other");

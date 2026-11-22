@@ -317,6 +317,26 @@ public sealed partial class MilitarySessionTests
         finally { Directory.Delete(root, true); }
     }
 
+    [Fact]
+    public async Task MapLabelVisibilityCanBeSavedWithoutReadingScenarioState()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "san9-map-label-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var editor = await CreateMapEditor(root);
+            var resources = MapEditorResources();
+            var styles = resources.TerrainStyles.ToDictionary(t => t.Id);
+            var manifest = await ScenarioContentFiles.ReadManifestAsync(Path.Combine(root, "scenario"));
+            await File.WriteAllTextAsync(PackageFiles.Resolve(root, manifest.Scenario), "unavailable");
+            editor.BeginStroke();
+            editor.Paint(new(3, 1), new(3, 1), 0, c => c with { HideRegionName = true }, styles);
+            editor.EndStroke();
+            await editor.SaveAsync(resources);
+            Assert.True((await MapEditorWorkspace.OpenSharedAsync(root)).Map.Cells[11].HideRegionName);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     private static MapResources MapEditorResources()
     {
         ImageAsset Asset(string id) => new(id, "fixture/" + id + ".png", 1, 1);

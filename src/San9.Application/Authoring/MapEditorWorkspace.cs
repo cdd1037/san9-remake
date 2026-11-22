@@ -253,7 +253,7 @@ public sealed class MapEditorWorkspace
         }
     }
 
-    private async Task ValidateOtherScenarios(Draft draft, bool mapChanged, bool geographyChanged, bool sitesChanged, MapResources resources,
+    private async Task ValidateOtherScenarios(Draft draft, bool mapChanged, bool geographyChanged, bool sitesChanged, bool appearanceOnly, MapResources resources,
         Dictionary<string, byte[]?> dependencies, CancellationToken token)
     {
         async Task<T> Read<T>(string path, bool active = false)
@@ -268,12 +268,13 @@ public sealed class MapEditorWorkspace
             return await PackageFiles.ReadAsync<T>(path, token);
         }
         byte[]? personal = null;
-        if (CreatedOfficersPath is not null)
+        if (!appearanceOnly && CreatedOfficersPath is not null)
             dependencies[CreatedOfficersPath] = personal = await PlayerDefinitionFiles.ReadOptionalAsync(CreatedOfficersPath, token);
         var catalog = await Read<ContentCatalog>(Path.Combine(_catalogRoot, "catalog.json"));
         string playerIndex = ContentCatalogFiles.PlayerScenariosPath(_catalogRoot);
         dependencies[playerIndex] = await PlayerDefinitionFiles.ReadOptionalAsync(playerIndex, token);
         catalog = ContentCatalogFiles.WithPlayerScenarios(_catalogRoot, catalog, dependencies[playerIndex]);
+        var checkedThemes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { TextureRoot };
         foreach (var entry in catalog.Scenarios)
         {
             try
@@ -290,6 +291,16 @@ public sealed class MapEditorWorkspace
                 bool sameSites = manifest.Locations is not null && StringComparer.OrdinalIgnoreCase.Equals(_sitesPath,
                     PlayerDefinitionFiles.PlayerPath(Resolve(manifest.Locations)));
                 if (!(mapChanged && sameMap || geographyChanged && sameGeography || sitesChanged && sameSites)) continue;
+                string textures = Path.GetFullPath(Path.Combine(package, manifest.Textures.Path));
+                if (appearanceOnly)
+                {
+                    if (checkedThemes.Add(textures))
+                    {
+                        var alternateTheme = (await TexturePackageFiles.LoadAsync(textures, token)).Map;
+                        MapPackageFiles.Validate(MapLayoutCompiler.Compile(draft.Map, [], alternateTheme, null, draft.Geography.RegionCityIds));
+                    }
+                    continue;
+                }
                 var places = sameSites ? draft.Sites : manifest.Locations is null ? null : await Read<SharedMapSites>(Resolve(manifest.Locations), true);
                 var scenario = places is null ? await Read<ScenarioDocument>(Resolve(manifest.Scenario), true) :
                     places.Resolve<ScenarioDocument>(await Read<JsonElement>(Resolve(manifest.Scenario), true));
@@ -305,7 +316,6 @@ public sealed class MapEditorWorkspace
                 geo = MapGeographyCompiler.Resolve(layout, map, geo, scenario, definitions, officers, token);
                 var state = scenario.Compile(definitions, officers.Officers, geo);
                 _ = new ScenarioSessionDefinition(state).CreateWorld(0);
-                string textures = Path.GetFullPath(Path.Combine(package, manifest.Textures.Path));
                 var theme = StringComparer.OrdinalIgnoreCase.Equals(textures, TextureRoot) ? resources :
                     (await TexturePackageFiles.LoadAsync(textures, token)).Map;
                 MapPackageFiles.Validate(MapLayoutCompiler.Compile(map, layout.Buildings, theme, state));
@@ -317,19 +327,23 @@ public sealed class MapEditorWorkspace
         }
     }
 
+    private static bool SameWorldInputs(MapCellDefinition current, MapCellDefinition previous) =>
+        current == previous || current with { TextureVariant = previous.TextureVariant, HideRegionName = previous.HideRegionName } == previous;
+
     public async Task SaveAsync(MapResources resources, CancellationToken token = default)
     {
         EndStroke(); await _saveGate.WaitAsync(token);
         try
         {
+            await ScenarioDataFiles.CheckInputsAsync(_inputs, token);
+            if (!HasChanges) return;
             var draft = _draft;
             draft.Sites.Validate(draft.Map);
             foreach (var (id, site) in draft.Sites.Sites)
                 if (draft.Map.Cells[site.Cell.Y * draft.Map.Width + site.Cell.X].RegionId != id)
                     throw new InvalidDataException($"地点 {id} 的锚点须属于同名地域。");
             var buildings = draft.Sites.Buildings(draft.Sites.Sites.Keys).Where(b => b.FixedType >= 0).ToArray();
-            MapLayoutCompiler.Compile(Map, buildings, resources, null, draft.Geography.RegionCityIds);
-            await ScenarioDataFiles.CheckInputsAsync(_inputs, token);
+            var display = MapLayoutCompiler.Compile(Map, buildings, resources, null, draft.Geography.RegionCityIds);
             List<ScenarioDataFiles.PlayerDocument> documents = [];
             bool mapChanged = !draft.Map.Cells.AsSpan().SequenceEqual(_saved.Map.Cells);
             bool geographyChanged = !ContentComparison.Equal(draft.Geography.RegionCityIds, _saved.Geography.RegionCityIds);
@@ -341,8 +355,10 @@ public sealed class MapEditorWorkspace
             if (sitesChanged) documents.Add(new(_sitesPath, draft.Sites, _inputs[_sitesPath]));
             var dependencies = _inputs.Where(p => p.Key.EndsWith(".player.json", StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(p => p.Key, p => p.Value, StringComparer.OrdinalIgnoreCase);
-            if (mapChanged || geographyChanged || sitesChanged)
-                await ValidateOtherScenarios(draft, mapChanged, geographyChanged, sitesChanged, resources, dependencies, token);
+            bool appearanceOnly = mapChanged && !geographyChanged && !sitesChanged &&
+                draft.Map.Cells.Zip(_saved.Map.Cells).All(pair => SameWorldInputs(pair.First, pair.Second));
+            if (appearanceOnly) MapPackageFiles.Validate(display);
+            await ValidateOtherScenarios(draft, mapChanged, geographyChanged, sitesChanged, appearanceOnly, resources, dependencies, token);
             var published = await ScenarioDataFiles.WritePlayerDocumentsAsync(documents, token, dependencies);
             foreach (var (path, bytes) in published) _inputs[path] = bytes;
             _saved = draft;

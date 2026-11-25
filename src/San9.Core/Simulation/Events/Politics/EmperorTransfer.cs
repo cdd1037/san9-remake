@@ -106,8 +106,10 @@ internal static class EmperorTransfer
 
     internal static void ValidateRules(WorldMutation world, SimulationRules rules)
     {
-        if (world.Simulation.EmperorTransfer is not null && rules.Economy.ImperialCourt.TransferEvent is null ||
-            world.Simulation.PendingEvent is EmperorTransferEventSession session && Candidate(world, rules) != session)
+        // An ownership observation may be carried across a stable boundary. Begin consumes
+        // it even when the current rules no longer offer a transfer event. Only a live prompt
+        // requires matching continuation rules.
+        if (world.Simulation.PendingEvent is EmperorTransferEventSession session && Candidate(world, rules) != session)
             throw new ArgumentException("Emperor transfer state does not match the event definition.");
     }
 }

@@ -115,7 +115,8 @@ public sealed partial class SimulationEngine
         initial.RebuildForceTrust();
         PoliticalEvents.ValidateRules(initial, rules);
         EmperorTransfer.ValidateRules(initial, rules);
-        rules.ValidateEvents(initial);
+        rules.ValidateEventDefinitions(initial);
+        if (world.Simulation.Boundary == SimulationBoundary.New) rules.ValidateInitialEventState(initial);
         if (initial.Corps.Values.Any(c => !CorpsDelegations.Valid(initial, c, rules.Military)))
             throw new ArgumentException("Invalid corps delegation target.");
         foreach (var task in world.Simulation.Tasks)

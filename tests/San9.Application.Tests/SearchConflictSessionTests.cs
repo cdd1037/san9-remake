@@ -117,7 +117,13 @@ public sealed class SearchConflictSessionTests
         Assert.True(result.Submission.Accepted); Assert.NotEqual(3, session.Snapshot.Forces.Single().LeaderId);
         Assert.Contains(result.Events, e => e is ForceLeaderChangedEvent);
         Assert.True(session.Snapshot.Officers.Single(o => o.Id == 3).IsDormant);
-        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
+        byte[] bytes = SaveService.Encode(session);
+        StateAssert.Equal(session.Capture(), SaveService.Decode(bytes, d).Capture());
+        var revised = d with { SearchEvents = [] };
+        StateAssert.Equal(session.Capture(), SaveService.Decode(bytes, revised).Capture());
+        var loaded = SaveService.Load(bytes, revised);
+        Assert.True(loaded.Snapshot.Officers.Single(o => o.Id == 3).IsDormant);
+        Assert.Equal(session.Snapshot.Simulation.ConsumedEventKeys.ToArray(), loaded.Snapshot.Simulation.ConsumedEventKeys.ToArray());
     }
 
     [Fact]

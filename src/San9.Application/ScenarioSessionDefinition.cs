@@ -10,7 +10,7 @@ internal sealed class ScenarioSessionDefinition
 {
     private readonly HashSet<int> _playerForces;
     internal ScenarioSessionDefinition(ScenarioInitialState definition, IReadOnlyCollection<int>? playerForceIds = null,
-        SessionDefinitions? definitions = null)
+        SessionDefinitions? definitions = null, bool restoring = false)
     {
         Definitions = definitions ?? SessionDefinitions.Empty;
         Definitions.Validate();
@@ -20,9 +20,14 @@ internal sealed class ScenarioSessionDefinition
             playerForceIds is not null && _playerForces.Count != playerForceIds.Count)
             throw new ArgumentException("Invalid player force selection.");
         InitialPlayerForceIds = _playerForces.Order().ToImmutableArray();
-        definition = ActivatePlayerForces(definition, InitialPlayerForceIds);
-        if (_playerForces.Any(id => definition.Forces.Any(f => f.Id == id && f.IsDormant)))
-            throw new ArgumentException("Selected force cannot be activated.");
+        // Opening selection may activate reserved forces only when creating a new world.
+        // Restoration consumes the saved participation state, not today's opening eligibility.
+        if (!restoring)
+        {
+            definition = ActivatePlayerForces(definition, InitialPlayerForceIds);
+            if (_playerForces.Any(id => definition.Forces.Any(f => f.Id == id && f.IsDormant)))
+                throw new ArgumentException("Selected force cannot be activated.");
+        }
         definition = definition with { PlayerForceId = InitialPlayerForceIds.IsEmpty ? null : InitialPlayerForceIds[0] };
         if (definition.Day is not (1 or 11 or 21)) throw new ArgumentException("Expected a stable xun boundary.");
         Content = definition with

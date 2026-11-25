@@ -486,7 +486,7 @@ public sealed class ProgressPresentationTests
     [InlineData("enemy-place", 2, 1)]
     [InlineData("reinforce-from", 2, null)]
     [InlineData("reinforce-to", 2, 1)]
-    public void SaveRejectsInvalidMilitaryAdvice(string role, int place, int? enemy)
+    public void SaveDiscardsInvalidMilitaryAdviceWithoutDiscardingTheCampaign(string role, int place, int? enemy)
     {
         var definition = Scenario();
         var session = GameSession.Start(definition, 42);
@@ -495,11 +495,12 @@ public sealed class ProgressPresentationTests
         {
             Prompts = [new(role, 2, 1, 1, PlaceId: place, CityId: 2, EnemyForceId: enemy, OtherPlaceId: 1)]
         };
-        var error = Assert.Throws<SaveException>(() => SaveService.Load(envelope with
+        var loaded = SaveService.Load(envelope with
         {
             Session = envelope.Session with { StrategicContexts = envelope.Session.StrategicContexts.SetItem(1, context) }
-        }, definition));
-        Assert.Equal(SaveFailure.InvalidState, error.Failure);
+        }, definition);
+        Assert.Empty(loaded.StrategicContext.Prompts);
+        Assert.Equal(context.Clock, loaded.StrategicContext.Clock);
     }
 
     [Fact]

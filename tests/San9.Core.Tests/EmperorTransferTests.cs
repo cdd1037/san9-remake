@@ -113,6 +113,7 @@ public sealed class EmperorTransferTests
         if (reason == "no-owner") w.Replace(w.Settlements[1] with { OwnerId = null });
         if (reason == "dead") foreach (int id in new[] { 99, 98 }) w.Replace(w.Officers[id] with { Status = OfficerStatus.Dead });
         if (reason == "eliminated") w.Replace(w.Forces[2] with { IsEliminated = true });
+        EmperorTransfer.ValidateRules(w, rules);
         EmperorTransfer.Begin(w, rules, events);
         Assert.Null(w.Simulation.EmperorTransfer); Assert.Empty(events.OfType<EmperorTransferResolvedEvent>());
     }

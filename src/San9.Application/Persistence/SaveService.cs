@@ -60,7 +60,7 @@ public static class SaveService
         {
             if (envelope.Session.Definitions is null) throw new ArgumentException("Missing session definitions.");
             var references = envelope.Session.Definitions.Resolve(definition);
-            var owned = new ScenarioSessionDefinition(definition, envelope.Session.InitialPlayerForceIds, references);
+            var owned = new ScenarioSessionDefinition(definition, envelope.Session.InitialPlayerForceIds, references, restoring: true);
             var session = playerLoad ? GameSession.Load(owned, envelope.Session, factory) : GameSession.Restore(owned, envelope.Session, factory);
             session.ReportRulesVersion(envelope.RulesVersion);
             return session;

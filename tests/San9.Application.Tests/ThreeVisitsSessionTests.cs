@@ -117,6 +117,16 @@ public sealed class ThreeVisitsSessionTests
         Assert.Equal(150, session.Snapshot.Officers.Single(p => p.Id == 15).Loyalty);
         Assert.Equal(new GameClock(190, 2, 1), session.Snapshot.Simulation.ThreeVisitsStarted);
         Assert.Equal(110, session.Snapshot.Forces.Single().BaseTrust);
+        byte[] bytes = SaveService.Encode(session);
+        foreach (var revised in new[] { definition with { ThreeVisits = null },
+            definition with { ThreeVisits = definition.ThreeVisits! with { StartedKey = new("visits.revised") } } })
+        {
+            StateAssert.Equal(session.Capture(), SaveService.Decode(bytes, revised).Capture());
+            var loaded = SaveService.Load(bytes, revised);
+            Assert.Equal(session.Snapshot.Simulation.ThreeVisitsStarted, loaded.Snapshot.Simulation.ThreeVisitsStarted);
+            Assert.Equal(150, loaded.Snapshot.Officers.Single(p => p.Id == 15).Loyalty);
+            Assert.Empty(loaded.InitialEvents);
+        }
     }
 
     [Fact]

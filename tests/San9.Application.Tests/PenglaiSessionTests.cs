@@ -67,6 +67,17 @@ public sealed class PenglaiSessionTests
         Assert.Equal(810, session.Snapshot.Forces.Single(f => f.Id == 1).BaseTrust);
         var restored = SaveService.Decode(SaveService.Encode(session), d);
         StateAssert.Equal(session.Capture(), restored.Capture());
+        var activation = (ForceActivationSearchEventDefinition)d.SearchEvents.Single();
+        byte[] bytes = SaveService.Encode(session);
+        foreach (var revised in new[] { d with { SearchEvents = [] },
+            d with { SearchEvents = [activation with { ConsumptionKey = new("penglai.revised") }] } })
+        {
+            StateAssert.Equal(session.Capture(), SaveService.Decode(bytes, revised).Capture());
+            var loaded = SaveService.Load(bytes, revised);
+            Assert.False(loaded.Snapshot.Forces.Single(f => f.Id == 2).IsDormant);
+            Assert.Contains(activation.ConsumptionKey, loaded.Snapshot.Simulation.ConsumedEventKeys);
+            Assert.Contains(loaded.Snapshot.Simulation.Controls, c => c.ForceId == 2);
+        }
         Assert.DoesNotContain(session.AdvanceXun().Events, e => e is ForceActivatedBySearchEvent);
         Assert.True(session.Execute(new("player"), new SearchCommand(Guid.NewGuid(), 1,
             session.Snapshot.Simulation.NextSequence, [1], 5)).Submission.Accepted);
@@ -99,6 +110,10 @@ public sealed class PenglaiSessionTests
         Assert.Equal(100000u, session.Snapshot.Settlements.Single(s => s.Id == 3).Soldiers);
         Assert.Contains(new PersistentEventKey("penglai"), session.Snapshot.Simulation.ConsumedEventKeys);
         StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), d).Capture());
+        // Today's opening selection no longer offers this force; the saved selection is history.
+        var revised = d with { PlayerForceId = 1, SearchEvents = [] };
+        StateAssert.Equal(session.Capture(), SaveService.Decode(SaveService.Encode(session), revised).Capture());
+        Assert.Equal(new[] { 2 }, SaveService.Load(SaveService.Encode(session), revised).InitialPlayerForceIds);
     }
 
     [Theory]
@@ -156,7 +171,7 @@ public sealed class PenglaiSessionTests
     }
 
     [Fact]
-    public void ActivationReferencesAndDormantSaveStateAreValidated()
+    public void ActivationDefinitionsAndCurrentParticipationAreValidatedIndependentlyOfHistory()
     {
         var d = Definition(); var activation = (ForceActivationSearchEventDefinition)d.SearchEvents[0];
         foreach (var bad in new[] { activation with { ForceId = 99 }, activation with { CityId = 99 },
@@ -167,9 +182,17 @@ public sealed class PenglaiSessionTests
         Assert.Throws<InvalidDataException>(() => (d with { Military = null }).Validate());
 
         var session = GameSession.Start(d, 17); var saved = session.Capture();
-        Assert.Throws<ArgumentException>(() => GameSession.Restore(d, saved with
+        var consumed = saved with
         {
             World = saved.World with { Simulation = saved.World.Simulation with { ConsumedEventKeys = [activation.ConsumptionKey] } }
+        };
+        StateAssert.Equal(consumed, GameSession.Restore(d, consumed).Capture());
+        Assert.True(GameSession.Restore(d, consumed).Snapshot.Forces.Single(f => f.Id == 2).IsDormant);
+
+        // Actual participation relationships, unlike history, remain mandatory.
+        Assert.Throws<ArgumentException>(() => GameSession.Restore(d, saved with
+        {
+            World = saved.World with { Forces = saved.World.Forces.Select(f => f.Id == 2 ? f with { IsDormant = false } : f).ToArray() }
         }));
         StateAssert.Equal(saved.World, session.Snapshot);
     }

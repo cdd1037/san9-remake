@@ -93,7 +93,9 @@ internal static class FacilityConstruction
             !military.Facilities.TryGetValue(plan.FacilityTypeId, out var type)) return false;
         var existing = world.Settlements.GetValueOrDefault(plan.RegionId);
         bool building = existing?.Facility?.BuilderUnitId == unit.Id && !existing.IsDestroyed;
-        return !(!world.Officers.TryGetValue(plan.LeaderId, out var leader) || !leader.IsServing || leader.UnitId != unit.Id ||
+        return !(!building && (!military.ConstructionSites.TryGetValue((plan.RegionId, plan.Position), out var site) ||
+                    !site.FacilityIds.Contains(plan.FacilityTypeId)) ||
+                !world.Officers.TryGetValue(plan.LeaderId, out var leader) || !leader.IsServing || leader.UnitId != unit.Id ||
                 !regionCities.TryGetValue(plan.RegionId, out int cityId) ||
                 !world.Settlements.TryGetValue(cityId, out var city) || city.Kind != SettlementKind.City || city.IsDestroyed || city.Durability == 0 ||
                 type.RequiredTacticId is int required && !MilitaryTactics.HasTactic(world, unit.OwnerId,

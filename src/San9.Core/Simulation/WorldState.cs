@@ -122,7 +122,8 @@ public sealed class WorldState
             RunSeed = runSeed ?? world.Simulation.RunSeed,
             RandomStreams = runSeed is null
                 ? world.Simulation.RandomStreams.OrderBy(s => s.Name, StringComparer.Ordinal).ToImmutableArray() : [],
-            ConsumedEventKeys = world.Simulation.ConsumedEventKeys.OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray()
+            ConsumedEventKeys = world.Simulation.ConsumedEventKeys.OrderBy(k => k.Value, StringComparer.Ordinal).ToImmutableArray(),
+            AttackRequests = world.Simulation.AttackRequests.OrderBy(r => r.RequestedForceId).ToImmutableArray()
         };
         return world;
     }

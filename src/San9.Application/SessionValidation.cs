@@ -34,11 +34,10 @@ internal static class SessionValidation
         snapshot.OriginalAi.Validate(snapshot.World, definition.Content);
         var initialClock = new GameClock(definition.Content.Year, definition.Content.Month, definition.Content.Day);
         var generated = snapshot.World.Forces.Where(f => f.Origin is not null).OrderBy(f => f.Id).ToArray();
-        long nextForceId = (long)initialForces.Max() + 1;
         foreach (var force in generated)
         {
             var origin = force.Origin!;
-            if (force.Id != nextForceId++ || force.IsBarbarian ||
+            if (initialForces.Contains(force.Id) || force.IsBarbarian ||
                 !initialPeople.Contains(origin.FounderId) ||
                 !definition.Content.Settlements.Any(s => s.Id == origin.SettlementId && s.Kind == SettlementKind.City) ||
                 origin.Clock.DayNumber < initialClock.DayNumber || origin.Clock.DayNumber > snapshot.World.Clock.DayNumber)
@@ -74,15 +73,8 @@ internal static class SessionValidation
         if (snapshot.World.Units.Any(u => u.ServicePlaceId is int home &&
             !content.Settlements.Any(s => s.Id == home) && !content.UnbuiltPlaces.Any(p => p.Id == home)))
             throw new ArgumentException("Unknown unit service place.");
-        // Succession can promote a child corps to the ruler's corps. The treasury belongs to the force,
-        // so validate its surviving owner rather than requiring the initial corps identity.
-        Same(content.Information.Corps.Where(c => c.IsRoot && snapshot.World.Forces.Any(f => f.Id == c.OwnerId && !f.IsEliminated)).Select(c => c.OwnerId).Union(addedForces.Where(id => snapshot.World.Forces.Any(f => f.Id == id && !f.IsEliminated))).Concat(generated.Where(f => !f.IsEliminated).Select(f => f.Id)),
-            snapshot.World.Corps.Where(c => c.IsRoot).Select(c => c.OwnerId));
         if (snapshot.World.Treasures.Any(t => !KnownMapPlace(t.RegionId)))
             throw new ArgumentException("Unknown treasure region.");
-        if (content.Information.Relations.Any(initial => !snapshot.World.Relations.Any(current =>
-            current.FirstId == initial.FirstId && current.SecondId == initial.SecondId)))
-            throw new ArgumentException("Missing initial relation identity.");
         if (snapshot.World.Officers.Any(o => o.RegionId is int region && !definition.Rules.Personnel.Places.ContainsKey(region) ||
             o.OfficeId is int office && !content.Information.Offices.Any(d => d.Id == office)) ||
             snapshot.World.Forces.Any(f => f.RankId is int rank && !content.Information.Ranks.Any(r => r.Id == rank) ||

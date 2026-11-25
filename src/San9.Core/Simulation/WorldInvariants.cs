@@ -142,8 +142,8 @@ internal static class WorldInvariants
         {
             San9.Core.Domain.GeneralDelegation or San9.Core.Domain.DomesticDelegation => true,
             San9.Core.Domain.DefeatForceDelegation target => target.ForceId != corps.OwnerId &&
-                state.AllForces.TryGetValue(target.ForceId, out var force) && !force.IsEliminated,
-            San9.Core.Domain.CaptureSettlementDelegation target => state.AllSettlements.TryGetValue(target.SettlementId, out var place) && !place.IsDestroyed,
+                state.AllForces.ContainsKey(target.ForceId),
+            San9.Core.Domain.CaptureSettlementDelegation target => state.AllSettlements.ContainsKey(target.SettlementId),
             _ => false
         };
     private static void ValidateSimulation(WorldMutation state)

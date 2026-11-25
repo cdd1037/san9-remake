@@ -30,7 +30,8 @@ public sealed class FacilityConstructionTests
     private static readonly PersonnelRulebook Geography = new([new(1, new(2, 2)), new(2, new(27, 2)), new(8000, new(17, 2))],
         new Dictionary<int, int> { [1] = 1, [2] = 2, [8000] = 1 });
     private static readonly MilitaryRulebook Military = CreateMilitary();
-    private static MilitaryRulebook CreateMilitary(bool hostsPeople = true, bool needsTechnology = false, bool attacksWalls = false, int members = 1) => new(new(6, 1, [0, 0, 0, 0, 0, 0], [new(0, 1, null)],
+    private static MilitaryRulebook CreateMilitary(bool hostsPeople = true, bool needsTechnology = false, bool attacksWalls = false, int members = 1,
+        bool allowsConstruction = true, int maxDurability = 600) => new(new(6, 1, [0, 0, 0, 0, 0, 0], [new(0, 1, null)],
         [new(1, 5, 50, 100000, members, new(1, 1), TravelMode.Land)
             { Combat = new(10, 10, 1000, 10, 50), Attack = new(1, attacksWalls), Positions = San9.Tests.FormationTestData.Layout([.. Enumerable.Repeat(BattleRank.Front, members)]) },
          new(2, 5, 50, 100000, members, new(1, 1), TravelMode.Land)
@@ -40,13 +41,13 @@ public sealed class FacilityConstructionTests
     {
         ConstructionFormations = new(2, null),
         Facilities = [new(0, 0, 600, new(1, 1), 15, false, true, true, 500000, null, null, null, []),
-            new(9000, 1000, 600, new(3, 3), 15, true, hostsPeople, hostsPeople, 250000,
+            new(9000, 1000, maxDurability, new(3, 3), 15, true, hostsPeople, hostsPeople, 250000,
                 needsTechnology ? 20 : null, needsTechnology ? 19 : null, null, [])
                 { Combat = new(10, 10, 0, 10, 50), DestroyedAtZeroDurability = true,
                     ConstructionGrowthTacticId = needsTechnology ? 20 : 19 }],
         Tactics = [new(19, 6, TacticEffect.Construction, 0, 0, 0, false, false, []),
             new(20, 6, TacticEffect.StoneFormation, 0, 0, 0, false, false, [])],
-        ConstructionSites = [new(8000, new(17, 2), [9000])]
+        ConstructionSites = allowsConstruction ? [new(8000, new(17, 2), [9000])] : []
     });
     private static SimulationEngine Engine(WorldState? world = null, MilitaryRulebook? military = null, PersonnelRulebook? geography = null) => new(world ?? WorldState.Create(new(190, 1, 1), 42,
         [new(1, 100) { LeaderId = 11 }], [new(1, 1, 20000, 600, 600, 100, 0, 0, 100, 0, 100)],
@@ -92,6 +93,34 @@ public sealed class FacilityConstructionTests
         Assert.Equal(1, engine.Snapshot.Settlements.Single(s => s.Id == 8000).OwnerId);
         Assert.Equal(8000, engine.Snapshot.Officers.Single().SettlementId);
         Assert.Equal(9000u, engine.Snapshot.Corps.Single(c => c.Id == 1).Treasury.Money);
+    }
+
+    [Fact]
+    public void CompletedConstructionRemainsAWorldFactWhenBuildingRulesChange()
+    {
+        var engine = Engine();
+        Assert.True(engine.Execute(Player, Command()).Submission.Accepted);
+        for (int i = 0; i < 5 && engine.Snapshot.Units.Count > 0; i++) Advance(engine);
+        var saved = engine.CaptureStableState();
+        var facility = saved.Settlements.Single(s => s.Id == 8000);
+        Assert.Null(facility.Facility!.BuilderUnitId);
+        Assert.True(facility.CanHostPersons);
+        var revised = CreateMilitary(hostsPeople: false, allowsConstruction: false, maxDurability: 300);
+        var restored = Engine(WorldState.Restore(saved), revised);
+        Assert.Equal(facility, restored.Snapshot.Settlements.Single(s => s.Id == 8000));
+    }
+
+    [Fact]
+    public void RemovedConstructionSiteInvalidatesTravelingOrderAtExecutionNotLoad()
+    {
+        var engine = Engine();
+        Assert.True(engine.Execute(Player, Command()).Submission.Accepted);
+        var revised = CreateMilitary(allowsConstruction: false);
+        var restored = Engine(WorldState.Restore(engine.CaptureStableState()), revised);
+        Assert.NotNull(Assert.Single(restored.Snapshot.Units).Order!.Construction);
+        Advance(restored);
+        Assert.DoesNotContain(restored.Snapshot.Units, u => u.Order?.Construction is not null);
+        Assert.DoesNotContain(restored.Snapshot.Settlements, s => s.Id == 8000 && !s.IsDestroyed);
     }
 
     [Fact]

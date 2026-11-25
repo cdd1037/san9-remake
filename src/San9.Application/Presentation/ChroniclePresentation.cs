@@ -17,9 +17,21 @@ public sealed record ChroniclePresentation(string RulerName, ChronicleLine[] Lin
         var context = session.Messages(texts);
         string name = ReadName(session, texts, selected);
         var lines = session.History.Where(f => f.ForceId == force.Id)
-            .Select(f => Render(f, context, view, texts, definition));
+            .Select(f => RenderHistorical(f, context, view, texts, definition));
         var notes = session.Chronicle.Where(e => e.ForceId == force.Id).Select(e => new ChronicleLine(new(e.Year, e.Month, e.Day), MessageMarkup.Escape(e.Text), force.ColorCode));
         return new(name, lines.Concat(notes).OrderBy(l => l.Clock.DayNumber).ToArray());
+    }
+
+    // A historical fact remains stored even when its old rank, facility type, text or
+    // message role is unavailable in today's content. Degrade only that line.
+    private static ChronicleLine RenderHistorical(ChronicleFact fact, WorldMessageContext context, StrategySnapshot view,
+        TextCatalog texts, San9.Content.Interface.ChroniclePresentationDefinition definition)
+    {
+        try { return Render(fact, context, view, texts, definition); }
+        catch (Exception error) when (error is InvalidDataException or InvalidOperationException or KeyNotFoundException or ArgumentException or OverflowException)
+        {
+            return new(fact.Clock, "历史记录（原资料已变更或缺失）", fact.ForceColorCode);
+        }
     }
 
     internal static ChronicleLine Render(ChronicleFact fact, WorldMessageContext context, StrategySnapshot view,

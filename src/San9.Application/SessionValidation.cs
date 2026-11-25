@@ -18,11 +18,7 @@ internal static class SessionValidation
         if (snapshot.DeploymentPresets.IsDefault || snapshot.DeploymentPresets.Any(p => p is null) ||
             snapshot.DeploymentPresets.Select(p => p.Id).Distinct().Count() != snapshot.DeploymentPresets.Length)
             throw new ArgumentException("Invalid deployment preset collection.");
-        if (!snapshot.DeploymentPresets.IsEmpty)
-        {
-            var presetView = new Presentation.StrategySnapshot(new Presentation.StrategySnapshotSource(definition.Content, definition.Rules, definition.Definitions), snapshot.World);
-            foreach (var preset in snapshot.DeploymentPresets) preset.Validate(presetView);
-        }
+        foreach (var preset in snapshot.DeploymentPresets) preset.ValidateStored(snapshot.World);
         if (snapshot.Records.IsDefault || snapshot.Chronicle.IsDefault || snapshot.History is null || snapshot.Records.Length > GameSession.RecentRecordLimit ||
             snapshot.NextOperationSequence < 0)
             throw new ArgumentException("Missing session state.");
@@ -31,7 +27,6 @@ internal static class SessionValidation
             throw new ArgumentException("Invalid initial player selection.");
         if (!Enum.IsDefined(snapshot.PlayerForceController)) throw new ArgumentException("Invalid player force controller.");
         if (snapshot.OriginalAi is null) throw new ArgumentException("Missing original AI state.");
-        snapshot.OriginalAi.Validate(snapshot.World, definition.Content);
         var initialClock = new GameClock(definition.Content.Year, definition.Content.Month, definition.Content.Day);
         var generated = snapshot.World.Forces.Where(f => f.Origin is not null).OrderBy(f => f.Id).ToArray();
         foreach (var force in generated)
@@ -98,21 +93,10 @@ internal static class SessionValidation
         {
             if (fact is null || fact.Clock.DayNumber < previousDay || fact.Clock.DayNumber > snapshot.World.Clock.DayNumber ||
                 !snapshot.World.Forces.Any(f => f.Id == fact.ForceId) ||
-                !San9.Content.Interface.ChroniclePresentationDefinition.MessageRoles.Contains(fact.Role) ||
+                string.IsNullOrWhiteSpace(fact.Role) ||
                 fact.ForceColorCode is < 0 or > 50 || fact.Values is null || fact.TextKeys is null ||
                 fact.TextKeys.Any(v => string.IsNullOrWhiteSpace(v.Key) || string.IsNullOrWhiteSpace(v.Value)))
                 throw new ArgumentException("Invalid chronicle fact.");
-            foreach (var value in fact.Values.Values)
-            {
-                if (value is null || value.Entity is { } entity && !(entity.Kind switch
-                {
-                    San9.Content.Text.MessageEntityKind.Person => snapshot.World.Officers.Any(p => p.Id == entity.Id),
-                    San9.Content.Text.MessageEntityKind.Settlement => snapshot.World.Settlements.Any(p => p.Id == entity.Id),
-                    San9.Content.Text.MessageEntityKind.Force => snapshot.World.Forces.Any(p => p.Id == entity.Id),
-                    San9.Content.Text.MessageEntityKind.Rank => definition.Content.Information.Ranks.Any(r => r.Id == entity.Id),
-                    _ => false
-                })) throw new ArgumentException("Invalid chronicle reference.");
-            }
             previousDay = fact.Clock.DayNumber;
         }
         previousDay = snapshot.World.Simulation.Started.DayNumber;

@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using San9.Application.Presentation;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
+using San9.Core.Simulation;
 
 namespace San9.Application;
 
@@ -28,17 +29,23 @@ public sealed record DeploymentPreset(
     public static bool IsValidName(string? name) => !string.IsNullOrWhiteSpace(name) &&
         name == name.Trim() && name.Length <= MaximumNameLength && !name.Any(char.IsControl);
 
-    // Availability is deliberately checked only on application: casualties, transfers and lost
-    // technology must not make a campaign save containing an old preference unloadable.
-    internal void Validate(StrategySnapshot view)
+    // A saved preference owns identities and layout data, not permission to deploy today.
+    internal void ValidateStored(WorldSnapshot world)
     {
-        var rules = view.MilitaryRules;
         if (Id == Guid.Empty || !IsValidName(Name) || !Enum.IsDefined(SoldierMode) ||
             (SoldierMode == DeploymentSoldierMode.Fixed ? Soldiers == 0 : Soldiers != 0) ||
-            !view.World.Forces.Any(f => f.Id == ForceId) || Members.IsDefaultOrEmpty ||
+            !world.Forces.Any(f => f.Id == ForceId) || Members.IsDefaultOrEmpty ||
             Members.Any(m => m is null) || Members.Select(m => m.OfficerId).Distinct().Count() != Members.Length ||
-            Members.Any(m => !view.World.Officers.Any(o => o.Id == m.OfficerId)) ||
-            rules is null || !rules.Formations.TryGetValue(FormationId, out var land) || land.TravelMode != TravelMode.Land ||
+            Members.Any(m => !world.Officers.Any(o => o.Id == m.OfficerId) || m.Position.Column < 0 ||
+                m.Position.Row is < 0 or > 2 || m.TacticId < 0) || FormationId < 0 || NavalFormationId < 0)
+            throw new ArgumentException("Invalid stored deployment preset.");
+    }
+
+    internal void Validate(StrategySnapshot view)
+    {
+        ValidateStored(view.World);
+        var rules = view.MilitaryRules;
+        if (rules is null || !rules.Formations.TryGetValue(FormationId, out var land) || land.TravelMode != TravelMode.Land ||
             Members.Length > land.OfficerCapacity || !rules.ValidFormationPair(FormationId, NavalFormationId) ||
             NavalFormationId is int water && (!rules.Formations.TryGetValue(water, out var ship) ||
                 ship.TravelMode != TravelMode.Water || Members.Length > ship.OfficerCapacity))

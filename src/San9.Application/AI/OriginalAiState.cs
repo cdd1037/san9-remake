@@ -63,18 +63,16 @@ public sealed record OriginalAiState
         };
     }
 
-    internal void Validate(WorldSnapshot world, ScenarioInitialState content)
+    internal OriginalAiState Restore(WorldSnapshot world, ScenarioInitialState content)
     {
         if (Version != CurrentVersion || Policy is null || Forces.IsDefault || Corps.IsDefault || DiplomaticOrder.IsDefault ||
             Forces.Select(f => f.ForceId).Distinct().Count() != Forces.Length || Forces.Select(f => f.SchedulingKey).Distinct().Count() != Forces.Length ||
             Forces.Any(f => !world.Forces.Any(w => w.Id == f.ForceId) || f.SchedulingKey < 0 || f.SchedulingKey >= NextSchedulingKey || !Enum.IsDefined(f.Group)) ||
             world.Forces.Any(f => !Forces.Any(w => w.ForceId == f.Id)) ||
             Corps.Select(c => c.CorpsId).Distinct().Count() != Corps.Length ||
-            Corps.Any(c => !world.Corps.Any(w => w.Id == c.CorpsId) || !Enum.IsDefined(c.Mode) ||
+            Corps.Any(c => c.CorpsId < 0 || !Enum.IsDefined(c.Mode) ||
                 (c.Mode == OriginalAiMode.TargetForce) != (c.TargetForceId is not null) ||
-                (c.Mode == OriginalAiMode.TargetSettlement) != (c.TargetSettlementId is not null) ||
-                c.TargetForceId is int target && !world.Forces.Any(f => f.Id == target) ||
-                c.TargetSettlementId is int home && !world.Settlements.Any(s => s.Id == home)) ||
+                (c.Mode == OriginalAiMode.TargetSettlement) != (c.TargetSettlementId is not null)) ||
             DiplomaticOrder.Distinct().Count() != DiplomaticOrder.Length || DiplomaticOrder.Any(id => !world.Forces.Any(f => f.Id == id)) ||
             PreparedClock is { } p && (!p.IsXunBoundary || p.DayNumber > world.Clock.DayNumber) ||
             RankedClock is { } r && (!r.IsXunBoundary || r.DayNumber > world.Clock.DayNumber) ||
@@ -82,10 +80,39 @@ public sealed record OriginalAiState
             throw new ArgumentException("Invalid original AI state.");
         try
         {
-            var people = world.Officers.Select(o => o.Id).ToHashSet();
-            Policy.Validate(people, content.Military);
+            Policy.ValidateStructure();
             if (Policy.Military is null) throw new InvalidDataException("Missing saved military policy.");
-            Policy.Military.Validate(people, content.Military);
+            Policy.Military.ValidateStructure();
+            var people = world.Officers.Select(o => o.Id).ToHashSet();
+            var formations = content.Military?.Formations.ToDictionary(f => f.Id) ?? [];
+            var facilities = content.Military?.Facilities.Select(f => f.Id).ToHashSet() ?? [];
+            var terrains = content.Military?.Terrains.Select(t => t.Id).ToHashSet() ?? [];
+            bool IsLand(int id) => formations.TryGetValue(id, out var formation) && formation.TravelMode == TravelMode.Land;
+            bool IsWater(int id) => formations.TryGetValue(id, out var formation) && formation.TravelMode == TravelMode.Water;
+            var military = Policy.Military;
+            // Saved numeric strategy parameters remain authoritative; stale optional references
+            // are removed without discarding force scheduling, rank order or valid strategies.
+            var restoredPolicy = Policy with
+            {
+                PreferredStrategyRulerIds = Policy.PreferredStrategyRulerIds.Where(people.Contains).ToImmutableArray(),
+                DiplomacyFacilityPriorities = Policy.DiplomacyFacilityPriorities.Where(p => facilities.Contains(p.Key)).ToImmutableDictionary(),
+                Military = military with
+                {
+                    Formations = military.Formations.Where(p => IsLand(p.Value)).ToImmutableDictionary(),
+                    NavalPriority = military.NavalPriority.Where(IsWater).ToImmutableArray(),
+                    OrdinaryFacilityIds = military.OrdinaryFacilityIds.Where(facilities.Contains).ToImmutableArray(),
+                    AggressiveRulerIds = military.AggressiveRulerIds.Where(people.Contains).ToImmutableArray(),
+                    FortifiedFacilityIds = military.FortifiedFacilityIds.Where(facilities.Contains).ToImmutableArray(),
+                    RouteObstacleFacilityIds = military.RouteObstacleFacilityIds.Where(facilities.Contains).ToImmutableArray(),
+                    SlowTerrainIds = military.SlowTerrainIds.Where(terrains.Contains).ToImmutableArray(),
+                    FrontierFacilityReserves = military.FrontierFacilityReserves.Where(p => facilities.Contains(p.Key)).ToImmutableDictionary(),
+                    HarborReliefTacticId = military.HarborReliefTacticId is int tactic &&
+                        content.Military?.Tactics.Any(t => t.Id == tactic) == true ? tactic : null
+                }
+            };
+            restoredPolicy.Validate(people, content.Military);
+            restoredPolicy.Military.Validate(people, content.Military);
+            return (this with { Policy = restoredPolicy }).Reconcile(world);
         }
         catch (InvalidDataException error) { throw new ArgumentException("Invalid saved original AI policy.", error); }
     }

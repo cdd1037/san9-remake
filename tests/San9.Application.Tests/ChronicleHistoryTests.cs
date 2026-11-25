@@ -140,6 +140,27 @@ public sealed class ChronicleHistoryTests(Xunit.Abstractions.ITestOutputHelper o
     }
 
     [Fact]
+    public void RetiredHistoricalRankDoesNotBlockRestorationOrOtherChronicleLines()
+    {
+        var definition = MissionScenario.Create();
+        var session = GameSession.Start(definition, 42);
+        var snapshot = session.Capture();
+        var fact = snapshot.History.First(f => f.ForceId == 1) with
+        {
+            Role = "rank-appointed",
+            Values = snapshot.History.First(f => f.ForceId == 1).Values.SetItem("name",
+                MessageBinding.Reference(MessageEntityKind.Rank, 99999))
+        };
+        var saved = snapshot with { History = snapshot.History.Add(fact) };
+        var restored = SaveService.Load(SaveService.EncodeSnapshot(saved), definition);
+        Assert.Equal(saved.History.Count, restored.History.Count);
+        var texts = ChronicleTestContent.AddTo(MissionScenario.Texts(restored.View));
+        var page = ChroniclePresentation.Read(restored, texts, ChronicleTestContent.Definition());
+        Assert.Contains(page.Lines, l => l.BbCode.Contains("原资料已变更或缺失", StringComparison.Ordinal));
+        Assert.Contains(page.Lines, l => !l.BbCode.Contains("原资料已变更或缺失", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void CommittedHistorySurvivesBackgroundPublicationAndPlayerLoad()
     {
         var definition = MissionScenario.Create();

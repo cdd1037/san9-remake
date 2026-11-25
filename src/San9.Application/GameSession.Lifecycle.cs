@@ -99,7 +99,7 @@ public sealed partial class GameSession
         session.NextOperationSequence = snapshot.NextOperationSequence;
         session._ending = snapshot.Ending;
         session._strategicContexts = Presentation.StrategicContext.RestorePublications(session.View, snapshot.StrategicContexts);
-        session._originalAi = snapshot.OriginalAi;
+        session._originalAi = snapshot.OriginalAi.Restore(session.Snapshot, owned.Content);
         session.PlayerForceController = snapshot.PlayerForceController;
         session.InitialPlayerForceIds = snapshot.InitialPlayerForceIds;
         session.HasUnsavedChanges = false;

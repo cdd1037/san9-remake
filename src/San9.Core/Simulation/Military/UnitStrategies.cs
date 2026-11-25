@@ -278,10 +278,7 @@ internal sealed class UnitStrategyRule(SimulationRules rules) : TaskRule
             ? task.Reinforcements is { Soldiers: > 0 and <= 3000, Morale: >= 0 and <= 100 } troops && (ulong)troops.Soldiers + troops.Wounded <= 3000
             : task.Reinforcements is null) &&
         DurationDays(task) >= 0;
-    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route } journey &&
-        rules.Personnel.Places.ContainsKey(task.OriginSettlementId) &&
-        rules.Personnel.Places.ContainsKey(journey.DestinationPlaceId) &&
-        (!route.FieldDestination || rules.Military?.RegionAt(route.Destination) == journey.DestinationPlaceId)
+    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route }
         ? Math.Max(0, route.Days - 1) : -1;
 
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&

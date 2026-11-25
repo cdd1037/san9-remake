@@ -122,12 +122,8 @@ internal sealed class BurnRule(SimulationRules rules) : TaskRule
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
         { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null,
           UnitStrategy: null, Burn: { TargetSettlementId: >= 0 } burn, Seize: null, Gossip: null, Route: { FieldDestination: false } } journey &&
-        journey.DestinationPlaceId == burn.TargetSettlementId && rules.Personnel.Places.TryGetValue(burn.TargetSettlementId, out var target) &&
-        DurationDays(task) >= 0;
-    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route } journey &&
-        rules.Personnel.Places.ContainsKey(task.OriginSettlementId) &&
-        rules.Personnel.Places.ContainsKey(journey.DestinationPlaceId) &&
-        (!route.FieldDestination || rules.Military?.RegionAt(route.Destination) == journey.DestinationPlaceId)
+        journey.DestinationPlaceId == burn.TargetSettlementId && DurationDays(task) >= 0;
+    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route }
         ? Math.Max(0, route.Days - 1) : -1;
 
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&

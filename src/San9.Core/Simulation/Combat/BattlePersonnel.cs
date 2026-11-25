@@ -98,7 +98,7 @@ internal static class BattlePersonnel
 
     internal static void ResumeReturn(WorldMutation world, PersistentTask task, SimulationRules rules, List<DomainEvent> events)
     {
-        if (task.Journey?.ReturnLeg?.FieldTravel != true)
+        if (task.Journey?.ReturnLeg?.FieldTravel != true || rules.Military is null)
         {
             PersonnelReturns.Start(world, task, rules.Personnel, events, world.CurrentDateCountdownConsumed, interrupted: true);
             return;

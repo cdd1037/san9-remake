@@ -153,6 +153,6 @@ public sealed class G08RegressionTests
         Assert.Equal(new WorldPosition(60, 0), returning.Journey.Route.Destination);
         Assert.Equal(9, returning.Journey.ReturnLeg!.CountdownDays);
         world.Replace(world.Settlements[1] with { Facility = new(1, new(300, 0)) });
-        Assert.True(new PersonnelReturnRule(rules.Personnel, rules.Military).Validate(world, returning));
+        Assert.True(new PersonnelReturnRule(rules.Personnel).Validate(world, returning));
     }
 }

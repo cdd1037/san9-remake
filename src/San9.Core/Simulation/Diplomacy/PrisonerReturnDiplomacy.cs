@@ -144,7 +144,7 @@ internal sealed class PrisonerReturnRule(SimulationRules rules) : TaskRule
         (task.ResolutionStep == 0 ? mission.Offer is null : mission.Offer is { IsValid: true }) && task.Journey is
         { TargetOfficerId: null, SuccessRoll: null, ReturnLeg: null,
           UnitStrategy: null, Burn: null, Seize: null, Gossip: null } && DurationDays(task) >= 0;
-    internal override int DurationDays(PersistentTask task) => DiplomacyJourney.Duration(task, rules);
+    internal override int DurationDays(PersistentTask task) => DiplomacyJourney.Duration(task);
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) && PrisonerReturnDiplomacy.Valid(world, task, rules);
     internal override int? DecisionRecipient(WorldMutation world, PersistentTask task)
     {

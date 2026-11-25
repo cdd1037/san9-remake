@@ -20,7 +20,9 @@ public sealed record ControlEndedEvent(string ControllerId, int ForceId) : Domai
 internal abstract class TaskRule
 {
     internal virtual TaskResolutionPhase Phase => TaskResolutionPhase.DailyCommands;
-    // Calendar-day offset from submission to this rule's resolution phase.
+    // The committed schedule and payload describe the mission accepted at dispatch.
+    // Do not re-evaluate current geography, eligibility or content parameters here.
+    // Validate(world, task) checks execution prerequisites and the pipeline handles invalidated missions.
     internal abstract int DurationDays(PersistentTask task);
     internal virtual bool HasValidPayload(PersistentTask task) => task.Journey is null;
     internal virtual bool SupportsResolutionStep(int step) => step == 0;

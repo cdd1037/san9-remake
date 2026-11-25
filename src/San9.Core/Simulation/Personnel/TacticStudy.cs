@@ -109,13 +109,14 @@ internal sealed class TacticStudyRule(SimulationRules rules) : TaskRule
 {
     internal override int DurationDays(PersistentTask task) => 90;
     internal override bool HasValidPayload(PersistentTask task) => task.Kind == TacticStudy.Kind && task.Started.Boundary.Quarter &&
-        task.StudyTacticId is int tactic && rules.Personnel.TacticCourses.TryGetValue(task.OriginSettlementId, out int course) && tactic == course &&
-        rules.Military?.Tactics.ContainsKey(tactic) == true && task.Journey is { TargetOfficerId: null, SuccessRoll: null, ReturnLeg: null,
+        task.StudyTacticId is >= 0 && task.Journey is { TargetOfficerId: null, SuccessRoll: null, ReturnLeg: null,
             UnitStrategy: null, Burn: null, Seize: null, Gossip: null, Route.FieldDestination: false } journey &&
         journey.DestinationPlaceId == task.OriginSettlementId && journey.Route.Origin == journey.Route.Destination &&
-        journey.Route.Origin == rules.Personnel.Places[task.OriginSettlementId].Position &&
         task.Gift is null && task.PrisonerReturn is null && task.AttackRequest is null && task.Surrender is null && task.Reinforcements is null;
-    internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task);
+    // Enrollment has already selected the tactic. New course assignments affect new offers only.
+    // If its definition is no longer executable, the quarter completion path cancels the task.
+    internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&
+        rules.Military?.Tactics.TryGetValue(task.StudyTacticId!.Value, out var tactic) == true && tactic.Category is >= 0 and <= 8;
     internal override void Complete(WorldMutation world, PersistentTask task, List<DomainEvent> events)
     {
         if (TacticStudy.PlayerCity(world, task.OriginSettlementId))

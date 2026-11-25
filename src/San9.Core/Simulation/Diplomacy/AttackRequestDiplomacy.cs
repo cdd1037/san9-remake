@@ -196,7 +196,7 @@ internal sealed class AttackRequestRule(SimulationRules rules) : TaskRule
         (task.ResolutionStep == 0 ? mission.Offer is null : mission.Offer is { IsValid: true }) && task.Journey is
         { TargetOfficerId: null, SuccessRoll: >= 0 and < 100, ReturnLeg: null,
           UnitStrategy: null, Burn: null, Seize: null, Gossip: null } && DurationDays(task) >= 0;
-    internal override int DurationDays(PersistentTask task) => DiplomacyJourney.Duration(task, rules);
+    internal override int DurationDays(PersistentTask task) => DiplomacyJourney.Duration(task);
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&
         AttackRequestDiplomacy.Target(world, task.ForceId, task.AttackRequest!.TargetForceId, task.AttackRequest.TargetSettlementId) &&
         (AttackRequestDiplomacy.Duplicate(world, task.ForceId, task.AttackRequest.TargetForceId, task.AttackRequest.TargetSettlementId) ||

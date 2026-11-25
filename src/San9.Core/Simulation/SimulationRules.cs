@@ -25,7 +25,7 @@ public class SimulationRules
     public MilitaryRulebook? Military { get; init; }
     internal OfficerAbilityRules Abilities => new(Treasures, Governance, OfficerGrowth);
     internal virtual TaskRule? FindTask(string kind) => kind is PersonnelMissions.RecruitKind or PersonnelMissions.MoveKind or PersonnelMissions.SearchKind
-        ? new PersonnelMissionRule(this, kind) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel, Military)
+        ? new PersonnelMissionRule(this, kind) : kind == PersonnelReturns.Kind ? new PersonnelReturnRule(Personnel)
         : kind == UnitStrategies.Kind ? new UnitStrategyRule(this) : kind == BurnStrategies.Kind ? new BurnRule(this)
         : kind == AlienateStrategies.Kind ? new AlienateRule(this)
         : kind == SeizeStrategies.Kind ? new SeizeRule(this)

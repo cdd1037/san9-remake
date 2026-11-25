@@ -255,7 +255,7 @@ internal static class WorldInvariants
                     }) ||
                     sim.PendingDailyTask is not { } pendingSearch || pendingSearch.RemainingTaskIds[0] != task.Id))
                 throw new ArgumentException("Invalid search encounter context.");
-            if ((task.Kind == TacticStudy.Kind) != (task.StudyTacticId is not null) || task.StudyTacticId < 0 || task.Kind == TacticStudy.Kind && task.Started.DayNumber - sim.Started.DayNumber < 30)
+            if ((task.Kind == TacticStudy.Kind) != (task.StudyTacticId is not null) || task.StudyTacticId < 0 || task.Kind == TacticStudy.Kind && !task.Started.Boundary.Quarter)
                 throw new ArgumentException("Invalid study task payload.");
             if (task.Surrender is { } surrender && (task.Kind != SurrenderDiplomacy.Kind || task.Gift is not null ||
                 task.PrisonerReturn is not null || task.AttackRequest is not null || !state.Forces.ContainsKey(surrender.TargetForceId) ||
@@ -315,7 +315,7 @@ internal static class WorldInvariants
                 journey.Gossip is { } gossip && (gossip.FirstTargetForceId < 0 || gossip.SecondTargetForceId < 0 ||
                     gossip.FirstTargetForceId == gossip.SecondTargetForceId || journey.UnitStrategy is not null ||
                     journey.Burn is not null || journey.Seize is not null || journey.TargetOfficerId is not null) ||
-                journey.TargetOfficerId is int target && !state.Officers.ContainsKey(target)))
+                journey.TargetOfficerId is int target && !state.AllOfficers.ContainsKey(target)))
                 throw new ArgumentException("Invalid personnel journey.");
         }
     }

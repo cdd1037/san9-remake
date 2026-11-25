@@ -178,10 +178,7 @@ internal sealed class GossipRule(SimulationRules rules) : TaskRule
         gossip.FirstTargetForceId != gossip.SecondTargetForceId &&
         DurationDays(task) >= 0;
 
-    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route } journey &&
-        rules.Personnel.Places.ContainsKey(task.OriginSettlementId) &&
-        rules.Personnel.Places.ContainsKey(journey.DestinationPlaceId) &&
-        (!route.FieldDestination || rules.Military?.RegionAt(route.Destination) == journey.DestinationPlaceId)
+    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route }
         ? Math.Max(0, route.Days - 1) : -1;
 
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&

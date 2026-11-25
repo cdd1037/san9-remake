@@ -165,6 +165,8 @@ internal static class WorldInvariants
             sim.Controls.Select(c => c.ForceId).Distinct().Count() != sim.Controls.Length ||
             sim.Boundary != SimulationBoundary.Terminal && (!state.Clock.IsXunBoundary && !sim.HasPendingDailyResolution && sim.DailyAdvanceStarted is null || sim.TerminalReason is not null) ||
             sim.Boundary == SimulationBoundary.Terminal && (!TerminalEvaluation.IsKnownReason(sim.TerminalReason) || !sim.Tasks.IsEmpty) ||
+            sim.TerminalWinnerId is int winner && (sim.TerminalReason != "conquest" ||
+                !state.Forces.TryGetValue(winner, out var victorious) || victorious.IsEliminated || victorious.IsBarbarian) ||
             sim.RandomStreams.Any(s => string.IsNullOrWhiteSpace(s.Name)) ||
             sim.RandomStreams.Select(s => s.Name).Distinct(StringComparer.Ordinal).Count() != sim.RandomStreams.Length)
             throw new ArgumentException("Invalid simulation boundary, control, sequence or random state.");

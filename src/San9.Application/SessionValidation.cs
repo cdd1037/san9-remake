@@ -46,14 +46,6 @@ internal static class SessionValidation
             throw new ArgumentException("Scenario date or control configuration mismatch.");
         var content = definition.Content;
         bool KnownMapPlace(int? id) => id is null || snapshot.World.Settlements.Any(s => s.Id == id) || content.RegionNameKeys.ContainsKey(id.Value);
-        if (snapshot.World.Simulation.Boundary == SimulationBoundary.Terminal)
-        {
-            _ = TerminalEvaluation.Evaluate(snapshot.World, content.Terminal);
-            if (snapshot.World.Simulation.TerminalReason == "time-limit" &&
-                (content.Terminal?.EndYear is not int endYear || snapshot.World.Clock.Year < endYear))
-                throw new ArgumentException("Year-limit result does not match the campaign.");
-        }
-        if (snapshot.Ending is not null) _ = EndingSession.Resolve(definition, snapshot.World, snapshot.Ending);
         static void Same(IEnumerable<int> a, IEnumerable<int> b)
         {
             if (!a.Order().SequenceEqual(b.Order())) throw new ArgumentException("Scenario identity set mismatch.");

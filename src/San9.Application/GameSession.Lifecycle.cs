@@ -69,7 +69,7 @@ public sealed partial class GameSession
             seed = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(
                 System.Security.Cryptography.RandomNumberGenerator.GetBytes(sizeof(ulong)));
         } while (seed == snapshot.World.Simulation.RunSeed);
-        var world = WorldState.Restore(snapshot.World, owned.Content.DefaultLoyalty, seed);
+        var world = WorldState.Restore(EndingSession.RestoreTerminalWorld(owned, snapshot), owned.Content.DefaultLoyalty, seed);
         SessionValidation.Validate(owned, snapshot);
         return RestoreValidated(owned, snapshot, world, factory);
     }
@@ -82,7 +82,7 @@ public sealed partial class GameSession
 
     internal static GameSession Restore(ScenarioSessionDefinition owned, SessionSnapshot snapshot, Func<WorldState, SimulationEngine>? factory)
     {
-        var world = WorldState.Restore(snapshot.World, owned.Content.DefaultLoyalty);
+        var world = WorldState.Restore(EndingSession.RestoreTerminalWorld(owned, snapshot), owned.Content.DefaultLoyalty);
         SessionValidation.Validate(owned, snapshot);
         return RestoreValidated(owned, snapshot, world, factory);
     }
@@ -97,7 +97,7 @@ public sealed partial class GameSession
         session.History = snapshot.History;
         session.DeploymentPresets = snapshot.DeploymentPresets;
         session.NextOperationSequence = snapshot.NextOperationSequence;
-        session._ending = snapshot.Ending;
+        session._ending = EndingSession.RestoreSelection(owned, session.Snapshot, snapshot.Ending);
         session._strategicContexts = Presentation.StrategicContext.RestorePublications(session.View, snapshot.StrategicContexts);
         session._originalAi = snapshot.OriginalAi.Restore(session.Snapshot, owned.Content);
         session.PlayerForceController = snapshot.PlayerForceController;

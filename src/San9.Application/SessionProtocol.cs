@@ -7,7 +7,7 @@ namespace San9.Application;
 
 public static class SessionProtocol
 {
-    public const string RulesVersion = "san9-core-g10-v275";
+    public const string RulesVersion = "san9-core-g10-v276";
     public const int SaveFormatVersion = 141;
     public const int LogFormatVersion = 171;
 }
@@ -46,7 +46,12 @@ public sealed record AdvanceOperation : SessionOperation;
 public sealed record PrepareAdvanceOperation : SessionOperation;
 public sealed record AdvanceDayOperation : SessionOperation;
 public sealed record ChronicleOperation(string Text) : SessionOperation;
-public sealed record EndingSelection([property: JsonRequired] EndingPolicy Policy, [property: JsonRequired] EndingOfficeholders? Officeholders);
+public sealed record EndingSelection([property: JsonRequired] EndingPolicy Policy, [property: JsonRequired] EndingOfficeholders? Officeholders)
+{
+    // A completed ending stores its actual result. Commands provide only the selection.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EndingResult? Result { get; init; }
+}
 public sealed record EndingOperation(EndingSelection Selection) : SessionOperation;
 
 public sealed record SessionRequest(Guid Id, long Sequence, string ControllerId, SessionOperation Operation);

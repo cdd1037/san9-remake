@@ -111,6 +111,9 @@ public sealed record SimulationState(GameClock Started, ulong InitialSeed)
         PendingExecutionSuccession is null && PendingCapturedRuler is null && PendingSniping is null && Tasks.All(t => t.ResolutionStep == 0 && t.SearchEncounter is null &&
             t.AttackRequest?.Offer is null && t.PrisonerReturn?.Offer is null);
     public string? TerminalReason { get; init; }
+    // Only conquest has a winner. Missing in older saves, which remain readable.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? TerminalWinnerId { get; init; }
     public ImmutableArray<ControlSeat> Controls { get; init; } = [];
     public int ActiveControl { get; init; }
     public long NextSequence { get; init; }

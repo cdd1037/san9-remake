@@ -158,7 +158,8 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
         if (stage == ResolutionStage.TerminalCheck && rules.Terminal is not null)
         {
             var result = TerminalEvaluation.Evaluate(world.Clock, world.Simulation, world.Forces.Values, world.Settlements.Values, rules.Terminal);
-            if (result.Route != TerminalRoute.Continue) world.SetSimulation(world.Simulation with { TerminalReason = result.Reason });
+            if (result.Route != TerminalRoute.Continue) world.SetSimulation(world.Simulation with
+            { TerminalReason = result.Reason, TerminalWinnerId = result.WinningForceId });
         }
         if (!CheckTerminal(world, events)) return false;
         if (stage == ResolutionStage.XunEvents && !ChainedPlot.Apply(world, rules, events) && !ThreeVisits.Expire(world, rules, events))
@@ -277,7 +278,11 @@ internal sealed class ResolutionPipeline(SimulationRules rules)
             !world.Simulation.Controls.Any(c => c.Kind == ControllerKind.Player))
             world.SetSimulation(world.Simulation with { TerminalReason = "player-defeated" });
         else if (world.Forces.Values.Count(f => !f.IsEliminated && !f.IsBarbarian) == 1)
-            world.SetSimulation(world.Simulation with { TerminalReason = "conquest" });
+            world.SetSimulation(world.Simulation with
+            {
+                TerminalReason = "conquest",
+                TerminalWinnerId = world.Forces.Values.Single(f => !f.IsEliminated && !f.IsBarbarian).Id
+            });
     }
 
     internal void Respond(WorldMutation world, RespondDailyTaskCommand response, List<DomainEvent> events)

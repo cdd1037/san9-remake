@@ -112,10 +112,13 @@ public sealed partial class GameSession
                     catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
                     break;
                 case EndingOperation selection:
-                    if (request.ControllerId != "player" || ending is not null) return Rejected(SessionRejection.InvalidRequest);
-                    try { _ = EndingSession.Resolve(input.Definition, candidate.Snapshot, selection.Selection); }
+                    if (request.ControllerId != "player" || ending is not null || selection.Selection is null ||
+                        selection.Selection.Result is not null) return Rejected(SessionRejection.InvalidRequest);
+                    try
+                    {
+                        ending = selection.Selection with { Result = EndingSession.Resolve(input.Definition, candidate.Snapshot, selection.Selection) };
+                    }
                     catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
-                    ending = selection.Selection;
                     break;
                 case ForceControlOperation:
                 case HandOverAllForcesOperation:

@@ -31,7 +31,7 @@ public sealed partial class GameSession
     public TerminalResult GetTerminalResult() => Snapshot.Simulation.Boundary == SimulationBoundary.Terminal
         ? TerminalEvaluation.Evaluate(Snapshot, _definition.Content.Terminal) : new(TerminalRoute.Continue, null, null);
     public EndingSnapshot? GetEndingPrompt() => _ending is null ? EndingSession.Create(_definition, Snapshot) : null;
-    public EndingResult? Ending => _ending is null ? null : EndingSession.Resolve(_definition, Snapshot, _ending);
+    public EndingResult? Ending => _ending?.Result;
     public TacticStudyPrompt? GetTacticStudyPrompt() => _simulation.GetTacticStudyPrompt();
 
     public SnipingSuccessionPrompt? GetSnipingSuccessionPrompt() => _simulation.GetSnipingSuccessionPrompt();

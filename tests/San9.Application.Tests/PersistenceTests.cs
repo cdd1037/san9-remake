@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using San9.Application.Persistence;
+using San9.Application.Presentation;
 using San9.Content.Scenarios;
 using San9.Core.Domain;
 using San9.Core.Simulation;
@@ -60,6 +61,44 @@ public sealed class PersistenceTests : IDisposable
         Assert.Equal(2, Assert.Single(GameSession.Start(changed, 190).Snapshot.Treasures).Id);
         Assert.Equal(savedTreasure, Assert.Single(SaveService.Load(bytes, changed).Snapshot.Treasures));
         Assert.Equal(savedTreasure, Assert.Single(SaveService.Decode(bytes, changed).Snapshot.Treasures));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void HistoricalTreasureAdviceUsesDefinitionsNotCurrentPlacements(bool keepDefinition)
+    {
+        var definition = Fixture();
+        var session = GameSession.Start(definition, 190);
+        var save = SaveService.Capture(session);
+        var clock = session.Snapshot.Clock;
+        var context = session.StrategicContext with
+        {
+            Prompts = [new("treasure-city", 2, 1, 1, PlaceId: 1, CityId: 1, TreasureId: 1),
+                new("food-shortage", 2, 1, 1)],
+            Clues = [new(StrategicClueKind.Treasure, clock, null, 1, 1, false),
+                new(StrategicClueKind.Person, clock, 2, null, 1, false)]
+        };
+        // The item has left the campaign; its earlier discovery remains a historical fact.
+        save = save with { Session = save.Session with
+        {
+            World = save.Session.World with { Treasures = [] },
+            StrategicContexts = save.Session.StrategicContexts.SetItem(1, context)
+        } };
+        var revised = keepDefinition ? definition : definition with
+        {
+            Information = definition.Information with { Treasures = [], TreasureStates = [] }
+        };
+        byte[] bytes = CanonicalJson.Encode(save);
+        foreach (var restored in new[] { SaveService.Decode(bytes, revised), SaveService.Load(bytes, revised) })
+        {
+            Assert.Empty(restored.Snapshot.Treasures);
+            Assert.Equal(context.Clock, restored.StrategicContext.Clock);
+            Assert.Contains(restored.StrategicContext.Prompts, p => p.Role == "food-shortage");
+            Assert.Contains(restored.StrategicContext.Clues, c => c.OfficerId == 2);
+            Assert.Equal(keepDefinition, restored.StrategicContext.Prompts.Any(p => p.TreasureId == 1));
+            Assert.Equal(keepDefinition, restored.StrategicContext.Clues.Any(c => c.TreasureId == 1));
+        }
     }
 
     [Fact]

@@ -237,6 +237,29 @@ public sealed class DeploymentPresetTests
 
     }
 
+    [Fact]
+    public void UnavailableFormationInStoredPreferenceDoesNotPreventLoadOrManagement()
+    {
+        var definition = Fixture();
+        var session = GameSession.Start(definition, 190);
+        var draft = new DeploymentDraft(session.View, 1);
+        Assert.True(draft.SetMembers([1, 2]));
+        var preset = draft.CreatePreset(Guid.NewGuid(), "旧编队", DeploymentSoldierMode.Maximum);
+        Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(new SaveDeploymentPresetOperation(preset))).Disposition);
+        // The current formation still exists for normal deployment, but its available positions shrank.
+        var military = definition.Military!;
+        var changed = definition with { Military = military with
+        {
+            Formations = military.Formations.Select(f => f with { OfficerCapacity = 1 }).ToImmutableArray()
+        } };
+        var restored = SaveService.Load(SaveService.Encode(session), changed);
+        var saved = Assert.Single(restored.DeploymentPresets);
+        Assert.Equal(preset.Id, saved.Id);
+        Assert.Equal(DeploymentPresetFailure.InvalidPreset, new DeploymentDraft(restored.View, 1).CheckPreset(saved).Failure);
+        Assert.Equal(SessionDisposition.Accepted, restored.Apply(restored.Request(new SaveDeploymentPresetOperation(saved with { Name = "旧方案" }))).Disposition);
+        Assert.Equal(SessionDisposition.Accepted, restored.Apply(restored.Request(new DeleteDeploymentPresetOperation(saved.Id))).Disposition);
+    }
+
     private static ScenarioInitialState Fixture()
     {
         var basis = G01ScenarioTests.Fixture();

@@ -99,6 +99,30 @@ public sealed class ForceActivationSearchTests
     }
 
     [Fact]
+    public void RestoredDormantGroupWithChangedCapacityCannotActivateUntilEligible()
+    {
+        var state = World(); var m = state.BeginMutation();
+        m.SetSimulation(m.Simulation with { Boundary = SimulationBoundary.Stable });
+        m.Replace(m.AllSettlements[3] with { SoldierCapacity = 200000 });
+        state.Commit(m);
+        var rules = Rules();
+        var restored = WorldState.Restore(state.CreateSnapshot());
+        _ = new SimulationEngine(restored, rules);
+        var candidate = restored.BeginMutation();
+        List<DomainEvent> events = [];
+        Assert.False(ForceActivationSearch.TryResolve(candidate, Task(), Definition(), rules, events));
+        Assert.True(candidate.AllForces[2].IsDormant);
+        Assert.Empty(events);
+        Assert.Empty(candidate.Simulation.ConsumedEventKeys);
+
+        // The same rule and starting capacity remain invalid for a fresh opening.
+        var opening = World(); var initial = opening.BeginMutation();
+        initial.Replace(initial.AllSettlements[3] with { SoldierCapacity = 200000 });
+        opening.Commit(initial);
+        Assert.Throws<ArgumentException>(() => new SimulationEngine(opening, rules));
+    }
+
+    [Fact]
     public void DormantPlacesCannotBeSearchedEvenWithoutRegionAssociation()
     {
         var m = World().BeginMutation();

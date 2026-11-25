@@ -85,6 +85,33 @@ public sealed class OriginalAiCycleTests
     }
 
     [Fact]
+    public void RestoreDropsOnlyObsoleteAiReferencesAndKeepsScheduling()
+    {
+        var content = G01ScenarioTests.Fixture();
+        var envelope = SaveService.Capture(GameSession.Start(content, 190));
+        var state = envelope.Session.OriginalAi;
+        var obsolete = state with
+        {
+            Policy = state.Policy with
+            {
+                DiplomacyFacilityPriorities = state.Policy.DiplomacyFacilityPriorities.Add(9999, 12),
+                PreferredStrategyRulerIds = [1, 9999],
+                Military = state.Policy.Military with { HarborReliefTacticId = 9999, SlowTerrainIds = [9999] }
+            },
+            Corps = [new(1, OriginalAiMode.TargetSettlement, null, 9999), new(9999, OriginalAiMode.General, null, null)]
+        };
+        var restored = SaveService.Decode(CanonicalJson.Encode(envelope with
+        { Session = envelope.Session with { OriginalAi = obsolete } }), content).Capture().OriginalAi;
+        Assert.Equal(state.Forces.ToArray(), restored.Forces.ToArray());
+        Assert.Equal(state.NextSchedulingKey, restored.NextSchedulingKey);
+        Assert.Equal(new[] { 1 }, restored.Policy.PreferredStrategyRulerIds.ToArray());
+        Assert.Empty(restored.Policy.DiplomacyFacilityPriorities);
+        Assert.Empty(restored.Policy.Military.SlowTerrainIds);
+        Assert.Null(restored.Policy.Military.HarborReliefTacticId);
+        Assert.Equal(new OriginalAiCorpsState(1, OriginalAiMode.General, null, null), Assert.Single(restored.Corps));
+    }
+
+    [Fact]
     public void FailedCompositeAdvanceRollsBackEconomicCommandsStrategyAndOperationIdentity()
     {
         var content = G01ScenarioTests.Fixture();

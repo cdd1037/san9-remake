@@ -143,7 +143,7 @@ internal static class AttackRequests
     {
         var requests = world.Simulation.AttackRequests;
         if (requests.IsDefault || requests.Any(r => r is null || !Valid(world, r)) ||
-            !requests.Select(r => r.RequestedForceId).SequenceEqual(requests.Select(r => r.RequestedForceId).Distinct().Order()))
+            requests.Select(r => r.RequestedForceId).Distinct().Count() != requests.Length)
             throw new ArgumentException("Invalid directed attack requests.");
     }
 }

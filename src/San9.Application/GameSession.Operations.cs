@@ -80,11 +80,19 @@ public sealed partial class GameSession
                         return Rejected(SessionRejection.InvalidRequest);
                     if (candidate.Snapshot.Simulation.Boundary != SimulationBoundary.Stable || originalAi.Continuation is not null)
                         return Rejected(SessionRejection.NotStable);
-                    try { savePreset.Preset.Validate(input.View); }
-                    catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
                     var previousPreset = deploymentPresets.FirstOrDefault(p => p.Id == savePreset.Preset.Id);
                     if (previousPreset is not null && previousPreset.ForceId != savePreset.Preset.ForceId)
                         return Rejected(SessionRejection.InvalidRequest);
+                    try
+                    {
+                        // Renaming an unavailable old preference does not submit a new deployment layout.
+                        savePreset.Preset.ValidateStored(input.View.World);
+                        bool renameOnly = previousPreset is not null &&
+                            previousPreset.Members.SequenceEqual(savePreset.Preset.Members) &&
+                            (previousPreset with { Name = savePreset.Preset.Name, Members = savePreset.Preset.Members }) == savePreset.Preset;
+                        if (!renameOnly) savePreset.Preset.Validate(input.View);
+                    }
+                    catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
                     deploymentPresets = previousPreset is null ? deploymentPresets.Add(savePreset.Preset)
                         : deploymentPresets.Replace(previousPreset, savePreset.Preset);
                     break;
@@ -104,10 +112,13 @@ public sealed partial class GameSession
                     catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
                     break;
                 case EndingOperation selection:
-                    if (request.ControllerId != "player" || ending is not null) return Rejected(SessionRejection.InvalidRequest);
-                    try { _ = EndingSession.Resolve(input.Definition, candidate.Snapshot, selection.Selection); }
+                    if (request.ControllerId != "player" || ending is not null || selection.Selection is null ||
+                        selection.Selection.Result is not null) return Rejected(SessionRejection.InvalidRequest);
+                    try
+                    {
+                        ending = selection.Selection with { Result = EndingSession.Resolve(input.Definition, candidate.Snapshot, selection.Selection) };
+                    }
                     catch (ArgumentException) { return Rejected(SessionRejection.InvalidRequest); }
-                    ending = selection.Selection;
                     break;
                 case ForceControlOperation:
                 case HandOverAllForcesOperation:

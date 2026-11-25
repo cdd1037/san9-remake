@@ -191,7 +191,7 @@ public sealed class TacticStudySessionTests
     }
 
     [Fact]
-    public void RestoreRejectsForgedDecisionAndCoursePayload()
+    public void RestoreRetainsEnrollmentButRejectsForgedDecisionAndSchedule()
     {
         var definition = Scenario();
         var session = GameSession.Start(definition, 3);
@@ -203,8 +203,14 @@ public sealed class TacticStudySessionTests
         Assert.True(Choose(session, 2, null).Submission.Accepted);
         var studying = session.Capture();
         var task = Assert.Single(studying.World.Simulation.Tasks);
-        Assert.Throws<ArgumentException>(() => GameSession.Restore(definition, studying with
-        { World = studying.World with { Simulation = studying.World.Simulation with { Tasks = [task with { StudyTacticId = 9001 }] } } }));
+        var revised = definition with { TacticCourses = [] };
+        byte[] bytes = SaveService.Encode(session);
+        var restored = SaveService.Decode(bytes, revised);
+        StateAssert.Equal(studying, restored.Capture());
+        Assert.Equal(task, Assert.Single(SaveService.Load(bytes, revised).Snapshot.Simulation.Tasks));
+        for (int i = 0; i < 9; i++) restored.AdvanceXun();
+        Assert.Contains(9000, restored.Snapshot.Officers.Single(p => p.Id == 2).LearnedTactics);
+        Assert.Empty(restored.Snapshot.Simulation.Tasks);
         Assert.Throws<ArgumentException>(() => GameSession.Restore(definition, studying with
         { World = studying.World with { Simulation = studying.World.Simulation with { Tasks = [task with { Due = task.Due.NextDay() }] } } }));
     }

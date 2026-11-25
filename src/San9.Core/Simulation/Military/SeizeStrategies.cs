@@ -192,14 +192,9 @@ internal sealed class SeizeRule(SimulationRules rules) : TaskRule
           UnitStrategy: null, Burn: null, Seize: { TargetSettlementId: >= 0 } seize, Gossip: null,
         Route: { FieldDestination: false }
     } journey &&
-        journey.DestinationPlaceId == seize.TargetSettlementId &&
-        rules.Personnel.Places.TryGetValue(seize.TargetSettlementId, out var target) &&
-        DurationDays(task) >= 0;
+        journey.DestinationPlaceId == seize.TargetSettlementId && DurationDays(task) >= 0;
 
-    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route } journey &&
-        rules.Personnel.Places.ContainsKey(task.OriginSettlementId) &&
-        rules.Personnel.Places.ContainsKey(journey.DestinationPlaceId) &&
-        (!route.FieldDestination || rules.Military?.RegionAt(route.Destination) == journey.DestinationPlaceId)
+    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route }
         ? Math.Max(0, route.Days - 1) : -1;
 
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task) &&

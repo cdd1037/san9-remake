@@ -152,15 +152,13 @@ internal static class PersonnelReturns
     }
 }
 
-internal sealed class PersonnelReturnRule(PersonnelRulebook places, MilitaryRulebook? military) : TaskRule
+internal sealed class PersonnelReturnRule(PersonnelRulebook places) : TaskRule
 {
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is
-        { TargetOfficerId: null, SuccessRoll: null, Route: { FieldDestination: false } route,
+        { TargetOfficerId: null, SuccessRoll: null, Route: { FieldDestination: false },
           UnitStrategy: null, Burn: null, Seize: null, Gossip: null, ReturnLeg: { } leg } journey &&
-        journey.DestinationPlaceId == task.OriginSettlementId && leg.CountdownDays >= 0 && leg.CorpsId is not < 0 &&
-        (leg.FieldTravel ? military is not null :
-            places.Places.ContainsKey(leg.OriginPlaceId) && places.Places.ContainsKey(journey.DestinationPlaceId)) &&
-        leg.CountdownDays <= (leg.FieldTravel ? BattleRetreat.Days(route.Origin, route.Destination) : route.Days);
+        journey.DestinationPlaceId == task.OriginSettlementId && leg.OriginPlaceId >= 0 &&
+        leg.CountdownDays >= 0 && leg.CorpsId is not < 0;
     internal override int DurationDays(PersistentTask task) => task.Journey?.ReturnLeg is { } leg
         ? leg.AfterDailyCommands ? leg.CountdownDays : Math.Max(0, leg.CountdownDays - 1) : -1;
     internal override bool Validate(WorldMutation world, PersistentTask task) => HasValidPayload(task);

@@ -251,8 +251,7 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
     private readonly TreasureRulebook treasures = simulationRules.Treasures;
     internal override bool SupportsResolutionStep(int step) => step == 0 || kind == PersonnelMissions.SearchKind && step is 1 or 2;
     internal override bool HasValidPayload(PersistentTask task) => task.Journey is { ReturnLeg: null, Route: { } route, UnitStrategy: null, Burn: null, Seize: null, Gossip: null } journey && DurationDays(task) >= 0 &&
-        (journey.RecruitmentUnitId is int unit ? unit >= 0 && kind == PersonnelMissions.RecruitKind && route.FieldDestination &&
-            simulationRules.Military?.RegionAt(route.Destination) == journey.DestinationPlaceId : !route.FieldDestination) &&
+        (journey.RecruitmentUnitId is int unit ? unit >= 0 && kind == PersonnelMissions.RecruitKind && route.FieldDestination : !route.FieldDestination) &&
         (task.ResolutionStep == 0 ? task.SearchEncounter is null : kind == PersonnelMissions.SearchKind &&
             (task.ResolutionStep == 1 && (task.SearchEncounter is PersonSearchEncounter { OfficerId: >= 0 } ||
                 task.SearchEncounter is ScholarReturnEncounter scholar && rules.SearchEvents.GetValueOrDefault(scholar.EventId) is ScholarReturnSearchEventDefinition ||
@@ -380,13 +379,12 @@ internal sealed class PersonnelMissionRule(SimulationRules simulationRules, stri
         return null;
     }
 
-    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route } journey &&
-        rules.Places.ContainsKey(task.OriginSettlementId) && rules.Places.ContainsKey(journey.DestinationPlaceId)
+    internal override int DurationDays(PersistentTask task) => task.Journey is { Route: { } route }
         ? Math.Max(0, (kind == PersonnelMissions.SearchKind ? route.XunRoundedDays : route.Days) - 1) : -1;
 
     internal override bool Validate(WorldMutation world, PersistentTask task)
     {
-        if (task.Journey is not { } journey || DurationDays(task) < 0) return false;
+        if (task.Journey is not { } journey || !HasValidPayload(task)) return false;
         if (kind == PersonnelMissions.SearchKind)
             return journey.TargetOfficerId is null && journey.SuccessRoll is >= 0 and < 100 && world.Forces[task.ForceId].LeaderId is not null &&
                 (task.SearchEncounter switch

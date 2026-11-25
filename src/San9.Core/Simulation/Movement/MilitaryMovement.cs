@@ -60,13 +60,14 @@ public sealed record UnitAbsorbedEvent(GameClock Clock, int UnitId, int Settleme
 
 internal static class MilitaryMovement
 {
-    internal static void Validate(WorldSnapshot world, MilitaryRulebook? rules)
+    internal static void Validate(WorldSnapshot world, MilitaryRulebook? rules, bool opening = false)
     {
         if (world.Forces.Any(f => f.FormationGrants.Any(g => rules is null || !rules.Formations.ContainsKey(g.FormationId))))
             throw new ArgumentException("Unknown force formation grant.");
         if (world.Officers.Any(p => p.EquippedTacticId is int id && (rules is null || !rules.Tactics.ContainsKey(id))))
             throw new ArgumentException("Unknown equipped tactic.");
-        if (rules is not null && world.Settlements.Any(s => s.IsDestroyed &&
+        // Destruction permissions describe an action, not the existence of its past result.
+        if (opening && rules is not null && world.Settlements.Any(s => s.IsDestroyed &&
             (!rules.TryPlace(s, out var place) || !place.DestroyedAtZeroDurability && !place.CanDemolish)))
             throw new ArgumentException("Settlement definition does not permit destruction.");
         foreach (var unit in world.Units)
@@ -82,10 +83,10 @@ internal static class MilitaryMovement
                 !rules.ValidUnitFormations(id, unit.NavalFormationId) || !rules.AllowsOrder(id, unit.Order) ||
                 rules.Purpose(id) != UnitPurpose.Combat && (unit.EngagementTargetId is not null ||
                     unit.ContactTarget is { IsSettlement: false } || unit.AwaitingPostAction) ||
-                unit.NavalFormationId is int naval && (unit.Soldiers > rules.Formations[naval].SoldierCapacity ||
-                    world.Officers.Count(p => p.UnitId == unit.Id && p.IsServing) > rules.Formations[naval].OfficerCapacity) ||
+                opening && (unit.Soldiers > formation.SoldierCapacity || world.Officers.Count(p => p.UnitId == unit.Id && p.IsServing) > formation.OfficerCapacity ||
+                    unit.NavalFormationId is int naval && (unit.Soldiers > rules.Formations[naval].SoldierCapacity ||
+                        world.Officers.Count(p => p.UnitId == unit.Id && p.IsServing) > rules.Formations[naval].OfficerCapacity)) ||
                 unit.MovementRemainder >= rules.Travel(unit).Map.MaximumStepCost(rules.Travel(unit).Mode) ||
-                unit.Soldiers > formation.SoldierCapacity || world.Officers.Count(p => p.UnitId == unit.Id && p.IsServing) > formation.OfficerCapacity ||
                 rules.Travel(unit).Map.EndpointPassageCost(unit.Position, rules.Travel(unit).Mode) is null)
                 throw new ArgumentException("Invalid unit formation, location or capacity.");
             if (unit.Waypoint is { } via && rules.Travel(unit).Map.PassageCost(via, rules.Travel(unit).Shape, rules.Travel(unit).Mode, []) is null)
@@ -94,17 +95,20 @@ internal static class MilitaryMovement
                 throw new ArgumentException("Invalid navigation lookahead.");
             if (formation.Combat is not null && world.Officers.Any(p => p.IsServing && p.UnitId == unit.Id && !unit.MemberPositions.ContainsKey(p.Id)))
                 throw new ArgumentException("Missing battle member position.");
-            if (unit.Order?.Construction is { } plan && (!rules.ConstructionSites.TryGetValue((plan.RegionId, plan.Position), out var site) ||
-                !site.FacilityIds.Contains(plan.FacilityTypeId) || !world.Officers.Any(p => p.Id == plan.LeaderId && p.UnitId == unit.Id && p.IsServing)))
+            if (unit.Order?.Construction is { } plan && (!rules.Facilities.ContainsKey(plan.FacilityTypeId) ||
+                !world.Officers.Any(p => p.Id == plan.LeaderId) ||
+                opening && (!rules.ConstructionSites.TryGetValue((plan.RegionId, plan.Position), out var site) ||
+                    !site.FacilityIds.Contains(plan.FacilityTypeId) || !world.Officers.Any(p => p.Id == plan.LeaderId && p.UnitId == unit.Id && p.IsServing))))
                 throw new ArgumentException("Invalid construction plan.");
         }
         foreach (var settlement in world.Settlements.Where(s => s.Facility is not null))
         {
             var instance = settlement.Facility!;
             if (rules is null || !rules.Facilities.TryGetValue(instance.TypeId, out var type) ||
-                !rules.ConstructionSites.TryGetValue((settlement.Id, instance.Position), out var site) || !site.FacilityIds.Contains(type.Id) ||
-                settlement.MaxDurability != type.MaxDurability || settlement.SoldierCapacity != type.SoldierCapacity ||
-                settlement.ConsumesFood != type.ConsumesFood || !settlement.IsDestroyed && settlement.CanHostPersons != (instance.BuilderUnitId is null && type.CanHostPersons))
+                instance.Position.X >= rules.Map.FineWidth || instance.Position.Y >= rules.Map.FineHeight ||
+                opening && (!rules.ConstructionSites.TryGetValue((settlement.Id, instance.Position), out var site) || !site.FacilityIds.Contains(type.Id) ||
+                    settlement.MaxDurability != type.MaxDurability || settlement.SoldierCapacity != type.SoldierCapacity ||
+                    settlement.ConsumesFood != type.ConsumesFood || !settlement.IsDestroyed && settlement.CanHostPersons != (instance.BuilderUnitId is null && type.CanHostPersons)))
                 throw new ArgumentException("Invalid constructed facility state.");
         }
     }

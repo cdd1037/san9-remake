@@ -102,7 +102,7 @@ public sealed partial class SimulationEngine
         rules.Terminal?.Validate(snapshot.Settlements.Where(s => s.Kind == SettlementKind.City).Select(s => s.Id).ToHashSet());
         _world = world;
         _rules = rules;
-        MilitaryMovement.Validate(snapshot, rules.Military);
+        MilitaryMovement.Validate(snapshot, rules.Military, world.Simulation.Boundary == SimulationBoundary.New);
         rules.Economy.Validate();
         rules.Economy.ImperialCourt.Validate(snapshot.Officers.Select(p => p.Id).ToHashSet());
         _pipeline = new(rules);
@@ -115,8 +115,9 @@ public sealed partial class SimulationEngine
         initial.RebuildForceTrust();
         PoliticalEvents.ValidateRules(initial, rules);
         EmperorTransfer.ValidateRules(initial, rules);
-        rules.ValidateEvents(initial);
-        if (initial.Corps.Values.Any(c => !CorpsDelegations.Valid(initial, c, rules.Military)))
+        rules.ValidateEventDefinitions(initial);
+        if (world.Simulation.Boundary == SimulationBoundary.New) rules.ValidateInitialEventState(initial);
+        if (world.Simulation.Boundary == SimulationBoundary.New && initial.Corps.Values.Any(c => !CorpsDelegations.Valid(initial, c, rules.Military)))
             throw new ArgumentException("Invalid corps delegation target.");
         foreach (var task in world.Simulation.Tasks)
             if (rules.FindTask(task.Kind) is not TaskRule rule || !rule.SupportsResolutionStep(task.ResolutionStep) ||

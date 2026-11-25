@@ -20,6 +20,59 @@ public sealed record StrategicContextState(GameClock? Clock, ImmutableArray<int>
 /// <summary>Once-per-strategy-entry publication owned by the session, including authorized hidden-location clues.</summary>
 public static class StrategicContext
 {
+    // Publication history is not an executable world reference. Keep resolvable historical
+    // identities (including treasures no longer placed in the world) and omit unusable entries.
+    internal static ImmutableDictionary<int, StrategicContextState> RestorePublications(StrategySnapshot view,
+        ImmutableDictionary<int, StrategicContextState>? saved)
+    {
+        if (saved is null || saved.IsEmpty) return ImmutableDictionary<int, StrategicContextState>.Empty;
+        var world = view.World;
+        var players = world.Simulation.Controls.Where(c => c.Kind == ControllerKind.Player).Select(c => c.ForceId).ToHashSet();
+        var people = world.Officers.Select(p => p.Id).ToHashSet();
+        var forces = world.Forces.Select(f => f.Id).ToHashSet();
+        var places = world.Settlements.Select(s => s.Id).ToHashSet();
+        var visiblePlaces = view.Settlements.Select(s => s.Id).ToHashSet();
+        var treasures = view.Information.Treasures.Select(t => t.Id).ToHashSet();
+        bool KnownPlace(int id) => places.Contains(id) || view.RegionNameKeys.ContainsKey(id);
+        bool DisplayPlace(int? id) => id is null || visiblePlaces.Contains(id.Value) || view.RegionNameKeys.ContainsKey(id.Value);
+        bool InCampaign(GameClock clock) => clock.Year > 0 && clock.DayNumber >= world.Simulation.Started.DayNumber &&
+            clock.DayNumber <= world.Clock.DayNumber;
+        static ImmutableArray<T> Retain<T>(ImmutableArray<T> values, Func<T, bool> valid) =>
+            values.IsDefault ? [] : values.All(valid) ? values : values.Where(valid).ToImmutableArray();
+
+        var result = ImmutableDictionary.CreateBuilder<int, StrategicContextState>();
+        foreach (var (forceId, state) in saved)
+        {
+            if (!players.Contains(forceId) || state is null) continue;
+            if (state.Clock is not { } clock || !clock.IsXunBoundary || !InCampaign(clock))
+            {
+                result[forceId] = StrategicContextState.Empty;
+                continue;
+            }
+            var reported = Retain(state.ReportedEnemyUnits, id => id >= 0);
+            if (reported.Distinct().Count() != reported.Length) reported = reported.Distinct().ToImmutableArray();
+            var prompts = Retain(state.Prompts, p => p is not null && p.ForceId == forceId &&
+                ProgressPresentationDefinition.ContextRoles.Contains(p.Role) &&
+                people.Contains(p.ActorId) && people.Contains(p.RulerId) &&
+                (p.Role is not ("enemy-city" or "enemy-place" or "reinforce-from" or "reinforce-to") ||
+                    p.EnemyForceId is int enemy && enemy != forceId) &&
+                DisplayPlace(p.PlaceId) && DisplayPlace(p.OtherPlaceId) &&
+                (p.CityId is not int city || visiblePlaces.Contains(city)) &&
+                (p.EnemyForceId is not int target || forces.Contains(target)) &&
+                (p.OtherOfficerId is not int other || people.Contains(other)) &&
+                (p.TreasureId is not int treasure || treasures.Contains(treasure)));
+            var clues = Retain(state.Clues, c => c is not null && Enum.IsDefined(c.Kind) &&
+                (c.Kind != StrategicClueKind.Person || c.TreasureId is null) &&
+                (c.Kind != StrategicClueKind.Treasure || c.OfficerId is null) &&
+                InCampaign(c.Clock) && KnownPlace(c.PlaceId) &&
+                (!c.RegionOnly || c.OfficerId is null && c.TreasureId is null) &&
+                (c.OfficerId is not int person || people.Contains(person)) &&
+                (c.TreasureId is not int item || treasures.Contains(item)));
+            result[forceId] = state with { ReportedEnemyUnits = reported, Prompts = prompts, Clues = clues };
+        }
+        return result.ToImmutable();
+    }
+
     public static StrategicContextState Prepare(StrategySnapshot view, StrategicContextState previous,
         Func<int, int>? choose = null)
     {

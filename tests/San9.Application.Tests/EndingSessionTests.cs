@@ -105,7 +105,30 @@ public sealed class EndingSessionTests
     }
 
     [Fact]
-    public void RestoreRejectsForgedEndingAndPrematureYearLimit()
+    public void TerminalOutcomeRemainsCommittedAcrossChangedVictoryAndEndingRules()
+    {
+        var content = Fixture();
+        var session = GameSession.Start(content, 1);
+        Assert.Equal(1, session.Snapshot.Simulation.TerminalWinnerId);
+        Assert.Equal(SessionDisposition.Accepted, session.Apply(session.Request(
+            new EndingOperation(new(EndingPolicy.ContinentalExpansion, new(2, 3, 7, 8))))).Disposition);
+        byte[] saved = SaveService.Encode(session);
+        var revised = content with { Terminal = new([2], 350), Ending = null };
+        foreach (var restored in new[] { SaveService.Load(saved, revised), SaveService.Decode(saved, revised) })
+        {
+            Assert.Equal(1, restored.GetTerminalResult().WinningForceId);
+            Assert.Equal(TerminalRoute.PlayerVictoryEnding, restored.GetTerminalResult().Route);
+            Assert.Equal(session.Ending, restored.Ending);
+            Assert.Null(restored.GetEndingPrompt());
+        }
+
+        var limit = GameSession.Start(content with { Terminal = new([1, 2], 190) }, 1);
+        Assert.Equal("time-limit", limit.GetTerminalResult().Reason);
+        Assert.Equal("time-limit", SaveService.Load(SaveService.Encode(limit), content).GetTerminalResult().Reason);
+    }
+
+    [Fact]
+    public void RestoreRejectsForgedEndingAndContradictoryTerminalResult()
     {
         var content = Fixture();
         var session = GameSession.Start(content, 1);

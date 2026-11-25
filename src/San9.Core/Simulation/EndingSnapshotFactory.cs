@@ -15,7 +15,8 @@ public static class EndingSnapshotFactory
         var force = world.Forces.SingleOrDefault(f => f.Id == winningForceId && !f.IsDormant && !f.IsEliminated && !f.IsBarbarian)
             ?? throw new ArgumentException("The winning force must be an active ordinary force.", nameof(winningForceId));
         var cities = world.Settlements.Where(s => s.Kind == SettlementKind.City).ToDictionary(s => s.Id);
-        definition.Validate(cities.Keys.ToHashSet(), world.Treasures.Select(t => t.Id).ToHashSet());
+        // Cultural treasures are authored definitions; a particular campaign may have lost them.
+        definition.Validate(cities.Keys.ToHashSet(), treasures.Items.Keys.ToHashSet());
         var members = world.Officers.Where(o => !o.IsDormant && o.OwnerId == winningForceId && o.IsServing).OrderBy(o => o.Id).ToArray();
         if (force.LeaderId is not int rulerId || !members.Any(o => o.Id == rulerId))
             throw new ArgumentException("The winning force must have a serving ruler.", nameof(world));

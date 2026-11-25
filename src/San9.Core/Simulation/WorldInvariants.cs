@@ -142,8 +142,8 @@ internal static class WorldInvariants
         {
             San9.Core.Domain.GeneralDelegation or San9.Core.Domain.DomesticDelegation => true,
             San9.Core.Domain.DefeatForceDelegation target => target.ForceId != corps.OwnerId &&
-                state.AllForces.TryGetValue(target.ForceId, out var force) && !force.IsEliminated,
-            San9.Core.Domain.CaptureSettlementDelegation target => state.AllSettlements.TryGetValue(target.SettlementId, out var place) && !place.IsDestroyed,
+                state.AllForces.ContainsKey(target.ForceId),
+            San9.Core.Domain.CaptureSettlementDelegation target => state.AllSettlements.ContainsKey(target.SettlementId),
             _ => false
         };
     private static void ValidateSimulation(WorldMutation state)
@@ -165,6 +165,8 @@ internal static class WorldInvariants
             sim.Controls.Select(c => c.ForceId).Distinct().Count() != sim.Controls.Length ||
             sim.Boundary != SimulationBoundary.Terminal && (!state.Clock.IsXunBoundary && !sim.HasPendingDailyResolution && sim.DailyAdvanceStarted is null || sim.TerminalReason is not null) ||
             sim.Boundary == SimulationBoundary.Terminal && (!TerminalEvaluation.IsKnownReason(sim.TerminalReason) || !sim.Tasks.IsEmpty) ||
+            sim.TerminalWinnerId is int winner && (sim.TerminalReason != "conquest" ||
+                !state.Forces.TryGetValue(winner, out var victorious) || victorious.IsEliminated || victorious.IsBarbarian) ||
             sim.RandomStreams.Any(s => string.IsNullOrWhiteSpace(s.Name)) ||
             sim.RandomStreams.Select(s => s.Name).Distinct(StringComparer.Ordinal).Count() != sim.RandomStreams.Length)
             throw new ArgumentException("Invalid simulation boundary, control, sequence or random state.");
@@ -255,7 +257,7 @@ internal static class WorldInvariants
                     }) ||
                     sim.PendingDailyTask is not { } pendingSearch || pendingSearch.RemainingTaskIds[0] != task.Id))
                 throw new ArgumentException("Invalid search encounter context.");
-            if ((task.Kind == TacticStudy.Kind) != (task.StudyTacticId is not null) || task.StudyTacticId < 0 || task.Kind == TacticStudy.Kind && task.Started.DayNumber - sim.Started.DayNumber < 30)
+            if ((task.Kind == TacticStudy.Kind) != (task.StudyTacticId is not null) || task.StudyTacticId < 0 || task.Kind == TacticStudy.Kind && !task.Started.Boundary.Quarter)
                 throw new ArgumentException("Invalid study task payload.");
             if (task.Surrender is { } surrender && (task.Kind != SurrenderDiplomacy.Kind || task.Gift is not null ||
                 task.PrisonerReturn is not null || task.AttackRequest is not null || !state.Forces.ContainsKey(surrender.TargetForceId) ||
@@ -315,7 +317,7 @@ internal static class WorldInvariants
                 journey.Gossip is { } gossip && (gossip.FirstTargetForceId < 0 || gossip.SecondTargetForceId < 0 ||
                     gossip.FirstTargetForceId == gossip.SecondTargetForceId || journey.UnitStrategy is not null ||
                     journey.Burn is not null || journey.Seize is not null || journey.TargetOfficerId is not null) ||
-                journey.TargetOfficerId is int target && !state.Officers.ContainsKey(target)))
+                journey.TargetOfficerId is int target && !state.AllOfficers.ContainsKey(target)))
                 throw new ArgumentException("Invalid personnel journey.");
         }
     }

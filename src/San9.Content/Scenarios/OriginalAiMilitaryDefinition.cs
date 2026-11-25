@@ -24,12 +24,18 @@ public sealed record OriginalAiMilitaryDefinition
     [JsonRequired] public ImmutableDictionary<int, uint> FrontierFacilityReserves { get; init; } = ImmutableDictionary<int, uint>.Empty;
     [JsonRequired] public int? HarborReliefTacticId { get; init; }
 
-    public void Validate(IReadOnlySet<int> people, MilitaryDefinition? military)
+    public void ValidateStructure()
     {
         if (Formations is null || Formations.Any(p => !Enum.IsDefined(p.Key) || p.Value < 0) ||
             NavalPriority.IsDefault || OrdinaryFacilityIds.IsDefault || AggressiveRulerIds.IsDefault ||
             FortifiedFacilityIds.IsDefault || RouteObstacleFacilityIds.IsDefault || SlowTerrainIds.IsDefault ||
-            FrontierFacilityReserves is null || AggressiveRulerIds.Any(id => !people.Contains(id))) throw new InvalidDataException("Invalid AI military policy.");
+            FrontierFacilityReserves is null || AggressiveRulerIds.Any(id => id < 0)) throw new InvalidDataException("Invalid AI military policy.");
+    }
+
+    public void Validate(IReadOnlySet<int> people, MilitaryDefinition? military)
+    {
+        ValidateStructure();
+        if (AggressiveRulerIds.Any(id => !people.Contains(id))) throw new InvalidDataException("Unknown AI military ruler reference.");
         var formations = military?.Formations.Select(f => f.Id).ToHashSet() ?? [];
         var facilities = military?.Facilities.Select(f => f.Id).ToHashSet() ?? [];
         var terrains = military?.Terrains.Select(t => t.Id).ToHashSet() ?? [];

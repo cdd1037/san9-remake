@@ -21,7 +21,9 @@ public static class TerminalEvaluation
         if (simulation.TerminalReason is string reason && reason != "conquest")
             return new(TerminalRoute.ReturnToTitle, reason, null);
         var ordinary = forces.Where(f => !f.IsDormant && !f.IsEliminated && !f.IsBarbarian).OrderBy(f => f.Id).ToArray();
-        ForceState? winner = ordinary.Length == 1 ? ordinary[0] : null;
+        ForceState? winner = simulation.TerminalWinnerId is int recorded
+            ? ordinary.SingleOrDefault(f => f.Id == recorded) ?? throw new ArgumentException("Unknown recorded conquest winner.")
+            : ordinary.Length == 1 ? ordinary[0] : null;
         if (winner is null && definition is { CoreCityIds.IsEmpty: false })
         {
             var cities = settlements.Where(s => !s.IsDormant && s.Kind == SettlementKind.City && !s.IsDestroyed).ToDictionary(s => s.Id);
@@ -30,8 +32,10 @@ public static class TerminalEvaluation
         if (winner is not null)
             return new(simulation.Controls.Any(c => c.ForceId == winner.Id && c.Kind == ControllerKind.Player)
                 ? TerminalRoute.PlayerVictoryEnding : TerminalRoute.ReturnToTitle, "conquest", winner.Id);
+        // An old terminal save may lack a recorded winner and no longer match today's
+        // victory configuration. Keep the finished campaign; never manufacture a winner.
         if (simulation.TerminalReason == "conquest")
-            throw new ArgumentException("A conquest terminal state must have a winning force.");
+            return new(TerminalRoute.ReturnToTitle, "conquest", null);
         if (definition?.EndYear is int endYear && clock.Year >= endYear)
             return new(TerminalRoute.ReturnToTitle, "time-limit", null);
         return new(TerminalRoute.Continue, null, null);

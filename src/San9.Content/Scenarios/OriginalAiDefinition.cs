@@ -29,16 +29,23 @@ public sealed record OriginalAiDefinition
     [JsonRequired] public ImmutableDictionary<OriginalAiMode, ImmutableArray<OriginalAiWork>> SecondaryBatches { get; init; } = DefaultBatches;
 
 
-    public void Validate(IReadOnlySet<int> people, San9.Core.Domain.MilitaryDefinition? military)
+    public void ValidateStructure()
     {
         if (DiplomacyFacilityPriorities is null || DiplomacyFacilityPriorities.Any(p => p.Key < 0 || p.Value < 0) || FamilyRankBonuses is null || FamilyRankBonuses.Any(p => p.Key < 0 || p.Value < 0) ||
             PreferredStrategyRulerIds.IsDefault || PreferredStrategyRulerIds.Distinct().Count() != PreferredStrategyRulerIds.Length ||
-            PreferredStrategyRulerIds.Any(id => !people.Contains(id)) || WorkRules is null || SecondaryBatches is null ||
+            PreferredStrategyRulerIds.Any(id => id < 0) || WorkRules is null || SecondaryBatches is null ||
             DefaultRules.Keys.Any(w => !WorkRules.ContainsKey(w)) || WorkRules.Any(p => !Enum.IsDefined(p.Key) || p.Value is null ||
                 p.Value.OpeningWaitDays < 0 || p.Value.PeriodDays < 0 || p.Value.MaximumAttempts < 1 || p.Value.MaximumGeometricDays < 0) ||
             Enum.GetValues<OriginalAiMode>().Any(m => !SecondaryBatches.ContainsKey(m)) ||
             SecondaryBatches.Any(p => !Enum.IsDefined(p.Key) || p.Value.IsDefault || p.Value.Any(w => !Enum.IsDefined(w))))
             throw new InvalidDataException("Invalid original AI policy.");
+    }
+
+    public void Validate(IReadOnlySet<int> people, San9.Core.Domain.MilitaryDefinition? military)
+    {
+        ValidateStructure();
+        if (PreferredStrategyRulerIds.Any(id => !people.Contains(id)))
+            throw new InvalidDataException("Unknown AI ruler reference.");
         var facilities = military?.Facilities.Select(f => f.Id).ToHashSet() ?? [];
         if (DiplomacyFacilityPriorities.Keys.Any(id => !facilities.Contains(id)))
             throw new InvalidDataException("Unknown AI diplomacy facility reference.");
